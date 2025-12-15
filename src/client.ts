@@ -484,7 +484,7 @@ export class TestRailClient {
    * @returns The user
    */
   async getUserByEmail(email: string): Promise<User> {
-    return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);
+    return this.request<User>('GET', `get_user_by_email?email=${encodeURIComponent(email)}`);
   }
 
   /**
