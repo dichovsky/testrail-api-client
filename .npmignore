@@ -1,0 +1,12 @@
+node_modules
+coverage
+*.log
+.DS_Store
+src
+tests
+example.ts
+tsconfig.json
+vitest.config.ts
+.eslintrc.cjs
+.git
+.gitignore
