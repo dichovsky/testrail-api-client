@@ -21,13 +21,9 @@ import type {
   AddResultsForCasesPayload,
 } from '../src/types.js';
 
-// Mock node-fetch
-vi.mock('node-fetch', () => ({
-  default: vi.fn(),
-}));
-
-import fetch from 'node-fetch';
-const mockFetch = vi.mocked(fetch);
+// Mock global fetch
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 describe('TestRailClient', () => {
   let client: TestRailClient;

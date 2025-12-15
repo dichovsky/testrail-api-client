@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-import type { Response, RequestInit } from 'node-fetch';
 import type {
   TestRailConfig,
   Case,

@@ -14,7 +14,7 @@ A TypeScript API client for [TestRail](https://www.testrail.com/), providing a f
 - ✅ **100% Test Coverage** - Comprehensive test suite using Vitest
 - 📦 **Modern ESM** - Built as ES modules for Node.js 20+
 - 🚀 **Easy to Use** - Simple, intuitive API interface
-- 🔌 **Native Fetch** - Uses node-fetch for HTTP requests
+- 🔌 **Native Fetch** - Uses Node.js built-in fetch API (no external dependencies)
 - 📚 **Well Documented** - Complete JSDoc comments for all methods
 
 ## Installation
