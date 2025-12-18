@@ -18,7 +18,33 @@ import type {
   AddRunPayload,
   AddResultPayload,
   AddResultsForCasesPayload,
+  CacheEntry,
 } from './types.js';
+
+/**
+ * Custom error class for TestRail API errors
+ */
+export class TestRailApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly statusText?: string,
+    public readonly response?: string
+  ) {
+    super(message);
+    this.name = 'TestRailApiError';
+  }
+}
+
+/**
+ * Custom error class for configuration validation errors
+ */
+export class TestRailConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TestRailConfigError';
+  }
+}
 
 /**
  * TestRail API Client
@@ -29,58 +55,270 @@ import type {
 export class TestRailClient {
   private readonly baseUrl: string;
   private readonly auth: string;
+  private readonly timeout: number;
+  private readonly maxRetries: number;
+  private readonly enableCache: boolean;
+  private readonly cacheTtl: number;
+  private readonly cache = new Map<string, CacheEntry<unknown>>();
+  private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
 
   /**
    * Creates a new TestRail API client
    * 
    * @param config - Configuration options for the client
+   * @throws {TestRailConfigError} When configuration is invalid
    */
   constructor(config: TestRailConfig) {
+    this.validateConfig(config);
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.auth = Buffer.from(`${config.email}:${config.apiKey}`).toString('base64');
+    this.timeout = config.timeout ?? 30000; // 30 seconds default
+    this.maxRetries = config.maxRetries ?? 3;
+    this.enableCache = config.enableCache ?? true;
+    this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
+    this.rateLimiter = {
+      maxRequests: config.rateLimiter?.maxRequests ?? 100,
+      windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
+      requests: [],
+    };
   }
 
   /**
-   * Makes an HTTP request to the TestRail API
+   * Validates the TestRail configuration
+   * 
+   * @param config - Configuration to validate
+   * @throws {TestRailConfigError} When configuration is invalid
+   */
+  private validateConfig(config: TestRailConfig): void {
+    if (!config.baseUrl || typeof config.baseUrl !== 'string') {
+      throw new TestRailConfigError('baseUrl is required and must be a string');
+    }
+
+    if (!config.email || typeof config.email !== 'string') {
+      throw new TestRailConfigError('email is required and must be a string');
+    }
+
+    if (!config.apiKey || typeof config.apiKey !== 'string') {
+      throw new TestRailConfigError('apiKey is required and must be a string');
+    }
+
+    // Validate URL format
+    try {
+      const url = new URL(config.baseUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new TestRailConfigError('baseUrl must use http or https protocol');
+      }
+    } catch {
+      throw new TestRailConfigError('baseUrl must be a valid URL');
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(config.email)) {
+      throw new TestRailConfigError('email must be a valid email address');
+    }
+
+    // Validate timeout if provided
+    if (config.timeout !== undefined) {
+      if (typeof config.timeout !== 'number' || config.timeout <= 0) {
+        throw new TestRailConfigError('timeout must be a positive number');
+      }
+    }
+
+    // Validate maxRetries if provided
+    if (config.maxRetries !== undefined) {
+      if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
+        throw new TestRailConfigError('maxRetries must be a number between 0 and 10');
+      }
+    }
+  }
+
+  /**
+   * Checks and applies rate limiting
+   * 
+   * @throws {TestRailApiError} When rate limit is exceeded
+   */
+  private checkRateLimit(): void {
+    const now = Date.now();
+    const windowStart = now - this.rateLimiter.windowMs;
+    
+    // Clean old requests outside the window
+    this.rateLimiter.requests = this.rateLimiter.requests.filter(time => time > windowStart);
+    
+    if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
+      const oldestRequest = Math.min(...this.rateLimiter.requests);
+      const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
+      throw new TestRailApiError(
+        `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`
+      );
+    }
+    
+    this.rateLimiter.requests.push(now);
+  }
+
+  /**
+   * Gets cached data if available and not expired
+   * 
+   * @param cacheKey - Cache key
+   * @returns Cached data or undefined
+   */
+  private getCachedData<T>(cacheKey: string): T | undefined {
+    if (!this.enableCache) {
+      return undefined;
+    }
+    
+    const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
+    if (entry !== undefined && entry.expiry > Date.now()) {
+      return entry.data;
+    }
+    
+    // Clean expired entry
+    if (entry !== undefined) {
+      this.cache.delete(cacheKey);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Sets cached data with expiration
+   * 
+   * @param cacheKey - Cache key
+   * @param data - Data to cache
+   */
+  private setCachedData<T>(cacheKey: string, data: T): void {
+    if (!this.enableCache) {
+      return;
+    }
+    
+    this.cache.set(cacheKey, {
+      data,
+      expiry: Date.now() + this.cacheTtl,
+    });
+  }
+
+  /**
+   * Clears the entire cache
+   */
+  public clearCache(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Makes an HTTP request to the TestRail API with retry logic
    * 
    * @param method - HTTP method
    * @param endpoint - API endpoint
    * @param data - Optional request body data
+   * @param retryCount - Current retry attempt (internal use)
+   * @param skipCache - Skip cache lookup and storage
    * @returns Promise with the response data
+   * @throws {TestRailApiError} When the API request fails
    */
   private async request<T>(
     method: string,
     endpoint: string,
-    data?: unknown
+    data?: unknown,
+    retryCount = 0,
+    skipCache = false
   ): Promise<T> {
+    // Check cache for GET requests
+    if (method === 'GET' && !skipCache) {
+      const cacheKey = `${method}:${endpoint}`;
+      const cachedData = this.getCachedData<T>(cacheKey);
+      if (cachedData !== undefined) {
+        return cachedData;
+      }
+    }
+    
+    // Apply rate limiting
+    this.checkRateLimit();
+
     const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
     const headers: Record<string, string> = {
       'Authorization': `Basic ${this.auth}`,
       'Content-Type': 'application/json',
+      'User-Agent': 'TestRail API Client TypeScript/1.0.0',
     };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     const options: RequestInit = {
       method,
       headers,
+      signal: controller.signal,
     };
 
-    if (data) {
+    if (data !== undefined) {
       options.body = JSON.stringify(data);
     }
 
-    const response: Response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`TestRail API error: ${response.status} ${response.statusText} - ${errorText}`);
-    }
+    try {
+      const response: Response = await fetch(url, options);
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        
+        // Retry on server errors (5xx) or rate limiting (429)
+        if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.request<T>(method, endpoint, data, retryCount + 1);
+        }
+        
+        throw new TestRailApiError(
+          `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
+          response.status,
+          response.statusText,
+          errorText
+        );
+      }
 
-    const responseText = await response.text();
-    if (!responseText) {
-      return {} as T;
-    }
+      const responseText = await response.text();
+      if (!responseText) {
+        return {} as T;
+      }
 
-    return JSON.parse(responseText) as T;
+      try {
+        const result = JSON.parse(responseText) as T;
+        
+        // Cache successful GET responses
+        if (method === 'GET' && !skipCache) {
+          const cacheKey = `${method}:${endpoint}`;
+          this.setCachedData(cacheKey, result);
+        }
+        
+        return result;
+      } catch {
+        throw new TestRailApiError('Invalid JSON response from TestRail API');
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof TestRailApiError) {
+        throw error;
+      }
+      
+      // Retry on network errors
+      if (retryCount < this.maxRetries && (error as Error).name === 'AbortError') {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.request<T>(method, endpoint, data, retryCount + 1);
+      }
+      
+      if ((error as Error).name === 'AbortError') {
+        throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+      }
+      
+      throw new TestRailApiError(
+        `Network error: ${(error as Error).message}`,
+        undefined,
+        undefined,
+        (error as Error).message
+      );
+    }
   }
 
   // Projects
@@ -102,7 +340,7 @@ export class TestRailClient {
    */
   async getProjects(): Promise<Project[]> {
     const response = await this.request<{ projects: Project[] }>('GET', 'get_projects');
-    return response.projects || [];
+    return response.projects ?? [];
   }
 
   // Suites
@@ -143,15 +381,16 @@ export class TestRailClient {
    * Get all sections for a project and suite
    * 
    * @param projectId - The ID of the project
-   * @param suiteId - The ID of the suite
+   * @param suiteId - Optional ID of the suite to filter by
    * @returns Array of sections
    */
   async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
-    const endpoint = suiteId 
-      ? `get_sections/${projectId}&suite_id=${suiteId}`
-      : `get_sections/${projectId}`;
+    let endpoint = `get_sections/${projectId}`;
+    if (typeof suiteId === 'number') {
+      endpoint += `&suite_id=${suiteId}`;
+    }
     const response = await this.request<{ sections: Section[] }>('GET', endpoint);
-    return response.sections || [];
+    return response.sections ?? [];
   }
 
   // Cases
@@ -170,7 +409,7 @@ export class TestRailClient {
    * Get all cases for a project and suite
    * 
    * @param projectId - The ID of the project
-   * @param suiteId - The ID of the suite
+   * @param suiteId - Optional ID of the suite to filter by
    * @param sectionId - Optional section ID to filter by
    * @returns Array of cases
    */
@@ -178,11 +417,11 @@ export class TestRailClient {
     let endpoint = `get_cases/${projectId}`;
     const params: string[] = [];
     
-    if (suiteId) {
+    if (typeof suiteId === 'number') {
       params.push(`suite_id=${suiteId}`);
     }
     
-    if (sectionId) {
+    if (typeof sectionId === 'number') {
       params.push(`section_id=${sectionId}`);
     }
     
@@ -191,7 +430,7 @@ export class TestRailClient {
     }
     
     const response = await this.request<{ cases: Case[] }>('GET', endpoint);
-    return response.cases || [];
+    return response.cases ?? [];
   }
 
   /**
@@ -245,7 +484,7 @@ export class TestRailClient {
    */
   async getPlans(projectId: number): Promise<Plan[]> {
     const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
-    return response.plans || [];
+    return response.plans ?? [];
   }
 
   /**
@@ -298,7 +537,7 @@ export class TestRailClient {
    */
   async getRuns(projectId: number): Promise<Run[]> {
     const response = await this.request<{ runs: Run[] }>('GET', `get_runs/${projectId}`);
-    return response.runs || [];
+    return response.runs ?? [];
   }
 
   /**
@@ -351,7 +590,7 @@ export class TestRailClient {
    */
   async getTests(runId: number): Promise<Test[]> {
     const response = await this.request<{ tests: Test[] }>('GET', `get_tests/${runId}`);
-    return response.tests || [];
+    return response.tests ?? [];
   }
 
   // Results
@@ -364,7 +603,7 @@ export class TestRailClient {
    */
   async getResults(testId: number): Promise<Result[]> {
     const response = await this.request<{ results: Result[] }>('GET', `get_results/${testId}`);
-    return response.results || [];
+    return response.results ?? [];
   }
 
   /**
@@ -379,7 +618,7 @@ export class TestRailClient {
       'GET',
       `get_results_for_case/${runId}/${caseId}`
     );
-    return response.results || [];
+    return response.results ?? [];
   }
 
   /**
@@ -393,7 +632,7 @@ export class TestRailClient {
       'GET',
       `get_results_for_run/${runId}`
     );
-    return response.results || [];
+    return response.results ?? [];
   }
 
   /**
@@ -460,7 +699,7 @@ export class TestRailClient {
       'GET',
       `get_milestones/${projectId}`
     );
-    return response.milestones || [];
+    return response.milestones ?? [];
   }
 
   // Users
@@ -480,8 +719,15 @@ export class TestRailClient {
    * 
    * @param email - The email of the user
    * @returns The user
+   * @throws {TestRailConfigError} When email format is invalid
    */
   async getUserByEmail(email: string): Promise<User> {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new TestRailConfigError('Invalid email format');
+    }
+    
     return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);
   }
 
@@ -492,7 +738,7 @@ export class TestRailClient {
    */
   async getUsers(): Promise<User[]> {
     const response = await this.request<{ users: User[] }>('GET', 'get_users');
-    return response.users || [];
+    return response.users ?? [];
   }
 
   // Statuses

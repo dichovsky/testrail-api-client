@@ -16,6 +16,31 @@ export interface TestRailConfig {
    * TestRail API key or password
    */
   apiKey: string;
+
+  /**
+   * Request timeout in milliseconds (default: 30000ms)
+   */
+  timeout?: number;
+
+  /**
+   * Maximum number of retry attempts for failed requests (default: 3)
+   */
+  maxRetries?: number;
+
+  /**
+   * Enable caching for static resources (default: true)
+   */
+  enableCache?: boolean;
+
+  /**
+   * Cache TTL in milliseconds (default: 300000ms = 5 minutes)
+   */
+  cacheTtl?: number;
+
+  /**
+   * Rate limiting configuration (default: 100 requests per minute)
+   */
+  rateLimiter?: RateLimiterConfig;
 }
 
 /**
@@ -358,4 +383,20 @@ export interface AddResultsForCasesPayload {
  */
 export interface AddResultForCasePayload extends AddResultPayload {
   case_id: number;
+}
+
+/**
+ * Cache entry with expiration
+ */
+export interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+
+/**
+ * Rate limiter configuration
+ */
+export interface RateLimiterConfig {
+  maxRequests: number;
+  windowMs: number;
 }
