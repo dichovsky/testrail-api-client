@@ -265,7 +265,7 @@ export class TestRailClient {
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
           await new Promise(resolve => setTimeout(resolve, delay));
-          return this.request<T>(method, endpoint, data, retryCount + 1);
+          return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
         
         throw new TestRailApiError(
