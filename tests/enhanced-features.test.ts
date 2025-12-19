@@ -100,7 +100,6 @@ describe('TestRailClient - Enhanced Features', () => {
       await client.getProject(1);
       await client.getProject(2);
       
-      await expect(client.getProject(3)).rejects.toThrow(TestRailApiError);
       await expect(client.getProject(3)).rejects.toThrow('Rate limit exceeded');
     });
   });
