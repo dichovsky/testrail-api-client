@@ -434,3 +434,9 @@ Initial release with comprehensive TestRail API support:
 
 - [TestRail Official API Documentation](https://support.testrail.com/hc/en-us/articles/7077819069460-Using-the-API)
 - [TestRail](https://www.testrail.com/) - Test management platform
+
+## Buy Me A Coffee
+
+In case you want to support my work
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/dichovsky)
