@@ -19,6 +19,7 @@ export default [{
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
+    // Note: this preset relies on parserOptions.project for type-aware linting and may significantly slow linting on large projects.
     "plugin:@typescript-eslint/recommended-requiring-type-checking",
 ), {
     plugins: {
