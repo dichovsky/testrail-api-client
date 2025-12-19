@@ -64,7 +64,9 @@ export class TestRailClient {
   private readonly maxRetries: number;
   private readonly enableCache: boolean;
   private readonly cacheTtl: number;
+  private readonly cacheCleanupInterval: number;
   private readonly cache = new Map<string, CacheEntry<unknown>>();
+  private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
 
   /**
@@ -81,11 +83,17 @@ export class TestRailClient {
     this.maxRetries = config.maxRetries ?? 3;
     this.enableCache = config.enableCache ?? true;
     this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
+    this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
       requests: [],
     };
+    
+    // Start periodic cache cleanup if enabled
+    if (this.enableCache && this.cacheCleanupInterval > 0) {
+      this.startCacheCleanup();
+    }
   }
 
   /**
@@ -212,6 +220,53 @@ export class TestRailClient {
    */
   public clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Starts periodic cache cleanup to remove expired entries
+   */
+  private startCacheCleanup(): void {
+    this.cacheCleanupTimer = setInterval(() => {
+      this.cleanupExpiredCache();
+    }, this.cacheCleanupInterval);
+    
+    // Ensure timer doesn't prevent process exit in Node.js environments
+    // The unref check provides compatibility with non-Node.js environments
+    if (typeof this.cacheCleanupTimer.unref === 'function') {
+      this.cacheCleanupTimer.unref();
+    }
+  }
+
+  /**
+   * Stops periodic cache cleanup
+   */
+  private stopCacheCleanup(): void {
+    if (this.cacheCleanupTimer !== undefined) {
+      clearInterval(this.cacheCleanupTimer);
+      this.cacheCleanupTimer = undefined;
+    }
+  }
+
+  /**
+   * Removes expired entries from cache
+   */
+  private cleanupExpiredCache(): void {
+    const now = Date.now();
+    
+    // Delete expired entries in a single pass
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.expiry <= now) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Cleanup resources when client is no longer needed
+   */
+  public destroy(): void {
+    this.stopCacheCleanup();
+    this.clearCache();
   }
 
   /**

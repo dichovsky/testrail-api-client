@@ -38,6 +38,12 @@ export interface TestRailConfig {
   cacheTtl?: number;
 
   /**
+   * Cache cleanup interval in milliseconds (default: 60000ms = 1 minute)
+   * Set to 0 to disable periodic cleanup
+   */
+  cacheCleanupInterval?: number;
+
+  /**
    * Rate limiting configuration (default: 100 requests per minute)
    */
   rateLimiter?: RateLimiterConfig;
