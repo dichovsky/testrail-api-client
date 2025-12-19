@@ -59,7 +59,9 @@ export class TestRailClient {
   private readonly maxRetries: number;
   private readonly enableCache: boolean;
   private readonly cacheTtl: number;
+  private readonly cacheCleanupInterval: number;
   private readonly cache = new Map<string, CacheEntry<unknown>>();
+  private cacheCleanupTimer?: NodeJS.Timeout;
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
 
   /**
@@ -76,11 +78,17 @@ export class TestRailClient {
     this.maxRetries = config.maxRetries ?? 3;
     this.enableCache = config.enableCache ?? true;
     this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
+    this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
       requests: [],
     };
+    
+    // Start periodic cache cleanup if enabled
+    if (this.enableCache && this.cacheCleanupInterval > 0) {
+      this.startCacheCleanup();
+    }
   }
 
   /**
@@ -207,6 +215,58 @@ export class TestRailClient {
    */
   public clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Starts periodic cache cleanup to remove expired entries
+   */
+  private startCacheCleanup(): void {
+    this.cacheCleanupTimer = setInterval(() => {
+      this.cleanupExpiredCache();
+    }, this.cacheCleanupInterval);
+    
+    // Ensure timer doesn't prevent process exit
+    if (typeof this.cacheCleanupTimer.unref === 'function') {
+      this.cacheCleanupTimer.unref();
+    }
+  }
+
+  /**
+   * Stops periodic cache cleanup
+   */
+  private stopCacheCleanup(): void {
+    if (this.cacheCleanupTimer) {
+      clearInterval(this.cacheCleanupTimer);
+      delete this.cacheCleanupTimer;
+    }
+  }
+
+  /**
+   * Removes expired entries from cache
+   */
+  private cleanupExpiredCache(): void {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+    
+    // Collect keys of expired entries
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.expiry <= now) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    // Delete expired entries
+    for (const key of keysToDelete) {
+      this.cache.delete(key);
+    }
+  }
+
+  /**
+   * Cleanup resources when client is no longer needed
+   */
+  public destroy(): void {
+    this.stopCacheCleanup();
+    this.clearCache();
   }
 
   /**
