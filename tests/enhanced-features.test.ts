@@ -74,12 +74,19 @@ describe('TestRailClient - Enhanced Features', () => {
         },
       });
 
-      mockFetch.mockResolvedValue({
+      const mockResponse: {
+        ok: boolean;
+        status: number;
+        statusText: string;
+        text: () => Promise<string>;
+      } = {
         ok: true,
         status: 200,
         statusText: 'OK',
         text: async () => JSON.stringify({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }),
-      } as never);
+      };
+
+      mockFetch.mockResolvedValue(mockResponse as unknown as Response);
     });
 
     it('should allow requests within rate limit', async () => {
