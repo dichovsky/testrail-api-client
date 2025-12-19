@@ -61,7 +61,7 @@ export class TestRailClient {
   private readonly cacheTtl: number;
   private readonly cacheCleanupInterval: number;
   private readonly cache = new Map<string, CacheEntry<unknown>>();
-  private cacheCleanupTimer: NodeJS.Timeout | undefined;
+  private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
 
   /**
@@ -247,18 +247,12 @@ export class TestRailClient {
    */
   private cleanupExpiredCache(): void {
     const now = Date.now();
-    const keysToDelete: string[] = [];
     
-    // Collect keys of expired entries
+    // Delete expired entries in a single pass
     for (const [key, entry] of this.cache.entries()) {
       if (entry.expiry <= now) {
-        keysToDelete.push(key);
+        this.cache.delete(key);
       }
-    }
-    
-    // Delete expired entries
-    for (const key of keysToDelete) {
-      this.cache.delete(key);
     }
   }
 
