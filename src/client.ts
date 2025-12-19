@@ -305,7 +305,7 @@ export class TestRailClient {
       if (retryCount < this.maxRetries && (error as Error).name === 'AbortError') {
         const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.request<T>(method, endpoint, data, retryCount + 1);
+        return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
       }
       
       if ((error as Error).name === 'AbortError') {
