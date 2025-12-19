@@ -301,14 +301,16 @@ export class TestRailClient {
         throw error;
       }
       
-      // Retry on network errors
-      if (retryCount < this.maxRetries && (error as Error).name === 'AbortError') {
+      const isAbortError = (error as Error).name === 'AbortError';
+      
+      // Retry on network errors up to the maximum number of retries
+      if (retryCount < this.maxRetries) {
         const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+        return this.request<T>(method, endpoint, data, retryCount + 1);
       }
       
-      if ((error as Error).name === 'AbortError') {
+      if (isAbortError) {
         throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
       }
       
