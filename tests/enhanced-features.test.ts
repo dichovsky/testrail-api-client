@@ -353,8 +353,10 @@ describe('TestRailClient - Enhanced Features', () => {
         email: 'test@example.com',
         apiKey: 'api-key',
         enableCache: false,
+        maxRetries: 0,
       });
       
+      mockFetch.mockReset();
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(freshClient.getProject(1)).rejects.toThrow(TestRailApiError);
@@ -369,6 +371,7 @@ describe('TestRailClient - Enhanced Features', () => {
         enableCache: false,
       });
       
+      mockFetch.mockReset();
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
