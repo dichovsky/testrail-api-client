@@ -61,7 +61,7 @@ export class TestRailClient {
   private readonly cacheTtl: number;
   private readonly cacheCleanupInterval: number;
   private readonly cache = new Map<string, CacheEntry<unknown>>();
-  private cacheCleanupTimer?: NodeJS.Timeout;
+  private cacheCleanupTimer: NodeJS.Timeout | undefined;
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
 
   /**
@@ -225,7 +225,8 @@ export class TestRailClient {
       this.cleanupExpiredCache();
     }, this.cacheCleanupInterval);
     
-    // Ensure timer doesn't prevent process exit
+    // Ensure timer doesn't prevent process exit in Node.js environments
+    // The unref check provides compatibility with non-Node.js environments
     if (typeof this.cacheCleanupTimer.unref === 'function') {
       this.cacheCleanupTimer.unref();
     }
@@ -235,9 +236,9 @@ export class TestRailClient {
    * Stops periodic cache cleanup
    */
   private stopCacheCleanup(): void {
-    if (this.cacheCleanupTimer) {
+    if (this.cacheCleanupTimer !== undefined) {
       clearInterval(this.cacheCleanupTimer);
-      delete this.cacheCleanupTimer;
+      this.cacheCleanupTimer = undefined;
     }
   }
 
