@@ -253,11 +253,18 @@ export class TestRailClient {
   private cleanupExpiredCache(): void {
     const now = Date.now();
     
-    // Delete expired entries in a single pass
+    // Collect keys of expired entries first to avoid mutating the Map
+    // while iterating over its live iterator.
+    const keysToDelete: string[] = [];
     for (const [key, entry] of this.cache.entries()) {
       if (entry.expiry <= now) {
-        this.cache.delete(key);
+        keysToDelete.push(key);
       }
+    }
+
+    // Delete the expired entries in a separate pass
+    for (const key of keysToDelete) {
+      this.cache.delete(key);
     }
   }
 
