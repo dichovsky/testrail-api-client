@@ -63,6 +63,8 @@ let processHandlersRegistered = false;
 
 /**
  * Cleanup all active clients on process exit
+ * Note: This method only performs synchronous cleanup operations
+ * (clearing timers and maps) to ensure it completes before process exit.
  */
 function cleanupAllClients(): void {
   for (const client of activeClients) {
