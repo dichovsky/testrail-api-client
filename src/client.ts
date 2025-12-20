@@ -52,6 +52,11 @@ export class TestRailConfigError extends Error {
 const BASE_RETRY_DELAY_MS = 1000;
 
 /**
+ * Maximum delay in milliseconds for exponential backoff retry strategy
+ */
+const MAX_RETRY_DELAY_MS = 10000;
+
+/**
  * TestRail API Client
  * 
  * A TypeScript client for the TestRail API.
@@ -335,7 +340,7 @@ export class TestRailClient {
         
         // Retry on server errors (5xx) or rate limiting (429)
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-          const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+          const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS); // Exponential backoff, max 10s
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
@@ -377,7 +382,7 @@ export class TestRailClient {
       
       // Retry on network errors up to the maximum number of retries
       if (retryCount < this.maxRetries) {
-        const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), 10000);
+        const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
       }
