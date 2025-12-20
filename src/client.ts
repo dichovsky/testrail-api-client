@@ -52,6 +52,11 @@ export class TestRailConfigError extends Error {
 const BASE_RETRY_DELAY_MS = 1000;
 
 /**
+ * Maximum timeout in milliseconds for API requests (5 minutes)
+ */
+const MAX_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
  * TestRail API Client
  * 
  * A TypeScript client for the TestRail API.
@@ -133,7 +138,6 @@ export class TestRailClient {
 
     // Validate timeout if provided
     if (config.timeout !== undefined) {
-      const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
       if (
         typeof config.timeout !== 'number' ||
         config.timeout <= 0 ||
