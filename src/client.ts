@@ -144,7 +144,7 @@ export class TestRailClient {
     }
 
     // Validate maxRetries if provided
-    if (config.maxRetries !== undefined) {
+    if (config.maxRetries != null) {
       if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
         throw new TestRailConfigError('maxRetries must be a number between 0 and 10');
       }
