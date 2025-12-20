@@ -346,20 +346,29 @@ describe('TestRailClient - Enhanced Features', () => {
       }
     });
 
-    it.skip('should handle network errors', async () => {
-      // Create a fresh client to avoid cache interference
-      const freshClient = new TestRailClient({
+    it('should handle network errors', async () => {
+      // Create a completely isolated client with disabled cache and retries to avoid interference
+      const isolatedClient = new TestRailClient({
         baseUrl: 'https://example.testrail.io',
         email: 'test@example.com',
         apiKey: 'api-key',
         enableCache: false,
-        maxRetries: 0,
+        maxRetries: 0, // Disable retries for this test
       });
       
-      mockFetch.mockReset();
+      // Clear all previous mocks completely
+      vi.clearAllMocks();
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(freshClient.getProject(1)).rejects.toThrow(TestRailApiError);
+      await expect(isolatedClient.getProject(1)).rejects.toThrow(TestRailApiError);
+      
+      // Verify the error message contains network error information
+      try {
+        await isolatedClient.getProject(1);
+      } catch (error) {
+        expect(error).toBeInstanceOf(TestRailApiError);
+        expect((error as TestRailApiError).message).toContain('Network error');
+      }
     });
 
     it('should handle invalid JSON responses', async () => {
