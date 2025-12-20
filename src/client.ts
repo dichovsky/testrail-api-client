@@ -372,7 +372,7 @@ export class TestRailClient {
       if (retryCount < this.maxRetries) {
         const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), 10000);
         await new Promise(resolve => setTimeout(resolve, delay));
-        return this.request<T>(method, endpoint, data, retryCount + 1);
+        return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
       }
       
       if (isAbortError) {
