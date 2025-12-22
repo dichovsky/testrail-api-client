@@ -600,11 +600,11 @@ export class TestRailClient {
     let endpoint = `get_cases/${projectId}`;
     const params: string[] = [];
     
-    if (typeof suiteId === 'number') {
+    if (suiteId !== undefined) {
       params.push(`suite_id=${suiteId}`);
     }
     
-    if (typeof sectionId === 'number') {
+    if (sectionId !== undefined) {
       params.push(`section_id=${sectionId}`);
     }
     
