@@ -14,8 +14,10 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 - Configurable request timeouts (up to 5 minutes) with automatic cleanup
 - Advanced retry logic with exponential backoff (configurable 0-10 retries)
 - Built-in rate limiting to respect TestRail API constraints (configurable)
+- Memory-efficient caching with configurable size limits
 - Automatic cache cleanup with configurable intervals
 - Graceful cleanup on process termination
+- Cross-platform support (Node.js and browser environments)
 
 🛡️ **Security & Validation** 
 - Comprehensive input validation for all configuration and method parameters
@@ -28,7 +30,7 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 
 🔧 **Developer Experience**
 - Full TypeScript support with strict type checking and comprehensive interfaces
-- Custom error classes (TestRailApiError, TestRailConfigError) for better error handling
+- Custom error classes (TestRailApiError, TestRailValidationError) for better error handling
 - Extensive JSDoc documentation with parameter descriptions
 - Modern ES2022+ features with async/await API throughout
 - Automatic process cleanup handlers for graceful shutdowns
@@ -90,6 +92,7 @@ const client = new TestRailClient({
   enableCache: true,                 // Enable response caching for GET requests
   cacheTtl: 300000,                  // Cache TTL (5 minutes)
   cacheCleanupInterval: 60000,       // Cache cleanup interval (1 minute)
+  maxCacheSize: 1000,                // Maximum cache entries (default: 1000)
   
   // Rate limiting
   rateLimiter: {
@@ -111,6 +114,7 @@ const client = new TestRailClient({
 | `enableCache` | `boolean` | `true` | Enable caching for GET requests |
 | `cacheTtl` | `number` | `300000` | Cache time-to-live in milliseconds |
 | `cacheCleanupInterval` | `number` | `60000` | Cache cleanup interval (0 to disable) |
+| `maxCacheSize` | `number` | `1000` | Maximum number of entries in cache |
 | `rateLimiter` | `RateLimiterConfig` | See below | Rate limiting configuration |
 
 #### Rate Limiter Configuration
@@ -127,7 +131,7 @@ rateLimiter: {
 The client provides comprehensive error handling with custom error classes:
 
 ```typescript
-import { TestRailApiError, TestRailConfigError } from '@dichovsky/testrail-api-client';
+import { TestRailApiError, TestRailValidationError } from '@dichovsky/testrail-api-client';
 
 try {
   const project = await client.getProject(999);
@@ -136,7 +140,7 @@ try {
     console.error('API Error:', error.message);
     console.error('Status:', error.status);
     console.error('Response:', error.response);
-  } else if (error instanceof TestRailConfigError) {
+  } else if (error instanceof TestRailValidationError) {
     console.error('Configuration Error:', error.message);
   }
 }
@@ -145,7 +149,7 @@ try {
 ### Error Types
 
 - **`TestRailApiError`**: Thrown for API-related errors (network, HTTP status, etc.)
-- **`TestRailConfigError`**: Thrown for invalid configuration during client initialization
+- **`TestRailValidationError`**: Thrown for invalid configuration during client initialization
 - **Retry Logic**: Automatic retries for 500+ status codes and network errors with exponential backoff
 - **Timeout Handling**: Requests timeout based on configuration with proper AbortController usage
 
@@ -340,7 +344,7 @@ const milestones = await client.getMilestones(projectId);
 The client provides comprehensive error handling with custom error classes:
 
 ```typescript
-import { TestRailApiError, TestRailConfigError } from '@dichovsky/testrail-api-client';
+import { TestRailApiError, TestRailValidationError } from '@dichovsky/testrail-api-client';
 
 try {
   const project = await client.getProject(999);
@@ -349,7 +353,7 @@ try {
     console.log('API Error:', error.message);
     console.log('Status:', error.status);
     console.log('Response:', error.response);
-  } else if (error instanceof TestRailConfigError) {
+  } else if (error instanceof TestRailValidationError) {
     console.log('Configuration Error:', error.message);
   }
 }
@@ -358,7 +362,7 @@ try {
 ### Error Types
 
 - **`TestRailApiError`**: API-related errors (network, HTTP status, malformed responses)
-- **`TestRailConfigError`**: Configuration validation errors
+- **`TestRailValidationError`**: Configuration validation errors
 - **Rate Limit Exceeded**: Special case of `TestRailApiError` when rate limits are hit
 
 ## Advanced Features
@@ -489,6 +493,7 @@ npm run typecheck
 src/
 ├── client.ts          # Main TestRail client with advanced features
 ├── types.ts           # TypeScript interfaces and type definitions
+├── utils.ts           # Shared utility functions
 └── index.ts           # Public API exports
 
 tests/
@@ -496,6 +501,7 @@ tests/
 ├── enhanced-features.test.ts   # Advanced features tests (caching, rate limiting, retry logic)
 ├── coverage-improvement.test.ts # Additional edge case and validation tests
 ├── index.test.ts               # Export and integration tests
+├── performance.test.ts         # Performance and memory tests
 └── types.test.ts               # Type definition tests
 ```
 
@@ -543,7 +549,7 @@ Initial release with comprehensive TestRail API support and advanced features:
 
 **Security & Validation:**
 - Comprehensive input validation for all parameters
-- Custom error classes (TestRailApiError, TestRailConfigError)
+- Custom error classes (TestRailApiError, TestRailValidationError)
 - Security warnings for insecure protocols
 - Protection against common vulnerabilities
 

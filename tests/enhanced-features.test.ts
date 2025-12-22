@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TestRailClient, TestRailApiError, TestRailConfigError } from '../src/client.js';
+import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -18,7 +18,7 @@ describe('TestRailClient - Enhanced Features', () => {
         baseUrl: '',
         email: 'test@example.com',
         apiKey: 'api-key',
-      })).toThrow(TestRailConfigError);
+      })).toThrow(TestRailValidationError);
     });
 
     it('should throw error for invalid email format', () => {
@@ -26,7 +26,7 @@ describe('TestRailClient - Enhanced Features', () => {
         baseUrl: 'https://example.testrail.io',
         email: 'invalid-email',
         apiKey: 'api-key',
-      })).toThrow(TestRailConfigError);
+      })).toThrow(TestRailValidationError);
     });
 
     it('should throw error for non-https/http URL', () => {
@@ -34,7 +34,7 @@ describe('TestRailClient - Enhanced Features', () => {
         baseUrl: 'ftp://example.testrail.io',
         email: 'test@example.com',
         apiKey: 'api-key',
-      })).toThrow(TestRailConfigError);
+      })).toThrow(TestRailValidationError);
     });
 
     it('should accept valid configuration', () => {
@@ -455,7 +455,7 @@ describe('TestRailClient - Enhanced Features', () => {
     });
 
     it('should validate email format in getUserByEmail', async () => {
-      await expect(client.getUserByEmail('invalid-email')).rejects.toThrow(TestRailConfigError);
+      await expect(client.getUserByEmail('invalid-email')).rejects.toThrow(TestRailValidationError);
       await expect(client.getUserByEmail('invalid-email')).rejects.toThrow('Invalid email format');
     });
 

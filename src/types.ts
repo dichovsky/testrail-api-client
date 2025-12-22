@@ -44,6 +44,12 @@ export interface TestRailConfig {
   cacheCleanupInterval?: number;
 
   /**
+   * Maximum number of entries in the cache (default: 1000)
+   * Set to 0 for unlimited (not recommended)
+   */
+  maxCacheSize?: number;
+
+  /**
    * Rate limiting configuration (default: 100 requests per minute)
    */
   rateLimiter?: RateLimiterConfig;

@@ -20,6 +20,7 @@ import type {
   AddResultsForCasesPayload,
   CacheEntry,
 } from './types.js';
+import { base64Encode, sleep } from './utils.js';
 
 /**
  * Custom error class for TestRail API errors
@@ -37,12 +38,12 @@ export class TestRailApiError extends Error {
 }
 
 /**
- * Custom error class for configuration validation errors
+ * Custom error class for validation errors (config or parameter validation)
  */
-export class TestRailConfigError extends Error {
+export class TestRailValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'TestRailConfigError';
+    this.name = 'TestRailValidationError';
   }
 }
 
@@ -116,6 +117,7 @@ export class TestRailClient {
   private readonly enableCache: boolean;
   private readonly cacheTtl: number;
   private readonly cacheCleanupInterval: number;
+  private readonly maxCacheSize: number;
   private readonly cache = new Map<string, CacheEntry<unknown>>();
   private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
@@ -130,12 +132,13 @@ export class TestRailClient {
   constructor(config: TestRailConfig) {
     this.validateConfig(config);
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
-    this.auth = Buffer.from(`${config.email}:${config.apiKey}`).toString('base64');
+    this.auth = base64Encode(`${config.email}:${config.apiKey}`);
     this.timeout = config.timeout ?? 30000; // 30 seconds default
     this.maxRetries = config.maxRetries ?? 3;
     this.enableCache = config.enableCache ?? true;
     this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
     this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
+    this.maxCacheSize = config.maxCacheSize ?? 1000;
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
@@ -156,26 +159,26 @@ export class TestRailClient {
    * Validates the TestRail configuration
    * 
    * @param config - Configuration to validate
-   * @throws {TestRailConfigError} When configuration is invalid
+   * @throws {TestRailValidationError} When configuration is invalid
    */
   private validateConfig(config: TestRailConfig): void {
     if (!config.baseUrl || typeof config.baseUrl !== 'string') {
-      throw new TestRailConfigError('baseUrl is required and must be a string');
+      throw new TestRailValidationError('baseUrl is required and must be a string');
     }
 
     if (!config.email || typeof config.email !== 'string') {
-      throw new TestRailConfigError('email is required and must be a string');
+      throw new TestRailValidationError('email is required and must be a string');
     }
 
     if (!config.apiKey || typeof config.apiKey !== 'string') {
-      throw new TestRailConfigError('apiKey is required and must be a string');
+      throw new TestRailValidationError('apiKey is required and must be a string');
     }
 
     // Validate URL format
     try {
       const url = new URL(config.baseUrl);
       if (!['http:', 'https:'].includes(url.protocol)) {
-        throw new TestRailConfigError('baseUrl must use http or https protocol');
+        throw new TestRailValidationError('baseUrl must use http or https protocol');
       }
       
       if (url.protocol === 'http:') {
@@ -183,13 +186,13 @@ export class TestRailClient {
         console.warn('Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.');
       }
     } catch {
-      throw new TestRailConfigError('baseUrl must be a valid URL');
+      throw new TestRailValidationError('baseUrl must be a valid URL');
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(config.email)) {
-      throw new TestRailConfigError('email must be a valid email address');
+      throw new TestRailValidationError('email must be a valid email address');
     }
 
     // Validate timeout if provided
@@ -199,16 +202,29 @@ export class TestRailClient {
         config.timeout <= 0 ||
         config.timeout > MAX_TIMEOUT_MS
       ) {
-        throw new TestRailConfigError('timeout must be a positive number not exceeding 5 minutes');
+        throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
       }
     }
 
     // Validate maxRetries if provided
     if (config.maxRetries !== undefined) {
       if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
-        throw new TestRailConfigError('maxRetries must be a number between 0 and 10');
+        throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
       }
     }
+  }
+
+  /**
+   * Calculates the delay for the next retry attempt using exponential backoff
+   * 
+   * @param retryCount - Current retry attempt
+   * @returns Delay in milliseconds
+   */
+  private getRetryDelay(retryCount: number): number {
+    return Math.min(
+      BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
+      MAX_RETRY_DELAY_MS
+    );
   }
 
   /**
@@ -239,11 +255,11 @@ export class TestRailClient {
    * 
    * @param id - The ID to validate
    * @param name - The name of the ID parameter (for error message)
-   * @throws {TestRailConfigError} When ID is invalid
+   * @throws {TestRailValidationError} When ID is invalid
    */
   private validateId(id: number, name: string): void {
     if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
-      throw new TestRailConfigError(`${name} must be a positive integer`);
+      throw new TestRailValidationError(`${name} must be a positive integer`);
     }
   }
 
@@ -280,6 +296,15 @@ export class TestRailClient {
   private setCachedData<T>(cacheKey: string, data: T): void {
     if (!this.enableCache) {
       return;
+    }
+
+    // Enforce cache size limit if not zero
+    if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
+      // Remove the oldest entry (Map maintains insertion order)
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
     }
     
     this.cache.set(cacheKey, {
@@ -424,11 +449,7 @@ export class TestRailClient {
         
         // Retry on server errors (5xx) or rate limiting (429)
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-          const delay = Math.min(
-            BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
-            MAX_RETRY_DELAY_MS
-          ); // Exponential backoff (BASE_RETRY_DELAY_MS * 2^retryCount), capped at MAX_RETRY_DELAY_MS (10s)
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await sleep(this.getRetryDelay(retryCount));
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
         
@@ -474,8 +495,7 @@ export class TestRailClient {
       
       // Retry on network errors up to the maximum number of retries
       if (retryCount < this.maxRetries) {
-        const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await sleep(this.getRetryDelay(retryCount));
         return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
       }
       
@@ -934,7 +954,7 @@ export class TestRailClient {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      throw new TestRailConfigError('Invalid email format');
+      throw new TestRailValidationError('Invalid email format');
     }
     
     return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TestRailClient, TestRailApiError, TestRailConfigError } from '../src/index.js';
+import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/index.js';
 import type {
   TestRailConfig,
   TestRailResponse,
@@ -153,24 +153,24 @@ describe('Index exports', () => {
     expect(error.name).toBe('TestRailApiError');
   });
 
-  it('should export and create TestRailConfigError instances', () => {
-    expect(TestRailConfigError).toBeDefined();
-    expect(typeof TestRailConfigError).toBe('function');
+  it('should export and create TestRailValidationError instances', () => {
+    expect(TestRailValidationError).toBeDefined();
+    expect(typeof TestRailValidationError).toBe('function');
     
-    const error = new TestRailConfigError('Config error');
+    const error = new TestRailValidationError('Config error');
     expect(error).toBeInstanceOf(Error);
-    expect(error).toBeInstanceOf(TestRailConfigError);
+    expect(error).toBeInstanceOf(TestRailValidationError);
     expect(error.message).toBe('Config error');
-    expect(error.name).toBe('TestRailConfigError');
+    expect(error.name).toBe('TestRailValidationError');
   });
 
   it('should export error classes with proper inheritance', () => {
     const apiError = new TestRailApiError('API Error');
-    const configError = new TestRailConfigError('Config Error');
+    const configError = new TestRailValidationError('Config Error');
     
     expect(apiError instanceof Error).toBe(true);
     expect(configError instanceof Error).toBe(true);
     expect(apiError.name).toBe('TestRailApiError');
-    expect(configError.name).toBe('TestRailConfigError');
+    expect(configError.name).toBe('TestRailValidationError');
   });
 });

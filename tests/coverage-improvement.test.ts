@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TestRailClient, TestRailApiError, TestRailConfigError } from '../src/client.js';
+import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
 
 describe('TestRailClient - Coverage Improvement', () => {
   beforeEach(() => {
@@ -16,7 +16,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           apiKey: 'test-key',
           timeout: 0
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should throw error for invalid timeout (negative)', () => {
@@ -27,7 +27,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           apiKey: 'test-key',
           timeout: -1000
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should throw error for timeout exceeding maximum (5 minutes)', () => {
@@ -38,7 +38,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           apiKey: 'test-key',
           timeout: 301000 // 5 minutes + 1 second
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should throw error for invalid maxRetries (negative)', () => {
@@ -49,7 +49,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           apiKey: 'test-key',
           maxRetries: -1
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should throw error for invalid maxRetries (exceeds maximum)', () => {
@@ -60,7 +60,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           apiKey: 'test-key',
           maxRetries: 11
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should throw error for invalid maxRetries (non-number)', () => {
@@ -72,7 +72,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           maxRetries: '3' as any
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should accept valid timeout at maximum limit', () => {
@@ -115,7 +115,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           email: '',
           apiKey: 'test-key'
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
 
     it('should throw error for empty apiKey string', () => {
@@ -125,7 +125,7 @@ describe('TestRailClient - Coverage Improvement', () => {
           email: 'test@example.com',
           apiKey: ''
         });
-      }).toThrow(TestRailConfigError);
+      }).toThrow(TestRailValidationError);
     });
   });
 

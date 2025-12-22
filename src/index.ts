@@ -1,4 +1,4 @@
-export { TestRailClient, TestRailApiError, TestRailConfigError } from './client.js';
+export { TestRailClient, TestRailApiError, TestRailValidationError } from './client.js';
 export type {
   TestRailConfig,
   TestRailResponse,
