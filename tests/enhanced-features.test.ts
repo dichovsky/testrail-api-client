@@ -252,9 +252,7 @@ describe('TestRailClient - Enhanced Features', () => {
       // Destroy should clear cache and stop cleanup
       testClient.destroy();
       
-      // After destroy, making a new request should work
-      await testClient.getProject(1);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it('should safely handle multiple destroy calls (idempotency)', async () => {
@@ -286,9 +284,21 @@ describe('TestRailClient - Enhanced Features', () => {
       // Third destroy - should not throw
       testClient.destroy();
       
-      // Should be able to continue using after destroy
-      await testClient.getProject(1);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should prevent usage after destroy() is called', async () => {
+      const testClient = new TestRailClient({
+        baseUrl: 'https://example.testrail.io',
+        email: 'test@example.com',
+        apiKey: 'api-key',
+      });
+
+      testClient.destroy();
+
+      await expect(testClient.getProject(1)).rejects.toThrow(
+        'Cannot use TestRailClient after destroy() has been called'
+      );
     });
   });
 

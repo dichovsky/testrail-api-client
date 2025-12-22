@@ -375,6 +375,11 @@ export class TestRailClient {
     retryCount = 0,
     skipCache = false
   ): Promise<T> {
+    // Prevent use after destroy
+    if (this.isDestroyed) {
+      throw new Error('Cannot use TestRailClient after destroy() has been called');
+    }
+    
     // Check cache for GET requests
     if (method === 'GET' && !skipCache) {
       const cacheKey = `${method}:${endpoint}`;
