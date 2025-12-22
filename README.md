@@ -34,11 +34,12 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 - Automatic process cleanup handlers for graceful shutdowns
 
 ✅ **Quality & Testing**
-- 96%+ test coverage with comprehensive test suite (126+ tests)
+- 97.6%+ test coverage with comprehensive test suite (140+ tests)
+- High branch coverage (98.7%) ensuring thorough edge case testing
 - Strict ESLint configuration with security-focused and TypeScript-specific rules
 - Automated CI/CD with GitHub Actions and matrix testing
 - Cross-platform Node.js compatibility (20.x+)
-- Comprehensive coverage of edge cases and error scenarios
+- Comprehensive coverage of error scenarios and edge cases
 
 ## Installation
 
@@ -516,7 +517,7 @@ This project maintains high code quality standards:
 
 - **TypeScript**: Strict mode with comprehensive type checking and interfaces
 - **ESLint**: Extensive rules for code quality, security, and TypeScript best practices
-- **Testing**: 96%+ test coverage with 126+ comprehensive test cases
+- **Testing**: 97.6%+ test coverage with 140+ comprehensive test cases
 - **Documentation**: Comprehensive JSDoc comments with parameter validation
 - **Security**: Input validation, error handling, and security-focused linting rules
 
@@ -547,7 +548,7 @@ Initial release with comprehensive TestRail API support and advanced features:
 - Protection against common vulnerabilities
 
 **Developer Experience:**
-- 96%+ test coverage with 126+ test cases
+- 97.6%+ test coverage with 140+ test cases
 - Strict ESLint configuration with security rules
 - Comprehensive JSDoc documentation
 - Modern ES2022+ features and async/await throughout

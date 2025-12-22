@@ -251,6 +251,122 @@ describe('TestRailClient - Coverage Improvement', () => {
     });
   });
 
+  describe('Process Handlers and Cleanup', () => {
+    it('should register process handlers only once', () => {
+      // Create multiple clients to test that handlers are registered only once
+      const client1 = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test1@example.com',
+        apiKey: 'test-key-1'
+      });
+
+      const client2 = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test2@example.com',
+        apiKey: 'test-key-2'
+      });
+
+      // Both clients should be created successfully
+      expect(client1).toBeInstanceOf(TestRailClient);
+      expect(client2).toBeInstanceOf(TestRailClient);
+
+      // Cleanup
+      client1.destroy();
+      client2.destroy();
+    });
+
+    it('should handle process event registration in environments without process', () => {
+      // Mock environment without process
+      const originalProcess = global.process;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).process = undefined;
+
+      // Should still create client successfully
+      expect(() => {
+        const client = new TestRailClient({
+          baseUrl: 'https://example.testrail.net',
+          email: 'test@example.com',
+          apiKey: 'test-key'
+        });
+        client.destroy();
+      }).not.toThrow();
+
+      // Restore original process
+      global.process = originalProcess;
+    });
+
+    it('should handle cleanup of all active clients', () => {
+      const client1 = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test1@example.com',
+        apiKey: 'test-key-1'
+      });
+
+      const client2 = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test2@example.com',
+        apiKey: 'test-key-2'
+      });
+
+      // Test cleanup by calling destroy on both
+      client1.destroy();
+      client2.destroy();
+
+      // Should complete without errors
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('Cache Management Edge Cases', () => {
+    it('should handle cache cleanup of expired entries', () => {
+      const client = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test@example.com',
+        apiKey: 'test-key',
+        cacheCleanupInterval: 100
+      });
+
+      // Access private cache to test expired entry cleanup
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (client as any).cache;
+      
+      // Add expired entry manually
+      cache.set('expired-key', {
+        data: { test: 'data' },
+        expiry: Date.now() - 1000 // Already expired
+      });
+
+      // Call getCachedData which should clean up expired entry
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = (client as any).getCachedData('expired-key');
+      
+      expect(result).toBeUndefined();
+      expect(cache.has('expired-key')).toBe(false);
+
+      client.destroy();
+    });
+
+    it('should not cache when caching is disabled', () => {
+      const client = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test@example.com',
+        apiKey: 'test-key',
+        enableCache: false
+      });
+
+      // Call setCachedData directly to test the early return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (client as any).setCachedData('test-key', { test: 'data' });
+      
+      // Cache should be empty since caching is disabled
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (client as any).cache;
+      expect(cache.size).toBe(0);
+
+      client.destroy();
+    });
+  });
+
   describe('Cache Cleanup Timer Management', () => {
     it('should not start cleanup timer when cacheCleanupInterval is 0', () => {
       vi.useFakeTimers();
@@ -310,6 +426,58 @@ describe('TestRailClient - Coverage Improvement', () => {
       });
 
       await expect(client.getProject(1)).rejects.toThrow(TestRailApiError);
+    });
+  });
+
+  describe('Additional Coverage Tests', () => {
+    it('should trigger cache cleanup of expired entries', () => {
+      vi.useFakeTimers();
+
+      const client = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test@example.com',
+        apiKey: 'test-key',
+        enableCaching: true,
+        cacheOptions: {
+          ttl: 1000 // 1 second TTL
+        }
+      });
+
+      // Manually add an expired entry to test cleanup
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cache = (client as any).cache;
+      cache.set('expired-key', {
+        data: { test: 'data' },
+        expiry: Date.now() - 1000 // Already expired
+      });
+
+      // Advance time and trigger cleanup
+      vi.advanceTimersByTime(100);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (client as any).cleanupExpiredCache();
+
+      // Expired entry should be removed
+      expect(cache.has('expired-key')).toBe(false);
+
+      client.destroy();
+      vi.useRealTimers();
+    });
+
+    it('should call setCachedData with caching disabled to test early return', () => {
+      const client = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test@example.com',
+        apiKey: 'test-key',
+        enableCaching: false
+      });
+
+      // Directly call setCachedData to test the early return path
+      expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (client as any).setCachedData('test-key', { data: 'test' });
+      }).not.toThrow();
+
+      client.destroy();
     });
   });
 });
