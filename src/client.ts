@@ -378,10 +378,7 @@ export class TestRailClient {
     // Prevent API calls after destroy() has been called
     if (this.isDestroyed) {
       throw new TestRailApiError(
-        'Cannot make API requests after the client has been destroyed. Please create a new client instance.',
-        undefined,
-        undefined,
-        undefined
+        'Cannot make API requests after the client has been destroyed. Please create a new client instance.'
       );
     }
     
