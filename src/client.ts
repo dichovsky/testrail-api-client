@@ -426,7 +426,10 @@ export class TestRailClient {
         
         // Retry on server errors (5xx) or rate limiting (429)
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-          const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS); // Exponential backoff, max 10s
+          const delay = Math.min(
+            BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
+            MAX_RETRY_DELAY_MS
+          ); // Exponential backoff (BASE_RETRY_DELAY_MS * 2^retryCount), capped at MAX_RETRY_DELAY_MS (10s)
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
