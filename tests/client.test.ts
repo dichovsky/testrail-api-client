@@ -1175,7 +1175,7 @@ describe('TestRailClient', () => {
     });
 
     it('should throw error for invalid IDs (non-number disguised as any)', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       await expect(client.getSection('1' as any)).rejects.toThrow('sectionId must be a positive integer');
     });
   });
