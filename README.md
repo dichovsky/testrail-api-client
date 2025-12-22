@@ -16,10 +16,12 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 - Connection pooling and optimized JSON parsing
 
 🛡️ **Security & Validation** 
-- Input validation for all configuration parameters
+- Input validation for all configuration and method parameters
 - URL sanitization and email format validation
 - Secure credential handling with Base64 encoding
 - Protection against common injection attacks
+- Runtime validation ensuring all IDs are positive integers
+- Warnings for insecure HTTP protocol usage
 
 🔧 **Developer Experience**
 - Full TypeScript support with strict type checking
@@ -351,6 +353,13 @@ const client = new TestRailClient({
   },
 });
 ```
+
+### Security Best Practices
+
+The client implements several security best practices to protect your data:
+
+- **HTTPS Required**: The client issues a console warning if initialized with an HTTP `baseUrl`. Basic authentication sends credentials in Base64 format, which is not secure over unencrypted HTTP connections. Always use HTTPS in production.
+- **Strict Parameter Validation**: All API methods validate that ID parameters are positive integers. This prevents parameter manipulation and ensures that invalid data is caught before making a network request.
 
 ## Development
 

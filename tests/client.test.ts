@@ -1145,4 +1145,38 @@ describe('TestRailClient', () => {
       expect(result).toEqual(mockPriorities);
     });
   });
+  describe('Security & Validation', () => {
+    it('should warn when using HTTP protocol', () => {
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      
+      new TestRailClient({
+        baseUrl: 'http://example.testrail.io',
+        email: 'test@example.com',
+        apiKey: 'key',
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Security Warning: Using HTTP protocol')
+      );
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should throw error for invalid IDs (negative)', async () => {
+      await expect(client.getProject(-1)).rejects.toThrow('projectId must be a positive integer');
+    });
+
+    it('should throw error for invalid IDs (zero)', async () => {
+      await expect(client.getCase(0)).rejects.toThrow('caseId must be a positive integer');
+    });
+
+    it('should throw error for invalid IDs (float)', async () => {
+      await expect(client.getRun(1.5)).rejects.toThrow('runId must be a positive integer');
+    });
+
+    it('should throw error for invalid IDs (non-number disguised as any)', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await expect(client.getSection('1' as any)).rejects.toThrow('sectionId must be a positive integer');
+    });
+  });
 });

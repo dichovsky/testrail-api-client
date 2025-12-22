@@ -174,6 +174,11 @@ export class TestRailClient {
       if (!['http:', 'https:'].includes(url.protocol)) {
         throw new TestRailConfigError('baseUrl must use http or https protocol');
       }
+      
+      if (url.protocol === 'http:') {
+        // eslint-disable-next-line no-console
+        console.warn('Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.');
+      }
     } catch {
       throw new TestRailConfigError('baseUrl must be a valid URL');
     }
@@ -224,6 +229,19 @@ export class TestRailClient {
     }
     
     this.rateLimiter.requests.push(now);
+  }
+
+  /**
+   * Validates that an ID is a positive integer
+   * 
+   * @param id - The ID to validate
+   * @param name - The name of the ID parameter (for error message)
+   * @throws {TestRailConfigError} When ID is invalid
+   */
+  private validateId(id: number, name: string): void {
+    if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+      throw new TestRailConfigError(`${name} must be a positive integer`);
+    }
   }
 
   /**
@@ -468,6 +486,7 @@ export class TestRailClient {
    * @returns The project
    */
   async getProject(projectId: number): Promise<Project> {
+    this.validateId(projectId, 'projectId');
     return this.request<Project>('GET', `get_project/${projectId}`);
   }
 
@@ -490,6 +509,7 @@ export class TestRailClient {
    * @returns The suite
    */
   async getSuite(suiteId: number): Promise<Suite> {
+    this.validateId(suiteId, 'suiteId');
     return this.request<Suite>('GET', `get_suite/${suiteId}`);
   }
 
@@ -500,6 +520,7 @@ export class TestRailClient {
    * @returns Array of suites
    */
   async getSuites(projectId: number): Promise<Suite[]> {
+    this.validateId(projectId, 'projectId');
     return this.request<Suite[]>('GET', `get_suites/${projectId}`);
   }
 
@@ -512,6 +533,7 @@ export class TestRailClient {
    * @returns The section
    */
   async getSection(sectionId: number): Promise<Section> {
+    this.validateId(sectionId, 'sectionId');
     return this.request<Section>('GET', `get_section/${sectionId}`);
   }
 
@@ -523,6 +545,10 @@ export class TestRailClient {
    * @returns Array of sections
    */
   async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
+    this.validateId(projectId, 'projectId');
+    if (suiteId !== undefined) {
+      this.validateId(suiteId, 'suiteId');
+    }
     let endpoint = `get_sections/${projectId}`;
     if (typeof suiteId === 'number') {
       endpoint += `&suite_id=${suiteId}`;
@@ -540,6 +566,7 @@ export class TestRailClient {
    * @returns The case
    */
   async getCase(caseId: number): Promise<Case> {
+    this.validateId(caseId, 'caseId');
     return this.request<Case>('GET', `get_case/${caseId}`);
   }
 
@@ -552,6 +579,13 @@ export class TestRailClient {
    * @returns Array of cases
    */
   async getCases(projectId: number, suiteId?: number, sectionId?: number): Promise<Case[]> {
+    this.validateId(projectId, 'projectId');
+    if (suiteId !== undefined) {
+      this.validateId(suiteId, 'suiteId');
+    }
+    if (sectionId !== undefined) {
+      this.validateId(sectionId, 'sectionId');
+    }
     let endpoint = `get_cases/${projectId}`;
     const params: string[] = [];
     
@@ -579,6 +613,7 @@ export class TestRailClient {
    * @returns The created case
    */
   async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
+    this.validateId(sectionId, 'sectionId');
     return this.request<Case>('POST', `add_case/${sectionId}`, payload);
   }
 
@@ -590,6 +625,7 @@ export class TestRailClient {
    * @returns The updated case
    */
   async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
+    this.validateId(caseId, 'caseId');
     return this.request<Case>('POST', `update_case/${caseId}`, payload);
   }
 
@@ -599,6 +635,7 @@ export class TestRailClient {
    * @param caseId - The ID of the case
    */
   async deleteCase(caseId: number): Promise<void> {
+    this.validateId(caseId, 'caseId');
     await this.request<void>('POST', `delete_case/${caseId}`);
   }
 
@@ -611,6 +648,7 @@ export class TestRailClient {
    * @returns The plan
    */
   async getPlan(planId: number): Promise<Plan> {
+    this.validateId(planId, 'planId');
     return this.request<Plan>('GET', `get_plan/${planId}`);
   }
 
@@ -621,6 +659,7 @@ export class TestRailClient {
    * @returns Array of plans
    */
   async getPlans(projectId: number): Promise<Plan[]> {
+    this.validateId(projectId, 'projectId');
     const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
     return response.plans ?? [];
   }
@@ -633,6 +672,7 @@ export class TestRailClient {
    * @returns The created plan
    */
   async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
+    this.validateId(projectId, 'projectId');
     return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
   }
 
@@ -643,6 +683,7 @@ export class TestRailClient {
    * @returns The closed plan
    */
   async closePlan(planId: number): Promise<Plan> {
+    this.validateId(planId, 'planId');
     return this.request<Plan>('POST', `close_plan/${planId}`);
   }
 
@@ -652,6 +693,7 @@ export class TestRailClient {
    * @param planId - The ID of the plan
    */
   async deletePlan(planId: number): Promise<void> {
+    this.validateId(planId, 'planId');
     await this.request<void>('POST', `delete_plan/${planId}`);
   }
 
@@ -664,6 +706,7 @@ export class TestRailClient {
    * @returns The run
    */
   async getRun(runId: number): Promise<Run> {
+    this.validateId(runId, 'runId');
     return this.request<Run>('GET', `get_run/${runId}`);
   }
 
@@ -674,6 +717,7 @@ export class TestRailClient {
    * @returns Array of runs
    */
   async getRuns(projectId: number): Promise<Run[]> {
+    this.validateId(projectId, 'projectId');
     const response = await this.request<{ runs: Run[] }>('GET', `get_runs/${projectId}`);
     return response.runs ?? [];
   }
@@ -686,6 +730,7 @@ export class TestRailClient {
    * @returns The created run
    */
   async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
+    this.validateId(projectId, 'projectId');
     return this.request<Run>('POST', `add_run/${projectId}`, payload);
   }
 
@@ -696,6 +741,7 @@ export class TestRailClient {
    * @returns The closed run
    */
   async closeRun(runId: number): Promise<Run> {
+    this.validateId(runId, 'runId');
     return this.request<Run>('POST', `close_run/${runId}`);
   }
 
@@ -705,6 +751,7 @@ export class TestRailClient {
    * @param runId - The ID of the run
    */
   async deleteRun(runId: number): Promise<void> {
+    this.validateId(runId, 'runId');
     await this.request<void>('POST', `delete_run/${runId}`);
   }
 
@@ -717,6 +764,7 @@ export class TestRailClient {
    * @returns The test
    */
   async getTest(testId: number): Promise<Test> {
+    this.validateId(testId, 'testId');
     return this.request<Test>('GET', `get_test/${testId}`);
   }
 
@@ -727,6 +775,7 @@ export class TestRailClient {
    * @returns Array of tests
    */
   async getTests(runId: number): Promise<Test[]> {
+    this.validateId(runId, 'runId');
     const response = await this.request<{ tests: Test[] }>('GET', `get_tests/${runId}`);
     return response.tests ?? [];
   }
@@ -740,6 +789,7 @@ export class TestRailClient {
    * @returns Array of results
    */
   async getResults(testId: number): Promise<Result[]> {
+    this.validateId(testId, 'testId');
     const response = await this.request<{ results: Result[] }>('GET', `get_results/${testId}`);
     return response.results ?? [];
   }
@@ -752,6 +802,8 @@ export class TestRailClient {
    * @returns Array of results
    */
   async getResultsForCase(runId: number, caseId: number): Promise<Result[]> {
+    this.validateId(runId, 'runId');
+    this.validateId(caseId, 'caseId');
     const response = await this.request<{ results: Result[] }>(
       'GET',
       `get_results_for_case/${runId}/${caseId}`
@@ -766,6 +818,7 @@ export class TestRailClient {
    * @returns Array of results
    */
   async getResultsForRun(runId: number): Promise<Result[]> {
+    this.validateId(runId, 'runId');
     const response = await this.request<{ results: Result[] }>(
       'GET',
       `get_results_for_run/${runId}`
@@ -781,6 +834,7 @@ export class TestRailClient {
    * @returns The created result
    */
   async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
+    this.validateId(testId, 'testId');
     return this.request<Result>('POST', `add_result/${testId}`, payload);
   }
 
@@ -797,6 +851,8 @@ export class TestRailClient {
     caseId: number,
     payload: AddResultPayload
   ): Promise<Result> {
+    this.validateId(runId, 'runId');
+    this.validateId(caseId, 'caseId');
     return this.request<Result>('POST', `add_result_for_case/${runId}/${caseId}`, payload);
   }
 
@@ -811,6 +867,7 @@ export class TestRailClient {
     runId: number,
     payload: AddResultsForCasesPayload
   ): Promise<Result[]> {
+    this.validateId(runId, 'runId');
     return this.request<Result[]>('POST', `add_results_for_cases/${runId}`, payload);
   }
 
@@ -823,6 +880,7 @@ export class TestRailClient {
    * @returns The milestone
    */
   async getMilestone(milestoneId: number): Promise<Milestone> {
+    this.validateId(milestoneId, 'milestoneId');
     return this.request<Milestone>('GET', `get_milestone/${milestoneId}`);
   }
 
@@ -833,6 +891,7 @@ export class TestRailClient {
    * @returns Array of milestones
    */
   async getMilestones(projectId: number): Promise<Milestone[]> {
+    this.validateId(projectId, 'projectId');
     const response = await this.request<{ milestones: Milestone[] }>(
       'GET',
       `get_milestones/${projectId}`
@@ -849,6 +908,7 @@ export class TestRailClient {
    * @returns The user
    */
   async getUser(userId: number): Promise<User> {
+    this.validateId(userId, 'userId');
     return this.request<User>('GET', `get_user/${userId}`);
   }
 
