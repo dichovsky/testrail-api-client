@@ -456,15 +456,16 @@ export class TestRailClient {
       
       const isAbortError = (error as Error).name === 'AbortError';
       
+      // Don't retry timeout errors to avoid excessive wait times
+      if (isAbortError) {
+        throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+      }
+      
       // Retry on network errors up to the maximum number of retries
       if (retryCount < this.maxRetries) {
         const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-      }
-      
-      if (isAbortError) {
-        throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
       }
       
       throw new TestRailApiError(
