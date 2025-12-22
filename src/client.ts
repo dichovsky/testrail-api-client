@@ -150,7 +150,13 @@ export class TestRailClient {
     this.enableCache = config.enableCache ?? true;
     this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
     this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
-    this.maxCacheSize = config.maxCacheSize ?? 1000;
+    const maxCacheSize = config.maxCacheSize;
+    if (maxCacheSize !== undefined) {
+      if (!Number.isInteger(maxCacheSize) || maxCacheSize < 0) {
+        throw new TestRailConfigError('Invalid configuration: maxCacheSize must be a non-negative integer when provided.');
+      }
+    }
+    this.maxCacheSize = maxCacheSize ?? 1000;
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
