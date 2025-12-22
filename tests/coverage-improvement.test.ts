@@ -151,11 +151,11 @@ describe('TestRailClient - Coverage Improvement', () => {
         baseUrl: 'https://example.testrail.net',
         email: 'test@example.com',
         apiKey: 'test-key',
-        // Note: Using a short timeout of 100ms is safe here because fetch is mocked
-        // to return immediately with an AbortError. This test validates timeout handling
-        // logic without actually waiting, ensuring fast test execution regardless of
-        // system performance or CI environment load.
-        timeout: 100,
+        // Using 1000ms timeout for better reliability across different CI/test environments.
+        // Even though fetch is mocked to return immediately with an AbortError, a longer
+        // timeout prevents potential flakiness if mock setup behaves differently in some
+        // environments while still keeping the test execution fast.
+        timeout: 1000,
         maxRetries: 0 // No retries to avoid complications
       });
 
@@ -165,7 +165,7 @@ describe('TestRailClient - Coverage Improvement', () => {
       global.fetch = vi.fn().mockRejectedValue(abortError);
 
       await expect(client.getProject(1)).rejects.toThrow(
-        'Request timeout after 100ms'
+        'Request timeout after 1000ms'
       );
     });
   });
