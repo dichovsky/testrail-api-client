@@ -560,7 +560,7 @@ export class TestRailClient {
       this.validateId(suiteId, 'suiteId');
     }
     let endpoint = `get_sections/${projectId}`;
-    if (typeof suiteId === 'number') {
+    if (suiteId !== undefined) {
       endpoint += `&suite_id=${suiteId}`;
     }
     const response = await this.request<{ sections: Section[] }>('GET', endpoint);
