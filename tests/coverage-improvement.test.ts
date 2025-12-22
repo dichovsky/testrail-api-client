@@ -466,7 +466,7 @@ describe('TestRailClient - Coverage Improvement', () => {
         baseUrl: 'https://example.testrail.net',
         email: 'test@example.com',
         apiKey: 'test-key',
-        enableCaching: false
+        enableCache: false
       });
 
       // Directly call setCachedData to test the early return path
