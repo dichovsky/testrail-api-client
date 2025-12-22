@@ -108,6 +108,40 @@ describe('TestRailClient - Coverage Improvement', () => {
       }).not.toThrow();
     });
 
+    it('should throw error for negative maxCacheSize', () => {
+      expect(() => {
+        new TestRailClient({
+          baseUrl: 'https://example.testrail.net',
+          email: 'test@example.com',
+          apiKey: 'test-key',
+          maxCacheSize: -1
+        });
+      }).toThrow(TestRailValidationError);
+    });
+
+    it('should throw error for non-integer maxCacheSize', () => {
+      expect(() => {
+        new TestRailClient({
+          baseUrl: 'https://example.testrail.net',
+          email: 'test@example.com',
+          apiKey: 'test-key',
+          maxCacheSize: 1.5
+        });
+      }).toThrow(TestRailValidationError);
+    });
+
+    it('should throw error for non-numeric maxCacheSize', () => {
+      expect(() => {
+        new TestRailClient({
+          baseUrl: 'https://example.testrail.net',
+          email: 'test@example.com',
+          apiKey: 'test-key',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          maxCacheSize: '100' as any
+        });
+      }).toThrow(TestRailValidationError);
+    });
+
     it('should throw error for empty email string', () => {
       expect(() => {
         new TestRailClient({
