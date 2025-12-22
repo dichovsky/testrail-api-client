@@ -150,13 +150,7 @@ export class TestRailClient {
     this.enableCache = config.enableCache ?? true;
     this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
     this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
-    const maxCacheSize = config.maxCacheSize;
-    if (maxCacheSize !== undefined) {
-      if (!Number.isInteger(maxCacheSize) || maxCacheSize < 0) {
-        throw new TestRailConfigError('Invalid configuration: maxCacheSize must be a non-negative integer when provided.');
-      }
-    }
-    this.maxCacheSize = maxCacheSize ?? 1000;
+    this.maxCacheSize = config.maxCacheSize ?? 1000;
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
@@ -228,6 +222,17 @@ export class TestRailClient {
     if (config.maxRetries !== undefined) {
       if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
         throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
+      }
+    }
+
+    // Validate maxCacheSize if provided
+    if (config.maxCacheSize !== undefined) {
+      if (
+        typeof config.maxCacheSize !== 'number' ||
+        !Number.isInteger(config.maxCacheSize) ||
+        config.maxCacheSize < 0
+      ) {
+        throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
       }
     }
   }
