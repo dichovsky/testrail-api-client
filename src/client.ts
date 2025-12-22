@@ -110,24 +110,36 @@ function registerProcessHandlers(): void {
  * Supports all major API endpoints for managing projects, suites, cases, runs, plans, and results.
  */
 export class TestRailClient {
+  /** The base URL of the TestRail instance */
   private readonly baseUrl: string;
+  /** The base64 encoded authentication string */
   private readonly auth: string;
+  /** The request timeout in milliseconds */
   private readonly timeout: number;
+  /** The maximum number of retry attempts */
   private readonly maxRetries: number;
+  /** Whether caching is enabled */
   private readonly enableCache: boolean;
+  /** The cache time-to-live in milliseconds */
   private readonly cacheTtl: number;
+  /** The interval for periodic cache cleanup in milliseconds */
   private readonly cacheCleanupInterval: number;
+  /** The maximum number of entries allowed in the cache */
   private readonly maxCacheSize: number;
+  /** The internal cache storage */
   private readonly cache = new Map<string, CacheEntry<unknown>>();
+  /** The timer ID for the cache cleanup interval */
   private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
+  /** The rate limiter state and configuration */
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
+  /** Whether the client instance has been destroyed */
   private isDestroyed = false;
 
   /**
    * Creates a new TestRail API client
    * 
    * @param config - Configuration options for the client
-   * @throws {TestRailConfigError} When configuration is invalid
+   * @throws {TestRailValidationError} When configuration is invalid
    */
   constructor(config: TestRailConfig) {
     this.validateConfig(config);
@@ -230,6 +242,10 @@ export class TestRailClient {
   /**
    * Checks and applies rate limiting
    * 
+   * Our rate limiter uses a sliding window approach. We keep track of the timestamps 
+   * of all requests made within the current window. If the number of requests exceeds 
+   * the limit, we prevent further requests until the oldest request in the window expires.
+   * 
    * @throws {TestRailApiError} When rate limit is exceeded
    */
   private checkRateLimit(): void {
@@ -322,6 +338,9 @@ export class TestRailClient {
 
   /**
    * Starts periodic cache cleanup to remove expired entries
+   * 
+   * The cleanup timer is "unreferenced" in Node.js environments to prevent it 
+   * from keeping the process alive when all other work is done.
    */
   private startCacheCleanup(): void {
     this.cacheCleanupTimer = setInterval(() => {
@@ -441,13 +460,15 @@ export class TestRailClient {
     }
 
     try {
+      // Make the actual network request
       const response: Response = await fetch(url, options);
       clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         
-        // Retry on server errors (5xx) or rate limiting (429)
+        // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
+        // We use exponential backoff to avoid overwhelming the server during high load.
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
           await sleep(this.getRetryDelay(retryCount));
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
@@ -515,6 +536,8 @@ export class TestRailClient {
    * 
    * @param projectId - The ID of the project
    * @returns The project
+   * @throws {TestRailValidationError} When projectId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getProject(projectId: number): Promise<Project> {
     this.validateId(projectId, 'projectId');
@@ -538,6 +561,8 @@ export class TestRailClient {
    * 
    * @param suiteId - The ID of the suite
    * @returns The suite
+   * @throws {TestRailValidationError} When suiteId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getSuite(suiteId: number): Promise<Suite> {
     this.validateId(suiteId, 'suiteId');
@@ -595,6 +620,8 @@ export class TestRailClient {
    * 
    * @param caseId - The ID of the case
    * @returns The case
+   * @throws {TestRailValidationError} When caseId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getCase(caseId: number): Promise<Case> {
     this.validateId(caseId, 'caseId');
@@ -654,6 +681,8 @@ export class TestRailClient {
    * @param caseId - The ID of the case
    * @param payload - The case data to update
    * @returns The updated case
+   * @throws {TestRailValidationError} When caseId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
     this.validateId(caseId, 'caseId');
@@ -948,7 +977,8 @@ export class TestRailClient {
    * 
    * @param email - The email of the user
    * @returns The user
-   * @throws {TestRailConfigError} When email format is invalid
+   * @throws {TestRailValidationError} When email format is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getUserByEmail(email: string): Promise<User> {
     // Validate email format

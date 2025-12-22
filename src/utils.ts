@@ -1,6 +1,8 @@
 /**
  * Encodes a string to base64.
- * Works in both Node.js and browser environments.
+ * 
+ * Supports both Node.js (using Buffer) and browser environments (using btoa).
+ * In Node.js, it uses Buffer for efficiency. In browsers, it falls back to btoa.
  * 
  * @param str - The string to encode
  * @returns Base64 encoded string
