@@ -438,9 +438,7 @@ describe('TestRailClient - Coverage Improvement', () => {
         email: 'test@example.com',
         apiKey: 'test-key',
         enableCache: true,
-        cacheOptions: {
-          ttl: 1000 // 1 second TTL
-        }
+        cacheTtl: 1000 // 1 second TTL
       });
 
       // Manually add an expired entry to test cleanup

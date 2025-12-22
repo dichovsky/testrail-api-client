@@ -306,9 +306,7 @@ export class TestRailClient {
     // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
     // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
     // compatibility with non-Node.js environments where unref may not exist.
-    if (typeof this.cacheCleanupTimer.unref === 'function') {
-      this.cacheCleanupTimer.unref();
-    }
+    this.cacheCleanupTimer.unref?.();
   }
 
   /**
@@ -426,7 +424,10 @@ export class TestRailClient {
         
         // Retry on server errors (5xx) or rate limiting (429)
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-          const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS); // Exponential backoff, max 10s
+          const delay = Math.min(
+            BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
+            MAX_RETRY_DELAY_MS
+          ); // Exponential backoff (BASE_RETRY_DELAY_MS * 2^retryCount), capped at MAX_RETRY_DELAY_MS (10s)
           await new Promise(resolve => setTimeout(resolve, delay));
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
@@ -560,7 +561,7 @@ export class TestRailClient {
       this.validateId(suiteId, 'suiteId');
     }
     let endpoint = `get_sections/${projectId}`;
-    if (typeof suiteId === 'number') {
+    if (suiteId !== undefined) {
       endpoint += `&suite_id=${suiteId}`;
     }
     const response = await this.request<{ sections: Section[] }>('GET', endpoint);
