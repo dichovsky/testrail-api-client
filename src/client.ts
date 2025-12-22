@@ -380,11 +380,9 @@ export class TestRailClient {
     retryCount = 0,
     skipCache = false
   ): Promise<T> {
-    // Prevent API calls after destroy() has been called
+    // Prevent use after destroy
     if (this.isDestroyed) {
-      throw new TestRailApiError(
-        'Cannot make API requests after the client has been destroyed. Please create a new client instance.'
-      );
+      throw new Error('Cannot use TestRailClient after destroy() has been called');
     }
     
     // Check cache for GET requests
