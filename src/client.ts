@@ -20,6 +20,7 @@ import type {
   AddResultsForCasesPayload,
   CacheEntry,
 } from './types.js';
+import { base64Encode, sleep } from './utils.js';
 
 /**
  * Custom error class for TestRail API errors
@@ -37,12 +38,12 @@ export class TestRailApiError extends Error {
 }
 
 /**
- * Custom error class for configuration validation errors
+ * Custom error class for validation errors (config or parameter validation)
  */
-export class TestRailConfigError extends Error {
+export class TestRailValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'TestRailConfigError';
+    this.name = 'TestRailValidationError';
   }
 }
 
@@ -109,33 +110,47 @@ function registerProcessHandlers(): void {
  * Supports all major API endpoints for managing projects, suites, cases, runs, plans, and results.
  */
 export class TestRailClient {
+  /** The base URL of the TestRail instance */
   private readonly baseUrl: string;
+  /** The base64 encoded authentication string */
   private readonly auth: string;
+  /** The request timeout in milliseconds */
   private readonly timeout: number;
+  /** The maximum number of retry attempts */
   private readonly maxRetries: number;
+  /** Whether caching is enabled */
   private readonly enableCache: boolean;
+  /** The cache time-to-live in milliseconds */
   private readonly cacheTtl: number;
+  /** The interval for periodic cache cleanup in milliseconds */
   private readonly cacheCleanupInterval: number;
+  /** The maximum number of entries allowed in the cache */
+  private readonly maxCacheSize: number;
+  /** The internal cache storage */
   private readonly cache = new Map<string, CacheEntry<unknown>>();
+  /** The timer ID for the cache cleanup interval */
   private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
+  /** The rate limiter state and configuration */
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
+  /** Whether the client instance has been destroyed */
   private isDestroyed = false;
 
   /**
    * Creates a new TestRail API client
    * 
    * @param config - Configuration options for the client
-   * @throws {TestRailConfigError} When configuration is invalid
+   * @throws {TestRailValidationError} When configuration is invalid
    */
   constructor(config: TestRailConfig) {
     this.validateConfig(config);
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
-    this.auth = Buffer.from(`${config.email}:${config.apiKey}`).toString('base64');
+    this.auth = base64Encode(`${config.email}:${config.apiKey}`);
     this.timeout = config.timeout ?? 30000; // 30 seconds default
     this.maxRetries = config.maxRetries ?? 3;
     this.enableCache = config.enableCache ?? true;
     this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
     this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
+    this.maxCacheSize = config.maxCacheSize ?? 1000;
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
@@ -156,26 +171,26 @@ export class TestRailClient {
    * Validates the TestRail configuration
    * 
    * @param config - Configuration to validate
-   * @throws {TestRailConfigError} When configuration is invalid
+   * @throws {TestRailValidationError} When configuration is invalid
    */
   private validateConfig(config: TestRailConfig): void {
     if (!config.baseUrl || typeof config.baseUrl !== 'string') {
-      throw new TestRailConfigError('baseUrl is required and must be a string');
+      throw new TestRailValidationError('baseUrl is required and must be a string');
     }
 
     if (!config.email || typeof config.email !== 'string') {
-      throw new TestRailConfigError('email is required and must be a string');
+      throw new TestRailValidationError('email is required and must be a string');
     }
 
     if (!config.apiKey || typeof config.apiKey !== 'string') {
-      throw new TestRailConfigError('apiKey is required and must be a string');
+      throw new TestRailValidationError('apiKey is required and must be a string');
     }
 
     // Validate URL format
     try {
       const url = new URL(config.baseUrl);
       if (!['http:', 'https:'].includes(url.protocol)) {
-        throw new TestRailConfigError('baseUrl must use http or https protocol');
+        throw new TestRailValidationError('baseUrl must use http or https protocol');
       }
       
       if (url.protocol === 'http:') {
@@ -183,13 +198,13 @@ export class TestRailClient {
         console.warn('Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.');
       }
     } catch {
-      throw new TestRailConfigError('baseUrl must be a valid URL');
+      throw new TestRailValidationError('baseUrl must be a valid URL');
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(config.email)) {
-      throw new TestRailConfigError('email must be a valid email address');
+      throw new TestRailValidationError('email must be a valid email address');
     }
 
     // Validate timeout if provided
@@ -199,20 +214,48 @@ export class TestRailClient {
         config.timeout <= 0 ||
         config.timeout > MAX_TIMEOUT_MS
       ) {
-        throw new TestRailConfigError('timeout must be a positive number not exceeding 5 minutes');
+        throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
       }
     }
 
     // Validate maxRetries if provided
     if (config.maxRetries !== undefined) {
       if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
-        throw new TestRailConfigError('maxRetries must be a number between 0 and 10');
+        throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
+      }
+    }
+
+    // Validate maxCacheSize if provided
+    if (config.maxCacheSize !== undefined) {
+      if (
+        typeof config.maxCacheSize !== 'number' ||
+        !Number.isInteger(config.maxCacheSize) ||
+        config.maxCacheSize < 0
+      ) {
+        throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
       }
     }
   }
 
   /**
+   * Calculates the delay for the next retry attempt using exponential backoff
+   * 
+   * @param retryCount - Current retry attempt
+   * @returns Delay in milliseconds
+   */
+  private getRetryDelay(retryCount: number): number {
+    return Math.min(
+      BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
+      MAX_RETRY_DELAY_MS
+    );
+  }
+
+  /**
    * Checks and applies rate limiting
+   * 
+   * Our rate limiter uses a sliding window approach. We keep track of the timestamps 
+   * of all requests made within the current window. If the number of requests exceeds 
+   * the limit, we prevent further requests until the oldest request in the window expires.
    * 
    * @throws {TestRailApiError} When rate limit is exceeded
    */
@@ -239,11 +282,11 @@ export class TestRailClient {
    * 
    * @param id - The ID to validate
    * @param name - The name of the ID parameter (for error message)
-   * @throws {TestRailConfigError} When ID is invalid
+   * @throws {TestRailValidationError} When ID is invalid
    */
   private validateId(id: number, name: string): void {
     if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
-      throw new TestRailConfigError(`${name} must be a positive integer`);
+      throw new TestRailValidationError(`${name} must be a positive integer`);
     }
   }
 
@@ -260,6 +303,9 @@ export class TestRailClient {
     
     const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
     if (entry !== undefined && entry.expiry > Date.now()) {
+      // Move to end to mark as recently used (LRU behavior)
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, entry);
       return entry.data;
     }
     
@@ -281,6 +327,15 @@ export class TestRailClient {
     if (!this.enableCache) {
       return;
     }
+
+    // Enforce cache size limit if not zero
+    if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
+      // Remove the oldest entry (Map maintains insertion order)
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
+    }
     
     this.cache.set(cacheKey, {
       data,
@@ -297,6 +352,9 @@ export class TestRailClient {
 
   /**
    * Starts periodic cache cleanup to remove expired entries
+   * 
+   * The cleanup timer is "unreferenced" in Node.js environments to prevent it 
+   * from keeping the process alive when all other work is done.
    */
   private startCacheCleanup(): void {
     this.cacheCleanupTimer = setInterval(() => {
@@ -416,19 +474,17 @@ export class TestRailClient {
     }
 
     try {
+      // Make the actual network request
       const response: Response = await fetch(url, options);
       clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         
-        // Retry on server errors (5xx) or rate limiting (429)
+        // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
+        // We use exponential backoff to avoid overwhelming the server during high load.
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-          const delay = Math.min(
-            BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
-            MAX_RETRY_DELAY_MS
-          ); // Exponential backoff (BASE_RETRY_DELAY_MS * 2^retryCount), capped at MAX_RETRY_DELAY_MS (10s)
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await sleep(this.getRetryDelay(retryCount));
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
         
@@ -474,8 +530,7 @@ export class TestRailClient {
       
       // Retry on network errors up to the maximum number of retries
       if (retryCount < this.maxRetries) {
-        const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await sleep(this.getRetryDelay(retryCount));
         return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
       }
       
@@ -495,6 +550,8 @@ export class TestRailClient {
    * 
    * @param projectId - The ID of the project
    * @returns The project
+   * @throws {TestRailValidationError} When projectId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getProject(projectId: number): Promise<Project> {
     this.validateId(projectId, 'projectId');
@@ -518,6 +575,8 @@ export class TestRailClient {
    * 
    * @param suiteId - The ID of the suite
    * @returns The suite
+   * @throws {TestRailValidationError} When suiteId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getSuite(suiteId: number): Promise<Suite> {
     this.validateId(suiteId, 'suiteId');
@@ -575,6 +634,8 @@ export class TestRailClient {
    * 
    * @param caseId - The ID of the case
    * @returns The case
+   * @throws {TestRailValidationError} When caseId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getCase(caseId: number): Promise<Case> {
     this.validateId(caseId, 'caseId');
@@ -634,6 +695,8 @@ export class TestRailClient {
    * @param caseId - The ID of the case
    * @param payload - The case data to update
    * @returns The updated case
+   * @throws {TestRailValidationError} When caseId is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
     this.validateId(caseId, 'caseId');
@@ -928,13 +991,14 @@ export class TestRailClient {
    * 
    * @param email - The email of the user
    * @returns The user
-   * @throws {TestRailConfigError} When email format is invalid
+   * @throws {TestRailValidationError} When email format is invalid
+   * @throws {TestRailApiError} When the API request fails
    */
   async getUserByEmail(email: string): Promise<User> {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      throw new TestRailConfigError('Invalid email format');
+      throw new TestRailValidationError('Invalid email format');
     }
     
     return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);
