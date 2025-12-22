@@ -151,7 +151,11 @@ describe('TestRailClient - Coverage Improvement', () => {
         baseUrl: 'https://example.testrail.net',
         email: 'test@example.com',
         apiKey: 'test-key',
-        timeout: 100, // Very short timeout
+        // Note: Using a short timeout of 100ms is safe here because fetch is mocked
+        // to return immediately with an AbortError. This test validates timeout handling
+        // logic without actually waiting, ensuring fast test execution regardless of
+        // system performance or CI environment load.
+        timeout: 100,
         maxRetries: 0 // No retries to avoid complications
       });
 
@@ -224,6 +228,26 @@ describe('TestRailClient - Coverage Improvement', () => {
       global.fetch = vi.fn().mockRejectedValue(abortError);
 
       await expect(client.getProject(1)).rejects.toThrow('Request timeout after 50ms');
+    });
+
+    it('should not retry timeout errors even when maxRetries is set', async () => {
+      const client = new TestRailClient({
+        baseUrl: 'https://example.testrail.net',
+        email: 'test@example.com',
+        apiKey: 'test-key',
+        maxRetries: 3, // Set retries but timeouts should not be retried
+        timeout: 50
+      });
+
+      // Mock fetch to throw AbortError (timeout)
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      global.fetch = vi.fn().mockRejectedValue(abortError);
+
+      await expect(client.getProject(1)).rejects.toThrow('Request timeout after 50ms');
+      
+      // Should only have made 1 attempt, no retries for timeout errors
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -50,7 +50,17 @@ export class TestRailConfigError extends Error {
  * Base delay in milliseconds for exponential backoff retry strategy
  */
 const BASE_RETRY_DELAY_MS = 1000;
-const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Maximum delay in milliseconds for exponential backoff retry strategy
+ */
+const MAX_RETRY_DELAY_MS = 10000;
+
+/**
+ * Maximum timeout in milliseconds for HTTP requests (5 minutes)
+ */
+const MAX_TIMEOUT_MS = 5 * 60 * 1000;
+
 /**
  * Global set to track all active TestRailClient instances
  */
@@ -91,11 +101,6 @@ function registerProcessHandlers(): void {
     processHandlersRegistered = true;
   }
 }
-
-/**
- * Maximum delay in milliseconds for exponential backoff retry strategy
- */
-const MAX_RETRY_DELAY_MS = 10000;
 
 /**
  * TestRail API Client
@@ -461,15 +466,16 @@ export class TestRailClient {
       
       const isAbortError = (error as Error).name === 'AbortError';
       
+      // Don't retry timeout errors to avoid excessive wait times
+      if (isAbortError) {
+        throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+      }
+      
       // Retry on network errors up to the maximum number of retries
       if (retryCount < this.maxRetries) {
         const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-      }
-      
-      if (isAbortError) {
-        throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
       }
       
       throw new TestRailApiError(
