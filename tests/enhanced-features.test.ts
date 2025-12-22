@@ -256,6 +256,40 @@ describe('TestRailClient - Enhanced Features', () => {
       await testClient.getProject(1);
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
+
+    it('should safely handle multiple destroy calls (idempotency)', async () => {
+      const testClient = new TestRailClient({
+        baseUrl: 'https://example.testrail.io',
+        email: 'test@example.com',
+        apiKey: 'api-key',
+        enableCache: true,
+        cacheCleanupInterval: 1000,
+      });
+
+      const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+      
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: async () => JSON.stringify(mockProject),
+      } as never);
+
+      await testClient.getProject(1);
+      
+      // First destroy
+      testClient.destroy();
+      
+      // Second destroy - should not throw
+      testClient.destroy();
+      
+      // Third destroy - should not throw
+      testClient.destroy();
+      
+      // Should be able to continue using after destroy
+      await testClient.getProject(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('Retry Logic', () => {
