@@ -50,7 +50,14 @@ export class TestRailConfigError extends Error {
  * Base delay in milliseconds for exponential backoff retry strategy
  */
 const BASE_RETRY_DELAY_MS = 1000;
+
+/**
+ * Maximum delay in milliseconds for exponential backoff retry strategy
+ */
+const MAX_RETRY_DELAY_MS = 10000;
+
 const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Global set to track all active TestRailClient instances
  */
@@ -91,11 +98,6 @@ function registerProcessHandlers(): void {
     processHandlersRegistered = true;
   }
 }
-
-/**
- * Maximum delay in milliseconds for exponential backoff retry strategy
- */
-const MAX_RETRY_DELAY_MS = 10000;
 
 /**
  * TestRail API Client
