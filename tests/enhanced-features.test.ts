@@ -402,15 +402,16 @@ describe('TestRailClient - Enhanced Features', () => {
       vi.clearAllMocks();
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(isolatedClient.getProject(1)).rejects.toThrow(TestRailApiError);
-      
-      // Verify the error message contains network error information
+      // Verify the error thrown for a network failure is a TestRailApiError
+      // and that its message contains network error information
+      let caughtError: unknown;
       try {
         await isolatedClient.getProject(1);
       } catch (error) {
-        expect(error).toBeInstanceOf(TestRailApiError);
-        expect((error as TestRailApiError).message).toContain('Network error');
+        caughtError = error;
       }
+      expect(caughtError).toBeInstanceOf(TestRailApiError);
+      expect((caughtError as TestRailApiError).message).toContain('Network error');
     });
 
     it('should handle invalid JSON responses', async () => {
