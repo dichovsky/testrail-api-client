@@ -9,13 +9,13 @@
     "typescript",
     "testing"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dichovsky/testrail-api-client.git"
-  },
   "homepage": "https://github.com/dichovsky/testrail-api-client#readme",
   "bugs": {
     "url": "https://github.com/dichovsky/testrail-api-client/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dichovsky/testrail-api-client.git"
   },
   "license": "MIT",
   "author": "Igor Magdich",
