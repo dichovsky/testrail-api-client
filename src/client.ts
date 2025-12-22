@@ -50,6 +50,49 @@ export class TestRailConfigError extends Error {
  * Base delay in milliseconds for exponential backoff retry strategy
  */
 const BASE_RETRY_DELAY_MS = 1000;
+const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+/**
+ * Global set to track all active TestRailClient instances
+ */
+const activeClients = new Set<TestRailClient>();
+
+/**
+ * Flag to ensure process event handlers are registered only once
+ */
+let processHandlersRegistered = false;
+
+/**
+ * Cleanup all active clients on process exit
+ * Note: This method only performs synchronous cleanup operations
+ * (clearing timers and maps) to ensure it completes before process exit.
+ */
+function cleanupAllClients(): void {
+  for (const client of activeClients) {
+    client.destroy();
+  }
+}
+
+/**
+ * Register process exit handlers once for all client instances
+ */
+function registerProcessHandlers(): void {
+  if (processHandlersRegistered) {
+    return;
+  }
+  
+  if (typeof process !== 'undefined' && typeof process.on === 'function') {
+    process.on('exit', cleanupAllClients);
+    process.on('SIGINT', () => {
+      cleanupAllClients();
+      process.exit(0);
+    });
+    process.on('SIGTERM', () => {
+      cleanupAllClients();
+      process.exit(0);
+    });
+    processHandlersRegistered = true;
+  }
+}
 
 /**
  * Maximum delay in milliseconds for exponential backoff retry strategy
@@ -73,6 +116,7 @@ export class TestRailClient {
   private readonly cache = new Map<string, CacheEntry<unknown>>();
   private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
+  private isDestroyed = false;
 
   /**
    * Creates a new TestRail API client
@@ -94,6 +138,10 @@ export class TestRailClient {
       windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
       requests: [],
     };
+    
+    // Register this instance for automatic cleanup
+    activeClients.add(this);
+    registerProcessHandlers();
     
     // Start periodic cache cleanup if enabled
     if (this.enableCache && this.cacheCleanupInterval > 0) {
@@ -131,14 +179,13 @@ export class TestRailClient {
     }
 
     // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
     if (!emailRegex.test(config.email)) {
       throw new TestRailConfigError('email must be a valid email address');
     }
 
     // Validate timeout if provided
     if (config.timeout !== undefined) {
-      const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
       if (
         typeof config.timeout !== 'number' ||
         config.timeout <= 0 ||
@@ -274,11 +321,23 @@ export class TestRailClient {
   }
 
   /**
-   * Cleanup resources when client is no longer needed
+   * Cleanup resources when client is no longer needed.
+   * This method is called automatically on process exit, but can also be called manually
+   * for explicit resource cleanup (e.g., in tests or when the client is no longer needed).
+   * It's safe to call this method multiple times.
    */
   public destroy(): void {
+    // Prevent duplicate cleanup
+    if (this.isDestroyed) {
+      return;
+    }
+    
+    this.isDestroyed = true;
     this.stopCacheCleanup();
     this.clearCache();
+    
+    // Remove this instance from the active clients set
+    activeClients.delete(this);
   }
 
   /**

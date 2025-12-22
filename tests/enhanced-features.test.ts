@@ -172,38 +172,46 @@ describe('TestRailClient - Enhanced Features', () => {
     });
 
     it('should periodically clean up expired cache entries', async () => {
-      // Create a client with short TTL and cleanup interval for testing
-      const shortLivedClient = new TestRailClient({
-        baseUrl: 'https://example.testrail.io',
-        email: 'test@example.com',
-        apiKey: 'api-key',
-        enableCache: true,
-        cacheTtl: 100, // 100ms TTL
-        cacheCleanupInterval: 50, // 50ms cleanup interval
-      });
+      // Use fake timers to control time
+      vi.useFakeTimers();
 
-      const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
-      
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      try {
+        // Create a client with short TTL and cleanup interval for testing
+        const shortLivedClient = new TestRailClient({
+          baseUrl: 'https://example.testrail.io',
+          email: 'test@example.com',
+          apiKey: 'api-key',
+          enableCache: true,
+          cacheTtl: 100, // 100ms TTL
+          cacheCleanupInterval: 50, // 50ms cleanup interval
+        });
 
-      // Make a request to populate cache
-      await shortLivedClient.getProject(1);
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+        const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+        
+        mockFetch.mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          text: async () => JSON.stringify(mockProject),
+        } as never);
 
-      // Wait for cache to expire and cleanup to run
-      await new Promise(resolve => setTimeout(resolve, 200));
+        // Make a request to populate cache
+        await shortLivedClient.getProject(1);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
 
-      // Next request should hit the API again because cache was cleaned up
-      await shortLivedClient.getProject(1);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+        // Advance time to expire cache and trigger cleanup
+        await vi.advanceTimersByTimeAsync(200);
 
-      // Cleanup resources
-      shortLivedClient.destroy();
+        // Next request should hit the API again because cache was cleaned up
+        await shortLivedClient.getProject(1);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+
+        // Cleanup resources
+        shortLivedClient.destroy();
+      } finally {
+        // Restore real timers
+        vi.useRealTimers();
+      }
     });
 
     it('should not start cleanup timer when cacheCleanupInterval is 0', () => {
@@ -245,6 +253,40 @@ describe('TestRailClient - Enhanced Features', () => {
       testClient.destroy();
       
       // After destroy, making a new request should work
+      await testClient.getProject(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should safely handle multiple destroy calls (idempotency)', async () => {
+      const testClient = new TestRailClient({
+        baseUrl: 'https://example.testrail.io',
+        email: 'test@example.com',
+        apiKey: 'api-key',
+        enableCache: true,
+        cacheCleanupInterval: 1000,
+      });
+
+      const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+      
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: async () => JSON.stringify(mockProject),
+      } as never);
+
+      await testClient.getProject(1);
+      
+      // First destroy
+      testClient.destroy();
+      
+      // Second destroy - should not throw
+      testClient.destroy();
+      
+      // Third destroy - should not throw
+      testClient.destroy();
+      
+      // Should be able to continue using after destroy
       await testClient.getProject(1);
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });

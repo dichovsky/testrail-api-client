@@ -315,6 +315,20 @@ const project2 = await client.getProject(1);
 client.clearCache();
 ```
 
+The client performs periodic cleanup of expired cache entries automatically. Resources are automatically cleaned up when the Node.js process exits, so you don't need to worry about manually calling `destroy()` in most cases.
+
+For scenarios where you need explicit cleanup (e.g., in tests or when creating multiple client instances), you can call `destroy()` manually:
+
+```typescript
+const client = new TestRailClient({ /* config */ });
+
+// Use the client...
+await client.getProject(1);
+
+// Explicitly cleanup resources when done
+client.destroy();
+```
+
 ### Retry Logic
 
 Failed requests are automatically retried with exponential backoff:
