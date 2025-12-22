@@ -303,6 +303,9 @@ export class TestRailClient {
     
     const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
     if (entry !== undefined && entry.expiry > Date.now()) {
+      // Move to end to mark as recently used (LRU behavior)
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, entry);
       return entry.data;
     }
     
