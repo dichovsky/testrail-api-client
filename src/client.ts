@@ -182,7 +182,7 @@ export class TestRailClient {
     }
 
     // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(config.email)) {
       throw new TestRailConfigError('email must be a valid email address');
     }
