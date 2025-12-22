@@ -298,8 +298,9 @@ export class TestRailClient {
       this.cleanupExpiredCache();
     }, this.cacheCleanupInterval);
     
-    // Ensure timer doesn't prevent process exit in Node.js environments
-    // The unref check provides compatibility with non-Node.js environments
+    // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
+    // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
+    // compatibility with non-Node.js environments where unref may not exist.
     if (typeof this.cacheCleanupTimer.unref === 'function') {
       this.cacheCleanupTimer.unref();
     }
