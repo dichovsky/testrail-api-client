@@ -437,7 +437,7 @@ describe('TestRailClient - Coverage Improvement', () => {
         baseUrl: 'https://example.testrail.net',
         email: 'test@example.com',
         apiKey: 'test-key',
-        enableCaching: true,
+        enableCache: true,
         cacheTtl: 1000 // 1 second TTL
       });
 
