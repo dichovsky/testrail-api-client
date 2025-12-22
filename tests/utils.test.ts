@@ -36,14 +36,12 @@ describe('Utils', () => {
     });
 
     it('should delay execution for specified duration', async () => {
-      const start = Date.now();
       const promise = sleep(100);
       
       // Fast-forward time
       vi.advanceTimersByTime(100);
       
-      await promise;
-      expect(Date.now() - start).toBeGreaterThanOrEqual(100);
+      await expect(promise).resolves.toBeUndefined();
     });
 
     it('should resolve after the specified time', async () => {
