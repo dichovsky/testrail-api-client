@@ -31,7 +31,7 @@ npm run lint
 npm run typecheck
 
 # Single test file execution
-npx vitest run src/client.ts
+npx vitest run tests/client.test.ts
 ```
 
 ## Prerequisites
