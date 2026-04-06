@@ -510,6 +510,12 @@ export class TestRailClient {
           this.setCachedData(cacheKey, result);
         }
         
+        // Invalidate cache after mutating requests to avoid stale GET results.
+        // For simplicity, clear the entire cache on any non-GET success.
+        if (method !== 'GET') {
+          this.clearCache();
+        }
+        
         return result;
       } catch {
         throw new TestRailApiError('Invalid JSON response from TestRail API');
