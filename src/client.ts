@@ -496,6 +496,13 @@ export class TestRailClient {
         );
       }
 
+      // Invalidate cache after mutating requests to avoid stale GET results.
+      // Done before the empty-body check so empty responses (e.g. delete endpoints)
+      // also clear the cache.
+      if (method !== 'GET') {
+        this.clearCache();
+      }
+
       const responseText = await response.text();
       if (!responseText) {
         return {} as T;
