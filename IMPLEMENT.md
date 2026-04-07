@@ -10,11 +10,12 @@ You MUST follow this protocol exactly.
 - You are running in PARALLEL with other agents
 - Assume race conditions at all times
 - NEVER work on an unclaimed task
+- Claiming a task is REQUIRED before any implementation work and must happen as soon as a candidate task is identified
 - NEVER modify unrelated code
-- NEVER mark tasks as Done (PR creation is the stop point)
 - You may ONLY commit to dev when:
   1. Claiming a task
   2. Marking a task as Blocked
+- Claim commits to `dev` are explicitly allowed and expected as part of lock acquisition
 
 --------------------------------------------------
 ## AGENT IDENTITY
@@ -57,6 +58,8 @@ If this fails:
 
 Open TASKS.md
 
+Do not begin implementation, investigation, or code edits beyond identifying the first available task. Claim it immediately.
+
 Select the FIRST task that:
 
 - Has unchecked items: "- [ ]"
@@ -72,6 +75,7 @@ If none found:
 ## STEP 3 — ATOMIC TASK CLAIM (CRITICAL SECTION)
 
 ⚠️ This prevents multiple agents from taking the same task
+⚠️ Claim the task immediately after discovery, before any implementation work
 
 Modify the task header:
 
