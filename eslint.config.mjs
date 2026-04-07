@@ -1,41 +1,31 @@
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
-import path from "node:path";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 import js from "@eslint/js";
-import { FlatCompat } from "@eslint/eslintrc";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
-});
 
-export default [{
-    ignores: ["**/*.js", "**/*.d.ts", "dist/**/*", "coverage/**/*"],
-}, ...compat.extends(
-    "eslint:recommended",
-    "plugin:@typescript-eslint/eslint-recommended",
-    "plugin:@typescript-eslint/recommended",
+export default [
+    {
+        ignores: ["**/*.js", "**/*.d.ts", "dist/**/*", "coverage/**/*"],
+    },
+    js.configs.recommended,
     // This preset enables type-aware rules using parserOptions.project; we've evaluated the performance impact and consider it acceptable for this codebase.
-    "plugin:@typescript-eslint/recommended-requiring-type-checking",
-), {
-    plugins: {
-        "@typescript-eslint": typescriptEslint,
-    },
-
-    languageOptions: {
-        parser: tsParser,
-        parserOptions: {
-            ecmaVersion: "latest",
-            sourceType: "module",
-            project: "./tsconfig.eslint.json",
+    ...typescriptEslint.configs["recommended-type-checked"],
+    {
+        languageOptions: {
+            parser: tsParser,
+            parserOptions: {
+                ecmaVersion: "latest",
+                sourceType: "module",
+                project: "./tsconfig.eslint.json",
+                tsconfigRootDir: __dirname,
+            },
         },
-    },
 
-    rules: {
+        rules: {
         // TypeScript specific rules
         "@typescript-eslint/no-explicit-any": "error",
         "@typescript-eslint/no-unused-vars": "error",
