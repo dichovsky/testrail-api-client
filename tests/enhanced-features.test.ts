@@ -5,6 +5,17 @@ import { TestRailClient, TestRailApiError, TestRailValidationError } from '../sr
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+// Mock sleep to avoid real delays and allow assertion of delay values
+vi.mock('../src/utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/utils.js')>();
+  return {
+    ...actual,
+    sleep: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+import { sleep } from '../src/utils.js';
+
 describe('TestRailClient - Enhanced Features', () => {
   let client: TestRailClient;
 
@@ -344,18 +355,69 @@ describe('TestRailClient - Enhanced Features', () => {
           ok: false,
           status: 429,
           statusText: 'Too Many Requests',
+          headers: { get: () => null },
           text: async () => 'Rate limited',
         } as never)
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
           statusText: 'OK',
+          headers: { get: () => null },
           text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
         } as never);
 
       const result = await client.getProject(1);
       expect(result.id).toBe(1);
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should use Retry-After header value when present on 429', async () => {
+      const mockSleep = vi.mocked(sleep);
+      mockSleep.mockClear();
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { get: (header: string) => header === 'Retry-After' ? '5' : null },
+          text: async () => 'Rate limited',
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => null },
+          text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+        } as never);
+
+      await client.getProject(1);
+      expect(mockSleep).toHaveBeenCalledWith(5000);
+    });
+
+    it('should use exponential backoff on 429 when Retry-After header is absent', async () => {
+      const mockSleep = vi.mocked(sleep);
+      mockSleep.mockClear();
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { get: () => null },
+          text: async () => 'Rate limited',
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => null },
+          text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+        } as never);
+
+      await client.getProject(1);
+      // First retry (retryCount=0): 1000 * 2^0 = 1000ms
+      expect(mockSleep).toHaveBeenCalledWith(1000);
     });
 
     it('should not retry on client errors', async () => {

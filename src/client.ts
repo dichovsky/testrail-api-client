@@ -251,6 +251,34 @@ export class TestRailClient {
   }
 
   /**
+   * Parses the `Retry-After` response header and returns the wait time in milliseconds.
+   * Supports both integer (seconds) and HTTP-date formats.
+   * Returns null if the header is absent or cannot be parsed.
+   * 
+   * @param response - The HTTP response containing the header
+   * @returns Wait time in milliseconds, or null if header is absent/invalid
+   */
+  private parseRetryAfterMs(response: Response): number | null {
+    const retryAfter = response.headers?.get('Retry-After');
+    if (retryAfter === null || retryAfter === undefined || retryAfter === '') return null;
+
+    // Try integer seconds format first
+    const seconds = Number(retryAfter.trim());
+    if (!isNaN(seconds) && seconds >= 0) {
+      return Math.round(seconds * 1000);
+    }
+
+    // Try HTTP-date format
+    const retryDate = new Date(retryAfter).getTime();
+    if (!isNaN(retryDate)) {
+      const delayMs = retryDate - Date.now();
+      return delayMs > 0 ? delayMs : 0;
+    }
+
+    return null;
+  }
+
+  /**
    * Checks and applies rate limiting
    * 
    * Our rate limiter uses a sliding window approach. We keep track of the timestamps 
@@ -482,9 +510,11 @@ export class TestRailClient {
         const errorText = await response.text().catch(() => 'Unknown error');
         
         // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-        // We use exponential backoff to avoid overwhelming the server during high load.
+        // For 429, respect the Retry-After header if present; otherwise use exponential backoff.
         if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-          await sleep(this.getRetryDelay(retryCount));
+          const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+          const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
+          await sleep(delay);
           return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
         }
         
