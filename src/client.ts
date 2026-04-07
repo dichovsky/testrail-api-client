@@ -272,7 +272,7 @@ export class TestRailClient {
         seconds >= 0 &&
         seconds <= Number.MAX_SAFE_INTEGER / 1000
       ) {
-        return seconds * 1000;
+        return Math.round(seconds * 1000);
       }
 
       return null;
