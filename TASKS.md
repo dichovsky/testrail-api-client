@@ -41,7 +41,7 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 ---
 
-### TASK-003 · `Retry-After` response header not respected on 429 [In Progress by agent-x7k2m9]
+### TASK-003 · `Retry-After` response header not respected on 429 [Done]
 
 **Category:** Bug / Retry Logic  
 **Description:**  
