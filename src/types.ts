@@ -470,7 +470,6 @@ export interface Priority {
  */
 export interface AddCasePayload {
   title: string;
-  section_id?: number;
   template_id?: number;
   type_id?: number;
   priority_id?: number;
