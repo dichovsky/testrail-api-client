@@ -262,14 +262,24 @@ export class TestRailClient {
     const retryAfter = response.headers?.get('Retry-After');
     if (retryAfter === null || retryAfter === undefined || retryAfter === '') return null;
 
-    // Try integer seconds format first
-    const seconds = Number(retryAfter.trim());
-    if (!isNaN(seconds) && seconds >= 0) {
-      return Math.round(seconds * 1000);
+    const trimmedRetryAfter = retryAfter.trim();
+
+    // Try integer seconds format first (strict digits-only)
+    if (/^\d+$/.test(trimmedRetryAfter)) {
+      const seconds = Number(trimmedRetryAfter);
+      if (
+        Number.isFinite(seconds) &&
+        seconds >= 0 &&
+        seconds <= Number.MAX_SAFE_INTEGER / 1000
+      ) {
+        return seconds * 1000;
+      }
+
+      return null;
     }
 
     // Try HTTP-date format
-    const retryDate = new Date(retryAfter).getTime();
+    const retryDate = new Date(trimmedRetryAfter).getTime();
     if (!isNaN(retryDate)) {
       const delayMs = retryDate - Date.now();
       return delayMs > 0 ? delayMs : 0;

@@ -395,6 +395,39 @@ describe('TestRailClient - Enhanced Features', () => {
       expect(mockSleep).toHaveBeenCalledWith(5000);
     });
 
+    it('should use Retry-After HTTP-date header value when present on 429', async () => {
+      const mockSleep = vi.mocked(sleep);
+      mockSleep.mockClear();
+
+      // Fix "now" so the HTTP-date delay is deterministic (3 seconds in the future)
+      const now = new Date('2026-01-01T00:00:00.000Z');
+      vi.useFakeTimers();
+      vi.setSystemTime(now);
+
+      const retryAfterDate = new Date(now.getTime() + 3000).toUTCString();
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { get: (header: string) => header === 'Retry-After' ? retryAfterDate : null },
+          text: async () => 'Rate limited',
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          headers: { get: () => null },
+          text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+        } as never);
+
+      await client.getProject(1);
+      expect(mockSleep).toHaveBeenCalledWith(3000);
+
+      vi.useRealTimers();
+    });
+
     it('should use exponential backoff on 429 when Retry-After header is absent', async () => {
       const mockSleep = vi.mocked(sleep);
       mockSleep.mockClear();
