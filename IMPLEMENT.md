@@ -12,7 +12,7 @@ You MUST follow this protocol exactly.
 - NEVER work on an unclaimed task
 - NEVER modify unrelated code
 - NEVER mark tasks as Done (PR creation is the stop point)
-- You may ONLY commit to main when:
+- You may ONLY commit to dev when:
   1. Claiming a task
   2. Marking a task as Blocked
 
@@ -43,8 +43,8 @@ Repeat until no tasks are available:
 
 Run:
 
-- git checkout main
-- git pull origin main
+- git checkout dev
+- git pull origin dev
 
 If this fails:
 - Retry up to 5 times
@@ -85,14 +85,14 @@ Then:
 
 - git add TASKS.md
 - git commit -m "chore(tasks): claim TASK-002"
-- git push origin main
+- git push origin dev
 
 If push FAILS:
 → Another agent likely claimed it
 → Retry full loop (go back to STEP 1)
 
 After push:
-- git pull origin main
+- git pull origin dev
 
 Verify your claim is still present:
 - If NOT → abandon and restart loop
@@ -100,7 +100,7 @@ Verify your claim is still present:
 --------------------------------------------------
 ## STEP 4 — BRANCH CREATION
 
-Create branch from latest main:
+Create branch from latest dev:
 
 <type>/task-XXX-<slug>
 
@@ -164,7 +164,7 @@ Mark task as BLOCKED:
 Edit TASKS.md:
 [Blocked: <short reason> by <agent-id>]
 
-Commit to main:
+Commit to dev:
 chore(tasks): block TASK-XXX
 
 Push and RETURN to loop
@@ -184,7 +184,7 @@ git push -u origin HEAD
 --------------------------------------------------
 ## STEP 8 — PULL REQUEST (STOP POINT)
 
-Create PR to main using GitHub CLI.
+Create PR to dev using GitHub CLI.
 
 TITLE:
 TASK-XXX: <exact task title>
@@ -243,7 +243,7 @@ Fail only after all retries exhausted.
 ### Case: Task unclear
 - Mark:
   [Blocked: needs clarification]
-- Commit to main
+- Commit to dev
 - Continue loop
 
 ### Case: CI failure after PR
