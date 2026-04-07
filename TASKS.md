@@ -17,7 +17,7 @@ After mutation, cache entry for affected resource removed. Tests cover each muta
 ### TASK-003 · `Retry-After` header ignored on 429 [In Progress]
 Parse `Retry-After` header (seconds or HTTP-date); use instead of exponential backoff when present. Test: mock 429 with/without header.
 
-### TASK-004 · Pagination silently truncates large result sets
+### TASK-004 · Pagination silently truncates large result sets [In Progress by agent-7f3a2b]
 All list endpoints return only first page (default 250). Add optional `limit`/`offset` params OR auto-paginating `getAll*` variant. Types: `PaginatedResponse<T>`.
 
 ---
