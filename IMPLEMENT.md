@@ -127,7 +127,6 @@ Follow STRICT scope:
 
 Tech stack:
 - TypeScript / Node.js (Vitest)
-- Python (if applicable)
 
 Requirements:
 
@@ -146,7 +145,6 @@ Run all relevant checks:
 
 - TypeScript compile
 - Vitest tests
-- Python tests (if affected)
 - Lint (if exists)
 
 If failure:
@@ -200,7 +198,7 @@ DESCRIPTION MUST INCLUDE:
 
 IMPORTANT:
 - DO NOT merge
-- DO NOT update TASKS.md to Done
+- Update TASKS.md to Done
 - STOP after PR creation
 
 --------------------------------------------------

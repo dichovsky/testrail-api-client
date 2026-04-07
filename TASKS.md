@@ -13,31 +13,31 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 ## P0 — Critical
 
-### TASK-001 · Cache not invalidated after mutations
+### TASK-001 · Cache not invalidated after mutations [Done]
 
 **Category:** Bug / Caching  
 **Description:**  
 `request()` caches all successful `GET` responses. Mutations (`POST` to `update_*`, `delete_*`, `add_*`) do not invalidate any related cache entries. After calling `updateCase(1, {...})`, a subsequent `getCase(1)` returns the stale cached value until TTL expires (up to 5 minutes by default).
 
 **Acceptance Criteria:**
-- [ ] After any mutating call (add/update/delete) the cache entry for the affected resource is removed
-- [ ] After `deleteCase(caseId)` calling `getCase(caseId)` hits the network, not cache
-- [ ] After `addCase(sectionId, ...)` calling `getCases(projectId)` hits the network, not cache
-- [ ] After `updateRun(runId, ...)` calling `getRun(runId)` hits the network, not cache
-- [ ] Tests added covering each mutation→read stale-cache scenario
+- [x] After any mutating call (add/update/delete) the cache entry for the affected resource is removed
+- [x] After `deleteCase(caseId)` calling `getCase(caseId)` hits the network, not cache
+- [x] After `addCase(sectionId, ...)` calling `getCases(projectId)` hits the network, not cache
+- [x] After `updateRun(runId, ...)` calling `getRun(runId)` hits the network, not cache
+- [x] Tests added covering each mutation→read stale-cache scenario
 
 ---
 
-### TASK-002 · `AddCasePayload.section_id` is a path parameter, not a body field
+### TASK-002 · `AddCasePayload.section_id` is a path parameter, not a body field [Done]
 
 **Category:** Bug / Types  
 **Description:**  
 `AddCasePayload` (src/types.ts:472) includes an optional `section_id` field. The TestRail API endpoint `POST add_case/{section_id}` takes `section_id` as a URL segment, not in the request body. Including it in the payload type is misleading and may cause unexpected behaviour if a caller passes both.
 
 **Acceptance Criteria:**
-- [ ] `section_id` removed from `AddCasePayload`
-- [ ] No compilation errors or test failures after removal
-- [ ] `addCase(sectionId, payload)` signature unchanged
+- [x] `section_id` removed from `AddCasePayload`
+- [x] No compilation errors or test failures after removal
+- [x] `addCase(sectionId, payload)` signature unchanged
 
 ---
 
