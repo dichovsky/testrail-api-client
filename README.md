@@ -10,6 +10,7 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 ## Features
 
 🚀 **Performance & Reliability**
+
 - Intelligent caching system for GET requests to reduce API calls and improve response times
 - Configurable request timeouts (up to 5 minutes) with automatic cleanup
 - Advanced retry logic with exponential backoff (configurable 0-10 retries)
@@ -19,7 +20,8 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 - Graceful cleanup on process termination
 - Cross-platform support (Node.js and browser environments)
 
-🛡️ **Security & Validation** 
+🛡️ **Security & Validation**
+
 - Comprehensive input validation for all configuration and method parameters
 - URL sanitization and email format validation using regex patterns
 - Secure credential handling with Base64 encoding
@@ -29,6 +31,7 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 - Custom error classes with detailed error information
 
 🔧 **Developer Experience**
+
 - Full TypeScript support with strict type checking and comprehensive interfaces
 - Custom error classes (TestRailApiError, TestRailValidationError) for better error handling
 - Extensive JSDoc documentation with parameter descriptions
@@ -36,6 +39,7 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 - Automatic process cleanup handlers for graceful shutdowns
 
 ✅ **Quality & Testing**
+
 - 97.6%+ test coverage with comprehensive test suite (140+ tests)
 - High branch coverage (98.7%) ensuring thorough edge case testing
 - Strict ESLint configuration with security-focused and TypeScript-specific rules
@@ -55,9 +59,9 @@ npm install @dichovsky/testrail-api-client
 import { TestRailClient } from '@dichovsky/testrail-api-client';
 
 const client = new TestRailClient({
-  baseUrl: 'https://your-domain.testrail.io',
-  email: 'your-email@example.com',
-  apiKey: 'your-api-key',
+    baseUrl: 'https://your-domain.testrail.io',
+    email: 'your-email@example.com',
+    apiKey: 'your-api-key',
 });
 
 // Get a project
@@ -70,9 +74,9 @@ console.log(`Found ${cases.length} test cases`);
 
 // Add a new test result
 const result = await client.addResult(testId, {
-  status_id: 1, // Passed
-  comment: 'Test passed successfully',
-  elapsed: '5m',
+    status_id: 1, // Passed
+    comment: 'Test passed successfully',
+    elapsed: '5m',
 });
 ```
 
@@ -82,40 +86,40 @@ The client supports extensive configuration options:
 
 ```typescript
 const client = new TestRailClient({
-  baseUrl: 'https://your-domain.testrail.io',
-  email: 'your-email@example.com',
-  apiKey: 'your-api-key',
-  
-  // Performance settings
-  timeout: 30000,                    // Request timeout (30 seconds, max 5 minutes)
-  maxRetries: 3,                     // Maximum retry attempts (0-10)
-  enableCache: true,                 // Enable response caching for GET requests
-  cacheTtl: 300000,                  // Cache TTL (5 minutes)
-  cacheCleanupInterval: 60000,       // Cache cleanup interval (1 minute)
-  maxCacheSize: 1000,                // Maximum cache entries (default: 1000)
-  
-  // Rate limiting
-  rateLimiter: {
-    maxRequests: 100,                // Max requests per window
-    windowMs: 60000,                 // Time window (1 minute)
-  },
+    baseUrl: 'https://your-domain.testrail.io',
+    email: 'your-email@example.com',
+    apiKey: 'your-api-key',
+
+    // Performance settings
+    timeout: 30000, // Request timeout (30 seconds, max 5 minutes)
+    maxRetries: 3, // Maximum retry attempts (0-10)
+    enableCache: true, // Enable response caching for GET requests
+    cacheTtl: 300000, // Cache TTL (5 minutes)
+    cacheCleanupInterval: 60000, // Cache cleanup interval (1 minute)
+    maxCacheSize: 1000, // Maximum cache entries (default: 1000)
+
+    // Rate limiting
+    rateLimiter: {
+        maxRequests: 100, // Max requests per window
+        windowMs: 60000, // Time window (1 minute)
+    },
 });
 ```
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `baseUrl` | `string` | **required** | TestRail instance URL (http/https) |
-| `email` | `string` | **required** | TestRail user email (validated format) |
-| `apiKey` | `string` | **required** | TestRail API key |
-| `timeout` | `number` | `30000` | Request timeout in milliseconds (max 5 minutes) |
-| `maxRetries` | `number` | `3` | Maximum retry attempts for failed requests (0-10) |
-| `enableCache` | `boolean` | `true` | Enable caching for GET requests |
-| `cacheTtl` | `number` | `300000` | Cache time-to-live in milliseconds |
-| `cacheCleanupInterval` | `number` | `60000` | Cache cleanup interval (0 to disable) |
-| `maxCacheSize` | `number` | `1000` | Maximum number of entries in cache |
-| `rateLimiter` | `RateLimiterConfig` | See below | Rate limiting configuration |
+| Option                 | Type                | Default      | Description                                       |
+| ---------------------- | ------------------- | ------------ | ------------------------------------------------- |
+| `baseUrl`              | `string`            | **required** | TestRail instance URL (http/https)                |
+| `email`                | `string`            | **required** | TestRail user email (validated format)            |
+| `apiKey`               | `string`            | **required** | TestRail API key                                  |
+| `timeout`              | `number`            | `30000`      | Request timeout in milliseconds (max 5 minutes)   |
+| `maxRetries`           | `number`            | `3`          | Maximum retry attempts for failed requests (0-10) |
+| `enableCache`          | `boolean`           | `true`       | Enable caching for GET requests                   |
+| `cacheTtl`             | `number`            | `300000`     | Cache time-to-live in milliseconds                |
+| `cacheCleanupInterval` | `number`            | `60000`      | Cache cleanup interval (0 to disable)             |
+| `maxCacheSize`         | `number`            | `1000`       | Maximum number of entries in cache                |
+| `rateLimiter`          | `RateLimiterConfig` | See below    | Rate limiting configuration                       |
 
 #### Rate Limiter Configuration
 
@@ -134,15 +138,15 @@ The client provides comprehensive error handling with custom error classes:
 import { TestRailApiError, TestRailValidationError } from '@dichovsky/testrail-api-client';
 
 try {
-  const project = await client.getProject(999);
+    const project = await client.getProject(999);
 } catch (error) {
-  if (error instanceof TestRailApiError) {
-    console.error('API Error:', error.message);
-    console.error('Status:', error.status);
-    console.error('Response:', error.response);
-  } else if (error instanceof TestRailValidationError) {
-    console.error('Validation Error:', error.message);
-  }
+    if (error instanceof TestRailApiError) {
+        console.error('API Error:', error.message);
+        console.error('Status:', error.status);
+        console.error('Response:', error.response);
+    } else if (error instanceof TestRailValidationError) {
+        console.error('Validation Error:', error.message);
+    }
 }
 ```
 
@@ -156,24 +160,28 @@ try {
 ## Advanced Features
 
 ### Caching System
+
 - Automatic caching of GET requests to improve performance
 - Configurable TTL and cleanup intervals
 - Memory-efficient with automatic expiration
 - Thread-safe implementation
 
-### Rate Limiting  
+### Rate Limiting
+
 - Built-in rate limiting to respect API constraints
 - Sliding window implementation
 - Configurable limits per time window
 - Automatic request queuing
 
 ### Retry Logic
+
 - Exponential backoff for failed requests
 - Configurable retry attempts (0-10)
 - Smart retry for appropriate error types (500+, network errors)
 - Maximum delay capping to prevent excessive waiting
 
 ### Resource Management
+
 - Automatic cleanup on process termination
 - Proper timer management for cache cleanup
 - Memory leak prevention with `destroy()` method
@@ -227,15 +235,15 @@ const cases = await client.getCases(projectId, suiteId, sectionId);
 
 // Add a new test case
 const newCase = await client.addCase(sectionId, {
-  title: 'New test case',
-  type_id: 1,
-  priority_id: 2,
-  estimate: '5m',
+    title: 'New test case',
+    type_id: 1,
+    priority_id: 2,
+    estimate: '5m',
 });
 
 // Update a test case
 const updatedCase = await client.updateCase(caseId, {
-  title: 'Updated test case title',
+    title: 'Updated test case title',
 });
 
 // Delete a test case
@@ -253,11 +261,13 @@ const plans = await client.getPlans(projectId);
 
 // Add a new plan
 const newPlan = await client.addPlan(projectId, {
-  name: 'Automated Test Plan',
-  entries: [{
-    suite_id: suiteId,
-    include_all: true,
-  }],
+    name: 'Automated Test Plan',
+    entries: [
+        {
+            suite_id: suiteId,
+            include_all: true,
+        },
+    ],
 });
 
 // Close a plan
@@ -278,9 +288,9 @@ const runs = await client.getRuns(projectId);
 
 // Add a new run
 const newRun = await client.addRun(projectId, {
-  suite_id: suiteId,
-  name: 'Automated Test Run',
-  include_all: true,
+    suite_id: suiteId,
+    name: 'Automated Test Run',
+    include_all: true,
 });
 
 // Close a run
@@ -301,24 +311,24 @@ const tests = await client.getTests(runId);
 
 // Add a test result
 const result = await client.addResult(testId, {
-  status_id: 1,        // 1 = Passed, 5 = Failed
-  comment: 'Test completed successfully',
-  elapsed: '2m 30s',
-  defects: 'BUG-123',
+    status_id: 1, // 1 = Passed, 5 = Failed
+    comment: 'Test completed successfully',
+    elapsed: '2m 30s',
+    defects: 'BUG-123',
 });
 
 // Add result for a specific case in a run
 const result = await client.addResultForCase(runId, caseId, {
-  status_id: 5,
-  comment: 'Test failed due to timeout',
+    status_id: 5,
+    comment: 'Test failed due to timeout',
 });
 
 // Add multiple results at once
 const results = await client.addResultsForCases(runId, {
-  results: [
-    { case_id: 1, status_id: 1, comment: 'Passed' },
-    { case_id: 2, status_id: 5, comment: 'Failed' },
-  ],
+    results: [
+        { case_id: 1, status_id: 1, comment: 'Passed' },
+        { case_id: 2, status_id: 5, comment: 'Failed' },
+    ],
 });
 ```
 
@@ -377,13 +387,13 @@ Built-in rate limiting prevents API abuse by enforcing a sliding window limit:
 
 ```typescript
 const client = new TestRailClient({
-  baseUrl: 'https://example.testrail.io',
-  email: 'user@example.com',
-  apiKey: 'key',
-  rateLimiter: {
-    maxRequests: 50,   // 50 requests
-    windowMs: 30000,   // per 30 seconds (default: 100 req / minute)
-  }
+    baseUrl: 'https://example.testrail.io',
+    email: 'user@example.com',
+    apiKey: 'key',
+    rateLimiter: {
+        maxRequests: 50, // 50 requests
+        windowMs: 30000, // per 30 seconds (default: 100 req / minute)
+    },
 });
 
 // Requests exceeding limits will throw TestRailApiError with a wait message
@@ -480,22 +490,26 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Initial release with comprehensive TestRail API support and advanced features:
 
 **Core Features:**
+
 - Full CRUD operations for projects, suites, cases, plans, runs, and results
 - Complete TypeScript support with strict type checking
 
 **Performance & Reliability:**
+
 - Intelligent caching system for GET requests with automatic cleanup
 - Rate limiting with configurable sliding window
 - Retry logic with exponential backoff for resilient API calls
 - Request timeouts with proper AbortController usage
 
 **Security & Validation:**
+
 - Comprehensive input validation for all parameters
 - Custom error classes (TestRailApiError, TestRailValidationError)
 - Security warnings for insecure protocols
 - Protection against common vulnerabilities
 
 **Developer Experience:**
+
 - 97.6%+ test coverage with 140+ test cases
 - Strict ESLint configuration with security rules
 - Comprehensive JSDoc documentation
