@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
+import { mockOk } from './helpers.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -74,19 +75,7 @@ describe('TestRailClient - Enhanced Features', () => {
         },
       });
 
-      const mockResponse: {
-        ok: boolean;
-        status: number;
-        statusText: string;
-        text: () => Promise<string>;
-      } = {
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }),
-      };
-
-      mockFetch.mockResolvedValue(mockResponse as unknown as Response);
+      mockFetch.mockResolvedValue(mockOk({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }));
     });
 
     it('should allow requests within rate limit', async () => {
@@ -118,12 +107,7 @@ describe('TestRailClient - Enhanced Features', () => {
     it('should cache GET requests', async () => {
       const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
       
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
       // First request should hit the API
       const result1 = await client.getProject(1);
@@ -139,12 +123,7 @@ describe('TestRailClient - Enhanced Features', () => {
     it('should not cache POST requests', async () => {
       const mockCase = { id: 1, title: 'Test Case', section_id: 1, created_by: 1, created_on: 123, updated_by: 1, updated_on: 123, suite_id: 1 };
       
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockCase),
-      } as never);
+      mockFetch.mockResolvedValue(mockOk(mockCase));
 
       await client.addCase(1, { title: 'Test Case' });
       await client.addCase(1, { title: 'Test Case' });
@@ -155,12 +134,7 @@ describe('TestRailClient - Enhanced Features', () => {
     it('should clear cache when requested', async () => {
       const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
       
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      mockFetch.mockResolvedValue(mockOk(mockProject));
 
       await client.getProject(1);
       expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -188,12 +162,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
         const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
         
-        mockFetch.mockResolvedValue({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          text: async () => JSON.stringify(mockProject),
-        } as never);
+        mockFetch.mockResolvedValue(mockOk(mockProject));
 
         // Make a request to populate cache
         await shortLivedClient.getProject(1);
@@ -240,12 +209,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
       const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
       
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      mockFetch.mockResolvedValue(mockOk(mockProject));
 
       await testClient.getProject(1);
       
@@ -266,12 +230,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
       const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
       
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      mockFetch.mockResolvedValue(mockOk(mockProject));
 
       await testClient.getProject(1);
       
@@ -326,12 +285,7 @@ describe('TestRailClient - Enhanced Features', () => {
           statusText: 'Internal Server Error',
           text: async () => 'Server Error',
         } as never)
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-        } as never);
+        .mockResolvedValueOnce(mockOk({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }));
 
       const result = await client.getProject(1);
       expect(result.id).toBe(1);
@@ -346,12 +300,7 @@ describe('TestRailClient - Enhanced Features', () => {
           statusText: 'Too Many Requests',
           text: async () => 'Rate limited',
         } as never)
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-        } as never);
+        .mockResolvedValueOnce(mockOk({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }));
 
       const result = await client.getProject(1);
       expect(result.id).toBe(1);
@@ -460,12 +409,7 @@ describe('TestRailClient - Enhanced Features', () => {
     });
 
     it('should accept valid email in getUserByEmail', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ id: 1, name: 'Test User', email: 'test@example.com', is_active: true }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ id: 1, name: 'Test User', email: 'test@example.com', is_active: true }));
 
       const result = await client.getUserByEmail('test@example.com');
       expect(result.email).toBe('test@example.com');

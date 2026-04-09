@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/dichovsky/testrail-api-client/workflows/CI/badge.svg)](https://github.com/dichovsky/testrail-api-client/actions)
 [![npm version](https://badge.fury.io/js/@dichovsky%2Ftestrail-api-client.svg)](https://badge.fury.io/js/@dichovsky%2Ftestrail-api-client)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API with advanced features including intelligent caching, rate limiting, retry logic with exponential backoff, and robust error handling.
@@ -343,32 +343,6 @@ const priorities = await client.getPriorities();
 // Get milestones
 const milestones = await client.getMilestones(projectId);
 ```
-
-## Error Handling
-
-The client provides comprehensive error handling with custom error classes:
-
-```typescript
-import { TestRailApiError, TestRailValidationError } from '@dichovsky/testrail-api-client';
-
-try {
-  const project = await client.getProject(999);
-} catch (error) {
-  if (error instanceof TestRailApiError) {
-    console.log('API Error:', error.message);
-    console.log('Status:', error.status);
-    console.log('Response:', error.response);
-  } else if (error instanceof TestRailValidationError) {
-    console.log('Configuration Error:', error.message);
-  }
-}
-```
-
-### Error Types
-
-- **`TestRailApiError`**: API-related errors (network, HTTP status, malformed responses)
-- **`TestRailValidationError`**: Configuration validation errors
-- **Rate Limit Exceeded**: Special case of `TestRailApiError` when rate limits are hit
 
 ### Caching
 
