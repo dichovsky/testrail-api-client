@@ -4,7 +4,8 @@ Your objective is to continuously select, claim, implement, and submit tasks fro
 
 You MUST follow this protocol exactly.
 
---------------------------------------------------
+---
+
 ## GLOBAL RULES
 
 - You are running in PARALLEL with other agents
@@ -17,16 +18,17 @@ You MUST follow this protocol exactly.
   2. Marking a task as Blocked
 - Claim commits to `dev` are explicitly allowed and expected as part of lock acquisition
 
---------------------------------------------------
 ## AGENT IDENTITY
 
 Generate a unique agent ID at start:
+
 - Format: agent-<random-6-char>
 - Example: agent-a3f92k
 
 Use this ID in all task claims.
 
---------------------------------------------------
+---
+
 ## MAIN LOOP
 
 Repeat until no tasks are available:
@@ -39,7 +41,8 @@ Repeat until no tasks are available:
 6. PR creation
 7. STOP
 
---------------------------------------------------
+---
+
 ## STEP 1 — SYNC (WITH RETRY)
 
 Run:
@@ -48,12 +51,14 @@ Run:
 - git pull origin dev
 
 If this fails:
+
 - Retry up to 5 times
 - Use exponential backoff:
-  - 1s → 2s → 4s → 8s → 16s
+    - 1s → 2s → 4s → 8s → 16s
 - If still failing → STOP execution
 
---------------------------------------------------
+---
+
 ## STEP 2 — TASK DISCOVERY
 
 Open TASKS.md
@@ -64,14 +69,15 @@ Select the FIRST task that:
 
 - Has unchecked items: "- [ ]"
 - Does NOT include:
-  - "In Progress"
-  - "Blocked"
-  - "Done"
+    - "In Progress"
+    - "Blocked"
+    - "Done"
 
 If none found:
 → EXIT (no work remaining)
 
---------------------------------------------------
+---
+
 ## STEP 3 — ATOMIC TASK CLAIM (CRITICAL SECTION)
 
 ⚠️ This prevents multiple agents from taking the same task
@@ -80,9 +86,11 @@ If none found:
 Modify the task header:
 
 FROM:
+
 ### TASK-002 · Title
 
 TO:
+
 ### TASK-002 · Title [In Progress by <agent-id>]
 
 Then:
@@ -99,9 +107,11 @@ After push:
 - git pull origin dev
 
 Verify your claim is still present:
+
 - If NOT → abandon and restart loop
 
---------------------------------------------------
+---
+
 ## STEP 4 — BRANCH CREATION
 
 Create branch from latest dev:
@@ -109,6 +119,7 @@ Create branch from latest dev:
 <type>/task-XXX-<slug>
 
 Types:
+
 - feat
 - fix
 - refactor
@@ -121,7 +132,8 @@ fix/task-002-section-id
 
 Then checkout branch.
 
---------------------------------------------------
+---
+
 ## STEP 5 — IMPLEMENTATION
 
 Follow STRICT scope:
@@ -130,6 +142,7 @@ Follow STRICT scope:
 - Do NOT refactor unrelated code
 
 Tech stack:
+
 - TypeScript / Node.js (Vitest)
 
 Requirements:
@@ -140,9 +153,11 @@ Requirements:
 
 Example constraint:
 If removing a field from a type:
+
 - DO NOT change function signatures unless required
 
---------------------------------------------------
+---
+
 ## STEP 6 — VALIDATION (HARD GATE)
 
 Run all relevant checks:
@@ -154,9 +169,11 @@ Run all relevant checks:
 If failure:
 
 Retry up to 3 times:
+
 - Attempt automatic fixes
 
 Backoff:
+
 - 1s → 2s → 4s
 
 If still failing:
@@ -171,7 +188,8 @@ chore(tasks): block TASK-XXX
 
 Push and RETURN to loop
 
---------------------------------------------------
+---
+
 ## STEP 7 — COMMIT & PUSH
 
 Use Conventional Commits:
@@ -183,7 +201,8 @@ test(api): update payload validation tests
 Then:
 git push -u origin HEAD
 
---------------------------------------------------
+---
+
 ## STEP 8 — PULL REQUEST (STOP POINT)
 
 Create PR to dev using GitHub CLI.
@@ -197,15 +216,17 @@ DESCRIPTION MUST INCLUDE:
 - Why change was needed
 - Acceptance criteria checklist
 - Confirmation:
-  - tests pass
-  - no type errors
+    - tests pass
+    - no type errors
 
 IMPORTANT:
+
 - DO NOT merge
 - Update TASKS.md to Done
 - STOP after PR creation
 
---------------------------------------------------
+---
+
 ## MULTI-AGENT COORDINATION MODEL
 
 Coordination is achieved via TASKS.md as a distributed lock system.
@@ -217,14 +238,17 @@ RULES:
 3. Pull + verify = Lock validation
 
 If two agents race:
+
 - Only one push succeeds
 - Others must restart
 
 This guarantees:
+
 - No duplicate work
 - No shared-state corruption
 
---------------------------------------------------
+---
+
 ## RETRY STRATEGY (GLOBAL)
 
 For any git/network operation:
@@ -234,25 +258,30 @@ Retry max 5 times with exponential backoff:
 
 Fail only after all retries exhausted.
 
---------------------------------------------------
+---
+
 ## FAILURE MODES
 
 ### Case: Merge conflict
+
 - git pull --rebase
 - resolve safely
 - continue
 
 ### Case: Task unclear
+
 - Mark:
   [Blocked: needs clarification]
 - Commit to dev
 - Continue loop
 
 ### Case: CI failure after PR
+
 - Attempt ONE fix commit
 - If still failing → leave PR as-is
 
---------------------------------------------------
+---
+
 ## CONSTRAINTS
 
 - One task per branch
@@ -262,14 +291,17 @@ Fail only after all retries exhausted.
 - No history rewriting
 - Always prefer small diffs
 
---------------------------------------------------
+---
+
 ## TERMINATION
 
 Stop when:
+
 - No available tasks
 - Or repeated system failures
 
---------------------------------------------------
+---
+
 ## EXAMPLE TASK HANDLING
 
 TASK:
@@ -282,6 +314,6 @@ You MUST:
 - Update tests accordingly
 - Ensure no compilation errors
 
---------------------------------------------------
+---
 
 END OF PROTOCOL
