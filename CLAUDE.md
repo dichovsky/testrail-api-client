@@ -17,12 +17,12 @@ npx vitest run tests/client.test.ts  # Single file
 
 ## Core Files
 
-| File | Purpose |
-|------|---------|
+| File            | Purpose                                                            |
+| --------------- | ------------------------------------------------------------------ |
 | `src/client.ts` | Main client class — all API methods, caching, rate limiting, retry |
-| `src/types.ts` | TypeScript interfaces for all TestRail entities and payloads |
-| `src/utils.ts` | `base64Encode`, `sleep` helpers |
-| `src/index.ts` | Public API exports |
+| `src/types.ts`  | TypeScript interfaces for all TestRail entities and payloads       |
+| `src/utils.ts`  | `base64Encode`, `sleep` helpers                                    |
+| `src/index.ts`  | Public API exports                                                 |
 
 ## Architecture
 
@@ -43,6 +43,7 @@ npx vitest run tests/client.test.ts  # Single file
 ## Common Tasks
 
 **Add API endpoint:**
+
 1. Add payload interface to `src/types.ts` if needed
 2. Validate via `validateId()` or custom check
 3. Implement with `this.request(method, endpoint, payload)`

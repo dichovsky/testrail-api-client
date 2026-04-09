@@ -1,54 +1,46 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "lib": [
-      "ES2022"
-    ],
-    "moduleResolution": "NodeNext",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    // Strict type checking
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
-    "noPropertyAccessFromIndexSignature": true,
-    // Additional checks
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "allowUnreachableCode": false,
-    "allowUnusedLabels": false,
-    // Type definitions
-    "types": ["node"],
-    // Module resolution
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    // Emit
-    "removeComments": false,
-    "preserveConstEnums": true,
-    "incremental": false
-  },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "tests"
-  ]
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "lib": ["ES2022"],
+        "moduleResolution": "NodeNext",
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        // Strict type checking
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "exactOptionalPropertyTypes": true,
+        "noPropertyAccessFromIndexSignature": true,
+        // Additional checks
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        // Type definitions
+        "types": ["node"],
+        // Module resolution
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        // Emit
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "incremental": false
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist", "tests"]
 }
