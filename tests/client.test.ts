@@ -20,6 +20,7 @@ import type {
   AddResultPayload,
   AddResultsForCasesPayload,
 } from '../src/types.js';
+import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
@@ -30,11 +31,7 @@ describe('TestRailClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    client = new TestRailClient({
-      baseUrl: 'https://example.testrail.io',
-      email: 'test@example.com',
-      apiKey: 'test-api-key',
-    });
+    client = createClient();
   });
 
   describe('constructor', () => {
@@ -61,35 +58,20 @@ describe('TestRailClient', () => {
         url: 'https://example.testrail.io/projects/view/1',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
       const result = await client.getProject(1);
       expect(result).toEqual(mockProject);
     });
 
     it('should handle API error', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        statusText: 'Not Found',
-        text: async () => 'Project not found',
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', 'Project not found'));
 
       await expect(client.getProject(999)).rejects.toThrow('TestRail API error: 404 Not Found - Project not found');
     });
 
     it('should handle empty response', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => '',
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockEmpty());
 
       const result = await client.deleteCase(1);
       expect(result).toBeUndefined();
@@ -111,12 +93,7 @@ describe('TestRailClient', () => {
         title: 'Test Case',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockCase),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockCase));
 
       const result = await client.addCase(1, payload);
       expect(result).toEqual(mockCase);
@@ -132,12 +109,7 @@ describe('TestRailClient', () => {
         url: 'https://example.testrail.io/projects/view/1',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockProject),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
       const result = await client.getProject(1);
       expect(result).toEqual(mockProject);
@@ -149,24 +121,14 @@ describe('TestRailClient', () => {
         { id: 2, name: 'Project 2', suite_mode: 2, url: 'url2' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ projects: mockProjects }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ projects: mockProjects }));
 
       const result = await client.getProjects();
       expect(result).toEqual(mockProjects);
     });
 
     it('should handle empty projects list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getProjects();
       expect(result).toEqual([]);
@@ -182,12 +144,7 @@ describe('TestRailClient', () => {
         url: 'https://example.testrail.io/suites/view/1',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockSuite),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockSuite));
 
       const result = await client.getSuite(1);
       expect(result).toEqual(mockSuite);
@@ -199,12 +156,7 @@ describe('TestRailClient', () => {
         { id: 2, name: 'Suite 2', project_id: 1, url: 'url2' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockSuites),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockSuites));
 
       const result = await client.getSuites(1);
       expect(result).toEqual(mockSuites);
@@ -221,12 +173,7 @@ describe('TestRailClient', () => {
         depth: 0,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockSection),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockSection));
 
       const result = await client.getSection(1);
       expect(result).toEqual(mockSection);
@@ -238,12 +185,7 @@ describe('TestRailClient', () => {
         { id: 2, suite_id: 1, name: 'Section 2', display_order: 2, depth: 0 },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ sections: mockSections }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ sections: mockSections }));
 
       const result = await client.getSections(1);
       expect(result).toEqual(mockSections);
@@ -254,24 +196,14 @@ describe('TestRailClient', () => {
         { id: 1, suite_id: 1, name: 'Section 1', display_order: 1, depth: 0 },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ sections: mockSections }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ sections: mockSections }));
 
       const result = await client.getSections(1, 1);
       expect(result).toEqual(mockSections);
     });
 
     it('should handle empty sections list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getSections(1);
       expect(result).toEqual([]);
@@ -291,12 +223,7 @@ describe('TestRailClient', () => {
         suite_id: 1,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockCase),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockCase));
 
       const result = await client.getCase(1);
       expect(result).toEqual(mockCase);
@@ -316,12 +243,7 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ cases: mockCases }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
       const result = await client.getCases(1);
       expect(result).toEqual(mockCases);
@@ -330,12 +252,7 @@ describe('TestRailClient', () => {
     it('should get cases with suite filter', async () => {
       const mockCases: Case[] = [];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ cases: mockCases }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
       const result = await client.getCases(1, 1);
       expect(result).toEqual(mockCases);
@@ -344,12 +261,7 @@ describe('TestRailClient', () => {
     it('should get cases with suite and section filters', async () => {
       const mockCases: Case[] = [];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ cases: mockCases }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
       const result = await client.getCases(1, 1, 1);
       expect(result).toEqual(mockCases);
@@ -358,24 +270,14 @@ describe('TestRailClient', () => {
     it('should get cases with only section filter', async () => {
       const mockCases: Case[] = [];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ cases: mockCases }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
       const result = await client.getCases(1, undefined, 1);
       expect(result).toEqual(mockCases);
     });
 
     it('should handle empty cases list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getCases(1);
       expect(result).toEqual([]);
@@ -397,12 +299,7 @@ describe('TestRailClient', () => {
         title: 'New Case',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockCase),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockCase));
 
       const result = await client.addCase(1, payload);
       expect(result).toEqual(mockCase);
@@ -424,24 +321,14 @@ describe('TestRailClient', () => {
         title: 'Updated Case',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockCase),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockCase));
 
       const result = await client.updateCase(1, payload);
       expect(result).toEqual(mockCase);
     });
 
     it('should delete a case', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => '',
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockEmpty());
 
       await client.deleteCase(1);
       expect(mockFetch).toHaveBeenCalled();
@@ -465,12 +352,7 @@ describe('TestRailClient', () => {
         url: 'url',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockPlan),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
 
       const result = await client.getPlan(1);
       expect(result).toEqual(mockPlan);
@@ -494,24 +376,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ plans: mockPlans }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ plans: mockPlans }));
 
       const result = await client.getPlans(1);
       expect(result).toEqual(mockPlans);
     });
 
     it('should handle empty plans list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getPlans(1);
       expect(result).toEqual([]);
@@ -537,12 +409,7 @@ describe('TestRailClient', () => {
         name: 'New Plan',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockPlan),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
 
       const result = await client.addPlan(1, payload);
       expect(result).toEqual(mockPlan);
@@ -564,24 +431,14 @@ describe('TestRailClient', () => {
         url: 'url',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockPlan),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
 
       const result = await client.closePlan(1);
       expect(result).toEqual(mockPlan);
     });
 
     it('should delete a plan', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => '',
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockEmpty());
 
       await client.deletePlan(1);
       expect(mockFetch).toHaveBeenCalled();
@@ -607,12 +464,7 @@ describe('TestRailClient', () => {
         url: 'url',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockRun),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockRun));
 
       const result = await client.getRun(1);
       expect(result).toEqual(mockRun);
@@ -638,24 +490,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ runs: mockRuns }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ runs: mockRuns }));
 
       const result = await client.getRuns(1);
       expect(result).toEqual(mockRuns);
     });
 
     it('should handle empty runs list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getRuns(1);
       expect(result).toEqual([]);
@@ -683,12 +525,7 @@ describe('TestRailClient', () => {
         name: 'New Run',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockRun),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockRun));
 
       const result = await client.addRun(1, payload);
       expect(result).toEqual(mockRun);
@@ -712,24 +549,14 @@ describe('TestRailClient', () => {
         url: 'url',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockRun),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockRun));
 
       const result = await client.closeRun(1);
       expect(result).toEqual(mockRun);
     });
 
     it('should delete a run', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => '',
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockEmpty());
 
       await client.deleteRun(1);
       expect(mockFetch).toHaveBeenCalled();
@@ -746,12 +573,7 @@ describe('TestRailClient', () => {
         title: 'Test',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockTest),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockTest));
 
       const result = await client.getTest(1);
       expect(result).toEqual(mockTest);
@@ -768,24 +590,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ tests: mockTests }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ tests: mockTests }));
 
       const result = await client.getTests(1);
       expect(result).toEqual(mockTests);
     });
 
     it('should handle empty tests list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getTests(1);
       expect(result).toEqual([]);
@@ -802,24 +614,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ results: mockResults }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ results: mockResults }));
 
       const result = await client.getResults(1);
       expect(result).toEqual(mockResults);
     });
 
     it('should handle empty results list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getResults(1);
       expect(result).toEqual([]);
@@ -834,24 +636,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ results: mockResults }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ results: mockResults }));
 
       const result = await client.getResultsForCase(1, 1);
       expect(result).toEqual(mockResults);
     });
 
     it('should handle empty results for case', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getResultsForCase(1, 1);
       expect(result).toEqual([]);
@@ -866,24 +658,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ results: mockResults }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ results: mockResults }));
 
       const result = await client.getResultsForRun(1);
       expect(result).toEqual(mockResults);
     });
 
     it('should handle empty results for run', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getResultsForRun(1);
       expect(result).toEqual([]);
@@ -902,12 +684,7 @@ describe('TestRailClient', () => {
         comment: 'Test passed',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockResult),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockResult));
 
       const result = await client.addResult(1, payload);
       expect(result).toEqual(mockResult);
@@ -924,12 +701,7 @@ describe('TestRailClient', () => {
         status_id: 1,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockResult),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockResult));
 
       const result = await client.addResultForCase(1, 1, payload);
       expect(result).toEqual(mockResult);
@@ -953,12 +725,7 @@ describe('TestRailClient', () => {
         ],
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockResults),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockResults));
 
       const result = await client.addResultsForCases(1, payload);
       expect(result).toEqual(mockResults);
@@ -975,12 +742,7 @@ describe('TestRailClient', () => {
         url: 'url',
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockMilestone),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockMilestone));
 
       const result = await client.getMilestone(1);
       expect(result).toEqual(mockMilestone);
@@ -997,24 +759,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ milestones: mockMilestones }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ milestones: mockMilestones }));
 
       const result = await client.getMilestones(1);
       expect(result).toEqual(mockMilestones);
     });
 
     it('should handle empty milestones list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getMilestones(1);
       expect(result).toEqual([]);
@@ -1030,12 +782,7 @@ describe('TestRailClient', () => {
         is_active: true,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockUser),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockUser));
 
       const result = await client.getUser(1);
       expect(result).toEqual(mockUser);
@@ -1049,12 +796,7 @@ describe('TestRailClient', () => {
         is_active: true,
       };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockUser),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockUser));
 
       const result = await client.getUserByEmail('test@example.com');
       expect(result).toEqual(mockUser);
@@ -1070,24 +812,14 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({ users: mockUsers }),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
 
       const result = await client.getUsers();
       expect(result).toEqual(mockUsers);
     });
 
     it('should handle empty users list', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify({}),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk({}));
 
       const result = await client.getUsers();
       expect(result).toEqual([]);
@@ -1110,12 +842,7 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockStatuses),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockStatuses));
 
       const result = await client.getStatuses();
       expect(result).toEqual(mockStatuses);
@@ -1134,12 +861,7 @@ describe('TestRailClient', () => {
         },
       ];
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        text: async () => JSON.stringify(mockPriorities),
-      } as never);
+      mockFetch.mockResolvedValueOnce(mockOk(mockPriorities));
 
       const result = await client.getPriorities();
       expect(result).toEqual(mockPriorities);

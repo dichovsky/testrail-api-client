@@ -47,45 +47,20 @@ export class TestRailValidationError extends Error {
   }
 }
 
-/**
- * Base delay in milliseconds for exponential backoff retry strategy
- */
 const BASE_RETRY_DELAY_MS = 1000;
-
-/**
- * Maximum delay in milliseconds for exponential backoff retry strategy
- */
 const MAX_RETRY_DELAY_MS = 10000;
+const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-/**
- * Maximum timeout in milliseconds for HTTP requests (5 minutes)
- */
-const MAX_TIMEOUT_MS = 5 * 60 * 1000;
-
-/**
- * Global set to track all active TestRailClient instances
- */
 const activeClients = new Set<TestRailClient>();
-
-/**
- * Flag to ensure process event handlers are registered only once
- */
 let processHandlersRegistered = false;
 
-/**
- * Cleanup all active clients on process exit
- * Note: This method only performs synchronous cleanup operations
- * (clearing timers and maps) to ensure it completes before process exit.
- */
+// Synchronous-only cleanup — safe to call on process exit
 function cleanupAllClients(): void {
   for (const client of activeClients) {
     client.destroy();
   }
 }
 
-/**
- * Register process exit handlers once for all client instances
- */
 function registerProcessHandlers(): void {
   if (processHandlersRegistered) {
     return;
@@ -110,29 +85,17 @@ function registerProcessHandlers(): void {
  * Supports all major API endpoints for managing projects, suites, cases, runs, plans, and results.
  */
 export class TestRailClient {
-  /** The base URL of the TestRail instance */
   private readonly baseUrl: string;
-  /** The base64 encoded authentication string */
   private readonly auth: string;
-  /** The request timeout in milliseconds */
   private readonly timeout: number;
-  /** The maximum number of retry attempts */
   private readonly maxRetries: number;
-  /** Whether caching is enabled */
   private readonly enableCache: boolean;
-  /** The cache time-to-live in milliseconds */
   private readonly cacheTtl: number;
-  /** The interval for periodic cache cleanup in milliseconds */
   private readonly cacheCleanupInterval: number;
-  /** The maximum number of entries allowed in the cache */
   private readonly maxCacheSize: number;
-  /** The internal cache storage */
   private readonly cache = new Map<string, CacheEntry<unknown>>();
-  /** The timer ID for the cache cleanup interval */
   private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
-  /** The rate limiter state and configuration */
   private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
-  /** Whether the client instance has been destroyed */
   private isDestroyed = false;
 
   /**
@@ -145,15 +108,15 @@ export class TestRailClient {
     this.validateConfig(config);
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.auth = base64Encode(`${config.email}:${config.apiKey}`);
-    this.timeout = config.timeout ?? 30000; // 30 seconds default
+    this.timeout = config.timeout ?? 30000;
     this.maxRetries = config.maxRetries ?? 3;
     this.enableCache = config.enableCache ?? true;
-    this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
-    this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
+    this.cacheTtl = config.cacheTtl ?? 300000;
+    this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000;
     this.maxCacheSize = config.maxCacheSize ?? 1000;
     this.rateLimiter = {
       maxRequests: config.rateLimiter?.maxRequests ?? 100,
-      windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
+      windowMs: config.rateLimiter?.windowMs ?? 60000,
       requests: [],
     };
     
@@ -237,12 +200,6 @@ export class TestRailClient {
     }
   }
 
-  /**
-   * Calculates the delay for the next retry attempt using exponential backoff
-   * 
-   * @param retryCount - Current retry attempt
-   * @returns Delay in milliseconds
-   */
   private getRetryDelay(retryCount: number): number {
     return Math.min(
       BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
@@ -250,15 +207,7 @@ export class TestRailClient {
     );
   }
 
-  /**
-   * Checks and applies rate limiting
-   * 
-   * Our rate limiter uses a sliding window approach. We keep track of the timestamps 
-   * of all requests made within the current window. If the number of requests exceeds 
-   * the limit, we prevent further requests until the oldest request in the window expires.
-   * 
-   * @throws {TestRailApiError} When rate limit is exceeded
-   */
+  /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
   private checkRateLimit(): void {
     const now = Date.now();
     const windowStart = now - this.rateLimiter.windowMs;
@@ -290,12 +239,6 @@ export class TestRailClient {
     }
   }
 
-  /**
-   * Gets cached data if available and not expired
-   * 
-   * @param cacheKey - Cache key
-   * @returns Cached data or undefined
-   */
   private getCachedData<T>(cacheKey: string): T | undefined {
     if (!this.enableCache) {
       return undefined;
@@ -317,12 +260,6 @@ export class TestRailClient {
     return undefined;
   }
 
-  /**
-   * Sets cached data with expiration
-   * 
-   * @param cacheKey - Cache key
-   * @param data - Data to cache
-   */
   private setCachedData<T>(cacheKey: string, data: T): void {
     if (!this.enableCache) {
       return;
@@ -350,12 +287,6 @@ export class TestRailClient {
     this.cache.clear();
   }
 
-  /**
-   * Starts periodic cache cleanup to remove expired entries
-   * 
-   * The cleanup timer is "unreferenced" in Node.js environments to prevent it 
-   * from keeping the process alive when all other work is done.
-   */
   private startCacheCleanup(): void {
     this.cacheCleanupTimer = setInterval(() => {
       this.cleanupExpiredCache();
@@ -367,9 +298,6 @@ export class TestRailClient {
     this.cacheCleanupTimer.unref?.();
   }
 
-  /**
-   * Stops periodic cache cleanup
-   */
   private stopCacheCleanup(): void {
     if (this.cacheCleanupTimer !== undefined) {
       clearInterval(this.cacheCleanupTimer);
@@ -377,9 +305,6 @@ export class TestRailClient {
     }
   }
 
-  /**
-   * Removes expired entries from cache
-   */
   private cleanupExpiredCache(): void {
     const now = Date.now();
     

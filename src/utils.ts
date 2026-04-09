@@ -1,13 +1,4 @@
-/**
- * Encodes a string to base64.
- * 
- * Supports both Node.js (using Buffer) and browser environments (using btoa).
- * In Node.js, it uses Buffer for efficiency. In browsers, it properly handles
- * Unicode characters by encoding to UTF-8 before using btoa.
- * 
- * @param str - The string to encode
- * @returns Base64 encoded string
- */
+/** Base64-encodes a string. Uses Buffer in Node.js, UTF-8-safe btoa in browsers. */
 export function base64Encode(str: string): string {
   if (typeof Buffer !== 'undefined') {
     return Buffer.from(str).toString('base64');
@@ -21,12 +12,7 @@ export function base64Encode(str: string): string {
   );
 }
 
-/**
- * Suspends execution for a specified duration.
- * 
- * @param ms - Duration in milliseconds
- * @returns Promise that resolves after the delay
- */
+/** Resolves after `ms` milliseconds. */
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
