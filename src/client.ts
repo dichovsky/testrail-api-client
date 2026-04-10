@@ -45,6 +45,24 @@ import type {
     UpdateConfigurationGroupPayload,
     AddConfigurationPayload,
     UpdateConfigurationPayload,
+    AddUserPayload,
+    UpdateUserPayload,
+    Role,
+    Group,
+    AddGroupPayload,
+    UpdateGroupPayload,
+    Attachment,
+    SharedStep,
+    AddSharedStepPayload,
+    UpdateSharedStepPayload,
+    Variable,
+    AddVariablePayload,
+    UpdateVariablePayload,
+    Dataset,
+    AddDatasetPayload,
+    UpdateDatasetPayload,
+    Report,
+    ReportResult,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
 import { TestRailValidationError } from './errors.js';
@@ -885,6 +903,390 @@ export class TestRailClient extends TestRailClientCore {
     async deleteConfiguration(configId: number): Promise<void> {
         this.validateId(configId, 'configId');
         await this.request<void>('POST', `delete_config/${configId}`);
+    }
+
+    // ── User Management (TASK-024, requires TestRail 7.3+) ────────────────────
+
+    /**
+     * Create a new TestRail user (requires TestRail 7.3+).
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addUser(payload: AddUserPayload): Promise<User> {
+        return this.request<User>('POST', 'add_user', payload);
+    }
+
+    /**
+     * Update an existing TestRail user (requires TestRail 7.3+).
+     * @throws {TestRailValidationError} When userId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
+        this.validateId(userId, 'userId');
+        return this.request<User>('POST', `update_user/${userId}`, payload);
+    }
+
+    // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────
+
+    /**
+     * Get all available user roles (requires TestRail 7.3+).
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getRoles(): Promise<Role[]> {
+        return this.request<Role[]>('GET', 'get_roles');
+    }
+
+    // ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────
+
+    /**
+     * Get a single group by ID (requires TestRail 7.5+).
+     * @throws {TestRailValidationError} When groupId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getGroup(groupId: number): Promise<Group> {
+        this.validateId(groupId, 'groupId');
+        return this.request<Group>('GET', `get_group/${groupId}`);
+    }
+
+    /**
+     * Get all groups (requires TestRail 7.5+).
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getGroups(): Promise<Group[]> {
+        return this.request<Group[]>('GET', 'get_groups');
+    }
+
+    /**
+     * Create a new group (requires TestRail 7.5+).
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addGroup(payload: AddGroupPayload): Promise<Group> {
+        return this.request<Group>('POST', 'add_group', payload);
+    }
+
+    /**
+     * Update an existing group (requires TestRail 7.5+).
+     * @throws {TestRailValidationError} When groupId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
+        this.validateId(groupId, 'groupId');
+        return this.request<Group>('POST', `update_group/${groupId}`, payload);
+    }
+
+    /**
+     * Delete a group (requires TestRail 7.5+).
+     * @throws {TestRailValidationError} When groupId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteGroup(groupId: number): Promise<void> {
+        this.validateId(groupId, 'groupId');
+        await this.request<void>('POST', `delete_group/${groupId}`);
+    }
+
+    // ── Attachments (TASK-027) ────────────────────────────────────────────────
+
+    /**
+     * Get all attachments for a test case.
+     * @throws {TestRailValidationError} When caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getAttachmentsForCase(caseId: number): Promise<Attachment[]> {
+        this.validateId(caseId, 'caseId');
+        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_case/${caseId}`);
+        return response.attachments ?? [];
+    }
+
+    /**
+     * Get all attachments for a test run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getAttachmentsForRun(runId: number): Promise<Attachment[]> {
+        this.validateId(runId, 'runId');
+        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_run/${runId}`);
+        return response.attachments ?? [];
+    }
+
+    /**
+     * Get all attachments for a test.
+     * @throws {TestRailValidationError} When testId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getAttachmentsForTest(testId: number): Promise<Attachment[]> {
+        this.validateId(testId, 'testId');
+        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_test/${testId}`);
+        return response.attachments ?? [];
+    }
+
+    /**
+     * Get all attachments for a test plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
+        this.validateId(planId, 'planId');
+        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_plan/${planId}`);
+        return response.attachments ?? [];
+    }
+
+    /**
+     * Get all attachments for a specific plan entry.
+     * @throws {TestRailValidationError} When planId or entryId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getAttachmentsForPlanEntry(planId: number, entryId: number): Promise<Attachment[]> {
+        this.validateId(planId, 'planId');
+        this.validateId(entryId, 'entryId');
+        const response = await this.request<{ attachments: Attachment[] }>(
+            'GET',
+            `get_attachments_for_plan_entry/${planId}/${entryId}`,
+        );
+        return response.attachments ?? [];
+    }
+
+    /**
+     * Download the raw binary content of an attachment.
+     * @param attachmentId - The attachment ID (numeric)
+     * @throws {TestRailValidationError} When attachmentId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getAttachment(attachmentId: number): Promise<ArrayBuffer> {
+        this.validateId(attachmentId, 'attachmentId');
+        return this.requestBinary(`get_attachment/${attachmentId}`);
+    }
+
+    /**
+     * Upload a file attachment to a test case.
+     * @throws {TestRailValidationError} When caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addAttachmentToCase(caseId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+        this.validateId(caseId, 'caseId');
+        return this.requestMultipart<Attachment>(`add_attachment_to_case/${caseId}`, file, filename);
+    }
+
+    /**
+     * Upload a file attachment to a test result.
+     * @throws {TestRailValidationError} When resultId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addAttachmentToResult(resultId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+        this.validateId(resultId, 'resultId');
+        return this.requestMultipart<Attachment>(`add_attachment_to_result/${resultId}`, file, filename);
+    }
+
+    /**
+     * Upload a file attachment to a test run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addAttachmentToRun(runId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+        this.validateId(runId, 'runId');
+        return this.requestMultipart<Attachment>(`add_attachment_to_run/${runId}`, file, filename);
+    }
+
+    /**
+     * Upload a file attachment to a test plan (requires TestRail 6.5.2+).
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addAttachmentToPlan(planId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+        this.validateId(planId, 'planId');
+        return this.requestMultipart<Attachment>(`add_attachment_to_plan/${planId}`, file, filename);
+    }
+
+    /**
+     * Upload a file attachment to a specific plan entry (requires TestRail 6.5.2+).
+     * @throws {TestRailValidationError} When planId or entryId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addAttachmentToPlanEntry(
+        planId: number,
+        entryId: number,
+        file: globalThis.Blob | Buffer | globalThis.File,
+        filename: string,
+    ): Promise<Attachment> {
+        this.validateId(planId, 'planId');
+        this.validateId(entryId, 'entryId');
+        return this.requestMultipart<Attachment>(`add_attachment_to_plan_entry/${planId}/${entryId}`, file, filename);
+    }
+
+    /**
+     * Delete an attachment by ID.
+     * @throws {TestRailValidationError} When attachmentId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteAttachment(attachmentId: number): Promise<void> {
+        this.validateId(attachmentId, 'attachmentId');
+        await this.request<void>('POST', `delete_attachment/${attachmentId}`);
+    }
+
+    // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────
+
+    /**
+     * Get a single shared step by ID (requires TestRail 7.0+).
+     * @throws {TestRailValidationError} When sharedStepId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getSharedStep(sharedStepId: number): Promise<SharedStep> {
+        this.validateId(sharedStepId, 'sharedStepId');
+        return this.request<SharedStep>('GET', `get_shared_step/${sharedStepId}`);
+    }
+
+    /**
+     * Get all shared steps for a project (requires TestRail 7.0+).
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getSharedSteps(projectId: number): Promise<SharedStep[]> {
+        this.validateId(projectId, 'projectId');
+        return this.request<SharedStep[]>('GET', `get_shared_steps/${projectId}`);
+    }
+
+    /**
+     * Create a new shared step in a project (requires TestRail 7.0+).
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
+        this.validateId(projectId, 'projectId');
+        return this.request<SharedStep>('POST', `add_shared_step/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing shared step (requires TestRail 7.0+).
+     * @throws {TestRailValidationError} When sharedStepId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
+        this.validateId(sharedStepId, 'sharedStepId');
+        return this.request<SharedStep>('POST', `update_shared_step/${sharedStepId}`, payload);
+    }
+
+    /**
+     * Delete a shared step (requires TestRail 7.0+).
+     * @throws {TestRailValidationError} When sharedStepId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteSharedStep(sharedStepId: number): Promise<void> {
+        this.validateId(sharedStepId, 'sharedStepId');
+        await this.request<void>('POST', `delete_shared_step/${sharedStepId}`);
+    }
+
+    // ── Variables (TASK-029) ──────────────────────────────────────────────────
+
+    /**
+     * Get all variables for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getVariables(projectId: number): Promise<Variable[]> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Variable[]>('GET', `get_variables/${projectId}`);
+    }
+
+    /**
+     * Create a new variable in a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addVariable(projectId: number, payload: AddVariablePayload): Promise<Variable> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Variable>('POST', `add_variable/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing variable.
+     * @throws {TestRailValidationError} When variableId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateVariable(variableId: number, payload: UpdateVariablePayload): Promise<Variable> {
+        this.validateId(variableId, 'variableId');
+        return this.request<Variable>('POST', `update_variable/${variableId}`, payload);
+    }
+
+    /**
+     * Delete a variable.
+     * @throws {TestRailValidationError} When variableId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteVariable(variableId: number): Promise<void> {
+        this.validateId(variableId, 'variableId');
+        await this.request<void>('POST', `delete_variable/${variableId}`);
+    }
+
+    // ── Datasets (TASK-030) ───────────────────────────────────────────────────
+
+    /**
+     * Get a single dataset by ID.
+     * @throws {TestRailValidationError} When datasetId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getDataset(datasetId: number): Promise<Dataset> {
+        this.validateId(datasetId, 'datasetId');
+        return this.request<Dataset>('GET', `get_dataset/${datasetId}`);
+    }
+
+    /**
+     * Get all datasets for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getDatasets(projectId: number): Promise<Dataset[]> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Dataset[]>('GET', `get_datasets/${projectId}`);
+    }
+
+    /**
+     * Create a new dataset in a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addDataset(projectId: number, payload: AddDatasetPayload): Promise<Dataset> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Dataset>('POST', `add_dataset/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing dataset.
+     * @throws {TestRailValidationError} When datasetId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateDataset(datasetId: number, payload: UpdateDatasetPayload): Promise<Dataset> {
+        this.validateId(datasetId, 'datasetId');
+        return this.request<Dataset>('POST', `update_dataset/${datasetId}`, payload);
+    }
+
+    /**
+     * Delete a dataset.
+     * @throws {TestRailValidationError} When datasetId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteDataset(datasetId: number): Promise<void> {
+        this.validateId(datasetId, 'datasetId');
+        await this.request<void>('POST', `delete_dataset/${datasetId}`);
+    }
+
+    // ── Reports (TASK-031) ────────────────────────────────────────────────────
+
+    /**
+     * Get all available report templates for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getReports(projectId: number): Promise<Report[]> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Report[]>('GET', `get_reports/${projectId}`);
+    }
+
+    /**
+     * Execute a report template and return URLs to the generated output.
+     * @throws {TestRailValidationError} When reportTemplateId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async runReport(reportTemplateId: number): Promise<ReportResult> {
+        this.validateId(reportTemplateId, 'reportTemplateId');
+        return this.request<ReportResult>('GET', `run_report/${reportTemplateId}`);
     }
 
     private serializeIdList(ids?: number[]): string | undefined {

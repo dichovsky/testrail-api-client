@@ -40,10 +40,6 @@ export interface TestRailConfig {
     allowPrivateHosts?: boolean;
 }
 
-export interface TestRailResponse<T = unknown> {
-    data?: T;
-    error?: string;
-}
 
 export interface PaginatedResponse<T = unknown> {
     /** Offset of the returned page */
@@ -635,4 +631,206 @@ export interface GetMilestonesOptions {
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+}
+
+// ── User Management (TASK-024, requires TestRail 7.3+) ────────────────────────
+
+/** Payload for creating a new user via POST /add_user (TestRail 7.3+) */
+export interface AddUserPayload {
+    /** User's email address */
+    email: string;
+    /** User's full name */
+    name: string;
+    /** Whether the user account is active (default: true) */
+    is_active?: boolean;
+    /** Role ID to assign to the user */
+    role_id?: number;
+    /** Password for the new user */
+    password?: string;
+}
+
+/** Payload for updating an existing user via POST /update_user/{user_id} (TestRail 7.3+) */
+export interface UpdateUserPayload {
+    /** User's email address */
+    email?: string;
+    /** User's full name */
+    name?: string;
+    /** Whether the user account is active */
+    is_active?: boolean;
+    /** Role ID to assign to the user */
+    role_id?: number;
+    /** New password for the user */
+    password?: string;
+}
+
+// ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────────
+
+/** A user role returned by GET /get_roles (TestRail 7.3+) */
+export interface Role {
+    /** Unique role ID */
+    id: number;
+    /** Display name of the role */
+    name: string;
+    /** Whether this is the default role assigned to new users */
+    is_default: boolean;
+}
+
+// ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────────
+
+/** A user group returned by GET /get_group and GET /get_groups (TestRail 7.5+) */
+export interface Group {
+    /** Unique group ID */
+    id: number;
+    /** Display name of the group */
+    name: string;
+    /** IDs of users belonging to this group */
+    user_ids?: number[];
+}
+
+/** Payload for creating a new group via POST /add_group (TestRail 7.5+) */
+export interface AddGroupPayload {
+    /** Name of the new group */
+    name: string;
+    /** IDs of users to add to the group */
+    user_ids?: number[];
+}
+
+/** Payload for updating an existing group via POST /update_group/{group_id} (TestRail 7.5+) */
+export interface UpdateGroupPayload {
+    /** New name for the group */
+    name?: string;
+    /** IDs of users to set as the group members (replaces existing membership) */
+    user_ids?: number[];
+}
+
+// ── Attachments (TASK-027) ────────────────────────────────────────────────────
+
+/** An attachment metadata record returned by attachment list and upload endpoints */
+export interface Attachment {
+    /** Unique attachment ID */
+    attachment_id: number;
+    /** Original filename */
+    name: string;
+    /** MIME content-type (e.g. "image/png") */
+    filename?: string;
+    /** File size in bytes */
+    size?: number;
+    /** Unix timestamp when the attachment was created */
+    created_on?: number;
+    /** ID of the user who created the attachment */
+    created_by?: number;
+    /** Entity type the attachment belongs to (e.g. "case", "result") */
+    entity_id?: number;
+}
+
+// ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────────
+
+/** A shared step set returned by GET /get_shared_step (TestRail 7.0+) */
+export interface SharedStep {
+    /** Unique shared step ID */
+    id: number;
+    /** Display title of the shared step */
+    title: string;
+    /** ID of the project this shared step belongs to */
+    project_id?: number;
+    /** Number of cases that reference this shared step */
+    case_ids?: number[];
+    /** Unix timestamp when created */
+    created_on?: number;
+    /** ID of the user who created it */
+    created_by?: number;
+    /** Unix timestamp when last updated */
+    updated_on?: number;
+    /** ID of the user who last updated it */
+    updated_by?: number;
+    /** Custom step definitions (varies by template) */
+    custom_steps_separated?: Record<string, unknown>[];
+}
+
+/** Payload for creating a shared step via POST /add_shared_step/{project_id} (TestRail 7.0+) */
+export interface AddSharedStepPayload {
+    /** Title of the shared step */
+    title: string;
+    /** Step definitions (varies by template configuration) */
+    custom_steps_separated?: Record<string, unknown>[];
+}
+
+/** Payload for updating a shared step via POST /update_shared_step/{shared_step_id} (TestRail 7.0+) */
+export interface UpdateSharedStepPayload {
+    /** New title */
+    title?: string;
+    /** Updated step definitions */
+    custom_steps_separated?: Record<string, unknown>[];
+}
+
+// ── Variables (TASK-029) ──────────────────────────────────────────────────────
+
+/** A variable used in data-driven testing */
+export interface Variable {
+    /** Unique variable ID */
+    id: number;
+    /** Variable name */
+    name: string;
+}
+
+/** Payload for creating a variable via POST /add_variable/{project_id} */
+export interface AddVariablePayload {
+    /** Variable name */
+    name: string;
+}
+
+/** Payload for updating a variable via POST /update_variable/{variable_id} */
+export interface UpdateVariablePayload {
+    /** New variable name */
+    name?: string;
+}
+
+// ── Datasets (TASK-030) ───────────────────────────────────────────────────────
+
+/** A dataset for data-driven testing */
+export interface Dataset {
+    /** Unique dataset ID */
+    id: number;
+    /** Dataset name */
+    name: string;
+    /** ID of the project this dataset belongs to */
+    project_id?: number;
+    /** Unix timestamp when created */
+    created_on?: number;
+    /** ID of the user who created it */
+    created_by?: number;
+}
+
+/** Payload for creating a dataset via POST /add_dataset/{project_id} */
+export interface AddDatasetPayload {
+    /** Dataset name */
+    name: string;
+}
+
+/** Payload for updating a dataset via POST /update_dataset/{dataset_id} */
+export interface UpdateDatasetPayload {
+    /** New dataset name */
+    name?: string;
+}
+
+// ── Reports (TASK-031) ────────────────────────────────────────────────────────
+
+/** A report template returned by GET /get_reports/{project_id} */
+export interface Report {
+    /** Unique report template ID */
+    id: number;
+    /** Display name of the report */
+    name: string;
+    /** Description of the report */
+    description?: string;
+    /** Whether the report is shared with other users */
+    is_shared?: boolean;
+}
+
+/** Result returned by GET /run_report/{report_template_id} */
+export interface ReportResult {
+    /** URL to the generated HTML report */
+    report_url: string;
+    /** URL to the generated report user interface */
+    user_report_url?: string;
 }

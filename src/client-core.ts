@@ -576,4 +576,163 @@ export class TestRailClientCore {
             );
         }
     }
+
+    /**
+     * Makes a multipart/form-data POST request to the TestRail API.
+     * Used exclusively for file attachment uploads. Applies rate limiting
+     * and throws on failure, but does NOT retry (uploads are not idempotent).
+     *
+     * @param endpoint - API endpoint path (without base URL prefix)
+     * @param file - File content as Blob, Buffer, or File
+     * @param filename - Filename to send in the multipart disposition
+     * @throws {TestRailApiError} When the API request fails or network error occurs
+     * @throws {Error} When called after `destroy()`
+     */
+    protected async requestMultipart<T>(
+        endpoint: string,
+        file: globalThis.Blob | Buffer | globalThis.File,
+        filename: string,
+    ): Promise<T> {
+        if (this.isDestroyed) {
+            throw new Error('Cannot use TestRailClient after destroy() has been called');
+        }
+
+        this.checkRateLimit();
+
+        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
+
+        const formData = new globalThis.FormData();
+        let blob: globalThis.Blob;
+        if (file instanceof globalThis.Blob) {
+            blob = file;
+        } else {
+            // Buffer: copy into a plain Uint8Array to satisfy BlobPart type constraints
+            blob = new globalThis.Blob([new Uint8Array(file)]);
+        }
+        formData.append('attachment', blob, filename);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Basic ${this.auth}`,
+                    'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+                    // Do NOT set Content-Type — fetch sets it automatically with the boundary
+                },
+                body: formData,
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                throw new TestRailApiError(
+                    `TestRail API error: ${response.status} ${response.statusText}`,
+                    response.status,
+                    response.statusText,
+                    errorText,
+                );
+            }
+
+            // Invalidate cache after upload
+            this.clearCache();
+
+            const responseText = await response.text();
+            if (!responseText) {
+                return {} as T;
+            }
+
+            try {
+                return JSON.parse(responseText) as T;
+            } catch {
+                throw new TestRailApiError('Invalid JSON response from TestRail API');
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            if (error instanceof TestRailApiError) {
+                throw error;
+            }
+
+            const isAbortError = (error as Error).name === 'AbortError';
+            if (isAbortError) {
+                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+            }
+
+            throw new TestRailApiError(
+                `Network error: ${(error as Error).message}`,
+                undefined,
+                undefined,
+                (error as Error).message,
+            );
+        }
+    }
+
+    /**
+     * Makes a GET request to the TestRail API and returns the raw binary response.
+     * Used for downloading attachment contents.
+     *
+     * @param endpoint - API endpoint path (without base URL prefix)
+     * @throws {TestRailApiError} When the API request fails or network error occurs
+     * @throws {Error} When called after `destroy()`
+     */
+    protected async requestBinary(endpoint: string): Promise<ArrayBuffer> {
+        if (this.isDestroyed) {
+            throw new Error('Cannot use TestRailClient after destroy() has been called');
+        }
+
+        this.checkRateLimit();
+
+        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Basic ${this.auth}`,
+                    'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+                },
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                throw new TestRailApiError(
+                    `TestRail API error: ${response.status} ${response.statusText}`,
+                    response.status,
+                    response.statusText,
+                    errorText,
+                );
+            }
+
+            return response.arrayBuffer();
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            if (error instanceof TestRailApiError) {
+                throw error;
+            }
+
+            const isAbortError = (error as Error).name === 'AbortError';
+            if (isAbortError) {
+                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+            }
+
+            throw new TestRailApiError(
+                `Network error: ${(error as Error).message}`,
+                undefined,
+                undefined,
+                (error as Error).message,
+            );
+        }
+    }
 }
