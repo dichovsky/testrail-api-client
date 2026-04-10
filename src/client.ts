@@ -318,9 +318,9 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_plans/${projectId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: (options?.created_by ?? []).length > 0 ? (options?.created_by ?? []).join(',') : undefined,
+            created_by: this.serializeIdList(options?.created_by),
             is_completed: options?.is_completed,
-            milestone_id: (options?.milestone_id ?? []).length > 0 ? (options?.milestone_id ?? []).join(',') : undefined,
+            milestone_id: this.serializeIdList(options?.milestone_id),
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -488,7 +488,7 @@ export class TestRailClient extends TestRailClientCore {
         this.validateId(runId, 'runId');
         this.validatePaginationParams(options?.limit, options?.offset);
         const endpoint = this.buildEndpoint(`get_tests/${runId}`, {
-            status_id: (options?.status_id ?? []).length > 0 ? (options?.status_id ?? []).join(',') : undefined,
+            status_id: this.serializeIdList(options?.status_id),
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -512,8 +512,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_results/${testId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: (options?.created_by ?? []).length > 0 ? (options?.created_by ?? []).join(',') : undefined,
-            status_id: (options?.status_id ?? []).length > 0 ? (options?.status_id ?? []).join(',') : undefined,
+            created_by: this.serializeIdList(options?.created_by),
+            status_id: this.serializeIdList(options?.status_id),
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -537,8 +537,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: (options?.created_by ?? []).length > 0 ? (options?.created_by ?? []).join(',') : undefined,
-            status_id: (options?.status_id ?? []).length > 0 ? (options?.status_id ?? []).join(',') : undefined,
+            created_by: this.serializeIdList(options?.created_by),
+            status_id: this.serializeIdList(options?.status_id),
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -560,8 +560,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: (options?.created_by ?? []).length > 0 ? (options?.created_by ?? []).join(',') : undefined,
-            status_id: (options?.status_id ?? []).length > 0 ? (options?.status_id ?? []).join(',') : undefined,
+            created_by: this.serializeIdList(options?.created_by),
+            status_id: this.serializeIdList(options?.status_id),
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -728,5 +728,9 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getResultFields(): Promise<ResultField[]> {
         return this.request<ResultField[]>('GET', 'get_result_fields');
+    }
+
+    private serializeIdList(ids?: number[]): string | undefined {
+        return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
     }
 }
