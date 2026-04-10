@@ -665,17 +665,22 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all users, optionally scoped to a project.
+     * @param limit - Maximum number of users to return
+     * @param offset - Number of users to skip
      * @param projectId - When provided, returns only users with access to the specified project
-     * @throws {TestRailValidationError} When projectId is provided but invalid
+     * @throws {TestRailValidationError} When pagination or projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getUsers(projectId?: number): Promise<User[]> {
+    async getUsers(limit?: number, offset?: number, projectId?: number): Promise<User[]> {
+        this.validatePaginationParams(limit, offset);
         if (projectId !== undefined) {
             this.validateId(projectId, 'projectId');
-            const response = await this.request<{ users: User[] }>('GET', `get_users/${projectId}`);
-            return response.users ?? [];
         }
-        const response = await this.request<{ users: User[] }>('GET', 'get_users');
+        const endpoint = this.buildEndpoint(projectId !== undefined ? `get_users/${projectId}` : 'get_users', {
+            limit,
+            offset,
+        });
+        const response = await this.request<{ users: User[] }>('GET', endpoint);
         return response.users ?? [];
     }
 

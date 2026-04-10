@@ -1368,16 +1368,33 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
+        it('should get users with pagination params', async () => {
+            const mockUsers: User[] = [mockUser];
+            mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
+            const result = await client.getUsers(10, 20);
+            expect(result).toEqual(mockUsers);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_users&limit=10&offset=20'),
+                expect.anything(),
+            );
+        });
+
         it('should get users scoped to a project', async () => {
             const mockUsers: User[] = [mockUser];
             mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
-            const result = await client.getUsers(5);
+            const result = await client.getUsers(undefined, undefined, 5);
             expect(result).toEqual(mockUsers);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_users/5'), expect.anything());
         });
 
         it('should throw for invalid projectId in getUsers', async () => {
-            await expect(client.getUsers(-1)).rejects.toThrow('projectId must be a positive integer');
+            await expect(client.getUsers(undefined, undefined, -1)).rejects.toThrow(
+                'projectId must be a positive integer',
+            );
+        });
+
+        it('should throw validation error for invalid pagination in getUsers', async () => {
+            await expect(client.getUsers(0)).rejects.toThrow('limit must be a positive integer');
         });
 
         it('should get current user', async () => {

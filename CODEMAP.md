@@ -56,21 +56,21 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `deleteMilestone` | POST | `delete_milestone/${milestoneId}` | [634](src/client.ts#L634) |
 | `getUser` | GET | `get_user/${userId}` | [646](src/client.ts#L646) |
 | `getUserByEmail` | GET | `get_user_by_email&...` | [656](src/client.ts#L656) |
-| `getUsers` | GET | `get_users/${projectId}` | [672](src/client.ts#L672) |
-| `getCurrentUser` | GET | `get_current_user` | [686](src/client.ts#L686) |
-| `getStatuses` | GET | `get_statuses` | [696](src/client.ts#L696) |
-| `getPriorities` | GET | `get_priorities` | [706](src/client.ts#L706) |
-| `getResultFields` | GET | `get_result_fields` | [716](src/client.ts#L716) |
-| `getCaseFields` | GET | `get_case_fields` | [726](src/client.ts#L726) |
-| `getCaseTypes` | GET | `get_case_types` | [734](src/client.ts#L734) |
-| `getTemplates` | GET | `get_templates/${projectId}` | [745](src/client.ts#L745) |
-| `getConfigurations` | GET | `get_configs/${projectId}` | [757](src/client.ts#L757) |
-| `addConfigurationGroup` | POST | `add_config_group/${projectId}` | [767](src/client.ts#L767) |
-| `updateConfigurationGroup` | POST | `update_config_group/${configGroupId}` | [777](src/client.ts#L777) |
-| `deleteConfigurationGroup` | POST | `delete_config_group/${configGroupId}` | [790](src/client.ts#L790) |
-| `addConfiguration` | POST | `add_config/${configGroupId}` | [800](src/client.ts#L800) |
-| `updateConfiguration` | POST | `update_config/${configId}` | [810](src/client.ts#L810) |
-| `deleteConfiguration` | POST | `delete_config/${configId}` | [820](src/client.ts#L820) |
+| `getUsers` | GET | `get_users` / `get_users/${projectId}&...` | [674](src/client.ts#L674) |
+| `getCurrentUser` | GET | `get_current_user` | [691](src/client.ts#L691) |
+| `getStatuses` | GET | `get_statuses` | [701](src/client.ts#L701) |
+| `getPriorities` | GET | `get_priorities` | [711](src/client.ts#L711) |
+| `getResultFields` | GET | `get_result_fields` | [721](src/client.ts#L721) |
+| `getCaseFields` | GET | `get_case_fields` | [731](src/client.ts#L731) |
+| `getCaseTypes` | GET | `get_case_types` | [739](src/client.ts#L739) |
+| `getTemplates` | GET | `get_templates/${projectId}` | [750](src/client.ts#L750) |
+| `getConfigurations` | GET | `get_configs/${projectId}` | [762](src/client.ts#L762) |
+| `addConfigurationGroup` | POST | `add_config_group/${projectId}` | [772](src/client.ts#L772) |
+| `updateConfigurationGroup` | POST | `update_config_group/${configGroupId}` | [782](src/client.ts#L782) |
+| `deleteConfigurationGroup` | POST | `delete_config_group/${configGroupId}` | [795](src/client.ts#L795) |
+| `addConfiguration` | POST | `add_config/${configGroupId}` | [805](src/client.ts#L805) |
+| `updateConfiguration` | POST | `update_config/${configId}` | [815](src/client.ts#L815) |
+| `deleteConfiguration` | POST | `delete_config/${configId}` | [825](src/client.ts#L825) |
 
 ## Core Infrastructure (`src/client-core.ts`)
 
