@@ -14,6 +14,7 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
+    UpdatePlanPayload,
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
     PlanEntry,
@@ -222,6 +223,16 @@ export class TestRailClient extends TestRailClientCore {
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.validateId(projectId, 'projectId');
         return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
+    }
+
+    /**
+     * Update a plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
+        this.validateId(planId, 'planId');
+        return this.request<Plan>('POST', `update_plan/${planId}`, payload);
     }
 
     /**

@@ -31,7 +31,7 @@ describe('TestRailClient', () => {
     let client: TestRailClient;
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         client = createClient();
     });
 

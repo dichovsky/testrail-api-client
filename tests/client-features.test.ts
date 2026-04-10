@@ -20,7 +20,7 @@ describe('TestRailClient - Enhanced Features', () => {
     let client: TestRailClient;
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
     });
 
     describe('Configuration Validation', () => {

@@ -3,7 +3,7 @@ import { TestRailClient, TestRailApiError, TestRailValidationError } from '../sr
 
 describe('TestRailClient - Coverage Improvement', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         vi.clearAllTimers();
     });
 
