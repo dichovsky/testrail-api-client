@@ -86,11 +86,11 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 **Acceptance Criteria:**
 
-- [ ] `updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan>` added to client
-- [ ] `UpdatePlanPayload` interface added to `types.ts` with `name?`, `description?`, `milestone_id?`, `assignedto_id?`
-- [ ] `planId` validated as positive integer
-- [ ] `UpdatePlanPayload` exported from `index.ts`
-- [ ] Unit tests: success case, invalid ID, API error
+- [x] `updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan>` added to client
+- [x] `UpdatePlanPayload` interface added to `types.ts` with `name?`, `description?`, `milestone_id?`, `assignedto_id?`
+- [x] `planId` validated as positive integer
+- [x] `UpdatePlanPayload` exported from `index.ts`
+- [x] Unit tests: success case, invalid ID, API error
 
 ---
 
@@ -102,12 +102,12 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 **Acceptance Criteria:**
 
-- [ ] `addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry>` implemented
-- [ ] `updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry>` implemented
-- [ ] `deletePlanEntry(planId: number, entryId: string): Promise<void>` implemented
-- [ ] `UpdatePlanEntryPayload` interface added and exported
-- [ ] `planId` and `entryId` validated; `entryId` is a non-empty string (GUID), not a number
-- [ ] Unit tests for each method: success, invalid IDs, API error
+- [x] `addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry>` implemented
+- [x] `updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry>` implemented
+- [x] `deletePlanEntry(planId: number, entryId: string): Promise<void>` implemented
+- [x] `UpdatePlanEntryPayload` interface added and exported
+- [x] `planId` and `entryId` validated; `entryId` is a non-empty string (GUID), not a number
+- [x] Unit tests for each method: success, invalid IDs, API error
 
 ---
 
@@ -125,7 +125,7 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 ---
 
-### TASK-008 · Add project CRUD: `addProject`, `updateProject`, `deleteProject`
+### TASK-008 · Add project CRUD: `addProject`, `updateProject`, `deleteProject` [Done]
 
 **Category:** Feature / Projects  
 **Description:**  
@@ -133,12 +133,12 @@ Projects can be read but not created, updated, or deleted.
 
 **Acceptance Criteria:**
 
-- [ ] `addProject(payload: AddProjectPayload): Promise<Project>` implemented
-- [ ] `updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project>` implemented
-- [ ] `deleteProject(projectId: number): Promise<void>` implemented
-- [ ] `AddProjectPayload` with `name`, `announcement?`, `show_announcement?`, `suite_mode?` added and exported
-- [ ] `UpdateProjectPayload` with all optional fields added and exported
-- [ ] Unit tests for each: success, invalid ID, API error
+- [x] `addProject(payload: AddProjectPayload): Promise<Project>` implemented
+- [x] `updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project>` implemented
+- [x] `deleteProject(projectId: number): Promise<void>` implemented
+- [x] `AddProjectPayload` with `name`, `announcement?`, `show_announcement?`, `suite_mode?` added and exported
+- [x] `UpdateProjectPayload` with all optional fields added and exported
+- [x] Unit tests for each: success, invalid ID, API error
 
 ---
 
@@ -159,7 +159,7 @@ Suites can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-010 · Add section CRUD: `addSection`, `updateSection`, `deleteSection`
+### TASK-010 · Add section CRUD: `addSection`, `updateSection`, `deleteSection` [Done]
 
 **Category:** Feature / Sections  
 **Description:**  
@@ -167,12 +167,12 @@ Sections can be read but not created, updated, or deleted.
 
 **Acceptance Criteria:**
 
-- [ ] `addSection(projectId: number, payload: AddSectionPayload): Promise<Section>` implemented
-- [ ] `updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section>` implemented
-- [ ] `deleteSection(sectionId: number): Promise<void>` implemented
-- [ ] `AddSectionPayload` with `name`, `suite_id?`, `parent_id?`, `description?` added and exported
-- [ ] `UpdateSectionPayload` with `name?`, `description?` added and exported
-- [ ] Unit tests for each method
+- [x] `addSection(projectId: number, payload: AddSectionPayload): Promise<Section>` implemented
+- [x] `updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section>` implemented
+- [x] `deleteSection(sectionId: number): Promise<void>` implemented
+- [x] `AddSectionPayload` with `name`, `suite_id?`, `parent_id?`, `description?` added and exported
+- [x] `UpdateSectionPayload` with `name?`, `description?` added and exported
+- [x] Unit tests for each method
 
 ---
 
