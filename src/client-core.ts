@@ -14,6 +14,33 @@ import {
     DEFAULT_RATE_LIMIT_WINDOW_MS,
 } from './constants.js';
 
+// VULN-03: Reject loopback, link-local, and private-range hosts to prevent SSRF.
+// All requests carry a full Authorization header, making the client a credentialed
+// probe for internal services when baseUrl is attacker-controlled.
+const PRIVATE_HOST_PATTERNS: RegExp[] = [
+    /^localhost$/i,
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./,
+    /^\[?::1\]?$/,
+    /^\[?fe80:/i,
+    /^0\./,
+];
+
+function validatePublicHost(hostname: string): void {
+    const bare = hostname.replace(/^\[/, '').replace(/\]$/, '');
+    for (const pattern of PRIVATE_HOST_PATTERNS) {
+        if (pattern.test(bare)) {
+            throw new TestRailValidationError(
+                `baseUrl resolves to a private/loopback host ("${hostname}"). ` +
+                    'Set allowPrivateHosts: true to allow on-premise deployments.',
+            );
+        }
+    }
+}
+
 const activeClients = new Set<TestRailClientCore>();
 let processHandlersRegistered = false;
 
@@ -47,7 +74,9 @@ function registerProcessHandlers(): void {
  */
 export class TestRailClientCore {
     private readonly baseUrl: string;
-    private readonly auth: string;
+    // VULN-04: Declared non-readonly so it can be zeroed in destroy() to reduce
+    // the window during which the credential is recoverable from a heap dump.
+    private auth: string;
     private readonly timeout: number;
     private readonly maxRetries: number;
     private readonly enableCache: boolean;
@@ -68,6 +97,15 @@ export class TestRailClientCore {
         this.enableCache = config.enableCache ?? true;
         this.cacheTtl = config.cacheTtl ?? DEFAULT_CACHE_TTL_MS;
         this.cacheCleanupInterval = config.cacheCleanupInterval ?? DEFAULT_CACHE_CLEANUP_INTERVAL_MS;
+        // VULN-07: maxCacheSize=0 means unbounded and risks memory exhaustion.
+        // Warn at construction time so callers are aware of the risk.
+        if (config.maxCacheSize === 0 && (config.enableCache ?? true)) {
+            // eslint-disable-next-line no-console
+            console.warn(
+                'Warning: maxCacheSize is set to 0 (unlimited). ' +
+                    'This can cause unbounded memory growth. Consider setting a positive limit.',
+            );
+        }
         this.maxCacheSize = config.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE;
         this.rateLimiter = {
             maxRequests: config.rateLimiter?.maxRequests ?? DEFAULT_RATE_LIMIT_MAX_REQUESTS,
@@ -105,13 +143,24 @@ export class TestRailClientCore {
                 throw new TestRailValidationError('baseUrl must use http or https protocol');
             }
 
-            if (url.protocol === 'http:') {
-                // eslint-disable-next-line no-console
-                console.warn(
-                    'Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.',
+            // VULN-01: Block HTTP unless explicitly opted in — Basic auth credentials are base64
+            // only; any network observer can decode them from a cleartext HTTP request.
+            if (url.protocol === 'http:' && config.allowInsecure !== true) {
+                throw new TestRailValidationError(
+                    'baseUrl must use HTTPS. HTTP sends credentials in cleartext. ' +
+                        'Set allowInsecure: true only in isolated development environments.',
                 );
             }
-        } catch {
+
+            // VULN-03: Block SSRF targets (loopback, link-local, private ranges) unless
+            // the caller explicitly opts in for on-premise/private-network deployments.
+            if (config.allowPrivateHosts !== true) {
+                validatePublicHost(url.hostname);
+            }
+        } catch (err) {
+            if (err instanceof TestRailValidationError) {
+                throw err;
+            }
             throw new TestRailValidationError('baseUrl must be a valid URL');
         }
 
@@ -145,6 +194,26 @@ export class TestRailClientCore {
                 throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
             }
         }
+
+        // VULN-06: Validate rateLimiter config values.
+        // Zero or negative maxRequests silently disables or inverts limiting.
+        // Zero or negative windowMs makes the window always empty, disabling limiting.
+        if (config.rateLimiter !== undefined) {
+            if (
+                typeof config.rateLimiter.maxRequests !== 'number' ||
+                !Number.isInteger(config.rateLimiter.maxRequests) ||
+                config.rateLimiter.maxRequests < 1
+            ) {
+                throw new TestRailValidationError('rateLimiter.maxRequests must be a positive integer');
+            }
+            if (
+                typeof config.rateLimiter.windowMs !== 'number' ||
+                !Number.isInteger(config.rateLimiter.windowMs) ||
+                config.rateLimiter.windowMs < 1
+            ) {
+                throw new TestRailValidationError('rateLimiter.windowMs must be a positive integer');
+            }
+        }
     }
 
     private getRetryDelay(retryCount: number): number {
@@ -166,14 +235,17 @@ export class TestRailClientCore {
         // Try parsing as seconds (numeric value)
         const seconds = parseInt(retryAfter, 10);
         if (!isNaN(seconds) && seconds > 0) {
-            return seconds * 1000; // Convert to milliseconds
+            // VULN-02: Cap server-supplied delay to MAX_RETRY_DELAY_MS to prevent a
+            // malicious/compromised server from freezing the client indefinitely.
+            return Math.min(seconds * 1000, MAX_RETRY_DELAY_MS);
         }
 
         // Try parsing as HTTP-date format
         const date = new Date(retryAfter);
         if (!isNaN(date.getTime())) {
             const delayMs = date.getTime() - Date.now();
-            return delayMs > 0 ? delayMs : null;
+            // VULN-02: Same cap applied to HTTP-date format.
+            return delayMs > 0 ? Math.min(delayMs, MAX_RETRY_DELAY_MS) : null;
         }
 
         return null; // Invalid format
@@ -234,7 +306,9 @@ export class TestRailClientCore {
         const parts: string[] = [];
         for (const [key, value] of Object.entries(params)) {
             if (value !== undefined) {
-                parts.push(`${key}=${String(value)}`);
+                // VULN-05: Encode values to prevent parameter injection via string values
+                // containing `&`, `=`, or `#`.
+                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
             }
         }
         return parts.length > 0 ? `${base}&${parts.join('&')}` : base;
@@ -337,6 +411,9 @@ export class TestRailClientCore {
         this.stopCacheCleanup();
         this.clearCache();
 
+        // VULN-04: Zero the in-memory credential to reduce exposure window.
+        this.auth = '';
+
         // Remove this instance from the active clients set
         activeClients.delete(this);
     }
@@ -412,8 +489,12 @@ export class TestRailClientCore {
                     return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
                 }
 
+                // VULN-08: The raw server body may contain stack traces, internal paths,
+                // or secret values. Keep it in the structured `response` field for
+                // programmatic inspection but do not embed it in the message string,
+                // which callers commonly pass to loggers.
                 throw new TestRailApiError(
-                    `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
+                    `TestRail API error: ${response.status} ${response.statusText}`,
                     response.status,
                     response.statusText,
                     errorText,
