@@ -106,6 +106,7 @@ async function runCli(
     env: Record<string, string | undefined> = AUTH_ENV,
 ): Promise<CliResult> {
     vi.resetModules();
+    mockFetch.mockResolvedValue(jsonResponse({ error: 'Not found' }, 404));
 
     process.argv = ['node', 'testrail', ...argv];
     setEnv(env);
