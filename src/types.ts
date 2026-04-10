@@ -459,6 +459,96 @@ export interface ResultField {
     description?: string;
 }
 
+// ── Case Fields & Types ───────────────────────────────────────────────────────
+
+/** Context/options configuration block shared by CaseField entries */
+export interface CaseFieldConfig {
+    context: {
+        is_global: boolean;
+        project_ids: number[];
+    };
+    options: {
+        is_required: boolean;
+        default_value: string;
+        items?: string;
+        format?: string;
+        rows?: string;
+    };
+}
+
+/** Custom case field definition returned by get_case_fields */
+export interface CaseField {
+    id: number;
+    /** System-level name, e.g. "custom_steps" */
+    system_name: string;
+    /** Human-readable label */
+    label: string;
+    /** Short name used as the key in case payloads */
+    name: string;
+    /** Field type identifier (1=String, 2=Integer, 3=Text, 5=Checkbox, 6=Dropdown, …) */
+    type_id: number;
+    display_order: number;
+    /** One or more context/options configurations */
+    configs: CaseFieldConfig[];
+    is_active: boolean;
+    include_all: boolean;
+    template_ids: number[];
+    description?: string;
+}
+
+/** Case type definition returned by get_case_types */
+export interface CaseType {
+    id: number;
+    name: string;
+    is_default: boolean;
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
+/** Case template returned by get_templates (requires TestRail 5.2+) */
+export interface Template {
+    id: number;
+    name: string;
+    is_default: boolean;
+}
+
+// ── Configurations ────────────────────────────────────────────────────────────
+
+/** An individual configuration (e.g. "Windows 10", "Chrome") within a group */
+export interface Configuration {
+    id: number;
+    name: string;
+    group_id: number;
+}
+
+/** A configuration group (e.g. "Operating Systems", "Browsers") */
+export interface ConfigurationGroup {
+    id: number;
+    name: string;
+    project_id: number;
+    configs: Configuration[];
+}
+
+export interface AddConfigurationGroupPayload {
+    /** Name of the new configuration group */
+    name: string;
+}
+
+export interface UpdateConfigurationGroupPayload {
+    /** New name for the configuration group */
+    name?: string;
+}
+
+export interface AddConfigurationPayload {
+    /** Name of the new configuration */
+    name: string;
+}
+
+export interface UpdateConfigurationPayload {
+    /** New name for the configuration */
+    name?: string;
+}
+
 export interface CacheEntry<T> {
     data: T;
     expiry: number; // Unix timestamp in ms
