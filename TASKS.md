@@ -111,7 +111,7 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 ---
 
-### TASK-007 · Add `updateRun(runId, payload)`
+### TASK-007 · Add `updateRun(runId, payload)` [In Progress by agent-6eaef7]
 
 **Category:** Feature / Runs  
 **Description:**  
