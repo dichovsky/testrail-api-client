@@ -24,6 +24,24 @@ describe('Utils', () => {
             expect(base64Encode('!@#$%^&*()')).toBe('IUAjJCVeJiooKQ==');
             expect(base64Encode('line1\nline2')).toBe('bGluZTEKbGluZTI=');
         });
+
+        it('should use btoa fallback when Buffer is unavailable (browser path)', () => {
+            // Temporarily hide the Buffer global to exercise the browser code path
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const savedBuffer = (globalThis as any).Buffer;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (globalThis as any).Buffer = undefined;
+
+            try {
+                expect(base64Encode('hello')).toBe('aGVsbG8=');
+                expect(base64Encode('user:password')).toBe('dXNlcjpwYXNzd29yZA==');
+                // Unicode still encodes correctly via the btoa + encodeURIComponent path
+                expect(base64Encode('café')).toBe('Y2Fmw6k=');
+            } finally {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (globalThis as any).Buffer = savedBuffer;
+            }
+        });
     });
 
     describe('sleep', () => {

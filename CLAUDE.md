@@ -18,11 +18,12 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | File                          | Purpose                                              |
 | ----------------------------- | ---------------------------------------------------- |
 | `src/client-core.ts`          | HTTP pipeline, cache, rate limiter, retry, lifecycle |
-| `src/client.ts`               | All 36 API endpoint methods (extends client-core)    |
+| `src/client.ts`               | All 101 API endpoint methods (extends client-core)   |
 | `src/types.ts`                | All TypeScript interfaces and payload types          |
 | `src/errors.ts`               | `TestRailApiError`, `TestRailValidationError`        |
 | `src/constants.ts`            | All numeric constants (timeouts, cache, rate limits) |
 | `src/utils.ts`                | `base64Encode`, `sleep`                              |
+| `src/cli.ts`                  | CLI entry point (`bin: testrail`, `./cli` export)    |
 | `src/index.ts`                | Public barrel exports                                |
 | `CODEMAP.md`                  | Symbol index with exact file:line refs (auto-gen)    |
 | `scripts/generate-codemap.js` | Regenerates CODEMAP.md from source                   |
@@ -61,13 +62,16 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 ## Tests
 
-134 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
+456 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
 
 | File                              | Covers                                   |
 | --------------------------------- | ---------------------------------------- |
 | `tests/client-endpoints.test.ts`  | All 36 API methods (CRUD)                |
 | `tests/client-features.test.ts`   | Cache, rate limiter, retry, lifecycle    |
 | `tests/client-edge-cases.test.ts` | Edge cases, signal handlers, error paths |
+| `tests/client-projects.test.ts`   | Project CRUD                             |
+| `tests/client-sections.test.ts`   | Section CRUD                             |
+| `tests/cli.test.ts`               | CLI dispatch, auth resolution, rendering |
 | `tests/exports.test.ts`           | Public API exports, inheritance          |
 | `tests/performance.test.ts`       | Concurrent requests, throughput          |
 | `tests/utils.test.ts`             | `base64Encode`, `sleep`                  |

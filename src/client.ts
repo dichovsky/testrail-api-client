@@ -35,6 +35,7 @@ import type {
     GetResultsOptions,
     GetMilestonesOptions,
     GetRunsOptions,
+    GetCasesOptions,
     ResultField,
     CaseField,
     CaseType,
@@ -259,30 +260,56 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Get all cases for a project, optionally filtered by suite and/or section.
-     * @param options.suiteId - Optional suite filter
-     * @param options.sectionId - Optional section filter
-     * @param options.limit - Optional maximum number of results to return
-     * @param options.offset - Optional number of results to skip
+     * Get all cases for a project with optional filters.
+     * @param options.suiteId - Return only cases in this suite
+     * @param options.sectionId - Return only cases in this section
+     * @param options.typeId - Return only cases of this type
+     * @param options.priorityId - Return only cases with this priority
+     * @param options.templateId - Return only cases using this template
+     * @param options.milestoneId - Return only cases linked to this milestone
+     * @param options.createdAfter - Return only cases created after this Unix timestamp
+     * @param options.createdBefore - Return only cases created before this Unix timestamp
+     * @param options.updatedAfter - Return only cases updated after this Unix timestamp
+     * @param options.updatedBefore - Return only cases updated before this Unix timestamp
+     * @param options.limit - Maximum number of cases to return
+     * @param options.offset - Pagination offset
      * @throws {TestRailValidationError} When any provided ID is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getCases(
-        projectId: number,
-        options?: { suiteId?: number; sectionId?: number; limit?: number; offset?: number },
-    ): Promise<Case[]> {
+    async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
         this.validateId(projectId, 'projectId');
-        const { suiteId, sectionId, limit, offset } = options ?? {};
-        if (suiteId !== undefined) {
-            this.validateId(suiteId, 'suiteId');
-        }
-        if (sectionId !== undefined) {
-            this.validateId(sectionId, 'sectionId');
-        }
+        const {
+            suiteId,
+            sectionId,
+            typeId,
+            priorityId,
+            templateId,
+            milestoneId,
+            createdAfter,
+            createdBefore,
+            updatedAfter,
+            updatedBefore,
+            limit,
+            offset,
+        } = options ?? {};
+        if (suiteId !== undefined) this.validateId(suiteId, 'suiteId');
+        if (sectionId !== undefined) this.validateId(sectionId, 'sectionId');
+        if (typeId !== undefined) this.validateId(typeId, 'typeId');
+        if (priorityId !== undefined) this.validateId(priorityId, 'priorityId');
+        if (templateId !== undefined) this.validateId(templateId, 'templateId');
+        if (milestoneId !== undefined) this.validateId(milestoneId, 'milestoneId');
         this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_cases/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
+            type_id: typeId,
+            priority_id: priorityId,
+            template_id: templateId,
+            milestone_id: milestoneId,
+            created_after: createdAfter,
+            created_before: createdBefore,
+            updated_after: updatedAfter,
+            updated_before: updatedBefore,
             limit,
             offset,
         });

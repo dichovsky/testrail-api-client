@@ -1,6 +1,6 @@
 {
     "name": "@dichovsky/testrail-api-client",
-    "version": "1.1.0",
+    "version": "1.0.0",
     "description": "TypeScript API client for TestRail",
     "keywords": [
         "testrail",
@@ -23,7 +23,12 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        },
+        "./cli": {
+            "import": "./dist/cli.js",
+            "default": "./dist/cli.js"
         }
     },
     "main": "dist/index.js",
@@ -39,11 +44,12 @@
     ],
     "scripts": {
         "build": "rm -rf dist && tsc",
+        "clean:maps": "find dist -name '*.map' -delete",
         "codemap": "node scripts/generate-codemap.js",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint .",
-        "prepublishOnly": "npm run build",
+        "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build && npm run clean:maps",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",

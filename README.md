@@ -5,7 +5,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API with advanced features including intelligent caching, rate limiting, retry logic with exponential backoff, and robust error handling.
+A comprehensive, type-safe TypeScript/JavaScript client for the [TestRail API](https://support.testrail.com/hc/en-us/articles/7077083596436-Introduction-to-the-TestRail-API) with advanced features including intelligent caching, rate limiting, retry logic with exponential backoff, and robust error handling.
+
+**Covers the complete TestRail REST API** — all 101 methods across every resource: projects, suites, sections, cases, plans, runs, tests, results, milestones, users, attachments, configurations, datasets, groups, shared steps, variables, reports, and more.
 
 ## Features
 
@@ -40,7 +42,7 @@ A comprehensive, type-safe TypeScript/JavaScript client for the TestRail API wit
 
 ✅ **Quality & Testing**
 
-- 97.6%+ test coverage with comprehensive test suite (140+ tests)
+- 97.6%+ test coverage with comprehensive test suite (456+ tests)
 - High branch coverage (98.7%) ensuring thorough edge case testing
 - Strict ESLint configuration with security-focused and TypeScript-specific rules
 - Automated CI/CD with GitHub Actions and matrix testing
@@ -506,11 +508,11 @@ Initial release with comprehensive TestRail API support and advanced features:
 - Comprehensive input validation for all parameters
 - Custom error classes (TestRailApiError, TestRailValidationError)
 - Security warnings for insecure protocols
-- Protection against common vulnerabilities
+- Protection against SSRF, credential exposure, and parameter injection
 
 **Developer Experience:**
 
-- 97.6%+ test coverage with 140+ test cases
+- 97.6%+ test coverage with 456+ test cases
 - Strict ESLint configuration with security rules
 - Comprehensive JSDoc documentation
 - Modern ES2022+ features and async/await throughout
@@ -524,7 +526,8 @@ Initial release with comprehensive TestRail API support and advanced features:
 
 ## Related Projects
 
-- [TestRail Official API Documentation](https://support.testrail.com/hc/en-us/articles/7077819069460-Using-the-API)
+- [TestRail API Introduction](https://support.testrail.com/hc/en-us/articles/7077083596436-Introduction-to-the-TestRail-API) - Official API overview
+- [TestRail API Reference](https://support.testrail.com/hc/en-us/articles/7077819069460-Using-the-API) - Full endpoint documentation
 - [TestRail](https://www.testrail.com/) - Test management platform
 
 ## Buy Me A Coffee

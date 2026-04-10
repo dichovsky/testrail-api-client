@@ -65,15 +65,24 @@ function inferEndpoint(methodName, lines) {
     // Find the method, then scan its body for this.request(...)
     const startIdx = lines.findIndex((l) => l.includes(`async ${methodName}(`));
     if (startIdx === -1) return { verb: '?', endpoint: '?' };
-    for (let i = startIdx; i < Math.min(startIdx + 20, lines.length); i++) {
-        const m = lines[i].match(/this\.request<[^>]+>\('(GET|POST)',\s*`([^`]+)`/);
-        if (m) return { verb: m[1], endpoint: m[2] };
-        const m2 = lines[i].match(/this\.request<[^>]+>\('(GET|POST)',\s*'([^']+)'/);
-        if (m2) return { verb: m2[1], endpoint: m2[2] };
-        // endpoint built via buildEndpoint — extract base from that line (backtick or single-quote)
-        const m3 = lines[i].match(/buildEndpoint\([`']([^`']+)[`']/);
-        if (m3) return { verb: 'GET', endpoint: `${m3[1]}&...` };
-    }
+    const relativeEndIdx = lines.slice(startIdx + 1).findIndex((line) => /^\s+async\s+\w+\s*\(/.test(line));
+    const endIdx = relativeEndIdx === -1 ? lines.length : startIdx + 1 + relativeEndIdx;
+    const methodBody = lines.slice(startIdx, endIdx).join('\n');
+
+    const requestMatch = methodBody.match(
+        /this\.request(?:<[\s\S]*?>)?\(\s*'(GET|POST)'\s*,\s*(?:`([^`]+)`|'([^']+)')/,
+    );
+    if (requestMatch) return { verb: requestMatch[1], endpoint: requestMatch[2] ?? requestMatch[3] };
+
+    const binaryMatch = methodBody.match(/this\.requestBinary\(\s*(?:`([^`]+)`|'([^']+)')/);
+    if (binaryMatch) return { verb: 'GET', endpoint: binaryMatch[1] ?? binaryMatch[2] };
+
+    const multipartMatch = methodBody.match(/this\.requestMultipart(?:<[\s\S]*?>)?\(\s*(?:`([^`]+)`|'([^']+)')/);
+    if (multipartMatch) return { verb: 'POST', endpoint: multipartMatch[1] ?? multipartMatch[2] };
+
+    const buildEndpointMatch = methodBody.match(/buildEndpoint\(\s*[`']([^`']+)[`']/);
+    if (buildEndpointMatch) return { verb: 'GET', endpoint: `${buildEndpointMatch[1]}&...` };
+
     return { verb: '?', endpoint: '?' };
 }
 
