@@ -14,7 +14,7 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 ## P2 — Medium (Filters, Lookup Endpoints, API Completeness)
 
-### TASK-012 · Add filter parameters to `getCases()`
+### TASK-012 · Add filter parameters to `getCases()` [In Progress]
 
 **Category:** Feature / Cases  
 **Description:**  
