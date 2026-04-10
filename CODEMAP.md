@@ -7,7 +7,7 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | Method | HTTP | Endpoint | Line |
 |--------|------|----------|------|
 | `getProject` | GET | `get_project/${projectId}` | [48](src/client.ts#L48) |
-| `getProjects` | ? | `?` | [58](src/client.ts#L58) |
+| `getProjects` | GET | `get_projects&...` | [58](src/client.ts#L58) |
 | `getSuite` | GET | `get_suite/${suiteId}` | [72](src/client.ts#L72) |
 | `getSuites` | GET | `get_suites/${projectId}` | [82](src/client.ts#L82) |
 | `addSuite` | POST | `add_suite/${projectId}` | [92](src/client.ts#L92) |
@@ -16,7 +16,7 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `getSection` | GET | `get_section/${sectionId}` | [124](src/client.ts#L124) |
 | `getSections` | GET | `get_sections/${projectId}&...` | [137](src/client.ts#L137) |
 | `getCase` | GET | `get_case/${caseId}` | [159](src/client.ts#L159) |
-| `getCases` | ? | `?` | [173](src/client.ts#L173) |
+| `getCases` | GET | `get_cases/${projectId}&...` | [173](src/client.ts#L173) |
 | `addCase` | POST | `add_case/${sectionId}` | [201](src/client.ts#L201) |
 | `updateCase` | POST | `update_case/${caseId}` | [211](src/client.ts#L211) |
 | `deleteCase` | POST | `delete_case/${caseId}` | [221](src/client.ts#L221) |
@@ -46,8 +46,8 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `getMilestone` | GET | `get_milestone/${milestoneId}` | [491](src/client.ts#L491) |
 | `getMilestones` | GET | `get_milestones/${projectId}&...` | [501](src/client.ts#L501) |
 | `getUser` | GET | `get_user/${userId}` | [516](src/client.ts#L516) |
-| `getUserByEmail` | ? | `?` | [526](src/client.ts#L526) |
-| `getUsers` | ? | `?` | [541](src/client.ts#L541) |
+| `getUserByEmail` | GET | `get_user_by_email&...` | [526](src/client.ts#L526) |
+| `getUsers` | GET | `get_users&...` | [541](src/client.ts#L541) |
 | `getStatuses` | GET | `get_statuses` | [554](src/client.ts#L554) |
 | `getPriorities` | GET | `get_priorities` | [564](src/client.ts#L564) |
 
@@ -59,7 +59,7 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `validateId` | [286](src/client-core.ts#L286) |
 | `buildEndpoint` | [325](src/client-core.ts#L325) |
 | `clearCache` | [380](src/client-core.ts#L380) |
-| `destroy` | [83](src/client-core.ts#L83) |
+| `destroy` | [425](src/client-core.ts#L425) |
 | `request` | [452](src/client-core.ts#L452) |
 
 ## Error Classes (`src/errors.ts`)
