@@ -60,7 +60,7 @@ When TestRail returns HTTP 429, it may include a `Retry-After` header specifying
 
 ---
 
-### TASK-004 · Pagination silently truncates large result sets
+### TASK-004 · Pagination silently truncates large result sets [Done]
 
 **Category:** Bug / Pagination  
 **Description:**  
