@@ -142,7 +142,7 @@ Projects can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [Done by agent-q7m4pz]
+### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [Done]
 
 **Category:** Feature / Suites  
 **Description:**  
