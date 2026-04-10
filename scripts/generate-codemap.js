@@ -65,9 +65,7 @@ function inferEndpoint(methodName, lines) {
     // Find the method, then scan its body for this.request(...)
     const startIdx = lines.findIndex((l) => l.includes(`async ${methodName}(`));
     if (startIdx === -1) return { verb: '?', endpoint: '?' };
-    const relativeEndIdx = lines
-        .slice(startIdx + 1)
-        .findIndex((line) => /^\s+async\s+\w+\s*\(/.test(line));
+    const relativeEndIdx = lines.slice(startIdx + 1).findIndex((line) => /^\s+async\s+\w+\s*\(/.test(line));
     const endIdx = relativeEndIdx === -1 ? lines.length : startIdx + 1 + relativeEndIdx;
     const methodBody = lines.slice(startIdx, endIdx).join('\n');
 
