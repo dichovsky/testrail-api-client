@@ -14,6 +14,9 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
+    AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
+    PlanEntry,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -239,6 +242,36 @@ export class TestRailClient extends TestRailClientCore {
     async deletePlan(planId: number): Promise<void> {
         this.validateId(planId, 'planId');
         await this.request<void>('POST', `delete_plan/${planId}`);
+    }
+
+    /**
+     * Add a plan entry (run) to a plan.
+     */
+    async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
+        this.validateId(planId, 'planId');
+        return this.request<PlanEntry>('POST', `add_plan_entry/${planId}`, payload);
+    }
+
+    /**
+     * Update an existing plan entry.
+     */
+    async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
+        this.validateId(planId, 'planId');
+        if (typeof entryId !== 'string' || entryId.trim() === '') {
+            throw new TestRailValidationError('entryId must be a non-empty string');
+        }
+        return this.request<PlanEntry>('POST', `update_plan_entry/${planId}/${entryId}`, payload);
+    }
+
+    /**
+     * Delete a plan entry.
+     */
+    async deletePlanEntry(planId: number, entryId: string): Promise<void> {
+        this.validateId(planId, 'planId');
+        if (typeof entryId !== 'string' || entryId.trim() === '') {
+            throw new TestRailValidationError('entryId must be a non-empty string');
+        }
+        await this.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
     }
 
     // ── Runs ──────────────────────────────────────────────────────────────────
