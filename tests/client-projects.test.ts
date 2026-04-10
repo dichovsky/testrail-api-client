@@ -4,8 +4,7 @@ import type { AddProjectPayload, UpdateProjectPayload, Project } from '../src/ty
 import { createClient, mockOk, mockErr } from './helpers.js';
 
 const mockFetch = vi.fn();
-// @ts-expect-error - override global for tests
-global.fetch = mockFetch;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('Project CRUD', () => {
     let client: TestRailClient;

@@ -321,13 +321,13 @@ export interface RateLimiterConfig {
 export interface AddProjectPayload {
     name: string;
     announcement?: string;
-    show_announcement?: number;
+    show_announcement?: boolean;
     suite_mode?: number;
 }
 
 export interface UpdateProjectPayload {
     name?: string;
     announcement?: string;
-    show_announcement?: number;
+    show_announcement?: boolean;
     suite_mode?: number;
 }
