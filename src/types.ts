@@ -428,3 +428,67 @@ export interface UpdateProjectPayload {
     show_announcement?: boolean;
     suite_mode?: number;
 }
+
+/**
+ * Filter options for `getPlans()`.
+ * All date filters accept Unix timestamps (seconds).
+ */
+export interface GetPlansOptions {
+    /** Only return plans created after this Unix timestamp */
+    created_after?: number;
+    /** Only return plans created before this Unix timestamp */
+    created_before?: number;
+    /** Only return plans created by these user IDs (comma-separated or array) */
+    created_by?: number[];
+    /** Filter by completion status: 1 = completed, 0 = active */
+    is_completed?: 0 | 1;
+    /** Only return plans with this milestone */
+    milestone_id?: number[];
+    /** Maximum number of plans to return */
+    limit?: number;
+    /** Offset for pagination */
+    offset?: number;
+}
+
+/**
+ * Filter options for `getTests()`.
+ */
+export interface GetTestsOptions {
+    /** Only return tests with these status IDs */
+    status_id?: number[];
+    /** Maximum number of tests to return */
+    limit?: number;
+    /** Offset for pagination */
+    offset?: number;
+}
+
+/**
+ * Filter options for `getResults()`, `getResultsForCase()`, and `getResultsForRun()`.
+ * All date filters accept Unix timestamps (seconds).
+ */
+export interface GetResultsOptions {
+    /** Only return results created after this Unix timestamp */
+    created_after?: number;
+    /** Only return results created before this Unix timestamp */
+    created_before?: number;
+    /** Only return results created by these user IDs */
+    created_by?: number[];
+    /** Only return results with these status IDs */
+    status_id?: number[];
+    /** Maximum number of results to return */
+    limit?: number;
+    /** Offset for pagination */
+    offset?: number;
+}
+
+/**
+ * Filter options for `getMilestones()`.
+ */
+export interface GetMilestonesOptions {
+    /** Filter by completion status: 1 = completed, 0 = active */
+    is_completed?: 0 | 1;
+    /** Maximum number of milestones to return */
+    limit?: number;
+    /** Offset for pagination */
+    offset?: number;
+}

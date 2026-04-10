@@ -220,7 +220,8 @@ async function run(res: string, act: string): Promise<void> {
         case 'result': {
             if (act === 'list') {
                 const rid = parseId(values['run-id'] as string | undefined, '--run-id');
-                out(await client.getResultsForRun(rid, limit, offset));
+                const resultOpts = { ...(limit !== undefined && { limit }), ...(offset !== undefined && { offset }) };
+                out(await client.getResultsForRun(rid, resultOpts));
             } else {
                 err(`Unknown action '${act}' for result. Use: list`);
                 process.exit(1);
@@ -233,7 +234,8 @@ async function run(res: string, act: string): Promise<void> {
                 out(await client.getMilestone(id));
             } else if (act === 'list') {
                 const pid = parseId(values['project-id'] as string | undefined, '--project-id');
-                out(await client.getMilestones(pid, limit, offset));
+                const msOpts = { ...(limit !== undefined && { limit }), ...(offset !== undefined && { offset }) };
+                out(await client.getMilestones(pid, msOpts));
             } else {
                 err(`Unknown action '${act}' for milestone. Use: get, list`);
                 process.exit(1);
