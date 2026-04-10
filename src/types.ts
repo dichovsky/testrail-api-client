@@ -288,6 +288,37 @@ export interface UpdateCasePayload {
     custom_fields?: Record<string, unknown>;
 }
 
+/**
+ * Filter options for `getCases()`.
+ * All date filters accept Unix timestamps (seconds since epoch).
+ */
+export interface GetCasesOptions {
+    /** Return only cases belonging to this suite */
+    suiteId?: number;
+    /** Return only cases in this section */
+    sectionId?: number;
+    /** Return only cases of this type (from `getCaseTypes()`) */
+    typeId?: number;
+    /** Return only cases with this priority (from `getPriorities()`) */
+    priorityId?: number;
+    /** Return only cases using this template (from `getTemplates()`) */
+    templateId?: number;
+    /** Return only cases linked to this milestone */
+    milestoneId?: number;
+    /** Return only cases created after this Unix timestamp */
+    createdAfter?: number;
+    /** Return only cases created before this Unix timestamp */
+    createdBefore?: number;
+    /** Return only cases updated after this Unix timestamp */
+    updatedAfter?: number;
+    /** Return only cases updated before this Unix timestamp */
+    updatedBefore?: number;
+    /** Maximum number of cases to return */
+    limit?: number;
+    /** Pagination offset */
+    offset?: number;
+}
+
 export interface AddPlanPayload {
     name: string;
     description?: string;

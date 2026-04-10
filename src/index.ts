@@ -36,6 +36,7 @@ export type {
     UpdateMilestonePayload,
     AddProjectPayload,
     UpdateProjectPayload,
+    GetCasesOptions,
     GetPlansOptions,
     GetTestsOptions,
     GetResultsOptions,
