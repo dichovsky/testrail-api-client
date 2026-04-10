@@ -18,7 +18,7 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | File                          | Purpose                                              |
 | ----------------------------- | ---------------------------------------------------- |
 | `src/client-core.ts`          | HTTP pipeline, cache, rate limiter, retry, lifecycle |
-| `src/client.ts`               | All 36 API endpoint methods (extends client-core)    |
+| `src/client.ts`               | All 101 API endpoint methods (extends client-core)   |
 | `src/types.ts`                | All TypeScript interfaces and payload types          |
 | `src/errors.ts`               | `TestRailApiError`, `TestRailValidationError`        |
 | `src/constants.ts`            | All numeric constants (timeouts, cache, rate limits) |
