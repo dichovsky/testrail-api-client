@@ -381,6 +381,30 @@ export interface UpdateSectionPayload {
     description?: string;
 }
 
+export interface AddMilestonePayload {
+    name: string;
+    description?: string;
+    /** Unix timestamp */
+    due_on?: number;
+    /** Unix timestamp */
+    start_on?: number;
+    parent_id?: number;
+    refs?: string;
+}
+
+export interface UpdateMilestonePayload {
+    name?: string;
+    description?: string;
+    /** Unix timestamp */
+    due_on?: number;
+    /** Unix timestamp */
+    start_on?: number;
+    parent_id?: number;
+    refs?: string;
+    is_completed?: boolean;
+    is_started?: boolean;
+}
+
 export interface CacheEntry<T> {
     data: T;
     expiry: number; // Unix timestamp in ms
