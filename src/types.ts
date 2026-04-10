@@ -390,3 +390,17 @@ export interface RateLimiterConfig {
     maxRequests: number;
     windowMs: number;
 }
+
+export interface AddProjectPayload {
+    name: string;
+    announcement?: string;
+    show_announcement?: boolean;
+    suite_mode?: number;
+}
+
+export interface UpdateProjectPayload {
+    name?: string;
+    announcement?: string;
+    show_announcement?: boolean;
+    suite_mode?: number;
+}

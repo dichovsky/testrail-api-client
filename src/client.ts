@@ -26,6 +26,8 @@ import type {
     AddResultsForCasesPayload,
     AddSectionPayload,
     UpdateSectionPayload,
+    AddProjectPayload,
+    UpdateProjectPayload,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
 import { TestRailValidationError } from './errors.js';
@@ -62,6 +64,34 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint('get_projects', { limit, offset });
         const response = await this.request<{ projects: Project[] }>('GET', endpoint);
         return response.projects ?? [];
+    }
+
+    /**
+     * Add a new project.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addProject(payload: AddProjectPayload): Promise<Project> {
+        return this.request<Project>('POST', 'add_project', payload);
+    }
+
+    /**
+     * Update an existing project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Project>('POST', `update_project/${projectId}`, payload);
+    }
+
+    /**
+     * Delete a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteProject(projectId: number): Promise<void> {
+        this.validateId(projectId, 'projectId');
+        await this.request<void>('POST', `delete_project/${projectId}`);
     }
 
     // ── Suites ────────────────────────────────────────────────────────────────

@@ -32,4 +32,6 @@ export type {
     AddResultForCasePayload,
     AddSectionPayload,
     UpdateSectionPayload,
+    AddProjectPayload,
+    UpdateProjectPayload,
 } from './types.js';
