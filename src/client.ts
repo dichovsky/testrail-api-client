@@ -30,6 +30,10 @@ import type {
     UpdateMilestonePayload,
     AddProjectPayload,
     UpdateProjectPayload,
+    GetPlansOptions,
+    GetTestsOptions,
+    GetResultsOptions,
+    GetMilestonesOptions,
     GetRunsOptions,
     ResultField,
 } from './types.js';
@@ -302,14 +306,25 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Get all plans for a project.
+     * Get all plans for a project with optional filters.
+     * @param projectId - The project ID
+     * @param options - Optional filter parameters (created_after, created_before, created_by,
+     *   is_completed, milestone_id, limit, offset)
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getPlans(projectId: number, limit?: number, offset?: number): Promise<Plan[]> {
+    async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
         this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_plans/${projectId}`, { limit, offset });
+        this.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.buildEndpoint(`get_plans/${projectId}`, {
+            created_after: options?.created_after,
+            created_before: options?.created_before,
+            created_by: this.serializeIdList(options?.created_by),
+            is_completed: options?.is_completed,
+            milestone_id: this.serializeIdList(options?.milestone_id),
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         const response = await this.request<{ plans: Plan[] }>('GET', endpoint);
         return response.plans ?? [];
     }
@@ -489,14 +504,20 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Get all tests for a run.
+     * Get all tests for a run with optional filters.
+     * @param runId - The run ID
+     * @param options - Optional filter parameters (status_id, limit, offset)
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getTests(runId: number, limit?: number, offset?: number): Promise<Test[]> {
+    async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
         this.validateId(runId, 'runId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_tests/${runId}`, { limit, offset });
+        this.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.buildEndpoint(`get_tests/${runId}`, {
+            status_id: this.serializeIdList(options?.status_id),
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         const response = await this.request<{ tests: Test[] }>('GET', endpoint);
         return response.tests ?? [];
     }
@@ -504,39 +525,72 @@ export class TestRailClient extends TestRailClientCore {
     // ── Results ───────────────────────────────────────────────────────────────
 
     /**
-     * Get results for a test.
+     * Get results for a test with optional filters.
+     * @param testId - The test ID
+     * @param options - Optional filter parameters (created_after, created_before, created_by,
+     *   status_id, limit, offset)
      * @throws {TestRailValidationError} When testId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResults(testId: number, limit?: number, offset?: number): Promise<Result[]> {
+    async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
         this.validateId(testId, 'testId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_results/${testId}`, { limit, offset });
+        this.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.buildEndpoint(`get_results/${testId}`, {
+            created_after: options?.created_after,
+            created_before: options?.created_before,
+            created_by: this.serializeIdList(options?.created_by),
+            status_id: this.serializeIdList(options?.status_id),
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
     }
 
     /**
-     * Get results for a specific case within a run.
+     * Get results for a specific case within a run with optional filters.
+     * @param runId - The run ID
+     * @param caseId - The case ID
+     * @param options - Optional filter parameters (created_after, created_before, created_by,
+     *   status_id, limit, offset)
      * @throws {TestRailValidationError} When runId or caseId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResultsForCase(runId: number, caseId: number): Promise<Result[]> {
+    async getResultsForCase(runId: number, caseId: number, options?: GetResultsOptions): Promise<Result[]> {
         this.validateId(runId, 'runId');
         this.validateId(caseId, 'caseId');
-        const response = await this.request<{ results: Result[] }>('GET', `get_results_for_case/${runId}/${caseId}`);
+        this.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
+            created_after: options?.created_after,
+            created_before: options?.created_before,
+            created_by: this.serializeIdList(options?.created_by),
+            status_id: this.serializeIdList(options?.status_id),
+            limit: options?.limit,
+            offset: options?.offset,
+        });
+        const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
     }
 
     /**
-     * Get all results for a run.
+     * Get all results for a run with optional filters.
+     * @param runId - The run ID
+     * @param options - Optional filter parameters (created_after, created_before, created_by,
+     *   status_id, limit, offset)
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResultsForRun(runId: number, limit?: number, offset?: number): Promise<Result[]> {
+    async getResultsForRun(runId: number, options?: GetResultsOptions): Promise<Result[]> {
         this.validateId(runId, 'runId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, { limit, offset });
+        this.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, {
+            created_after: options?.created_after,
+            created_before: options?.created_before,
+            created_by: this.serializeIdList(options?.created_by),
+            status_id: this.serializeIdList(options?.status_id),
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
     }
@@ -585,14 +639,20 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Get all milestones for a project.
+     * Get all milestones for a project with optional filters.
+     * @param projectId - The project ID
+     * @param options - Optional filter parameters (is_completed, limit, offset)
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getMilestones(projectId: number, limit?: number, offset?: number): Promise<Milestone[]> {
+    async getMilestones(projectId: number, options?: GetMilestonesOptions): Promise<Milestone[]> {
         this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, { limit, offset });
+        this.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, {
+            is_completed: options?.is_completed,
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         const response = await this.request<{ milestones: Milestone[] }>('GET', endpoint);
         return response.milestones ?? [];
     }
@@ -694,5 +754,9 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getResultFields(): Promise<ResultField[]> {
         return this.request<ResultField[]>('GET', 'get_result_fields');
+    }
+
+    private serializeIdList(ids?: number[]): string | undefined {
+        return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
     }
 }
