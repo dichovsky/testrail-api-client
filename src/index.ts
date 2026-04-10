@@ -37,4 +37,6 @@ export type {
     AddProjectPayload,
     UpdateProjectPayload,
     GetRunsOptions,
+    ResultField,
+    ResultFieldConfig,
 } from './types.js';

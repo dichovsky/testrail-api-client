@@ -31,6 +31,7 @@ import type {
     AddProjectPayload,
     UpdateProjectPayload,
     GetRunsOptions,
+    ResultField,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
 import { TestRailValidationError } from './errors.js';
@@ -683,5 +684,15 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getPriorities(): Promise<Priority[]> {
         return this.request<Priority[]>('GET', 'get_priorities');
+    }
+
+    // ── Result Fields ─────────────────────────────────────────────────────────
+
+    /**
+     * Get all available custom result fields.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getResultFields(): Promise<ResultField[]> {
+        return this.request<ResultField[]>('GET', 'get_result_fields');
     }
 }
