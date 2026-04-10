@@ -1,6 +1,9 @@
 import type { TestRailConfig, CacheEntry } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError } from './errors.js';
+import pkg from '../package.json' with { type: 'json' };
+
+const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
     BASE_RETRY_DELAY_MS,
     MAX_RETRY_DELAY_MS,
@@ -484,7 +487,7 @@ export class TestRailClientCore {
         const headers: Record<string, string> = {
             Authorization: `Basic ${this.auth}`,
             'Content-Type': 'application/json',
-            'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+            'User-Agent': USER_AGENT,
         };
 
         const controller = new AbortController();
@@ -624,7 +627,7 @@ export class TestRailClientCore {
                 method: 'POST',
                 headers: {
                     Authorization: `Basic ${this.auth}`,
-                    'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+                    'User-Agent': USER_AGENT,
                     // Do NOT set Content-Type — fetch sets it automatically with the boundary
                 },
                 body: formData,
@@ -702,7 +705,7 @@ export class TestRailClientCore {
                 method: 'GET',
                 headers: {
                     Authorization: `Basic ${this.auth}`,
-                    'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+                    'User-Agent': USER_AGENT,
                 },
                 signal: controller.signal,
             });
