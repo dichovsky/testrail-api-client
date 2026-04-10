@@ -504,7 +504,9 @@ describe('TestRailClient - Coverage Improvement', () => {
             expect(() => client.destroy()).not.toThrow();
         });
 
-        it('should invoke cleanupAllClients on SIGINT', () => {
+        it('should invoke cleanupAllClients on SIGINT and exit with code 130', () => {
+            const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
             const client = new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
                 email: 'test@example.com',
@@ -513,10 +515,15 @@ describe('TestRailClient - Coverage Improvement', () => {
 
             process.emit('SIGINT');
 
+            expect(exitSpy).toHaveBeenCalledWith(130);
             expect(() => client.destroy()).not.toThrow();
+
+            exitSpy.mockRestore();
         });
 
-        it('should invoke cleanupAllClients on SIGTERM', () => {
+        it('should invoke cleanupAllClients on SIGTERM and exit with code 143', () => {
+            const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
             const client = new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
                 email: 'test@example.com',
@@ -525,7 +532,10 @@ describe('TestRailClient - Coverage Improvement', () => {
 
             process.emit('SIGTERM');
 
+            expect(exitSpy).toHaveBeenCalledWith(143);
             expect(() => client.destroy()).not.toThrow();
+
+            exitSpy.mockRestore();
         });
     });
 

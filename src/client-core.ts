@@ -66,9 +66,11 @@ function registerProcessHandlers(): void {
         process.on('exit', cleanupAllClients);
         process.on('SIGINT', () => {
             cleanupAllClients();
+            process.exit(130);
         });
         process.on('SIGTERM', () => {
             cleanupAllClients();
+            process.exit(143);
         });
         processHandlersRegistered = true;
     }
