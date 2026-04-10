@@ -201,9 +201,7 @@ describe('TestRailClient', () => {
         it('should propagate API error from addSuite', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
 
-            await expect(client.addSuite(1, { name: 'Suite 1' })).rejects.toThrow(
-                'TestRail API error: 403 Forbidden',
-            );
+            await expect(client.addSuite(1, { name: 'Suite 1' })).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
 
         it('should update a suite', async () => {
