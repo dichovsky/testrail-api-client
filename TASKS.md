@@ -210,7 +210,7 @@ Milestones can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-013 · Add filter parameters to `getRuns()`
+### TASK-013 · Add filter parameters to `getRuns()` [Done]
 
 **Category:** Feature / Runs  
 **Description:**  
@@ -218,9 +218,9 @@ Milestones can be read but not created, updated, or deleted.
 
 **Acceptance Criteria:**
 
-- [ ] `getRuns(projectId, options?: GetRunsOptions)` signature updated
-- [ ] `GetRunsOptions` interface added, exported
-- [ ] Unit tests for filter combinations
+- [x] `getRuns(projectId, options?: GetRunsOptions)` signature updated
+- [x] `GetRunsOptions` interface added, exported
+- [x] Unit tests for filter combinations
 
 ---
 
