@@ -34,6 +34,7 @@ import type {
     GetTestsOptions,
     GetResultsOptions,
     GetMilestonesOptions,
+    ResultField,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
 import { TestRailValidationError } from './errors.js';
@@ -317,9 +318,9 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_plans/${projectId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: options?.created_by?.join(','),
+            created_by: options?.created_by?.length ? options.created_by.join(',') : undefined,
             is_completed: options?.is_completed,
-            milestone_id: options?.milestone_id?.join(','),
+            milestone_id: options?.milestone_id?.length ? options.milestone_id.join(',') : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -487,7 +488,7 @@ export class TestRailClient extends TestRailClientCore {
         this.validateId(runId, 'runId');
         this.validatePaginationParams(options?.limit, options?.offset);
         const endpoint = this.buildEndpoint(`get_tests/${runId}`, {
-            status_id: options?.status_id?.join(','),
+            status_id: options?.status_id?.length ? options.status_id.join(',') : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -511,8 +512,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_results/${testId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: options?.created_by?.join(','),
-            status_id: options?.status_id?.join(','),
+            created_by: options?.created_by?.length ? options.created_by.join(',') : undefined,
+            status_id: options?.status_id?.length ? options.status_id.join(',') : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -536,8 +537,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: options?.created_by?.join(','),
-            status_id: options?.status_id?.join(','),
+            created_by: options?.created_by?.length ? options.created_by.join(',') : undefined,
+            status_id: options?.status_id?.length ? options.status_id.join(',') : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -559,8 +560,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
-            created_by: options?.created_by?.join(','),
-            status_id: options?.status_id?.join(','),
+            created_by: options?.created_by?.length ? options.created_by.join(',') : undefined,
+            status_id: options?.status_id?.length ? options.status_id.join(',') : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -717,5 +718,15 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getPriorities(): Promise<Priority[]> {
         return this.request<Priority[]>('GET', 'get_priorities');
+    }
+
+    // ── Result Fields ─────────────────────────────────────────────────────────
+
+    /**
+     * Get all available custom result fields.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getResultFields(): Promise<ResultField[]> {
+        return this.request<ResultField[]>('GET', 'get_result_fields');
     }
 }

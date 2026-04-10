@@ -142,7 +142,7 @@ Projects can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [Done by agent-q7m4pz]
+### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [Done]
 
 **Category:** Feature / Suites  
 **Description:**  
@@ -323,7 +323,7 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 ---
 
-### TASK-021 · Add `getResultFields()`
+### TASK-021 · Add `getResultFields()` [Done]
 
 **Category:** Feature / Metadata  
 **Description:**  
@@ -331,9 +331,9 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 **Acceptance Criteria:**
 
-- [ ] `getResultFields(): Promise<ResultField[]>` implemented
-- [ ] `ResultField` interface defined and exported
-- [ ] Unit test
+- [x] `getResultFields(): Promise<ResultField[]>` implemented
+- [x] `ResultField` interface defined and exported
+- [x] Unit test
 
 ---
 

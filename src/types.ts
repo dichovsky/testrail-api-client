@@ -405,6 +405,39 @@ export interface UpdateMilestonePayload {
     is_started?: boolean;
 }
 
+export interface ResultFieldConfig {
+    context: {
+        is_global: boolean;
+        project_ids: number[];
+    };
+    options: {
+        is_required: boolean;
+        default_value: string;
+        items?: string;
+        format?: string;
+        rows?: string;
+    };
+}
+
+export interface ResultField {
+    id: number;
+    /** System-level name, e.g. "custom_defects" */
+    system_name: string;
+    /** Human-readable label */
+    label: string;
+    /** Short name used as the key in result payloads */
+    name: string;
+    /** Field type identifier (1=String, 2=Integer, 3=Text, 5=Checkbox, 6=Dropdown, …) */
+    type_id: number;
+    display_order: number;
+    /** One or more context/options configurations */
+    configs: ResultFieldConfig[];
+    is_active: boolean;
+    include_all: boolean;
+    template_ids: number[];
+    description?: string;
+}
+
 export interface CacheEntry<T> {
     data: T;
     expiry: number; // Unix timestamp in ms
@@ -438,11 +471,11 @@ export interface GetPlansOptions {
     created_after?: number;
     /** Only return plans created before this Unix timestamp */
     created_before?: number;
-    /** Only return plans created by these user IDs (comma-separated or array) */
+    /** Only return plans created by these user IDs */
     created_by?: number[];
     /** Filter by completion status: 1 = completed, 0 = active */
     is_completed?: 0 | 1;
-    /** Only return plans with this milestone */
+    /** Only return plans with these milestone IDs */
     milestone_id?: number[];
     /** Maximum number of plans to return */
     limit?: number;

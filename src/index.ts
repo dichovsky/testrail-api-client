@@ -40,4 +40,6 @@ export type {
     GetTestsOptions,
     GetResultsOptions,
     GetMilestonesOptions,
+    ResultField,
+    ResultFieldConfig,
 } from './types.js';
