@@ -198,7 +198,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ sections: mockSections }));
 
-            const result = await client.getSections(1, 1);
+            const result = await client.getSections(1, { suiteId: 1 });
             expect(result).toEqual(mockSections);
         });
 
@@ -254,7 +254,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
-            const result = await client.getCases(1, 1);
+            const result = await client.getCases(1, { suiteId: 1 });
             expect(result).toEqual(mockCases);
         });
 
@@ -263,7 +263,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
-            const result = await client.getCases(1, 1, 1);
+            const result = await client.getCases(1, { suiteId: 1, sectionId: 1 });
             expect(result).toEqual(mockCases);
         });
 
@@ -272,7 +272,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
-            const result = await client.getCases(1, undefined, 1);
+            const result = await client.getCases(1, { sectionId: 1 });
             expect(result).toEqual(mockCases);
         });
 
@@ -897,6 +897,69 @@ describe('TestRailClient', () => {
         it('should throw error for invalid IDs (non-number disguised as any)', async () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
             await expect(client.getSection('1' as any)).rejects.toThrow('sectionId must be a positive integer');
+        });
+    });
+
+    describe('Pagination', () => {
+        it('should pass limit and offset to getProjects', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ projects: [] }));
+            await client.getProjects(10, 20);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_projects&limit=10&offset=20'),
+                expect.anything(),
+            );
+        });
+
+        it('should pass limit and offset to getCases', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.getCases(1, { limit: 5, offset: 10 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_cases/1&limit=5&offset=10'),
+                expect.anything(),
+            );
+        });
+
+        it('should pass suiteId, limit, and offset to getCases', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.getCases(1, { suiteId: 2, limit: 5, offset: 0 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('suite_id=2&limit=5&offset=0'),
+                expect.anything(),
+            );
+        });
+
+        it('should pass limit and offset to getSections', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ sections: [] }));
+            await client.getSections(1, { limit: 25, offset: 50 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_sections/1&limit=25&offset=50'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid limit (negative)', async () => {
+            await expect(client.getProjects(-1)).rejects.toThrow('limit must be a positive integer');
+        });
+
+        it('should throw for invalid limit (zero)', async () => {
+            await expect(client.getProjects(0)).rejects.toThrow('limit must be a positive integer');
+        });
+
+        it('should throw for invalid limit (float)', async () => {
+            await expect(client.getProjects(1.5)).rejects.toThrow('limit must be a positive integer');
+        });
+
+        it('should throw for invalid offset (negative)', async () => {
+            await expect(client.getProjects(10, -1)).rejects.toThrow('offset must be a non-negative integer');
+        });
+
+        it('should throw for invalid offset (float)', async () => {
+            await expect(client.getProjects(10, 0.5)).rejects.toThrow('offset must be a non-negative integer');
+        });
+
+        it('should allow offset of zero', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ projects: [] }));
+            await expect(client.getProjects(10, 0)).resolves.toEqual([]);
         });
     });
 });

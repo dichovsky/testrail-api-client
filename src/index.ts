@@ -3,6 +3,7 @@ export { TestRailApiError, TestRailValidationError } from './errors.js';
 export type {
     TestRailConfig,
     TestRailResponse,
+    PaginatedResponse,
     Case,
     Suite,
     Section,
