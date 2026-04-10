@@ -2039,4 +2039,609 @@ describe('TestRailClient', () => {
             await expect(client.getProjects(10, 0)).resolves.toEqual([]);
         });
     });
+
+    // ── TASK-024: User Management ─────────────────────────────────────────────
+
+    describe('addUser', () => {
+        it('should add a new user', async () => {
+            const newUser = { id: 5, email: 'new@example.com', name: 'New User', is_active: true };
+            mockFetch.mockResolvedValueOnce(mockOk(newUser));
+            const result = await client.addUser({ email: 'new@example.com', name: 'New User' });
+            expect(result).toEqual(newUser);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_user'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should add a user with optional fields', async () => {
+            const newUser = { id: 6, email: 'role@example.com', name: 'Role User', is_active: true, role_id: 2 };
+            mockFetch.mockResolvedValueOnce(mockOk(newUser));
+            const result = await client.addUser({
+                email: 'role@example.com',
+                name: 'Role User',
+                is_active: true,
+                role_id: 2,
+            });
+            expect(result).toEqual(newUser);
+        });
+    });
+
+    describe('updateUser', () => {
+        it('should update an existing user', async () => {
+            const updated = { id: 1, name: 'Updated Name', email: 'user@example.com', is_active: true };
+            mockFetch.mockResolvedValueOnce(mockOk(updated));
+            const result = await client.updateUser(1, { name: 'Updated Name' });
+            expect(result).toEqual(updated);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_user/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid userId', async () => {
+            await expect(client.updateUser(0, {})).rejects.toThrow('userId must be a positive integer');
+            await expect(client.updateUser(-1, {})).rejects.toThrow('userId must be a positive integer');
+        });
+    });
+
+    // ── TASK-025: Roles ───────────────────────────────────────────────────────
+
+    describe('getRoles', () => {
+        it('should return all roles', async () => {
+            const roles = [
+                { id: 1, name: 'Admin', is_default: false },
+                { id: 2, name: 'Tester', is_default: true },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(roles));
+            const result = await client.getRoles();
+            expect(result).toEqual(roles);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_roles'), expect.anything());
+        });
+    });
+
+    // ── TASK-026: Groups ──────────────────────────────────────────────────────
+
+    describe('getGroup', () => {
+        it('should return a group by ID', async () => {
+            const group = { id: 1, name: 'QA Team', user_ids: [1, 2] };
+            mockFetch.mockResolvedValueOnce(mockOk(group));
+            const result = await client.getGroup(1);
+            expect(result).toEqual(group);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_group/1'), expect.anything());
+        });
+
+        it('should throw for invalid groupId', async () => {
+            await expect(client.getGroup(0)).rejects.toThrow('groupId must be a positive integer');
+        });
+    });
+
+    describe('getGroups', () => {
+        it('should return all groups', async () => {
+            const groups = [
+                { id: 1, name: 'QA Team' },
+                { id: 2, name: 'Dev Team' },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(groups));
+            const result = await client.getGroups();
+            expect(result).toEqual(groups);
+        });
+    });
+
+    describe('addGroup', () => {
+        it('should create a new group', async () => {
+            const group = { id: 3, name: 'New Group', user_ids: [1] };
+            mockFetch.mockResolvedValueOnce(mockOk(group));
+            const result = await client.addGroup({ name: 'New Group', user_ids: [1] });
+            expect(result).toEqual(group);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_group'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+    });
+
+    describe('updateGroup', () => {
+        it('should update a group', async () => {
+            const group = { id: 1, name: 'Renamed Group' };
+            mockFetch.mockResolvedValueOnce(mockOk(group));
+            const result = await client.updateGroup(1, { name: 'Renamed Group' });
+            expect(result).toEqual(group);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_group/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid groupId', async () => {
+            await expect(client.updateGroup(0, {})).rejects.toThrow('groupId must be a positive integer');
+        });
+    });
+
+    describe('deleteGroup', () => {
+        it('should delete a group', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteGroup(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_group/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid groupId', async () => {
+            await expect(client.deleteGroup(-1)).rejects.toThrow('groupId must be a positive integer');
+        });
+    });
+
+    // ── TASK-027: Attachments ─────────────────────────────────────────────────
+
+    describe('getAttachmentsForCase', () => {
+        it('should return attachments for a case', async () => {
+            const attachments = [{ attachment_id: 1, name: 'screenshot.png' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
+            const result = await client.getAttachmentsForCase(1);
+            expect(result).toEqual(attachments);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_attachments_for_case/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should return empty array when no attachments', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: [] }));
+            expect(await client.getAttachmentsForCase(1)).toEqual([]);
+        });
+
+        it('should throw for invalid caseId', async () => {
+            await expect(client.getAttachmentsForCase(0)).rejects.toThrow('caseId must be a positive integer');
+        });
+    });
+
+    describe('getAttachmentsForRun', () => {
+        it('should return attachments for a run', async () => {
+            const attachments = [{ attachment_id: 2, name: 'log.txt' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
+            const result = await client.getAttachmentsForRun(1);
+            expect(result).toEqual(attachments);
+        });
+
+        it('should throw for invalid runId', async () => {
+            await expect(client.getAttachmentsForRun(0)).rejects.toThrow('runId must be a positive integer');
+        });
+    });
+
+    describe('getAttachmentsForTest', () => {
+        it('should return attachments for a test', async () => {
+            const attachments = [{ attachment_id: 3, name: 'evidence.png' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
+            const result = await client.getAttachmentsForTest(5);
+            expect(result).toEqual(attachments);
+        });
+
+        it('should throw for invalid testId', async () => {
+            await expect(client.getAttachmentsForTest(-1)).rejects.toThrow('testId must be a positive integer');
+        });
+    });
+
+    describe('getAttachmentsForPlan', () => {
+        it('should return attachments for a plan', async () => {
+            const attachments = [{ attachment_id: 4, name: 'plan-doc.pdf' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
+            const result = await client.getAttachmentsForPlan(1);
+            expect(result).toEqual(attachments);
+        });
+
+        it('should throw for invalid planId', async () => {
+            await expect(client.getAttachmentsForPlan(0)).rejects.toThrow('planId must be a positive integer');
+        });
+    });
+
+    describe('getAttachmentsForPlanEntry', () => {
+        it('should return attachments for a plan entry', async () => {
+            const attachments = [{ attachment_id: 5, name: 'entry.png' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
+            const result = await client.getAttachmentsForPlanEntry(1, 2);
+            expect(result).toEqual(attachments);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_attachments_for_plan_entry/1/2'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid planId', async () => {
+            await expect(client.getAttachmentsForPlanEntry(0, 1)).rejects.toThrow('planId must be a positive integer');
+        });
+
+        it('should throw for invalid entryId', async () => {
+            await expect(client.getAttachmentsForPlanEntry(1, 0)).rejects.toThrow('entryId must be a positive integer');
+        });
+    });
+
+    describe('getAttachment', () => {
+        it('should return binary content of an attachment', async () => {
+            const buffer = new ArrayBuffer(8);
+            const response = new Response(buffer, {
+                status: 200,
+                headers: { 'Content-Type': 'application/octet-stream' },
+            });
+            mockFetch.mockResolvedValueOnce(response);
+            const result = await client.getAttachment(1);
+            expect(result).toBeInstanceOf(ArrayBuffer);
+        });
+
+        it('should throw for invalid attachmentId', async () => {
+            await expect(client.getAttachment(0)).rejects.toThrow('attachmentId must be a positive integer');
+        });
+    });
+
+    describe('addAttachmentToCase', () => {
+        it('should upload a file to a case', async () => {
+            const attachment = { attachment_id: 10, name: 'test.png' };
+            mockFetch.mockResolvedValueOnce(mockOk(attachment));
+            const blob = new globalThis.Blob(['test content'], { type: 'image/png' });
+            const result = await client.addAttachmentToCase(1, blob, 'test.png');
+            expect(result).toEqual(attachment);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_attachment_to_case/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid caseId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addAttachmentToCase(0, blob, 'f.txt')).rejects.toThrow(
+                'caseId must be a positive integer',
+            );
+        });
+    });
+
+    describe('addAttachmentToResult', () => {
+        it('should upload a file to a result', async () => {
+            const attachment = { attachment_id: 11, name: 'result.png' };
+            mockFetch.mockResolvedValueOnce(mockOk(attachment));
+            const blob = new globalThis.Blob(['result data']);
+            const result = await client.addAttachmentToResult(1, blob, 'result.png');
+            expect(result).toEqual(attachment);
+        });
+
+        it('should throw for invalid resultId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addAttachmentToResult(-1, blob, 'f.txt')).rejects.toThrow(
+                'resultId must be a positive integer',
+            );
+        });
+    });
+
+    describe('addAttachmentToRun', () => {
+        it('should upload a file to a run', async () => {
+            const attachment = { attachment_id: 12, name: 'run.log' };
+            mockFetch.mockResolvedValueOnce(mockOk(attachment));
+            const blob = new globalThis.Blob(['log data']);
+            const result = await client.addAttachmentToRun(1, blob, 'run.log');
+            expect(result).toEqual(attachment);
+        });
+
+        it('should throw for invalid runId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addAttachmentToRun(0, blob, 'f.txt')).rejects.toThrow(
+                'runId must be a positive integer',
+            );
+        });
+    });
+
+    describe('addAttachmentToPlan', () => {
+        it('should upload a file to a plan', async () => {
+            const attachment = { attachment_id: 13, name: 'plan.pdf' };
+            mockFetch.mockResolvedValueOnce(mockOk(attachment));
+            const blob = new globalThis.Blob(['pdf data']);
+            const result = await client.addAttachmentToPlan(1, blob, 'plan.pdf');
+            expect(result).toEqual(attachment);
+        });
+
+        it('should throw for invalid planId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addAttachmentToPlan(0, blob, 'f.txt')).rejects.toThrow(
+                'planId must be a positive integer',
+            );
+        });
+    });
+
+    describe('addAttachmentToPlanEntry', () => {
+        it('should upload a file to a plan entry', async () => {
+            const attachment = { attachment_id: 14, name: 'entry.png' };
+            mockFetch.mockResolvedValueOnce(mockOk(attachment));
+            const blob = new globalThis.Blob(['image']);
+            const result = await client.addAttachmentToPlanEntry(1, 2, blob, 'entry.png');
+            expect(result).toEqual(attachment);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_attachment_to_plan_entry/1/2'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid planId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addAttachmentToPlanEntry(0, 1, blob, 'f.txt')).rejects.toThrow(
+                'planId must be a positive integer',
+            );
+        });
+
+        it('should throw for invalid entryId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addAttachmentToPlanEntry(1, 0, blob, 'f.txt')).rejects.toThrow(
+                'entryId must be a positive integer',
+            );
+        });
+    });
+
+    describe('deleteAttachment', () => {
+        it('should delete an attachment', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteAttachment(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_attachment/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid attachmentId', async () => {
+            await expect(client.deleteAttachment(0)).rejects.toThrow('attachmentId must be a positive integer');
+        });
+    });
+
+    // ── TASK-028: Shared Steps ────────────────────────────────────────────────
+
+    describe('getSharedStep', () => {
+        it('should return a shared step by ID', async () => {
+            const sharedStep = { id: 1, title: 'Login Steps', project_id: 1 };
+            mockFetch.mockResolvedValueOnce(mockOk(sharedStep));
+            const result = await client.getSharedStep(1);
+            expect(result).toEqual(sharedStep);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_step/1'), expect.anything());
+        });
+
+        it('should throw for invalid sharedStepId', async () => {
+            await expect(client.getSharedStep(0)).rejects.toThrow('sharedStepId must be a positive integer');
+        });
+    });
+
+    describe('getSharedSteps', () => {
+        it('should return all shared steps for a project', async () => {
+            const sharedSteps = [
+                { id: 1, title: 'Login' },
+                { id: 2, title: 'Logout' },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(sharedSteps));
+            const result = await client.getSharedSteps(1);
+            expect(result).toEqual(sharedSteps);
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.getSharedSteps(0)).rejects.toThrow('projectId must be a positive integer');
+        });
+    });
+
+    describe('addSharedStep', () => {
+        it('should create a shared step', async () => {
+            const sharedStep = { id: 3, title: 'New Shared Step', project_id: 1 };
+            mockFetch.mockResolvedValueOnce(mockOk(sharedStep));
+            const result = await client.addSharedStep(1, { title: 'New Shared Step' });
+            expect(result).toEqual(sharedStep);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_shared_step/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.addSharedStep(-1, { title: 'x' })).rejects.toThrow(
+                'projectId must be a positive integer',
+            );
+        });
+    });
+
+    describe('updateSharedStep', () => {
+        it('should update a shared step', async () => {
+            const updated = { id: 1, title: 'Updated Steps' };
+            mockFetch.mockResolvedValueOnce(mockOk(updated));
+            const result = await client.updateSharedStep(1, { title: 'Updated Steps' });
+            expect(result).toEqual(updated);
+        });
+
+        it('should throw for invalid sharedStepId', async () => {
+            await expect(client.updateSharedStep(0, {})).rejects.toThrow('sharedStepId must be a positive integer');
+        });
+    });
+
+    describe('deleteSharedStep', () => {
+        it('should delete a shared step', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteSharedStep(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_shared_step/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid sharedStepId', async () => {
+            await expect(client.deleteSharedStep(-1)).rejects.toThrow('sharedStepId must be a positive integer');
+        });
+    });
+
+    // ── TASK-029: Variables ───────────────────────────────────────────────────
+
+    describe('getVariables', () => {
+        it('should return variables for a project', async () => {
+            const variables = [
+                { id: 1, name: 'env' },
+                { id: 2, name: 'region' },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(variables));
+            const result = await client.getVariables(1);
+            expect(result).toEqual(variables);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_variables/1'), expect.anything());
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.getVariables(0)).rejects.toThrow('projectId must be a positive integer');
+        });
+    });
+
+    describe('addVariable', () => {
+        it('should create a variable', async () => {
+            const variable = { id: 3, name: 'platform' };
+            mockFetch.mockResolvedValueOnce(mockOk(variable));
+            const result = await client.addVariable(1, { name: 'platform' });
+            expect(result).toEqual(variable);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_variable/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.addVariable(-1, { name: 'x' })).rejects.toThrow('projectId must be a positive integer');
+        });
+    });
+
+    describe('updateVariable', () => {
+        it('should update a variable', async () => {
+            const variable = { id: 1, name: 'environment' };
+            mockFetch.mockResolvedValueOnce(mockOk(variable));
+            const result = await client.updateVariable(1, { name: 'environment' });
+            expect(result).toEqual(variable);
+        });
+
+        it('should throw for invalid variableId', async () => {
+            await expect(client.updateVariable(0, {})).rejects.toThrow('variableId must be a positive integer');
+        });
+    });
+
+    describe('deleteVariable', () => {
+        it('should delete a variable', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteVariable(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_variable/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid variableId', async () => {
+            await expect(client.deleteVariable(-1)).rejects.toThrow('variableId must be a positive integer');
+        });
+    });
+
+    // ── TASK-030: Datasets ────────────────────────────────────────────────────
+
+    describe('getDataset', () => {
+        it('should return a dataset by ID', async () => {
+            const dataset = { id: 1, name: 'Smoke Dataset', project_id: 1 };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.getDataset(1);
+            expect(result).toEqual(dataset);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_dataset/1'), expect.anything());
+        });
+
+        it('should throw for invalid datasetId', async () => {
+            await expect(client.getDataset(0)).rejects.toThrow('datasetId must be a positive integer');
+        });
+    });
+
+    describe('getDatasets', () => {
+        it('should return all datasets for a project', async () => {
+            const datasets = [
+                { id: 1, name: 'Smoke' },
+                { id: 2, name: 'Regression' },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(datasets));
+            const result = await client.getDatasets(1);
+            expect(result).toEqual(datasets);
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.getDatasets(-1)).rejects.toThrow('projectId must be a positive integer');
+        });
+    });
+
+    describe('addDataset', () => {
+        it('should create a dataset', async () => {
+            const dataset = { id: 3, name: 'Performance', project_id: 1 };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.addDataset(1, { name: 'Performance' });
+            expect(result).toEqual(dataset);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_dataset/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.addDataset(0, { name: 'x' })).rejects.toThrow('projectId must be a positive integer');
+        });
+    });
+
+    describe('updateDataset', () => {
+        it('should update a dataset', async () => {
+            const dataset = { id: 1, name: 'Updated Dataset' };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.updateDataset(1, { name: 'Updated Dataset' });
+            expect(result).toEqual(dataset);
+        });
+
+        it('should throw for invalid datasetId', async () => {
+            await expect(client.updateDataset(-1, {})).rejects.toThrow('datasetId must be a positive integer');
+        });
+    });
+
+    describe('deleteDataset', () => {
+        it('should delete a dataset', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteDataset(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_dataset/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid datasetId', async () => {
+            await expect(client.deleteDataset(0)).rejects.toThrow('datasetId must be a positive integer');
+        });
+    });
+
+    // ── TASK-031: Reports ─────────────────────────────────────────────────────
+
+    describe('getReports', () => {
+        it('should return reports for a project', async () => {
+            const reports = [
+                { id: 1, name: 'Test Run Summary', description: 'Summary report' },
+                { id: 2, name: 'Milestone Report', is_shared: true },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(reports));
+            const result = await client.getReports(1);
+            expect(result).toEqual(reports);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_reports/1'), expect.anything());
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.getReports(0)).rejects.toThrow('projectId must be a positive integer');
+        });
+    });
+
+    describe('runReport', () => {
+        it('should run a report and return URLs', async () => {
+            const reportResult = {
+                report_url: 'https://example.testrail.io/reports/1/html',
+                user_report_url: 'https://example.testrail.io/reports/1',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(reportResult));
+            const result = await client.runReport(1);
+            expect(result).toEqual(reportResult);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('run_report/1'), expect.anything());
+        });
+
+        it('should throw for invalid reportTemplateId', async () => {
+            await expect(client.runReport(-1)).rejects.toThrow('reportTemplateId must be a positive integer');
+        });
+    });
 });
