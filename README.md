@@ -508,7 +508,7 @@ Initial release with comprehensive TestRail API support and advanced features:
 - Comprehensive input validation for all parameters
 - Custom error classes (TestRailApiError, TestRailValidationError)
 - Security warnings for insecure protocols
-- Protection against common vulnerabilities
+- Protection against SSRF, credential exposure, and parameter injection
 
 **Developer Experience:**
 
