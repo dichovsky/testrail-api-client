@@ -26,6 +26,8 @@ import type {
     AddResultsForCasesPayload,
     AddSectionPayload,
     UpdateSectionPayload,
+    AddMilestonePayload,
+    UpdateMilestonePayload,
     AddProjectPayload,
     UpdateProjectPayload,
 } from './types.js';
@@ -566,6 +568,36 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, { limit, offset });
         const response = await this.request<{ milestones: Milestone[] }>('GET', endpoint);
         return response.milestones ?? [];
+    }
+
+    /**
+     * Add a new milestone to a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Milestone>('POST', `add_milestone/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing milestone.
+     * @throws {TestRailValidationError} When milestoneId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
+        this.validateId(milestoneId, 'milestoneId');
+        return this.request<Milestone>('POST', `update_milestone/${milestoneId}`, payload);
+    }
+
+    /**
+     * Delete a milestone.
+     * @throws {TestRailValidationError} When milestoneId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteMilestone(milestoneId: number): Promise<void> {
+        this.validateId(milestoneId, 'milestoneId');
+        await this.request<void>('POST', `delete_milestone/${milestoneId}`);
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────

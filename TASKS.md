@@ -176,7 +176,7 @@ Sections can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-011 · Add milestone CRUD: `addMilestone`, `updateMilestone`, `deleteMilestone`
+### TASK-011 · Add milestone CRUD: `addMilestone`, `updateMilestone`, `deleteMilestone` [Done]
 
 **Category:** Feature / Milestones  
 **Description:**  
@@ -184,12 +184,12 @@ Milestones can be read but not created, updated, or deleted.
 
 **Acceptance Criteria:**
 
-- [ ] `addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone>` implemented
-- [ ] `updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone>` implemented
-- [ ] `deleteMilestone(milestoneId: number): Promise<void>` implemented
-- [ ] `AddMilestonePayload` with `name`, `description?`, `due_on?`, `start_on?`, `parent_id?`, `refs?` added and exported
-- [ ] `UpdateMilestonePayload` with all optional fields added and exported
-- [ ] Unit tests for each method
+- [x] `addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone>` implemented
+- [x] `updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone>` implemented
+- [x] `deleteMilestone(milestoneId: number): Promise<void>` implemented
+- [x] `AddMilestonePayload` with `name`, `description?`, `due_on?`, `start_on?`, `parent_id?`, `refs?` added and exported
+- [x] `UpdateMilestonePayload` with all optional fields added and exported
+- [x] Unit tests for each method
 
 ---
 
@@ -629,7 +629,7 @@ Some TestRail API endpoints require minimum versions (e.g. Groups require 7.5+, 
 
 ---
 
-### TASK-041 · Add CLI support (`testrail-cli`)
+### TASK-041 · Add CLI support (`testrail-cli`) [Done]
 
 **Category:** Feature / CLI  
 **Description:**  

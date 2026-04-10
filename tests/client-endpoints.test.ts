@@ -26,6 +26,8 @@ import type {
     UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
+    AddMilestonePayload,
+    UpdateMilestonePayload,
 } from '../src/types.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 
@@ -1094,6 +1096,127 @@ describe('TestRailClient', () => {
 
             const result = await client.getMilestones(1);
             expect(result).toEqual([]);
+        });
+
+        it('should add a milestone', async () => {
+            const mockMilestone: Milestone = {
+                id: 5,
+                name: 'v1.0 Release',
+                description: 'First stable release',
+                is_completed: false,
+                project_id: 1,
+                url: 'url5',
+            };
+            const payload: AddMilestonePayload = {
+                name: 'v1.0 Release',
+                description: 'First stable release',
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockMilestone));
+
+            const result = await client.addMilestone(1, payload);
+            expect(result).toEqual(mockMilestone);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_milestone/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should add a milestone with all optional fields', async () => {
+            const mockMilestone: Milestone = {
+                id: 6,
+                name: 'v2.0 Release',
+                description: 'Second release',
+                due_on: 1700000000,
+                start_on: 1699000000,
+                parent_id: 2,
+                refs: 'TR-42',
+                is_completed: false,
+                project_id: 1,
+                url: 'url6',
+            };
+            const payload: AddMilestonePayload = {
+                name: 'v2.0 Release',
+                description: 'Second release',
+                due_on: 1700000000,
+                start_on: 1699000000,
+                parent_id: 2,
+                refs: 'TR-42',
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockMilestone));
+
+            const result = await client.addMilestone(1, payload);
+            expect(result).toEqual(mockMilestone);
+        });
+
+        it('should throw validation error for invalid projectId in addMilestone', async () => {
+            await expect(client.addMilestone(0, { name: 'v1.0' })).rejects.toThrow(
+                'projectId must be a positive integer',
+            );
+        });
+
+        it('should propagate API error from addMilestone', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.addMilestone(1, { name: 'v1.0' })).rejects.toThrow('TestRail API error: 403 Forbidden');
+        });
+
+        it('should update a milestone', async () => {
+            const mockMilestone: Milestone = {
+                id: 1,
+                name: 'Updated Milestone',
+                description: 'Updated description',
+                is_completed: true,
+                project_id: 1,
+                url: 'url1',
+            };
+            const payload: UpdateMilestonePayload = {
+                name: 'Updated Milestone',
+                description: 'Updated description',
+                is_completed: true,
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockMilestone));
+
+            const result = await client.updateMilestone(1, payload);
+            expect(result).toEqual(mockMilestone);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_milestone/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid milestoneId in updateMilestone', async () => {
+            await expect(client.updateMilestone(-1, { name: 'x' })).rejects.toThrow(
+                'milestoneId must be a positive integer',
+            );
+        });
+
+        it('should propagate API error from updateMilestone', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', 'Milestone not found'));
+
+            await expect(client.updateMilestone(1, { name: 'x' })).rejects.toThrow('TestRail API error: 404 Not Found');
+        });
+
+        it('should delete a milestone', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+
+            await expect(client.deleteMilestone(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_milestone/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid milestoneId in deleteMilestone', async () => {
+            await expect(client.deleteMilestone(0)).rejects.toThrow('milestoneId must be a positive integer');
+        });
+
+        it('should propagate API error from deleteMilestone', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.deleteMilestone(1)).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
     });
 
