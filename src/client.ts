@@ -407,17 +407,8 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
         this.validateId(projectId, 'projectId');
-        const {
-            createdAfter,
-            createdBefore,
-            createdBy,
-            isCompleted,
-            milestoneId,
-            refsFilter,
-            suiteId,
-            limit,
-            offset,
-        } = options ?? {};
+        const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
+            options ?? {};
         this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_runs/${projectId}`, {
             created_after: createdAfter,

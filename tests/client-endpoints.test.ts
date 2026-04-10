@@ -787,40 +787,28 @@ describe('TestRailClient', () => {
 
             const options: GetRunsOptions = { isCompleted: true };
             await client.getRuns(1, options);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('is_completed=1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('is_completed=1'), expect.anything());
         });
 
         it('should pass isCompleted=false filter', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { isCompleted: false });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('is_completed=0'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('is_completed=0'), expect.anything());
         });
 
         it('should pass milestoneId filter', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { milestoneId: 5 });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('milestone_id=5'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('milestone_id=5'), expect.anything());
         });
 
         it('should pass suiteId filter', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { suiteId: 3 });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('suite_id=3'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id=3'), expect.anything());
         });
 
         it('should pass createdAfter and createdBefore filters', async () => {
@@ -828,7 +816,9 @@ describe('TestRailClient', () => {
 
             await client.getRuns(1, { createdAfter: 1700000000, createdBefore: 1700086400 });
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringMatching(/created_after=1700000000.*created_before=1700086400|created_before=1700086400.*created_after=1700000000/),
+                expect.stringMatching(
+                    /created_after=1700000000.*created_before=1700086400|created_before=1700086400.*created_after=1700000000/,
+                ),
                 expect.anything(),
             );
         });
@@ -837,20 +827,14 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { createdBy: [1, 2, 3] });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('created_by=1%2C2%2C3'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('created_by=1%2C2%2C3'), expect.anything());
         });
 
         it('should pass refsFilter filter', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { refsFilter: 'TR-42' });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('refs_filter=TR-42'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('refs_filter=TR-42'), expect.anything());
         });
 
         it('should pass limit and offset via options', async () => {

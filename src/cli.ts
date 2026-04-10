@@ -70,13 +70,13 @@ function renderTable(data: unknown): string {
 
     const keys = Object.keys(first);
     const widths = keys.map((k) =>
-        Math.max(k.length, ...rows.map((r) => valueToString((r as Record<string, unknown>)[k]).length))
+        Math.max(k.length, ...rows.map((r) => valueToString((r as Record<string, unknown>)[k]).length)),
     );
 
     const line = widths.map((w) => '-'.repeat(w)).join('-+-');
     const header = keys.map((k, i) => k.padEnd(widths[i] ?? k.length)).join(' | ');
     const body = rows.map((r) =>
-        keys.map((k, i) => valueToString((r as Record<string, unknown>)[k]).padEnd(widths[i] ?? k.length)).join(' | ')
+        keys.map((k, i) => valueToString((r as Record<string, unknown>)[k]).padEnd(widths[i] ?? k.length)).join(' | '),
     );
 
     return [header, line, ...body].join('\n');
@@ -133,8 +133,17 @@ const baseUrl = (values['base-url'] as string | undefined) ?? process.env['TESTR
 const email = (values['email'] as string | undefined) ?? process.env['TESTRAIL_EMAIL'];
 const apiKey = (values['api-key'] as string | undefined) ?? process.env['TESTRAIL_API_KEY'];
 
-if (baseUrl === undefined || baseUrl === '' || email === undefined || email === '' || apiKey === undefined || apiKey === '') {
-    err('Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.');
+if (
+    baseUrl === undefined ||
+    baseUrl === '' ||
+    email === undefined ||
+    email === '' ||
+    apiKey === undefined ||
+    apiKey === ''
+) {
+    err(
+        'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.',
+    );
     process.exit(1);
 }
 
@@ -210,10 +219,12 @@ async function run(res: string, act: string): Promise<void> {
                 out(await client.getRun(id));
             } else if (act === 'list') {
                 const pid = parseId(values['project-id'] as string | undefined, '--project-id');
-                out(await client.getRuns(pid, {
-                    ...(limit !== undefined && { limit }),
-                    ...(offset !== undefined && { offset }),
-                }));
+                out(
+                    await client.getRuns(pid, {
+                        ...(limit !== undefined && { limit }),
+                        ...(offset !== undefined && { offset }),
+                    }),
+                );
             } else {
                 err(`Unknown action '${act}' for run. Use: get, list`);
                 process.exit(1);
@@ -262,11 +273,13 @@ async function run(res: string, act: string): Promise<void> {
     }
 }
 
-run(resource, action).then(() => {
-    client.destroy();
-    process.exit(0);
-}).catch((e: unknown) => {
-    err(e instanceof Error ? e.message : String(e));
-    client.destroy();
-    process.exit(1);
-});
+run(resource, action)
+    .then(() => {
+        client.destroy();
+        process.exit(0);
+    })
+    .catch((e: unknown) => {
+        err(e instanceof Error ? e.message : String(e));
+        client.destroy();
+        process.exit(1);
+    });
