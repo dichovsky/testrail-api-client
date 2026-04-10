@@ -14,27 +14,30 @@ export function createClient(overrides: Partial<TestRailConfig> = {}): TestRailC
 
 // Mock fetch response factories
 export function mockOk<T>(data: T): Response {
-    return new Response(JSON.stringify(data), {
+    return {
+        ok: true,
         status: 200,
         statusText: 'OK',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+        text: async () => JSON.stringify(data),
+    } as never;
 }
 
 export function mockErr(status: number, statusText: string, body = 'Error'): Response {
-    return new Response(body, {
+    return {
+        ok: false,
         status,
         statusText,
-    });
+        text: async () => body,
+    } as never;
 }
 
 export function mockEmpty(): Response {
-    return new Response('', {
+    return {
+        ok: true,
         status: 200,
         statusText: 'OK',
-    });
+        text: async () => '',
+    } as never;
 }
 
 // Shared minimal mock data

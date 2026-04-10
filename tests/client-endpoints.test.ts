@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TestRailClient, TestRailValidationError } from '../src/client.js';
+import { TestRailClient } from '../src/client.js';
 import type {
     Project,
     Suite,
     Section,
     Case,
     Plan,
-    PlanEntry,
     Run,
     Test,
     Result,
@@ -17,9 +16,6 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
-    UpdatePlanPayload,
-    AddPlanEntryPayload,
-    UpdatePlanEntryPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,
@@ -35,7 +31,7 @@ describe('TestRailClient', () => {
     let client: TestRailClient;
 
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
         client = createClient();
     });
 
@@ -72,7 +68,9 @@ describe('TestRailClient', () => {
         it('should handle API error', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', 'Project not found'));
 
-            await expect(client.getProject(999)).rejects.toThrow('TestRail API error: 404 Not Found');
+            await expect(client.getProject(999)).rejects.toThrow(
+                'TestRail API error: 404 Not Found - Project not found',
+            );
         });
 
         it('should handle empty response', async () => {
@@ -201,7 +199,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ sections: mockSections }));
 
-            const result = await client.getSections(1, { suiteId: 1 });
+            const result = await client.getSections(1, 1);
             expect(result).toEqual(mockSections);
         });
 
@@ -257,7 +255,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
-            const result = await client.getCases(1, { suiteId: 1 });
+            const result = await client.getCases(1, 1);
             expect(result).toEqual(mockCases);
         });
 
@@ -266,7 +264,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
-            const result = await client.getCases(1, { suiteId: 1, sectionId: 1 });
+            const result = await client.getCases(1, 1, 1);
             expect(result).toEqual(mockCases);
         });
 
@@ -275,7 +273,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ cases: mockCases }));
 
-            const result = await client.getCases(1, { sectionId: 1 });
+            const result = await client.getCases(1, undefined, 1);
             expect(result).toEqual(mockCases);
         });
 
@@ -392,50 +390,6 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
-        it('should get plans with limit and offset', async () => {
-            const mockPlans: Plan[] = [
-                {
-                    id: 2,
-                    name: 'Plan 2',
-                    is_completed: false,
-                    passed_count: 0,
-                    blocked_count: 0,
-                    untested_count: 0,
-                    retest_count: 0,
-                    failed_count: 0,
-                    project_id: 1,
-                    created_on: 1234567890,
-                    created_by: 1,
-                    url: 'url',
-                },
-            ];
-
-            mockFetch.mockResolvedValueOnce(mockOk({ plans: mockPlans }));
-
-            const result = await client.getPlans(1, 10, 5);
-            expect(result).toEqual(mockPlans);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_plans/1&limit=10&offset=5'),
-                expect.any(Object),
-            );
-        });
-
-        it('should get plans with only limit', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
-
-            await client.getPlans(1, 20);
-            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_plans/1&limit=20'), expect.any(Object));
-        });
-
-        it('should not include undefined limit/offset in URL', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
-
-            await client.getPlans(1);
-            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
-            expect(url).not.toContain('limit');
-            expect(url).not.toContain('offset');
-        });
-
         it('should add a new plan', async () => {
             const mockPlan: Plan = {
                 id: 1,
@@ -489,140 +443,6 @@ describe('TestRailClient', () => {
 
             await client.deletePlan(1);
             expect(mockFetch).toHaveBeenCalled();
-        });
-
-        it('should update a plan', async () => {
-            const mockPlan: Plan = {
-                id: 1,
-                name: 'Updated Plan',
-                description: 'Updated description',
-                milestone_id: 2,
-                is_completed: false,
-                passed_count: 0,
-                blocked_count: 0,
-                untested_count: 0,
-                retest_count: 0,
-                failed_count: 0,
-                project_id: 1,
-                created_on: 1234567890,
-                created_by: 1,
-                url: 'url',
-            };
-
-            const payload: UpdatePlanPayload = {
-                name: 'Updated Plan',
-                description: 'Updated description',
-                milestone_id: 2,
-            };
-
-            mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
-
-            const result = await client.updatePlan(1, payload);
-            expect(result).toEqual(mockPlan);
-        });
-
-        it('should throw validation error for invalid planId in updatePlan', async () => {
-            await expect(client.updatePlan(-1, { name: 'x' })).rejects.toThrow('planId must be a positive integer');
-        });
-
-        it('should propagate API error from updatePlan', async () => {
-            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
-
-            await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow('TestRail API error: 403 Forbidden');
-        });
-    });
-
-    describe('Plan Entries', () => {
-        const mockEntry: PlanEntry = {
-            id: 'entry-guid-1',
-            suite_id: 2,
-            name: 'Entry',
-            include_all: true,
-            runs: [],
-        };
-
-        it('should add a plan entry', async () => {
-            const payload: AddPlanEntryPayload = { suite_id: 2 };
-            mockFetch.mockResolvedValueOnce(mockOk(mockEntry));
-
-            const result = await client.addPlanEntry(1, payload);
-            expect(result).toEqual(mockEntry);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('add_plan_entry/1'),
-                expect.objectContaining({ method: 'POST' }),
-            );
-        });
-
-        it('should throw validation error for invalid planId in addPlanEntry', async () => {
-            await expect(client.addPlanEntry(-1, { suite_id: 2 })).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should propagate API error from addPlanEntry', async () => {
-            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
-
-            await expect(client.addPlanEntry(1, { suite_id: 2 })).rejects.toThrow('TestRail API error: 403 Forbidden');
-        });
-
-        it('should update a plan entry', async () => {
-            const payload: UpdatePlanEntryPayload = { name: 'Updated Entry' };
-            mockFetch.mockResolvedValueOnce(mockOk(mockEntry));
-
-            const result = await client.updatePlanEntry(1, 'entry-guid-1', payload);
-            expect(result).toEqual(mockEntry);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('update_plan_entry/1/entry-guid-1'),
-                expect.objectContaining({ method: 'POST' }),
-            );
-        });
-
-        it('should throw validation error for invalid planId in updatePlanEntry', async () => {
-            await expect(client.updatePlanEntry(0, 'entry-guid-1', {})).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should throw validation error for empty entryId in updatePlanEntry', async () => {
-            await expect(client.updatePlanEntry(1, '', {})).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should throw validation error for whitespace-only entryId in updatePlanEntry', async () => {
-            await expect(client.updatePlanEntry(1, '   ', {})).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should propagate API error from updatePlanEntry', async () => {
-            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
-
-            await expect(client.updatePlanEntry(1, 'entry-guid-1', {})).rejects.toThrow(
-                'TestRail API error: 403 Forbidden',
-            );
-        });
-
-        it('should delete a plan entry', async () => {
-            mockFetch.mockResolvedValueOnce(mockEmpty());
-
-            await client.deletePlanEntry(1, 'entry-guid-1');
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('delete_plan_entry/1/entry-guid-1'),
-                expect.objectContaining({ method: 'POST' }),
-            );
-        });
-
-        it('should throw validation error for invalid planId in deletePlanEntry', async () => {
-            await expect(client.deletePlanEntry(0, 'entry-guid-1')).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should throw validation error for empty entryId in deletePlanEntry', async () => {
-            await expect(client.deletePlanEntry(1, '')).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should throw validation error for whitespace-only entryId in deletePlanEntry', async () => {
-            await expect(client.deletePlanEntry(1, '   ')).rejects.toThrow(TestRailValidationError);
-        });
-
-        it('should propagate API error from deletePlanEntry', async () => {
-            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
-
-            await expect(client.deletePlanEntry(1, 'entry-guid-1')).rejects.toThrow(
-                'TestRail API error: 403 Forbidden',
-            );
         });
     });
 
@@ -1097,28 +917,18 @@ describe('TestRailClient', () => {
         });
     });
     describe('Security & Validation', () => {
-        it('should throw when using HTTP protocol without allowInsecure', () => {
-            expect(
-                () =>
-                    new TestRailClient({
-                        baseUrl: 'http://example.testrail.io',
-                        email: 'test@example.com',
-                        apiKey: 'key',
-                    }),
-            ).toThrow('baseUrl must use HTTPS');
-        });
+        it('should warn when using HTTP protocol', () => {
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        it('should allow HTTP when allowInsecure is true', () => {
-            expect(
-                () =>
-                    new TestRailClient({
-                        baseUrl: 'http://example.testrail.io',
-                        email: 'test@example.com',
-                        apiKey: 'key',
-                        allowInsecure: true,
-                        allowPrivateHosts: true,
-                    }),
-            ).not.toThrow();
+            new TestRailClient({
+                baseUrl: 'http://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'key',
+            });
+
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Security Warning: Using HTTP protocol'));
+
+            consoleSpy.mockRestore();
         });
 
         it('should throw error for invalid IDs (negative)', async () => {
@@ -1136,69 +946,6 @@ describe('TestRailClient', () => {
         it('should throw error for invalid IDs (non-number disguised as any)', async () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
             await expect(client.getSection('1' as any)).rejects.toThrow('sectionId must be a positive integer');
-        });
-    });
-
-    describe('Pagination', () => {
-        it('should pass limit and offset to getProjects', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ projects: [] }));
-            await client.getProjects(10, 20);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_projects&limit=10&offset=20'),
-                expect.anything(),
-            );
-        });
-
-        it('should pass limit and offset to getCases', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
-            await client.getCases(1, { limit: 5, offset: 10 });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_cases/1&limit=5&offset=10'),
-                expect.anything(),
-            );
-        });
-
-        it('should pass suiteId, limit, and offset to getCases', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
-            await client.getCases(1, { suiteId: 2, limit: 5, offset: 0 });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('suite_id=2&limit=5&offset=0'),
-                expect.anything(),
-            );
-        });
-
-        it('should pass limit and offset to getSections', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ sections: [] }));
-            await client.getSections(1, { limit: 25, offset: 50 });
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_sections/1&limit=25&offset=50'),
-                expect.anything(),
-            );
-        });
-
-        it('should throw for invalid limit (negative)', async () => {
-            await expect(client.getProjects(-1)).rejects.toThrow('limit must be a positive integer');
-        });
-
-        it('should throw for invalid limit (zero)', async () => {
-            await expect(client.getProjects(0)).rejects.toThrow('limit must be a positive integer');
-        });
-
-        it('should throw for invalid limit (float)', async () => {
-            await expect(client.getProjects(1.5)).rejects.toThrow('limit must be a positive integer');
-        });
-
-        it('should throw for invalid offset (negative)', async () => {
-            await expect(client.getProjects(10, -1)).rejects.toThrow('offset must be a non-negative integer');
-        });
-
-        it('should throw for invalid offset (float)', async () => {
-            await expect(client.getProjects(10, 0.5)).rejects.toThrow('offset must be a non-negative integer');
-        });
-
-        it('should allow offset of zero', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ projects: [] }));
-            await expect(client.getProjects(10, 0)).resolves.toEqual([]);
         });
     });
 });

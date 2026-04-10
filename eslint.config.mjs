@@ -39,15 +39,15 @@ export default [
                 AbortController: 'readonly',
                 URL: 'readonly',
                 Buffer: 'readonly',
-                btoa: 'readonly',
-            },
+                btoa: 'readonly'
+            }
         },
 
         rules: {
             // TypeScript ESLint recommended rules
             ...typescriptEslint.configs.recommended.rules,
             ...typescriptEslint.configs['recommended-type-checked']?.rules,
-
+            
             // TypeScript specific rules
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/no-unused-vars': 'error',
@@ -105,29 +105,29 @@ export default [
             parser: tsParser,
             parserOptions: {
                 ecmaVersion: 'latest',
-                sourceType: 'module',
+                sourceType: 'module'
             },
             globals: {
                 process: 'readonly',
-                console: 'readonly',
-            },
-        },
+                console: 'readonly'
+            }
+        }
     },
     {
         // Configuration for example files
         files: ['example.ts'],
         rules: {
             'no-console': 'off', // Allow console in examples
-            '@typescript-eslint/no-floating-promises': 'off', // Allow floating promises in examples for simplicity
-        },
+            '@typescript-eslint/no-floating-promises': 'off' // Allow floating promises in examples for simplicity
+        }
     },
     {
         // Less strict rules for test files
         files: ['tests/**/*'],
         languageOptions: {
             globals: {
-                global: 'writable',
-            },
+                global: 'writable'
+            }
         },
         rules: {
             '@typescript-eslint/require-await': 'off',

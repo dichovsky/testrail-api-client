@@ -11,12 +11,13 @@ You MUST follow this protocol exactly.
 - You are running in PARALLEL with other agents
 - Assume race conditions at all times
 - NEVER work on an unclaimed task
-- Claiming a task is REQUIRED before any implementation work and must happen as soon as a candidate task is identified
 - NEVER modify unrelated code
-- You may ONLY commit to dev when:
+- NEVER mark tasks as Done (PR creation is the stop point)
+- You may ONLY commit to main when:
     1. Claiming a task
     2. Marking a task as Blocked
-- Claim commits to `dev` are explicitly allowed and expected as part of lock acquisition
+
+---
 
 ## AGENT IDENTITY
 
@@ -47,8 +48,8 @@ Repeat until no tasks are available:
 
 Run:
 
-- git checkout dev
-- git pull origin dev
+- git checkout main
+- git pull origin main
 
 If this fails:
 
@@ -62,8 +63,6 @@ If this fails:
 ## STEP 2 — TASK DISCOVERY
 
 Open TASKS.md
-
-Do not begin implementation, investigation, or code edits beyond identifying the first available task. Claim it immediately.
 
 Select the FIRST task that:
 
@@ -81,7 +80,6 @@ If none found:
 ## STEP 3 — ATOMIC TASK CLAIM (CRITICAL SECTION)
 
 ⚠️ This prevents multiple agents from taking the same task
-⚠️ Claim the task immediately after discovery, before any implementation work
 
 Modify the task header:
 
@@ -97,7 +95,7 @@ Then:
 
 - git add TASKS.md
 - git commit -m "chore(tasks): claim TASK-002"
-- git push origin dev
+- git push origin main
 
 If push FAILS:
 → Another agent likely claimed it
@@ -105,7 +103,7 @@ If push FAILS:
 
 After push:
 
-- git pull origin dev
+- git pull origin main
 
 Verify your claim is still present:
 
@@ -115,7 +113,7 @@ Verify your claim is still present:
 
 ## STEP 4 — BRANCH CREATION
 
-Create branch from latest dev:
+Create branch from latest main:
 
 <type>/task-XXX-<slug>
 
@@ -145,6 +143,7 @@ Follow STRICT scope:
 Tech stack:
 
 - TypeScript / Node.js (Vitest)
+- Python (if applicable)
 
 Requirements:
 
@@ -165,6 +164,7 @@ Run all relevant checks:
 
 - TypeScript compile
 - Vitest tests
+- Python tests (if affected)
 - Lint (if exists)
 
 If failure:
@@ -184,7 +184,7 @@ Mark task as BLOCKED:
 Edit TASKS.md:
 [Blocked: <short reason> by <agent-id>]
 
-Commit to dev:
+Commit to main:
 chore(tasks): block TASK-XXX
 
 Push and RETURN to loop
@@ -206,7 +206,7 @@ git push -u origin HEAD
 
 ## STEP 8 — PULL REQUEST (STOP POINT)
 
-Create PR to dev using GitHub CLI.
+Create PR to main using GitHub CLI.
 
 TITLE:
 TASK-XXX: <exact task title>
@@ -223,7 +223,7 @@ DESCRIPTION MUST INCLUDE:
 IMPORTANT:
 
 - DO NOT merge
-- Update TASKS.md to Done
+- DO NOT update TASKS.md to Done
 - STOP after PR creation
 
 ---
@@ -273,7 +273,7 @@ Fail only after all retries exhausted.
 
 - Mark:
   [Blocked: needs clarification]
-- Commit to dev
+- Commit to main
 - Continue loop
 
 ### Case: CI failure after PR
