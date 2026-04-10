@@ -93,6 +93,24 @@ describe('TestRailClient Performance & Memory', () => {
         unlimitedClient.destroy();
     });
 
+    it('should warn when maxCacheSize is 0 and enableCache is not explicitly set', () => {
+        // Exercises the `config.enableCache ?? true` branch when enableCache is omitted
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            const unlimitedClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxCacheSize: 0,
+                // enableCache intentionally omitted → defaults to true via ?? true
+            });
+            expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('maxCacheSize is set to 0'));
+            unlimitedClient.destroy();
+        } finally {
+            warnSpy.mockRestore();
+        }
+    });
+
     it('should use default cache size if not provided', () => {
         const defaultClient = new TestRailClient({
             baseUrl: 'https://example.testrail.io',
