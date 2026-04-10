@@ -62,13 +62,13 @@ function renderTable(data: unknown): string {
 
     const keys = Object.keys(first);
     const widths = keys.map((k) =>
-        Math.max(k.length, ...rows.map((r) => String((r as Record<string, unknown>)[k] ?? '').length))
+        Math.max(k.length, ...rows.map((r) => String((r as Record<string, unknown>)[k] ?? '').length)),
     );
 
     const line = widths.map((w) => '-'.repeat(w)).join('-+-');
     const header = keys.map((k, i) => k.padEnd(widths[i] ?? k.length)).join(' | ');
     const body = rows.map((r) =>
-        keys.map((k, i) => String((r as Record<string, unknown>)[k] ?? '').padEnd(widths[i] ?? k.length)).join(' | ')
+        keys.map((k, i) => String((r as Record<string, unknown>)[k] ?? '').padEnd(widths[i] ?? k.length)).join(' | '),
     );
 
     return [header, line, ...body].join('\n');
@@ -126,7 +126,9 @@ const email = (values['email'] as string | undefined) ?? process.env['TESTRAIL_E
 const apiKey = (values['api-key'] as string | undefined) ?? process.env['TESTRAIL_API_KEY'];
 
 if (!baseUrl || !email || !apiKey) {
-    err('Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.');
+    err(
+        'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.',
+    );
     process.exit(1);
 }
 
@@ -251,11 +253,13 @@ async function run(): Promise<void> {
     }
 }
 
-run().then(() => {
-    client.destroy();
-    process.exit(0);
-}).catch((e: unknown) => {
-    err(e instanceof Error ? e.message : String(e));
-    client.destroy();
-    process.exit(1);
-});
+run()
+    .then(() => {
+        client.destroy();
+        process.exit(0);
+    })
+    .catch((e: unknown) => {
+        err(e instanceof Error ? e.message : String(e));
+        client.destroy();
+        process.exit(1);
+    });

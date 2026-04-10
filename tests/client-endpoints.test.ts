@@ -1210,9 +1210,7 @@ describe('TestRailClient', () => {
         });
 
         it('should throw validation error for invalid milestoneId in deleteMilestone', async () => {
-            await expect(client.deleteMilestone(0)).rejects.toThrow(
-                'milestoneId must be a positive integer',
-            );
+            await expect(client.deleteMilestone(0)).rejects.toThrow('milestoneId must be a positive integer');
         });
 
         it('should propagate API error from deleteMilestone', async () => {
