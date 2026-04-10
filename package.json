@@ -36,7 +36,6 @@
     ],
     "scripts": {
         "build": "rm -rf dist && tsc",
-        "codemap": "node scripts/generate-codemap.js",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint .",
@@ -45,16 +44,17 @@
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",
         "test:watch": "vitest",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "codemap": "node scripts/generate-codemap.js"
     },
     "devDependencies": {
+        "@types/node": "^25.5.2",
         "@eslint/js": "^10.0.1",
-        "@types/node": "^25.6.0",
         "@typescript-eslint/eslint-plugin": "^8.58.1",
         "@typescript-eslint/parser": "^8.58.1",
         "@vitest/coverage-v8": "^4.1.4",
         "eslint": "^10.2.0",
-        "prettier": "~3.8.2",
+        "prettier": "~3.8.1",
         "typescript": "~6.0.2",
         "vitest": "^4.1.4"
     },

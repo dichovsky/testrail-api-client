@@ -1,26 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
+import { mockOk } from './helpers.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock sleep to avoid real delays and allow assertion of delay values
-vi.mock('../src/utils.js', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../src/utils.js')>();
-    return {
-        ...actual,
-        sleep: vi.fn().mockResolvedValue(undefined),
-    };
-});
-
-import { sleep } from '../src/utils.js';
-
 describe('TestRailClient - Enhanced Features', () => {
     let client: TestRailClient;
 
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('Configuration Validation', () => {
@@ -100,19 +90,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 },
             });
 
-            const mockResponse: {
-                ok: boolean;
-                status: number;
-                statusText: string;
-                text: () => Promise<string>;
-            } = {
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () => JSON.stringify({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }),
-            };
-
-            mockFetch.mockResolvedValue(mockResponse as unknown as Response);
+            mockFetch.mockResolvedValue(mockOk({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }));
         });
 
         it('should allow requests within rate limit', async () => {
@@ -144,12 +122,7 @@ describe('TestRailClient - Enhanced Features', () => {
         it('should cache GET requests', async () => {
             const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
 
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () => JSON.stringify(mockProject),
-            } as never);
+            mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
             // First request should hit the API
             const result1 = await client.getProject(1);
@@ -174,12 +147,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 suite_id: 1,
             };
 
-            mockFetch.mockResolvedValue({
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () => JSON.stringify(mockCase),
-            } as never);
+            mockFetch.mockResolvedValue(mockOk(mockCase));
 
             await client.addCase(1, { title: 'Test Case' });
             await client.addCase(1, { title: 'Test Case' });
@@ -190,12 +158,7 @@ describe('TestRailClient - Enhanced Features', () => {
         it('should clear cache when requested', async () => {
             const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
 
-            mockFetch.mockResolvedValue({
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () => JSON.stringify(mockProject),
-            } as never);
+            mockFetch.mockResolvedValue(mockOk(mockProject));
 
             await client.getProject(1);
             expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -223,12 +186,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
                 const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
 
-                mockFetch.mockResolvedValue({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    text: async () => JSON.stringify(mockProject),
-                } as never);
+                mockFetch.mockResolvedValue(mockOk(mockProject));
 
                 // Make a request to populate cache
                 await shortLivedClient.getProject(1);
@@ -275,12 +233,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
             const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
 
-            mockFetch.mockResolvedValue({
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () => JSON.stringify(mockProject),
-            } as never);
+            mockFetch.mockResolvedValue(mockOk(mockProject));
 
             await testClient.getProject(1);
 
@@ -301,12 +254,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
             const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
 
-            mockFetch.mockResolvedValue({
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () => JSON.stringify(mockProject),
-            } as never);
+            mockFetch.mockResolvedValue(mockOk(mockProject));
 
             await testClient.getProject(1);
 
@@ -361,12 +309,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Internal Server Error',
                     text: async () => 'Server Error',
                 } as never)
-                .mockResolvedValueOnce({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                .mockResolvedValueOnce(mockOk({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }));
 
             const result = await client.getProject(1);
             expect(result.id).toBe(1);
@@ -379,166 +322,13 @@ describe('TestRailClient - Enhanced Features', () => {
                     ok: false,
                     status: 429,
                     statusText: 'Too Many Requests',
-                    headers: { get: () => null },
                     text: async () => 'Rate limited',
                 } as never)
-                .mockResolvedValueOnce({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    headers: { get: () => null },
-                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                .mockResolvedValueOnce(mockOk({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }));
 
             const result = await client.getProject(1);
             expect(result.id).toBe(1);
             expect(mockFetch).toHaveBeenCalledTimes(2);
-        });
-
-        it('should use Retry-After header value when present on 429', async () => {
-            const mockSleep = vi.mocked(sleep);
-            mockSleep.mockClear();
-
-            mockFetch
-                .mockResolvedValueOnce({
-                    ok: false,
-                    status: 429,
-                    statusText: 'Too Many Requests',
-                    headers: { get: (header: string) => (header === 'Retry-After' ? '5' : null) },
-                    text: async () => 'Rate limited',
-                } as never)
-                .mockResolvedValueOnce({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    headers: { get: () => null },
-                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
-
-            await client.getProject(1);
-            expect(mockSleep).toHaveBeenCalledWith(5000);
-        });
-
-        it('should use Retry-After HTTP-date header value when present on 429', async () => {
-            const mockSleep = vi.mocked(sleep);
-            mockSleep.mockClear();
-
-            // Fix "now" so the HTTP-date delay is deterministic (3 seconds in the future)
-            const now = new Date('2026-01-01T00:00:00.000Z');
-            vi.useFakeTimers();
-            vi.setSystemTime(now);
-
-            try {
-                const retryAfterDate = new Date(now.getTime() + 3000).toUTCString();
-
-                mockFetch
-                    .mockResolvedValueOnce({
-                        ok: false,
-                        status: 429,
-                        statusText: 'Too Many Requests',
-                        headers: { get: (header: string) => (header === 'Retry-After' ? retryAfterDate : null) },
-                        text: async () => 'Rate limited',
-                    } as never)
-                    .mockResolvedValueOnce({
-                        ok: true,
-                        status: 200,
-                        statusText: 'OK',
-                        headers: { get: () => null },
-                        text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                    } as never);
-
-                await client.getProject(1);
-                expect(mockSleep).toHaveBeenCalledWith(3000);
-            } finally {
-                vi.useRealTimers();
-            }
-        });
-
-        it('should cap excessively large Retry-After seconds value to MAX_RETRY_DELAY_MS', async () => {
-            const mockSleep = vi.mocked(sleep);
-            mockSleep.mockClear();
-
-            mockFetch
-                .mockResolvedValueOnce({
-                    ok: false,
-                    status: 429,
-                    statusText: 'Too Many Requests',
-                    // 99999999 seconds ≈ 3+ years; must be capped to 10000 ms
-                    headers: { get: (header: string) => (header === 'Retry-After' ? '99999999' : null) },
-                    text: async () => 'Rate limited',
-                } as never)
-                .mockResolvedValueOnce({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    headers: { get: () => null },
-                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
-
-            await client.getProject(1);
-            // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
-            expect(mockSleep).toHaveBeenCalledWith(10000);
-        });
-
-        it('should cap far-future Retry-After HTTP-date to MAX_RETRY_DELAY_MS', async () => {
-            const mockSleep = vi.mocked(sleep);
-            mockSleep.mockClear();
-
-            const now = new Date('2026-01-01T00:00:00.000Z');
-            vi.useFakeTimers();
-            vi.setSystemTime(now);
-
-            try {
-                // HTTP-date 1 year in the future
-                const farFutureDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toUTCString();
-
-                mockFetch
-                    .mockResolvedValueOnce({
-                        ok: false,
-                        status: 429,
-                        statusText: 'Too Many Requests',
-                        headers: { get: (header: string) => (header === 'Retry-After' ? farFutureDate : null) },
-                        text: async () => 'Rate limited',
-                    } as never)
-                    .mockResolvedValueOnce({
-                        ok: true,
-                        status: 200,
-                        statusText: 'OK',
-                        headers: { get: () => null },
-                        text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                    } as never);
-
-                await client.getProject(1);
-                // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
-                expect(mockSleep).toHaveBeenCalledWith(10000);
-            } finally {
-                vi.useRealTimers();
-            }
-        });
-
-        it('should use exponential backoff on 429 when Retry-After header is absent', async () => {
-            const mockSleep = vi.mocked(sleep);
-            mockSleep.mockClear();
-
-            mockFetch
-                .mockResolvedValueOnce({
-                    ok: false,
-                    status: 429,
-                    statusText: 'Too Many Requests',
-                    headers: { get: () => null },
-                    text: async () => 'Rate limited',
-                } as never)
-                .mockResolvedValueOnce({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    headers: { get: () => null },
-                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
-
-            await client.getProject(1);
-            // First retry (retryCount=0): 1000 * 2^0 = 1000ms
-            expect(mockSleep).toHaveBeenCalledWith(1000);
         });
 
         it('should not retry on client errors', async () => {
@@ -643,13 +433,9 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('should accept valid email in getUserByEmail', async () => {
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                status: 200,
-                statusText: 'OK',
-                text: async () =>
-                    JSON.stringify({ id: 1, name: 'Test User', email: 'test@example.com', is_active: true }),
-            } as never);
+            mockFetch.mockResolvedValueOnce(
+                mockOk({ id: 1, name: 'Test User', email: 'test@example.com', is_active: true }),
+            );
 
             const result = await client.getUserByEmail('test@example.com');
             expect(result.email).toBe('test@example.com');

@@ -14,7 +14,7 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 ## P0 — Critical
 
-### TASK-001 · Cache not invalidated after mutations [Done]
+### TASK-001 · Cache not invalidated after mutations
 
 **Category:** Bug / Caching  
 **Description:**  
@@ -22,15 +22,15 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 **Acceptance Criteria:**
 
-- [x] After any mutating call (add/update/delete) the cache entry for the affected resource is removed
-- [x] After `deleteCase(caseId)` calling `getCase(caseId)` hits the network, not cache
-- [x] After `addCase(sectionId, ...)` calling `getCases(projectId)` hits the network, not cache
-- [x] After `updateRun(runId, ...)` calling `getRun(runId)` hits the network, not cache
-- [x] Tests added covering each mutation→read stale-cache scenario
+- [ ] After any mutating call (add/update/delete) the cache entry for the affected resource is removed
+- [ ] After `deleteCase(caseId)` calling `getCase(caseId)` hits the network, not cache
+- [ ] After `addCase(sectionId, ...)` calling `getCases(projectId)` hits the network, not cache
+- [ ] After `updateRun(runId, ...)` calling `getRun(runId)` hits the network, not cache
+- [ ] Tests added covering each mutation→read stale-cache scenario
 
 ---
 
-### TASK-002 · `AddCasePayload.section_id` is a path parameter, not a body field [Done]
+### TASK-002 · `AddCasePayload.section_id` is a path parameter, not a body field
 
 **Category:** Bug / Types  
 **Description:**  
@@ -38,13 +38,13 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 **Acceptance Criteria:**
 
-- [x] `section_id` removed from `AddCasePayload`
-- [x] No compilation errors or test failures after removal
-- [x] `addCase(sectionId, payload)` signature unchanged
+- [ ] `section_id` removed from `AddCasePayload`
+- [ ] No compilation errors or test failures after removal
+- [ ] `addCase(sectionId, payload)` signature unchanged
 
 ---
 
-### TASK-003 · `Retry-After` response header not respected on 429 [Done]
+### TASK-003 · `Retry-After` response header not respected on 429
 
 **Category:** Bug / Retry Logic  
 **Description:**  
@@ -60,7 +60,7 @@ When TestRail returns HTTP 429, it may include a `Retry-After` header specifying
 
 ---
 
-### TASK-004 · Pagination silently truncates large result sets [Done]
+### TASK-004 · Pagination silently truncates large result sets
 
 **Category:** Bug / Pagination  
 **Description:**  
@@ -78,7 +78,7 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 ## P1 — High (Missing Write Operations for Existing Entities)
 
-### TASK-005 · Add `updatePlan(planId, payload)` [Done]
+### TASK-005 · Add `updatePlan(planId, payload)`
 
 **Category:** Feature / Plans  
 **Description:**  
@@ -94,7 +94,7 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 ---
 
-### TASK-006 · Add `addPlanEntry(planId, payload)` / `updatePlanEntry` / `deletePlanEntry` [Done]
+### TASK-006 · Add `addPlanEntry(planId, payload)` / `updatePlanEntry` / `deletePlanEntry`
 
 **Category:** Feature / Plans  
 **Description:**  
@@ -626,35 +626,6 @@ Some TestRail API endpoints require minimum versions (e.g. Groups require 7.5+, 
 - [ ] All methods that require a minimum TestRail version include a `@since TestRail X.Y` JSDoc tag
 - [ ] Methods with version requirements are noted in the method's `@throws` or `@remarks` JSDoc section
 - [ ] Applies to: `getTemplates` (5.2+), `getAttachment` (5.7+), `getSharedStep` (7.0+), `getRoles` (7.3+), `addUser` (7.3+), `getGroup/getGroups/addGroup/updateGroup/deleteGroup` (7.5+)
-
----
-
-### TASK-041 · Add CLI support (`testrail-cli`)
-
-**Category:** Feature / CLI  
-**Description:**  
-Expose the client's API methods as an interactive command-line tool so users can query and mutate TestRail without writing code. The CLI should ship as an optional `bin` entry in the same package (or a companion `@dichovsky/testrail-cli` package) and authenticate via environment variables or a config file.
-
-**Design decisions to make before implementation:**
-
-- Single package with `bin` entry vs. separate companion package
-- Config resolution order: `TESTRAIL_*` env vars → `.testrailrc` file → CLI flags
-- Output formats: JSON (default, scriptable), table (human-readable), quiet (exit-code only)
-
-**Acceptance Criteria:**
-
-- [ ] Binary entry `testrail` (or `testrail-cli`) registered in `package.json` `bin` field
-- [ ] Auth resolved from `TESTRAIL_BASE_URL`, `TESTRAIL_EMAIL`, `TESTRAIL_API_KEY` env vars; overridable via `--base-url`, `--email`, `--api-key` flags
-- [ ] Subcommand structure: `testrail <resource> <action> [id] [--flag value]`  
-       Example: `testrail project get 1`, `testrail case list --project-id 1 --suite-id 2`
-- [ ] Core subcommands implemented: `project`, `suite`, `case`, `run`, `result`, `milestone`, `user`
-- [ ] `--format json|table` output flag with JSON as default
-- [ ] `--quiet` flag: suppress output, use exit code 0 (success) / 1 (error)
-- [ ] Errors print to stderr; success data to stdout
-- [ ] `--help` and `--version` flags
-- [ ] Zero new runtime dependencies beyond `node:` built-ins (arg parsing via a tiny bundled parser or `util.parseArgs`)
-- [ ] Unit tests for: auth resolution, output formatting, error-to-stderr routing, `--quiet` mode
-- [ ] Integration test: spawn CLI as child process, verify stdout/exit code
 
 ---
 

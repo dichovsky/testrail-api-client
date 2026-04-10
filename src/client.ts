@@ -14,10 +14,6 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
-    UpdatePlanPayload,
-    AddPlanEntryPayload,
-    UpdatePlanEntryPayload,
-    PlanEntry,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -49,13 +45,10 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all projects.
-     * @throws {TestRailValidationError} When limit or offset is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getProjects(limit?: number, offset?: number): Promise<Project[]> {
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint('get_projects', { limit, offset });
-        const response = await this.request<{ projects: Project[] }>('GET', endpoint);
+    async getProjects(): Promise<Project[]> {
+        const response = await this.request<{ projects: Project[] }>('GET', 'get_projects');
         return response.projects ?? [];
     }
 
@@ -95,23 +88,16 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all sections for a project, optionally filtered by suite.
-     * @param options.suiteId - Optional suite filter
-     * @param options.limit - Optional maximum number of results to return
-     * @param options.offset - Optional number of results to skip
+     * @param suiteId - Optional suite filter
      * @throws {TestRailValidationError} When projectId or suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getSections(
-        projectId: number,
-        options?: { suiteId?: number; limit?: number; offset?: number },
-    ): Promise<Section[]> {
+    async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
         this.validateId(projectId, 'projectId');
-        const { suiteId, limit, offset } = options ?? {};
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
         }
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
+        const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId });
         const response = await this.request<{ sections: Section[] }>('GET', endpoint);
         return response.sections ?? [];
     }
@@ -130,31 +116,22 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all cases for a project, optionally filtered by suite and/or section.
-     * @param options.suiteId - Optional suite filter
-     * @param options.sectionId - Optional section filter
-     * @param options.limit - Optional maximum number of results to return
-     * @param options.offset - Optional number of results to skip
+     * @param suiteId - Optional suite filter
+     * @param sectionId - Optional section filter
      * @throws {TestRailValidationError} When any provided ID is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getCases(
-        projectId: number,
-        options?: { suiteId?: number; sectionId?: number; limit?: number; offset?: number },
-    ): Promise<Case[]> {
+    async getCases(projectId: number, suiteId?: number, sectionId?: number): Promise<Case[]> {
         this.validateId(projectId, 'projectId');
-        const { suiteId, sectionId, limit, offset } = options ?? {};
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
         }
         if (sectionId !== undefined) {
             this.validateId(sectionId, 'sectionId');
         }
-        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_cases/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
-            limit,
-            offset,
         });
         const response = await this.request<{ cases: Case[] }>('GET', endpoint);
         return response.cases ?? [];
@@ -207,11 +184,9 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getPlans(projectId: number, limit?: number, offset?: number): Promise<Plan[]> {
+    async getPlans(projectId: number): Promise<Plan[]> {
         this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_plans/${projectId}`, { limit, offset });
-        const response = await this.request<{ plans: Plan[] }>('GET', endpoint);
+        const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
         return response.plans ?? [];
     }
 
@@ -223,16 +198,6 @@ export class TestRailClient extends TestRailClientCore {
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.validateId(projectId, 'projectId');
         return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
-    }
-
-    /**
-     * Update a plan.
-     * @throws {TestRailValidationError} When planId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
-        this.validateId(planId, 'planId');
-        return this.request<Plan>('POST', `update_plan/${planId}`, payload);
     }
 
     /**
@@ -255,38 +220,6 @@ export class TestRailClient extends TestRailClientCore {
         await this.request<void>('POST', `delete_plan/${planId}`);
     }
 
-    /**
-     * Add a plan entry (run) to a plan.
-     * @throws {TestRailValidationError} When planId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
-        this.validateId(planId, 'planId');
-        return this.request<PlanEntry>('POST', `add_plan_entry/${planId}`, payload);
-    }
-
-    /**
-     * Update an existing plan entry.
-     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
-        this.validateId(planId, 'planId');
-        this.validateEntryId(entryId);
-        return this.request<PlanEntry>('POST', `update_plan_entry/${planId}/${entryId}`, payload);
-    }
-
-    /**
-     * Delete a plan entry.
-     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async deletePlanEntry(planId: number, entryId: string): Promise<void> {
-        this.validateId(planId, 'planId');
-        this.validateEntryId(entryId);
-        await this.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
-    }
-
     // ── Runs ──────────────────────────────────────────────────────────────────
 
     /**
@@ -304,11 +237,9 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getRuns(projectId: number, limit?: number, offset?: number): Promise<Run[]> {
+    async getRuns(projectId: number): Promise<Run[]> {
         this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_runs/${projectId}`, { limit, offset });
-        const response = await this.request<{ runs: Run[] }>('GET', endpoint);
+        const response = await this.request<{ runs: Run[] }>('GET', `get_runs/${projectId}`);
         return response.runs ?? [];
     }
 
@@ -359,11 +290,9 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getTests(runId: number, limit?: number, offset?: number): Promise<Test[]> {
+    async getTests(runId: number): Promise<Test[]> {
         this.validateId(runId, 'runId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_tests/${runId}`, { limit, offset });
-        const response = await this.request<{ tests: Test[] }>('GET', endpoint);
+        const response = await this.request<{ tests: Test[] }>('GET', `get_tests/${runId}`);
         return response.tests ?? [];
     }
 
@@ -374,11 +303,9 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When testId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResults(testId: number, limit?: number, offset?: number): Promise<Result[]> {
+    async getResults(testId: number): Promise<Result[]> {
         this.validateId(testId, 'testId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_results/${testId}`, { limit, offset });
-        const response = await this.request<{ results: Result[] }>('GET', endpoint);
+        const response = await this.request<{ results: Result[] }>('GET', `get_results/${testId}`);
         return response.results ?? [];
     }
 
@@ -399,11 +326,9 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResultsForRun(runId: number, limit?: number, offset?: number): Promise<Result[]> {
+    async getResultsForRun(runId: number): Promise<Result[]> {
         this.validateId(runId, 'runId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, { limit, offset });
-        const response = await this.request<{ results: Result[] }>('GET', endpoint);
+        const response = await this.request<{ results: Result[] }>('GET', `get_results_for_run/${runId}`);
         return response.results ?? [];
     }
 
@@ -455,11 +380,9 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getMilestones(projectId: number, limit?: number, offset?: number): Promise<Milestone[]> {
+    async getMilestones(projectId: number): Promise<Milestone[]> {
         this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, { limit, offset });
-        const response = await this.request<{ milestones: Milestone[] }>('GET', endpoint);
+        const response = await this.request<{ milestones: Milestone[] }>('GET', `get_milestones/${projectId}`);
         return response.milestones ?? [];
     }
 
@@ -486,19 +409,15 @@ export class TestRailClient extends TestRailClientCore {
             throw new TestRailValidationError('Invalid email format');
         }
 
-        // buildEndpoint now encodes all values via encodeURIComponent internally.
-        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email }));
+        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email: encodeURIComponent(email) }));
     }
 
     /**
      * Get all users.
-     * @throws {TestRailValidationError} When limit or offset is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getUsers(limit?: number, offset?: number): Promise<User[]> {
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint('get_users', { limit, offset });
-        const response = await this.request<{ users: User[] }>('GET', endpoint);
+    async getUsers(): Promise<User[]> {
+        const response = await this.request<{ users: User[] }>('GET', 'get_users');
         return response.users ?? [];
     }
 
