@@ -40,19 +40,6 @@ export interface TestRailConfig {
     allowPrivateHosts?: boolean;
 }
 
-export interface PaginatedResponse<T = unknown> {
-    /** Offset of the returned page */
-    offset: number;
-    /** Limit of the returned page */
-    limit: number;
-    /** Number of items in this page */
-    size: number;
-    /** Optional links/pagination metadata returned by TestRail */
-    _links?: Record<string, unknown>;
-    /** Page items when the API returns items under a consistent key */
-    items?: T[];
-}
-
 export interface Case {
     id: number;
     title: string;

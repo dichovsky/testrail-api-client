@@ -3,7 +3,6 @@ export { TestRailApiError, TestRailValidationError } from './errors.js';
 export type {
     TestRailConfig,
     RateLimiterConfig,
-    PaginatedResponse,
     Case,
     Suite,
     AddSuitePayload,
