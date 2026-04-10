@@ -14,6 +14,7 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
+    UpdatePlanPayload,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -219,6 +220,16 @@ export class TestRailClient extends TestRailClientCore {
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.validateId(projectId, 'projectId');
         return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
+        this.validateId(planId, 'planId');
+        return this.request<Plan>('POST', `update_plan/${planId}`, payload);
     }
 
     /**
@@ -440,7 +451,8 @@ export class TestRailClient extends TestRailClientCore {
             throw new TestRailValidationError('Invalid email format');
         }
 
-        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email: encodeURIComponent(email) }));
+        // buildEndpoint now encodes all values via encodeURIComponent internally.
+        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email }));
     }
 
     /**
