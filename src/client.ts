@@ -19,6 +19,7 @@ import type {
     UpdatePlanEntryPayload,
     PlanEntry,
     AddRunPayload,
+    UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
 } from './types.js';
@@ -320,6 +321,16 @@ export class TestRailClient extends TestRailClientCore {
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
         this.validateId(projectId, 'projectId');
         return this.request<Run>('POST', `add_run/${projectId}`, payload);
+    }
+
+    /**
+     * Update a run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
+        this.validateId(runId, 'runId');
+        return this.request<Run>('POST', `update_run/${runId}`, payload);
     }
 
     /**

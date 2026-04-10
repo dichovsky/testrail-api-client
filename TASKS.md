@@ -111,7 +111,7 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 ---
 
-### TASK-007 · Add `updateRun(runId, payload)`
+### TASK-007 · Add `updateRun(runId, payload)` [Done]
 
 **Category:** Feature / Runs  
 **Description:**  
@@ -119,9 +119,9 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 **Acceptance Criteria:**
 
-- [ ] `updateRun(runId: number, payload: UpdateRunPayload): Promise<Run>` added
-- [ ] `UpdateRunPayload` interface with `name?`, `description?`, `milestone_id?`, `assignedto_id?`, `include_all?`, `case_ids?`, `refs?` added to `types.ts` and exported from `index.ts`
-- [ ] Unit tests: success, invalid ID, API error
+- [x] `updateRun(runId: number, payload: UpdateRunPayload): Promise<Run>` added
+- [x] `UpdateRunPayload` interface with `name?`, `description?`, `milestone_id?`, `assignedto_id?`, `include_all?`, `case_ids?`, `refs?` added to `types.ts` and exported from `index.ts`
+- [x] Unit tests: success, invalid ID, API error
 
 ---
 
@@ -142,7 +142,7 @@ Projects can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite`
+### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [In Progress by agent-q7m4pz]
 
 **Category:** Feature / Suites  
 **Description:**  

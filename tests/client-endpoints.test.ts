@@ -21,6 +21,7 @@ import type {
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
     AddRunPayload,
+    UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
 } from '../src/types.js';
@@ -740,6 +741,54 @@ describe('TestRailClient', () => {
 
             await client.deleteRun(1);
             expect(mockFetch).toHaveBeenCalled();
+        });
+
+        it('should update a run', async () => {
+            const mockRun: Run = {
+                id: 1,
+                suite_id: 1,
+                name: 'Updated Run',
+                description: 'Updated description',
+                include_all: false,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+            };
+
+            const payload: UpdateRunPayload = {
+                name: 'Updated Run',
+                description: 'Updated description',
+                include_all: false,
+                case_ids: [1, 2, 3],
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockRun));
+
+            const result = await client.updateRun(1, payload);
+            expect(result).toEqual(mockRun);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_run/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw on invalid runId for updateRun', async () => {
+            await expect(client.updateRun(0, {})).rejects.toThrow('runId must be a positive integer');
+            await expect(client.updateRun(-1, {})).rejects.toThrow('runId must be a positive integer');
+            await expect(client.updateRun(1.5, {})).rejects.toThrow('runId must be a positive integer');
+        });
+
+        it('should propagate API error from updateRun', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403));
+
+            await expect(client.updateRun(1, { name: 'Run' })).rejects.toThrow();
         });
     });
 
