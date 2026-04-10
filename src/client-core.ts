@@ -3,7 +3,7 @@ import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 
-const USER_AGENT = `${pkg.name}/${pkg.version}`;
+const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
     BASE_RETRY_DELAY_MS,
     MAX_RETRY_DELAY_MS,
