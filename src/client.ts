@@ -47,8 +47,9 @@ export class TestRailClient extends TestRailClientCore {
      * Get all projects.
      * @throws {TestRailApiError} When the API request fails
      */
-    async getProjects(): Promise<Project[]> {
-        const response = await this.request<{ projects: Project[] }>('GET', 'get_projects');
+    async getProjects(limit?: number, offset?: number): Promise<Project[]> {
+        const endpoint = this.buildEndpoint('get_projects', { limit, offset });
+        const response = await this.request<{ projects: Project[] }>('GET', endpoint);
         return response.projects ?? [];
     }
 
@@ -92,12 +93,12 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId or suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
+    async getSections(projectId: number, suiteId?: number, limit?: number, offset?: number): Promise<Section[]> {
         this.validateId(projectId, 'projectId');
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
         }
-        const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId });
+        const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
         const response = await this.request<{ sections: Section[] }>('GET', endpoint);
         return response.sections ?? [];
     }
@@ -121,7 +122,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When any provided ID is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getCases(projectId: number, suiteId?: number, sectionId?: number): Promise<Case[]> {
+    async getCases(projectId: number, suiteId?: number, sectionId?: number, limit?: number, offset?: number): Promise<Case[]> {
         this.validateId(projectId, 'projectId');
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
@@ -132,6 +133,8 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_cases/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
+            limit,
+            offset,
         });
         const response = await this.request<{ cases: Case[] }>('GET', endpoint);
         return response.cases ?? [];
@@ -184,9 +187,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getPlans(projectId: number): Promise<Plan[]> {
+    async getPlans(projectId: number, limit?: number, offset?: number): Promise<Plan[]> {
         this.validateId(projectId, 'projectId');
-        const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
+        const endpoint = this.buildEndpoint(`get_plans/${projectId}`, { limit, offset });
+        const response = await this.request<{ plans: Plan[] }>('GET', endpoint);
         return response.plans ?? [];
     }
 
@@ -237,9 +241,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getRuns(projectId: number): Promise<Run[]> {
+    async getRuns(projectId: number, limit?: number, offset?: number): Promise<Run[]> {
         this.validateId(projectId, 'projectId');
-        const response = await this.request<{ runs: Run[] }>('GET', `get_runs/${projectId}`);
+        const endpoint = this.buildEndpoint(`get_runs/${projectId}`, { limit, offset });
+        const response = await this.request<{ runs: Run[] }>('GET', endpoint);
         return response.runs ?? [];
     }
 
@@ -290,9 +295,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getTests(runId: number): Promise<Test[]> {
+    async getTests(runId: number, limit?: number, offset?: number): Promise<Test[]> {
         this.validateId(runId, 'runId');
-        const response = await this.request<{ tests: Test[] }>('GET', `get_tests/${runId}`);
+        const endpoint = this.buildEndpoint(`get_tests/${runId}`, { limit, offset });
+        const response = await this.request<{ tests: Test[] }>('GET', endpoint);
         return response.tests ?? [];
     }
 
@@ -303,9 +309,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When testId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResults(testId: number): Promise<Result[]> {
+    async getResults(testId: number, limit?: number, offset?: number): Promise<Result[]> {
         this.validateId(testId, 'testId');
-        const response = await this.request<{ results: Result[] }>('GET', `get_results/${testId}`);
+        const endpoint = this.buildEndpoint(`get_results/${testId}`, { limit, offset });
+        const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
     }
 
@@ -326,9 +333,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getResultsForRun(runId: number): Promise<Result[]> {
+    async getResultsForRun(runId: number, limit?: number, offset?: number): Promise<Result[]> {
         this.validateId(runId, 'runId');
-        const response = await this.request<{ results: Result[] }>('GET', `get_results_for_run/${runId}`);
+        const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, { limit, offset });
+        const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
     }
 
@@ -380,9 +388,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getMilestones(projectId: number): Promise<Milestone[]> {
+    async getMilestones(projectId: number, limit?: number, offset?: number): Promise<Milestone[]> {
         this.validateId(projectId, 'projectId');
-        const response = await this.request<{ milestones: Milestone[] }>('GET', `get_milestones/${projectId}`);
+        const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, { limit, offset });
+        const response = await this.request<{ milestones: Milestone[] }>('GET', endpoint);
         return response.milestones ?? [];
     }
 
@@ -416,8 +425,9 @@ export class TestRailClient extends TestRailClientCore {
      * Get all users.
      * @throws {TestRailApiError} When the API request fails
      */
-    async getUsers(): Promise<User[]> {
-        const response = await this.request<{ users: User[] }>('GET', 'get_users');
+    async getUsers(limit?: number, offset?: number): Promise<User[]> {
+        const endpoint = this.buildEndpoint('get_users', { limit, offset });
+        const response = await this.request<{ users: User[] }>('GET', endpoint);
         return response.users ?? [];
     }
 
