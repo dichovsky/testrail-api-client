@@ -3,6 +3,7 @@ export { TestRailApiError, TestRailValidationError } from './errors.js';
 export type {
     TestRailConfig,
     TestRailResponse,
+    PaginatedResponse,
     Case,
     Suite,
     Section,
@@ -19,7 +20,9 @@ export type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
+    UpdatePlanPayload,
     AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,
