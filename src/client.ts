@@ -484,7 +484,8 @@ export class TestRailClient extends TestRailClientCore {
             throw new TestRailValidationError('Invalid email format');
         }
 
-        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email: encodeURIComponent(email) }));
+        // buildEndpoint now encodes all values via encodeURIComponent internally.
+        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email }));
     }
 
     /**

@@ -69,7 +69,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', 'Project not found'));
 
             await expect(client.getProject(999)).rejects.toThrow(
-                'TestRail API error: 404 Not Found - Project not found',
+                'TestRail API error: 404 Not Found',
             );
         });
 
@@ -532,7 +532,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
 
             await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow(
-                'TestRail API error: 403 Forbidden - No access',
+                'TestRail API error: 403 Forbidden',
             );
         });
     });
@@ -960,18 +960,28 @@ describe('TestRailClient', () => {
         });
     });
     describe('Security & Validation', () => {
-        it('should warn when using HTTP protocol', () => {
-            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        it('should throw when using HTTP protocol without allowInsecure', () => {
+            expect(
+                () =>
+                    new TestRailClient({
+                        baseUrl: 'http://example.testrail.io',
+                        email: 'test@example.com',
+                        apiKey: 'key',
+                    }),
+            ).toThrow('baseUrl must use HTTPS');
+        });
 
-            new TestRailClient({
-                baseUrl: 'http://example.testrail.io',
-                email: 'test@example.com',
-                apiKey: 'key',
-            });
-
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Security Warning: Using HTTP protocol'));
-
-            consoleSpy.mockRestore();
+        it('should allow HTTP when allowInsecure is true', () => {
+            expect(
+                () =>
+                    new TestRailClient({
+                        baseUrl: 'http://example.testrail.io',
+                        email: 'test@example.com',
+                        apiKey: 'key',
+                        allowInsecure: true,
+                        allowPrivateHosts: true,
+                    }),
+            ).not.toThrow();
         });
 
         it('should throw error for invalid IDs (negative)', async () => {

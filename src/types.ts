@@ -28,6 +28,16 @@ export interface TestRailConfig {
     maxCacheSize?: number;
     /** Rate limiting configuration (default: 100 requests per minute) */
     rateLimiter?: RateLimiterConfig;
+    /**
+     * Allow HTTP (non-TLS) connections. Credentials are sent in cleartext over HTTP.
+     * Only enable in isolated development environments. Default: false.
+     */
+    allowInsecure?: boolean;
+    /**
+     * Allow requests to private/loopback/link-local hosts (e.g. localhost, 192.168.x.x).
+     * Only enable when TestRail is hosted on a private network. Default: false.
+     */
+    allowPrivateHosts?: boolean;
 }
 
 export interface TestRailResponse<T = unknown> {
