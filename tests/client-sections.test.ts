@@ -10,7 +10,7 @@ describe('TestRailClient - Sections CRUD', () => {
     let client: TestRailClient;
 
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
         client = createClient();
     });
 
@@ -21,7 +21,7 @@ describe('TestRailClient - Sections CRUD', () => {
             name: 'New Section',
             display_order: 1,
             depth: 0,
-        } as unknown as Section;
+        };
 
         const payload: AddSectionPayload = { name: 'New Section' };
 
@@ -50,7 +50,7 @@ describe('TestRailClient - Sections CRUD', () => {
             name: 'Updated Section',
             display_order: 1,
             depth: 0,
-        } as unknown as Section;
+        };
 
         const payload: UpdateSectionPayload = { name: 'Updated Section' };
 
@@ -75,7 +75,10 @@ describe('TestRailClient - Sections CRUD', () => {
     it('should delete a section (success)', async () => {
         mockFetch.mockResolvedValueOnce(mockEmpty());
         await client.deleteSection(1);
-        expect(mockFetch).toHaveBeenCalled();
+        expect(mockFetch).toHaveBeenCalledWith(
+            expect.stringContaining('/index.php?/api/v2/delete_section/1'),
+            expect.objectContaining({ method: 'POST' }),
+        );
     });
 
     it('should validate sectionId for deleteSection', async () => {

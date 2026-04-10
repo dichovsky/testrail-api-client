@@ -308,16 +308,6 @@ export interface AddResultForCasePayload extends AddResultPayload {
     case_id: number;
 }
 
-export interface CacheEntry<T> {
-    data: T;
-    expiry: number; // Unix timestamp in ms
-}
-
-export interface RateLimiterConfig {
-    maxRequests: number;
-    windowMs: number;
-}
-
 export interface AddSectionPayload {
     name: string;
     suite_id?: number;
@@ -328,4 +318,14 @@ export interface AddSectionPayload {
 export interface UpdateSectionPayload {
     name?: string;
     description?: string;
+}
+
+export interface CacheEntry<T> {
+    data: T;
+    expiry: number; // Unix timestamp in ms
+}
+
+export interface RateLimiterConfig {
+    maxRequests: number;
+    windowMs: number;
 }
