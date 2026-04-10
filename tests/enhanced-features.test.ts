@@ -404,28 +404,30 @@ describe('TestRailClient - Enhanced Features', () => {
       vi.useFakeTimers();
       vi.setSystemTime(now);
 
-      const retryAfterDate = new Date(now.getTime() + 3000).toUTCString();
+      try {
+        const retryAfterDate = new Date(now.getTime() + 3000).toUTCString();
 
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 429,
-          statusText: 'Too Many Requests',
-          headers: { get: (header: string) => header === 'Retry-After' ? retryAfterDate : null },
-          text: async () => 'Rate limited',
-        } as never)
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          headers: { get: () => null },
-          text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-        } as never);
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: false,
+            status: 429,
+            statusText: 'Too Many Requests',
+            headers: { get: (header: string) => header === 'Retry-After' ? retryAfterDate : null },
+            text: async () => 'Rate limited',
+          } as never)
+          .mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: { get: () => null },
+            text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+          } as never);
 
-      await client.getProject(1);
-      expect(mockSleep).toHaveBeenCalledWith(3000);
-
-      vi.useRealTimers();
+        await client.getProject(1);
+        expect(mockSleep).toHaveBeenCalledWith(3000);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should use exponential backoff on 429 when Retry-After header is absent', async () => {

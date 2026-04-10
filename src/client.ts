@@ -63,6 +63,12 @@ const MAX_RETRY_DELAY_MS = 10000;
 const MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
+ * Maximum delay in milliseconds that can safely be passed to setTimeout.
+ * Values above 2^31-1 are clamped by the JS engine and fire immediately.
+ */
+const MAX_TIMER_DELAY_MS = 2147483647; // 2^31 - 1
+
+/**
  * Global set to track all active TestRailClient instances
  */
 const activeClients = new Set<TestRailClient>();
@@ -272,7 +278,7 @@ export class TestRailClient {
         seconds >= 0 &&
         seconds <= Number.MAX_SAFE_INTEGER / 1000
       ) {
-        return Math.round(seconds * 1000);
+        return Math.min(Math.round(seconds * 1000), MAX_TIMER_DELAY_MS);
       }
 
       return null;
@@ -282,7 +288,7 @@ export class TestRailClient {
     const retryDate = new Date(trimmedRetryAfter).getTime();
     if (!isNaN(retryDate)) {
       const delayMs = retryDate - Date.now();
-      return delayMs > 0 ? delayMs : 0;
+      return Math.min(delayMs > 0 ? delayMs : 0, MAX_TIMER_DELAY_MS);
     }
 
     return null;
