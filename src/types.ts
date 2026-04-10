@@ -267,6 +267,14 @@ export interface AddPlanPayload {
     entries?: AddPlanEntryPayload[];
 }
 
+export interface UpdatePlanPayload {
+    name?: string;
+    description?: string;
+    milestone_id?: number;
+    assignedto_id?: number;
+}
+
+
 export interface AddPlanEntryPayload {
     suite_id: number;
     name?: string;
