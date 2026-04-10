@@ -78,7 +78,7 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 ## P1 — High (Missing Write Operations for Existing Entities)
 
-### TASK-005 · Add `updatePlan(planId, payload)`
+### TASK-005 · Add `updatePlan(planId, payload)` [Done]
 
 **Category:** Feature / Plans  
 **Description:**  
@@ -86,11 +86,11 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 **Acceptance Criteria:**
 
-- [ ] `updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan>` added to client
-- [ ] `UpdatePlanPayload` interface added to `types.ts` with `name?`, `description?`, `milestone_id?`, `assignedto_id?`
-- [ ] `planId` validated as positive integer
-- [ ] `UpdatePlanPayload` exported from `index.ts`
-- [ ] Unit tests: success case, invalid ID, API error
+- [x] `updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan>` added to client
+- [x] `UpdatePlanPayload` interface added to `types.ts` with `name?`, `description?`, `milestone_id?`, `assignedto_id?`
+- [x] `planId` validated as positive integer
+- [x] `UpdatePlanPayload` exported from `index.ts`
+- [x] Unit tests: success case, invalid ID, API error
 
 ---
 

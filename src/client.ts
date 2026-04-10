@@ -14,6 +14,7 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
+    UpdatePlanPayload,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -184,9 +185,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getPlans(projectId: number): Promise<Plan[]> {
+    async getPlans(projectId: number, limit?: number, offset?: number): Promise<Plan[]> {
         this.validateId(projectId, 'projectId');
-        const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
+        const endpoint = this.buildEndpoint(`get_plans/${projectId}`, { limit, offset });
+        const response = await this.request<{ plans: Plan[] }>('GET', endpoint);
         return response.plans ?? [];
     }
 
@@ -198,6 +200,16 @@ export class TestRailClient extends TestRailClientCore {
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.validateId(projectId, 'projectId');
         return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
+        this.validateId(planId, 'planId');
+        return this.request<Plan>('POST', `update_plan/${planId}`, payload);
     }
 
     /**
