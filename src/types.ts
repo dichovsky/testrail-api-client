@@ -330,6 +330,16 @@ export interface AddRunPayload {
     refs?: string;
 }
 
+export interface UpdateRunPayload {
+    name?: string;
+    description?: string;
+    milestone_id?: number;
+    assignedto_id?: number;
+    include_all?: boolean;
+    case_ids?: number[];
+    refs?: string;
+}
+
 export interface AddResultPayload {
     /** e.g., 1=Passed */
     status_id: number;
