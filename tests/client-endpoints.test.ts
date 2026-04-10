@@ -2192,6 +2192,11 @@ describe('TestRailClient', () => {
             expect(await client.getAttachmentsForCase(1)).toEqual([]);
         });
 
+        it('should return empty array when response has no attachments key', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            expect(await client.getAttachmentsForCase(1)).toEqual([]);
+        });
+
         it('should throw for invalid caseId', async () => {
             await expect(client.getAttachmentsForCase(0)).rejects.toThrow('caseId must be a positive integer');
         });
@@ -2203,6 +2208,11 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
             const result = await client.getAttachmentsForRun(1);
             expect(result).toEqual(attachments);
+        });
+
+        it('should return empty array when response has no attachments key', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            expect(await client.getAttachmentsForRun(1)).toEqual([]);
         });
 
         it('should throw for invalid runId', async () => {
@@ -2218,6 +2228,11 @@ describe('TestRailClient', () => {
             expect(result).toEqual(attachments);
         });
 
+        it('should return empty array when response has no attachments key', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            expect(await client.getAttachmentsForTest(5)).toEqual([]);
+        });
+
         it('should throw for invalid testId', async () => {
             await expect(client.getAttachmentsForTest(-1)).rejects.toThrow('testId must be a positive integer');
         });
@@ -2229,6 +2244,11 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
             const result = await client.getAttachmentsForPlan(1);
             expect(result).toEqual(attachments);
+        });
+
+        it('should return empty array when response has no attachments key', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            expect(await client.getAttachmentsForPlan(1)).toEqual([]);
         });
 
         it('should throw for invalid planId', async () => {
@@ -2246,6 +2266,11 @@ describe('TestRailClient', () => {
                 expect.stringContaining('get_attachments_for_plan_entry/1/2'),
                 expect.anything(),
             );
+        });
+
+        it('should return empty array when response has no attachments key', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            expect(await client.getAttachmentsForPlanEntry(1, 2)).toEqual([]);
         });
 
         it('should throw for invalid planId', async () => {

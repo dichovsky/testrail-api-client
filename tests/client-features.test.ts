@@ -589,7 +589,9 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('should retry attachment downloads on network errors', async () => {
-            mockFetch.mockRejectedValueOnce(new Error('network error')).mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
+            mockFetch
+                .mockRejectedValueOnce(new Error('network error'))
+                .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
 
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
@@ -781,14 +783,12 @@ describe('TestRailClient - Enhanced Features', () => {
 
         it('should retry requestBinary on network error and succeed', async () => {
             const buffer = new ArrayBuffer(4);
-            mockFetch
-                .mockRejectedValueOnce(new Error('ECONNRESET'))
-                .mockResolvedValueOnce({
-                    ok: true,
-                    status: 200,
-                    statusText: 'OK',
-                    arrayBuffer: async () => buffer,
-                } as never);
+            mockFetch.mockRejectedValueOnce(new Error('ECONNRESET')).mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                arrayBuffer: async () => buffer,
+            } as never);
 
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);

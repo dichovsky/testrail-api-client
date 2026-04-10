@@ -16,17 +16,37 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const MOCK_PROJECT = { id: 1, name: 'Demo', suite_mode: 1, url: 'https://example.testrail.io/projects/view/1' };
 const MOCK_SUITE = { id: 1, name: 'Suite A', project_id: 1, url: 'https://example.testrail.io/suites/view/1' };
 const MOCK_CASE = {
-    id: 1, title: 'Case 1', section_id: 1, suite_id: 1,
-    created_by: 1, created_on: 0, updated_by: 1, updated_on: 0,
+    id: 1,
+    title: 'Case 1',
+    section_id: 1,
+    suite_id: 1,
+    created_by: 1,
+    created_on: 0,
+    updated_by: 1,
+    updated_on: 0,
 };
 const MOCK_RUN = {
-    id: 1, suite_id: 1, name: 'Run 1', include_all: true, is_completed: false,
-    passed_count: 0, blocked_count: 0, untested_count: 0, retest_count: 0, failed_count: 0,
-    project_id: 1, created_on: 0, created_by: 1, url: 'https://example.testrail.io/runs/view/1',
+    id: 1,
+    suite_id: 1,
+    name: 'Run 1',
+    include_all: true,
+    is_completed: false,
+    passed_count: 0,
+    blocked_count: 0,
+    untested_count: 0,
+    retest_count: 0,
+    failed_count: 0,
+    project_id: 1,
+    created_on: 0,
+    created_by: 1,
+    url: 'https://example.testrail.io/runs/view/1',
 };
 const MOCK_MILESTONE = {
-    id: 1, name: 'M1', is_completed: false,
-    project_id: 1, url: 'https://example.testrail.io/milestones/view/1',
+    id: 1,
+    name: 'M1',
+    is_completed: false,
+    project_id: 1,
+    url: 'https://example.testrail.io/milestones/view/1',
 };
 const MOCK_USER = { id: 1, name: 'Alice', email: 'alice@example.com', is_active: true };
 
@@ -174,10 +194,15 @@ describe('CLI', () => {
             const resp = jsonResponse(MOCK_PROJECT);
             const { exitCodes } = await runCli(
                 [
-                    '--base-url', 'https://example.testrail.io',
-                    '--email', 'test@example.com',
-                    '--api-key', 'test-api-key',
-                    'project', 'get', '1',
+                    '--base-url',
+                    'https://example.testrail.io',
+                    '--email',
+                    'test@example.com',
+                    '--api-key',
+                    'test-api-key',
+                    'project',
+                    'get',
+                    '1',
                 ],
                 [resp],
                 {}, // No env vars — credentials come from flags
@@ -190,10 +215,7 @@ describe('CLI', () => {
 
     describe('project', () => {
         it('project get <id> should output JSON and exit 0', async () => {
-            const { stdout, exitCodes } = await runCli(
-                ['project', 'get', '1'],
-                [jsonResponse(MOCK_PROJECT)],
-            );
+            const { stdout, exitCodes } = await runCli(['project', 'get', '1'], [jsonResponse(MOCK_PROJECT)]);
             const parsed = JSON.parse(stdout.trim()) as typeof MOCK_PROJECT;
             expect(parsed.id).toBe(1);
             expect(exitCodes).toContain(0);
@@ -214,10 +236,7 @@ describe('CLI', () => {
                 [jsonResponse({ projects: [] })],
             );
             expect(exitCodes).toContain(0);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('limit=5'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=5'), expect.anything());
         });
 
         it('project get with non-integer id should exit 1', async () => {
@@ -241,18 +260,12 @@ describe('CLI', () => {
 
     describe('suite', () => {
         it('suite get <id> should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['suite', 'get', '1'],
-                [jsonResponse(MOCK_SUITE)],
-            );
+            const { exitCodes } = await runCli(['suite', 'get', '1'], [jsonResponse(MOCK_SUITE)]);
             expect(exitCodes).toContain(0);
         });
 
         it('suite list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['suite', 'list', '--project-id', '2'],
-                [jsonResponse([MOCK_SUITE])],
-            );
+            const { exitCodes } = await runCli(['suite', 'list', '--project-id', '2'], [jsonResponse([MOCK_SUITE])]);
             expect(exitCodes).toContain(0);
         });
 
@@ -272,18 +285,12 @@ describe('CLI', () => {
 
     describe('case', () => {
         it('case get <id> should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['case', 'get', '5'],
-                [jsonResponse(MOCK_CASE)],
-            );
+            const { exitCodes } = await runCli(['case', 'get', '5'], [jsonResponse(MOCK_CASE)]);
             expect(exitCodes).toContain(0);
         });
 
         it('case list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['case', 'list', '--project-id', '3'],
-                [jsonResponse([MOCK_CASE])],
-            );
+            const { exitCodes } = await runCli(['case', 'list', '--project-id', '3'], [jsonResponse([MOCK_CASE])]);
             expect(exitCodes).toContain(0);
         });
 
@@ -293,10 +300,7 @@ describe('CLI', () => {
                 [jsonResponse([MOCK_CASE])],
             );
             expect(exitCodes).toContain(0);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('suite_id'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id'), expect.anything());
         });
 
         it('case unknown action should exit 1', async () => {
@@ -309,18 +313,12 @@ describe('CLI', () => {
 
     describe('run', () => {
         it('run get <id> should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['run', 'get', '10'],
-                [jsonResponse(MOCK_RUN)],
-            );
+            const { exitCodes } = await runCli(['run', 'get', '10'], [jsonResponse(MOCK_RUN)]);
             expect(exitCodes).toContain(0);
         });
 
         it('run list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['run', 'list', '--project-id', '4'],
-                [jsonResponse([MOCK_RUN])],
-            );
+            const { exitCodes } = await runCli(['run', 'list', '--project-id', '4'], [jsonResponse([MOCK_RUN])]);
             expect(exitCodes).toContain(0);
         });
 
@@ -342,10 +340,7 @@ describe('CLI', () => {
 
     describe('result', () => {
         it('result list --run-id should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['result', 'list', '--run-id', '11'],
-                [jsonResponse([])],
-            );
+            const { exitCodes } = await runCli(['result', 'list', '--run-id', '11'], [jsonResponse([])]);
             expect(exitCodes).toContain(0);
         });
 
@@ -368,10 +363,7 @@ describe('CLI', () => {
 
     describe('milestone', () => {
         it('milestone get <id> should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['milestone', 'get', '3'],
-                [jsonResponse(MOCK_MILESTONE)],
-            );
+            const { exitCodes } = await runCli(['milestone', 'get', '3'], [jsonResponse(MOCK_MILESTONE)]);
             expect(exitCodes).toContain(0);
         });
 
@@ -401,26 +393,17 @@ describe('CLI', () => {
 
     describe('user', () => {
         it('user get <id> should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['user', 'get', '1'],
-                [jsonResponse(MOCK_USER)],
-            );
+            const { exitCodes } = await runCli(['user', 'get', '1'], [jsonResponse(MOCK_USER)]);
             expect(exitCodes).toContain(0);
         });
 
         it('user list should exit 0', async () => {
-            const { exitCodes } = await runCli(
-                ['user', 'list'],
-                [jsonResponse([MOCK_USER])],
-            );
+            const { exitCodes } = await runCli(['user', 'list'], [jsonResponse([MOCK_USER])]);
             expect(exitCodes).toContain(0);
         });
 
         it('user list with --limit', async () => {
-            const { exitCodes } = await runCli(
-                ['user', 'list', '--limit', '25'],
-                [jsonResponse([MOCK_USER])],
-            );
+            const { exitCodes } = await runCli(['user', 'list', '--limit', '25'], [jsonResponse([MOCK_USER])]);
             expect(exitCodes).toContain(0);
         });
 
@@ -454,10 +437,7 @@ describe('CLI', () => {
         });
 
         it('should render (empty) for an empty list in table format', async () => {
-            const { stdout } = await runCli(
-                ['project', 'list', '--format', 'table'],
-                [jsonResponse({ projects: [] })],
-            );
+            const { stdout } = await runCli(['project', 'list', '--format', 'table'], [jsonResponse({ projects: [] })]);
             expect(stdout).toContain('(empty)');
         });
     });

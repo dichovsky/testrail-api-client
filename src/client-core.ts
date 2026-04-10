@@ -271,7 +271,8 @@ export class TestRailClientCore {
         this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
 
         if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
-            const oldestRequest = Math.min(...this.rateLimiter.requests);
+            // requests[] is append-only and filtered to the current window, so [0] is always oldest.
+            const oldestRequest = this.rateLimiter.requests[0] ?? now;
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
             throw new TestRailApiError(
                 `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
