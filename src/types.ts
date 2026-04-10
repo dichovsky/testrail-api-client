@@ -297,7 +297,6 @@ export interface UpdatePlanPayload {
     assignedto_id?: number;
 }
 
-
 export interface AddPlanEntryPayload {
     suite_id: number;
     name?: string;

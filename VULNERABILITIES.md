@@ -144,12 +144,12 @@ Parameter injection if a subclass or future caller passes an unencoded string �
 
 `config.rateLimiter.maxRequests` and `config.rateLimiter.windowMs` are not validated in `validateConfig`. Surprising values have silent, exploitable effects:
 
-| Value | Effect |
-|---|---|
-| `maxRequests: 0` | Every request throws a rate-limit error immediately |
-| `maxRequests: -1` | Rate limiter never fires; `requests.length >= -1` is always true… wait, `>= -1` means it fires every time |
-| `windowMs: 0` | Every timestamp is "outside the window"; rate limiter never accumulates; effectively disabled |
-| `windowMs: -1` | `windowStart = now - (-1) = now + 1`; all timestamps are before `windowStart`; window always empty; no limiting |
+| Value             | Effect                                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| `maxRequests: 0`  | Every request throws a rate-limit error immediately                                                             |
+| `maxRequests: -1` | Rate limiter never fires; `requests.length >= -1` is always true… wait, `>= -1` means it fires every time       |
+| `windowMs: 0`     | Every timestamp is "outside the window"; rate limiter never accumulates; effectively disabled                   |
+| `windowMs: -1`    | `windowStart = now - (-1) = now + 1`; all timestamps are before `windowStart`; window always empty; no limiting |
 
 Setting `windowMs` to a negative or zero value silently disables rate limiting entirely, bypassing the intended protection.
 
@@ -188,7 +188,7 @@ throw new TestRailApiError(
     `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
     response.status,
     response.statusText,
-    errorText,   // ← raw server body, potentially containing stack traces, internal paths, secrets
+    errorText, // ← raw server body, potentially containing stack traces, internal paths, secrets
 );
 ```
 
@@ -202,13 +202,13 @@ Information disclosure: server stack traces, internal paths, SQL errors, or toke
 
 ## Summary
 
-| ID | Title | Severity |
-|---|---|---|
-| VULN-01 | HTTP not blocked — credentials in cleartext | HIGH |
-| VULN-02 | Unbounded `Retry-After` sleep — server-controlled DoS | HIGH |
-| VULN-03 | SSRF — no host restriction on `baseUrl` | MEDIUM |
-| VULN-04 | Credentials stored as reversible base64 in memory | MEDIUM |
-| VULN-05 | `buildEndpoint` does not URL-encode values | MEDIUM |
-| VULN-06 | `rateLimiter` config values not validated | LOW |
-| VULN-07 | Unbounded cache when `maxCacheSize: 0` | LOW |
-| VULN-08 | Full server response body stored in error objects | LOW |
+| ID      | Title                                                 | Severity |
+| ------- | ----------------------------------------------------- | -------- |
+| VULN-01 | HTTP not blocked — credentials in cleartext           | HIGH     |
+| VULN-02 | Unbounded `Retry-After` sleep — server-controlled DoS | HIGH     |
+| VULN-03 | SSRF — no host restriction on `baseUrl`               | MEDIUM   |
+| VULN-04 | Credentials stored as reversible base64 in memory     | MEDIUM   |
+| VULN-05 | `buildEndpoint` does not URL-encode values            | MEDIUM   |
+| VULN-06 | `rateLimiter` config values not validated             | LOW      |
+| VULN-07 | Unbounded cache when `maxCacheSize: 0`                | LOW      |
+| VULN-08 | Full server response body stored in error objects     | LOW      |

@@ -646,7 +646,7 @@ Expose the client's API methods as an interactive command-line tool so users can
 - [ ] Binary entry `testrail` (or `testrail-cli`) registered in `package.json` `bin` field
 - [ ] Auth resolved from `TESTRAIL_BASE_URL`, `TESTRAIL_EMAIL`, `TESTRAIL_API_KEY` env vars; overridable via `--base-url`, `--email`, `--api-key` flags
 - [ ] Subcommand structure: `testrail <resource> <action> [id] [--flag value]`  
-      Example: `testrail project get 1`, `testrail case list --project-id 1 --suite-id 2`
+       Example: `testrail project get 1`, `testrail case list --project-id 1 --suite-id 2`
 - [ ] Core subcommands implemented: `project`, `suite`, `case`, `run`, `result`, `milestone`, `user`
 - [ ] `--format json|table` output flag with JSON as default
 - [ ] `--quiet` flag: suppress output, use exit code 0 (success) / 1 (error)

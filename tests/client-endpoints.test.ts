@@ -71,9 +71,7 @@ describe('TestRailClient', () => {
         it('should handle API error', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', 'Project not found'));
 
-            await expect(client.getProject(999)).rejects.toThrow(
-                'TestRail API error: 404 Not Found',
-            );
+            await expect(client.getProject(999)).rejects.toThrow('TestRail API error: 404 Not Found');
         });
 
         it('should handle empty response', async () => {
@@ -425,10 +423,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
 
             await client.getPlans(1, 20);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_plans/1&limit=20'),
-                expect.any(Object),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_plans/1&limit=20'), expect.any(Object));
         });
 
         it('should not include undefined limit/offset in URL', async () => {
@@ -526,17 +521,13 @@ describe('TestRailClient', () => {
         });
 
         it('should throw validation error for invalid planId in updatePlan', async () => {
-            await expect(client.updatePlan(-1, { name: 'x' })).rejects.toThrow(
-                'planId must be a positive integer',
-            );
+            await expect(client.updatePlan(-1, { name: 'x' })).rejects.toThrow('planId must be a positive integer');
         });
 
         it('should propagate API error from updatePlan', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
 
-            await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow(
-                'TestRail API error: 403 Forbidden',
-            );
+            await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
     });
 
@@ -562,17 +553,13 @@ describe('TestRailClient', () => {
         });
 
         it('should throw validation error for invalid planId in addPlanEntry', async () => {
-            await expect(client.addPlanEntry(-1, { suite_id: 2 })).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.addPlanEntry(-1, { suite_id: 2 })).rejects.toThrow(TestRailValidationError);
         });
 
         it('should propagate API error from addPlanEntry', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
 
-            await expect(client.addPlanEntry(1, { suite_id: 2 })).rejects.toThrow(
-                'TestRail API error: 403 Forbidden',
-            );
+            await expect(client.addPlanEntry(1, { suite_id: 2 })).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
 
         it('should update a plan entry', async () => {
@@ -588,21 +575,15 @@ describe('TestRailClient', () => {
         });
 
         it('should throw validation error for invalid planId in updatePlanEntry', async () => {
-            await expect(client.updatePlanEntry(0, 'entry-guid-1', {})).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.updatePlanEntry(0, 'entry-guid-1', {})).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw validation error for empty entryId in updatePlanEntry', async () => {
-            await expect(client.updatePlanEntry(1, '', {})).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.updatePlanEntry(1, '', {})).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw validation error for whitespace-only entryId in updatePlanEntry', async () => {
-            await expect(client.updatePlanEntry(1, '   ', {})).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.updatePlanEntry(1, '   ', {})).rejects.toThrow(TestRailValidationError);
         });
 
         it('should propagate API error from updatePlanEntry', async () => {
@@ -624,21 +605,15 @@ describe('TestRailClient', () => {
         });
 
         it('should throw validation error for invalid planId in deletePlanEntry', async () => {
-            await expect(client.deletePlanEntry(0, 'entry-guid-1')).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.deletePlanEntry(0, 'entry-guid-1')).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw validation error for empty entryId in deletePlanEntry', async () => {
-            await expect(client.deletePlanEntry(1, '')).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.deletePlanEntry(1, '')).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw validation error for whitespace-only entryId in deletePlanEntry', async () => {
-            await expect(client.deletePlanEntry(1, '   ')).rejects.toThrow(
-                TestRailValidationError,
-            );
+            await expect(client.deletePlanEntry(1, '   ')).rejects.toThrow(TestRailValidationError);
         });
 
         it('should propagate API error from deletePlanEntry', async () => {
