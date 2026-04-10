@@ -1,5 +1,4 @@
 import type {
-    TestRailConfig,
     Case,
     Suite,
     Section,
@@ -18,465 +17,24 @@ import type {
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
-    CacheEntry,
 } from './types.js';
-import { base64Encode, sleep } from './utils.js';
+import { TestRailClientCore } from './client-core.js';
+import { TestRailValidationError } from './errors.js';
 
-/**
- * Custom error class for TestRail API errors
- */
-export class TestRailApiError extends Error {
-    constructor(
-        message: string,
-        public readonly status?: number,
-        public readonly statusText?: string,
-        public readonly response?: string,
-    ) {
-        super(message);
-        this.name = 'TestRailApiError';
-    }
-}
-
-/**
- * Custom error class for validation errors (config or parameter validation)
- */
-export class TestRailValidationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'TestRailValidationError';
-    }
-}
-
-const BASE_RETRY_DELAY_MS = 1000;
-const MAX_RETRY_DELAY_MS = 10000;
-const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-
-const activeClients = new Set<TestRailClient>();
-let processHandlersRegistered = false;
-
-// Synchronous-only cleanup — safe to call on process exit
-function cleanupAllClients(): void {
-    for (const client of activeClients) {
-        client.destroy();
-    }
-}
-
-function registerProcessHandlers(): void {
-    if (processHandlersRegistered) {
-        return;
-    }
-
-    if (typeof process !== 'undefined' && typeof process.on === 'function') {
-        process.on('exit', cleanupAllClients);
-        process.on('SIGINT', () => {
-            cleanupAllClients();
-        });
-        process.on('SIGTERM', () => {
-            cleanupAllClients();
-        });
-        processHandlersRegistered = true;
-    }
-}
+export { TestRailApiError, TestRailValidationError } from './errors.js';
 
 /**
  * TestRail API Client
  *
- * A TypeScript client for the TestRail API.
- * Supports all major API endpoints for managing projects, suites, cases, runs, plans, and results.
+ * Type-safe client covering Projects, Suites, Sections, Cases, Plans, Runs,
+ * Tests, Results, Milestones, Users, Statuses, and Priorities.
+ * Extends {@link TestRailClientCore} for HTTP pipeline, caching, rate limiting, and retry.
  */
-export class TestRailClient {
-    private readonly baseUrl: string;
-    private readonly auth: string;
-    private readonly timeout: number;
-    private readonly maxRetries: number;
-    private readonly enableCache: boolean;
-    private readonly cacheTtl: number;
-    private readonly cacheCleanupInterval: number;
-    private readonly maxCacheSize: number;
-    private readonly cache = new Map<string, CacheEntry<unknown>>();
-    private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
-    private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
-    private isDestroyed = false;
+export class TestRailClient extends TestRailClientCore {
+    // ── Projects ──────────────────────────────────────────────────────────────
 
     /**
-     * Creates a new TestRail API client
-     *
-     * @param config - Configuration options for the client
-     * @throws {TestRailValidationError} When configuration is invalid
-     */
-    constructor(config: TestRailConfig) {
-        this.validateConfig(config);
-        this.baseUrl = config.baseUrl.replace(/\/$/, '');
-        this.auth = base64Encode(`${config.email}:${config.apiKey}`);
-        this.timeout = config.timeout ?? 30000;
-        this.maxRetries = config.maxRetries ?? 3;
-        this.enableCache = config.enableCache ?? true;
-        this.cacheTtl = config.cacheTtl ?? 300000;
-        this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000;
-        this.maxCacheSize = config.maxCacheSize ?? 1000;
-        this.rateLimiter = {
-            maxRequests: config.rateLimiter?.maxRequests ?? 100,
-            windowMs: config.rateLimiter?.windowMs ?? 60000,
-            requests: [],
-        };
-
-        // Register this instance for automatic cleanup
-        activeClients.add(this);
-        registerProcessHandlers();
-
-        // Start periodic cache cleanup if enabled
-        if (this.enableCache && this.cacheCleanupInterval > 0) {
-            this.startCacheCleanup();
-        }
-    }
-
-    /**
-     * Validates the TestRail configuration
-     *
-     * @param config - Configuration to validate
-     * @throws {TestRailValidationError} When configuration is invalid
-     */
-    private validateConfig(config: TestRailConfig): void {
-        if (!config.baseUrl || typeof config.baseUrl !== 'string') {
-            throw new TestRailValidationError('baseUrl is required and must be a string');
-        }
-
-        if (!config.email || typeof config.email !== 'string') {
-            throw new TestRailValidationError('email is required and must be a string');
-        }
-
-        if (!config.apiKey || typeof config.apiKey !== 'string') {
-            throw new TestRailValidationError('apiKey is required and must be a string');
-        }
-
-        // Validate URL format
-        try {
-            const url = new URL(config.baseUrl);
-            if (!['http:', 'https:'].includes(url.protocol)) {
-                throw new TestRailValidationError('baseUrl must use http or https protocol');
-            }
-
-            if (url.protocol === 'http:') {
-                // eslint-disable-next-line no-console
-                console.warn(
-                    'Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.',
-                );
-            }
-        } catch {
-            throw new TestRailValidationError('baseUrl must be a valid URL');
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(config.email)) {
-            throw new TestRailValidationError('email must be a valid email address');
-        }
-
-        // Validate timeout if provided
-        if (config.timeout !== undefined) {
-            if (typeof config.timeout !== 'number' || config.timeout <= 0 || config.timeout > MAX_TIMEOUT_MS) {
-                throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
-            }
-        }
-
-        // Validate maxRetries if provided
-        if (config.maxRetries !== undefined) {
-            if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
-                throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
-            }
-        }
-
-        // Validate maxCacheSize if provided
-        if (config.maxCacheSize !== undefined) {
-            if (
-                typeof config.maxCacheSize !== 'number' ||
-                !Number.isInteger(config.maxCacheSize) ||
-                config.maxCacheSize < 0
-            ) {
-                throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
-            }
-        }
-    }
-
-    private getRetryDelay(retryCount: number): number {
-        return Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
-    }
-
-    /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
-    private checkRateLimit(): void {
-        const now = Date.now();
-        const windowStart = now - this.rateLimiter.windowMs;
-
-        // Clean old requests outside the window
-        this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
-
-        if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
-            const oldestRequest = Math.min(...this.rateLimiter.requests);
-            const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
-            throw new TestRailApiError(
-                `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
-            );
-        }
-
-        this.rateLimiter.requests.push(now);
-    }
-
-    /**
-     * Validates that an ID is a positive integer
-     *
-     * @param id - The ID to validate
-     * @param name - The name of the ID parameter (for error message)
-     * @throws {TestRailValidationError} When ID is invalid
-     */
-    private validateId(id: number, name: string): void {
-        if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
-            throw new TestRailValidationError(`${name} must be a positive integer`);
-        }
-    }
-
-    private getCachedData<T>(cacheKey: string): T | undefined {
-        if (!this.enableCache) {
-            return undefined;
-        }
-
-        const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
-        if (entry !== undefined && entry.expiry > Date.now()) {
-            // Move to end to mark as recently used (LRU behavior)
-            this.cache.delete(cacheKey);
-            this.cache.set(cacheKey, entry);
-            return entry.data;
-        }
-
-        // Clean expired entry
-        if (entry !== undefined) {
-            this.cache.delete(cacheKey);
-        }
-
-        return undefined;
-    }
-
-    private setCachedData<T>(cacheKey: string, data: T): void {
-        if (!this.enableCache) {
-            return;
-        }
-
-        // Enforce cache size limit if not zero
-        if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
-            // Remove the oldest entry (Map maintains insertion order)
-            const oldestKey = this.cache.keys().next().value;
-            if (oldestKey !== undefined) {
-                this.cache.delete(oldestKey);
-            }
-        }
-
-        this.cache.set(cacheKey, {
-            data,
-            expiry: Date.now() + this.cacheTtl,
-        });
-    }
-
-    /**
-     * Clears the entire cache
-     */
-    public clearCache(): void {
-        this.cache.clear();
-    }
-
-    private startCacheCleanup(): void {
-        this.cacheCleanupTimer = setInterval(() => {
-            this.cleanupExpiredCache();
-        }, this.cacheCleanupInterval);
-
-        // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
-        // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
-        // compatibility with non-Node.js environments where unref may not exist.
-        this.cacheCleanupTimer.unref?.();
-    }
-
-    private stopCacheCleanup(): void {
-        if (this.cacheCleanupTimer !== undefined) {
-            clearInterval(this.cacheCleanupTimer);
-            this.cacheCleanupTimer = undefined;
-        }
-    }
-
-    private cleanupExpiredCache(): void {
-        const now = Date.now();
-
-        // Collect keys of expired entries first to avoid mutating the Map
-        // while iterating over its live iterator.
-        const keysToDelete: string[] = [];
-        for (const [key, entry] of this.cache.entries()) {
-            if (entry.expiry <= now) {
-                keysToDelete.push(key);
-            }
-        }
-
-        // Delete the expired entries in a separate pass
-        for (const key of keysToDelete) {
-            this.cache.delete(key);
-        }
-    }
-
-    /**
-     * Cleanup resources when client is no longer needed.
-     * This method is called automatically on process exit, but can also be called manually
-     * for explicit resource cleanup (e.g., in tests or when the client is no longer needed).
-     * It's safe to call this method multiple times.
-     */
-    public destroy(): void {
-        // Prevent duplicate cleanup
-        if (this.isDestroyed) {
-            return;
-        }
-
-        this.isDestroyed = true;
-        this.stopCacheCleanup();
-        this.clearCache();
-
-        // Remove this instance from the active clients set
-        activeClients.delete(this);
-    }
-
-    /**
-     * Makes an HTTP request to the TestRail API with retry logic
-     *
-     * @param method - HTTP method
-     * @param endpoint - API endpoint
-     * @param data - Optional request body data
-     * @param retryCount - Current retry attempt (internal use)
-     * @param skipCache - Skip cache lookup and storage
-     * @returns Promise with the response data
-     * @throws {TestRailApiError} When the API request fails
-     */
-    private async request<T>(
-        method: string,
-        endpoint: string,
-        data?: unknown,
-        retryCount = 0,
-        skipCache = false,
-    ): Promise<T> {
-        // Prevent use after destroy
-        if (this.isDestroyed) {
-            throw new Error('Cannot use TestRailClient after destroy() has been called');
-        }
-
-        // Check cache for GET requests
-        if (method === 'GET' && !skipCache) {
-            const cacheKey = `${method}:${endpoint}`;
-            const cachedData = this.getCachedData<T>(cacheKey);
-            if (cachedData !== undefined) {
-                return cachedData;
-            }
-        }
-
-        // Apply rate limiting
-        this.checkRateLimit();
-
-        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
-        const headers: Record<string, string> = {
-            Authorization: `Basic ${this.auth}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'TestRail API Client TypeScript/1.0.0',
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-        const options: RequestInit = {
-            method,
-            headers,
-            signal: controller.signal,
-        };
-
-        if (data !== undefined) {
-            options.body = JSON.stringify(data);
-        }
-
-        try {
-            // Make the actual network request
-            const response: Response = await fetch(url, options);
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
-
-                // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-                // We use exponential backoff to avoid overwhelming the server during high load.
-                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    await sleep(this.getRetryDelay(retryCount));
-                    return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-                }
-
-                throw new TestRailApiError(
-                    `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
-                    response.status,
-                    response.statusText,
-                    errorText,
-                );
-            }
-
-            // Invalidate cache after mutating requests to avoid stale GET results.
-            // Done before the empty-body check so empty responses (e.g. delete endpoints)
-            // also clear the cache.
-            if (method !== 'GET') {
-                this.clearCache();
-            }
-
-            const responseText = await response.text();
-            if (!responseText) {
-                return {} as T;
-            }
-
-            try {
-                const result = JSON.parse(responseText) as T;
-
-                // Cache successful GET responses
-                if (method === 'GET' && !skipCache) {
-                    const cacheKey = `${method}:${endpoint}`;
-                    this.setCachedData(cacheKey, result);
-                }
-
-                return result;
-            } catch {
-                throw new TestRailApiError('Invalid JSON response from TestRail API');
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            if (error instanceof TestRailApiError) {
-                throw error;
-            }
-
-            const isAbortError = (error as Error).name === 'AbortError';
-
-            // Don't retry timeout errors to avoid excessive wait times
-            if (isAbortError) {
-                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
-            }
-
-            // Retry on network errors up to the maximum number of retries
-            if (retryCount < this.maxRetries) {
-                await sleep(this.getRetryDelay(retryCount));
-                return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-            }
-
-            throw new TestRailApiError(
-                `Network error: ${(error as Error).message}`,
-                undefined,
-                undefined,
-                (error as Error).message,
-            );
-        }
-    }
-
-    // Projects
-
-    /**
-     * Get a project by ID
-     *
-     * @param projectId - The ID of the project
-     * @returns The project
+     * Get a project by ID.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
@@ -486,22 +44,18 @@ export class TestRailClient {
     }
 
     /**
-     * Get all projects
-     *
-     * @returns Array of projects
+     * Get all projects.
+     * @throws {TestRailApiError} When the API request fails
      */
     async getProjects(): Promise<Project[]> {
         const response = await this.request<{ projects: Project[] }>('GET', 'get_projects');
         return response.projects ?? [];
     }
 
-    // Suites
+    // ── Suites ────────────────────────────────────────────────────────────────
 
     /**
-     * Get a suite by ID
-     *
-     * @param suiteId - The ID of the suite
-     * @returns The suite
+     * Get a suite by ID.
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
@@ -511,23 +65,21 @@ export class TestRailClient {
     }
 
     /**
-     * Get all suites for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of suites
+     * Get all suites for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getSuites(projectId: number): Promise<Suite[]> {
         this.validateId(projectId, 'projectId');
         return this.request<Suite[]>('GET', `get_suites/${projectId}`);
     }
 
-    // Sections
+    // ── Sections ──────────────────────────────────────────────────────────────
 
     /**
-     * Get a section by ID
-     *
-     * @param sectionId - The ID of the section
-     * @returns The section
+     * Get a section by ID.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getSection(sectionId: number): Promise<Section> {
         this.validateId(sectionId, 'sectionId');
@@ -535,32 +87,25 @@ export class TestRailClient {
     }
 
     /**
-     * Get all sections for a project and suite
-     *
-     * @param projectId - The ID of the project
-     * @param suiteId - Optional ID of the suite to filter by
-     * @returns Array of sections
+     * Get all sections for a project, optionally filtered by suite.
+     * @param suiteId - Optional suite filter
+     * @throws {TestRailValidationError} When projectId or suiteId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
         this.validateId(projectId, 'projectId');
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
         }
-        let endpoint = `get_sections/${projectId}`;
-        if (suiteId !== undefined) {
-            endpoint += `&suite_id=${suiteId}`;
-        }
+        const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId });
         const response = await this.request<{ sections: Section[] }>('GET', endpoint);
         return response.sections ?? [];
     }
 
-    // Cases
+    // ── Cases ─────────────────────────────────────────────────────────────────
 
     /**
-     * Get a case by ID
-     *
-     * @param caseId - The ID of the case
-     * @returns The case
+     * Get a case by ID.
      * @throws {TestRailValidationError} When caseId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
@@ -570,12 +115,11 @@ export class TestRailClient {
     }
 
     /**
-     * Get all cases for a project and suite
-     *
-     * @param projectId - The ID of the project
-     * @param suiteId - Optional ID of the suite to filter by
-     * @param sectionId - Optional section ID to filter by
-     * @returns Array of cases
+     * Get all cases for a project, optionally filtered by suite and/or section.
+     * @param suiteId - Optional suite filter
+     * @param sectionId - Optional section filter
+     * @throws {TestRailValidationError} When any provided ID is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getCases(projectId: number, suiteId?: number, sectionId?: number): Promise<Case[]> {
         this.validateId(projectId, 'projectId');
@@ -585,31 +129,18 @@ export class TestRailClient {
         if (sectionId !== undefined) {
             this.validateId(sectionId, 'sectionId');
         }
-        let endpoint = `get_cases/${projectId}`;
-        const params: string[] = [];
-
-        if (suiteId !== undefined) {
-            params.push(`suite_id=${suiteId}`);
-        }
-
-        if (sectionId !== undefined) {
-            params.push(`section_id=${sectionId}`);
-        }
-
-        if (params.length > 0) {
-            endpoint += `&${params.join('&')}`;
-        }
-
+        const endpoint = this.buildEndpoint(`get_cases/${projectId}`, {
+            suite_id: suiteId,
+            section_id: sectionId,
+        });
         const response = await this.request<{ cases: Case[] }>('GET', endpoint);
         return response.cases ?? [];
     }
 
     /**
-     * Add a new case
-     *
-     * @param sectionId - The ID of the section
-     * @param payload - The case data
-     * @returns The created case
+     * Add a new case to a section.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         this.validateId(sectionId, 'sectionId');
@@ -617,11 +148,7 @@ export class TestRailClient {
     }
 
     /**
-     * Update an existing case
-     *
-     * @param caseId - The ID of the case
-     * @param payload - The case data to update
-     * @returns The updated case
+     * Update an existing case.
      * @throws {TestRailValidationError} When caseId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
@@ -631,22 +158,21 @@ export class TestRailClient {
     }
 
     /**
-     * Delete a case
-     *
-     * @param caseId - The ID of the case
+     * Delete a case.
+     * @throws {TestRailValidationError} When caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async deleteCase(caseId: number): Promise<void> {
         this.validateId(caseId, 'caseId');
         await this.request<void>('POST', `delete_case/${caseId}`);
     }
 
-    // Plans
+    // ── Plans ─────────────────────────────────────────────────────────────────
 
     /**
-     * Get a plan by ID
-     *
-     * @param planId - The ID of the plan
-     * @returns The plan
+     * Get a plan by ID.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getPlan(planId: number): Promise<Plan> {
         this.validateId(planId, 'planId');
@@ -654,10 +180,9 @@ export class TestRailClient {
     }
 
     /**
-     * Get all plans for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of plans
+     * Get all plans for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getPlans(projectId: number): Promise<Plan[]> {
         this.validateId(projectId, 'projectId');
@@ -666,11 +191,9 @@ export class TestRailClient {
     }
 
     /**
-     * Add a new plan
-     *
-     * @param projectId - The ID of the project
-     * @param payload - The plan data
-     * @returns The created plan
+     * Add a new plan to a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.validateId(projectId, 'projectId');
@@ -678,10 +201,9 @@ export class TestRailClient {
     }
 
     /**
-     * Close a plan
-     *
-     * @param planId - The ID of the plan
-     * @returns The closed plan
+     * Close a plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async closePlan(planId: number): Promise<Plan> {
         this.validateId(planId, 'planId');
@@ -689,22 +211,21 @@ export class TestRailClient {
     }
 
     /**
-     * Delete a plan
-     *
-     * @param planId - The ID of the plan
+     * Delete a plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async deletePlan(planId: number): Promise<void> {
         this.validateId(planId, 'planId');
         await this.request<void>('POST', `delete_plan/${planId}`);
     }
 
-    // Runs
+    // ── Runs ──────────────────────────────────────────────────────────────────
 
     /**
-     * Get a run by ID
-     *
-     * @param runId - The ID of the run
-     * @returns The run
+     * Get a run by ID.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getRun(runId: number): Promise<Run> {
         this.validateId(runId, 'runId');
@@ -712,10 +233,9 @@ export class TestRailClient {
     }
 
     /**
-     * Get all runs for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of runs
+     * Get all runs for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getRuns(projectId: number): Promise<Run[]> {
         this.validateId(projectId, 'projectId');
@@ -724,11 +244,9 @@ export class TestRailClient {
     }
 
     /**
-     * Add a new run
-     *
-     * @param projectId - The ID of the project
-     * @param payload - The run data
-     * @returns The created run
+     * Add a new run to a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
         this.validateId(projectId, 'projectId');
@@ -736,10 +254,9 @@ export class TestRailClient {
     }
 
     /**
-     * Close a run
-     *
-     * @param runId - The ID of the run
-     * @returns The closed run
+     * Close a run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async closeRun(runId: number): Promise<Run> {
         this.validateId(runId, 'runId');
@@ -747,22 +264,21 @@ export class TestRailClient {
     }
 
     /**
-     * Delete a run
-     *
-     * @param runId - The ID of the run
+     * Delete a run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async deleteRun(runId: number): Promise<void> {
         this.validateId(runId, 'runId');
         await this.request<void>('POST', `delete_run/${runId}`);
     }
 
-    // Tests
+    // ── Tests ─────────────────────────────────────────────────────────────────
 
     /**
-     * Get a test by ID
-     *
-     * @param testId - The ID of the test
-     * @returns The test
+     * Get a test by ID.
+     * @throws {TestRailValidationError} When testId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getTest(testId: number): Promise<Test> {
         this.validateId(testId, 'testId');
@@ -770,10 +286,9 @@ export class TestRailClient {
     }
 
     /**
-     * Get all tests for a run
-     *
-     * @param runId - The ID of the run
-     * @returns Array of tests
+     * Get all tests for a run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getTests(runId: number): Promise<Test[]> {
         this.validateId(runId, 'runId');
@@ -781,13 +296,12 @@ export class TestRailClient {
         return response.tests ?? [];
     }
 
-    // Results
+    // ── Results ───────────────────────────────────────────────────────────────
 
     /**
-     * Get results for a test
-     *
-     * @param testId - The ID of the test
-     * @returns Array of results
+     * Get results for a test.
+     * @throws {TestRailValidationError} When testId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getResults(testId: number): Promise<Result[]> {
         this.validateId(testId, 'testId');
@@ -796,11 +310,9 @@ export class TestRailClient {
     }
 
     /**
-     * Get results for a run and case
-     *
-     * @param runId - The ID of the run
-     * @param caseId - The ID of the case
-     * @returns Array of results
+     * Get results for a specific case within a run.
+     * @throws {TestRailValidationError} When runId or caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getResultsForCase(runId: number, caseId: number): Promise<Result[]> {
         this.validateId(runId, 'runId');
@@ -810,10 +322,9 @@ export class TestRailClient {
     }
 
     /**
-     * Get results for a run
-     *
-     * @param runId - The ID of the run
-     * @returns Array of results
+     * Get all results for a run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getResultsForRun(runId: number): Promise<Result[]> {
         this.validateId(runId, 'runId');
@@ -822,11 +333,9 @@ export class TestRailClient {
     }
 
     /**
-     * Add a result for a test
-     *
-     * @param testId - The ID of the test
-     * @param payload - The result data
-     * @returns The created result
+     * Add a result for a test.
+     * @throws {TestRailValidationError} When testId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
         this.validateId(testId, 'testId');
@@ -834,12 +343,9 @@ export class TestRailClient {
     }
 
     /**
-     * Add a result for a case in a run
-     *
-     * @param runId - The ID of the run
-     * @param caseId - The ID of the case
-     * @param payload - The result data
-     * @returns The created result
+     * Add a result for a specific case within a run.
+     * @throws {TestRailValidationError} When runId or caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
         this.validateId(runId, 'runId');
@@ -848,24 +354,21 @@ export class TestRailClient {
     }
 
     /**
-     * Add multiple results for cases in a run
-     *
-     * @param runId - The ID of the run
-     * @param payload - The results data
-     * @returns Array of created results
+     * Add multiple results for cases in a run.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
         this.validateId(runId, 'runId');
         return this.request<Result[]>('POST', `add_results_for_cases/${runId}`, payload);
     }
 
-    // Milestones
+    // ── Milestones ────────────────────────────────────────────────────────────
 
     /**
-     * Get a milestone by ID
-     *
-     * @param milestoneId - The ID of the milestone
-     * @returns The milestone
+     * Get a milestone by ID.
+     * @throws {TestRailValidationError} When milestoneId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getMilestone(milestoneId: number): Promise<Milestone> {
         this.validateId(milestoneId, 'milestoneId');
@@ -873,10 +376,9 @@ export class TestRailClient {
     }
 
     /**
-     * Get all milestones for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of milestones
+     * Get all milestones for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getMilestones(projectId: number): Promise<Milestone[]> {
         this.validateId(projectId, 'projectId');
@@ -884,13 +386,12 @@ export class TestRailClient {
         return response.milestones ?? [];
     }
 
-    // Users
+    // ── Users ─────────────────────────────────────────────────────────────────
 
     /**
-     * Get a user by ID
-     *
-     * @param userId - The ID of the user
-     * @returns The user
+     * Get a user by ID.
+     * @throws {TestRailValidationError} When userId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async getUser(userId: number): Promise<User> {
         this.validateId(userId, 'userId');
@@ -898,50 +399,43 @@ export class TestRailClient {
     }
 
     /**
-     * Get a user by email
-     *
-     * @param email - The email of the user
-     * @returns The user
+     * Get a user by email address.
      * @throws {TestRailValidationError} When email format is invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getUserByEmail(email: string): Promise<User> {
-        // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             throw new TestRailValidationError('Invalid email format');
         }
 
-        return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);
+        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email: encodeURIComponent(email) }));
     }
 
     /**
-     * Get all users
-     *
-     * @returns Array of users
+     * Get all users.
+     * @throws {TestRailApiError} When the API request fails
      */
     async getUsers(): Promise<User[]> {
         const response = await this.request<{ users: User[] }>('GET', 'get_users');
         return response.users ?? [];
     }
 
-    // Statuses
+    // ── Statuses ──────────────────────────────────────────────────────────────
 
     /**
-     * Get all statuses
-     *
-     * @returns Array of statuses
+     * Get all test statuses.
+     * @throws {TestRailApiError} When the API request fails
      */
     async getStatuses(): Promise<Status[]> {
         return this.request<Status[]>('GET', 'get_statuses');
     }
 
-    // Priorities
+    // ── Priorities ────────────────────────────────────────────────────────────
 
     /**
-     * Get all priorities
-     *
-     * @returns Array of priorities
+     * Get all case priorities.
+     * @throws {TestRailApiError} When the API request fails
      */
     async getPriorities(): Promise<Priority[]> {
         return this.request<Priority[]>('GET', 'get_priorities');
