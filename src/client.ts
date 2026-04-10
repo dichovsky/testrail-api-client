@@ -1,24 +1,24 @@
 import type {
-    TestRailConfig,
-    Case,
-    Suite,
-    Section,
-    Project,
-    Plan,
-    Run,
-    Test,
-    Result,
-    Milestone,
-    User,
-    Status,
-    Priority,
-    AddCasePayload,
-    UpdateCasePayload,
-    AddPlanPayload,
-    AddRunPayload,
-    AddResultPayload,
-    AddResultsForCasesPayload,
-    CacheEntry,
+  TestRailConfig,
+  Case,
+  Suite,
+  Section,
+  Project,
+  Plan,
+  Run,
+  Test,
+  Result,
+  Milestone,
+  User,
+  Status,
+  Priority,
+  AddCasePayload,
+  UpdateCasePayload,
+  AddPlanPayload,
+  AddRunPayload,
+  AddResultPayload,
+  AddResultsForCasesPayload,
+  CacheEntry,
 } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 
@@ -26,924 +26,1066 @@ import { base64Encode, sleep } from './utils.js';
  * Custom error class for TestRail API errors
  */
 export class TestRailApiError extends Error {
-    constructor(
-        message: string,
-        public readonly status?: number,
-        public readonly statusText?: string,
-        public readonly response?: string,
-    ) {
-        super(message);
-        this.name = 'TestRailApiError';
-    }
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly statusText?: string,
+    public readonly response?: string
+  ) {
+    super(message);
+    this.name = 'TestRailApiError';
+  }
 }
 
 /**
  * Custom error class for validation errors (config or parameter validation)
  */
 export class TestRailValidationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'TestRailValidationError';
-    }
+  constructor(message: string) {
+    super(message);
+    this.name = 'TestRailValidationError';
+  }
 }
 
+/**
+ * Base delay in milliseconds for exponential backoff retry strategy
+ */
 const BASE_RETRY_DELAY_MS = 1000;
-const MAX_RETRY_DELAY_MS = 10000;
-const MAX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Maximum delay in milliseconds for exponential backoff retry strategy
+ */
+const MAX_RETRY_DELAY_MS = 10000;
+
+/**
+ * Maximum timeout in milliseconds for HTTP requests (5 minutes)
+ */
+const MAX_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * Maximum delay in milliseconds that can safely be passed to setTimeout.
+ * Values above 2^31-1 are clamped by the JS engine and fire immediately.
+ */
+const MAX_TIMER_DELAY_MS = 2147483647; // 2^31 - 1
+
+/**
+ * Global set to track all active TestRailClient instances
+ */
 const activeClients = new Set<TestRailClient>();
+
+/**
+ * Flag to ensure process event handlers are registered only once
+ */
 let processHandlersRegistered = false;
 
-// Synchronous-only cleanup — safe to call on process exit
+/**
+ * Cleanup all active clients on process exit
+ * Note: This method only performs synchronous cleanup operations
+ * (clearing timers and maps) to ensure it completes before process exit.
+ */
 function cleanupAllClients(): void {
-    for (const client of activeClients) {
-        client.destroy();
-    }
+  for (const client of activeClients) {
+    client.destroy();
+  }
 }
 
+/**
+ * Register process exit handlers once for all client instances
+ */
 function registerProcessHandlers(): void {
-    if (processHandlersRegistered) {
-        return;
-    }
-
-    if (typeof process !== 'undefined' && typeof process.on === 'function') {
-        process.on('exit', cleanupAllClients);
-        process.on('SIGINT', () => {
-            cleanupAllClients();
-        });
-        process.on('SIGTERM', () => {
-            cleanupAllClients();
-        });
-        processHandlersRegistered = true;
-    }
+  if (processHandlersRegistered) {
+    return;
+  }
+  
+  if (typeof process !== 'undefined' && typeof process.on === 'function') {
+    process.on('exit', cleanupAllClients);
+    process.on('SIGINT', () => {
+      cleanupAllClients();
+    });
+    process.on('SIGTERM', () => {
+      cleanupAllClients();
+    });
+    processHandlersRegistered = true;
+  }
 }
 
 /**
  * TestRail API Client
- *
+ * 
  * A TypeScript client for the TestRail API.
  * Supports all major API endpoints for managing projects, suites, cases, runs, plans, and results.
  */
 export class TestRailClient {
-    private readonly baseUrl: string;
-    private readonly auth: string;
-    private readonly timeout: number;
-    private readonly maxRetries: number;
-    private readonly enableCache: boolean;
-    private readonly cacheTtl: number;
-    private readonly cacheCleanupInterval: number;
-    private readonly maxCacheSize: number;
-    private readonly cache = new Map<string, CacheEntry<unknown>>();
-    private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
-    private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
-    private isDestroyed = false;
+  /** The base URL of the TestRail instance */
+  private readonly baseUrl: string;
+  /** The base64 encoded authentication string */
+  private readonly auth: string;
+  /** The request timeout in milliseconds */
+  private readonly timeout: number;
+  /** The maximum number of retry attempts */
+  private readonly maxRetries: number;
+  /** Whether caching is enabled */
+  private readonly enableCache: boolean;
+  /** The cache time-to-live in milliseconds */
+  private readonly cacheTtl: number;
+  /** The interval for periodic cache cleanup in milliseconds */
+  private readonly cacheCleanupInterval: number;
+  /** The maximum number of entries allowed in the cache */
+  private readonly maxCacheSize: number;
+  /** The internal cache storage */
+  private readonly cache = new Map<string, CacheEntry<unknown>>();
+  /** The timer ID for the cache cleanup interval */
+  private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
+  /** The rate limiter state and configuration */
+  private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[]; };
+  /** Whether the client instance has been destroyed */
+  private isDestroyed = false;
 
-    /**
-     * Creates a new TestRail API client
-     *
-     * @param config - Configuration options for the client
-     * @throws {TestRailValidationError} When configuration is invalid
-     */
-    constructor(config: TestRailConfig) {
-        this.validateConfig(config);
-        this.baseUrl = config.baseUrl.replace(/\/$/, '');
-        this.auth = base64Encode(`${config.email}:${config.apiKey}`);
-        this.timeout = config.timeout ?? 30000;
-        this.maxRetries = config.maxRetries ?? 3;
-        this.enableCache = config.enableCache ?? true;
-        this.cacheTtl = config.cacheTtl ?? 300000;
-        this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000;
-        this.maxCacheSize = config.maxCacheSize ?? 1000;
-        this.rateLimiter = {
-            maxRequests: config.rateLimiter?.maxRequests ?? 100,
-            windowMs: config.rateLimiter?.windowMs ?? 60000,
-            requests: [],
-        };
+  /**
+   * Creates a new TestRail API client
+   * 
+   * @param config - Configuration options for the client
+   * @throws {TestRailValidationError} When configuration is invalid
+   */
+  constructor(config: TestRailConfig) {
+    this.validateConfig(config);
+    this.baseUrl = config.baseUrl.replace(/\/$/, '');
+    this.auth = base64Encode(`${config.email}:${config.apiKey}`);
+    this.timeout = config.timeout ?? 30000; // 30 seconds default
+    this.maxRetries = config.maxRetries ?? 3;
+    this.enableCache = config.enableCache ?? true;
+    this.cacheTtl = config.cacheTtl ?? 300000; // 5 minutes default
+    this.cacheCleanupInterval = config.cacheCleanupInterval ?? 60000; // 1 minute default
+    this.maxCacheSize = config.maxCacheSize ?? 1000;
+    this.rateLimiter = {
+      maxRequests: config.rateLimiter?.maxRequests ?? 100,
+      windowMs: config.rateLimiter?.windowMs ?? 60000, // 1 minute
+      requests: [],
+    };
+    
+    // Register this instance for automatic cleanup
+    activeClients.add(this);
+    registerProcessHandlers();
+    
+    // Start periodic cache cleanup if enabled
+    if (this.enableCache && this.cacheCleanupInterval > 0) {
+      this.startCacheCleanup();
+    }
+  }
 
-        // Register this instance for automatic cleanup
-        activeClients.add(this);
-        registerProcessHandlers();
-
-        // Start periodic cache cleanup if enabled
-        if (this.enableCache && this.cacheCleanupInterval > 0) {
-            this.startCacheCleanup();
-        }
+  /**
+   * Validates the TestRail configuration
+   * 
+   * @param config - Configuration to validate
+   * @throws {TestRailValidationError} When configuration is invalid
+   */
+  private validateConfig(config: TestRailConfig): void {
+    if (!config.baseUrl || typeof config.baseUrl !== 'string') {
+      throw new TestRailValidationError('baseUrl is required and must be a string');
     }
 
-    /**
-     * Validates the TestRail configuration
-     *
-     * @param config - Configuration to validate
-     * @throws {TestRailValidationError} When configuration is invalid
-     */
-    private validateConfig(config: TestRailConfig): void {
-        if (!config.baseUrl || typeof config.baseUrl !== 'string') {
-            throw new TestRailValidationError('baseUrl is required and must be a string');
-        }
-
-        if (!config.email || typeof config.email !== 'string') {
-            throw new TestRailValidationError('email is required and must be a string');
-        }
-
-        if (!config.apiKey || typeof config.apiKey !== 'string') {
-            throw new TestRailValidationError('apiKey is required and must be a string');
-        }
-
-        // Validate URL format
-        try {
-            const url = new URL(config.baseUrl);
-            if (!['http:', 'https:'].includes(url.protocol)) {
-                throw new TestRailValidationError('baseUrl must use http or https protocol');
-            }
-
-            if (url.protocol === 'http:') {
-                // eslint-disable-next-line no-console
-                console.warn(
-                    'Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.',
-                );
-            }
-        } catch {
-            throw new TestRailValidationError('baseUrl must be a valid URL');
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(config.email)) {
-            throw new TestRailValidationError('email must be a valid email address');
-        }
-
-        // Validate timeout if provided
-        if (config.timeout !== undefined) {
-            if (typeof config.timeout !== 'number' || config.timeout <= 0 || config.timeout > MAX_TIMEOUT_MS) {
-                throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
-            }
-        }
-
-        // Validate maxRetries if provided
-        if (config.maxRetries !== undefined) {
-            if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
-                throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
-            }
-        }
-
-        // Validate maxCacheSize if provided
-        if (config.maxCacheSize !== undefined) {
-            if (
-                typeof config.maxCacheSize !== 'number' ||
-                !Number.isInteger(config.maxCacheSize) ||
-                config.maxCacheSize < 0
-            ) {
-                throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
-            }
-        }
+    if (!config.email || typeof config.email !== 'string') {
+      throw new TestRailValidationError('email is required and must be a string');
     }
 
-    private getRetryDelay(retryCount: number): number {
-        return Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
+    if (!config.apiKey || typeof config.apiKey !== 'string') {
+      throw new TestRailValidationError('apiKey is required and must be a string');
     }
 
-    /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
-    private checkRateLimit(): void {
-        const now = Date.now();
-        const windowStart = now - this.rateLimiter.windowMs;
-
-        // Clean old requests outside the window
-        this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
-
-        if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
-            const oldestRequest = Math.min(...this.rateLimiter.requests);
-            const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
-            throw new TestRailApiError(
-                `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
-            );
-        }
-
-        this.rateLimiter.requests.push(now);
+    // Validate URL format
+    try {
+      const url = new URL(config.baseUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new TestRailValidationError('baseUrl must use http or https protocol');
+      }
+      
+      if (url.protocol === 'http:') {
+        // eslint-disable-next-line no-console
+        console.warn('Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.');
+      }
+    } catch {
+      throw new TestRailValidationError('baseUrl must be a valid URL');
     }
 
-    /**
-     * Validates that an ID is a positive integer
-     *
-     * @param id - The ID to validate
-     * @param name - The name of the ID parameter (for error message)
-     * @throws {TestRailValidationError} When ID is invalid
-     */
-    private validateId(id: number, name: string): void {
-        if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
-            throw new TestRailValidationError(`${name} must be a positive integer`);
-        }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(config.email)) {
+      throw new TestRailValidationError('email must be a valid email address');
     }
 
-    private getCachedData<T>(cacheKey: string): T | undefined {
-        if (!this.enableCache) {
-            return undefined;
-        }
-
-        const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
-        if (entry !== undefined && entry.expiry > Date.now()) {
-            // Move to end to mark as recently used (LRU behavior)
-            this.cache.delete(cacheKey);
-            this.cache.set(cacheKey, entry);
-            return entry.data;
-        }
-
-        // Clean expired entry
-        if (entry !== undefined) {
-            this.cache.delete(cacheKey);
-        }
-
-        return undefined;
+    // Validate timeout if provided
+    if (config.timeout !== undefined) {
+      if (
+        typeof config.timeout !== 'number' ||
+        config.timeout <= 0 ||
+        config.timeout > MAX_TIMEOUT_MS
+      ) {
+        throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
+      }
     }
 
-    private setCachedData<T>(cacheKey: string, data: T): void {
-        if (!this.enableCache) {
-            return;
-        }
-
-        // Enforce cache size limit if not zero
-        if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
-            // Remove the oldest entry (Map maintains insertion order)
-            const oldestKey = this.cache.keys().next().value;
-            if (oldestKey !== undefined) {
-                this.cache.delete(oldestKey);
-            }
-        }
-
-        this.cache.set(cacheKey, {
-            data,
-            expiry: Date.now() + this.cacheTtl,
-        });
+    // Validate maxRetries if provided
+    if (config.maxRetries !== undefined) {
+      if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
+        throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
+      }
     }
 
-    /**
-     * Clears the entire cache
-     */
-    public clearCache(): void {
-        this.cache.clear();
+    // Validate maxCacheSize if provided
+    if (config.maxCacheSize !== undefined) {
+      if (
+        typeof config.maxCacheSize !== 'number' ||
+        !Number.isInteger(config.maxCacheSize) ||
+        config.maxCacheSize < 0
+      ) {
+        throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
+      }
+    }
+  }
+
+  /**
+   * Calculates the delay for the next retry attempt using exponential backoff
+   * 
+   * @param retryCount - Current retry attempt
+   * @returns Delay in milliseconds
+   */
+  private getRetryDelay(retryCount: number): number {
+    return Math.min(
+      BASE_RETRY_DELAY_MS * Math.pow(2, retryCount),
+      MAX_RETRY_DELAY_MS
+    );
+  }
+
+  /**
+   * Parses the `Retry-After` response header and returns the wait time in milliseconds.
+   * Supports both integer (seconds) and HTTP-date formats.
+   * Returns null if the header is absent or cannot be parsed.
+   * 
+   * @param response - The HTTP response containing the header
+   * @returns Wait time in milliseconds, or null if header is absent/invalid
+   */
+  private parseRetryAfterMs(response: Response): number | null {
+    const retryAfter = response.headers?.get('Retry-After');
+    if (retryAfter === null || retryAfter === undefined || retryAfter === '') return null;
+
+    const trimmedRetryAfter = retryAfter.trim();
+
+    // Try integer seconds format first (strict digits-only)
+    if (/^\d+$/.test(trimmedRetryAfter)) {
+      const seconds = Number(trimmedRetryAfter);
+      if (
+        Number.isFinite(seconds) &&
+        seconds >= 0 &&
+        seconds <= Number.MAX_SAFE_INTEGER / 1000
+      ) {
+        return Math.min(Math.round(seconds * 1000), MAX_TIMER_DELAY_MS);
+      }
+
+      return null;
     }
 
-    private startCacheCleanup(): void {
-        this.cacheCleanupTimer = setInterval(() => {
-            this.cleanupExpiredCache();
-        }, this.cacheCleanupInterval);
-
-        // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
-        // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
-        // compatibility with non-Node.js environments where unref may not exist.
-        this.cacheCleanupTimer.unref?.();
+    // Try HTTP-date format
+    const retryDate = new Date(trimmedRetryAfter).getTime();
+    if (!isNaN(retryDate)) {
+      const delayMs = retryDate - Date.now();
+      return Math.min(delayMs > 0 ? delayMs : 0, MAX_TIMER_DELAY_MS);
     }
 
-    private stopCacheCleanup(): void {
-        if (this.cacheCleanupTimer !== undefined) {
-            clearInterval(this.cacheCleanupTimer);
-            this.cacheCleanupTimer = undefined;
-        }
+    return null;
+  }
+
+  /**
+   * Checks and applies rate limiting
+   * 
+   * Our rate limiter uses a sliding window approach. We keep track of the timestamps 
+   * of all requests made within the current window. If the number of requests exceeds 
+   * the limit, we prevent further requests until the oldest request in the window expires.
+   * 
+   * @throws {TestRailApiError} When rate limit is exceeded
+   */
+  private checkRateLimit(): void {
+    const now = Date.now();
+    const windowStart = now - this.rateLimiter.windowMs;
+    
+    // Clean old requests outside the window
+    this.rateLimiter.requests = this.rateLimiter.requests.filter(time => time > windowStart);
+    
+    if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
+      const oldestRequest = Math.min(...this.rateLimiter.requests);
+      const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
+      throw new TestRailApiError(
+        `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`
+      );
+    }
+    
+    this.rateLimiter.requests.push(now);
+  }
+
+  /**
+   * Validates that an ID is a positive integer
+   * 
+   * @param id - The ID to validate
+   * @param name - The name of the ID parameter (for error message)
+   * @throws {TestRailValidationError} When ID is invalid
+   */
+  private validateId(id: number, name: string): void {
+    if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+      throw new TestRailValidationError(`${name} must be a positive integer`);
+    }
+  }
+
+  /**
+   * Gets cached data if available and not expired
+   * 
+   * @param cacheKey - Cache key
+   * @returns Cached data or undefined
+   */
+  private getCachedData<T>(cacheKey: string): T | undefined {
+    if (!this.enableCache) {
+      return undefined;
+    }
+    
+    const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
+    if (entry !== undefined && entry.expiry > Date.now()) {
+      // Move to end to mark as recently used (LRU behavior)
+      this.cache.delete(cacheKey);
+      this.cache.set(cacheKey, entry);
+      return entry.data;
+    }
+    
+    // Clean expired entry
+    if (entry !== undefined) {
+      this.cache.delete(cacheKey);
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Sets cached data with expiration
+   * 
+   * @param cacheKey - Cache key
+   * @param data - Data to cache
+   */
+  private setCachedData<T>(cacheKey: string, data: T): void {
+    if (!this.enableCache) {
+      return;
     }
 
-    private cleanupExpiredCache(): void {
-        const now = Date.now();
+    // Enforce cache size limit if not zero
+    if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
+      // Remove the oldest entry (Map maintains insertion order)
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
+    }
+    
+    this.cache.set(cacheKey, {
+      data,
+      expiry: Date.now() + this.cacheTtl,
+    });
+  }
 
-        // Collect keys of expired entries first to avoid mutating the Map
-        // while iterating over its live iterator.
-        const keysToDelete: string[] = [];
-        for (const [key, entry] of this.cache.entries()) {
-            if (entry.expiry <= now) {
-                keysToDelete.push(key);
-            }
-        }
+  /**
+   * Clears the entire cache
+   */
+  public clearCache(): void {
+    this.cache.clear();
+  }
 
-        // Delete the expired entries in a separate pass
-        for (const key of keysToDelete) {
-            this.cache.delete(key);
-        }
+  /**
+   * Starts periodic cache cleanup to remove expired entries
+   * 
+   * The cleanup timer is "unreferenced" in Node.js environments to prevent it 
+   * from keeping the process alive when all other work is done.
+   */
+  private startCacheCleanup(): void {
+    this.cacheCleanupTimer = setInterval(() => {
+      this.cleanupExpiredCache();
+    }, this.cacheCleanupInterval);
+    
+    // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
+    // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
+    // compatibility with non-Node.js environments where unref may not exist.
+    this.cacheCleanupTimer.unref?.();
+  }
+
+  /**
+   * Stops periodic cache cleanup
+   */
+  private stopCacheCleanup(): void {
+    if (this.cacheCleanupTimer !== undefined) {
+      clearInterval(this.cacheCleanupTimer);
+      this.cacheCleanupTimer = undefined;
+    }
+  }
+
+  /**
+   * Removes expired entries from cache
+   */
+  private cleanupExpiredCache(): void {
+    const now = Date.now();
+    
+    // Collect keys of expired entries first to avoid mutating the Map
+    // while iterating over its live iterator.
+    const keysToDelete: string[] = [];
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.expiry <= now) {
+        keysToDelete.push(key);
+      }
     }
 
-    /**
-     * Cleanup resources when client is no longer needed.
-     * This method is called automatically on process exit, but can also be called manually
-     * for explicit resource cleanup (e.g., in tests or when the client is no longer needed).
-     * It's safe to call this method multiple times.
-     */
-    public destroy(): void {
-        // Prevent duplicate cleanup
-        if (this.isDestroyed) {
-            return;
-        }
+    // Delete the expired entries in a separate pass
+    for (const key of keysToDelete) {
+      this.cache.delete(key);
+    }
+  }
 
-        this.isDestroyed = true;
-        this.stopCacheCleanup();
+  /**
+   * Cleanup resources when client is no longer needed.
+   * This method is called automatically on process exit, but can also be called manually
+   * for explicit resource cleanup (e.g., in tests or when the client is no longer needed).
+   * It's safe to call this method multiple times.
+   */
+  public destroy(): void {
+    // Prevent duplicate cleanup
+    if (this.isDestroyed) {
+      return;
+    }
+    
+    this.isDestroyed = true;
+    this.stopCacheCleanup();
+    this.clearCache();
+    
+    // Remove this instance from the active clients set
+    activeClients.delete(this);
+  }
+
+  /**
+   * Makes an HTTP request to the TestRail API with retry logic
+   * 
+   * @param method - HTTP method
+   * @param endpoint - API endpoint
+   * @param data - Optional request body data
+   * @param retryCount - Current retry attempt (internal use)
+   * @param skipCache - Skip cache lookup and storage
+   * @returns Promise with the response data
+   * @throws {TestRailApiError} When the API request fails
+   */
+  private async request<T>(
+    method: string,
+    endpoint: string,
+    data?: unknown,
+    retryCount = 0,
+    skipCache = false
+  ): Promise<T> {
+    // Prevent use after destroy
+    if (this.isDestroyed) {
+      throw new Error('Cannot use TestRailClient after destroy() has been called');
+    }
+    
+    // Check cache for GET requests
+    if (method === 'GET' && !skipCache) {
+      const cacheKey = `${method}:${endpoint}`;
+      const cachedData = this.getCachedData<T>(cacheKey);
+      if (cachedData !== undefined) {
+        return cachedData;
+      }
+    }
+    
+    // Apply rate limiting
+    this.checkRateLimit();
+
+    const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
+    const headers: Record<string, string> = {
+      'Authorization': `Basic ${this.auth}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    const options: RequestInit = {
+      method,
+      headers,
+      signal: controller.signal,
+    };
+
+    if (data !== undefined) {
+      options.body = JSON.stringify(data);
+    }
+
+    try {
+      // Make the actual network request
+      const response: Response = await fetch(url, options);
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        
+        // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
+        // For 429, respect the Retry-After header if present; otherwise use exponential backoff.
+        if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
+          const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+          const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
+          await sleep(delay);
+          return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+        }
+        
+        throw new TestRailApiError(
+          `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
+          response.status,
+          response.statusText,
+          errorText
+        );
+      }
+
+      // Invalidate cache after mutating requests to avoid stale GET results.
+      // Done before the empty-body check so empty responses (e.g. delete endpoints)
+      // also clear the cache.
+      if (method !== 'GET') {
         this.clearCache();
+      }
 
-        // Remove this instance from the active clients set
-        activeClients.delete(this);
-    }
+      const responseText = await response.text();
+      if (!responseText) {
+        return {} as T;
+      }
 
-    /**
-     * Makes an HTTP request to the TestRail API with retry logic
-     *
-     * @param method - HTTP method
-     * @param endpoint - API endpoint
-     * @param data - Optional request body data
-     * @param retryCount - Current retry attempt (internal use)
-     * @param skipCache - Skip cache lookup and storage
-     * @returns Promise with the response data
-     * @throws {TestRailApiError} When the API request fails
-     */
-    private async request<T>(
-        method: string,
-        endpoint: string,
-        data?: unknown,
-        retryCount = 0,
-        skipCache = false,
-    ): Promise<T> {
-        // Prevent use after destroy
-        if (this.isDestroyed) {
-            throw new Error('Cannot use TestRailClient after destroy() has been called');
-        }
-
-        // Check cache for GET requests
+      try {
+        const result = JSON.parse(responseText) as T;
+        
+        // Cache successful GET responses
         if (method === 'GET' && !skipCache) {
-            const cacheKey = `${method}:${endpoint}`;
-            const cachedData = this.getCachedData<T>(cacheKey);
-            if (cachedData !== undefined) {
-                return cachedData;
-            }
+          const cacheKey = `${method}:${endpoint}`;
+          this.setCachedData(cacheKey, result);
         }
-
-        // Apply rate limiting
-        this.checkRateLimit();
-
-        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
-        const headers: Record<string, string> = {
-            Authorization: `Basic ${this.auth}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'TestRail API Client TypeScript/1.0.0',
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-        const options: RequestInit = {
-            method,
-            headers,
-            signal: controller.signal,
-        };
-
-        if (data !== undefined) {
-            options.body = JSON.stringify(data);
-        }
-
-        try {
-            // Make the actual network request
-            const response: Response = await fetch(url, options);
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
-
-                // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-                // We use exponential backoff to avoid overwhelming the server during high load.
-                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    await sleep(this.getRetryDelay(retryCount));
-                    return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-                }
-
-                throw new TestRailApiError(
-                    `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
-                    response.status,
-                    response.statusText,
-                    errorText,
-                );
-            }
-
-            // Invalidate cache after mutating requests to avoid stale GET results.
-            // Done before the empty-body check so empty responses (e.g. delete endpoints)
-            // also clear the cache.
-            if (method !== 'GET') {
-                this.clearCache();
-            }
-
-            const responseText = await response.text();
-            if (!responseText) {
-                return {} as T;
-            }
-
-            try {
-                const result = JSON.parse(responseText) as T;
-
-                // Cache successful GET responses
-                if (method === 'GET' && !skipCache) {
-                    const cacheKey = `${method}:${endpoint}`;
-                    this.setCachedData(cacheKey, result);
-                }
-
-                return result;
-            } catch {
-                throw new TestRailApiError('Invalid JSON response from TestRail API');
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            if (error instanceof TestRailApiError) {
-                throw error;
-            }
-
-            const isAbortError = (error as Error).name === 'AbortError';
-
-            // Don't retry timeout errors to avoid excessive wait times
-            if (isAbortError) {
-                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
-            }
-
-            // Retry on network errors up to the maximum number of retries
-            if (retryCount < this.maxRetries) {
-                await sleep(this.getRetryDelay(retryCount));
-                return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-            }
-
-            throw new TestRailApiError(
-                `Network error: ${(error as Error).message}`,
-                undefined,
-                undefined,
-                (error as Error).message,
-            );
-        }
+        
+        return result;
+      } catch {
+        throw new TestRailApiError('Invalid JSON response from TestRail API');
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof TestRailApiError) {
+        throw error;
+      }
+      
+      const isAbortError = (error as Error).name === 'AbortError';
+      
+      // Don't retry timeout errors to avoid excessive wait times
+      if (isAbortError) {
+        throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+      }
+      
+      // Retry on network errors up to the maximum number of retries
+      if (retryCount < this.maxRetries) {
+        await sleep(this.getRetryDelay(retryCount));
+        return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+      }
+      
+      throw new TestRailApiError(
+        `Network error: ${(error as Error).message}`,
+        undefined,
+        undefined,
+        (error as Error).message
+      );
     }
+  }
 
-    // Projects
+  // Projects
 
-    /**
-     * Get a project by ID
-     *
-     * @param projectId - The ID of the project
-     * @returns The project
-     * @throws {TestRailValidationError} When projectId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async getProject(projectId: number): Promise<Project> {
-        this.validateId(projectId, 'projectId');
-        return this.request<Project>('GET', `get_project/${projectId}`);
+  /**
+   * Get a project by ID
+   * 
+   * @param projectId - The ID of the project
+   * @returns The project
+   * @throws {TestRailValidationError} When projectId is invalid
+   * @throws {TestRailApiError} When the API request fails
+   */
+  async getProject(projectId: number): Promise<Project> {
+    this.validateId(projectId, 'projectId');
+    return this.request<Project>('GET', `get_project/${projectId}`);
+  }
+
+  /**
+   * Get all projects
+   * 
+   * @returns Array of projects
+   */
+  async getProjects(): Promise<Project[]> {
+    const response = await this.request<{ projects: Project[] }>('GET', 'get_projects');
+    return response.projects ?? [];
+  }
+
+  // Suites
+
+  /**
+   * Get a suite by ID
+   * 
+   * @param suiteId - The ID of the suite
+   * @returns The suite
+   * @throws {TestRailValidationError} When suiteId is invalid
+   * @throws {TestRailApiError} When the API request fails
+   */
+  async getSuite(suiteId: number): Promise<Suite> {
+    this.validateId(suiteId, 'suiteId');
+    return this.request<Suite>('GET', `get_suite/${suiteId}`);
+  }
+
+  /**
+   * Get all suites for a project
+   * 
+   * @param projectId - The ID of the project
+   * @returns Array of suites
+   */
+  async getSuites(projectId: number): Promise<Suite[]> {
+    this.validateId(projectId, 'projectId');
+    return this.request<Suite[]>('GET', `get_suites/${projectId}`);
+  }
+
+  // Sections
+
+  /**
+   * Get a section by ID
+   * 
+   * @param sectionId - The ID of the section
+   * @returns The section
+   */
+  async getSection(sectionId: number): Promise<Section> {
+    this.validateId(sectionId, 'sectionId');
+    return this.request<Section>('GET', `get_section/${sectionId}`);
+  }
+
+  /**
+   * Get all sections for a project and suite
+   * 
+   * @param projectId - The ID of the project
+   * @param suiteId - Optional ID of the suite to filter by
+   * @returns Array of sections
+   */
+  async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
+    this.validateId(projectId, 'projectId');
+    if (suiteId !== undefined) {
+      this.validateId(suiteId, 'suiteId');
     }
-
-    /**
-     * Get all projects
-     *
-     * @returns Array of projects
-     */
-    async getProjects(): Promise<Project[]> {
-        const response = await this.request<{ projects: Project[] }>('GET', 'get_projects');
-        return response.projects ?? [];
+    let endpoint = `get_sections/${projectId}`;
+    if (suiteId !== undefined) {
+      endpoint += `&suite_id=${suiteId}`;
     }
+    const response = await this.request<{ sections: Section[] }>('GET', endpoint);
+    return response.sections ?? [];
+  }
 
-    // Suites
+  // Cases
 
-    /**
-     * Get a suite by ID
-     *
-     * @param suiteId - The ID of the suite
-     * @returns The suite
-     * @throws {TestRailValidationError} When suiteId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async getSuite(suiteId: number): Promise<Suite> {
-        this.validateId(suiteId, 'suiteId');
-        return this.request<Suite>('GET', `get_suite/${suiteId}`);
+  /**
+   * Get a case by ID
+   * 
+   * @param caseId - The ID of the case
+   * @returns The case
+   * @throws {TestRailValidationError} When caseId is invalid
+   * @throws {TestRailApiError} When the API request fails
+   */
+  async getCase(caseId: number): Promise<Case> {
+    this.validateId(caseId, 'caseId');
+    return this.request<Case>('GET', `get_case/${caseId}`);
+  }
+
+  /**
+   * Get all cases for a project and suite
+   * 
+   * @param projectId - The ID of the project
+   * @param suiteId - Optional ID of the suite to filter by
+   * @param sectionId - Optional section ID to filter by
+   * @returns Array of cases
+   */
+  async getCases(projectId: number, suiteId?: number, sectionId?: number): Promise<Case[]> {
+    this.validateId(projectId, 'projectId');
+    if (suiteId !== undefined) {
+      this.validateId(suiteId, 'suiteId');
     }
-
-    /**
-     * Get all suites for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of suites
-     */
-    async getSuites(projectId: number): Promise<Suite[]> {
-        this.validateId(projectId, 'projectId');
-        return this.request<Suite[]>('GET', `get_suites/${projectId}`);
+    if (sectionId !== undefined) {
+      this.validateId(sectionId, 'sectionId');
     }
-
-    // Sections
-
-    /**
-     * Get a section by ID
-     *
-     * @param sectionId - The ID of the section
-     * @returns The section
-     */
-    async getSection(sectionId: number): Promise<Section> {
-        this.validateId(sectionId, 'sectionId');
-        return this.request<Section>('GET', `get_section/${sectionId}`);
+    let endpoint = `get_cases/${projectId}`;
+    const params: string[] = [];
+    
+    if (suiteId !== undefined) {
+      params.push(`suite_id=${suiteId}`);
     }
-
-    /**
-     * Get all sections for a project and suite
-     *
-     * @param projectId - The ID of the project
-     * @param suiteId - Optional ID of the suite to filter by
-     * @returns Array of sections
-     */
-    async getSections(projectId: number, suiteId?: number): Promise<Section[]> {
-        this.validateId(projectId, 'projectId');
-        if (suiteId !== undefined) {
-            this.validateId(suiteId, 'suiteId');
-        }
-        let endpoint = `get_sections/${projectId}`;
-        if (suiteId !== undefined) {
-            endpoint += `&suite_id=${suiteId}`;
-        }
-        const response = await this.request<{ sections: Section[] }>('GET', endpoint);
-        return response.sections ?? [];
+    
+    if (sectionId !== undefined) {
+      params.push(`section_id=${sectionId}`);
     }
-
-    // Cases
-
-    /**
-     * Get a case by ID
-     *
-     * @param caseId - The ID of the case
-     * @returns The case
-     * @throws {TestRailValidationError} When caseId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async getCase(caseId: number): Promise<Case> {
-        this.validateId(caseId, 'caseId');
-        return this.request<Case>('GET', `get_case/${caseId}`);
+    
+    if (params.length > 0) {
+      endpoint += `&${params.join('&')}`;
     }
+    
+    const response = await this.request<{ cases: Case[] }>('GET', endpoint);
+    return response.cases ?? [];
+  }
 
-    /**
-     * Get all cases for a project and suite
-     *
-     * @param projectId - The ID of the project
-     * @param suiteId - Optional ID of the suite to filter by
-     * @param sectionId - Optional section ID to filter by
-     * @returns Array of cases
-     */
-    async getCases(projectId: number, suiteId?: number, sectionId?: number): Promise<Case[]> {
-        this.validateId(projectId, 'projectId');
-        if (suiteId !== undefined) {
-            this.validateId(suiteId, 'suiteId');
-        }
-        if (sectionId !== undefined) {
-            this.validateId(sectionId, 'sectionId');
-        }
-        let endpoint = `get_cases/${projectId}`;
-        const params: string[] = [];
+  /**
+   * Add a new case
+   * 
+   * @param sectionId - The ID of the section
+   * @param payload - The case data
+   * @returns The created case
+   */
+  async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
+    this.validateId(sectionId, 'sectionId');
+    return this.request<Case>('POST', `add_case/${sectionId}`, payload);
+  }
 
-        if (suiteId !== undefined) {
-            params.push(`suite_id=${suiteId}`);
-        }
+  /**
+   * Update an existing case
+   * 
+   * @param caseId - The ID of the case
+   * @param payload - The case data to update
+   * @returns The updated case
+   * @throws {TestRailValidationError} When caseId is invalid
+   * @throws {TestRailApiError} When the API request fails
+   */
+  async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
+    this.validateId(caseId, 'caseId');
+    return this.request<Case>('POST', `update_case/${caseId}`, payload);
+  }
 
-        if (sectionId !== undefined) {
-            params.push(`section_id=${sectionId}`);
-        }
+  /**
+   * Delete a case
+   * 
+   * @param caseId - The ID of the case
+   */
+  async deleteCase(caseId: number): Promise<void> {
+    this.validateId(caseId, 'caseId');
+    await this.request<void>('POST', `delete_case/${caseId}`);
+  }
 
-        if (params.length > 0) {
-            endpoint += `&${params.join('&')}`;
-        }
+  // Plans
 
-        const response = await this.request<{ cases: Case[] }>('GET', endpoint);
-        return response.cases ?? [];
+  /**
+   * Get a plan by ID
+   * 
+   * @param planId - The ID of the plan
+   * @returns The plan
+   */
+  async getPlan(planId: number): Promise<Plan> {
+    this.validateId(planId, 'planId');
+    return this.request<Plan>('GET', `get_plan/${planId}`);
+  }
+
+  /**
+   * Get all plans for a project
+   * 
+   * @param projectId - The ID of the project
+   * @returns Array of plans
+   */
+  async getPlans(projectId: number): Promise<Plan[]> {
+    this.validateId(projectId, 'projectId');
+    const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
+    return response.plans ?? [];
+  }
+
+  /**
+   * Add a new plan
+   * 
+   * @param projectId - The ID of the project
+   * @param payload - The plan data
+   * @returns The created plan
+   */
+  async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
+    this.validateId(projectId, 'projectId');
+    return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
+  }
+
+  /**
+   * Close a plan
+   * 
+   * @param planId - The ID of the plan
+   * @returns The closed plan
+   */
+  async closePlan(planId: number): Promise<Plan> {
+    this.validateId(planId, 'planId');
+    return this.request<Plan>('POST', `close_plan/${planId}`);
+  }
+
+  /**
+   * Delete a plan
+   * 
+   * @param planId - The ID of the plan
+   */
+  async deletePlan(planId: number): Promise<void> {
+    this.validateId(planId, 'planId');
+    await this.request<void>('POST', `delete_plan/${planId}`);
+  }
+
+  // Runs
+
+  /**
+   * Get a run by ID
+   * 
+   * @param runId - The ID of the run
+   * @returns The run
+   */
+  async getRun(runId: number): Promise<Run> {
+    this.validateId(runId, 'runId');
+    return this.request<Run>('GET', `get_run/${runId}`);
+  }
+
+  /**
+   * Get all runs for a project
+   * 
+   * @param projectId - The ID of the project
+   * @returns Array of runs
+   */
+  async getRuns(projectId: number): Promise<Run[]> {
+    this.validateId(projectId, 'projectId');
+    const response = await this.request<{ runs: Run[] }>('GET', `get_runs/${projectId}`);
+    return response.runs ?? [];
+  }
+
+  /**
+   * Add a new run
+   * 
+   * @param projectId - The ID of the project
+   * @param payload - The run data
+   * @returns The created run
+   */
+  async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
+    this.validateId(projectId, 'projectId');
+    return this.request<Run>('POST', `add_run/${projectId}`, payload);
+  }
+
+  /**
+   * Close a run
+   * 
+   * @param runId - The ID of the run
+   * @returns The closed run
+   */
+  async closeRun(runId: number): Promise<Run> {
+    this.validateId(runId, 'runId');
+    return this.request<Run>('POST', `close_run/${runId}`);
+  }
+
+  /**
+   * Delete a run
+   * 
+   * @param runId - The ID of the run
+   */
+  async deleteRun(runId: number): Promise<void> {
+    this.validateId(runId, 'runId');
+    await this.request<void>('POST', `delete_run/${runId}`);
+  }
+
+  // Tests
+
+  /**
+   * Get a test by ID
+   * 
+   * @param testId - The ID of the test
+   * @returns The test
+   */
+  async getTest(testId: number): Promise<Test> {
+    this.validateId(testId, 'testId');
+    return this.request<Test>('GET', `get_test/${testId}`);
+  }
+
+  /**
+   * Get all tests for a run
+   * 
+   * @param runId - The ID of the run
+   * @returns Array of tests
+   */
+  async getTests(runId: number): Promise<Test[]> {
+    this.validateId(runId, 'runId');
+    const response = await this.request<{ tests: Test[] }>('GET', `get_tests/${runId}`);
+    return response.tests ?? [];
+  }
+
+  // Results
+
+  /**
+   * Get results for a test
+   * 
+   * @param testId - The ID of the test
+   * @returns Array of results
+   */
+  async getResults(testId: number): Promise<Result[]> {
+    this.validateId(testId, 'testId');
+    const response = await this.request<{ results: Result[] }>('GET', `get_results/${testId}`);
+    return response.results ?? [];
+  }
+
+  /**
+   * Get results for a run and case
+   * 
+   * @param runId - The ID of the run
+   * @param caseId - The ID of the case
+   * @returns Array of results
+   */
+  async getResultsForCase(runId: number, caseId: number): Promise<Result[]> {
+    this.validateId(runId, 'runId');
+    this.validateId(caseId, 'caseId');
+    const response = await this.request<{ results: Result[] }>(
+      'GET',
+      `get_results_for_case/${runId}/${caseId}`
+    );
+    return response.results ?? [];
+  }
+
+  /**
+   * Get results for a run
+   * 
+   * @param runId - The ID of the run
+   * @returns Array of results
+   */
+  async getResultsForRun(runId: number): Promise<Result[]> {
+    this.validateId(runId, 'runId');
+    const response = await this.request<{ results: Result[] }>(
+      'GET',
+      `get_results_for_run/${runId}`
+    );
+    return response.results ?? [];
+  }
+
+  /**
+   * Add a result for a test
+   * 
+   * @param testId - The ID of the test
+   * @param payload - The result data
+   * @returns The created result
+   */
+  async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
+    this.validateId(testId, 'testId');
+    return this.request<Result>('POST', `add_result/${testId}`, payload);
+  }
+
+  /**
+   * Add a result for a case in a run
+   * 
+   * @param runId - The ID of the run
+   * @param caseId - The ID of the case
+   * @param payload - The result data
+   * @returns The created result
+   */
+  async addResultForCase(
+    runId: number,
+    caseId: number,
+    payload: AddResultPayload
+  ): Promise<Result> {
+    this.validateId(runId, 'runId');
+    this.validateId(caseId, 'caseId');
+    return this.request<Result>('POST', `add_result_for_case/${runId}/${caseId}`, payload);
+  }
+
+  /**
+   * Add multiple results for cases in a run
+   * 
+   * @param runId - The ID of the run
+   * @param payload - The results data
+   * @returns Array of created results
+   */
+  async addResultsForCases(
+    runId: number,
+    payload: AddResultsForCasesPayload
+  ): Promise<Result[]> {
+    this.validateId(runId, 'runId');
+    return this.request<Result[]>('POST', `add_results_for_cases/${runId}`, payload);
+  }
+
+  // Milestones
+
+  /**
+   * Get a milestone by ID
+   * 
+   * @param milestoneId - The ID of the milestone
+   * @returns The milestone
+   */
+  async getMilestone(milestoneId: number): Promise<Milestone> {
+    this.validateId(milestoneId, 'milestoneId');
+    return this.request<Milestone>('GET', `get_milestone/${milestoneId}`);
+  }
+
+  /**
+   * Get all milestones for a project
+   * 
+   * @param projectId - The ID of the project
+   * @returns Array of milestones
+   */
+  async getMilestones(projectId: number): Promise<Milestone[]> {
+    this.validateId(projectId, 'projectId');
+    const response = await this.request<{ milestones: Milestone[] }>(
+      'GET',
+      `get_milestones/${projectId}`
+    );
+    return response.milestones ?? [];
+  }
+
+  // Users
+
+  /**
+   * Get a user by ID
+   * 
+   * @param userId - The ID of the user
+   * @returns The user
+   */
+  async getUser(userId: number): Promise<User> {
+    this.validateId(userId, 'userId');
+    return this.request<User>('GET', `get_user/${userId}`);
+  }
+
+  /**
+   * Get a user by email
+   * 
+   * @param email - The email of the user
+   * @returns The user
+   * @throws {TestRailValidationError} When email format is invalid
+   * @throws {TestRailApiError} When the API request fails
+   */
+  async getUserByEmail(email: string): Promise<User> {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new TestRailValidationError('Invalid email format');
     }
+    
+    return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);
+  }
 
-    /**
-     * Add a new case
-     *
-     * @param sectionId - The ID of the section
-     * @param payload - The case data
-     * @returns The created case
-     */
-    async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
-        this.validateId(sectionId, 'sectionId');
-        return this.request<Case>('POST', `add_case/${sectionId}`, payload);
-    }
+  /**
+   * Get all users
+   * 
+   * @returns Array of users
+   */
+  async getUsers(): Promise<User[]> {
+    const response = await this.request<{ users: User[] }>('GET', 'get_users');
+    return response.users ?? [];
+  }
 
-    /**
-     * Update an existing case
-     *
-     * @param caseId - The ID of the case
-     * @param payload - The case data to update
-     * @returns The updated case
-     * @throws {TestRailValidationError} When caseId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
-        this.validateId(caseId, 'caseId');
-        return this.request<Case>('POST', `update_case/${caseId}`, payload);
-    }
+  // Statuses
 
-    /**
-     * Delete a case
-     *
-     * @param caseId - The ID of the case
-     */
-    async deleteCase(caseId: number): Promise<void> {
-        this.validateId(caseId, 'caseId');
-        await this.request<void>('POST', `delete_case/${caseId}`);
-    }
+  /**
+   * Get all statuses
+   * 
+   * @returns Array of statuses
+   */
+  async getStatuses(): Promise<Status[]> {
+    return this.request<Status[]>('GET', 'get_statuses');
+  }
 
-    // Plans
+  // Priorities
 
-    /**
-     * Get a plan by ID
-     *
-     * @param planId - The ID of the plan
-     * @returns The plan
-     */
-    async getPlan(planId: number): Promise<Plan> {
-        this.validateId(planId, 'planId');
-        return this.request<Plan>('GET', `get_plan/${planId}`);
-    }
-
-    /**
-     * Get all plans for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of plans
-     */
-    async getPlans(projectId: number): Promise<Plan[]> {
-        this.validateId(projectId, 'projectId');
-        const response = await this.request<{ plans: Plan[] }>('GET', `get_plans/${projectId}`);
-        return response.plans ?? [];
-    }
-
-    /**
-     * Add a new plan
-     *
-     * @param projectId - The ID of the project
-     * @param payload - The plan data
-     * @returns The created plan
-     */
-    async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
-        this.validateId(projectId, 'projectId');
-        return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
-    }
-
-    /**
-     * Close a plan
-     *
-     * @param planId - The ID of the plan
-     * @returns The closed plan
-     */
-    async closePlan(planId: number): Promise<Plan> {
-        this.validateId(planId, 'planId');
-        return this.request<Plan>('POST', `close_plan/${planId}`);
-    }
-
-    /**
-     * Delete a plan
-     *
-     * @param planId - The ID of the plan
-     */
-    async deletePlan(planId: number): Promise<void> {
-        this.validateId(planId, 'planId');
-        await this.request<void>('POST', `delete_plan/${planId}`);
-    }
-
-    // Runs
-
-    /**
-     * Get a run by ID
-     *
-     * @param runId - The ID of the run
-     * @returns The run
-     */
-    async getRun(runId: number): Promise<Run> {
-        this.validateId(runId, 'runId');
-        return this.request<Run>('GET', `get_run/${runId}`);
-    }
-
-    /**
-     * Get all runs for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of runs
-     */
-    async getRuns(projectId: number): Promise<Run[]> {
-        this.validateId(projectId, 'projectId');
-        const response = await this.request<{ runs: Run[] }>('GET', `get_runs/${projectId}`);
-        return response.runs ?? [];
-    }
-
-    /**
-     * Add a new run
-     *
-     * @param projectId - The ID of the project
-     * @param payload - The run data
-     * @returns The created run
-     */
-    async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
-        this.validateId(projectId, 'projectId');
-        return this.request<Run>('POST', `add_run/${projectId}`, payload);
-    }
-
-    /**
-     * Close a run
-     *
-     * @param runId - The ID of the run
-     * @returns The closed run
-     */
-    async closeRun(runId: number): Promise<Run> {
-        this.validateId(runId, 'runId');
-        return this.request<Run>('POST', `close_run/${runId}`);
-    }
-
-    /**
-     * Delete a run
-     *
-     * @param runId - The ID of the run
-     */
-    async deleteRun(runId: number): Promise<void> {
-        this.validateId(runId, 'runId');
-        await this.request<void>('POST', `delete_run/${runId}`);
-    }
-
-    // Tests
-
-    /**
-     * Get a test by ID
-     *
-     * @param testId - The ID of the test
-     * @returns The test
-     */
-    async getTest(testId: number): Promise<Test> {
-        this.validateId(testId, 'testId');
-        return this.request<Test>('GET', `get_test/${testId}`);
-    }
-
-    /**
-     * Get all tests for a run
-     *
-     * @param runId - The ID of the run
-     * @returns Array of tests
-     */
-    async getTests(runId: number): Promise<Test[]> {
-        this.validateId(runId, 'runId');
-        const response = await this.request<{ tests: Test[] }>('GET', `get_tests/${runId}`);
-        return response.tests ?? [];
-    }
-
-    // Results
-
-    /**
-     * Get results for a test
-     *
-     * @param testId - The ID of the test
-     * @returns Array of results
-     */
-    async getResults(testId: number): Promise<Result[]> {
-        this.validateId(testId, 'testId');
-        const response = await this.request<{ results: Result[] }>('GET', `get_results/${testId}`);
-        return response.results ?? [];
-    }
-
-    /**
-     * Get results for a run and case
-     *
-     * @param runId - The ID of the run
-     * @param caseId - The ID of the case
-     * @returns Array of results
-     */
-    async getResultsForCase(runId: number, caseId: number): Promise<Result[]> {
-        this.validateId(runId, 'runId');
-        this.validateId(caseId, 'caseId');
-        const response = await this.request<{ results: Result[] }>('GET', `get_results_for_case/${runId}/${caseId}`);
-        return response.results ?? [];
-    }
-
-    /**
-     * Get results for a run
-     *
-     * @param runId - The ID of the run
-     * @returns Array of results
-     */
-    async getResultsForRun(runId: number): Promise<Result[]> {
-        this.validateId(runId, 'runId');
-        const response = await this.request<{ results: Result[] }>('GET', `get_results_for_run/${runId}`);
-        return response.results ?? [];
-    }
-
-    /**
-     * Add a result for a test
-     *
-     * @param testId - The ID of the test
-     * @param payload - The result data
-     * @returns The created result
-     */
-    async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
-        this.validateId(testId, 'testId');
-        return this.request<Result>('POST', `add_result/${testId}`, payload);
-    }
-
-    /**
-     * Add a result for a case in a run
-     *
-     * @param runId - The ID of the run
-     * @param caseId - The ID of the case
-     * @param payload - The result data
-     * @returns The created result
-     */
-    async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
-        this.validateId(runId, 'runId');
-        this.validateId(caseId, 'caseId');
-        return this.request<Result>('POST', `add_result_for_case/${runId}/${caseId}`, payload);
-    }
-
-    /**
-     * Add multiple results for cases in a run
-     *
-     * @param runId - The ID of the run
-     * @param payload - The results data
-     * @returns Array of created results
-     */
-    async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
-        this.validateId(runId, 'runId');
-        return this.request<Result[]>('POST', `add_results_for_cases/${runId}`, payload);
-    }
-
-    // Milestones
-
-    /**
-     * Get a milestone by ID
-     *
-     * @param milestoneId - The ID of the milestone
-     * @returns The milestone
-     */
-    async getMilestone(milestoneId: number): Promise<Milestone> {
-        this.validateId(milestoneId, 'milestoneId');
-        return this.request<Milestone>('GET', `get_milestone/${milestoneId}`);
-    }
-
-    /**
-     * Get all milestones for a project
-     *
-     * @param projectId - The ID of the project
-     * @returns Array of milestones
-     */
-    async getMilestones(projectId: number): Promise<Milestone[]> {
-        this.validateId(projectId, 'projectId');
-        const response = await this.request<{ milestones: Milestone[] }>('GET', `get_milestones/${projectId}`);
-        return response.milestones ?? [];
-    }
-
-    // Users
-
-    /**
-     * Get a user by ID
-     *
-     * @param userId - The ID of the user
-     * @returns The user
-     */
-    async getUser(userId: number): Promise<User> {
-        this.validateId(userId, 'userId');
-        return this.request<User>('GET', `get_user/${userId}`);
-    }
-
-    /**
-     * Get a user by email
-     *
-     * @param email - The email of the user
-     * @returns The user
-     * @throws {TestRailValidationError} When email format is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async getUserByEmail(email: string): Promise<User> {
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            throw new TestRailValidationError('Invalid email format');
-        }
-
-        return this.request<User>('GET', `get_user_by_email&email=${encodeURIComponent(email)}`);
-    }
-
-    /**
-     * Get all users
-     *
-     * @returns Array of users
-     */
-    async getUsers(): Promise<User[]> {
-        const response = await this.request<{ users: User[] }>('GET', 'get_users');
-        return response.users ?? [];
-    }
-
-    // Statuses
-
-    /**
-     * Get all statuses
-     *
-     * @returns Array of statuses
-     */
-    async getStatuses(): Promise<Status[]> {
-        return this.request<Status[]>('GET', 'get_statuses');
-    }
-
-    // Priorities
-
-    /**
-     * Get all priorities
-     *
-     * @returns Array of priorities
-     */
-    async getPriorities(): Promise<Priority[]> {
-        return this.request<Priority[]>('GET', 'get_priorities');
-    }
+  /**
+   * Get all priorities
+   * 
+   * @returns Array of priorities
+   */
+  async getPriorities(): Promise<Priority[]> {
+    return this.request<Priority[]>('GET', 'get_priorities');
+  }
 }
