@@ -1060,7 +1060,11 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When caseId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToCase(caseId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+    async addAttachmentToCase(
+        caseId: number,
+        file: globalThis.Blob | Buffer | globalThis.File,
+        filename: string,
+    ): Promise<Attachment> {
         this.validateId(caseId, 'caseId');
         return this.requestMultipart<Attachment>(`add_attachment_to_case/${caseId}`, file, filename);
     }
@@ -1070,7 +1074,11 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When resultId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToResult(resultId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+    async addAttachmentToResult(
+        resultId: number,
+        file: globalThis.Blob | Buffer | globalThis.File,
+        filename: string,
+    ): Promise<Attachment> {
         this.validateId(resultId, 'resultId');
         return this.requestMultipart<Attachment>(`add_attachment_to_result/${resultId}`, file, filename);
     }
@@ -1080,7 +1088,11 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToRun(runId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+    async addAttachmentToRun(
+        runId: number,
+        file: globalThis.Blob | Buffer | globalThis.File,
+        filename: string,
+    ): Promise<Attachment> {
         this.validateId(runId, 'runId');
         return this.requestMultipart<Attachment>(`add_attachment_to_run/${runId}`, file, filename);
     }
@@ -1090,7 +1102,11 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When planId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToPlan(planId: number, file: globalThis.Blob | Buffer | globalThis.File, filename: string): Promise<Attachment> {
+    async addAttachmentToPlan(
+        planId: number,
+        file: globalThis.Blob | Buffer | globalThis.File,
+        filename: string,
+    ): Promise<Attachment> {
         this.validateId(planId, 'planId');
         return this.requestMultipart<Attachment>(`add_attachment_to_plan/${planId}`, file, filename);
     }

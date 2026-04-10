@@ -40,7 +40,6 @@ export interface TestRailConfig {
     allowPrivateHosts?: boolean;
 }
 
-
 export interface PaginatedResponse<T = unknown> {
     /** Offset of the returned page */
     offset: number;

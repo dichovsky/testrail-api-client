@@ -2096,10 +2096,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(roles));
             const result = await client.getRoles();
             expect(result).toEqual(roles);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_roles'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_roles'), expect.anything());
         });
     });
 
@@ -2111,10 +2108,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(group));
             const result = await client.getGroup(1);
             expect(result).toEqual(group);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_group/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_group/1'), expect.anything());
         });
 
         it('should throw for invalid groupId', async () => {
@@ -2124,7 +2118,10 @@ describe('TestRailClient', () => {
 
     describe('getGroups', () => {
         it('should return all groups', async () => {
-            const groups = [{ id: 1, name: 'QA Team' }, { id: 2, name: 'Dev Team' }];
+            const groups = [
+                { id: 1, name: 'QA Team' },
+                { id: 2, name: 'Dev Team' },
+            ];
             mockFetch.mockResolvedValueOnce(mockOk(groups));
             const result = await client.getGroups();
             expect(result).toEqual(groups);
@@ -2263,7 +2260,10 @@ describe('TestRailClient', () => {
     describe('getAttachment', () => {
         it('should return binary content of an attachment', async () => {
             const buffer = new ArrayBuffer(8);
-            const response = new Response(buffer, { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
+            const response = new Response(buffer, {
+                status: 200,
+                headers: { 'Content-Type': 'application/octet-stream' },
+            });
             mockFetch.mockResolvedValueOnce(response);
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
@@ -2289,7 +2289,9 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid caseId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToCase(0, blob, 'f.txt')).rejects.toThrow('caseId must be a positive integer');
+            await expect(client.addAttachmentToCase(0, blob, 'f.txt')).rejects.toThrow(
+                'caseId must be a positive integer',
+            );
         });
     });
 
@@ -2304,7 +2306,9 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid resultId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToResult(-1, blob, 'f.txt')).rejects.toThrow('resultId must be a positive integer');
+            await expect(client.addAttachmentToResult(-1, blob, 'f.txt')).rejects.toThrow(
+                'resultId must be a positive integer',
+            );
         });
     });
 
@@ -2319,7 +2323,9 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid runId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToRun(0, blob, 'f.txt')).rejects.toThrow('runId must be a positive integer');
+            await expect(client.addAttachmentToRun(0, blob, 'f.txt')).rejects.toThrow(
+                'runId must be a positive integer',
+            );
         });
     });
 
@@ -2334,7 +2340,9 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid planId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToPlan(0, blob, 'f.txt')).rejects.toThrow('planId must be a positive integer');
+            await expect(client.addAttachmentToPlan(0, blob, 'f.txt')).rejects.toThrow(
+                'planId must be a positive integer',
+            );
         });
     });
 
@@ -2353,12 +2361,16 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid planId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToPlanEntry(0, 1, blob, 'f.txt')).rejects.toThrow('planId must be a positive integer');
+            await expect(client.addAttachmentToPlanEntry(0, 1, blob, 'f.txt')).rejects.toThrow(
+                'planId must be a positive integer',
+            );
         });
 
         it('should throw for invalid entryId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToPlanEntry(1, 0, blob, 'f.txt')).rejects.toThrow('entryId must be a positive integer');
+            await expect(client.addAttachmentToPlanEntry(1, 0, blob, 'f.txt')).rejects.toThrow(
+                'entryId must be a positive integer',
+            );
         });
     });
 
@@ -2385,10 +2397,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(sharedStep));
             const result = await client.getSharedStep(1);
             expect(result).toEqual(sharedStep);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_shared_step/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_step/1'), expect.anything());
         });
 
         it('should throw for invalid sharedStepId', async () => {
@@ -2398,7 +2407,10 @@ describe('TestRailClient', () => {
 
     describe('getSharedSteps', () => {
         it('should return all shared steps for a project', async () => {
-            const sharedSteps = [{ id: 1, title: 'Login' }, { id: 2, title: 'Logout' }];
+            const sharedSteps = [
+                { id: 1, title: 'Login' },
+                { id: 2, title: 'Logout' },
+            ];
             mockFetch.mockResolvedValueOnce(mockOk(sharedSteps));
             const result = await client.getSharedSteps(1);
             expect(result).toEqual(sharedSteps);
@@ -2422,7 +2434,9 @@ describe('TestRailClient', () => {
         });
 
         it('should throw for invalid projectId', async () => {
-            await expect(client.addSharedStep(-1, { title: 'x' })).rejects.toThrow('projectId must be a positive integer');
+            await expect(client.addSharedStep(-1, { title: 'x' })).rejects.toThrow(
+                'projectId must be a positive integer',
+            );
         });
     });
 
@@ -2458,14 +2472,14 @@ describe('TestRailClient', () => {
 
     describe('getVariables', () => {
         it('should return variables for a project', async () => {
-            const variables = [{ id: 1, name: 'env' }, { id: 2, name: 'region' }];
+            const variables = [
+                { id: 1, name: 'env' },
+                { id: 2, name: 'region' },
+            ];
             mockFetch.mockResolvedValueOnce(mockOk(variables));
             const result = await client.getVariables(1);
             expect(result).toEqual(variables);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_variables/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_variables/1'), expect.anything());
         });
 
         it('should throw for invalid projectId', async () => {
@@ -2526,10 +2540,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(dataset));
             const result = await client.getDataset(1);
             expect(result).toEqual(dataset);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_dataset/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_dataset/1'), expect.anything());
         });
 
         it('should throw for invalid datasetId', async () => {
@@ -2539,7 +2550,10 @@ describe('TestRailClient', () => {
 
     describe('getDatasets', () => {
         it('should return all datasets for a project', async () => {
-            const datasets = [{ id: 1, name: 'Smoke' }, { id: 2, name: 'Regression' }];
+            const datasets = [
+                { id: 1, name: 'Smoke' },
+                { id: 2, name: 'Regression' },
+            ];
             mockFetch.mockResolvedValueOnce(mockOk(datasets));
             const result = await client.getDatasets(1);
             expect(result).toEqual(datasets);
@@ -2606,10 +2620,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(reports));
             const result = await client.getReports(1);
             expect(result).toEqual(reports);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_reports/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_reports/1'), expect.anything());
         });
 
         it('should throw for invalid projectId', async () => {
@@ -2626,10 +2637,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(reportResult));
             const result = await client.runReport(1);
             expect(result).toEqual(reportResult);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('run_report/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('run_report/1'), expect.anything());
         });
 
         it('should throw for invalid reportTemplateId', async () => {
