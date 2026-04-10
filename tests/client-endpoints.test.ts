@@ -16,6 +16,7 @@ import type {
     AddCasePayload,
     UpdateCasePayload,
     AddPlanPayload,
+    UpdatePlanPayload,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -389,6 +390,53 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
+        it('should get plans with limit and offset', async () => {
+            const mockPlans: Plan[] = [
+                {
+                    id: 2,
+                    name: 'Plan 2',
+                    is_completed: false,
+                    passed_count: 0,
+                    blocked_count: 0,
+                    untested_count: 0,
+                    retest_count: 0,
+                    failed_count: 0,
+                    project_id: 1,
+                    created_on: 1234567890,
+                    created_by: 1,
+                    url: 'url',
+                },
+            ];
+
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: mockPlans }));
+
+            const result = await client.getPlans(1, 10, 5);
+            expect(result).toEqual(mockPlans);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&limit=10&offset=5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get plans with only limit', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1, 20);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&limit=20'),
+                expect.any(Object),
+            );
+        });
+
+        it('should not include undefined limit/offset in URL', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1);
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('limit');
+            expect(url).not.toContain('offset');
+        });
+
         it('should add a new plan', async () => {
             const mockPlan: Plan = {
                 id: 1,
@@ -442,6 +490,50 @@ describe('TestRailClient', () => {
 
             await client.deletePlan(1);
             expect(mockFetch).toHaveBeenCalled();
+        });
+
+        it('should update a plan', async () => {
+            const mockPlan: Plan = {
+                id: 1,
+                name: 'Updated Plan',
+                description: 'Updated description',
+                milestone_id: 2,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+            };
+
+            const payload: UpdatePlanPayload = {
+                name: 'Updated Plan',
+                description: 'Updated description',
+                milestone_id: 2,
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
+
+            const result = await client.updatePlan(1, payload);
+            expect(result).toEqual(mockPlan);
+        });
+
+        it('should throw validation error for invalid planId in updatePlan', async () => {
+            await expect(client.updatePlan(-1, { name: 'x' })).rejects.toThrow(
+                'planId must be a positive integer',
+            );
+        });
+
+        it('should propagate API error from updatePlan', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow(
+                'TestRail API error: 403 Forbidden - No access',
+            );
         });
     });
 
