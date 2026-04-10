@@ -14,8 +14,8 @@ You MUST follow this protocol exactly.
 - Claiming a task is REQUIRED before any implementation work and must happen as soon as a candidate task is identified
 - NEVER modify unrelated code
 - You may ONLY commit to dev when:
-  1. Claiming a task
-  2. Marking a task as Blocked
+    1. Claiming a task
+    2. Marking a task as Blocked
 - Claim commits to `dev` are explicitly allowed and expected as part of lock acquisition
 
 ## AGENT IDENTITY
@@ -104,6 +104,7 @@ If push FAILS:
 → Retry full loop (go back to STEP 1)
 
 After push:
+
 - git pull origin dev
 
 Verify your claim is still present:

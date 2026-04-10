@@ -21,6 +21,7 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 `request()` caches all successful `GET` responses. Mutations (`POST` to `update_*`, `delete_*`, `add_*`) do not invalidate any related cache entries. After calling `updateCase(1, {...})`, a subsequent `getCase(1)` returns the stale cached value until TTL expires (up to 5 minutes by default).
 
 **Acceptance Criteria:**
+
 - [x] After any mutating call (add/update/delete) the cache entry for the affected resource is removed
 - [x] After `deleteCase(caseId)` calling `getCase(caseId)` hits the network, not cache
 - [x] After `addCase(sectionId, ...)` calling `getCases(projectId)` hits the network, not cache
@@ -36,6 +37,7 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 `AddCasePayload` (src/types.ts:472) includes an optional `section_id` field. The TestRail API endpoint `POST add_case/{section_id}` takes `section_id` as a URL segment, not in the request body. Including it in the payload type is misleading and may cause unexpected behaviour if a caller passes both.
 
 **Acceptance Criteria:**
+
 - [x] `section_id` removed from `AddCasePayload`
 - [x] No compilation errors or test failures after removal
 - [x] `addCase(sectionId, payload)` signature unchanged
@@ -624,6 +626,34 @@ Some TestRail API endpoints require minimum versions (e.g. Groups require 7.5+, 
 - [ ] All methods that require a minimum TestRail version include a `@since TestRail X.Y` JSDoc tag
 - [ ] Methods with version requirements are noted in the method's `@throws` or `@remarks` JSDoc section
 - [ ] Applies to: `getTemplates` (5.2+), `getAttachment` (5.7+), `getSharedStep` (7.0+), `getRoles` (7.3+), `addUser` (7.3+), `getGroup/getGroups/addGroup/updateGroup/deleteGroup` (7.5+)
+
+---
+
+### TASK-041 · Add CLI support (`testrail-cli`)
+
+**Category:** Feature / CLI  
+**Description:**  
+Expose the client's API methods as an interactive command-line tool so users can query and mutate TestRail without writing code. The CLI should ship as an optional `bin` entry in the same package (or a companion `@dichovsky/testrail-cli` package) and authenticate via environment variables or a config file.
+
+**Design decisions to make before implementation:**
+- Single package with `bin` entry vs. separate companion package
+- Config resolution order: `TESTRAIL_*` env vars → `.testrailrc` file → CLI flags
+- Output formats: JSON (default, scriptable), table (human-readable), quiet (exit-code only)
+
+**Acceptance Criteria:**
+
+- [ ] Binary entry `testrail` (or `testrail-cli`) registered in `package.json` `bin` field
+- [ ] Auth resolved from `TESTRAIL_BASE_URL`, `TESTRAIL_EMAIL`, `TESTRAIL_API_KEY` env vars; overridable via `--base-url`, `--email`, `--api-key` flags
+- [ ] Subcommand structure: `testrail <resource> <action> [id] [--flag value]`  
+  Example: `testrail project get 1`, `testrail case list --project-id 1 --suite-id 2`
+- [ ] Core subcommands implemented: `project`, `suite`, `case`, `run`, `result`, `milestone`, `user`
+- [ ] `--format json|table` output flag with JSON as default
+- [ ] `--quiet` flag: suppress output, use exit code 0 (success) / 1 (error)
+- [ ] Errors print to stderr; success data to stdout
+- [ ] `--help` and `--version` flags
+- [ ] Zero new runtime dependencies beyond `node:` built-ins (arg parsing via a tiny bundled parser or `util.parseArgs`)
+- [ ] Unit tests for: auth resolution, output formatting, error-to-stderr routing, `--quiet` mode
+- [ ] Integration test: spawn CLI as child process, verify stdout/exit code
 
 ---
 

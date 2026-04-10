@@ -15,17 +15,17 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 
 ## File Map
 
-| File                   | Purpose                                              |
-| ---------------------- | ---------------------------------------------------- |
-| `src/client-core.ts`   | HTTP pipeline, cache, rate limiter, retry, lifecycle |
-| `src/client.ts`        | All 36 API endpoint methods (extends client-core)    |
-| `src/types.ts`         | All TypeScript interfaces and payload types          |
-| `src/errors.ts`        | `TestRailApiError`, `TestRailValidationError`        |
-| `src/constants.ts`     | All numeric constants (timeouts, cache, rate limits) |
-| `src/utils.ts`         | `base64Encode`, `sleep`                              |
-| `src/index.ts`         | Public barrel exports                                |
-| `CODEMAP.md`           | Symbol index with exact file:line refs (auto-gen)    |
-| `scripts/generate-codemap.js` | Regenerates CODEMAP.md from source            |
+| File                          | Purpose                                              |
+| ----------------------------- | ---------------------------------------------------- |
+| `src/client-core.ts`          | HTTP pipeline, cache, rate limiter, retry, lifecycle |
+| `src/client.ts`               | All 36 API endpoint methods (extends client-core)    |
+| `src/types.ts`                | All TypeScript interfaces and payload types          |
+| `src/errors.ts`               | `TestRailApiError`, `TestRailValidationError`        |
+| `src/constants.ts`            | All numeric constants (timeouts, cache, rate limits) |
+| `src/utils.ts`                | `base64Encode`, `sleep`                              |
+| `src/index.ts`                | Public barrel exports                                |
+| `CODEMAP.md`                  | Symbol index with exact file:line refs (auto-gen)    |
+| `scripts/generate-codemap.js` | Regenerates CODEMAP.md from source                   |
 
 ## API Symbol Index
 
@@ -49,11 +49,11 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 ## Error Model
 
-| Class | Thrown when | Has |
-|-------|-------------|-----|
-| `TestRailApiError` | HTTP error, network error, rate limit, timeout, invalid JSON | `status`, `statusText`, `response` |
-| `TestRailValidationError` | Bad config (baseUrl/email/apiKey), invalid ID, invalid params | — |
-| `Error` | Call after `destroy()` | — |
+| Class                     | Thrown when                                                   | Has                                |
+| ------------------------- | ------------------------------------------------------------- | ---------------------------------- |
+| `TestRailApiError`        | HTTP error, network error, rate limit, timeout, invalid JSON  | `status`, `statusText`, `response` |
+| `TestRailValidationError` | Bad config (baseUrl/email/apiKey), invalid ID, invalid params | —                                  |
+| `Error`                   | Call after `destroy()`                                        | —                                  |
 
 ## Constants (`src/constants.ts`)
 
@@ -63,18 +63,19 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 134 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
 
-| File | Covers |
-|------|--------|
-| `tests/client-endpoints.test.ts` | All 36 API methods (CRUD) |
-| `tests/client-features.test.ts` | Cache, rate limiter, retry, lifecycle |
+| File                              | Covers                                   |
+| --------------------------------- | ---------------------------------------- |
+| `tests/client-endpoints.test.ts`  | All 36 API methods (CRUD)                |
+| `tests/client-features.test.ts`   | Cache, rate limiter, retry, lifecycle    |
 | `tests/client-edge-cases.test.ts` | Edge cases, signal handlers, error paths |
-| `tests/exports.test.ts` | Public API exports, inheritance |
-| `tests/performance.test.ts` | Concurrent requests, throughput |
-| `tests/utils.test.ts` | `base64Encode`, `sleep` |
+| `tests/exports.test.ts`           | Public API exports, inheritance          |
+| `tests/performance.test.ts`       | Concurrent requests, throughput          |
+| `tests/utils.test.ts`             | `base64Encode`, `sleep`                  |
 
 ## Common Tasks
 
 **Add API endpoint:**
+
 1. Add payload/response interfaces to `src/types.ts` if needed
 2. Add method to `TestRailClient` in `src/client.ts`
 3. Validate IDs with `this.validateId(id, 'paramName')`

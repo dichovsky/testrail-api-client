@@ -48,11 +48,11 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | Symbol | Line |
 |--------|------|
 | `constructor` | [62](src/client-core.ts#L62) |
-| `validateId` | [177](src/client-core.ts#L177) |
-| `buildEndpoint` | [188](src/client-core.ts#L188) |
-| `clearCache` | [241](src/client-core.ts#L241) |
-| `destroy` | [286](src/client-core.ts#L286) |
-| `request` | [310](src/client-core.ts#L310) |
+| `validateId` | [205](src/client-core.ts#L205) |
+| `buildEndpoint` | [216](src/client-core.ts#L216) |
+| `clearCache` | [269](src/client-core.ts#L269) |
+| `destroy` | [314](src/client-core.ts#L314) |
+| `request` | [338](src/client-core.ts#L338) |
 
 ## Error Classes (`src/errors.ts`)
 
