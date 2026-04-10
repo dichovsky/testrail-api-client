@@ -13,6 +13,8 @@ import type {
     Priority,
     AddCasePayload,
     UpdateCasePayload,
+    AddSuitePayload,
+    UpdateSuitePayload,
     AddPlanPayload,
     UpdatePlanPayload,
     AddPlanEntryPayload,
@@ -80,6 +82,36 @@ export class TestRailClient extends TestRailClientCore {
     async getSuites(projectId: number): Promise<Suite[]> {
         this.validateId(projectId, 'projectId');
         return this.request<Suite[]>('GET', `get_suites/${projectId}`);
+    }
+
+    /**
+     * Add a suite to a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Suite>('POST', `add_suite/${projectId}`, payload);
+    }
+
+    /**
+     * Update a suite.
+     * @throws {TestRailValidationError} When suiteId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite> {
+        this.validateId(suiteId, 'suiteId');
+        return this.request<Suite>('POST', `update_suite/${suiteId}`, payload);
+    }
+
+    /**
+     * Delete a suite.
+     * @throws {TestRailValidationError} When suiteId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteSuite(suiteId: number): Promise<void> {
+        this.validateId(suiteId, 'suiteId');
+        await this.request<void>('POST', `delete_suite/${suiteId}`);
     }
 
     // ── Sections ──────────────────────────────────────────────────────────────

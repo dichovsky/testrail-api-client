@@ -16,6 +16,8 @@ import type {
     Priority,
     AddCasePayload,
     UpdateCasePayload,
+    AddSuitePayload,
+    UpdateSuitePayload,
     AddPlanPayload,
     UpdatePlanPayload,
     AddPlanEntryPayload,
@@ -165,6 +167,101 @@ describe('TestRailClient', () => {
 
             const result = await client.getSuites(1);
             expect(result).toEqual(mockSuites);
+        });
+
+        it('should add a suite', async () => {
+            const mockSuite: Suite = {
+                id: 3,
+                name: 'Suite 3',
+                description: 'Suite description',
+                project_id: 1,
+                url: 'url3',
+            };
+            const payload: AddSuitePayload = {
+                name: 'Suite 3',
+                description: 'Suite description',
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockSuite));
+
+            const result = await client.addSuite(1, payload);
+            expect(result).toEqual(mockSuite);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_suite/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid projectId in addSuite', async () => {
+            await expect(client.addSuite(0, { name: 'Suite 1' })).rejects.toThrow(
+                'projectId must be a positive integer',
+            );
+        });
+
+        it('should propagate API error from addSuite', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.addSuite(1, { name: 'Suite 1' })).rejects.toThrow(
+                'TestRail API error: 403 Forbidden',
+            );
+        });
+
+        it('should update a suite', async () => {
+            const mockSuite: Suite = {
+                id: 1,
+                name: 'Updated Suite',
+                description: 'Updated description',
+                project_id: 1,
+                url: 'url1',
+            };
+            const payload: UpdateSuitePayload = {
+                name: 'Updated Suite',
+                description: 'Updated description',
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockSuite));
+
+            const result = await client.updateSuite(1, payload);
+            expect(result).toEqual(mockSuite);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_suite/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid suiteId in updateSuite', async () => {
+            await expect(client.updateSuite(0, { name: 'Updated Suite' })).rejects.toThrow(
+                'suiteId must be a positive integer',
+            );
+        });
+
+        it('should propagate API error from updateSuite', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.updateSuite(1, { name: 'Updated Suite' })).rejects.toThrow(
+                'TestRail API error: 403 Forbidden',
+            );
+        });
+
+        it('should delete a suite', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+
+            const result = await client.deleteSuite(1);
+            expect(result).toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_suite/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid suiteId in deleteSuite', async () => {
+            await expect(client.deleteSuite(-1)).rejects.toThrow('suiteId must be a positive integer');
+        });
+
+        it('should propagate API error from deleteSuite', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.deleteSuite(1)).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
     });
 

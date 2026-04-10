@@ -6,6 +6,8 @@ export type {
     PaginatedResponse,
     Case,
     Suite,
+    AddSuitePayload,
+    UpdateSuitePayload,
     Section,
     Project,
     Plan,
