@@ -94,7 +94,7 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 ---
 
-### TASK-006 · Add `addPlanEntry(planId, payload)` / `updatePlanEntry` / `deletePlanEntry`
+### TASK-006 · Add `addPlanEntry(planId, payload)` / `updatePlanEntry` / `deletePlanEntry` [In Progress by agent-kd9x3p]
 
 **Category:** Feature / Plans  
 **Description:**  
