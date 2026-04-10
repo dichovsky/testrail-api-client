@@ -66,11 +66,11 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `getTemplates` | GET | `get_templates/${projectId}` | [719](src/client.ts#L719) |
 | `getConfigurations` | GET | `get_configs/${projectId}` | [731](src/client.ts#L731) |
 | `addConfigurationGroup` | POST | `add_config_group/${projectId}` | [741](src/client.ts#L741) |
-| `updateConfigurationGroup` | POST | `update_config_group/${configGroupId}` | [754](src/client.ts#L754) |
-| `deleteConfigurationGroup` | POST | `delete_config_group/${configGroupId}` | [767](src/client.ts#L767) |
-| `addConfiguration` | POST | `add_config/${configGroupId}` | [777](src/client.ts#L777) |
-| `updateConfiguration` | POST | `update_config/${configId}` | [787](src/client.ts#L787) |
-| `deleteConfiguration` | POST | `delete_config/${configId}` | [797](src/client.ts#L797) |
+| `updateConfigurationGroup` | POST | `update_config_group/${configGroupId}` | [751](src/client.ts#L751) |
+| `deleteConfigurationGroup` | POST | `delete_config_group/${configGroupId}` | [764](src/client.ts#L764) |
+| `addConfiguration` | POST | `add_config/${configGroupId}` | [774](src/client.ts#L774) |
+| `updateConfiguration` | POST | `update_config/${configId}` | [784](src/client.ts#L784) |
+| `deleteConfiguration` | POST | `delete_config/${configId}` | [794](src/client.ts#L794) |
 
 ## Core Infrastructure (`src/client-core.ts`)
 

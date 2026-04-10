@@ -1251,10 +1251,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
             const result = await client.getUsers();
             expect(result).toEqual(mockUsers);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_users'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_users'), expect.anything());
         });
 
         it('should handle empty users list', async () => {
@@ -1268,10 +1265,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
             const result = await client.getUsers(5);
             expect(result).toEqual(mockUsers);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_users/5'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_users/5'), expect.anything());
         });
 
         it('should throw for invalid projectId in getUsers', async () => {
@@ -1282,10 +1276,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(mockUser));
             const result = await client.getCurrentUser();
             expect(result).toEqual(mockUser);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_current_user'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_current_user'), expect.anything());
         });
 
         it('should propagate API error from getCurrentUser', async () => {
@@ -1416,10 +1407,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk([mockCaseField]));
             const result = await client.getCaseFields();
             expect(result).toEqual([mockCaseField]);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_case_fields'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_fields'), expect.anything());
         });
 
         it('should return empty array for case fields', async () => {
@@ -1446,10 +1434,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk([mockCaseType]));
             const result = await client.getCaseTypes();
             expect(result).toEqual([mockCaseType]);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_case_types'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_types'), expect.anything());
         });
 
         it('should return empty array for case types', async () => {
@@ -1471,10 +1456,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk([mockTemplate]));
             const result = await client.getTemplates(1);
             expect(result).toEqual([mockTemplate]);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_templates/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_templates/1'), expect.anything());
         });
 
         it('should return empty array when no templates', async () => {
@@ -1506,10 +1488,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk([mockConfigGroup]));
             const result = await client.getConfigurations(1);
             expect(result).toEqual([mockConfigGroup]);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_configs/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_configs/1'), expect.anything());
         });
 
         it('should throw for invalid projectId in getConfigurations', async () => {
@@ -1525,16 +1504,13 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(mockConfigGroup));
             const result = await client.addConfigurationGroup(1, { name: 'Operating Systems' });
             expect(result).toEqual(mockConfigGroup);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('add_config_group/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_config_group/1'), expect.anything());
         });
 
         it('should throw for invalid projectId in addConfigurationGroup', async () => {
-            await expect(
-                client.addConfigurationGroup(-1, { name: 'OS' }),
-            ).rejects.toThrow('projectId must be a positive integer');
+            await expect(client.addConfigurationGroup(-1, { name: 'OS' })).rejects.toThrow(
+                'projectId must be a positive integer',
+            );
         });
 
         it('should update a configuration group', async () => {
@@ -1542,25 +1518,19 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(updated));
             const result = await client.updateConfigurationGroup(1, { name: 'OS Versions' });
             expect(result.name).toBe('OS Versions');
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('update_config_group/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('update_config_group/1'), expect.anything());
         });
 
         it('should throw for invalid configGroupId in updateConfigurationGroup', async () => {
-            await expect(
-                client.updateConfigurationGroup(0, { name: 'OS' }),
-            ).rejects.toThrow('configGroupId must be a positive integer');
+            await expect(client.updateConfigurationGroup(0, { name: 'OS' })).rejects.toThrow(
+                'configGroupId must be a positive integer',
+            );
         });
 
         it('should delete a configuration group', async () => {
             mockFetch.mockResolvedValueOnce(mockEmpty());
             await expect(client.deleteConfigurationGroup(1)).resolves.toBeUndefined();
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('delete_config_group/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('delete_config_group/1'), expect.anything());
         });
 
         it('should throw for invalid configGroupId in deleteConfigurationGroup', async () => {
@@ -1573,16 +1543,13 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(mockConfig));
             const result = await client.addConfiguration(1, { name: 'Windows 10' });
             expect(result).toEqual(mockConfig);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('add_config/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_config/1'), expect.anything());
         });
 
         it('should throw for invalid configGroupId in addConfiguration', async () => {
-            await expect(
-                client.addConfiguration(-1, { name: 'Win' }),
-            ).rejects.toThrow('configGroupId must be a positive integer');
+            await expect(client.addConfiguration(-1, { name: 'Win' })).rejects.toThrow(
+                'configGroupId must be a positive integer',
+            );
         });
 
         it('should update a configuration', async () => {
@@ -1590,25 +1557,19 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(updated));
             const result = await client.updateConfiguration(10, { name: 'Windows 11' });
             expect(result.name).toBe('Windows 11');
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('update_config/10'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('update_config/10'), expect.anything());
         });
 
         it('should throw for invalid configId in updateConfiguration', async () => {
-            await expect(
-                client.updateConfiguration(0, { name: 'Win' }),
-            ).rejects.toThrow('configId must be a positive integer');
+            await expect(client.updateConfiguration(0, { name: 'Win' })).rejects.toThrow(
+                'configId must be a positive integer',
+            );
         });
 
         it('should delete a configuration', async () => {
             mockFetch.mockResolvedValueOnce(mockEmpty());
             await expect(client.deleteConfiguration(10)).resolves.toBeUndefined();
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('delete_config/10'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('delete_config/10'), expect.anything());
         });
 
         it('should throw for invalid configId in deleteConfiguration', async () => {

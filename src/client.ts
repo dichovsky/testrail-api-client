@@ -738,10 +738,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addConfigurationGroup(
-        projectId: number,
-        payload: AddConfigurationGroupPayload,
-    ): Promise<ConfigurationGroup> {
+    async addConfigurationGroup(projectId: number, payload: AddConfigurationGroupPayload): Promise<ConfigurationGroup> {
         this.validateId(projectId, 'projectId');
         return this.request<ConfigurationGroup>('POST', `add_config_group/${projectId}`, payload);
     }
