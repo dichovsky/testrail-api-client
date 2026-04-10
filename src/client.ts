@@ -30,6 +30,7 @@ import type {
     UpdateMilestonePayload,
     AddProjectPayload,
     UpdateProjectPayload,
+    GetRunsOptions,
     ResultField,
     CaseField,
     CaseType,
@@ -407,14 +408,39 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Get all runs for a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get all runs for a project, with optional filters.
+     * @param projectId - The project ID
+     * @param options - Optional filters: createdAfter, createdBefore, createdBy, isCompleted,
+     *   milestoneId, refsFilter, suiteId, limit, offset
+     * @throws {TestRailValidationError} When projectId or pagination params are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getRuns(projectId: number, limit?: number, offset?: number): Promise<Run[]> {
+    async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
         this.validateId(projectId, 'projectId');
+        const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
+            options ?? {};
         this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_runs/${projectId}`, { limit, offset });
+        if (milestoneId !== undefined) {
+            this.validateId(milestoneId, 'milestoneId');
+        }
+        if (suiteId !== undefined) {
+            this.validateId(suiteId, 'suiteId');
+        }
+        if (createdBy !== undefined) {
+            createdBy.forEach((userId) => this.validateId(userId, 'createdBy'));
+        }
+        const createdByFilter = createdBy && createdBy.length > 0 ? createdBy.join(',') : undefined;
+        const endpoint = this.buildEndpoint(`get_runs/${projectId}`, {
+            created_after: createdAfter,
+            created_before: createdBefore,
+            created_by: createdByFilter,
+            is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
+            milestone_id: milestoneId,
+            refs_filter: refsFilter,
+            suite_id: suiteId,
+            limit,
+            offset,
+        });
         const response = await this.request<{ runs: Run[] }>('GET', endpoint);
         return response.runs ?? [];
     }

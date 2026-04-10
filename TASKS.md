@@ -29,7 +29,7 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 ---
 
-### TASK-013 · Add filter parameters to `getRuns()`
+### TASK-013 · Add filter parameters to `getRuns()` [Done]
 
 **Category:** Feature / Runs  
 **Description:**  
@@ -37,9 +37,9 @@ Atomic, prioritized backlog of all known gaps, bugs, and improvements.
 
 **Acceptance Criteria:**
 
-- [ ] `getRuns(projectId, options?: GetRunsOptions)` signature updated
-- [ ] `GetRunsOptions` interface added, exported
-- [ ] Unit tests for filter combinations
+- [x] `getRuns(projectId, options?: GetRunsOptions)` signature updated
+- [x] `GetRunsOptions` interface added, exported
+- [x] Unit tests for filter combinations
 
 ---
 

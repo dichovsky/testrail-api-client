@@ -28,6 +28,7 @@ import type {
     AddResultsForCasesPayload,
     AddMilestonePayload,
     UpdateMilestonePayload,
+    GetRunsOptions,
     ResultField,
     CaseField,
     CaseType,
@@ -785,6 +786,113 @@ describe('TestRailClient', () => {
 
             const result = await client.getRuns(1);
             expect(result).toEqual([]);
+        });
+
+        it('should pass isCompleted=true filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            const options: GetRunsOptions = { isCompleted: true };
+            await client.getRuns(1, options);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('is_completed=1'), expect.anything());
+        });
+
+        it('should pass isCompleted=false filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { isCompleted: false });
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('is_completed=0'), expect.anything());
+        });
+
+        it('should pass milestoneId filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { milestoneId: 5 });
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('milestone_id=5'), expect.anything());
+        });
+
+        it('should pass suiteId filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { suiteId: 3 });
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id=3'), expect.anything());
+        });
+
+        it('should pass createdAfter and createdBefore filters', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { createdAfter: 1700000000, createdBefore: 1700086400 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringMatching(
+                    /created_after=1700000000.*created_before=1700086400|created_before=1700086400.*created_after=1700000000/,
+                ),
+                expect.anything(),
+            );
+        });
+
+        it('should pass createdBy filter as comma-separated list', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { createdBy: [1, 2, 3] });
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('created_by=1%2C2%2C3'), expect.anything());
+        });
+
+        it('should omit createdBy when empty array is provided', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { createdBy: [] });
+            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('created_by=');
+        });
+
+        it('should pass refsFilter filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { refsFilter: 'TR-42' });
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('refs_filter=TR-42'), expect.anything());
+        });
+
+        it('should pass limit and offset via options', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { limit: 10, offset: 20 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringMatching(/limit=10.*offset=20|offset=20.*limit=10/),
+                expect.anything(),
+            );
+        });
+
+        it('should omit undefined filter params from URL', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { suiteId: 2 });
+            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('is_completed');
+            expect(calledUrl).not.toContain('milestone_id');
+            expect(calledUrl).not.toContain('created_after');
+        });
+
+        it('should throw validation error for invalid projectId in getRuns', async () => {
+            await expect(client.getRuns(0)).rejects.toThrow('projectId must be a positive integer');
+        });
+
+        it('should throw validation error for invalid limit in getRuns', async () => {
+            await expect(client.getRuns(1, { limit: -1 })).rejects.toThrow('limit must be a positive integer');
+        });
+
+        it('should throw validation error for invalid suiteId in getRuns', async () => {
+            await expect(client.getRuns(1, { suiteId: 0 })).rejects.toThrow('suiteId must be a positive integer');
+        });
+
+        it('should throw validation error for invalid milestoneId in getRuns', async () => {
+            await expect(client.getRuns(1, { milestoneId: 0 })).rejects.toThrow(
+                'milestoneId must be a positive integer',
+            );
+        });
+
+        it('should throw validation error for invalid createdBy item in getRuns', async () => {
+            await expect(client.getRuns(1, { createdBy: [1, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
         });
 
         it('should add a new run', async () => {

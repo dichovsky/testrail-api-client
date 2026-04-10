@@ -219,7 +219,12 @@ async function run(res: string, act: string): Promise<void> {
                 out(await client.getRun(id));
             } else if (act === 'list') {
                 const pid = parseId(values['project-id'] as string | undefined, '--project-id');
-                out(await client.getRuns(pid, limit, offset));
+                out(
+                    await client.getRuns(pid, {
+                        ...(limit !== undefined && { limit }),
+                        ...(offset !== undefined && { offset }),
+                    }),
+                );
             } else {
                 err(`Unknown action '${act}' for run. Use: get, list`);
                 process.exit(1);
