@@ -710,7 +710,7 @@ export interface Attachment {
     attachment_id: number;
     /** Original filename */
     name: string;
-    /** MIME content-type (e.g. "image/png") */
+    /** Filename returned by the API (when available) */
     filename?: string;
     /** File size in bytes */
     size?: number;
@@ -718,7 +718,7 @@ export interface Attachment {
     created_on?: number;
     /** ID of the user who created the attachment */
     created_by?: number;
-    /** Entity type the attachment belongs to (e.g. "case", "result") */
+    /** Numeric ID of the entity this attachment belongs to */
     entity_id?: number;
 }
 

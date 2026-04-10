@@ -552,6 +552,50 @@ describe('TestRailClient - Enhanced Features', () => {
             await expect(client.getProject(999)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
+
+        it('should retry attachment downloads on 500 server errors', async () => {
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 500,
+                    statusText: 'Internal Server Error',
+                    text: async () => 'Server Error',
+                } as never)
+                .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
+
+            const result = await client.getAttachment(1);
+            expect(result).toBeInstanceOf(ArrayBuffer);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            expect(vi.mocked(sleep)).toHaveBeenCalledWith(1000);
+        });
+
+        it('should use Retry-After header when retrying attachment downloads after 429', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    headers: { get: (header: string) => (header === 'Retry-After' ? '5' : null) },
+                    text: async () => 'Rate limited',
+                } as never)
+                .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
+
+            await client.getAttachment(1);
+            expect(mockSleep).toHaveBeenCalledWith(5000);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('should retry attachment downloads on network errors', async () => {
+            mockFetch.mockRejectedValueOnce(new Error('network error')).mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
+
+            const result = await client.getAttachment(1);
+            expect(result).toBeInstanceOf(ArrayBuffer);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            expect(vi.mocked(sleep)).toHaveBeenCalledWith(1000);
+        });
     });
 
     describe('Error Handling', () => {

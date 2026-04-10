@@ -1062,7 +1062,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToCase(
         caseId: number,
-        file: globalThis.Blob | Buffer | globalThis.File,
+        file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
         this.validateId(caseId, 'caseId');
@@ -1076,7 +1076,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToResult(
         resultId: number,
-        file: globalThis.Blob | Buffer | globalThis.File,
+        file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
         this.validateId(resultId, 'resultId');
@@ -1090,7 +1090,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToRun(
         runId: number,
-        file: globalThis.Blob | Buffer | globalThis.File,
+        file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
         this.validateId(runId, 'runId');
@@ -1104,7 +1104,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToPlan(
         planId: number,
-        file: globalThis.Blob | Buffer | globalThis.File,
+        file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
         this.validateId(planId, 'planId');
@@ -1119,7 +1119,7 @@ export class TestRailClient extends TestRailClientCore {
     async addAttachmentToPlanEntry(
         planId: number,
         entryId: number,
-        file: globalThis.Blob | Buffer | globalThis.File,
+        file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
         this.validateId(planId, 'planId');
