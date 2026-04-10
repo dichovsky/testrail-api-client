@@ -111,7 +111,7 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 ---
 
-### TASK-007 · Add `updateRun(runId, payload)` [In Progress by agent-6eaef7]
+### TASK-007 · Add `updateRun(runId, payload)` [Done]
 
 **Category:** Feature / Runs  
 **Description:**  
@@ -119,9 +119,9 @@ Plan entries (test runs within a plan) can be created, updated, and deleted via 
 
 **Acceptance Criteria:**
 
-- [ ] `updateRun(runId: number, payload: UpdateRunPayload): Promise<Run>` added
-- [ ] `UpdateRunPayload` interface with `name?`, `description?`, `milestone_id?`, `assignedto_id?`, `include_all?`, `case_ids?`, `refs?` added to `types.ts` and exported from `index.ts`
-- [ ] Unit tests: success, invalid ID, API error
+- [x] `updateRun(runId: number, payload: UpdateRunPayload): Promise<Run>` added
+- [x] `UpdateRunPayload` interface with `name?`, `description?`, `milestone_id?`, `assignedto_id?`, `include_all?`, `case_ids?`, `refs?` added to `types.ts` and exported from `index.ts`
+- [x] Unit tests: success, invalid ID, API error
 
 ---
 

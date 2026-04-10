@@ -24,6 +24,7 @@ export type {
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
     AddRunPayload,
+    UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
     AddResultForCasePayload,
