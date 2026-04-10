@@ -63,7 +63,7 @@ const endpointMethods = extractAsyncMethods(clientLines);
 // Infer HTTP verb and endpoint template from method body
 function inferEndpoint(methodName, lines) {
     // Find the method, then scan its body for this.request(...)
-    const startIdx = lines.findIndex(l => l.includes(`async ${methodName}(`));
+    const startIdx = lines.findIndex((l) => l.includes(`async ${methodName}(`));
     if (startIdx === -1) return { verb: '?', endpoint: '?' };
     for (let i = startIdx; i < Math.min(startIdx + 12, lines.length); i++) {
         const m = lines[i].match(/this\.request<[^>]+>\('(GET|POST)',\s*`([^`]+)`/);
@@ -78,10 +78,8 @@ function inferEndpoint(methodName, lines) {
 }
 
 // ── Infrastructure methods (core) ─────────────────────────────────────────────
-const coreMethods = [
-    'constructor', 'validateId', 'buildEndpoint', 'clearCache', 'destroy', 'request',
-].map(name => {
-    const idx = coreLines.findIndex(l => {
+const coreMethods = ['constructor', 'validateId', 'buildEndpoint', 'clearCache', 'destroy', 'request'].map((name) => {
+    const idx = coreLines.findIndex((l) => {
         if (name === 'constructor') return /^\s+constructor\s*\(/.test(l);
         if (name === 'request') return /^\s+protected\s+async\s+request/.test(l);
         return new RegExp(`\\s+(?:public|protected|private)?\\s*${name}\\s*[<(]`).test(l);
