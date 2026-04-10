@@ -18,6 +18,9 @@
         "url": "git+https://github.com/dichovsky/testrail-api-client.git"
     },
     "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
     "author": "Igor Magdich",
     "type": "module",
     "exports": {
