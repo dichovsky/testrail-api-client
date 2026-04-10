@@ -45,9 +45,11 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all projects.
+     * @throws {TestRailValidationError} When limit or offset is invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint('get_projects', { limit, offset });
         const response = await this.request<{ projects: Project[] }>('GET', endpoint);
         return response.projects ?? [];
@@ -89,15 +91,22 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all sections for a project, optionally filtered by suite.
-     * @param suiteId - Optional suite filter
+     * @param options.suiteId - Optional suite filter
+     * @param options.limit - Optional maximum number of results to return
+     * @param options.offset - Optional number of results to skip
      * @throws {TestRailValidationError} When projectId or suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getSections(projectId: number, suiteId?: number, limit?: number, offset?: number): Promise<Section[]> {
+    async getSections(
+        projectId: number,
+        options?: { suiteId?: number; limit?: number; offset?: number },
+    ): Promise<Section[]> {
         this.validateId(projectId, 'projectId');
+        const { suiteId, limit, offset } = options ?? {};
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
         }
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
         const response = await this.request<{ sections: Section[] }>('GET', endpoint);
         return response.sections ?? [];
@@ -117,19 +126,26 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all cases for a project, optionally filtered by suite and/or section.
-     * @param suiteId - Optional suite filter
-     * @param sectionId - Optional section filter
+     * @param options.suiteId - Optional suite filter
+     * @param options.sectionId - Optional section filter
+     * @param options.limit - Optional maximum number of results to return
+     * @param options.offset - Optional number of results to skip
      * @throws {TestRailValidationError} When any provided ID is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getCases(projectId: number, suiteId?: number, sectionId?: number, limit?: number, offset?: number): Promise<Case[]> {
+    async getCases(
+        projectId: number,
+        options?: { suiteId?: number; sectionId?: number; limit?: number; offset?: number },
+    ): Promise<Case[]> {
         this.validateId(projectId, 'projectId');
+        const { suiteId, sectionId, limit, offset } = options ?? {};
         if (suiteId !== undefined) {
             this.validateId(suiteId, 'suiteId');
         }
         if (sectionId !== undefined) {
             this.validateId(sectionId, 'sectionId');
         }
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_cases/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
@@ -189,6 +205,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getPlans(projectId: number, limit?: number, offset?: number): Promise<Plan[]> {
         this.validateId(projectId, 'projectId');
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_plans/${projectId}`, { limit, offset });
         const response = await this.request<{ plans: Plan[] }>('GET', endpoint);
         return response.plans ?? [];
@@ -243,6 +260,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getRuns(projectId: number, limit?: number, offset?: number): Promise<Run[]> {
         this.validateId(projectId, 'projectId');
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_runs/${projectId}`, { limit, offset });
         const response = await this.request<{ runs: Run[] }>('GET', endpoint);
         return response.runs ?? [];
@@ -297,6 +315,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getTests(runId: number, limit?: number, offset?: number): Promise<Test[]> {
         this.validateId(runId, 'runId');
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_tests/${runId}`, { limit, offset });
         const response = await this.request<{ tests: Test[] }>('GET', endpoint);
         return response.tests ?? [];
@@ -311,6 +330,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getResults(testId: number, limit?: number, offset?: number): Promise<Result[]> {
         this.validateId(testId, 'testId');
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_results/${testId}`, { limit, offset });
         const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
@@ -335,6 +355,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getResultsForRun(runId: number, limit?: number, offset?: number): Promise<Result[]> {
         this.validateId(runId, 'runId');
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, { limit, offset });
         const response = await this.request<{ results: Result[] }>('GET', endpoint);
         return response.results ?? [];
@@ -390,6 +411,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getMilestones(projectId: number, limit?: number, offset?: number): Promise<Milestone[]> {
         this.validateId(projectId, 'projectId');
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, { limit, offset });
         const response = await this.request<{ milestones: Milestone[] }>('GET', endpoint);
         return response.milestones ?? [];
@@ -423,9 +445,11 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get all users.
+     * @throws {TestRailValidationError} When limit or offset is invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getUsers(limit?: number, offset?: number): Promise<User[]> {
+        this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint('get_users', { limit, offset });
         const response = await this.request<{ users: User[] }>('GET', endpoint);
         return response.users ?? [];

@@ -209,6 +209,23 @@ export class TestRailClientCore {
     }
 
     /**
+     * Validates optional pagination parameters.
+     * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
+     */
+    protected validatePaginationParams(limit?: number, offset?: number): void {
+        if (limit !== undefined) {
+            if (typeof limit !== 'number' || !Number.isInteger(limit) || limit <= 0) {
+                throw new TestRailValidationError('limit must be a positive integer');
+            }
+        }
+        if (offset !== undefined) {
+            if (typeof offset !== 'number' || !Number.isInteger(offset) || offset < 0) {
+                throw new TestRailValidationError('offset must be a non-negative integer');
+            }
+        }
+    }
+
+    /**
      * Builds a TestRail endpoint URL with optional query parameters.
      * Appends params using `&key=value` (TestRail URL quirk — uses `&`, not `?`).
      * Values must be pre-encoded by the caller if needed.
