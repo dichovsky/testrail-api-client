@@ -410,10 +410,20 @@ export class TestRailClient extends TestRailClientCore {
         const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
             options ?? {};
         this.validatePaginationParams(limit, offset);
+        if (milestoneId !== undefined) {
+            this.validateId(milestoneId, 'milestoneId');
+        }
+        if (suiteId !== undefined) {
+            this.validateId(suiteId, 'suiteId');
+        }
+        if (createdBy !== undefined) {
+            createdBy.forEach((userId) => this.validateId(userId, 'createdBy'));
+        }
+        const createdByFilter = createdBy && createdBy.length > 0 ? createdBy.join(',') : undefined;
         const endpoint = this.buildEndpoint(`get_runs/${projectId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
-            created_by: createdBy?.join(','),
+            created_by: createdByFilter,
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
             milestone_id: milestoneId,
             refs_filter: refsFilter,

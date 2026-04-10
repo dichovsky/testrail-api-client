@@ -830,6 +830,14 @@ describe('TestRailClient', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('created_by=1%2C2%2C3'), expect.anything());
         });
 
+        it('should omit createdBy when empty array is provided', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.getRuns(1, { createdBy: [] });
+            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            expect(calledUrl).not.toContain('created_by=');
+        });
+
         it('should pass refsFilter filter', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
@@ -863,6 +871,22 @@ describe('TestRailClient', () => {
 
         it('should throw validation error for invalid limit in getRuns', async () => {
             await expect(client.getRuns(1, { limit: -1 })).rejects.toThrow('limit must be a positive integer');
+        });
+
+        it('should throw validation error for invalid suiteId in getRuns', async () => {
+            await expect(client.getRuns(1, { suiteId: 0 })).rejects.toThrow('suiteId must be a positive integer');
+        });
+
+        it('should throw validation error for invalid milestoneId in getRuns', async () => {
+            await expect(client.getRuns(1, { milestoneId: 0 })).rejects.toThrow(
+                'milestoneId must be a positive integer',
+            );
+        });
+
+        it('should throw validation error for invalid createdBy item in getRuns', async () => {
+            await expect(client.getRuns(1, { createdBy: [1, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
         });
 
         it('should add a new run', async () => {
