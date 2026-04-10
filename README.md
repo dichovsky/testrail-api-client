@@ -171,7 +171,7 @@ try {
 - Built-in rate limiting to respect API constraints
 - Sliding window implementation
 - Configurable limits per time window
-- Automatic request queuing
+- Exceeds configured limits by throwing a `TestRailApiError` rather than queueing requests
 
 ### Retry Logic
 

@@ -28,11 +28,34 @@ export interface TestRailConfig {
     maxCacheSize?: number;
     /** Rate limiting configuration (default: 100 requests per minute) */
     rateLimiter?: RateLimiterConfig;
+    /**
+     * Allow HTTP (non-TLS) connections. Credentials are sent in cleartext over HTTP.
+     * Only enable in isolated development environments. Default: false.
+     */
+    allowInsecure?: boolean;
+    /**
+     * Allow requests to private/loopback/link-local hosts (e.g. localhost, 192.168.x.x).
+     * Only enable when TestRail is hosted on a private network. Default: false.
+     */
+    allowPrivateHosts?: boolean;
 }
 
 export interface TestRailResponse<T = unknown> {
     data?: T;
     error?: string;
+}
+
+export interface PaginatedResponse<T = unknown> {
+    /** Offset of the returned page */
+    offset: number;
+    /** Limit of the returned page */
+    limit: number;
+    /** Number of items in this page */
+    size: number;
+    /** Optional links/pagination metadata returned by TestRail */
+    _links?: Record<string, unknown>;
+    /** Page items when the API returns items under a consistent key */
+    items?: T[];
 }
 
 export interface Case {
@@ -66,6 +89,16 @@ export interface Suite {
     is_completed?: boolean;
     completed_on?: number; // Unix timestamp
     url: string;
+}
+
+export interface AddSuitePayload {
+    name: string;
+    description?: string;
+}
+
+export interface UpdateSuitePayload {
+    name?: string;
+    description?: string;
 }
 
 export interface Section {
@@ -267,8 +300,26 @@ export interface AddPlanPayload {
     entries?: AddPlanEntryPayload[];
 }
 
+export interface UpdatePlanPayload {
+    name?: string;
+    description?: string;
+    milestone_id?: number;
+    assignedto_id?: number;
+}
+
 export interface AddPlanEntryPayload {
     suite_id: number;
+    name?: string;
+    description?: string;
+    assignedto_id?: number;
+    include_all?: boolean;
+    case_ids?: number[];
+    config_ids?: number[];
+    runs?: AddRunPayload[];
+}
+
+export interface UpdatePlanEntryPayload {
+    suite_id?: number;
     name?: string;
     description?: string;
     assignedto_id?: number;
@@ -281,6 +332,16 @@ export interface AddPlanEntryPayload {
 export interface AddRunPayload {
     suite_id?: number;
     name: string;
+    description?: string;
+    milestone_id?: number;
+    assignedto_id?: number;
+    include_all?: boolean;
+    case_ids?: number[];
+    refs?: string;
+}
+
+export interface UpdateRunPayload {
+    name?: string;
     description?: string;
     milestone_id?: number;
     assignedto_id?: number;
@@ -306,6 +367,18 @@ export interface AddResultsForCasesPayload {
 
 export interface AddResultForCasePayload extends AddResultPayload {
     case_id: number;
+}
+
+export interface AddSectionPayload {
+    name: string;
+    suite_id?: number;
+    parent_id?: number;
+    description?: string;
+}
+
+export interface UpdateSectionPayload {
+    name?: string;
+    description?: string;
 }
 
 export interface CacheEntry<T> {
