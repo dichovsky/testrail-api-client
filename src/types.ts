@@ -405,6 +405,27 @@ export interface UpdateMilestonePayload {
     is_started?: boolean;
 }
 
+export interface GetRunsOptions {
+    /** Return only runs created after this Unix timestamp */
+    createdAfter?: number;
+    /** Return only runs created before this Unix timestamp */
+    createdBefore?: number;
+    /** Return only runs created by these user IDs (comma-separated list accepted by the API) */
+    createdBy?: number[];
+    /** `true` to return only completed runs, `false` for active runs */
+    isCompleted?: boolean;
+    /** Return only runs linked to this milestone ID */
+    milestoneId?: number;
+    /** Return only runs whose refs field contains this string */
+    refsFilter?: string;
+    /** Return only runs for this suite ID */
+    suiteId?: number;
+    /** Maximum number of runs to return */
+    limit?: number;
+    /** Pagination offset */
+    offset?: number;
+}
+
 export interface CacheEntry<T> {
     data: T;
     expiry: number; // Unix timestamp in ms

@@ -36,4 +36,5 @@ export type {
     UpdateMilestonePayload,
     AddProjectPayload,
     UpdateProjectPayload,
+    GetRunsOptions,
 } from './types.js';
