@@ -6,42 +6,45 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 
 | Method | HTTP | Endpoint | Line |
 |--------|------|----------|------|
-| `getProject` | GET | `get_project/${projectId}` | [41](src/client.ts#L41) |
-| `getProjects` | GET | `get_projects` | [50](src/client.ts#L50) |
-| `getSuite` | GET | `get_suite/${suiteId}` | [62](src/client.ts#L62) |
-| `getSuites` | GET | `get_suites/${projectId}` | [72](src/client.ts#L72) |
-| `getSection` | GET | `get_section/${sectionId}` | [84](src/client.ts#L84) |
-| `getSections` | GET | `get_sections/${projectId}&...` | [95](src/client.ts#L95) |
-| `getCase` | GET | `get_case/${caseId}` | [112](src/client.ts#L112) |
-| `getCases` | GET | `get_cases/${projectId}&...` | [124](src/client.ts#L124) |
-| `addCase` | POST | `add_case/${sectionId}` | [145](src/client.ts#L145) |
-| `updateCase` | POST | `update_case/${caseId}` | [155](src/client.ts#L155) |
-| `deleteCase` | POST | `delete_case/${caseId}` | [165](src/client.ts#L165) |
-| `getPlan` | GET | `get_plan/${planId}` | [177](src/client.ts#L177) |
-| `getPlans` | GET | `get_plans/${projectId}` | [187](src/client.ts#L187) |
-| `addPlan` | POST | `add_plan/${projectId}` | [198](src/client.ts#L198) |
-| `closePlan` | POST | `close_plan/${planId}` | [208](src/client.ts#L208) |
-| `deletePlan` | POST | `delete_plan/${planId}` | [218](src/client.ts#L218) |
-| `getRun` | GET | `get_run/${runId}` | [230](src/client.ts#L230) |
-| `getRuns` | GET | `get_runs/${projectId}` | [240](src/client.ts#L240) |
-| `addRun` | POST | `add_run/${projectId}` | [251](src/client.ts#L251) |
-| `closeRun` | POST | `close_run/${runId}` | [261](src/client.ts#L261) |
-| `deleteRun` | POST | `delete_run/${runId}` | [271](src/client.ts#L271) |
-| `getTest` | GET | `get_test/${testId}` | [283](src/client.ts#L283) |
-| `getTests` | GET | `get_tests/${runId}` | [293](src/client.ts#L293) |
-| `getResults` | GET | `get_results/${testId}` | [306](src/client.ts#L306) |
-| `getResultsForCase` | GET | `get_results_for_case/${runId}/${caseId}` | [317](src/client.ts#L317) |
-| `getResultsForRun` | GET | `get_results_for_run/${runId}` | [329](src/client.ts#L329) |
-| `addResult` | POST | `add_result/${testId}` | [340](src/client.ts#L340) |
-| `addResultForCase` | POST | `add_result_for_case/${runId}/${caseId}` | [350](src/client.ts#L350) |
-| `addResultsForCases` | POST | `add_results_for_cases/${runId}` | [361](src/client.ts#L361) |
-| `getMilestone` | GET | `get_milestone/${milestoneId}` | [373](src/client.ts#L373) |
-| `getMilestones` | GET | `get_milestones/${projectId}` | [383](src/client.ts#L383) |
-| `getUser` | GET | `get_user/${userId}` | [396](src/client.ts#L396) |
-| `getUserByEmail` | ? | `?` | [406](src/client.ts#L406) |
-| `getUsers` | GET | `get_users` | [419](src/client.ts#L419) |
-| `getStatuses` | GET | `get_statuses` | [430](src/client.ts#L430) |
-| `getPriorities` | GET | `get_priorities` | [440](src/client.ts#L440) |
+| `getProject` | GET | `get_project/${projectId}` | [43](src/client.ts#L43) |
+| `getProjects` | GET | `get_projects` | [52](src/client.ts#L52) |
+| `getSuite` | GET | `get_suite/${suiteId}` | [64](src/client.ts#L64) |
+| `getSuites` | GET | `get_suites/${projectId}` | [74](src/client.ts#L74) |
+| `getSection` | GET | `get_section/${sectionId}` | [86](src/client.ts#L86) |
+| `getSections` | GET | `get_sections/${projectId}&...` | [97](src/client.ts#L97) |
+| `addSection` | POST | `add_section/${projectId}` | [112](src/client.ts#L112) |
+| `updateSection` | POST | `update_section/${sectionId}` | [122](src/client.ts#L122) |
+| `deleteSection` | POST | `delete_section/${sectionId}` | [132](src/client.ts#L132) |
+| `getCase` | GET | `get_case/${caseId}` | [144](src/client.ts#L144) |
+| `getCases` | GET | `get_cases/${projectId}&...` | [156](src/client.ts#L156) |
+| `addCase` | POST | `add_case/${sectionId}` | [177](src/client.ts#L177) |
+| `updateCase` | POST | `update_case/${caseId}` | [187](src/client.ts#L187) |
+| `deleteCase` | POST | `delete_case/${caseId}` | [197](src/client.ts#L197) |
+| `getPlan` | GET | `get_plan/${planId}` | [209](src/client.ts#L209) |
+| `getPlans` | GET | `get_plans/${projectId}` | [219](src/client.ts#L219) |
+| `addPlan` | POST | `add_plan/${projectId}` | [230](src/client.ts#L230) |
+| `closePlan` | POST | `close_plan/${planId}` | [240](src/client.ts#L240) |
+| `deletePlan` | POST | `delete_plan/${planId}` | [250](src/client.ts#L250) |
+| `getRun` | GET | `get_run/${runId}` | [262](src/client.ts#L262) |
+| `getRuns` | GET | `get_runs/${projectId}` | [272](src/client.ts#L272) |
+| `addRun` | POST | `add_run/${projectId}` | [283](src/client.ts#L283) |
+| `closeRun` | POST | `close_run/${runId}` | [293](src/client.ts#L293) |
+| `deleteRun` | POST | `delete_run/${runId}` | [303](src/client.ts#L303) |
+| `getTest` | GET | `get_test/${testId}` | [315](src/client.ts#L315) |
+| `getTests` | GET | `get_tests/${runId}` | [325](src/client.ts#L325) |
+| `getResults` | GET | `get_results/${testId}` | [338](src/client.ts#L338) |
+| `getResultsForCase` | GET | `get_results_for_case/${runId}/${caseId}` | [349](src/client.ts#L349) |
+| `getResultsForRun` | GET | `get_results_for_run/${runId}` | [361](src/client.ts#L361) |
+| `addResult` | POST | `add_result/${testId}` | [372](src/client.ts#L372) |
+| `addResultForCase` | POST | `add_result_for_case/${runId}/${caseId}` | [382](src/client.ts#L382) |
+| `addResultsForCases` | POST | `add_results_for_cases/${runId}` | [393](src/client.ts#L393) |
+| `getMilestone` | GET | `get_milestone/${milestoneId}` | [405](src/client.ts#L405) |
+| `getMilestones` | GET | `get_milestones/${projectId}` | [415](src/client.ts#L415) |
+| `getUser` | GET | `get_user/${userId}` | [428](src/client.ts#L428) |
+| `getUserByEmail` | ? | `?` | [438](src/client.ts#L438) |
+| `getUsers` | GET | `get_users` | [451](src/client.ts#L451) |
+| `getStatuses` | GET | `get_statuses` | [462](src/client.ts#L462) |
+| `getPriorities` | GET | `get_priorities` | [472](src/client.ts#L472) |
 
 ## Core Infrastructure (`src/client-core.ts`)
 
@@ -105,3 +108,5 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `AddResultForCasePayload` | [307](src/types.ts#L307) |
 | `CacheEntry` | [311](src/types.ts#L311) |
 | `RateLimiterConfig` | [316](src/types.ts#L316) |
+| `AddSectionPayload` | [321](src/types.ts#L321) |
+| `UpdateSectionPayload` | [328](src/types.ts#L328) |
