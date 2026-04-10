@@ -31,6 +31,15 @@ import type {
     AddProjectPayload,
     UpdateProjectPayload,
     ResultField,
+    CaseField,
+    CaseType,
+    Template,
+    ConfigurationGroup,
+    Configuration,
+    AddConfigurationGroupPayload,
+    UpdateConfigurationGroupPayload,
+    AddConfigurationPayload,
+    UpdateConfigurationPayload,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
 import { TestRailValidationError } from './errors.js';
@@ -629,15 +638,27 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Get all users.
-     * @throws {TestRailValidationError} When limit or offset is invalid
+     * Get all users, optionally scoped to a project.
+     * @param projectId - When provided, returns only users with access to the specified project
+     * @throws {TestRailValidationError} When projectId is provided but invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getUsers(limit?: number, offset?: number): Promise<User[]> {
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint('get_users', { limit, offset });
-        const response = await this.request<{ users: User[] }>('GET', endpoint);
+    async getUsers(projectId?: number): Promise<User[]> {
+        if (projectId !== undefined) {
+            this.validateId(projectId, 'projectId');
+            const response = await this.request<{ users: User[] }>('GET', `get_users/${projectId}`);
+            return response.users ?? [];
+        }
+        const response = await this.request<{ users: User[] }>('GET', 'get_users');
         return response.users ?? [];
+    }
+
+    /**
+     * Get the currently authenticated user.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getCurrentUser(): Promise<User> {
+        return this.request<User>('GET', 'get_current_user');
     }
 
     // ── Statuses ──────────────────────────────────────────────────────────────
@@ -668,5 +689,113 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getResultFields(): Promise<ResultField[]> {
         return this.request<ResultField[]>('GET', 'get_result_fields');
+    }
+
+    // ── Case Fields & Types ───────────────────────────────────────────────────
+
+    /**
+     * Get all available custom case fields.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getCaseFields(): Promise<CaseField[]> {
+        return this.request<CaseField[]>('GET', 'get_case_fields');
+    }
+
+    /**
+     * Get all available case types.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getCaseTypes(): Promise<CaseType[]> {
+        return this.request<CaseType[]>('GET', 'get_case_types');
+    }
+
+    // ── Templates ─────────────────────────────────────────────────────────────
+
+    /**
+     * Get all available case templates for a project (requires TestRail 5.2+).
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getTemplates(projectId: number): Promise<Template[]> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Template[]>('GET', `get_templates/${projectId}`);
+    }
+
+    // ── Configurations ────────────────────────────────────────────────────────
+
+    /**
+     * Get all configuration groups and their configurations for a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getConfigurations(projectId: number): Promise<ConfigurationGroup[]> {
+        this.validateId(projectId, 'projectId');
+        return this.request<ConfigurationGroup[]>('GET', `get_configs/${projectId}`);
+    }
+
+    /**
+     * Add a new configuration group to a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addConfigurationGroup(
+        projectId: number,
+        payload: AddConfigurationGroupPayload,
+    ): Promise<ConfigurationGroup> {
+        this.validateId(projectId, 'projectId');
+        return this.request<ConfigurationGroup>('POST', `add_config_group/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing configuration group.
+     * @throws {TestRailValidationError} When configGroupId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateConfigurationGroup(
+        configGroupId: number,
+        payload: UpdateConfigurationGroupPayload,
+    ): Promise<ConfigurationGroup> {
+        this.validateId(configGroupId, 'configGroupId');
+        return this.request<ConfigurationGroup>('POST', `update_config_group/${configGroupId}`, payload);
+    }
+
+    /**
+     * Delete an existing configuration group and all its configurations.
+     * @throws {TestRailValidationError} When configGroupId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteConfigurationGroup(configGroupId: number): Promise<void> {
+        this.validateId(configGroupId, 'configGroupId');
+        await this.request<void>('POST', `delete_config_group/${configGroupId}`);
+    }
+
+    /**
+     * Add a new configuration to a configuration group.
+     * @throws {TestRailValidationError} When configGroupId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addConfiguration(configGroupId: number, payload: AddConfigurationPayload): Promise<Configuration> {
+        this.validateId(configGroupId, 'configGroupId');
+        return this.request<Configuration>('POST', `add_config/${configGroupId}`, payload);
+    }
+
+    /**
+     * Update an existing configuration.
+     * @throws {TestRailValidationError} When configId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateConfiguration(configId: number, payload: UpdateConfigurationPayload): Promise<Configuration> {
+        this.validateId(configId, 'configId');
+        return this.request<Configuration>('POST', `update_config/${configId}`, payload);
+    }
+
+    /**
+     * Delete an existing configuration.
+     * @throws {TestRailValidationError} When configId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteConfiguration(configId: number): Promise<void> {
+        this.validateId(configId, 'configId');
+        await this.request<void>('POST', `delete_config/${configId}`);
     }
 }

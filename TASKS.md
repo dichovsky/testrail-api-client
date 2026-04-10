@@ -280,7 +280,7 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 ---
 
-### TASK-018 · Add `project_id` filter to `getUsers()`
+### TASK-018 · Add `project_id` filter to `getUsers()` [Done]
 
 **Category:** Feature / Users  
 **Description:**  
@@ -288,14 +288,14 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 **Acceptance Criteria:**
 
-- [ ] `getUsers(projectId?: number): Promise<User[]>` updated to accept optional `projectId`
-- [ ] When `projectId` is provided, endpoint is `get_users/{projectId}`; otherwise `get_users`
-- [ ] `projectId` validated when provided
-- [ ] Unit tests for both variants
+- [x] `getUsers(projectId?: number): Promise<User[]>` updated to accept optional `projectId`
+- [x] When `projectId` is provided, endpoint is `get_users/{projectId}`; otherwise `get_users`
+- [x] `projectId` validated when provided
+- [x] Unit tests for both variants
 
 ---
 
-### TASK-019 · Add `getCurrentUser()`
+### TASK-019 · Add `getCurrentUser()` [Done]
 
 **Category:** Feature / Users  
 **Description:**  
@@ -303,12 +303,12 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 **Acceptance Criteria:**
 
-- [ ] `getCurrentUser(): Promise<User>` added
-- [ ] Unit test: success, API error
+- [x] `getCurrentUser(): Promise<User>` added
+- [x] Unit test: success, API error
 
 ---
 
-### TASK-020 · Add `getCaseFields()` and `getCaseTypes()`
+### TASK-020 · Add `getCaseFields()` and `getCaseTypes()` [Done]
 
 **Category:** Feature / Metadata  
 **Description:**  
@@ -316,10 +316,10 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 **Acceptance Criteria:**
 
-- [ ] `getCaseFields(): Promise<CaseField[]>` implemented
-- [ ] `getCaseTypes(): Promise<CaseType[]>` implemented
-- [ ] `CaseField` and `CaseType` interfaces defined in `types.ts` with known fields and exported
-- [ ] Unit tests for both
+- [x] `getCaseFields(): Promise<CaseField[]>` implemented
+- [x] `getCaseTypes(): Promise<CaseType[]>` implemented
+- [x] `CaseField` and `CaseType` interfaces defined in `types.ts` with known fields and exported
+- [x] Unit tests for both
 
 ---
 
@@ -337,7 +337,7 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 ---
 
-### TASK-022 · Add `getTemplates(projectId)`
+### TASK-022 · Add `getTemplates(projectId)` [Done]
 
 **Category:** Feature / Metadata  
 **Description:**  
@@ -345,13 +345,13 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 **Acceptance Criteria:**
 
-- [ ] `getTemplates(projectId: number): Promise<Template[]>` implemented
-- [ ] `Template` interface with `id`, `name`, `is_default` defined and exported
-- [ ] Unit test
+- [x] `getTemplates(projectId: number): Promise<Template[]>` implemented
+- [x] `Template` interface with `id`, `name`, `is_default` defined and exported
+- [x] Unit test
 
 ---
 
-### TASK-023 · Add Configurations CRUD
+### TASK-023 · Add Configurations CRUD [Done]
 
 **Category:** Feature / Configurations  
 **Description:**  
@@ -359,15 +359,15 @@ Configurations allow run variants (e.g. OS, browser). No configuration endpoints
 
 **Acceptance Criteria:**
 
-- [ ] `getConfigurations(projectId: number): Promise<ConfigurationGroup[]>` implemented
-- [ ] `addConfigurationGroup(projectId, payload): Promise<ConfigurationGroup>` implemented
-- [ ] `updateConfigurationGroup(configGroupId, payload): Promise<ConfigurationGroup>` implemented
-- [ ] `deleteConfigurationGroup(configGroupId): Promise<void>` implemented
-- [ ] `addConfiguration(configGroupId, payload): Promise<Configuration>` implemented
-- [ ] `updateConfiguration(configId, payload): Promise<Configuration>` implemented
-- [ ] `deleteConfiguration(configId): Promise<void>` implemented
-- [ ] `ConfigurationGroup`, `Configuration`, and all payload types defined and exported
-- [ ] Unit tests for each method
+- [x] `getConfigurations(projectId: number): Promise<ConfigurationGroup[]>` implemented
+- [x] `addConfigurationGroup(projectId, payload): Promise<ConfigurationGroup>` implemented
+- [x] `updateConfigurationGroup(configGroupId, payload): Promise<ConfigurationGroup>` implemented
+- [x] `deleteConfigurationGroup(configGroupId): Promise<void>` implemented
+- [x] `addConfiguration(configGroupId, payload): Promise<Configuration>` implemented
+- [x] `updateConfiguration(configId, payload): Promise<Configuration>` implemented
+- [x] `deleteConfiguration(configId): Promise<void>` implemented
+- [x] `ConfigurationGroup`, `Configuration`, and all payload types defined and exported
+- [x] Unit tests for each method
 
 ---
 

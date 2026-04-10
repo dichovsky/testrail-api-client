@@ -29,6 +29,11 @@ import type {
     AddMilestonePayload,
     UpdateMilestonePayload,
     ResultField,
+    CaseField,
+    CaseType,
+    Template,
+    ConfigurationGroup,
+    Configuration,
 } from '../src/types.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 
@@ -1222,55 +1227,70 @@ describe('TestRailClient', () => {
     });
 
     describe('Users', () => {
+        const mockUser: User = {
+            id: 1,
+            name: 'Test User',
+            email: 'test@example.com',
+            is_active: true,
+        };
+
         it('should get user by ID', async () => {
-            const mockUser: User = {
-                id: 1,
-                name: 'Test User',
-                email: 'test@example.com',
-                is_active: true,
-            };
-
             mockFetch.mockResolvedValueOnce(mockOk(mockUser));
-
             const result = await client.getUser(1);
             expect(result).toEqual(mockUser);
         });
 
         it('should get user by email', async () => {
-            const mockUser: User = {
-                id: 1,
-                name: 'Test User',
-                email: 'test@example.com',
-                is_active: true,
-            };
-
             mockFetch.mockResolvedValueOnce(mockOk(mockUser));
-
             const result = await client.getUserByEmail('test@example.com');
             expect(result).toEqual(mockUser);
         });
 
-        it('should get all users', async () => {
-            const mockUsers: User[] = [
-                {
-                    id: 1,
-                    name: 'User 1',
-                    email: 'user1@example.com',
-                    is_active: true,
-                },
-            ];
-
+        it('should get all users (global endpoint)', async () => {
+            const mockUsers: User[] = [mockUser];
             mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
-
             const result = await client.getUsers();
             expect(result).toEqual(mockUsers);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_users'),
+                expect.anything(),
+            );
         });
 
         it('should handle empty users list', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-
             const result = await client.getUsers();
             expect(result).toEqual([]);
+        });
+
+        it('should get users scoped to a project', async () => {
+            const mockUsers: User[] = [mockUser];
+            mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
+            const result = await client.getUsers(5);
+            expect(result).toEqual(mockUsers);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_users/5'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid projectId in getUsers', async () => {
+            await expect(client.getUsers(-1)).rejects.toThrow('projectId must be a positive integer');
+        });
+
+        it('should get current user', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk(mockUser));
+            const result = await client.getCurrentUser();
+            expect(result).toEqual(mockUser);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_current_user'),
+                expect.anything(),
+            );
+        });
+
+        it('should propagate API error from getCurrentUser', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
+            await expect(client.getCurrentUser()).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
     });
 
@@ -1370,6 +1390,229 @@ describe('TestRailClient', () => {
 
             const result = await client.getResultFields();
             expect(result[0]).toHaveProperty('description', 'Custom field for tracking defect IDs');
+        });
+    });
+
+    describe('Case Fields & Types', () => {
+        const mockCaseField: CaseField = {
+            id: 1,
+            system_name: 'custom_steps',
+            label: 'Steps',
+            name: 'steps',
+            type_id: 7,
+            display_order: 1,
+            configs: [
+                {
+                    context: { is_global: true, project_ids: [] },
+                    options: { is_required: false, default_value: '' },
+                },
+            ],
+            is_active: true,
+            include_all: true,
+            template_ids: [],
+        };
+
+        it('should get all case fields', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([mockCaseField]));
+            const result = await client.getCaseFields();
+            expect(result).toEqual([mockCaseField]);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_case_fields'),
+                expect.anything(),
+            );
+        });
+
+        it('should return empty array for case fields', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+            const result = await client.getCaseFields();
+            expect(result).toEqual([]);
+        });
+
+        it('should propagate API error from getCaseFields', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
+            await expect(client.getCaseFields()).rejects.toThrow('TestRail API error: 403 Forbidden');
+        });
+
+        it('should include optional description when present', async () => {
+            const fieldWithDescription: CaseField = { ...mockCaseField, description: 'Step-by-step instructions' };
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWithDescription]));
+            const result = await client.getCaseFields();
+            expect(result[0]).toHaveProperty('description', 'Step-by-step instructions');
+        });
+
+        const mockCaseType: CaseType = { id: 1, name: 'Functional', is_default: true };
+
+        it('should get all case types', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([mockCaseType]));
+            const result = await client.getCaseTypes();
+            expect(result).toEqual([mockCaseType]);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_case_types'),
+                expect.anything(),
+            );
+        });
+
+        it('should return empty array for case types', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+            const result = await client.getCaseTypes();
+            expect(result).toEqual([]);
+        });
+
+        it('should propagate API error from getCaseTypes', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
+            await expect(client.getCaseTypes()).rejects.toThrow('TestRail API error: 403 Forbidden');
+        });
+    });
+
+    describe('Templates', () => {
+        const mockTemplate: Template = { id: 1, name: 'Test Case (Steps)', is_default: true };
+
+        it('should get templates for a project', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([mockTemplate]));
+            const result = await client.getTemplates(1);
+            expect(result).toEqual([mockTemplate]);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_templates/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should return empty array when no templates', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+            const result = await client.getTemplates(1);
+            expect(result).toEqual([]);
+        });
+
+        it('should throw for invalid projectId', async () => {
+            await expect(client.getTemplates(-1)).rejects.toThrow('projectId must be a positive integer');
+        });
+
+        it('should propagate API error from getTemplates', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
+            await expect(client.getTemplates(1)).rejects.toThrow('TestRail API error: 403 Forbidden');
+        });
+    });
+
+    describe('Configurations', () => {
+        const mockConfig: Configuration = { id: 10, name: 'Windows 10', group_id: 1 };
+        const mockConfigGroup: ConfigurationGroup = {
+            id: 1,
+            name: 'Operating Systems',
+            project_id: 1,
+            configs: [mockConfig],
+        };
+
+        it('should get configurations for a project', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([mockConfigGroup]));
+            const result = await client.getConfigurations(1);
+            expect(result).toEqual([mockConfigGroup]);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_configs/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid projectId in getConfigurations', async () => {
+            await expect(client.getConfigurations(0)).rejects.toThrow('projectId must be a positive integer');
+        });
+
+        it('should propagate API error from getConfigurations', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
+            await expect(client.getConfigurations(1)).rejects.toThrow('TestRail API error: 403 Forbidden');
+        });
+
+        it('should add a configuration group', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk(mockConfigGroup));
+            const result = await client.addConfigurationGroup(1, { name: 'Operating Systems' });
+            expect(result).toEqual(mockConfigGroup);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_config_group/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid projectId in addConfigurationGroup', async () => {
+            await expect(
+                client.addConfigurationGroup(-1, { name: 'OS' }),
+            ).rejects.toThrow('projectId must be a positive integer');
+        });
+
+        it('should update a configuration group', async () => {
+            const updated: ConfigurationGroup = { ...mockConfigGroup, name: 'OS Versions' };
+            mockFetch.mockResolvedValueOnce(mockOk(updated));
+            const result = await client.updateConfigurationGroup(1, { name: 'OS Versions' });
+            expect(result.name).toBe('OS Versions');
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_config_group/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid configGroupId in updateConfigurationGroup', async () => {
+            await expect(
+                client.updateConfigurationGroup(0, { name: 'OS' }),
+            ).rejects.toThrow('configGroupId must be a positive integer');
+        });
+
+        it('should delete a configuration group', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteConfigurationGroup(1)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_config_group/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid configGroupId in deleteConfigurationGroup', async () => {
+            await expect(client.deleteConfigurationGroup(-1)).rejects.toThrow(
+                'configGroupId must be a positive integer',
+            );
+        });
+
+        it('should add a configuration', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk(mockConfig));
+            const result = await client.addConfiguration(1, { name: 'Windows 10' });
+            expect(result).toEqual(mockConfig);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_config/1'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid configGroupId in addConfiguration', async () => {
+            await expect(
+                client.addConfiguration(-1, { name: 'Win' }),
+            ).rejects.toThrow('configGroupId must be a positive integer');
+        });
+
+        it('should update a configuration', async () => {
+            const updated: Configuration = { ...mockConfig, name: 'Windows 11' };
+            mockFetch.mockResolvedValueOnce(mockOk(updated));
+            const result = await client.updateConfiguration(10, { name: 'Windows 11' });
+            expect(result.name).toBe('Windows 11');
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_config/10'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid configId in updateConfiguration', async () => {
+            await expect(
+                client.updateConfiguration(0, { name: 'Win' }),
+            ).rejects.toThrow('configId must be a positive integer');
+        });
+
+        it('should delete a configuration', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.deleteConfiguration(10)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_config/10'),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid configId in deleteConfiguration', async () => {
+            await expect(client.deleteConfiguration(-5)).rejects.toThrow('configId must be a positive integer');
         });
     });
 

@@ -254,7 +254,7 @@ async function run(res: string, act: string): Promise<void> {
                 const id = parseId(idArg, 'user id');
                 out(await client.getUser(id));
             } else if (act === 'list') {
-                out(await client.getUsers(limit, offset));
+                out(await client.getUsers());
             } else {
                 err(`Unknown action '${act}' for user. Use: get, list`);
                 process.exit(1);
