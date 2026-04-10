@@ -10,7 +10,7 @@ describe('TestRailClient - Sections CRUD', () => {
     let client: TestRailClient;
 
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         client = createClient();
     });
 
