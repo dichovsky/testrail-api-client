@@ -257,6 +257,8 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Add a plan entry (run) to a plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
      */
     async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
         this.validateId(planId, 'planId');
@@ -265,23 +267,23 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Update an existing plan entry.
+     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
+     * @throws {TestRailApiError} When the API request fails
      */
     async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
         this.validateId(planId, 'planId');
-        if (typeof entryId !== 'string' || entryId.trim() === '') {
-            throw new TestRailValidationError('entryId must be a non-empty string');
-        }
+        this.validateEntryId(entryId);
         return this.request<PlanEntry>('POST', `update_plan_entry/${planId}/${entryId}`, payload);
     }
 
     /**
      * Delete a plan entry.
+     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
+     * @throws {TestRailApiError} When the API request fails
      */
     async deletePlanEntry(planId: number, entryId: string): Promise<void> {
         this.validateId(planId, 'planId');
-        if (typeof entryId !== 'string' || entryId.trim() === '') {
-            throw new TestRailValidationError('entryId must be a non-empty string');
-        }
+        this.validateEntryId(entryId);
         await this.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
     }
 

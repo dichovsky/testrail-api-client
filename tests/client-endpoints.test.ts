@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TestRailClient } from '../src/client.js';
+import { TestRailClient, TestRailValidationError } from '../src/client.js';
 import type {
     Project,
     Suite,
     Section,
     Case,
     Plan,
+    PlanEntry,
     Run,
     Test,
     Result,
@@ -17,6 +18,8 @@ import type {
     UpdateCasePayload,
     AddPlanPayload,
     UpdatePlanPayload,
+    AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -532,6 +535,116 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
 
             await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow(
+                'TestRail API error: 403 Forbidden',
+            );
+        });
+    });
+
+    describe('Plan Entries', () => {
+        const mockEntry: PlanEntry = {
+            id: 'entry-guid-1',
+            suite_id: 2,
+            name: 'Entry',
+            include_all: true,
+            runs: [],
+        };
+
+        it('should add a plan entry', async () => {
+            const payload: AddPlanEntryPayload = { suite_id: 2 };
+            mockFetch.mockResolvedValueOnce(mockOk(mockEntry));
+
+            const result = await client.addPlanEntry(1, payload);
+            expect(result).toEqual(mockEntry);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_plan_entry/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid planId in addPlanEntry', async () => {
+            await expect(client.addPlanEntry(-1, { suite_id: 2 })).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should propagate API error from addPlanEntry', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.addPlanEntry(1, { suite_id: 2 })).rejects.toThrow(
+                'TestRail API error: 403 Forbidden',
+            );
+        });
+
+        it('should update a plan entry', async () => {
+            const payload: UpdatePlanEntryPayload = { name: 'Updated Entry' };
+            mockFetch.mockResolvedValueOnce(mockOk(mockEntry));
+
+            const result = await client.updatePlanEntry(1, 'entry-guid-1', payload);
+            expect(result).toEqual(mockEntry);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_plan_entry/1/entry-guid-1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid planId in updatePlanEntry', async () => {
+            await expect(client.updatePlanEntry(0, 'entry-guid-1', {})).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should throw validation error for empty entryId in updatePlanEntry', async () => {
+            await expect(client.updatePlanEntry(1, '', {})).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should throw validation error for whitespace-only entryId in updatePlanEntry', async () => {
+            await expect(client.updatePlanEntry(1, '   ', {})).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should propagate API error from updatePlanEntry', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.updatePlanEntry(1, 'entry-guid-1', {})).rejects.toThrow(
+                'TestRail API error: 403 Forbidden',
+            );
+        });
+
+        it('should delete a plan entry', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+
+            await client.deletePlanEntry(1, 'entry-guid-1');
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('delete_plan_entry/1/entry-guid-1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw validation error for invalid planId in deletePlanEntry', async () => {
+            await expect(client.deletePlanEntry(0, 'entry-guid-1')).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should throw validation error for empty entryId in deletePlanEntry', async () => {
+            await expect(client.deletePlanEntry(1, '')).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should throw validation error for whitespace-only entryId in deletePlanEntry', async () => {
+            await expect(client.deletePlanEntry(1, '   ')).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('should propagate API error from deletePlanEntry', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.deletePlanEntry(1, 'entry-guid-1')).rejects.toThrow(
                 'TestRail API error: 403 Forbidden',
             );
         });

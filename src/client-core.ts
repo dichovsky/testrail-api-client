@@ -290,6 +290,16 @@ export class TestRailClientCore {
     }
 
     /**
+     * Validates that a string entry ID is non-empty.
+     * @throws {TestRailValidationError} When entryId is not a non-empty string
+     */
+    protected validateEntryId(entryId: string): void {
+        if (typeof entryId !== 'string' || entryId.trim() === '') {
+            throw new TestRailValidationError('entryId must be a non-empty string');
+        }
+    }
+
+    /**
      * Validates optional pagination parameters.
      * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
      */
