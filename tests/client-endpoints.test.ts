@@ -28,6 +28,7 @@ import type {
     AddResultsForCasesPayload,
     AddMilestonePayload,
     UpdateMilestonePayload,
+    ResultField,
 } from '../src/types.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 
@@ -1314,6 +1315,64 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockPriorities);
         });
     });
+
+    describe('Result Fields', () => {
+        const mockResultField: ResultField = {
+            id: 1,
+            system_name: 'custom_defects',
+            label: 'Defects',
+            name: 'defects',
+            type_id: 1,
+            display_order: 1,
+            configs: [
+                {
+                    context: { is_global: true, project_ids: [] },
+                    options: { is_required: false, default_value: '' },
+                },
+            ],
+            is_active: true,
+            include_all: true,
+            template_ids: [],
+        };
+
+        it('should get all result fields', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([mockResultField]));
+
+            const result = await client.getResultFields();
+            expect(result).toEqual([mockResultField]);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_result_fields'),
+                expect.objectContaining({ method: 'GET' }),
+            );
+        });
+
+        it('should return an empty array when no result fields exist', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+
+            const result = await client.getResultFields();
+            expect(result).toEqual([]);
+        });
+
+        it('should propagate API error from getResultFields', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', 'No access'));
+
+            await expect(client.getResultFields()).rejects.toThrow('TestRail API error: 403 Forbidden');
+        });
+
+        it('should include optional description when present', async () => {
+            const fieldWithDescription: ResultField = {
+                ...mockResultField,
+                id: 2,
+                description: 'Custom field for tracking defect IDs',
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWithDescription]));
+
+            const result = await client.getResultFields();
+            expect(result[0]).toHaveProperty('description', 'Custom field for tracking defect IDs');
+        });
+    });
+
     describe('Security & Validation', () => {
         it('should throw when using HTTP protocol without allowInsecure', () => {
             expect(

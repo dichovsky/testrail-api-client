@@ -323,7 +323,7 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 ---
 
-### TASK-021 · Add `getResultFields()`
+### TASK-021 · Add `getResultFields()` [Done]
 
 **Category:** Feature / Metadata  
 **Description:**  
@@ -331,9 +331,9 @@ All three result list endpoints support `created_after`, `created_before`, `crea
 
 **Acceptance Criteria:**
 
-- [ ] `getResultFields(): Promise<ResultField[]>` implemented
-- [ ] `ResultField` interface defined and exported
-- [ ] Unit test
+- [x] `getResultFields(): Promise<ResultField[]>` implemented
+- [x] `ResultField` interface defined and exported
+- [x] Unit test
 
 ---
 
