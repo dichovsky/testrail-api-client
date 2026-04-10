@@ -151,6 +151,34 @@ export class TestRailClientCore {
         return Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
     }
 
+    /**
+     * Parses the Retry-After header value to milliseconds
+     *
+     * @param response - The HTTP response containing the Retry-After header
+     * @returns The delay in milliseconds, or null if header is absent or invalid
+     */
+    private parseRetryAfterMs(response: Response): number | null {
+        const retryAfter = response.headers.get('Retry-After');
+        if (!retryAfter) {
+            return null;
+        }
+
+        // Try parsing as seconds (numeric value)
+        const seconds = parseInt(retryAfter, 10);
+        if (!isNaN(seconds) && seconds > 0) {
+            return seconds * 1000; // Convert to milliseconds
+        }
+
+        // Try parsing as HTTP-date format
+        const date = new Date(retryAfter);
+        if (!isNaN(date.getTime())) {
+            const delayMs = date.getTime() - Date.now();
+            return delayMs > 0 ? delayMs : null;
+        }
+
+        return null; // Invalid format
+    }
+
     /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
     private checkRateLimit(): void {
         const now = Date.now();
@@ -359,9 +387,11 @@ export class TestRailClientCore {
                 const errorText = await response.text().catch(() => 'Unknown error');
 
                 // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-                // Exponential backoff to avoid overwhelming the server during high load.
+                // For 429, respect the Retry-After header if present; otherwise use exponential backoff.
                 if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    await sleep(this.getRetryDelay(retryCount));
+                    const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+                    const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
+                    await sleep(delay);
                     return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
                 }
 
