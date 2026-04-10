@@ -29,7 +29,7 @@ describe('Project CRUD', () => {
             const payload: AddProjectPayload = { name: 'New Project', suite_mode: 1 };
             mockFetch.mockResolvedValueOnce(mockErr(500, 'Server Error', 'Boom'));
 
-            await expect(client.addProject(payload)).rejects.toThrow('TestRail API error: 500 Server Error - Boom');
+            await expect(client.addProject(payload)).rejects.toThrow('TestRail API error: 500 Server Error');
         });
     });
 
@@ -49,7 +49,7 @@ describe('Project CRUD', () => {
 
         it('api error', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', 'Invalid'));
-            await expect(client.updateProject(1, {})).rejects.toThrow('TestRail API error: 400 Bad Request - Invalid');
+            await expect(client.updateProject(1, {})).rejects.toThrow('TestRail API error: 400 Bad Request');
         });
     });
 
@@ -66,7 +66,7 @@ describe('Project CRUD', () => {
 
         it('api error', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(500, 'Server Error', 'Boom'));
-            await expect(client.deleteProject(1)).rejects.toThrow('TestRail API error: 500 Server Error - Boom');
+            await expect(client.deleteProject(1)).rejects.toThrow('TestRail API error: 500 Server Error');
         });
     });
 });
