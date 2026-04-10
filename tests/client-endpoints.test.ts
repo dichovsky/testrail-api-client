@@ -516,7 +516,7 @@ describe('TestRailClient', () => {
 
             mockFetch.mockResolvedValueOnce(mockOk({ plans: mockPlans }));
 
-            const result = await client.getPlans(1, 10, 5);
+            const result = await client.getPlans(1, { limit: 10, offset: 5 });
             expect(result).toEqual(mockPlans);
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('get_plans/1&limit=10&offset=5'),
@@ -527,7 +527,7 @@ describe('TestRailClient', () => {
         it('should get plans with only limit', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
 
-            await client.getPlans(1, 20);
+            await client.getPlans(1, { limit: 20 });
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_plans/1&limit=20'), expect.any(Object));
         });
 
@@ -538,6 +538,55 @@ describe('TestRailClient', () => {
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('limit');
             expect(url).not.toContain('offset');
+        });
+
+        it('should get plans filtered by created_after and created_before', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1, { created_after: 1000000, created_before: 2000000 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&created_after=1000000&created_before=2000000'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get plans filtered by created_by', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1, { created_by: [1, 2] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&created_by=1%2C2'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get plans filtered by is_completed', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1, { is_completed: 1 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get plans filtered by milestone_id', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1, { milestone_id: [10, 20] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&milestone_id=10%2C20'),
+                expect.any(Object),
+            );
+        });
+
+        it('should omit empty array filters for getPlans', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+
+            await client.getPlans(1, { created_by: [], milestone_id: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('milestone_id=');
         });
 
         it('should add a new plan', async () => {
@@ -1042,6 +1091,43 @@ describe('TestRailClient', () => {
             const result = await client.getTests(1);
             expect(result).toEqual([]);
         });
+
+        it('should get tests filtered by status_id', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+
+            await client.getTests(1, { status_id: [1, 5] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_tests/1&status_id=1%2C5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get tests with limit and offset', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+
+            await client.getTests(1, { limit: 10, offset: 5 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_tests/1&limit=10&offset=5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should not include undefined filters in URL for getTests', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+
+            await client.getTests(1);
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('status_id');
+            expect(url).not.toContain('limit');
+        });
+
+        it('should omit empty status_id filter for getTests', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+
+            await client.getTests(1, { status_id: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('status_id=');
+        });
     });
 
     describe('Results', () => {
@@ -1109,6 +1195,123 @@ describe('TestRailClient', () => {
 
             const result = await client.getResultsForRun(1);
             expect(result).toEqual([]);
+        });
+
+        it('should get results filtered by created_after and created_before', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResults(1, { created_after: 1000000, created_before: 2000000 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&created_after=1000000&created_before=2000000'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results filtered by created_by', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResults(1, { created_by: [1, 2] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&created_by=1%2C2'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results filtered by status_id', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResults(1, { status_id: [1, 5] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&status_id=1%2C5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results with limit and offset', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResults(1, { limit: 10, offset: 5 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&limit=10&offset=5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results for case filtered by status_id', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResultsForCase(1, 2, { status_id: [1] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_case/1/2&status_id=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results for case with limit and offset', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResultsForCase(1, 2, { limit: 5, offset: 10 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_case/1/2&limit=5&offset=10'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results for run filtered by status_id', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResultsForRun(1, { status_id: [1, 2] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_run/1&status_id=1%2C2'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get results for run with limit and offset', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResultsForRun(1, { limit: 20, offset: 0 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_run/1&limit=20&offset=0'),
+                expect.any(Object),
+            );
+        });
+
+        it('should not include undefined filters in URL for getResults', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResults(1);
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('status_id');
+            expect(url).not.toContain('created_after');
+            expect(url).not.toContain('limit');
+        });
+
+        it('should omit empty array filters for getResults', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResults(1, { created_by: [], status_id: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('status_id=');
+        });
+
+        it('should omit empty array filters for getResultsForCase', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResultsForCase(1, 2, { created_by: [], status_id: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('status_id=');
+        });
+
+        it('should omit empty array filters for getResultsForRun', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.getResultsForRun(1, { created_by: [], status_id: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('status_id=');
         });
 
         it('should add a result for a test', async () => {
@@ -1210,6 +1413,35 @@ describe('TestRailClient', () => {
 
             const result = await client.getMilestones(1);
             expect(result).toEqual([]);
+        });
+
+        it('should get milestones filtered by is_completed', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.getMilestones(1, { is_completed: 1 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_milestones/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should get milestones with limit and offset', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.getMilestones(1, { limit: 10, offset: 5 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_milestones/1&limit=10&offset=5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should not include undefined filters in URL for getMilestones', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.getMilestones(1);
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('is_completed');
+            expect(url).not.toContain('limit');
         });
 
         it('should add a milestone', async () => {
