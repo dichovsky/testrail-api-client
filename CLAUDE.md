@@ -1,48 +1,53 @@
 # CLAUDE.md
 
-**Project**: `@dichovsky/testrail-api-client` — type-safe TypeScript client with caching, rate limiting, retry logic, error handling.
+`@dichovsky/testrail-api-client` — type-safe TypeScript client for the TestRail API with caching, rate limiting, retry logic, and robust error handling.
 
 ## Commands
+
 ```bash
-npm install           # deps
-npm test              # Vitest
-npm run test:coverage # coverage
-npm run test:watch    # watch mode
-npm run build         # TS compile
-npm run lint          # ESLint
-npm run typecheck     # types only
-npx vitest run tests/client.test.ts  # single file
+npm install          # Install dependencies
+npm test             # Run tests (Vitest)
+npm run test:coverage
+npm run test:watch
+npm run build        # TypeScript compilation → dist/
+npm run lint
+npm run typecheck
+npx vitest run tests/client.test.ts  # Single file
 ```
 
+## Core Files
+
+| File            | Purpose                                                            |
+| --------------- | ------------------------------------------------------------------ |
+| `src/client.ts` | Main client class — all API methods, caching, rate limiting, retry |
+| `src/types.ts`  | TypeScript interfaces for all TestRail entities and payloads       |
+| `src/utils.ts`  | `base64Encode`, `sleep` helpers                                    |
+| `src/index.ts`  | Public API exports                                                 |
+
 ## Architecture
-| File | Purpose |
-|------|---------|
-| `src/client.ts` | Client class: caching, rate limiting, retry logic |
-| `src/types.ts` | TypeScript interfaces/payloads |
-| `src/utils.ts` | Helpers (base64Encode, sleep) |
-| `src/index.ts` | Public exports |
 
-**Caching**: LRU Map with TTL; keys `{method}:{endpoint}`. Config: `enableCache`, `cacheTtl`, `maxCacheSize`.
-**Rate Limiter**: Sliding window on `rateLimiter.requests[]`; default 100/min.
-**Retry**: Exponential backoff `min(1000*2^retry, 10000)`ms; retries 5xx, 429, network errors (not timeouts/4xx).
-**Errors**: `TestRailApiError` (status/response), `TestRailValidationError` (config params).
+**Caching:** LRU-style Map with TTL. Keys: `{method}:{endpoint}`. Config: `enableCache`, `cacheTtl`, `maxCacheSize`. All GETs cached unless `skipCache=true`.
 
-## Patterns
-- Cross-platform Base64 (Node Buffer or browser btoa)
-- AbortController for timeout (no retry)
-- Global cleanup handlers on exit/SIGINT/SIGTERM
-- ID validation: positive integers via `validateId()`
-- HTTP warning logged (credentials in Base64)
+**Rate Limiter:** Sliding window over `rateLimiter.requests[]`. Throws `TestRailApiError` when limit exceeded. Default: 100 req/min.
 
-## Testing
-140+ tests, 97.6% coverage, 98.7% branch coverage. Vitest framework.
+**Retry:** Exponential backoff `min(1000 * 2^n, 10000)` ms. Retries: 5xx, 429, network errors. No retry on timeout or 4xx.
 
-**Task pattern**: Define payload in types → validate → call `this.request()` → JSDoc.
-- Caching: centralized in `getCachedData()`, `setCachedData()`, `cleanupExpiredCache()`
-- Retry/rate limit: constants in client.ts; rate limiter via constructor config
+**Errors:** `TestRailApiError` (HTTP/network, has `status`/`statusText`/`response`). `TestRailValidationError` (config/params). After `destroy()` any call throws `Error`.
 
-## Module System
-ESM (`"type": "module"`). Imports use `.js` extension. Output to `dist/`.
+**IDs:** All numeric IDs validated as positive integers via `validateId()` before API calls.
 
-**API pattern**: `{baseUrl}/index.php?/api/v2/{endpoint}`
-Examples: `get_project/{id}`, `add_case/{sectionId}`, `get_user_by_email&email={encodedEmail}`
+## Tests
+
+140+ cases, 97.6%+ coverage (Vitest). Files: `client.test.ts` (CRUD), `enhanced-features.test.ts` (cache/rate/retry), `coverage-improvement.test.ts` (edge cases), `index.test.ts` (exports), `performance.test.ts`, `types.test.ts`, `utils.test.ts`. Shared test helpers in `tests/helpers.ts`.
+
+## Common Tasks
+
+**Add API endpoint:**
+
+1. Add payload interface to `src/types.ts` if needed
+2. Validate via `validateId()` or custom check
+3. Implement with `this.request(method, endpoint, payload)`
+
+**Modify caching:** Logic in `getCachedData()` / `setCachedData()` / `cleanupExpiredCache()`.
+
+**Modify retry/rate limits:** Constants `BASE_RETRY_DELAY_MS`, `MAX_RETRY_DELAY_MS`, `MAX_TIMEOUT_MS` at top of `client.ts`. Rate limiter config via `TestRailConfig.rateLimiter`.
