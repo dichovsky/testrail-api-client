@@ -159,7 +159,7 @@ export class TestRailClientCore {
      */
     private parseRetryAfterMs(response: Response): number | null {
         const retryAfter = response.headers.get('Retry-After');
-        if (!retryAfter) {
+        if (retryAfter === null || retryAfter === '') {
             return null;
         }
 
