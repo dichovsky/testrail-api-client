@@ -6,59 +6,60 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 
 | Method               | HTTP | Endpoint                                  | Line                      |
 | -------------------- | ---- | ----------------------------------------- | ------------------------- |
-| `getProject`         | GET  | `get_project/${projectId}`                | [54](src/client.ts#L54)   |
-| `getProjects`        | GET  | `get_projects&...`                        | [64](src/client.ts#L64)   |
-| `addProject`         | POST | `add_project`                             | [75](src/client.ts#L75)   |
-| `updateProject`      | POST | `update_project/${projectId}`             | [84](src/client.ts#L84)   |
-| `deleteProject`      | POST | `delete_project/${projectId}`             | [94](src/client.ts#L94)   |
-| `getSuite`           | GET  | `get_suite/${suiteId}`                    | [106](src/client.ts#L106) |
-| `getSuites`          | GET  | `get_suites/${projectId}`                 | [116](src/client.ts#L116) |
-| `addSuite`           | POST | `add_suite/${projectId}`                  | [126](src/client.ts#L126) |
-| `updateSuite`        | POST | `update_suite/${suiteId}`                 | [136](src/client.ts#L136) |
-| `deleteSuite`        | POST | `delete_suite/${suiteId}`                 | [146](src/client.ts#L146) |
-| `getSection`         | GET  | `get_section/${sectionId}`                | [158](src/client.ts#L158) |
-| `getSections`        | GET  | `get_sections/${projectId}&...`           | [171](src/client.ts#L171) |
-| `addSection`         | POST | `add_section/${projectId}`                | [191](src/client.ts#L191) |
-| `updateSection`      | POST | `update_section/${sectionId}`             | [201](src/client.ts#L201) |
-| `deleteSection`      | POST | `delete_section/${sectionId}`             | [211](src/client.ts#L211) |
-| `getCase`            | GET  | `get_case/${caseId}`                      | [223](src/client.ts#L223) |
-| `getCases`           | GET  | `get_cases/${projectId}&...`              | [237](src/client.ts#L237) |
-| `addCase`            | POST | `add_case/${sectionId}`                   | [265](src/client.ts#L265) |
-| `updateCase`         | POST | `update_case/${caseId}`                   | [275](src/client.ts#L275) |
-| `deleteCase`         | POST | `delete_case/${caseId}`                   | [285](src/client.ts#L285) |
-| `getPlan`            | GET  | `get_plan/${planId}`                      | [297](src/client.ts#L297) |
-| `getPlans`           | GET  | `get_plans/${projectId}&...`              | [307](src/client.ts#L307) |
-| `addPlan`            | POST | `add_plan/${projectId}`                   | [320](src/client.ts#L320) |
-| `updatePlan`         | POST | `update_plan/${planId}`                   | [330](src/client.ts#L330) |
-| `closePlan`          | POST | `close_plan/${planId}`                    | [340](src/client.ts#L340) |
-| `deletePlan`         | POST | `delete_plan/${planId}`                   | [350](src/client.ts#L350) |
-| `addPlanEntry`       | POST | `add_plan_entry/${planId}`                | [360](src/client.ts#L360) |
-| `updatePlanEntry`    | POST | `update_plan_entry/${planId}/${entryId}`  | [370](src/client.ts#L370) |
-| `deletePlanEntry`    | POST | `delete_plan_entry/${planId}/${entryId}`  | [381](src/client.ts#L381) |
-| `getRun`             | GET  | `get_run/${runId}`                        | [394](src/client.ts#L394) |
-| `getRuns`            | GET  | `get_runs/${projectId}&...`               | [404](src/client.ts#L404) |
-| `addRun`             | POST | `add_run/${projectId}`                    | [417](src/client.ts#L417) |
-| `updateRun`          | POST | `update_run/${runId}`                     | [427](src/client.ts#L427) |
-| `closeRun`           | POST | `close_run/${runId}`                      | [437](src/client.ts#L437) |
-| `deleteRun`          | POST | `delete_run/${runId}`                     | [447](src/client.ts#L447) |
-| `getTest`            | GET  | `get_test/${testId}`                      | [459](src/client.ts#L459) |
-| `getTests`           | GET  | `get_tests/${runId}&...`                  | [469](src/client.ts#L469) |
-| `getResults`         | GET  | `get_results/${testId}&...`               | [484](src/client.ts#L484) |
-| `getResultsForCase`  | GET  | `get_results_for_case/${runId}/${caseId}` | [497](src/client.ts#L497) |
-| `getResultsForRun`   | GET  | `get_results_for_run/${runId}&...`        | [509](src/client.ts#L509) |
-| `addResult`          | POST | `add_result/${testId}`                    | [522](src/client.ts#L522) |
-| `addResultForCase`   | POST | `add_result_for_case/${runId}/${caseId}`  | [532](src/client.ts#L532) |
-| `addResultsForCases` | POST | `add_results_for_cases/${runId}`          | [543](src/client.ts#L543) |
-| `getMilestone`       | GET  | `get_milestone/${milestoneId}`            | [555](src/client.ts#L555) |
-| `getMilestones`      | GET  | `get_milestones/${projectId}&...`         | [565](src/client.ts#L565) |
-| `addMilestone`       | POST | `add_milestone/${projectId}`              | [578](src/client.ts#L578) |
-| `updateMilestone`    | POST | `update_milestone/${milestoneId}`         | [588](src/client.ts#L588) |
-| `deleteMilestone`    | POST | `delete_milestone/${milestoneId}`         | [598](src/client.ts#L598) |
-| `getUser`            | GET  | `get_user/${userId}`                      | [610](src/client.ts#L610) |
-| `getUserByEmail`     | GET  | `get_user_by_email&...`                   | [620](src/client.ts#L620) |
-| `getUsers`           | GET  | `get_users&...`                           | [635](src/client.ts#L635) |
-| `getStatuses`        | GET  | `get_statuses`                            | [648](src/client.ts#L648) |
-| `getPriorities`      | GET  | `get_priorities`                          | [658](src/client.ts#L658) |
+| `getProject`         | GET  | `get_project/${projectId}`                | [55](src/client.ts#L55)   |
+| `getProjects`        | GET  | `get_projects&...`                        | [65](src/client.ts#L65)   |
+| `addProject`         | POST | `add_project`                             | [76](src/client.ts#L76)   |
+| `updateProject`      | POST | `update_project/${projectId}`             | [85](src/client.ts#L85)   |
+| `deleteProject`      | POST | `delete_project/${projectId}`             | [95](src/client.ts#L95)   |
+| `getSuite`           | GET  | `get_suite/${suiteId}`                    | [107](src/client.ts#L107) |
+| `getSuites`          | GET  | `get_suites/${projectId}`                 | [117](src/client.ts#L117) |
+| `addSuite`           | POST | `add_suite/${projectId}`                  | [127](src/client.ts#L127) |
+| `updateSuite`        | POST | `update_suite/${suiteId}`                 | [137](src/client.ts#L137) |
+| `deleteSuite`        | POST | `delete_suite/${suiteId}`                 | [147](src/client.ts#L147) |
+| `getSection`         | GET  | `get_section/${sectionId}`                | [159](src/client.ts#L159) |
+| `getSections`        | GET  | `get_sections/${projectId}&...`           | [172](src/client.ts#L172) |
+| `addSection`         | POST | `add_section/${projectId}`                | [192](src/client.ts#L192) |
+| `updateSection`      | POST | `update_section/${sectionId}`             | [202](src/client.ts#L202) |
+| `deleteSection`      | POST | `delete_section/${sectionId}`             | [212](src/client.ts#L212) |
+| `getCase`            | GET  | `get_case/${caseId}`                      | [224](src/client.ts#L224) |
+| `getCases`           | GET  | `get_cases/${projectId}&...`              | [238](src/client.ts#L238) |
+| `addCase`            | POST | `add_case/${sectionId}`                   | [266](src/client.ts#L266) |
+| `updateCase`         | POST | `update_case/${caseId}`                   | [276](src/client.ts#L276) |
+| `deleteCase`         | POST | `delete_case/${caseId}`                   | [286](src/client.ts#L286) |
+| `getPlan`            | GET  | `get_plan/${planId}`                      | [298](src/client.ts#L298) |
+| `getPlans`           | GET  | `get_plans/${projectId}&...`              | [308](src/client.ts#L308) |
+| `addPlan`            | POST | `add_plan/${projectId}`                   | [321](src/client.ts#L321) |
+| `updatePlan`         | POST | `update_plan/${planId}`                   | [331](src/client.ts#L331) |
+| `closePlan`          | POST | `close_plan/${planId}`                    | [341](src/client.ts#L341) |
+| `deletePlan`         | POST | `delete_plan/${planId}`                   | [351](src/client.ts#L351) |
+| `addPlanEntry`       | POST | `add_plan_entry/${planId}`                | [361](src/client.ts#L361) |
+| `updatePlanEntry`    | POST | `update_plan_entry/${planId}/${entryId}`  | [371](src/client.ts#L371) |
+| `deletePlanEntry`    | POST | `delete_plan_entry/${planId}/${entryId}`  | [382](src/client.ts#L382) |
+| `getRun`             | GET  | `get_run/${runId}`                        | [395](src/client.ts#L395) |
+| `getRuns`            | GET  | `get_runs/${projectId}&...`               | [405](src/client.ts#L405) |
+| `addRun`             | POST | `add_run/${projectId}`                    | [418](src/client.ts#L418) |
+| `updateRun`          | POST | `update_run/${runId}`                     | [428](src/client.ts#L428) |
+| `closeRun`           | POST | `close_run/${runId}`                      | [438](src/client.ts#L438) |
+| `deleteRun`          | POST | `delete_run/${runId}`                     | [448](src/client.ts#L448) |
+| `getTest`            | GET  | `get_test/${testId}`                      | [460](src/client.ts#L460) |
+| `getTests`           | GET  | `get_tests/${runId}&...`                  | [470](src/client.ts#L470) |
+| `getResults`         | GET  | `get_results/${testId}&...`               | [485](src/client.ts#L485) |
+| `getResultsForCase`  | GET  | `get_results_for_case/${runId}/${caseId}` | [498](src/client.ts#L498) |
+| `getResultsForRun`   | GET  | `get_results_for_run/${runId}&...`        | [510](src/client.ts#L510) |
+| `addResult`          | POST | `add_result/${testId}`                    | [523](src/client.ts#L523) |
+| `addResultForCase`   | POST | `add_result_for_case/${runId}/${caseId}`  | [533](src/client.ts#L533) |
+| `addResultsForCases` | POST | `add_results_for_cases/${runId}`          | [544](src/client.ts#L544) |
+| `getMilestone`       | GET  | `get_milestone/${milestoneId}`            | [556](src/client.ts#L556) |
+| `getMilestones`      | GET  | `get_milestones/${projectId}&...`         | [566](src/client.ts#L566) |
+| `addMilestone`       | POST | `add_milestone/${projectId}`              | [579](src/client.ts#L579) |
+| `updateMilestone`    | POST | `update_milestone/${milestoneId}`         | [589](src/client.ts#L589) |
+| `deleteMilestone`    | POST | `delete_milestone/${milestoneId}`         | [599](src/client.ts#L599) |
+| `getUser`            | GET  | `get_user/${userId}`                      | [611](src/client.ts#L611) |
+| `getUserByEmail`     | GET  | `get_user_by_email&...`                   | [621](src/client.ts#L621) |
+| `getUsers`           | GET  | `get_users&...`                           | [636](src/client.ts#L636) |
+| `getStatuses`        | GET  | `get_statuses`                            | [649](src/client.ts#L649) |
+| `getPriorities`      | GET  | `get_priorities`                          | [659](src/client.ts#L659) |
+| `getResultFields`    | GET  | `get_result_fields`                       | [669](src/client.ts#L669) |
 
 ## Core Infrastructure (`src/client-core.ts`)
 
@@ -130,7 +131,9 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 | `UpdateSectionPayload`      | [379](src/types.ts#L379) |
 | `AddMilestonePayload`       | [384](src/types.ts#L384) |
 | `UpdateMilestonePayload`    | [395](src/types.ts#L395) |
-| `CacheEntry`                | [408](src/types.ts#L408) |
-| `RateLimiterConfig`         | [413](src/types.ts#L413) |
-| `AddProjectPayload`         | [418](src/types.ts#L418) |
-| `UpdateProjectPayload`      | [425](src/types.ts#L425) |
+| `ResultFieldConfig`         | [408](src/types.ts#L408) |
+| `ResultField`               | [422](src/types.ts#L422) |
+| `CacheEntry`                | [441](src/types.ts#L441) |
+| `RateLimiterConfig`         | [446](src/types.ts#L446) |
+| `AddProjectPayload`         | [451](src/types.ts#L451) |
+| `UpdateProjectPayload`      | [458](src/types.ts#L458) |
