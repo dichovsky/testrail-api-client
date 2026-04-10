@@ -78,7 +78,7 @@ All list endpoints that use the TestRail v2 paginated envelope (`get_projects`, 
 
 ## P1 — High (Missing Write Operations for Existing Entities)
 
-### TASK-005 · Add `updatePlan(planId, payload)`
+### TASK-005 · Add `updatePlan(planId, payload)` [Done]
 
 **Category:** Feature / Plans  
 **Description:**  
