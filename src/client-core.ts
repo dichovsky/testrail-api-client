@@ -17,20 +17,26 @@ import {
 // VULN-03: Reject loopback, link-local, and private-range hosts to prevent SSRF.
 // All requests carry a full Authorization header, making the client a credentialed
 // probe for internal services when baseUrl is attacker-controlled.
+// NOTE: This check is purely syntactic (regex on the hostname string). It does NOT
+// resolve DNS, so a public-looking hostname that resolves to a private IP, or a
+// DNS-rebinding attack, can still bypass this protection. For full SSRF prevention
+// use a network-level egress filter or a proxy that validates resolved addresses.
 const PRIVATE_HOST_PATTERNS: RegExp[] = [
-    /^localhost$/i,
+    /^localhost\.?$/i, // matches "localhost" with or without trailing dot
     /^127\./,
     /^10\./,
     /^172\.(1[6-9]|2\d|3[01])\./,
     /^192\.168\./,
     /^169\.254\./,
-    /^\[?::1\]?$/,
-    /^\[?fe80:/i,
+    /^::1$/,
+    /^fe80:/i, // IPv6 link-local (fe80::/10)
+    /^f[cd][0-9a-f]{2}:/i, // IPv6 unique-local (fc00::/7 covers fc** and fd**)
     /^0\./,
 ];
 
 function validatePublicHost(hostname: string): void {
-    const bare = hostname.replace(/^\[/, '').replace(/\]$/, '');
+    // Strip enclosing brackets from IPv6 literals (e.g. "[::1]" → "::1")
+    const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
     for (const pattern of PRIVATE_HOST_PATTERNS) {
         if (pattern.test(bare)) {
             throw new TestRailValidationError(
@@ -199,6 +205,9 @@ export class TestRailClientCore {
         // Zero or negative maxRequests silently disables or inverts limiting.
         // Zero or negative windowMs makes the window always empty, disabling limiting.
         if (config.rateLimiter !== undefined) {
+            if (config.rateLimiter === null || typeof config.rateLimiter !== 'object') {
+                throw new TestRailValidationError('rateLimiter must be an object with maxRequests and windowMs');
+            }
             if (
                 typeof config.rateLimiter.maxRequests !== 'number' ||
                 !Number.isInteger(config.rateLimiter.maxRequests) ||
@@ -300,7 +309,8 @@ export class TestRailClientCore {
     /**
      * Builds a TestRail endpoint URL with optional query parameters.
      * Appends params using `&key=value` (TestRail URL quirk — uses `&`, not `?`).
-     * Values must be pre-encoded by the caller if needed.
+     * Keys and values are automatically percent-encoded via `encodeURIComponent`.
+     * Do NOT pre-encode values before passing them; doing so will cause double-encoding.
      */
     protected buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string {
         const parts: string[] = [];

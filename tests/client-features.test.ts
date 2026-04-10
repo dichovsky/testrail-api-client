@@ -454,6 +454,68 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
 
+        it('should cap excessively large Retry-After seconds value to MAX_RETRY_DELAY_MS', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    // 99999999 seconds ≈ 3+ years; must be capped to 10000 ms
+                    headers: { get: (header: string) => (header === 'Retry-After' ? '99999999' : null) },
+                    text: async () => 'Rate limited',
+                } as never)
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                } as never);
+
+            await client.getProject(1);
+            // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
+            expect(mockSleep).toHaveBeenCalledWith(10000);
+        });
+
+        it('should cap far-future Retry-After HTTP-date to MAX_RETRY_DELAY_MS', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            const now = new Date('2026-01-01T00:00:00.000Z');
+            vi.useFakeTimers();
+            vi.setSystemTime(now);
+
+            try {
+                // HTTP-date 1 year in the future
+                const farFutureDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+
+                mockFetch
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 429,
+                        statusText: 'Too Many Requests',
+                        headers: { get: (header: string) => (header === 'Retry-After' ? farFutureDate : null) },
+                        text: async () => 'Rate limited',
+                    } as never)
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { get: () => null },
+                        text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                    } as never);
+
+                await client.getProject(1);
+                // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
+                expect(mockSleep).toHaveBeenCalledWith(10000);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it('should use exponential backoff on 429 when Retry-After header is absent', async () => {
             const mockSleep = vi.mocked(sleep);
             mockSleep.mockClear();
