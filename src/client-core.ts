@@ -1,0 +1,429 @@
+import type { TestRailConfig, CacheEntry } from './types.js';
+import { base64Encode, sleep } from './utils.js';
+import { TestRailApiError, TestRailValidationError } from './errors.js';
+import {
+    BASE_RETRY_DELAY_MS,
+    MAX_RETRY_DELAY_MS,
+    MAX_TIMEOUT_MS,
+    DEFAULT_TIMEOUT_MS,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_CACHE_TTL_MS,
+    DEFAULT_CACHE_CLEANUP_INTERVAL_MS,
+    DEFAULT_MAX_CACHE_SIZE,
+    DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+    DEFAULT_RATE_LIMIT_WINDOW_MS,
+} from './constants.js';
+
+const activeClients = new Set<TestRailClientCore>();
+let processHandlersRegistered = false;
+
+// Synchronous-only cleanup — safe to call on process exit
+function cleanupAllClients(): void {
+    for (const client of activeClients) {
+        client.destroy();
+    }
+}
+
+function registerProcessHandlers(): void {
+    if (processHandlersRegistered) {
+        return;
+    }
+
+    if (typeof process !== 'undefined' && typeof process.on === 'function') {
+        process.on('exit', cleanupAllClients);
+        process.on('SIGINT', () => {
+            cleanupAllClients();
+        });
+        process.on('SIGTERM', () => {
+            cleanupAllClients();
+        });
+        processHandlersRegistered = true;
+    }
+}
+
+/**
+ * HTTP pipeline, caching, rate limiting, retry logic, and lifecycle management.
+ * Extended by {@link TestRailClient} which adds all API endpoint methods.
+ */
+export class TestRailClientCore {
+    private readonly baseUrl: string;
+    private readonly auth: string;
+    private readonly timeout: number;
+    private readonly maxRetries: number;
+    private readonly enableCache: boolean;
+    private readonly cacheTtl: number;
+    private readonly cacheCleanupInterval: number;
+    private readonly maxCacheSize: number;
+    private readonly cache = new Map<string, CacheEntry<unknown>>();
+    private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
+    private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
+    private isDestroyed = false;
+
+    constructor(config: TestRailConfig) {
+        this.validateConfig(config);
+        this.baseUrl = config.baseUrl.replace(/\/$/, '');
+        this.auth = base64Encode(`${config.email}:${config.apiKey}`);
+        this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
+        this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+        this.enableCache = config.enableCache ?? true;
+        this.cacheTtl = config.cacheTtl ?? DEFAULT_CACHE_TTL_MS;
+        this.cacheCleanupInterval = config.cacheCleanupInterval ?? DEFAULT_CACHE_CLEANUP_INTERVAL_MS;
+        this.maxCacheSize = config.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE;
+        this.rateLimiter = {
+            maxRequests: config.rateLimiter?.maxRequests ?? DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+            windowMs: config.rateLimiter?.windowMs ?? DEFAULT_RATE_LIMIT_WINDOW_MS,
+            requests: [],
+        };
+
+        // Register this instance for automatic cleanup
+        activeClients.add(this);
+        registerProcessHandlers();
+
+        // Start periodic cache cleanup if enabled
+        if (this.enableCache && this.cacheCleanupInterval > 0) {
+            this.startCacheCleanup();
+        }
+    }
+
+    private validateConfig(config: TestRailConfig): void {
+        if (!config.baseUrl || typeof config.baseUrl !== 'string') {
+            throw new TestRailValidationError('baseUrl is required and must be a string');
+        }
+
+        if (!config.email || typeof config.email !== 'string') {
+            throw new TestRailValidationError('email is required and must be a string');
+        }
+
+        if (!config.apiKey || typeof config.apiKey !== 'string') {
+            throw new TestRailValidationError('apiKey is required and must be a string');
+        }
+
+        // Validate URL format
+        try {
+            const url = new URL(config.baseUrl);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                throw new TestRailValidationError('baseUrl must use http or https protocol');
+            }
+
+            if (url.protocol === 'http:') {
+                // eslint-disable-next-line no-console
+                console.warn(
+                    'Security Warning: Using HTTP protocol. Your credentials may be visible on the network. Please use HTTPS in production.',
+                );
+            }
+        } catch {
+            throw new TestRailValidationError('baseUrl must be a valid URL');
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(config.email)) {
+            throw new TestRailValidationError('email must be a valid email address');
+        }
+
+        // Validate timeout if provided
+        if (config.timeout !== undefined) {
+            if (typeof config.timeout !== 'number' || config.timeout <= 0 || config.timeout > MAX_TIMEOUT_MS) {
+                throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
+            }
+        }
+
+        // Validate maxRetries if provided
+        if (config.maxRetries !== undefined) {
+            if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
+                throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
+            }
+        }
+
+        // Validate maxCacheSize if provided
+        if (config.maxCacheSize !== undefined) {
+            if (
+                typeof config.maxCacheSize !== 'number' ||
+                !Number.isInteger(config.maxCacheSize) ||
+                config.maxCacheSize < 0
+            ) {
+                throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
+            }
+        }
+    }
+
+    private getRetryDelay(retryCount: number): number {
+        return Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), MAX_RETRY_DELAY_MS);
+    }
+
+    /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
+    private checkRateLimit(): void {
+        const now = Date.now();
+        const windowStart = now - this.rateLimiter.windowMs;
+
+        // Clean old requests outside the window
+        this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
+
+        if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
+            const oldestRequest = Math.min(...this.rateLimiter.requests);
+            const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
+            throw new TestRailApiError(
+                `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
+            );
+        }
+
+        this.rateLimiter.requests.push(now);
+    }
+
+    /**
+     * Validates that an ID is a positive integer.
+     * @throws {TestRailValidationError} When ID is invalid
+     */
+    protected validateId(id: number, name: string): void {
+        if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+            throw new TestRailValidationError(`${name} must be a positive integer`);
+        }
+    }
+
+    /**
+     * Builds a TestRail endpoint URL with optional query parameters.
+     * Appends params using `&key=value` (TestRail URL quirk — uses `&`, not `?`).
+     * Values must be pre-encoded by the caller if needed.
+     */
+    protected buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string {
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined) {
+                parts.push(`${key}=${String(value)}`);
+            }
+        }
+        return parts.length > 0 ? `${base}&${parts.join('&')}` : base;
+    }
+
+    private getCachedData<T>(cacheKey: string): T | undefined {
+        if (!this.enableCache) {
+            return undefined;
+        }
+
+        const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
+        if (entry !== undefined && entry.expiry > Date.now()) {
+            // Move to end to mark as recently used (LRU behavior)
+            this.cache.delete(cacheKey);
+            this.cache.set(cacheKey, entry);
+            return entry.data;
+        }
+
+        // Clean expired entry
+        if (entry !== undefined) {
+            this.cache.delete(cacheKey);
+        }
+
+        return undefined;
+    }
+
+    private setCachedData<T>(cacheKey: string, data: T): void {
+        if (!this.enableCache) {
+            return;
+        }
+
+        // Enforce cache size limit if not zero
+        if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
+            // Map preserves insertion order; first key is the oldest (LRU eviction)
+            // Cache is non-empty here (size >= maxCacheSize > 0), so next().value is always defined
+            const oldestKey = this.cache.keys().next().value as string;
+            this.cache.delete(oldestKey);
+        }
+
+        this.cache.set(cacheKey, {
+            data,
+            expiry: Date.now() + this.cacheTtl,
+        });
+    }
+
+    /**
+     * Clears the entire cache.
+     */
+    public clearCache(): void {
+        this.cache.clear();
+    }
+
+    private startCacheCleanup(): void {
+        this.cacheCleanupTimer = setInterval(() => {
+            this.cleanupExpiredCache();
+        }, this.cacheCleanupInterval);
+
+        // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
+        // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
+        // compatibility with non-Node.js environments where unref may not exist.
+        this.cacheCleanupTimer.unref?.();
+    }
+
+    private stopCacheCleanup(): void {
+        if (this.cacheCleanupTimer !== undefined) {
+            clearInterval(this.cacheCleanupTimer);
+            this.cacheCleanupTimer = undefined;
+        }
+    }
+
+    private cleanupExpiredCache(): void {
+        const now = Date.now();
+
+        // Collect keys of expired entries first to avoid mutating the Map
+        // while iterating over its live iterator.
+        const keysToDelete: string[] = [];
+        for (const [key, entry] of this.cache.entries()) {
+            if (entry.expiry <= now) {
+                keysToDelete.push(key);
+            }
+        }
+
+        for (const key of keysToDelete) {
+            this.cache.delete(key);
+        }
+    }
+
+    /**
+     * Releases all resources held by this client instance.
+     * Stops the cache cleanup timer, clears the cache, and removes this instance
+     * from the active-clients registry. Safe to call multiple times (idempotent).
+     * Also called automatically on `exit`, `SIGINT`, and `SIGTERM`.
+     */
+    public destroy(): void {
+        if (this.isDestroyed) {
+            return;
+        }
+
+        this.isDestroyed = true;
+        this.stopCacheCleanup();
+        this.clearCache();
+
+        // Remove this instance from the active clients set
+        activeClients.delete(this);
+    }
+
+    /**
+     * Makes an HTTP request to the TestRail API with caching, rate limiting, and retry logic.
+     *
+     * @param method - HTTP method (GET, POST)
+     * @param endpoint - API endpoint path (without base URL prefix)
+     * @param data - Optional request body
+     * @param retryCount - Current retry attempt (internal — do not pass)
+     * @param skipCache - Skip cache lookup and storage for this request
+     * @throws {TestRailApiError} When the API request fails or network error occurs
+     * @throws {Error} When called after `destroy()`
+     */
+    protected async request<T>(
+        method: string,
+        endpoint: string,
+        data?: unknown,
+        retryCount = 0,
+        skipCache = false,
+    ): Promise<T> {
+        // Prevent use after destroy
+        if (this.isDestroyed) {
+            throw new Error('Cannot use TestRailClient after destroy() has been called');
+        }
+
+        // Check cache for GET requests
+        if (method === 'GET' && !skipCache) {
+            const cacheKey = `${method}:${endpoint}`;
+            const cachedData = this.getCachedData<T>(cacheKey);
+            if (cachedData !== undefined) {
+                return cachedData;
+            }
+        }
+
+        // Apply rate limiting
+        this.checkRateLimit();
+
+        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
+        const headers: Record<string, string> = {
+            Authorization: `Basic ${this.auth}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'TestRail API Client TypeScript/1.0.0',
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        const options: RequestInit = {
+            method,
+            headers,
+            signal: controller.signal,
+        };
+
+        if (data !== undefined) {
+            options.body = JSON.stringify(data);
+        }
+
+        try {
+            const response: Response = await fetch(url, options);
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+
+                // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
+                // Exponential backoff to avoid overwhelming the server during high load.
+                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
+                    await sleep(this.getRetryDelay(retryCount));
+                    return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+                }
+
+                throw new TestRailApiError(
+                    `TestRail API error: ${response.status} ${response.statusText} - ${errorText}`,
+                    response.status,
+                    response.statusText,
+                    errorText,
+                );
+            }
+
+            // Invalidate cache after mutating requests to avoid stale GET results.
+            // Done before the empty-body check so empty responses (e.g. delete endpoints)
+            // also clear the cache.
+            if (method !== 'GET') {
+                this.clearCache();
+            }
+
+            const responseText = await response.text();
+            if (!responseText) {
+                return {} as T;
+            }
+
+            try {
+                const result = JSON.parse(responseText) as T;
+
+                // Cache successful GET responses
+                if (method === 'GET' && !skipCache) {
+                    const cacheKey = `${method}:${endpoint}`;
+                    this.setCachedData(cacheKey, result);
+                }
+
+                return result;
+            } catch {
+                throw new TestRailApiError('Invalid JSON response from TestRail API');
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            if (error instanceof TestRailApiError) {
+                throw error;
+            }
+
+            const isAbortError = (error as Error).name === 'AbortError';
+
+            // Don't retry timeout errors to avoid excessive wait times
+            if (isAbortError) {
+                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+            }
+
+            // Retry on network errors up to the maximum number of retries
+            if (retryCount < this.maxRetries) {
+                await sleep(this.getRetryDelay(retryCount));
+                return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+            }
+
+            throw new TestRailApiError(
+                `Network error: ${(error as Error).message}`,
+                undefined,
+                undefined,
+                (error as Error).message,
+            );
+        }
+    }
+}

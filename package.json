@@ -44,7 +44,8 @@
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",
         "test:watch": "vitest",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "codemap": "node scripts/generate-codemap.js"
     },
     "devDependencies": {
         "@types/node": "^25.5.2",

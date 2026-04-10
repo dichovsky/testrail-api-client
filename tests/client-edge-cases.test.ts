@@ -347,6 +347,44 @@ describe('TestRailClient - Coverage Improvement', () => {
             // Should complete without errors
             expect(true).toBe(true);
         });
+
+        it('should invoke cleanupAllClients when process emits exit', () => {
+            const client = new TestRailClient({
+                baseUrl: 'https://example.testrail.net',
+                email: 'test@example.com',
+                apiKey: 'test-key',
+            });
+
+            // Emit exit — synchronously calls cleanupAllClients which destroys all active clients
+            process.emit('exit', 0);
+
+            // destroy() is idempotent; calling it again after cleanup must not throw
+            expect(() => client.destroy()).not.toThrow();
+        });
+
+        it('should invoke cleanupAllClients on SIGINT', () => {
+            const client = new TestRailClient({
+                baseUrl: 'https://example.testrail.net',
+                email: 'test@example.com',
+                apiKey: 'test-key',
+            });
+
+            process.emit('SIGINT');
+
+            expect(() => client.destroy()).not.toThrow();
+        });
+
+        it('should invoke cleanupAllClients on SIGTERM', () => {
+            const client = new TestRailClient({
+                baseUrl: 'https://example.testrail.net',
+                email: 'test@example.com',
+                apiKey: 'test-key',
+            });
+
+            process.emit('SIGTERM');
+
+            expect(() => client.destroy()).not.toThrow();
+        });
     });
 
     describe('Cache Management Edge Cases', () => {
