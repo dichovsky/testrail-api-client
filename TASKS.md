@@ -142,7 +142,7 @@ Projects can be read but not created, updated, or deleted.
 
 ---
 
-### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [In Progress by agent-q7m4pz]
+### TASK-009 · Add suite CRUD: `addSuite`, `updateSuite`, `deleteSuite` [Done by agent-q7m4pz]
 
 **Category:** Feature / Suites  
 **Description:**  
@@ -150,12 +150,12 @@ Suites can be read but not created, updated, or deleted.
 
 **Acceptance Criteria:**
 
-- [ ] `addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite>` implemented
-- [ ] `updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite>` implemented
-- [ ] `deleteSuite(suiteId: number): Promise<void>` implemented
-- [ ] `AddSuitePayload` with `name`, `description?` added and exported
-- [ ] `UpdateSuitePayload` with `name?`, `description?` added and exported
-- [ ] Unit tests for each method
+- [x] `addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite>` implemented
+- [x] `updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite>` implemented
+- [x] `deleteSuite(suiteId: number): Promise<void>` implemented
+- [x] `AddSuitePayload` with `name`, `description?` added and exported
+- [x] `UpdateSuitePayload` with `name?`, `description?` added and exported
+- [x] Unit tests for each method
 
 ---
 

@@ -65,13 +65,13 @@ function inferEndpoint(methodName, lines) {
     // Find the method, then scan its body for this.request(...)
     const startIdx = lines.findIndex((l) => l.includes(`async ${methodName}(`));
     if (startIdx === -1) return { verb: '?', endpoint: '?' };
-    for (let i = startIdx; i < Math.min(startIdx + 12, lines.length); i++) {
+    for (let i = startIdx; i < Math.min(startIdx + 20, lines.length); i++) {
         const m = lines[i].match(/this\.request<[^>]+>\('(GET|POST)',\s*`([^`]+)`/);
         if (m) return { verb: m[1], endpoint: m[2] };
         const m2 = lines[i].match(/this\.request<[^>]+>\('(GET|POST)',\s*'([^']+)'/);
         if (m2) return { verb: m2[1], endpoint: m2[2] };
-        // endpoint built via buildEndpoint — extract base from that line
-        const m3 = lines[i].match(/buildEndpoint\(`([^`]+)`/);
+        // endpoint built via buildEndpoint — extract base from that line (backtick or single-quote)
+        const m3 = lines[i].match(/buildEndpoint\([`']([^`']+)[`']/);
         if (m3) return { verb: 'GET', endpoint: `${m3[1]}&...` };
     }
     return { verb: '?', endpoint: '?' };
@@ -82,7 +82,7 @@ const coreMethods = ['constructor', 'validateId', 'buildEndpoint', 'clearCache',
     const idx = coreLines.findIndex((l) => {
         if (name === 'constructor') return /^\s+constructor\s*\(/.test(l);
         if (name === 'request') return /^\s+protected\s+async\s+request/.test(l);
-        return new RegExp(`\\s+(?:public|protected|private)?\\s*${name}\\s*[<(]`).test(l);
+        return new RegExp(`\\s*(?:public|protected|private)\\s+${name}\\s*[<(]`).test(l);
     });
     return { name, line: idx + 1 };
 });

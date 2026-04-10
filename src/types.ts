@@ -91,6 +91,16 @@ export interface Suite {
     url: string;
 }
 
+export interface AddSuitePayload {
+    name: string;
+    description?: string;
+}
+
+export interface UpdateSuitePayload {
+    name?: string;
+    description?: string;
+}
+
 export interface Section {
     id: number;
     suite_id: number;
