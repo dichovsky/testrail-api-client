@@ -317,3 +317,15 @@ export interface RateLimiterConfig {
     maxRequests: number;
     windowMs: number;
 }
+
+export interface AddSectionPayload {
+    name: string;
+    suite_id?: number;
+    parent_id?: number;
+    description?: string;
+}
+
+export interface UpdateSectionPayload {
+    name?: string;
+    description?: string;
+}

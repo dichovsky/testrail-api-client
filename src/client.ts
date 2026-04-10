@@ -17,6 +17,8 @@ import type {
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
+    AddSectionPayload,
+    UpdateSectionPayload,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
 import { TestRailValidationError } from './errors.js';
@@ -100,6 +102,36 @@ export class TestRailClient extends TestRailClientCore {
         const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId });
         const response = await this.request<{ sections: Section[] }>('GET', endpoint);
         return response.sections ?? [];
+    }
+
+    /**
+     * Add a new section to a project.
+     * @throws {TestRailValidationError} When projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
+        this.validateId(projectId, 'projectId');
+        return this.request<Section>('POST', `add_section/${projectId}`, payload);
+    }
+
+    /**
+     * Update an existing section.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
+        this.validateId(sectionId, 'sectionId');
+        return this.request<Section>('POST', `update_section/${sectionId}`, payload);
+    }
+
+    /**
+     * Delete a section.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteSection(sectionId: number): Promise<void> {
+        this.validateId(sectionId, 'sectionId');
+        await this.request<void>('POST', `delete_section/${sectionId}`);
     }
 
     // ── Cases ─────────────────────────────────────────────────────────────────
