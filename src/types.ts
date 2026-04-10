@@ -309,6 +309,17 @@ export interface AddPlanEntryPayload {
     runs?: AddRunPayload[];
 }
 
+export interface UpdatePlanEntryPayload {
+    suite_id?: number;
+    name?: string;
+    description?: string;
+    assignedto_id?: number;
+    include_all?: boolean;
+    case_ids?: number[];
+    config_ids?: number[];
+    runs?: AddRunPayload[];
+}
+
 export interface AddRunPayload {
     suite_id?: number;
     name: string;

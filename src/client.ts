@@ -15,6 +15,9 @@ import type {
     UpdateCasePayload,
     AddPlanPayload,
     UpdatePlanPayload,
+    AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
+    PlanEntry,
     AddRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
@@ -223,7 +226,7 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Update an existing plan.
+     * Update a plan.
      * @throws {TestRailValidationError} When planId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
@@ -250,6 +253,38 @@ export class TestRailClient extends TestRailClientCore {
     async deletePlan(planId: number): Promise<void> {
         this.validateId(planId, 'planId');
         await this.request<void>('POST', `delete_plan/${planId}`);
+    }
+
+    /**
+     * Add a plan entry (run) to a plan.
+     * @throws {TestRailValidationError} When planId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
+        this.validateId(planId, 'planId');
+        return this.request<PlanEntry>('POST', `add_plan_entry/${planId}`, payload);
+    }
+
+    /**
+     * Update an existing plan entry.
+     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
+        this.validateId(planId, 'planId');
+        this.validateEntryId(entryId);
+        return this.request<PlanEntry>('POST', `update_plan_entry/${planId}/${entryId}`, payload);
+    }
+
+    /**
+     * Delete a plan entry.
+     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deletePlanEntry(planId: number, entryId: string): Promise<void> {
+        this.validateId(planId, 'planId');
+        this.validateEntryId(entryId);
+        await this.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
     }
 
     // ── Runs ──────────────────────────────────────────────────────────────────
