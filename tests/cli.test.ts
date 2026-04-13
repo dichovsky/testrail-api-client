@@ -291,14 +291,17 @@ describe('CLI', () => {
         });
 
         it('case list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(['case', 'list', '--project-id', '3'], [jsonResponse([MOCK_CASE])]);
+            const { exitCodes } = await runCli(
+                ['case', 'list', '--project-id', '3'],
+                [jsonResponse({ cases: [MOCK_CASE] })],
+            );
             expect(exitCodes).toContain(0);
         });
 
         it('case list with --suite-id passes suiteId filter', async () => {
             const { exitCodes } = await runCli(
                 ['case', 'list', '--project-id', '3', '--suite-id', '7'],
-                [jsonResponse([MOCK_CASE])],
+                [jsonResponse({ cases: [MOCK_CASE] })],
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id'), expect.anything());
@@ -319,14 +322,17 @@ describe('CLI', () => {
         });
 
         it('run list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(['run', 'list', '--project-id', '4'], [jsonResponse([MOCK_RUN])]);
+            const { exitCodes } = await runCli(
+                ['run', 'list', '--project-id', '4'],
+                [jsonResponse({ runs: [MOCK_RUN] })],
+            );
             expect(exitCodes).toContain(0);
         });
 
         it('run list with limit and offset', async () => {
             const { exitCodes } = await runCli(
                 ['run', 'list', '--project-id', '4', '--limit', '10', '--offset', '5'],
-                [jsonResponse([MOCK_RUN])],
+                [jsonResponse({ runs: [MOCK_RUN] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -341,14 +347,14 @@ describe('CLI', () => {
 
     describe('result', () => {
         it('result list --run-id should exit 0', async () => {
-            const { exitCodes } = await runCli(['result', 'list', '--run-id', '11'], [jsonResponse([])]);
+            const { exitCodes } = await runCli(['result', 'list', '--run-id', '11'], [jsonResponse({ results: [] })]);
             expect(exitCodes).toContain(0);
         });
 
         it('result list with limit and offset', async () => {
             const { exitCodes } = await runCli(
                 ['result', 'list', '--run-id', '11', '--limit', '20', '--offset', '0'],
-                [jsonResponse([])],
+                [jsonResponse({ results: [] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -371,7 +377,7 @@ describe('CLI', () => {
         it('milestone list --project-id should exit 0', async () => {
             const { exitCodes } = await runCli(
                 ['milestone', 'list', '--project-id', '2'],
-                [jsonResponse([MOCK_MILESTONE])],
+                [jsonResponse({ milestones: [MOCK_MILESTONE] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -379,7 +385,7 @@ describe('CLI', () => {
         it('milestone list with limit and offset', async () => {
             const { exitCodes } = await runCli(
                 ['milestone', 'list', '--project-id', '2', '--limit', '5', '--offset', '2'],
-                [jsonResponse([MOCK_MILESTONE])],
+                [jsonResponse({ milestones: [MOCK_MILESTONE] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -399,12 +405,15 @@ describe('CLI', () => {
         });
 
         it('user list should exit 0', async () => {
-            const { exitCodes } = await runCli(['user', 'list'], [jsonResponse([MOCK_USER])]);
+            const { exitCodes } = await runCli(['user', 'list'], [jsonResponse({ users: [MOCK_USER] })]);
             expect(exitCodes).toContain(0);
         });
 
         it('user list with --limit', async () => {
-            const { exitCodes } = await runCli(['user', 'list', '--limit', '25'], [jsonResponse([MOCK_USER])]);
+            const { exitCodes } = await runCli(
+                ['user', 'list', '--limit', '25'],
+                [jsonResponse({ users: [MOCK_USER] })],
+            );
             expect(exitCodes).toContain(0);
         });
 
@@ -470,35 +479,33 @@ describe('CLI', () => {
     // ── renderTable edge cases ────────────────────────────────────────────────
 
     describe('renderTable edge cases', () => {
-        it('should render primitive list items as plain text in table format', async () => {
-            // getResultsForRun returns response.results, so wrap the primitives under that key
+        it('should render list items as rows in table format', async () => {
+            // getResultsForRun returns response.results; valid Result objects are rendered as table rows
             const { stdout } = await runCli(
                 ['result', 'list', '--run-id', '1', '--format', 'table'],
-                [jsonResponse({ results: ['pass', 'fail'] })],
+                [jsonResponse({ results: [{ status_id: 1, comment: 'pass' }] })],
             );
-            // Primitive items (non-object) are joined by newline in renderTable
             expect(stdout).toContain('pass');
         });
 
-        it('should render null/undefined cell values as empty string in table format', async () => {
-            // A response with a null field exercises the `v === null` branch in valueToString
+        it('should render undefined/absent cell values as empty string in table format', async () => {
+            // A user with only required fields — optional columns render as empty
             const { stdout, exitCodes } = await runCli(
-                ['project', 'get', '1', '--format', 'table'],
-                [jsonResponse({ id: 1, name: null })],
+                ['user', 'get', '1', '--format', 'table'],
+                [jsonResponse({ id: 1, name: 'Alice', email: 'alice@example.com' })],
             );
             expect(exitCodes).toContain(0);
-            // null cell renders as empty string — column should still appear
             expect(stdout).toContain('id');
         });
 
         it('should JSON.stringify nested object cell values in table format', async () => {
-            // A response with a nested object exercises the `typeof v === 'object'` branch
+            // A result with custom_fields (nested object) exercises the `typeof v === 'object'` branch
             const { stdout, exitCodes } = await runCli(
-                ['project', 'get', '1', '--format', 'table'],
-                [jsonResponse({ id: 1, meta: { tag: 'v1' } })],
+                ['result', 'list', '--run-id', '1', '--format', 'table'],
+                [jsonResponse({ results: [{ status_id: 1, custom_fields: { tag: 'v1' } }] })],
             );
             expect(exitCodes).toContain(0);
-            expect(stdout).toContain('meta');
+            expect(stdout).toContain('custom_fields');
         });
 
         it('should convert boolean cell values to string in table format', async () => {

@@ -22,6 +22,13 @@ describe('TestRailClient Performance & Memory', () => {
         vi.restoreAllMocks();
     });
 
+    const mockProject = (id: number) => ({
+        id,
+        name: `Project ${id}`,
+        suite_mode: 1,
+        url: `https://example.testrail.io/projects/view/${id}`,
+    });
+
     it('should enforce cache size limit', async () => {
         const mockResponse = (data: unknown) =>
             ({
@@ -29,13 +36,13 @@ describe('TestRailClient Performance & Memory', () => {
                 text: () => Promise.resolve(JSON.stringify(data)),
             }) as Response;
 
-        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ id: 1 }));
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(1)));
 
         // First request - should be cached
         await client.getProject(1);
 
         // Second request - should be cached
-        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ id: 2 }));
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
         await client.getProject(2);
 
         // Check if both are in cache (private access for test)
@@ -43,7 +50,7 @@ describe('TestRailClient Performance & Memory', () => {
         expect(cache.size).toBe(2);
 
         // Third request - should evict the oldest entry (Project 1)
-        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ id: 3 }));
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(3)));
         await client.getProject(3);
 
         expect(cache.size).toBe(2);
@@ -59,13 +66,13 @@ describe('TestRailClient Performance & Memory', () => {
                 text: () => Promise.resolve(JSON.stringify(data)),
             }) as Response;
 
-        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ id: 1 }));
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(1)));
 
         // First request - should be cached
         await client.getProject(1);
 
         // Second request - should be cached
-        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ id: 2 }));
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
         await client.getProject(2);
 
         const cache = (client as unknown as { cache: Map<string, unknown> }).cache;
@@ -75,7 +82,7 @@ describe('TestRailClient Performance & Memory', () => {
         await client.getProject(1); // Should come from cache
 
         // Add project 3 - should evict project 2 (least recently used), not project 1
-        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ id: 3 }));
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(3)));
         await client.getProject(3);
 
         expect(cache.size).toBe(2);

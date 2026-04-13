@@ -66,7 +66,37 @@ import type {
     ReportResult,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
-import { TestRailValidationError } from './errors.js';
+import { TestRailValidationError, handleZodError } from './errors.js';
+import {
+    ProjectSchema,
+    SuiteSchema,
+    SectionSchema,
+    CaseSchema,
+    PlanSchema,
+    PlanEntrySchema,
+    RunSchema,
+    TestSchema,
+    ResultSchema,
+    MilestoneSchema,
+    UserSchema,
+    StatusSchema,
+    PrioritySchema,
+    RoleSchema,
+    GroupSchema,
+    AttachmentSchema,
+    SharedStepSchema,
+    VariableSchema,
+    DatasetSchema,
+    ReportSchema,
+    ReportResultSchema,
+    CaseFieldSchema,
+    CaseTypeSchema,
+    TemplateSchema,
+    ConfigurationGroupSchema,
+    ConfigurationSchema,
+    ResultFieldSchema,
+} from './schemas.js';
+import { ZodError, z } from 'zod';
 
 export { TestRailApiError, TestRailValidationError } from './errors.js';
 
@@ -87,7 +117,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getProject(projectId: number): Promise<Project> {
         this.validateId(projectId, 'projectId');
-        return this.request<Project>('GET', `get_project/${projectId}`);
+        return this.parse(ProjectSchema, await this.request<unknown>('GET', `get_project/${projectId}`));
     }
 
     /**
@@ -98,8 +128,11 @@ export class TestRailClient extends TestRailClientCore {
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
         this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint('get_projects', { limit, offset });
-        const response = await this.request<{ projects: Project[] }>('GET', endpoint);
-        return response.projects ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return (
+            this.parse<{ projects?: Project[] }>(z.object({ projects: z.array(ProjectSchema).optional() }), raw)
+                .projects ?? []
+        );
     }
 
     /**
@@ -107,7 +140,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addProject(payload: AddProjectPayload): Promise<Project> {
-        return this.request<Project>('POST', 'add_project', payload);
+        return this.parse<Project>(ProjectSchema, await this.request<unknown>('POST', 'add_project', payload));
     }
 
     /**
@@ -117,7 +150,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
         this.validateId(projectId, 'projectId');
-        return this.request<Project>('POST', `update_project/${projectId}`, payload);
+        return this.parse<Project>(
+            ProjectSchema,
+            await this.request<unknown>('POST', `update_project/${projectId}`, payload),
+        );
     }
 
     /**
@@ -139,7 +175,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getSuite(suiteId: number): Promise<Suite> {
         this.validateId(suiteId, 'suiteId');
-        return this.request<Suite>('GET', `get_suite/${suiteId}`);
+        return this.parse<Suite>(SuiteSchema, await this.request<unknown>('GET', `get_suite/${suiteId}`));
     }
 
     /**
@@ -149,7 +185,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getSuites(projectId: number): Promise<Suite[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<Suite[]>('GET', `get_suites/${projectId}`);
+        return this.parse<Suite[]>(z.array(SuiteSchema), await this.request<unknown>('GET', `get_suites/${projectId}`));
     }
 
     /**
@@ -159,7 +195,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite> {
         this.validateId(projectId, 'projectId');
-        return this.request<Suite>('POST', `add_suite/${projectId}`, payload);
+        return this.parse<Suite>(SuiteSchema, await this.request<unknown>('POST', `add_suite/${projectId}`, payload));
     }
 
     /**
@@ -169,7 +205,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite> {
         this.validateId(suiteId, 'suiteId');
-        return this.request<Suite>('POST', `update_suite/${suiteId}`, payload);
+        return this.parse<Suite>(SuiteSchema, await this.request<unknown>('POST', `update_suite/${suiteId}`, payload));
     }
 
     /**
@@ -191,7 +227,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getSection(sectionId: number): Promise<Section> {
         this.validateId(sectionId, 'sectionId');
-        return this.request<Section>('GET', `get_section/${sectionId}`);
+        return this.parse<Section>(SectionSchema, await this.request<unknown>('GET', `get_section/${sectionId}`));
     }
 
     /**
@@ -213,8 +249,11 @@ export class TestRailClient extends TestRailClientCore {
         }
         this.validatePaginationParams(limit, offset);
         const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
-        const response = await this.request<{ sections: Section[] }>('GET', endpoint);
-        return response.sections ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return (
+            this.parse<{ sections?: Section[] }>(z.object({ sections: z.array(SectionSchema).optional() }), raw)
+                .sections ?? []
+        );
     }
 
     /**
@@ -224,7 +263,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
         this.validateId(projectId, 'projectId');
-        return this.request<Section>('POST', `add_section/${projectId}`, payload);
+        return this.parse<Section>(
+            SectionSchema,
+            await this.request<unknown>('POST', `add_section/${projectId}`, payload),
+        );
     }
 
     /**
@@ -234,7 +276,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
         this.validateId(sectionId, 'sectionId');
-        return this.request<Section>('POST', `update_section/${sectionId}`, payload);
+        return this.parse<Section>(
+            SectionSchema,
+            await this.request<unknown>('POST', `update_section/${sectionId}`, payload),
+        );
     }
 
     /**
@@ -256,7 +301,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getCase(caseId: number): Promise<Case> {
         this.validateId(caseId, 'caseId');
-        return this.request<Case>('GET', `get_case/${caseId}`);
+        return this.parse<Case>(CaseSchema, await this.request<unknown>('GET', `get_case/${caseId}`));
     }
 
     /**
@@ -313,8 +358,8 @@ export class TestRailClient extends TestRailClientCore {
             limit,
             offset,
         });
-        const response = await this.request<{ cases: Case[] }>('GET', endpoint);
-        return response.cases ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return this.parse<{ cases?: Case[] }>(z.object({ cases: z.array(CaseSchema).optional() }), raw).cases ?? [];
     }
 
     /**
@@ -324,7 +369,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         this.validateId(sectionId, 'sectionId');
-        return this.request<Case>('POST', `add_case/${sectionId}`, payload);
+        return this.parse<Case>(CaseSchema, await this.request<unknown>('POST', `add_case/${sectionId}`, payload));
     }
 
     /**
@@ -334,7 +379,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
         this.validateId(caseId, 'caseId');
-        return this.request<Case>('POST', `update_case/${caseId}`, payload);
+        return this.parse<Case>(CaseSchema, await this.request<unknown>('POST', `update_case/${caseId}`, payload));
     }
 
     /**
@@ -356,7 +401,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getPlan(planId: number): Promise<Plan> {
         this.validateId(planId, 'planId');
-        return this.request<Plan>('GET', `get_plan/${planId}`);
+        return this.parse<Plan>(PlanSchema, await this.request<unknown>('GET', `get_plan/${planId}`));
     }
 
     /**
@@ -379,8 +424,8 @@ export class TestRailClient extends TestRailClientCore {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const response = await this.request<{ plans: Plan[] }>('GET', endpoint);
-        return response.plans ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return this.parse<{ plans?: Plan[] }>(z.object({ plans: z.array(PlanSchema).optional() }), raw).plans ?? [];
     }
 
     /**
@@ -390,7 +435,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.validateId(projectId, 'projectId');
-        return this.request<Plan>('POST', `add_plan/${projectId}`, payload);
+        return this.parse<Plan>(PlanSchema, await this.request<unknown>('POST', `add_plan/${projectId}`, payload));
     }
 
     /**
@@ -400,7 +445,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
         this.validateId(planId, 'planId');
-        return this.request<Plan>('POST', `update_plan/${planId}`, payload);
+        return this.parse<Plan>(PlanSchema, await this.request<unknown>('POST', `update_plan/${planId}`, payload));
     }
 
     /**
@@ -410,7 +455,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async closePlan(planId: number): Promise<Plan> {
         this.validateId(planId, 'planId');
-        return this.request<Plan>('POST', `close_plan/${planId}`);
+        return this.parse<Plan>(PlanSchema, await this.request<unknown>('POST', `close_plan/${planId}`));
     }
 
     /**
@@ -430,7 +475,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
         this.validateId(planId, 'planId');
-        return this.request<PlanEntry>('POST', `add_plan_entry/${planId}`, payload);
+        return this.parse<PlanEntry>(
+            PlanEntrySchema,
+            await this.request<unknown>('POST', `add_plan_entry/${planId}`, payload),
+        );
     }
 
     /**
@@ -441,7 +489,10 @@ export class TestRailClient extends TestRailClientCore {
     async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
         this.validateId(planId, 'planId');
         this.validateEntryId(entryId);
-        return this.request<PlanEntry>('POST', `update_plan_entry/${planId}/${entryId}`, payload);
+        return this.parse<PlanEntry>(
+            PlanEntrySchema,
+            await this.request<unknown>('POST', `update_plan_entry/${planId}/${entryId}`, payload),
+        );
     }
 
     /**
@@ -464,7 +515,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getRun(runId: number): Promise<Run> {
         this.validateId(runId, 'runId');
-        return this.request<Run>('GET', `get_run/${runId}`);
+        return this.parse<Run>(RunSchema, await this.request<unknown>('GET', `get_run/${runId}`));
     }
 
     /**
@@ -501,8 +552,8 @@ export class TestRailClient extends TestRailClientCore {
             limit,
             offset,
         });
-        const response = await this.request<{ runs: Run[] }>('GET', endpoint);
-        return response.runs ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return this.parse<{ runs?: Run[] }>(z.object({ runs: z.array(RunSchema).optional() }), raw).runs ?? [];
     }
 
     /**
@@ -512,7 +563,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
         this.validateId(projectId, 'projectId');
-        return this.request<Run>('POST', `add_run/${projectId}`, payload);
+        return this.parse<Run>(RunSchema, await this.request<unknown>('POST', `add_run/${projectId}`, payload));
     }
 
     /**
@@ -522,7 +573,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
         this.validateId(runId, 'runId');
-        return this.request<Run>('POST', `update_run/${runId}`, payload);
+        return this.parse<Run>(RunSchema, await this.request<unknown>('POST', `update_run/${runId}`, payload));
     }
 
     /**
@@ -532,7 +583,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async closeRun(runId: number): Promise<Run> {
         this.validateId(runId, 'runId');
-        return this.request<Run>('POST', `close_run/${runId}`);
+        return this.parse<Run>(RunSchema, await this.request<unknown>('POST', `close_run/${runId}`));
     }
 
     /**
@@ -554,7 +605,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getTest(testId: number): Promise<Test> {
         this.validateId(testId, 'testId');
-        return this.request<Test>('GET', `get_test/${testId}`);
+        return this.parse<Test>(TestSchema, await this.request<unknown>('GET', `get_test/${testId}`));
     }
 
     /**
@@ -572,8 +623,8 @@ export class TestRailClient extends TestRailClientCore {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const response = await this.request<{ tests: Test[] }>('GET', endpoint);
-        return response.tests ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return this.parse<{ tests?: Test[] }>(z.object({ tests: z.array(TestSchema).optional() }), raw).tests ?? [];
     }
 
     // ── Results ───────────────────────────────────────────────────────────────
@@ -597,8 +648,11 @@ export class TestRailClient extends TestRailClientCore {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const response = await this.request<{ results: Result[] }>('GET', endpoint);
-        return response.results ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return (
+            this.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw).results ??
+            []
+        );
     }
 
     /**
@@ -622,8 +676,11 @@ export class TestRailClient extends TestRailClientCore {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const response = await this.request<{ results: Result[] }>('GET', endpoint);
-        return response.results ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return (
+            this.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw).results ??
+            []
+        );
     }
 
     /**
@@ -645,8 +702,11 @@ export class TestRailClient extends TestRailClientCore {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const response = await this.request<{ results: Result[] }>('GET', endpoint);
-        return response.results ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return (
+            this.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw).results ??
+            []
+        );
     }
 
     /**
@@ -656,7 +716,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
         this.validateId(testId, 'testId');
-        return this.request<Result>('POST', `add_result/${testId}`, payload);
+        return this.parse<Result>(ResultSchema, await this.request<unknown>('POST', `add_result/${testId}`, payload));
     }
 
     /**
@@ -667,7 +727,10 @@ export class TestRailClient extends TestRailClientCore {
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
         this.validateId(runId, 'runId');
         this.validateId(caseId, 'caseId');
-        return this.request<Result>('POST', `add_result_for_case/${runId}/${caseId}`, payload);
+        return this.parse<Result>(
+            ResultSchema,
+            await this.request<unknown>('POST', `add_result_for_case/${runId}/${caseId}`, payload),
+        );
     }
 
     /**
@@ -677,7 +740,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
         this.validateId(runId, 'runId');
-        return this.request<Result[]>('POST', `add_results_for_cases/${runId}`, payload);
+        return this.parse<Result[]>(
+            z.array(ResultSchema),
+            await this.request<unknown>('POST', `add_results_for_cases/${runId}`, payload),
+        );
     }
 
     // ── Milestones ────────────────────────────────────────────────────────────
@@ -689,7 +755,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getMilestone(milestoneId: number): Promise<Milestone> {
         this.validateId(milestoneId, 'milestoneId');
-        return this.request<Milestone>('GET', `get_milestone/${milestoneId}`);
+        return this.parse<Milestone>(
+            MilestoneSchema,
+            await this.request<unknown>('GET', `get_milestone/${milestoneId}`),
+        );
     }
 
     /**
@@ -707,8 +776,11 @@ export class TestRailClient extends TestRailClientCore {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const response = await this.request<{ milestones: Milestone[] }>('GET', endpoint);
-        return response.milestones ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return (
+            this.parse<{ milestones?: Milestone[] }>(z.object({ milestones: z.array(MilestoneSchema).optional() }), raw)
+                .milestones ?? []
+        );
     }
 
     /**
@@ -718,7 +790,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
         this.validateId(projectId, 'projectId');
-        return this.request<Milestone>('POST', `add_milestone/${projectId}`, payload);
+        return this.parse<Milestone>(
+            MilestoneSchema,
+            await this.request<unknown>('POST', `add_milestone/${projectId}`, payload),
+        );
     }
 
     /**
@@ -728,7 +803,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
         this.validateId(milestoneId, 'milestoneId');
-        return this.request<Milestone>('POST', `update_milestone/${milestoneId}`, payload);
+        return this.parse<Milestone>(
+            MilestoneSchema,
+            await this.request<unknown>('POST', `update_milestone/${milestoneId}`, payload),
+        );
     }
 
     /**
@@ -750,7 +828,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getUser(userId: number): Promise<User> {
         this.validateId(userId, 'userId');
-        return this.request<User>('GET', `get_user/${userId}`);
+        return this.parse<User>(UserSchema, await this.request<unknown>('GET', `get_user/${userId}`));
     }
 
     /**
@@ -765,7 +843,10 @@ export class TestRailClient extends TestRailClientCore {
         }
 
         // buildEndpoint now encodes all values via encodeURIComponent internally.
-        return this.request<User>('GET', this.buildEndpoint('get_user_by_email', { email }));
+        return this.parse<User>(
+            UserSchema,
+            await this.request<unknown>('GET', this.buildEndpoint('get_user_by_email', { email })),
+        );
     }
 
     /**
@@ -785,8 +866,8 @@ export class TestRailClient extends TestRailClientCore {
             limit,
             offset,
         });
-        const response = await this.request<{ users: User[] }>('GET', endpoint);
-        return response.users ?? [];
+        const raw = await this.request<unknown>('GET', endpoint);
+        return this.parse<{ users?: User[] }>(z.object({ users: z.array(UserSchema).optional() }), raw).users ?? [];
     }
 
     /**
@@ -794,7 +875,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getCurrentUser(): Promise<User> {
-        return this.request<User>('GET', 'get_current_user');
+        return this.parse<User>(UserSchema, await this.request<unknown>('GET', 'get_current_user'));
     }
 
     // ── Statuses ──────────────────────────────────────────────────────────────
@@ -804,7 +885,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getStatuses(): Promise<Status[]> {
-        return this.request<Status[]>('GET', 'get_statuses');
+        return this.parse<Status[]>(z.array(StatusSchema), await this.request<unknown>('GET', 'get_statuses'));
     }
 
     // ── Priorities ────────────────────────────────────────────────────────────
@@ -814,7 +895,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getPriorities(): Promise<Priority[]> {
-        return this.request<Priority[]>('GET', 'get_priorities');
+        return this.parse<Priority[]>(z.array(PrioritySchema), await this.request<unknown>('GET', 'get_priorities'));
     }
 
     // ── Result Fields ─────────────────────────────────────────────────────────
@@ -824,7 +905,10 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getResultFields(): Promise<ResultField[]> {
-        return this.request<ResultField[]>('GET', 'get_result_fields');
+        return this.parse<ResultField[]>(
+            z.array(ResultFieldSchema),
+            await this.request<unknown>('GET', 'get_result_fields'),
+        );
     }
 
     // ── Case Fields & Types ───────────────────────────────────────────────────
@@ -834,7 +918,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getCaseFields(): Promise<CaseField[]> {
-        return this.request<CaseField[]>('GET', 'get_case_fields');
+        return this.parse<CaseField[]>(z.array(CaseFieldSchema), await this.request<unknown>('GET', 'get_case_fields'));
     }
 
     /**
@@ -842,7 +926,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getCaseTypes(): Promise<CaseType[]> {
-        return this.request<CaseType[]>('GET', 'get_case_types');
+        return this.parse<CaseType[]>(z.array(CaseTypeSchema), await this.request<unknown>('GET', 'get_case_types'));
     }
 
     // ── Templates ─────────────────────────────────────────────────────────────
@@ -854,7 +938,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getTemplates(projectId: number): Promise<Template[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<Template[]>('GET', `get_templates/${projectId}`);
+        return this.parse<Template[]>(
+            z.array(TemplateSchema),
+            await this.request<unknown>('GET', `get_templates/${projectId}`),
+        );
     }
 
     // ── Configurations ────────────────────────────────────────────────────────
@@ -866,7 +953,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getConfigurations(projectId: number): Promise<ConfigurationGroup[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<ConfigurationGroup[]>('GET', `get_configs/${projectId}`);
+        return this.parse<ConfigurationGroup[]>(
+            z.array(ConfigurationGroupSchema),
+            await this.request<unknown>('GET', `get_configs/${projectId}`),
+        );
     }
 
     /**
@@ -876,7 +966,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addConfigurationGroup(projectId: number, payload: AddConfigurationGroupPayload): Promise<ConfigurationGroup> {
         this.validateId(projectId, 'projectId');
-        return this.request<ConfigurationGroup>('POST', `add_config_group/${projectId}`, payload);
+        return this.parse<ConfigurationGroup>(
+            ConfigurationGroupSchema,
+            await this.request<unknown>('POST', `add_config_group/${projectId}`, payload),
+        );
     }
 
     /**
@@ -889,7 +982,10 @@ export class TestRailClient extends TestRailClientCore {
         payload: UpdateConfigurationGroupPayload,
     ): Promise<ConfigurationGroup> {
         this.validateId(configGroupId, 'configGroupId');
-        return this.request<ConfigurationGroup>('POST', `update_config_group/${configGroupId}`, payload);
+        return this.parse<ConfigurationGroup>(
+            ConfigurationGroupSchema,
+            await this.request<unknown>('POST', `update_config_group/${configGroupId}`, payload),
+        );
     }
 
     /**
@@ -909,7 +1005,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addConfiguration(configGroupId: number, payload: AddConfigurationPayload): Promise<Configuration> {
         this.validateId(configGroupId, 'configGroupId');
-        return this.request<Configuration>('POST', `add_config/${configGroupId}`, payload);
+        return this.parse<Configuration>(
+            ConfigurationSchema,
+            await this.request<unknown>('POST', `add_config/${configGroupId}`, payload),
+        );
     }
 
     /**
@@ -919,7 +1018,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateConfiguration(configId: number, payload: UpdateConfigurationPayload): Promise<Configuration> {
         this.validateId(configId, 'configId');
-        return this.request<Configuration>('POST', `update_config/${configId}`, payload);
+        return this.parse<Configuration>(
+            ConfigurationSchema,
+            await this.request<unknown>('POST', `update_config/${configId}`, payload),
+        );
     }
 
     /**
@@ -939,7 +1041,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addUser(payload: AddUserPayload): Promise<User> {
-        return this.request<User>('POST', 'add_user', payload);
+        return this.parse<User>(UserSchema, await this.request<unknown>('POST', 'add_user', payload));
     }
 
     /**
@@ -949,7 +1051,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
         this.validateId(userId, 'userId');
-        return this.request<User>('POST', `update_user/${userId}`, payload);
+        return this.parse<User>(UserSchema, await this.request<unknown>('POST', `update_user/${userId}`, payload));
     }
 
     // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────
@@ -959,7 +1061,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getRoles(): Promise<Role[]> {
-        return this.request<Role[]>('GET', 'get_roles');
+        return this.parse<Role[]>(z.array(RoleSchema), await this.request<unknown>('GET', 'get_roles'));
     }
 
     // ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────
@@ -971,7 +1073,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getGroup(groupId: number): Promise<Group> {
         this.validateId(groupId, 'groupId');
-        return this.request<Group>('GET', `get_group/${groupId}`);
+        return this.parse<Group>(GroupSchema, await this.request<unknown>('GET', `get_group/${groupId}`));
     }
 
     /**
@@ -979,7 +1081,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getGroups(): Promise<Group[]> {
-        return this.request<Group[]>('GET', 'get_groups');
+        return this.parse<Group[]>(z.array(GroupSchema), await this.request<unknown>('GET', 'get_groups'));
     }
 
     /**
@@ -987,7 +1089,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addGroup(payload: AddGroupPayload): Promise<Group> {
-        return this.request<Group>('POST', 'add_group', payload);
+        return this.parse<Group>(GroupSchema, await this.request<unknown>('POST', 'add_group', payload));
     }
 
     /**
@@ -997,7 +1099,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
         this.validateId(groupId, 'groupId');
-        return this.request<Group>('POST', `update_group/${groupId}`, payload);
+        return this.parse<Group>(GroupSchema, await this.request<unknown>('POST', `update_group/${groupId}`, payload));
     }
 
     /**
@@ -1019,8 +1121,13 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getAttachmentsForCase(caseId: number): Promise<Attachment[]> {
         this.validateId(caseId, 'caseId');
-        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_case/${caseId}`);
-        return response.attachments ?? [];
+        const raw = await this.request<unknown>('GET', `get_attachments_for_case/${caseId}`);
+        return (
+            this.parse<{ attachments?: Attachment[] }>(
+                z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                raw,
+            ).attachments ?? []
+        );
     }
 
     /**
@@ -1030,8 +1137,13 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getAttachmentsForRun(runId: number): Promise<Attachment[]> {
         this.validateId(runId, 'runId');
-        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_run/${runId}`);
-        return response.attachments ?? [];
+        const raw = await this.request<unknown>('GET', `get_attachments_for_run/${runId}`);
+        return (
+            this.parse<{ attachments?: Attachment[] }>(
+                z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                raw,
+            ).attachments ?? []
+        );
     }
 
     /**
@@ -1041,8 +1153,13 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getAttachmentsForTest(testId: number): Promise<Attachment[]> {
         this.validateId(testId, 'testId');
-        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_test/${testId}`);
-        return response.attachments ?? [];
+        const raw = await this.request<unknown>('GET', `get_attachments_for_test/${testId}`);
+        return (
+            this.parse<{ attachments?: Attachment[] }>(
+                z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                raw,
+            ).attachments ?? []
+        );
     }
 
     /**
@@ -1052,8 +1169,13 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
         this.validateId(planId, 'planId');
-        const response = await this.request<{ attachments: Attachment[] }>('GET', `get_attachments_for_plan/${planId}`);
-        return response.attachments ?? [];
+        const raw = await this.request<unknown>('GET', `get_attachments_for_plan/${planId}`);
+        return (
+            this.parse<{ attachments?: Attachment[] }>(
+                z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                raw,
+            ).attachments ?? []
+        );
     }
 
     /**
@@ -1064,11 +1186,13 @@ export class TestRailClient extends TestRailClientCore {
     async getAttachmentsForPlanEntry(planId: number, entryId: number): Promise<Attachment[]> {
         this.validateId(planId, 'planId');
         this.validateId(entryId, 'entryId');
-        const response = await this.request<{ attachments: Attachment[] }>(
-            'GET',
-            `get_attachments_for_plan_entry/${planId}/${entryId}`,
+        const raw = await this.request<unknown>('GET', `get_attachments_for_plan_entry/${planId}/${entryId}`);
+        return (
+            this.parse<{ attachments?: Attachment[] }>(
+                z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                raw,
+            ).attachments ?? []
         );
-        return response.attachments ?? [];
     }
 
     /**
@@ -1173,7 +1297,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getSharedStep(sharedStepId: number): Promise<SharedStep> {
         this.validateId(sharedStepId, 'sharedStepId');
-        return this.request<SharedStep>('GET', `get_shared_step/${sharedStepId}`);
+        return this.parse<SharedStep>(
+            SharedStepSchema,
+            await this.request<unknown>('GET', `get_shared_step/${sharedStepId}`),
+        );
     }
 
     /**
@@ -1183,7 +1310,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<SharedStep[]>('GET', `get_shared_steps/${projectId}`);
+        return this.parse<SharedStep[]>(
+            z.array(SharedStepSchema),
+            await this.request<unknown>('GET', `get_shared_steps/${projectId}`),
+        );
     }
 
     /**
@@ -1193,7 +1323,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
         this.validateId(projectId, 'projectId');
-        return this.request<SharedStep>('POST', `add_shared_step/${projectId}`, payload);
+        return this.parse<SharedStep>(
+            SharedStepSchema,
+            await this.request<unknown>('POST', `add_shared_step/${projectId}`, payload),
+        );
     }
 
     /**
@@ -1203,7 +1336,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
         this.validateId(sharedStepId, 'sharedStepId');
-        return this.request<SharedStep>('POST', `update_shared_step/${sharedStepId}`, payload);
+        return this.parse<SharedStep>(
+            SharedStepSchema,
+            await this.request<unknown>('POST', `update_shared_step/${sharedStepId}`, payload),
+        );
     }
 
     /**
@@ -1225,7 +1361,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getVariables(projectId: number): Promise<Variable[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<Variable[]>('GET', `get_variables/${projectId}`);
+        return this.parse<Variable[]>(
+            z.array(VariableSchema),
+            await this.request<unknown>('GET', `get_variables/${projectId}`),
+        );
     }
 
     /**
@@ -1235,7 +1374,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addVariable(projectId: number, payload: AddVariablePayload): Promise<Variable> {
         this.validateId(projectId, 'projectId');
-        return this.request<Variable>('POST', `add_variable/${projectId}`, payload);
+        return this.parse<Variable>(
+            VariableSchema,
+            await this.request<unknown>('POST', `add_variable/${projectId}`, payload),
+        );
     }
 
     /**
@@ -1245,7 +1387,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateVariable(variableId: number, payload: UpdateVariablePayload): Promise<Variable> {
         this.validateId(variableId, 'variableId');
-        return this.request<Variable>('POST', `update_variable/${variableId}`, payload);
+        return this.parse<Variable>(
+            VariableSchema,
+            await this.request<unknown>('POST', `update_variable/${variableId}`, payload),
+        );
     }
 
     /**
@@ -1267,7 +1412,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getDataset(datasetId: number): Promise<Dataset> {
         this.validateId(datasetId, 'datasetId');
-        return this.request<Dataset>('GET', `get_dataset/${datasetId}`);
+        return this.parse<Dataset>(DatasetSchema, await this.request<unknown>('GET', `get_dataset/${datasetId}`));
     }
 
     /**
@@ -1277,7 +1422,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getDatasets(projectId: number): Promise<Dataset[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<Dataset[]>('GET', `get_datasets/${projectId}`);
+        return this.parse<Dataset[]>(
+            z.array(DatasetSchema),
+            await this.request<unknown>('GET', `get_datasets/${projectId}`),
+        );
     }
 
     /**
@@ -1287,7 +1435,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addDataset(projectId: number, payload: AddDatasetPayload): Promise<Dataset> {
         this.validateId(projectId, 'projectId');
-        return this.request<Dataset>('POST', `add_dataset/${projectId}`, payload);
+        return this.parse<Dataset>(
+            DatasetSchema,
+            await this.request<unknown>('POST', `add_dataset/${projectId}`, payload),
+        );
     }
 
     /**
@@ -1297,7 +1448,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async updateDataset(datasetId: number, payload: UpdateDatasetPayload): Promise<Dataset> {
         this.validateId(datasetId, 'datasetId');
-        return this.request<Dataset>('POST', `update_dataset/${datasetId}`, payload);
+        return this.parse<Dataset>(
+            DatasetSchema,
+            await this.request<unknown>('POST', `update_dataset/${datasetId}`, payload),
+        );
     }
 
     /**
@@ -1319,7 +1473,10 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getReports(projectId: number): Promise<Report[]> {
         this.validateId(projectId, 'projectId');
-        return this.request<Report[]>('GET', `get_reports/${projectId}`);
+        return this.parse<Report[]>(
+            z.array(ReportSchema),
+            await this.request<unknown>('GET', `get_reports/${projectId}`),
+        );
     }
 
     /**
@@ -1329,10 +1486,32 @@ export class TestRailClient extends TestRailClientCore {
      */
     async runReport(reportTemplateId: number): Promise<ReportResult> {
         this.validateId(reportTemplateId, 'reportTemplateId');
-        return this.request<ReportResult>('GET', `run_report/${reportTemplateId}`);
+        return this.parse<ReportResult>(
+            ReportResultSchema,
+            await this.request<unknown>('GET', `run_report/${reportTemplateId}`),
+        );
     }
 
     private serializeIdList(ids?: number[]): string | undefined {
         return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
+    }
+
+    /**
+     * Validates `data` against `schema` and returns it typed as `T`.
+     * Uses a type-erased schema parameter to bridge Zod's inferred types (which include
+     * `| undefined` on optional properties) with the existing interface types that use
+     * strict optional properties (`exactOptionalPropertyTypes: true`).
+     * @throws {TestRailValidationError} When data does not conform to schema
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private parse<T>(schema: z.ZodType<any>, data: unknown): T {
+        try {
+            return schema.parse(data) as T;
+        } catch (err) {
+            if (err instanceof ZodError) {
+                throw handleZodError(err);
+            }
+            throw err;
+        }
     }
 }

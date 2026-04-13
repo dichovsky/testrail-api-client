@@ -621,9 +621,12 @@ describe('TestRailClient - Enhanced Features', () => {
                 await client.getProject(999);
             } catch (error) {
                 expect(error).toBeInstanceOf(TestRailApiError);
-                expect((error as TestRailApiError).status).toBe(404);
-                expect((error as TestRailApiError).statusText).toBe('Not Found');
-                expect((error as TestRailApiError).response).toBe('Project not found');
+                const apiError = error as TestRailApiError;
+                expect(apiError.status).toBe(404);
+                expect(apiError.statusText).toBe('Not Found');
+                if (apiError.response) {
+                    expect(apiError.response.toString()).toBe('Project not found');
+                }
             }
         });
 
