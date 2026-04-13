@@ -38,8 +38,13 @@ const PRIVATE_HOST_PATTERNS: RegExp[] = [
 ];
 
 function isPrivateOrLoopbackIPv4(ip: string): boolean {
-    const octets = ip.split('.').map((part) => Number.parseInt(part, 10));
-    if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+    const octetParts = ip.split('.');
+    if (octetParts.length !== 4 || octetParts.some((part) => !/^\d+$/.test(part))) {
+        return false;
+    }
+
+    const octets = octetParts.map((part) => Number.parseInt(part, 10));
+    if (octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
         return false;
     }
     const [o0, o1] = octets as [number, number, ...number[]];
