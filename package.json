@@ -18,9 +18,6 @@
         "url": "git+https://github.com/dichovsky/testrail-api-client.git"
     },
     "license": "MIT",
-    "publishConfig": {
-        "access": "public"
-    },
     "author": "Igor Magdich",
     "type": "module",
     "exports": {
@@ -53,16 +50,20 @@
         "format:check": "prettier --check .",
         "lint": "eslint .",
         "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build && npm run clean:maps",
+        "pretest": "npm run typecheck && npm run lint && npm run format:check",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",
         "test:watch": "vitest",
         "typecheck": "tsc --noEmit"
     },
+    "dependencies": {
+        "zod": "~4.3.6"
+    },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^25.6.0",
-        "@typescript-eslint/eslint-plugin": "^8.58.1",
+        "@typescript-eslint/eslint-plugin": "^8.58.2",
         "@typescript-eslint/parser": "^8.58.2",
         "@vitest/coverage-v8": "^4.1.4",
         "eslint": "^10.2.0",
@@ -73,7 +74,7 @@
     "engines": {
         "node": "^20.19.0 || ^22.13.0 || >=24"
     },
-    "dependencies": {
-        "zod": "^4.3.6"
+    "publishConfig": {
+        "access": "public"
     }
 }
