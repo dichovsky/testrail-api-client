@@ -2,6 +2,7 @@ import type { TestRailConfig, CacheEntry } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
+import { isIP } from 'node:net';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -22,7 +23,7 @@ import {
 // probe for internal services when baseUrl is attacker-controlled.
 // Protection combines syntactic checks (regex on hostname string) with DNS resolution:
 // validatePublicHost() resolves the hostname and checks the resulting IP, preventing
-// DNS-rebinding attacks. The DNS check runs asynchronously and is awaited before the first request.
+// DNS-rebinding attacks. The DNS check promise is awaited before each request.
 const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^localhost\.?$/i, // matches "localhost" with or without trailing dot
     /^127\./,
@@ -36,6 +37,57 @@ const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^0\./,
 ];
 
+function isPrivateOrLoopbackIPv4(ip: string): boolean {
+    const octets = ip.split('.').map((part) => Number.parseInt(part, 10));
+    if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+        return false;
+    }
+    const [o0, o1] = octets;
+    if (o0 === undefined || o1 === undefined) {
+        return false;
+    }
+
+    return (
+        o0 === 0 ||
+        o0 === 10 ||
+        o0 === 127 ||
+        (o0 === 169 && o1 === 254) ||
+        (o0 === 172 && o1 >= 16 && o1 <= 31) ||
+        (o0 === 192 && o1 === 168)
+    );
+}
+
+function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
+    const normalized = ip.toLowerCase().split('%')[0] ?? '';
+    const mappedIPv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    const mappedAddress = mappedIPv4?.[1];
+    if (mappedAddress !== undefined) {
+        return isPrivateOrLoopbackIPv4(mappedAddress);
+    }
+
+    const ipFamily = family ?? isIP(normalized);
+    if (ipFamily === 4) {
+        return isPrivateOrLoopbackIPv4(normalized);
+    }
+    if (ipFamily === 6) {
+        if (normalized === '::' || normalized === '::1') {
+            return true;
+        }
+
+        const firstHextet = normalized.split(':')[0] ?? '';
+        return (
+            firstHextet.startsWith('fc') ||
+            firstHextet.startsWith('fd') ||
+            firstHextet.startsWith('fe8') ||
+            firstHextet.startsWith('fe9') ||
+            firstHextet.startsWith('fea') ||
+            firstHextet.startsWith('feb')
+        );
+    }
+
+    return false;
+}
+
 async function validatePublicHost(hostname: string): Promise<void> {
     const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
     const isPrivatePattern = PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare));
@@ -48,22 +100,19 @@ async function validatePublicHost(hostname: string): Promise<void> {
 
     try {
         const dns = await import('node:dns/promises');
-        const lookup = await dns.lookup(bare).catch(() => null);
-        if (lookup?.address !== undefined && lookup.address !== '') {
-            const ip = lookup.address;
-            const isPrivateIP = PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(ip));
-            if (isPrivateIP) {
+        const lookups = await dns.lookup(bare, { all: true }).catch(() => []);
+        for (const lookup of lookups) {
+            if (lookup.address !== '' && isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
                 throw new TestRailValidationError(
-                    `baseUrl resolves to a private/loopback host ("${hostname}" -> "${ip}"). ` +
+                    `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
                         'Set allowPrivateHosts: true to allow on-premise deployments.',
                 );
             }
         }
     } catch (err) {
         if (err instanceof TestRailValidationError) throw err;
-        throw new TestRailValidationError(
-            `Failed to validate host via DNS: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        );
+        // DNS/import failures are ignored to avoid blocking valid public hosts
+        // when DNS is temporarily unavailable in constrained runtimes.
     }
 }
 
@@ -115,6 +164,7 @@ export class TestRailClientCore {
     private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
     private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
     private isDestroyed = false;
+    private readonly dnsValidationPromise: Promise<void> | undefined;
     private dnsValidationError: TestRailValidationError | undefined;
 
     constructor(config: TestRailConfig) {
@@ -142,23 +192,19 @@ export class TestRailClientCore {
             requests: [],
         };
 
-        // Start async DNS host validation in the background (fire-and-forget).
-        // If DNS resolves to a private IP, marks this client so all future requests fail.
+        // Start async DNS host validation in the background and await it in request().
+        // If DNS resolves to a private IP, mark this client so all requests fail.
         // The synchronous regex check in validateConfig already blocks obvious private addresses.
         if (config.allowPrivateHosts !== true) {
             // URL already validated by validateConfig — this parse cannot throw.
             const url = new URL(config.baseUrl);
-            validatePublicHost(url.hostname).then(
-                () => {
-                    /* DNS check passed */
-                },
-                (err: unknown) => {
-                    if (err instanceof TestRailValidationError) {
-                        this.dnsValidationError = err;
-                    }
-                    // Non-validation errors (e.g. DNS unavailable) are intentionally ignored.
-                },
-            );
+            this.dnsValidationPromise = validatePublicHost(url.hostname).catch((err: unknown) => {
+                if (err instanceof TestRailValidationError) {
+                    this.dnsValidationError = err;
+                }
+            });
+        } else {
+            this.dnsValidationPromise = undefined;
         }
 
         // Register this instance for automatic cleanup
@@ -518,7 +564,12 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        // Reject if background DNS check detected a private/loopback host.
+        // Ensure DNS validation completed before allowing outbound requests.
+        if (this.dnsValidationPromise !== undefined) {
+            await this.dnsValidationPromise;
+        }
+
+        // Reject if DNS check detected a private/loopback host.
         if (this.dnsValidationError !== undefined) {
             throw this.dnsValidationError;
         }

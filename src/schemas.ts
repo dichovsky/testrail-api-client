@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const zObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).passthrough();
+
 /**
  * Core schemas for common TestRail API structures.
  * These are used to validate API responses and provide static type inference via `z.infer`.
@@ -7,12 +9,12 @@ import { z } from 'zod';
 
 // ── Common & Foundational Schemas ─────────────────────────────────────────────
 
-export const PaginationSchema = z.object({
+export const PaginationSchema = zObject({
     limit: z.number().optional(),
     offset: z.number().optional(),
 });
 
-export const TestRailConfigSchema = z.object({
+export const TestRailConfigSchema = zObject({
     baseUrl: z.string().url(),
     email: z.string().email(),
     apiKey: z.string().min(1),
@@ -22,8 +24,7 @@ export const TestRailConfigSchema = z.object({
     cacheTtl: z.number().int().positive().optional(),
     cacheCleanupInterval: z.number().int().positive().optional(),
     maxCacheSize: z.number().int().positive().optional(),
-    rateLimiter: z
-        .object({
+    rateLimiter: zObject({
             maxRequests: z.number().int().positive(),
             windowMs: z.number().int().positive(),
         })
@@ -36,7 +37,7 @@ export type TestRailConfig = z.infer<typeof TestRailConfigSchema>;
 
 // ── Identity & User Schemas ───────────────────────────────────────────────────
 
-export const UserSchema = z.object({
+export const UserSchema = zObject({
     id: z.number(),
     name: z.string(),
     email: z.string().email(),
@@ -47,7 +48,7 @@ export const UserSchema = z.object({
 
 export type User = z.infer<typeof UserSchema>;
 
-export const RoleSchema = z.object({
+export const RoleSchema = zObject({
     id: z.number(),
     name: z.string(),
     is_default: z.boolean(),
@@ -55,7 +56,7 @@ export const RoleSchema = z.object({
 
 export type Role = z.infer<typeof RoleSchema>;
 
-export const GroupSchema = z.object({
+export const GroupSchema = zObject({
     id: z.number(),
     name: z.string(),
     user_ids: z.array(z.number()).optional(),
@@ -65,7 +66,7 @@ export type Group = z.infer<typeof GroupSchema>;
 
 // ── Project & Suite Schemas ────────────────────────────────────────────────────
 
-export const ProjectSchema = z.object({
+export const ProjectSchema = zObject({
     id: z.number(),
     name: z.string(),
     announcement: z.string().optional(),
@@ -78,7 +79,7 @@ export const ProjectSchema = z.object({
 
 export type Project = z.infer<typeof ProjectSchema>;
 
-export const SuiteSchema = z.object({
+export const SuiteSchema = zObject({
     id: z.number(),
     name: z.string(),
     description: z.string().optional(),
@@ -94,7 +95,7 @@ export type Suite = z.infer<typeof SuiteSchema>;
 
 // ── Case & Section Schemas ─────────────────────────────────────────────────────
 
-export const CaseSchema = z.object({
+export const CaseSchema = zObject({
     id: z.number(),
     title: z.string(),
     section_id: z.number(),
@@ -117,7 +118,7 @@ export const CaseSchema = z.object({
 
 export type Case = z.infer<typeof CaseSchema>;
 
-export const SectionSchema = z.object({
+export const SectionSchema = zObject({
     id: z.number(),
     suite_id: z.number(),
     name: z.string(),
@@ -131,7 +132,7 @@ export type Section = z.infer<typeof SectionSchema>;
 
 // ── Run Schema (forward declaration needed for PlanEntry) ─────────────────────
 
-export const RunSchema = z.object({
+export const RunSchema = zObject({
     id: z.number(),
     suite_id: z.number(),
     name: z.string(),
@@ -167,7 +168,7 @@ export type Run = z.infer<typeof RunSchema>;
 
 // ── Plan Entry & Plan Schemas ─────────────────────────────────────────────────
 
-export const PlanEntrySchema = z.object({
+export const PlanEntrySchema = zObject({
     id: z.string(),
     suite_id: z.number(),
     name: z.string(),
@@ -181,7 +182,7 @@ export const PlanEntrySchema = z.object({
 
 export type PlanEntry = z.infer<typeof PlanEntrySchema>;
 
-export const PlanSchema = z.object({
+export const PlanSchema = zObject({
     id: z.number(),
     name: z.string(),
     description: z.string().optional(),
@@ -212,7 +213,7 @@ export type Plan = z.infer<typeof PlanSchema>;
 
 // ── Test & Result Schemas ─────────────────────────────────────────────────────
 
-export const TestSchema = z.object({
+export const TestSchema = zObject({
     id: z.number(),
     case_id: z.number(),
     status_id: z.number(),
@@ -231,7 +232,7 @@ export const TestSchema = z.object({
 
 export type Test = z.infer<typeof TestSchema>;
 
-export const ResultSchema = z.object({
+export const ResultSchema = zObject({
     id: z.number().optional(),
     test_id: z.number().optional(),
     status_id: z.number(),
@@ -249,7 +250,7 @@ export type Result = z.infer<typeof ResultSchema>;
 
 // ── Milestone Schema ──────────────────────────────────────────────────────────
 
-export const MilestoneSchema = z.object({
+export const MilestoneSchema = zObject({
     id: z.number(),
     name: z.string(),
     description: z.string().optional(),
@@ -270,7 +271,7 @@ export type Milestone = z.infer<typeof MilestoneSchema>;
 
 // ── Status & Priority Schemas ──────────────────────────────────────────────────
 
-export const StatusSchema = z.object({
+export const StatusSchema = zObject({
     id: z.number(),
     name: z.string(),
     label: z.string(),
@@ -284,7 +285,7 @@ export const StatusSchema = z.object({
 
 export type Status = z.infer<typeof StatusSchema>;
 
-export const PrioritySchema = z.object({
+export const PrioritySchema = zObject({
     id: z.number(),
     name: z.string(),
     short_name: z.string(),
@@ -296,7 +297,7 @@ export type Priority = z.infer<typeof PrioritySchema>;
 
 // ── Field Config Schemas ──────────────────────────────────────────────────────
 
-const FieldConfigOptionsSchema = z.object({
+const FieldConfigOptionsSchema = zObject({
     is_required: z.boolean(),
     default_value: z.string(),
     items: z.string().optional(),
@@ -304,19 +305,19 @@ const FieldConfigOptionsSchema = z.object({
     rows: z.string().optional(),
 });
 
-const FieldConfigContextSchema = z.object({
+const FieldConfigContextSchema = zObject({
     is_global: z.boolean(),
     project_ids: z.array(z.number()),
 });
 
-export const CaseFieldConfigSchema = z.object({
+export const CaseFieldConfigSchema = zObject({
     context: FieldConfigContextSchema,
     options: FieldConfigOptionsSchema,
 });
 
 export type CaseFieldConfig = z.infer<typeof CaseFieldConfigSchema>;
 
-export const CaseFieldSchema = z.object({
+export const CaseFieldSchema = zObject({
     id: z.number(),
     system_name: z.string(),
     label: z.string(),
@@ -332,14 +333,14 @@ export const CaseFieldSchema = z.object({
 
 export type CaseField = z.infer<typeof CaseFieldSchema>;
 
-export const ResultFieldConfigSchema = z.object({
+export const ResultFieldConfigSchema = zObject({
     context: FieldConfigContextSchema,
     options: FieldConfigOptionsSchema,
 });
 
 export type ResultFieldConfig = z.infer<typeof ResultFieldConfigSchema>;
 
-export const ResultFieldSchema = z.object({
+export const ResultFieldSchema = zObject({
     id: z.number(),
     system_name: z.string(),
     label: z.string(),
@@ -357,7 +358,7 @@ export type ResultField = z.infer<typeof ResultFieldSchema>;
 
 // ── Case Type & Template Schemas ──────────────────────────────────────────────
 
-export const CaseTypeSchema = z.object({
+export const CaseTypeSchema = zObject({
     id: z.number(),
     name: z.string(),
     is_default: z.boolean(),
@@ -365,7 +366,7 @@ export const CaseTypeSchema = z.object({
 
 export type CaseType = z.infer<typeof CaseTypeSchema>;
 
-export const TemplateSchema = z.object({
+export const TemplateSchema = zObject({
     id: z.number(),
     name: z.string(),
     is_default: z.boolean(),
@@ -375,7 +376,7 @@ export type Template = z.infer<typeof TemplateSchema>;
 
 // ── Configuration Schemas ─────────────────────────────────────────────────────
 
-export const ConfigurationSchema = z.object({
+export const ConfigurationSchema = zObject({
     id: z.number(),
     name: z.string(),
     group_id: z.number(),
@@ -383,7 +384,7 @@ export const ConfigurationSchema = z.object({
 
 export type Configuration = z.infer<typeof ConfigurationSchema>;
 
-export const ConfigurationGroupSchema = z.object({
+export const ConfigurationGroupSchema = zObject({
     id: z.number(),
     name: z.string(),
     project_id: z.number(),
@@ -394,7 +395,7 @@ export type ConfigurationGroup = z.infer<typeof ConfigurationGroupSchema>;
 
 // ── Attachment Schema ─────────────────────────────────────────────────────────
 
-export const AttachmentSchema = z.object({
+export const AttachmentSchema = zObject({
     attachment_id: z.number(),
     name: z.string(),
     filename: z.string().optional(),
@@ -408,7 +409,7 @@ export type Attachment = z.infer<typeof AttachmentSchema>;
 
 // ── Shared Steps Schema ───────────────────────────────────────────────────────
 
-export const SharedStepSchema = z.object({
+export const SharedStepSchema = zObject({
     id: z.number(),
     title: z.string(),
     project_id: z.number().optional(),
@@ -424,14 +425,14 @@ export type SharedStep = z.infer<typeof SharedStepSchema>;
 
 // ── Variable & Dataset Schemas ────────────────────────────────────────────────
 
-export const VariableSchema = z.object({
+export const VariableSchema = zObject({
     id: z.number(),
     name: z.string(),
 });
 
 export type Variable = z.infer<typeof VariableSchema>;
 
-export const DatasetSchema = z.object({
+export const DatasetSchema = zObject({
     id: z.number(),
     name: z.string(),
     project_id: z.number().optional(),
@@ -443,7 +444,7 @@ export type Dataset = z.infer<typeof DatasetSchema>;
 
 // ── Report Schemas ────────────────────────────────────────────────────────────
 
-export const ReportSchema = z.object({
+export const ReportSchema = zObject({
     id: z.number(),
     name: z.string(),
     description: z.string().optional(),
@@ -452,7 +453,7 @@ export const ReportSchema = z.object({
 
 export type Report = z.infer<typeof ReportSchema>;
 
-export const ReportResultSchema = z.object({
+export const ReportResultSchema = zObject({
     report_url: z.string(),
     user_report_url: z.string().optional(),
 });

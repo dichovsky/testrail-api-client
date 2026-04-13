@@ -489,13 +489,14 @@ describe('CLI', () => {
         });
 
         it('should render undefined/absent cell values as empty string in table format', async () => {
-            // A user with only required fields — optional columns render as empty
+            // First row defines `comment` column; second row omits it and should render as empty.
             const { stdout, exitCodes } = await runCli(
-                ['user', 'get', '1', '--format', 'table'],
-                [jsonResponse({ id: 1, name: 'Alice', email: 'alice@example.com' })],
+                ['result', 'list', '--run-id', '1', '--format', 'table'],
+                [jsonResponse({ results: [{ status_id: 1, comment: 'filled' }, { status_id: 2 }] })],
             );
             expect(exitCodes).toContain(0);
-            expect(stdout).toContain('id');
+            expect(stdout).toContain('status_id | comment');
+            expect(stdout).toMatch(/^2\s+\|\s*$/m);
         });
 
         it('should JSON.stringify nested object cell values in table format', async () => {

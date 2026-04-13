@@ -624,11 +624,8 @@ describe('TestRailClient - Enhanced Features', () => {
                 const apiError = error as TestRailApiError;
                 expect(apiError.status).toBe(404);
                 expect(apiError.statusText).toBe('Not Found');
-                if (apiError.response !== undefined && apiError.response !== null) {
-                    expect(
-                        typeof apiError.response === 'string' ? apiError.response : JSON.stringify(apiError.response),
-                    ).toBe('Project not found');
-                }
+                expect(apiError.response).toBeDefined();
+                expect(apiError.response).toBe('Project not found');
             }
         });
 
@@ -1086,6 +1083,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 timeout: timeoutMs,
                 enableCache: false,
+                allowPrivateHosts: true,
             });
 
             vi.useFakeTimers();
@@ -1114,6 +1112,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 timeout: timeoutMs,
                 enableCache: false,
+                allowPrivateHosts: true,
             });
 
             vi.useFakeTimers();
@@ -1141,6 +1140,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 timeout: timeoutMs,
                 enableCache: false,
+                allowPrivateHosts: true,
             });
 
             vi.useFakeTimers();
