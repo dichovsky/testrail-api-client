@@ -49,7 +49,7 @@ async function validatePublicHost(hostname: string): Promise<void> {
     try {
         const dns = await import('node:dns/promises');
         const lookup = await dns.lookup(bare).catch(() => null);
-        if (lookup && lookup.address) {
+        if (lookup?.address !== undefined && lookup.address !== '') {
             const ip = lookup.address;
             const isPrivateIP = PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(ip));
             if (isPrivateIP) {
