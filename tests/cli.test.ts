@@ -496,7 +496,8 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('status_id | comment');
-            expect(stdout).toMatch(/^2\s+\|\s*$/m);
+            // Ensure the row with status_id=2 has an empty `comment` cell.
+            expect(stdout).toMatch(/^2\s+\|\s+$/m);
         });
 
         it('should JSON.stringify nested object cell values in table format', async () => {

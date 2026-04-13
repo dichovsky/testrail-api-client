@@ -42,10 +42,7 @@ function isPrivateOrLoopbackIPv4(ip: string): boolean {
     if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
         return false;
     }
-    const [o0, o1] = octets;
-    if (o0 === undefined || o1 === undefined) {
-        return false;
-    }
+    const [o0, o1] = octets as [number, number, ...number[]];
 
     return (
         o0 === 0 ||
@@ -58,7 +55,8 @@ function isPrivateOrLoopbackIPv4(ip: string): boolean {
 }
 
 function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
-    const normalized = ip.toLowerCase().split('%')[0] ?? '';
+    const [normalized] = ip.toLowerCase().split('%') as [string, ...string[]];
+    // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1).
     const mappedIPv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     const mappedAddress = mappedIPv4?.[1];
     if (mappedAddress !== undefined) {
@@ -74,7 +72,7 @@ function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
             return true;
         }
 
-        const firstHextet = normalized.split(':')[0] ?? '';
+        const [firstHextet] = normalized.split(':') as [string, ...string[]];
         return (
             firstHextet.startsWith('fc') ||
             firstHextet.startsWith('fd') ||
