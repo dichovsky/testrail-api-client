@@ -25,10 +25,9 @@ export const TestRailConfigSchema = zObject({
     cacheCleanupInterval: z.number().int().positive().optional(),
     maxCacheSize: z.number().int().positive().optional(),
     rateLimiter: zObject({
-            maxRequests: z.number().int().positive(),
-            windowMs: z.number().int().positive(),
-        })
-        .optional(),
+        maxRequests: z.number().int().positive(),
+        windowMs: z.number().int().positive(),
+    }).optional(),
     allowInsecure: z.boolean().optional(),
     allowPrivateHosts: z.boolean().optional(),
 });

@@ -112,12 +112,12 @@ Auto-generated symbol index. Run `npm run codemap` to regenerate.
 
 | Symbol          | Line                           |
 | --------------- | ------------------------------ |
-| `constructor`   | [120](src/client-core.ts#L120) |
-| `validateId`    | [343](src/client-core.ts#L343) |
-| `buildEndpoint` | [382](src/client-core.ts#L382) |
-| `clearCache`    | [437](src/client-core.ts#L437) |
-| `destroy`       | [482](src/client-core.ts#L482) |
-| `request`       | [509](src/client-core.ts#L509) |
+| `constructor`   | [168](src/client-core.ts#L168) |
+| `validateId`    | [387](src/client-core.ts#L387) |
+| `buildEndpoint` | [426](src/client-core.ts#L426) |
+| `clearCache`    | [481](src/client-core.ts#L481) |
+| `destroy`       | [526](src/client-core.ts#L526) |
+| `request`       | [553](src/client-core.ts#L553) |
 
 ## Error Classes (`src/errors.ts`)
 
