@@ -16,14 +16,16 @@ import {
     DEFAULT_MAX_CACHE_SIZE,
     DEFAULT_RATE_LIMIT_MAX_REQUESTS,
     DEFAULT_RATE_LIMIT_WINDOW_MS,
+    DEFAULT_DNS_VALIDATION_MAX_WAIT_MS,
 } from './constants.js';
 
 // Reject loopback, link-local, and private-range hosts to prevent SSRF.
 // All requests carry a full Authorization header, making the client a credentialed
 // probe for internal services when baseUrl is attacker-controlled.
 // Protection combines syntactic checks (regex on hostname string) with DNS resolution:
-// validatePublicHost() resolves the hostname and checks the resulting IP, preventing
-// DNS-rebinding attacks. The DNS check promise is awaited before each request.
+// validatePublicHost() resolves the hostname and checks resulting IPs. A DNS validation
+// promise is awaited briefly before each request. This blocks obvious private-host
+// resolutions but does not fully eliminate rebinding after initial validation.
 const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^localhost\.?$/i, // matches "localhost" with or without trailing dot
     /^127\./,
@@ -116,6 +118,10 @@ async function validatePublicHost(hostname: string): Promise<void> {
         if (err instanceof TestRailValidationError) throw err;
         // DNS/import failures are ignored to avoid blocking valid public hosts
         // when DNS is temporarily unavailable in constrained runtimes.
+        // eslint-disable-next-line no-console
+        console.warn(
+            `Warning: DNS host validation skipped for "${hostname}": ${err instanceof Error ? err.message : 'Unknown error'}`,
+        );
     }
 }
 
@@ -376,10 +382,10 @@ export class TestRailClientCore {
                 }
             }
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
-            throw new TestRailApiError(
-                429,
-                `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
-            );
+            throw new TestRailApiError(429, 'Too Many Requests', {
+                message: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
+                waitTimeMs: waitTime,
+            });
         }
 
         this.rateLimiter.requests.push(now);
@@ -567,15 +573,7 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        // Ensure DNS validation completed before allowing outbound requests.
-        if (this.dnsValidationPromise !== undefined) {
-            await this.dnsValidationPromise;
-        }
-
-        // Reject if DNS check detected a private/loopback host.
-        if (this.dnsValidationError !== undefined) {
-            throw this.dnsValidationError;
-        }
+        await this.awaitDnsValidation();
 
         // Check cache for GET requests
         if (method === 'GET' && !skipCache) {
@@ -701,10 +699,7 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        // Reject if background DNS check detected a private/loopback host.
-        if (this.dnsValidationError !== undefined) {
-            throw this.dnsValidationError;
-        }
+        await this.awaitDnsValidation();
 
         this.checkRateLimit();
 
@@ -784,10 +779,7 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        // Reject if background DNS check detected a private/loopback host.
-        if (this.dnsValidationError !== undefined) {
-            throw this.dnsValidationError;
-        }
+        await this.awaitDnsValidation();
 
         this.checkRateLimit();
 
@@ -842,6 +834,25 @@ export class TestRailClientCore {
             }
 
             throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+        }
+    }
+
+    private async awaitDnsValidation(): Promise<void> {
+        if (this.dnsValidationPromise !== undefined) {
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            await Promise.race([
+                this.dnsValidationPromise,
+                new Promise<void>((resolve) => {
+                    timeoutId = setTimeout(resolve, DEFAULT_DNS_VALIDATION_MAX_WAIT_MS);
+                }),
+            ]);
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        if (this.dnsValidationError !== undefined) {
+            throw this.dnsValidationError;
         }
     }
 }
