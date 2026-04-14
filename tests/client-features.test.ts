@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
 
+const { mockDnsLookup } = vi.hoisted(() => ({
+    mockDnsLookup: vi.fn(),
+}));
+
 // Mock global fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -14,6 +18,10 @@ vi.mock('../src/utils.js', async (importOriginal) => {
     };
 });
 
+vi.mock('node:dns/promises', () => ({
+    lookup: mockDnsLookup,
+}));
+
 import { sleep } from '../src/utils.js';
 
 describe('TestRailClient - Enhanced Features', () => {
@@ -21,6 +29,8 @@ describe('TestRailClient - Enhanced Features', () => {
 
     beforeEach(() => {
         vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([]);
     });
 
     describe('Configuration Validation', () => {
@@ -126,7 +136,27 @@ describe('TestRailClient - Enhanced Features', () => {
             await client.getProject(1);
             await client.getProject(2);
 
-            await expect(client.getProject(3)).rejects.toThrow('Rate limit exceeded');
+            await expect(client.getProject(3)).rejects.toMatchObject({
+                status: 429,
+                statusText: 'Too Many Requests',
+                response: expect.objectContaining({
+                    message: expect.stringContaining('Rate limit exceeded'),
+                }),
+            });
+        });
+    });
+
+    describe('DNS validation', () => {
+        it('should reject public-looking hostname when DNS resolves to loopback', async () => {
+            mockDnsLookup.mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as never);
+            client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+
+            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 
@@ -621,9 +651,11 @@ describe('TestRailClient - Enhanced Features', () => {
                 await client.getProject(999);
             } catch (error) {
                 expect(error).toBeInstanceOf(TestRailApiError);
-                expect((error as TestRailApiError).status).toBe(404);
-                expect((error as TestRailApiError).statusText).toBe('Not Found');
-                expect((error as TestRailApiError).response).toBe('Project not found');
+                const apiError = error as TestRailApiError;
+                expect(apiError.status).toBe(404);
+                expect(apiError.statusText).toBe('Not Found');
+                expect(apiError.response).toBeDefined();
+                expect(apiError.response).toBe('Project not found');
             }
         });
 
@@ -801,6 +833,30 @@ describe('TestRailClient - Enhanced Features', () => {
             await expect(client.getAttachment(1)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
         });
+
+        it('should await DNS validation before binary download request', async () => {
+            let resolveDnsLookup: ((value: unknown) => void) | undefined;
+            mockDnsLookup.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveDnsLookup = resolve;
+                }) as never,
+            );
+            client = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+
+            const downloadPromise = client.getAttachment(1);
+            await Promise.resolve();
+            expect(mockFetch).not.toHaveBeenCalled();
+
+            mockFetch.mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
+            resolveDnsLookup?.([{ address: '203.0.113.20', family: 4 }]);
+
+            await downloadPromise;
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('requestMultipart - Uint8Array input path', () => {
@@ -884,6 +940,36 @@ describe('TestRailClient - Enhanced Features', () => {
 
             const blob = new globalThis.Blob(['data']);
             await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
+        });
+
+        it('should await DNS validation before multipart upload request', async () => {
+            let resolveDnsLookup: ((value: unknown) => void) | undefined;
+            mockDnsLookup.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    resolveDnsLookup = resolve;
+                }) as never,
+            );
+            client = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+
+            const blob = new globalThis.Blob(['x'], { type: 'text/plain' });
+            const uploadPromise = client.addAttachmentToCase(1, blob, 'x.txt');
+            await Promise.resolve();
+            expect(mockFetch).not.toHaveBeenCalled();
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => JSON.stringify({}),
+            } as never);
+            resolveDnsLookup?.([{ address: '203.0.113.10', family: 4 }]);
+
+            await uploadPromise;
+            expect(mockFetch).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -1081,6 +1167,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 timeout: timeoutMs,
                 enableCache: false,
+                allowPrivateHosts: true,
             });
 
             vi.useFakeTimers();
@@ -1109,6 +1196,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 timeout: timeoutMs,
                 enableCache: false,
+                allowPrivateHosts: true,
             });
 
             vi.useFakeTimers();
@@ -1136,6 +1224,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 timeout: timeoutMs,
                 enableCache: false,
+                allowPrivateHosts: true,
             });
 
             vi.useFakeTimers();

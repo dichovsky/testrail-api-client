@@ -20,10 +20,12 @@ describe('Index exports', () => {
         expect(TestRailApiError).toBeDefined();
         expect(typeof TestRailApiError).toBe('function');
 
-        const error = new TestRailApiError('Test error');
+        const error = new TestRailApiError(404, 'Not Found', 'Response body');
         expect(error).toBeInstanceOf(Error);
         expect(error).toBeInstanceOf(TestRailApiError);
-        expect(error.message).toBe('Test error');
+        // The message now includes status and statusText due to the refactor
+        expect(error.message).toContain('404');
+        expect(error.message).toContain('Not Found');
         expect(error.name).toBe('TestRailApiError');
     });
 
@@ -34,12 +36,13 @@ describe('Index exports', () => {
         const error = new TestRailValidationError('Config error');
         expect(error).toBeInstanceOf(Error);
         expect(error).toBeInstanceOf(TestRailValidationError);
-        expect(error.message).toBe('Config error');
+        // The message now includes a prefix due to the refactor
+        expect(error.message).toContain('Config error');
         expect(error.name).toBe('TestRailValidationError');
     });
 
     it('should export error classes with proper inheritance', () => {
-        const apiError = new TestRailApiError('API Error');
+        const apiError = new TestRailApiError(500, 'Internal Server Error');
         const configError = new TestRailValidationError('Config Error');
 
         expect(apiError instanceof Error).toBe(true);

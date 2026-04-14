@@ -2,6 +2,7 @@ import type { TestRailConfig, CacheEntry } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
+import { isIP } from 'node:net';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -15,15 +16,16 @@ import {
     DEFAULT_MAX_CACHE_SIZE,
     DEFAULT_RATE_LIMIT_MAX_REQUESTS,
     DEFAULT_RATE_LIMIT_WINDOW_MS,
+    DEFAULT_DNS_VALIDATION_MAX_WAIT_MS,
 } from './constants.js';
 
 // Reject loopback, link-local, and private-range hosts to prevent SSRF.
 // All requests carry a full Authorization header, making the client a credentialed
 // probe for internal services when baseUrl is attacker-controlled.
-// NOTE: This check is purely syntactic (regex on the hostname string). It does NOT
-// resolve DNS, so a public-looking hostname that resolves to a private IP, or a
-// DNS-rebinding attack, can still bypass this protection. For full SSRF prevention
-// use a network-level egress filter or a proxy that validates resolved addresses.
+// Protection combines syntactic checks (regex on hostname string) with DNS resolution:
+// validatePublicHost() resolves the hostname and checks resulting IPs. A DNS validation
+// promise is awaited briefly before each request. This blocks obvious private-host
+// resolutions but does not fully eliminate rebinding after initial validation.
 const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^localhost\.?$/i, // matches "localhost" with or without trailing dot
     /^127\./,
@@ -37,16 +39,89 @@ const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^0\./,
 ];
 
-function validatePublicHost(hostname: string): void {
-    // Strip enclosing brackets from IPv6 literals (e.g. "[::1]" → "::1")
-    const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
-    for (const pattern of PRIVATE_HOST_PATTERNS) {
-        if (pattern.test(bare)) {
-            throw new TestRailValidationError(
-                `baseUrl resolves to a private/loopback host ("${hostname}"). ` +
-                    'Set allowPrivateHosts: true to allow on-premise deployments.',
-            );
+function isPrivateOrLoopbackIPv4(ip: string): boolean {
+    const octetParts = ip.split('.');
+    if (octetParts.length !== 4 || octetParts.some((part) => !/^\d+$/.test(part))) {
+        return false;
+    }
+
+    const octets = octetParts.map((part) => Number.parseInt(part, 10));
+    if (octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+        return false;
+    }
+    const [o0, o1] = octets as [number, number, ...number[]];
+
+    return (
+        o0 === 0 ||
+        o0 === 10 ||
+        o0 === 127 ||
+        (o0 === 169 && o1 === 254) ||
+        (o0 === 172 && o1 >= 16 && o1 <= 31) ||
+        (o0 === 192 && o1 === 168)
+    );
+}
+
+function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
+    const [normalized] = ip.toLowerCase().split('%') as [string, ...string[]];
+    // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1).
+    const mappedIPv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    const mappedAddress = mappedIPv4?.[1];
+    if (mappedAddress !== undefined) {
+        return isPrivateOrLoopbackIPv4(mappedAddress);
+    }
+
+    const ipFamily = family ?? isIP(normalized);
+    if (ipFamily === 4) {
+        return isPrivateOrLoopbackIPv4(normalized);
+    }
+    if (ipFamily === 6) {
+        if (normalized === '::' || normalized === '::1') {
+            return true;
         }
+
+        const [firstHextet] = normalized.split(':') as [string, ...string[]];
+        return (
+            firstHextet.startsWith('fc') ||
+            firstHextet.startsWith('fd') ||
+            firstHextet.startsWith('fe8') ||
+            firstHextet.startsWith('fe9') ||
+            firstHextet.startsWith('fea') ||
+            firstHextet.startsWith('feb')
+        );
+    }
+
+    return false;
+}
+
+async function validatePublicHost(hostname: string): Promise<void> {
+    const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
+    const isPrivatePattern = PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare));
+    if (isPrivatePattern) {
+        throw new TestRailValidationError(
+            `baseUrl resolves to a private/loopback host ("${hostname}"). ` +
+                'Set allowPrivateHosts: true to allow on-premise deployments.',
+        );
+    }
+
+    try {
+        const dns = await import('node:dns/promises');
+        const lookups = await dns.lookup(bare, { all: true }).catch(() => []);
+        for (const lookup of lookups) {
+            if (lookup.address !== '' && isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
+                throw new TestRailValidationError(
+                    `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
+                        'Set allowPrivateHosts: true to allow on-premise deployments.',
+                );
+            }
+        }
+    } catch (err) {
+        if (err instanceof TestRailValidationError) throw err;
+        // DNS/import failures are ignored to avoid blocking valid public hosts
+        // when DNS is temporarily unavailable in constrained runtimes.
+        // eslint-disable-next-line no-console
+        console.warn(
+            `Warning: DNS host validation skipped due to lookup error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        );
     }
 }
 
@@ -98,6 +173,8 @@ export class TestRailClientCore {
     private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
     private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
     private isDestroyed = false;
+    private readonly dnsValidationPromise: Promise<void> | undefined;
+    private dnsValidationError: TestRailValidationError | undefined;
 
     constructor(config: TestRailConfig) {
         this.validateConfig(config);
@@ -123,6 +200,21 @@ export class TestRailClientCore {
             windowMs: config.rateLimiter?.windowMs ?? DEFAULT_RATE_LIMIT_WINDOW_MS,
             requests: [],
         };
+
+        // Start async DNS host validation in the background and await it in request().
+        // If DNS resolves to a private IP, mark this client so all requests fail.
+        // The synchronous regex check in validateConfig already blocks obvious private addresses.
+        if (config.allowPrivateHosts !== true) {
+            // URL already validated by validateConfig — this parse cannot throw.
+            const url = new URL(config.baseUrl);
+            this.dnsValidationPromise = validatePublicHost(url.hostname).catch((err: unknown) => {
+                if (err instanceof TestRailValidationError) {
+                    this.dnsValidationError = err;
+                }
+            });
+        } else {
+            this.dnsValidationPromise = undefined;
+        }
 
         // Register this instance for automatic cleanup
         activeClients.add(this);
@@ -163,10 +255,19 @@ export class TestRailClientCore {
                 );
             }
 
-            // Block SSRF targets (loopback, link-local, private ranges) unless
-            // the caller explicitly opts in for on-premise/private-network deployments.
+            // Syntactic SSRF protection: reject obvious private hostnames synchronously.
+            // The async DNS check in validatePublicHost adds defence-in-depth for rebinding.
             if (config.allowPrivateHosts !== true) {
-                validatePublicHost(url.hostname);
+                const bare =
+                    url.hostname.startsWith('[') && url.hostname.endsWith(']')
+                        ? url.hostname.slice(1, -1)
+                        : url.hostname;
+                if (PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare))) {
+                    throw new TestRailValidationError(
+                        `baseUrl resolves to a private/loopback host ("${url.hostname}"). ` +
+                            'Set allowPrivateHosts: true to allow on-premise deployments.',
+                    );
+                }
             }
         } catch (err) {
             if (err instanceof TestRailValidationError) {
@@ -281,9 +382,10 @@ export class TestRailClientCore {
                 }
             }
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
-            throw new TestRailApiError(
-                `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
-            );
+            throw new TestRailApiError(429, 'Too Many Requests', {
+                message: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
+                waitTimeMs: waitTime,
+            });
         }
 
         this.rateLimiter.requests.push(now);
@@ -471,6 +573,8 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
+        await this.awaitDnsValidation();
+
         // Check cache for GET requests
         if (method === 'GET' && !skipCache) {
             const cacheKey = `${method}:${endpoint}`;
@@ -523,12 +627,7 @@ export class TestRailClientCore {
                 // or secret values. Keep it in the structured `response` field for
                 // programmatic inspection but do not embed it in the message string,
                 // which callers commonly pass to loggers.
-                throw new TestRailApiError(
-                    `TestRail API error: ${response.status} ${response.statusText}`,
-                    response.status,
-                    response.statusText,
-                    errorText,
-                );
+                throw new TestRailApiError(response.status, response.statusText, errorText);
             }
 
             // Invalidate cache after mutating requests to avoid stale GET results.
@@ -554,7 +653,7 @@ export class TestRailClientCore {
 
                 return result;
             } catch {
-                throw new TestRailApiError('Invalid JSON response from TestRail API');
+                throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
             }
         } catch (error) {
             clearTimeout(timeoutId);
@@ -567,7 +666,7 @@ export class TestRailClientCore {
 
             // Don't retry timeout errors to avoid excessive wait times
             if (isAbortError) {
-                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
             }
 
             // Retry on network errors up to the maximum number of retries
@@ -576,12 +675,7 @@ export class TestRailClientCore {
                 return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
             }
 
-            throw new TestRailApiError(
-                `Network error: ${(error as Error).message}`,
-                undefined,
-                undefined,
-                (error as Error).message,
-            );
+            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
         }
     }
 
@@ -604,6 +698,8 @@ export class TestRailClientCore {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
+
+        await this.awaitDnsValidation();
 
         this.checkRateLimit();
 
@@ -638,12 +734,7 @@ export class TestRailClientCore {
 
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');
-                throw new TestRailApiError(
-                    `TestRail API error: ${response.status} ${response.statusText}`,
-                    response.status,
-                    response.statusText,
-                    errorText,
-                );
+                throw new TestRailApiError(response.status, response.statusText, errorText);
             }
 
             // Invalidate cache after upload
@@ -657,7 +748,7 @@ export class TestRailClientCore {
             try {
                 return JSON.parse(responseText) as T;
             } catch {
-                throw new TestRailApiError('Invalid JSON response from TestRail API');
+                throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
             }
         } catch (error) {
             clearTimeout(timeoutId);
@@ -668,15 +759,10 @@ export class TestRailClientCore {
 
             const isAbortError = (error as Error).name === 'AbortError';
             if (isAbortError) {
-                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
             }
 
-            throw new TestRailApiError(
-                `Network error: ${(error as Error).message}`,
-                undefined,
-                undefined,
-                (error as Error).message,
-            );
+            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
         }
     }
 
@@ -692,6 +778,8 @@ export class TestRailClientCore {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
+
+        await this.awaitDnsValidation();
 
         this.checkRateLimit();
 
@@ -724,12 +812,7 @@ export class TestRailClientCore {
                     return this.requestBinary(endpoint, retryCount + 1);
                 }
 
-                throw new TestRailApiError(
-                    `TestRail API error: ${response.status} ${response.statusText}`,
-                    response.status,
-                    response.statusText,
-                    errorText,
-                );
+                throw new TestRailApiError(response.status, response.statusText, errorText);
             }
 
             return response.arrayBuffer();
@@ -742,7 +825,7 @@ export class TestRailClientCore {
 
             const isAbortError = (error as Error).name === 'AbortError';
             if (isAbortError) {
-                throw new TestRailApiError(`Request timeout after ${this.timeout}ms`);
+                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
             }
 
             if (retryCount < this.maxRetries) {
@@ -750,12 +833,29 @@ export class TestRailClientCore {
                 return this.requestBinary(endpoint, retryCount + 1);
             }
 
-            throw new TestRailApiError(
-                `Network error: ${(error as Error).message}`,
-                undefined,
-                undefined,
-                (error as Error).message,
-            );
+            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+        }
+    }
+
+    private async awaitDnsValidation(): Promise<void> {
+        if (this.dnsValidationPromise !== undefined) {
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            try {
+                await Promise.race([
+                    this.dnsValidationPromise,
+                    new Promise<void>((resolve) => {
+                        timeoutId = setTimeout(resolve, DEFAULT_DNS_VALIDATION_MAX_WAIT_MS);
+                    }),
+                ]);
+            } finally {
+                if (timeoutId !== undefined) {
+                    clearTimeout(timeoutId);
+                }
+            }
+        }
+
+        if (this.dnsValidationError !== undefined) {
+            throw this.dnsValidationError;
         }
     }
 }

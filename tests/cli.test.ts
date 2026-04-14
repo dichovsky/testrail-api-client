@@ -4,12 +4,22 @@
  * Strategy:
  * - vi.resetModules() before each dynamic import gives every test a fresh CLI module.
  * - global.fetch is mocked so network calls never leave the process.
+ * - node:dns/promises is mocked so DNS resolution completes instantly (no real network).
+ *   Without this, validatePublicHost() makes a real lookup that can take >30ms on CI,
+ *   causing dnsValidationPromise to outlive the spy teardown window and producing
+ *   cross-test stdout contamination and empty exitCodes arrays.
  * - process.exit is spied on (no-throw) so both sync and async exit paths complete;
  *   assertions use exitCodes[0] as the primary exit code.
  * - process.stdout/stderr.write are captured for output assertions.
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock DNS so validatePublicHost() resolves immediately without hitting the network.
+// Returns a single public IP (example.com) so the private-IP check passes cleanly.
+vi.mock('node:dns/promises', () => ({
+    lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+}));
 
 // ── Shared mock data ──────────────────────────────────────────────────────────
 
@@ -291,14 +301,17 @@ describe('CLI', () => {
         });
 
         it('case list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(['case', 'list', '--project-id', '3'], [jsonResponse([MOCK_CASE])]);
+            const { exitCodes } = await runCli(
+                ['case', 'list', '--project-id', '3'],
+                [jsonResponse({ cases: [MOCK_CASE] })],
+            );
             expect(exitCodes).toContain(0);
         });
 
         it('case list with --suite-id passes suiteId filter', async () => {
             const { exitCodes } = await runCli(
                 ['case', 'list', '--project-id', '3', '--suite-id', '7'],
-                [jsonResponse([MOCK_CASE])],
+                [jsonResponse({ cases: [MOCK_CASE] })],
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id'), expect.anything());
@@ -319,14 +332,17 @@ describe('CLI', () => {
         });
 
         it('run list --project-id should exit 0', async () => {
-            const { exitCodes } = await runCli(['run', 'list', '--project-id', '4'], [jsonResponse([MOCK_RUN])]);
+            const { exitCodes } = await runCli(
+                ['run', 'list', '--project-id', '4'],
+                [jsonResponse({ runs: [MOCK_RUN] })],
+            );
             expect(exitCodes).toContain(0);
         });
 
         it('run list with limit and offset', async () => {
             const { exitCodes } = await runCli(
                 ['run', 'list', '--project-id', '4', '--limit', '10', '--offset', '5'],
-                [jsonResponse([MOCK_RUN])],
+                [jsonResponse({ runs: [MOCK_RUN] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -341,14 +357,14 @@ describe('CLI', () => {
 
     describe('result', () => {
         it('result list --run-id should exit 0', async () => {
-            const { exitCodes } = await runCli(['result', 'list', '--run-id', '11'], [jsonResponse([])]);
+            const { exitCodes } = await runCli(['result', 'list', '--run-id', '11'], [jsonResponse({ results: [] })]);
             expect(exitCodes).toContain(0);
         });
 
         it('result list with limit and offset', async () => {
             const { exitCodes } = await runCli(
                 ['result', 'list', '--run-id', '11', '--limit', '20', '--offset', '0'],
-                [jsonResponse([])],
+                [jsonResponse({ results: [] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -371,7 +387,7 @@ describe('CLI', () => {
         it('milestone list --project-id should exit 0', async () => {
             const { exitCodes } = await runCli(
                 ['milestone', 'list', '--project-id', '2'],
-                [jsonResponse([MOCK_MILESTONE])],
+                [jsonResponse({ milestones: [MOCK_MILESTONE] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -379,7 +395,7 @@ describe('CLI', () => {
         it('milestone list with limit and offset', async () => {
             const { exitCodes } = await runCli(
                 ['milestone', 'list', '--project-id', '2', '--limit', '5', '--offset', '2'],
-                [jsonResponse([MOCK_MILESTONE])],
+                [jsonResponse({ milestones: [MOCK_MILESTONE] })],
             );
             expect(exitCodes).toContain(0);
         });
@@ -399,12 +415,15 @@ describe('CLI', () => {
         });
 
         it('user list should exit 0', async () => {
-            const { exitCodes } = await runCli(['user', 'list'], [jsonResponse([MOCK_USER])]);
+            const { exitCodes } = await runCli(['user', 'list'], [jsonResponse({ users: [MOCK_USER] })]);
             expect(exitCodes).toContain(0);
         });
 
         it('user list with --limit', async () => {
-            const { exitCodes } = await runCli(['user', 'list', '--limit', '25'], [jsonResponse([MOCK_USER])]);
+            const { exitCodes } = await runCli(
+                ['user', 'list', '--limit', '25'],
+                [jsonResponse({ users: [MOCK_USER] })],
+            );
             expect(exitCodes).toContain(0);
         });
 
@@ -470,35 +489,35 @@ describe('CLI', () => {
     // ── renderTable edge cases ────────────────────────────────────────────────
 
     describe('renderTable edge cases', () => {
-        it('should render primitive list items as plain text in table format', async () => {
-            // getResultsForRun returns response.results, so wrap the primitives under that key
+        it('should render list items as rows in table format', async () => {
+            // getResultsForRun returns response.results; valid Result objects are rendered as table rows
             const { stdout } = await runCli(
                 ['result', 'list', '--run-id', '1', '--format', 'table'],
-                [jsonResponse({ results: ['pass', 'fail'] })],
+                [jsonResponse({ results: [{ status_id: 1, comment: 'pass' }] })],
             );
-            // Primitive items (non-object) are joined by newline in renderTable
             expect(stdout).toContain('pass');
         });
 
-        it('should render null/undefined cell values as empty string in table format', async () => {
-            // A response with a null field exercises the `v === null` branch in valueToString
+        it('should render undefined/absent cell values as empty string in table format', async () => {
+            // First row defines `comment` column; second row omits it and should render as empty.
             const { stdout, exitCodes } = await runCli(
-                ['project', 'get', '1', '--format', 'table'],
-                [jsonResponse({ id: 1, name: null })],
+                ['result', 'list', '--run-id', '1', '--format', 'table'],
+                [jsonResponse({ results: [{ status_id: 1, comment: 'filled' }, { status_id: 2 }] })],
             );
             expect(exitCodes).toContain(0);
-            // null cell renders as empty string — column should still appear
-            expect(stdout).toContain('id');
+            expect(stdout).toContain('status_id | comment');
+            // Ensure the row with status_id=2 has an empty `comment` cell.
+            expect(stdout).toMatch(/^2\s+\|\s*$/m);
         });
 
         it('should JSON.stringify nested object cell values in table format', async () => {
-            // A response with a nested object exercises the `typeof v === 'object'` branch
+            // A result with custom_fields (nested object) exercises the `typeof v === 'object'` branch
             const { stdout, exitCodes } = await runCli(
-                ['project', 'get', '1', '--format', 'table'],
-                [jsonResponse({ id: 1, meta: { tag: 'v1' } })],
+                ['result', 'list', '--run-id', '1', '--format', 'table'],
+                [jsonResponse({ results: [{ status_id: 1, custom_fields: { tag: 'v1' } }] })],
             );
             expect(exitCodes).toContain(0);
-            expect(stdout).toContain('meta');
+            expect(stdout).toContain('custom_fields');
         });
 
         it('should convert boolean cell values to string in table format', async () => {
