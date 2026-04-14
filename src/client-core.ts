@@ -120,7 +120,7 @@ async function validatePublicHost(hostname: string): Promise<void> {
         // when DNS is temporarily unavailable in constrained runtimes.
         // eslint-disable-next-line no-console
         console.warn(
-            `Warning: DNS host validation skipped for "${hostname}": ${err instanceof Error ? err.message : 'Unknown error'}`,
+            `Warning: DNS host validation skipped due to lookup error: ${err instanceof Error ? err.message : 'Unknown error'}`,
         );
     }
 }
@@ -840,14 +840,17 @@ export class TestRailClientCore {
     private async awaitDnsValidation(): Promise<void> {
         if (this.dnsValidationPromise !== undefined) {
             let timeoutId: ReturnType<typeof setTimeout> | undefined;
-            await Promise.race([
-                this.dnsValidationPromise,
-                new Promise<void>((resolve) => {
-                    timeoutId = setTimeout(resolve, DEFAULT_DNS_VALIDATION_MAX_WAIT_MS);
-                }),
-            ]);
-            if (timeoutId !== undefined) {
-                clearTimeout(timeoutId);
+            try {
+                await Promise.race([
+                    this.dnsValidationPromise,
+                    new Promise<void>((resolve) => {
+                        timeoutId = setTimeout(resolve, DEFAULT_DNS_VALIDATION_MAX_WAIT_MS);
+                    }),
+                ]);
+            } finally {
+                if (timeoutId !== undefined) {
+                    clearTimeout(timeoutId);
+                }
             }
         }
 

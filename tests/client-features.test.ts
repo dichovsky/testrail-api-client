@@ -835,10 +835,10 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('should await DNS validation before binary download request', async () => {
-            let resolveLookup: ((value: unknown) => void) | undefined;
+            let resolveDnsLookup: ((value: unknown) => void) | undefined;
             mockDnsLookup.mockReturnValueOnce(
                 new Promise((resolve) => {
-                    resolveLookup = resolve;
+                    resolveDnsLookup = resolve;
                 }) as never,
             );
             client = new TestRailClient({
@@ -852,7 +852,7 @@ describe('TestRailClient - Enhanced Features', () => {
             expect(mockFetch).not.toHaveBeenCalled();
 
             mockFetch.mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
-            resolveLookup?.([{ address: '203.0.113.20', family: 4 }]);
+            resolveDnsLookup?.([{ address: '203.0.113.20', family: 4 }]);
 
             await downloadPromise;
             expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -943,10 +943,10 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('should await DNS validation before multipart upload request', async () => {
-            let resolveLookup: ((value: unknown) => void) | undefined;
+            let resolveDnsLookup: ((value: unknown) => void) | undefined;
             mockDnsLookup.mockReturnValueOnce(
                 new Promise((resolve) => {
-                    resolveLookup = resolve;
+                    resolveDnsLookup = resolve;
                 }) as never,
             );
             client = new TestRailClient({
@@ -966,7 +966,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 statusText: 'OK',
                 text: async () => JSON.stringify({}),
             } as never);
-            resolveLookup?.([{ address: '203.0.113.10', family: 4 }]);
+            resolveDnsLookup?.([{ address: '203.0.113.10', family: 4 }]);
 
             await uploadPromise;
             expect(mockFetch).toHaveBeenCalledTimes(1);
