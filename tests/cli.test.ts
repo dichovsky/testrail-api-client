@@ -4,12 +4,22 @@
  * Strategy:
  * - vi.resetModules() before each dynamic import gives every test a fresh CLI module.
  * - global.fetch is mocked so network calls never leave the process.
+ * - node:dns/promises is mocked so DNS resolution completes instantly (no real network).
+ *   Without this, validatePublicHost() makes a real lookup that can take >30ms on CI,
+ *   causing dnsValidationPromise to outlive the spy teardown window and producing
+ *   cross-test stdout contamination and empty exitCodes arrays.
  * - process.exit is spied on (no-throw) so both sync and async exit paths complete;
  *   assertions use exitCodes[0] as the primary exit code.
  * - process.stdout/stderr.write are captured for output assertions.
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock DNS so validatePublicHost() resolves immediately without hitting the network.
+// Returns a single public IP (example.com) so the private-IP check passes cleanly.
+vi.mock('node:dns/promises', () => ({
+    lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+}));
 
 // ── Shared mock data ──────────────────────────────────────────────────────────
 
