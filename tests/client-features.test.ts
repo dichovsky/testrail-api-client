@@ -122,7 +122,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => JSON.stringify({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }),
             };
 
-            mockFetch.mockResolvedValue(mockResponse as unknown as Response);
+            mockFetch.mockResolvedValue(mockResponse);
         });
 
         it('should allow requests within rate limit', async () => {
@@ -179,7 +179,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify(mockProject),
-            } as never);
+            });
 
             // First request should hit the API
             const result1 = await client.getProject(1);
@@ -209,7 +209,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify(mockCase),
-            } as never);
+            });
 
             await client.addCase(1, { title: 'Test Case' });
             await client.addCase(1, { title: 'Test Case' });
@@ -225,7 +225,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify(mockProject),
-            } as never);
+            });
 
             await client.getProject(1);
             expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -258,7 +258,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     status: 200,
                     statusText: 'OK',
                     text: async () => JSON.stringify(mockProject),
-                } as never);
+                });
 
                 // Make a request to populate cache
                 await shortLivedClient.getProject(1);
@@ -310,7 +310,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify(mockProject),
-            } as never);
+            });
 
             await testClient.getProject(1);
 
@@ -336,7 +336,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify(mockProject),
-            } as never);
+            });
 
             await testClient.getProject(1);
 
@@ -384,19 +384,19 @@ describe('TestRailClient - Enhanced Features', () => {
                     status: 500,
                     statusText: 'Internal Server Error',
                     text: async () => 'Server Error',
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: false,
                     status: 500,
                     statusText: 'Internal Server Error',
                     text: async () => 'Server Error',
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                });
 
             const result = await client.getProject(1);
             expect(result.id).toBe(1);
@@ -411,14 +411,14 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     headers: { get: () => null },
                     text: async () => 'Rate limited',
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     headers: { get: () => null },
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                });
 
             const result = await client.getProject(1);
             expect(result.id).toBe(1);
@@ -436,14 +436,14 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     headers: { get: (header: string) => (header === 'Retry-After' ? '5' : null) },
                     text: async () => 'Rate limited',
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     headers: { get: () => null },
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                });
 
             await client.getProject(1);
             expect(mockSleep).toHaveBeenCalledWith(5000);
@@ -468,14 +468,14 @@ describe('TestRailClient - Enhanced Features', () => {
                         statusText: 'Too Many Requests',
                         headers: { get: (header: string) => (header === 'Retry-After' ? retryAfterDate : null) },
                         text: async () => 'Rate limited',
-                    } as never)
+                    })
                     .mockResolvedValueOnce({
                         ok: true,
                         status: 200,
                         statusText: 'OK',
                         headers: { get: () => null },
                         text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                    } as never);
+                    });
 
                 await client.getProject(1);
                 expect(mockSleep).toHaveBeenCalledWith(3000);
@@ -496,14 +496,14 @@ describe('TestRailClient - Enhanced Features', () => {
                     // 99999999 seconds ≈ 3+ years; must be capped to 10000 ms
                     headers: { get: (header: string) => (header === 'Retry-After' ? '99999999' : null) },
                     text: async () => 'Rate limited',
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     headers: { get: () => null },
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                });
 
             await client.getProject(1);
             // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
@@ -529,14 +529,14 @@ describe('TestRailClient - Enhanced Features', () => {
                         statusText: 'Too Many Requests',
                         headers: { get: (header: string) => (header === 'Retry-After' ? farFutureDate : null) },
                         text: async () => 'Rate limited',
-                    } as never)
+                    })
                     .mockResolvedValueOnce({
                         ok: true,
                         status: 200,
                         statusText: 'OK',
                         headers: { get: () => null },
                         text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                    } as never);
+                    });
 
                 await client.getProject(1);
                 // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
@@ -557,14 +557,14 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     headers: { get: () => null },
                     text: async () => 'Rate limited',
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     headers: { get: () => null },
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
-                } as never);
+                });
 
             await client.getProject(1);
             // First retry (retryCount=0): 1000 * 2^0 = 1000ms
@@ -577,7 +577,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 404,
                 statusText: 'Not Found',
                 text: async () => 'Not found',
-            } as never);
+            });
 
             await expect(client.getProject(999)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -590,7 +590,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     status: 500,
                     statusText: 'Internal Server Error',
                     text: async () => 'Server Error',
-                } as never)
+                })
                 .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
 
             const result = await client.getAttachment(1);
@@ -610,7 +610,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     headers: { get: (header: string) => (header === 'Retry-After' ? '5' : null) },
                     text: async () => 'Rate limited',
-                } as never)
+                })
                 .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
 
             await client.getAttachment(1);
@@ -645,7 +645,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 404,
                 statusText: 'Not Found',
                 text: async () => 'Project not found',
-            } as never);
+            });
 
             try {
                 await client.getProject(999);
@@ -700,7 +700,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => 'invalid json',
-            } as never);
+            });
 
             await expect(freshClient.getProject(1)).rejects.toThrow(TestRailApiError);
         });
@@ -727,7 +727,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 statusText: 'OK',
                 text: async () =>
                     JSON.stringify({ id: 1, name: 'Test User', email: 'test@example.com', is_active: true }),
-            } as never);
+            });
 
             const result = await client.getUserByEmail('test@example.com');
             expect(result.email).toBe('test@example.com');
@@ -754,13 +754,13 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Service Unavailable',
                     text: async () => 'server error',
                     headers: { get: () => null },
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     arrayBuffer: async () => buffer,
-                } as never);
+                });
 
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
@@ -777,13 +777,13 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     text: async () => 'rate limited',
                     headers: { get: (h: string) => (h === 'Retry-After' ? '1' : null) },
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     arrayBuffer: async () => buffer,
-                } as never);
+                });
 
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
@@ -797,7 +797,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 statusText: 'Internal Server Error',
                 text: async () => 'server error',
                 headers: { get: () => null },
-            } as never);
+            });
 
             await expect(client.getAttachment(1)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
@@ -820,7 +820,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 arrayBuffer: async () => buffer,
-            } as never);
+            });
 
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
@@ -839,7 +839,7 @@ describe('TestRailClient - Enhanced Features', () => {
             mockDnsLookup.mockReturnValueOnce(
                 new Promise((resolve) => {
                     resolveDnsLookup = resolve;
-                }) as never,
+                }),
             );
             client = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
@@ -876,7 +876,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify(attachment),
-            } as never);
+            });
 
             const uint8 = new Uint8Array([1, 2, 3, 4]);
             const result = await client.addAttachmentToCase(1, uint8, 'data.bin');
@@ -911,7 +911,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 403,
                 statusText: 'Forbidden',
                 text: async () => 'Access denied',
-            } as never);
+            });
 
             const blob = new globalThis.Blob(['data']);
             await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
@@ -923,7 +923,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => '',
-            } as never);
+            });
 
             const blob = new globalThis.Blob(['data']);
             const result = await client.addAttachmentToCase(1, blob, 'file.txt');
@@ -936,7 +936,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => 'not-json{',
-            } as never);
+            });
 
             const blob = new globalThis.Blob(['data']);
             await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
@@ -947,7 +947,7 @@ describe('TestRailClient - Enhanced Features', () => {
             mockDnsLookup.mockReturnValueOnce(
                 new Promise((resolve) => {
                     resolveDnsLookup = resolve;
-                }) as never,
+                }),
             );
             client = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
@@ -965,7 +965,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 status: 200,
                 statusText: 'OK',
                 text: async () => JSON.stringify({}),
-            } as never);
+            });
             resolveDnsLookup?.([{ address: '203.0.113.10', family: 4 }]);
 
             await uploadPromise;
@@ -1036,13 +1036,13 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     text: async () => 'rate limited',
                     headers: { get: (h: string) => (h === 'Retry-After' ? pastDate : null) },
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     text: async () => JSON.stringify(mockProject),
-                } as never);
+                });
 
             const result = await client.getProject(1);
             expect(result.id).toBe(1);
@@ -1070,13 +1070,13 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'Too Many Requests',
                     text: async () => 'rate limited',
                     headers: { get: (h: string) => (h === 'Retry-After' ? 'not-a-date-or-number' : null) },
-                } as never)
+                })
                 .mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     text: async () => JSON.stringify(mockProject),
-                } as never);
+                });
 
             const result = await client.getProject(1);
             expect(result.id).toBe(1);
@@ -1103,7 +1103,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     throw new Error('stream read error');
                 },
                 headers: { get: () => null },
-            } as never);
+            });
 
             await expect(client.getProject(1)).rejects.toThrow(TestRailApiError);
         });
@@ -1126,7 +1126,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     throw new Error('stream read error');
                 },
                 headers: { get: () => null },
-            } as never);
+            });
 
             await expect(client.addAttachmentToCase(1, blob, 'test.txt')).rejects.toThrow(TestRailApiError);
         });
@@ -1148,7 +1148,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     throw new Error('stream read error');
                 },
                 headers: { get: () => null },
-            } as never);
+            });
 
             await expect(client.getAttachment(1)).rejects.toThrow(TestRailApiError);
         });
