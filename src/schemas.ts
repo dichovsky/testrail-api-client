@@ -40,7 +40,7 @@ export const UserSchema = zObject({
     id: z.number(),
     name: z.string(),
     email: z.string().email(),
-    is_active: z.boolean().optional(),
+    is_active: z.boolean(),
     role_id: z.number().optional(),
     role: z.string().optional(),
 });

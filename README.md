@@ -356,6 +356,8 @@ const priorities = await client.getPriorities();
 const milestones = await client.getMilestones(projectId);
 ```
 
+Advanced usage: the client also exposes domain modules such as `client.metadata` for organization, but the supported/documented usage pattern remains the top-level `client.getX()` methods.
+
 ### Caching
 
 The client automatically caches GET requests to improve performance:
