@@ -192,6 +192,14 @@ describe('CLI', () => {
         });
     });
 
+    describe('only one positional', () => {
+        it('should print usage to stderr and exit 1 when action is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['project']);
+            expect(stderr).toContain('Usage: testrail <resource> <action>');
+            expect(exitCodes).toContain(1);
+        });
+    });
+
     // ── Auth resolution ──────────────────────────────────────────────────────
 
     describe('auth resolution', () => {
