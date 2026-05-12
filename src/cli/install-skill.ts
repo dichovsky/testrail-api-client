@@ -33,23 +33,31 @@ export interface InstallSkillOptions {
 /**
  * Resolves the bundled `skill/SKILL.md` path. At runtime, the compiled
  * handler lives at `<packageRoot>/dist/cli/install-skill.js`; the bundled
- * skill ships in `<packageRoot>/skill/SKILL.md`. Three `..` segments climb
- * from `dist/cli/` to the package root.
+ * skill ships in `<packageRoot>/skill/SKILL.md`. Two `..` segments climb
+ * from `dist/cli/` (the handler's dirname) to the package root, then
+ * `skill/SKILL.md` reaches the bundled file.
  */
 export function getBundledSkillPath(metaUrl: string): string {
     return resolve(dirname(fileURLToPath(metaUrl)), '..', '..', 'skill', 'SKILL.md');
 }
 
 export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number {
+    // Match the rest of the CLI's --quiet semantics (createOutput in
+    // output.ts): when quiet, suppress both stdout success messages AND
+    // stderr errors. Callers rely on exit code 0/1 only.
+    const writeErr = (message: string): void => {
+        if (!opts.quiet) process.stderr.write(`Error: ${message}\n`);
+    };
+
     const source = opts.sourceOverride ?? getBundledSkillPath(metaUrl);
 
     if (opts.printPath) {
-        process.stdout.write(`${source}\n`);
+        if (!opts.quiet) process.stdout.write(`${source}\n`);
         return 0;
     }
 
     if (!existsSync(source)) {
-        process.stderr.write(`Error: bundled SKILL.md not found at ${source}\n`);
+        writeErr(`bundled SKILL.md not found at ${source}`);
         return 1;
     }
 
@@ -57,7 +65,7 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     const target = join(targetRoot, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
 
     if (existsSync(target) && !opts.force) {
-        process.stderr.write(`Error: SKILL.md already exists at ${target}. Re-run with --force to overwrite.\n`);
+        writeErr(`SKILL.md already exists at ${target}. Re-run with --force to overwrite.`);
         return 1;
     }
 
@@ -69,7 +77,7 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
            CI. The error path is exercised manually if invoked under an
            unwritable HOME. */
     } catch (e: unknown) {
-        process.stderr.write(`Error: failed to install skill: ${e instanceof Error ? e.message : String(e)}\n`);
+        writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }
     /* v8 ignore stop */

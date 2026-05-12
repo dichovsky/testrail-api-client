@@ -173,6 +173,38 @@ describe('runInstallSkill', () => {
         expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
     });
 
+    it('--quiet suppresses the refuse-overwrite error (exit code 1 still distinguishes)', () => {
+        const project = join(tmp, 'proj');
+        runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        stderrChunks.length = 0;
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        // Same scenario as the refuse-overwrite test, but with --quiet:
+        // exit code still 1, but no stderr output (matches createOutput's
+        // --quiet semantics in src/cli/output.ts).
+        expect(code).toBe(1);
+        expect(stderrChunks.join('')).toBe('');
+    });
+
     it('exits 1 with a clear message when the bundled source is missing', () => {
         const code = runInstallSkill(
             {
@@ -191,7 +223,7 @@ describe('runInstallSkill', () => {
 });
 
 describe('getBundledSkillPath', () => {
-    it('resolves three directories up from the handler file plus skill/SKILL.md', () => {
+    it('resolves two directories up from the handler file plus skill/SKILL.md', () => {
         const fakeUrl = 'file:///tmp/pkg/dist/cli/install-skill.js';
         const result = getBundledSkillPath(fakeUrl);
         expect(result).toBe(join('/tmp/pkg', 'skill', 'SKILL.md'));
