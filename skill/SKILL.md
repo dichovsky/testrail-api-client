@@ -54,27 +54,29 @@ on stderr. Never echo or log the API key.
 ## Command surface
 
 <!-- GENERATED:command-table -->
-| Resource | Action | Path args | Body | Description |
-| --- | --- | --- | --- | --- |
-| project | get | `<project_id>` | — | Fetch a single project by ID |
-| project | list | — | — | List all projects (paginated) |
-| suite | get | `<suite_id>` | — | Fetch a single suite by ID |
-| suite | list | — | — | List suites in a project |
-| case | get | `<case_id>` | — | Fetch a single test case by ID |
-| case | list | — | — | List cases in a project (optionally filtered by suite) |
-| run | get | `<run_id>` | — | Fetch a single run by ID |
-| run | list | — | — | List runs in a project (paginated) |
-| result | list | — | — | List results for a run (paginated) |
-| milestone | get | `<milestone_id>` | — | Fetch a single milestone by ID |
-| milestone | list | — | — | List milestones in a project (paginated) |
-| user | get | `<user_id>` | — | Fetch a single user by ID |
-| user | list | — | — | List users (paginated) |
-| case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
-| case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
-| run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
-| run | close | `<run_id>` | — (no body) | Close a test run (no body) |
-| result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
-| result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
+
+| Resource  | Action   | Path args              | Body                              | Description                                            |
+| --------- | -------- | ---------------------- | --------------------------------- | ------------------------------------------------------ |
+| project   | get      | `<project_id>`         | —                                 | Fetch a single project by ID                           |
+| project   | list     | —                      | —                                 | List all projects (paginated)                          |
+| suite     | get      | `<suite_id>`           | —                                 | Fetch a single suite by ID                             |
+| suite     | list     | —                      | —                                 | List suites in a project                               |
+| case      | get      | `<case_id>`            | —                                 | Fetch a single test case by ID                         |
+| case      | list     | —                      | —                                 | List cases in a project (optionally filtered by suite) |
+| run       | get      | `<run_id>`             | —                                 | Fetch a single run by ID                               |
+| run       | list     | —                      | —                                 | List runs in a project (paginated)                     |
+| result    | list     | —                      | —                                 | List results for a run (paginated)                     |
+| milestone | get      | `<milestone_id>`       | —                                 | Fetch a single milestone by ID                         |
+| milestone | list     | —                      | —                                 | List milestones in a project (paginated)               |
+| user      | get      | `<user_id>`            | —                                 | Fetch a single user by ID                              |
+| user      | list     | —                      | —                                 | List users (paginated)                                 |
+| case      | add      | `<section_id>`         | `AddCasePayloadSchema`            | Create a new test case under a section                 |
+| case      | update   | `<case_id>`            | `UpdateCasePayloadSchema`         | Update an existing test case (partial fields)          |
+| run       | add      | `<project_id>`         | `AddRunPayloadSchema`             | Create a new test run in a project                     |
+| run       | close    | `<run_id>`             | — (no body)                       | Close a test run (no body)                             |
+| result    | add      | `<run_id>` `<case_id>` | `AddResultPayloadSchema`          | Record a single result for a case in a run             |
+| result    | add-bulk | `<run_id>`             | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call      |
+
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -113,6 +115,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 `custom_*` fields pass through untouched.
 
 <!-- GENERATED:payload-schemas -->
+
 ### `AddCasePayloadSchema` (used by `case add`)
 
 ```jsonc
@@ -124,7 +127,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "estimate": "string?",
     "milestone_id": "number?",
     "refs": "string?",
-    "custom_fields": "Record<string, unknown>?"
+    "custom_fields": "Record<string, unknown>?",
 }
 ```
 
@@ -139,7 +142,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "estimate": "string?",
     "milestone_id": "number?",
     "refs": "string?",
-    "custom_fields": "Record<string, unknown>?"
+    "custom_fields": "Record<string, unknown>?",
 }
 ```
 
@@ -154,7 +157,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "assignedto_id": "number?",
     "include_all": "boolean?",
     "case_ids": "number[]?",
-    "refs": "string?"
+    "refs": "string?",
 }
 ```
 
@@ -168,7 +171,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "elapsed": "string?",
     "defects": "string?",
     "assignedto_id": "number?",
-    "custom_fields": "Record<string, unknown>?"
+    "custom_fields": "Record<string, unknown>?",
 }
 ```
 
@@ -176,9 +179,10 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 
 ```jsonc
 {
-    "results": "object[] (required)"
+    "results": "object[] (required)",
 }
 ```
+
 <!-- /GENERATED:payload-schemas -->
 
 For the authoritative type definitions, see `src/schemas.ts` in the
