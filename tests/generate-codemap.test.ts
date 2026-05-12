@@ -53,7 +53,9 @@ interface Codemap {
 }
 
 function extractJson(markdown: string): Codemap {
-    const m = /```json\n([\s\S]+?)\n```/.exec(markdown);
+    // CRLF-tolerant: matches both LF and CRLF newlines around the fenced block,
+    // so the test works on Windows checkouts with autocrlf=true.
+    const m = /```json\r?\n([\s\S]+?)\r?\n```/.exec(markdown);
     if (m === null) throw new Error('no JSON block in markdown');
     return JSON.parse(m[1] as string) as Codemap;
 }

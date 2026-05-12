@@ -132,10 +132,16 @@ function walk(absDir, rootDir, compiledExcludes, out) {
     }
 }
 
+function normalizeLineEndings(s) {
+    // Normalize CRLF → LF so generator output and source hash are stable across
+    // platforms and git autocrlf settings.
+    return s.replace(/\r\n/g, '\n');
+}
+
 function computeSourceHash(rootDir, relFiles) {
     const h = createHash('sha256');
     for (const rel of [...relFiles].sort()) {
-        const content = readFileSync(join(rootDir, rel), 'utf8');
+        const content = normalizeLineEndings(readFileSync(join(rootDir, rel), 'utf8'));
         h.update(rel);
         h.update('\0');
         h.update(content);
@@ -267,6 +273,16 @@ function hasModifier(node, kind) {
 const hasExportModifier = (node) => hasModifier(node, ts.SyntaxKind.ExportKeyword);
 const hasDefaultModifier = (node) => hasModifier(node, ts.SyntaxKind.DefaultKeyword);
 
+function variableKind(stmt) {
+    // Distinguish const/let/var from VariableStatement.declarationList.flags.
+    // Without this, every variable declaration would be reported as 'const',
+    // which is misleading for module-level mutable state.
+    const flags = stmt.declarationList.flags;
+    if (flags & ts.NodeFlags.Const) return 'const';
+    if (flags & ts.NodeFlags.Let) return 'let';
+    return 'var';
+}
+
 function classifyMember(member) {
     if (ts.isConstructorDeclaration(member)) return 'constructor';
     if (ts.isMethodDeclaration(member)) return 'method';
@@ -346,11 +362,12 @@ function extractFileSymbols(sourceFile, maxLen) {
                 signature: sliceFull(stmt, sourceFile, maxLen),
             });
         } else if (ts.isVariableStatement(stmt)) {
+            const kind = variableKind(stmt);
             for (const decl of stmt.declarationList.declarations) {
                 if (!ts.isIdentifier(decl.name)) continue;
                 symbols.push({
                     name: decl.name.text,
-                    kind: 'const',
+                    kind,
                     line: lineOf(decl, sourceFile),
                     exported,
                     signature: sliceVariable(stmt, sourceFile, maxLen),
@@ -445,12 +462,13 @@ function collectFileExports(sourceFile) {
         const isDefault = hasDefaultModifier(stmt);
 
         if (ts.isVariableStatement(stmt)) {
+            const varK = variableKind(stmt);
             for (const decl of stmt.declarationList.declarations) {
                 if (!ts.isIdentifier(decl.name)) continue;
                 out.push({
                     kind: 'declaration',
                     name: decl.name.text,
-                    decl: { kind: 'const', node: decl, parent: stmt },
+                    decl: { kind: varK, node: decl, parent: stmt },
                     typeOnly: false,
                 });
             }
@@ -479,7 +497,7 @@ function buildSymbolFromDecl(decl, sourceFile, relFile, maxLen) {
     } else if (kind === 'class') {
         signature = sliceClassHeader(node, sourceFile, maxLen);
         line = lineOf(node, sourceFile);
-    } else if (kind === 'const') {
+    } else if (kind === 'const' || kind === 'let' || kind === 'var') {
         signature = sliceVariable(parent, sourceFile, maxLen);
         line = lineOf(node, sourceFile);
     } else {
@@ -559,6 +577,62 @@ function resolvePublicApi(entrypoints, rootDir, sourceFileByRel, maxLen) {
     return collected;
 }
 
+function findLocalDeclaration(sourceFile, name) {
+    // Locate any top-level declaration of `name` in this file, regardless of
+    // whether it has an `export` modifier. Used to resolve `export { X }`
+    // where X is declared locally without the export keyword.
+    for (const stmt of sourceFile.statements) {
+        if (ts.isFunctionDeclaration(stmt) && stmt.name && stmt.name.text === name) {
+            return { kind: 'function', node: stmt };
+        }
+        if (ts.isClassDeclaration(stmt) && stmt.name && stmt.name.text === name) {
+            return { kind: 'class', node: stmt };
+        }
+        if (ts.isInterfaceDeclaration(stmt) && stmt.name.text === name) {
+            return { kind: 'interface', node: stmt };
+        }
+        if (ts.isTypeAliasDeclaration(stmt) && stmt.name.text === name) {
+            return { kind: 'type', node: stmt };
+        }
+        if (ts.isEnumDeclaration(stmt) && stmt.name.text === name) {
+            return { kind: 'enum', node: stmt };
+        }
+        if (ts.isModuleDeclaration(stmt) && stmt.name && ts.isIdentifier(stmt.name) && stmt.name.text === name) {
+            return { kind: 'namespace', node: stmt };
+        }
+        if (ts.isVariableStatement(stmt)) {
+            for (const decl of stmt.declarationList.declarations) {
+                if (ts.isIdentifier(decl.name) && decl.name.text === name) {
+                    return { kind: variableKind(stmt), node: decl, parent: stmt };
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+function findImportBinding(sourceFile, localName) {
+    // For `import { foo as bar } from './x.js'`, return the source spec and the
+    // ORIGINAL name when localName === 'bar'. Used to chase `export { X }`
+    // when X is imported (not locally declared) so the resolver can follow
+    // the import to its definition file instead of looping on itself.
+    for (const stmt of sourceFile.statements) {
+        if (!ts.isImportDeclaration(stmt)) continue;
+        if (!stmt.importClause || !stmt.importClause.namedBindings) continue;
+        if (!ts.isNamedImports(stmt.importClause.namedBindings)) continue;
+        if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
+        for (const el of stmt.importClause.namedBindings.elements) {
+            if (el.name.text === localName) {
+                return {
+                    fromSpec: stmt.moduleSpecifier.text,
+                    importedName: el.propertyName ? el.propertyName.text : el.name.text,
+                };
+            }
+        }
+    }
+    return undefined;
+}
+
 function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir, depth) {
     if (depth > RE_EXPORT_DEPTH_CAP) return undefined;
     const sf = sourceFileByRel.get(relFile);
@@ -576,8 +650,34 @@ function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir
                     if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
                 }
             } else {
-                const sub = findOriginalDeclaration(relFile, e.importedName, sourceFileByRel, rootDir, depth + 1);
-                if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
+                // `export { X }` with no fromSpec — resolve against (a) a local
+                // declaration of X (possibly without `export`), or (b) an
+                // imported binding `import { ... as X } from '...'`. Avoid
+                // recursing into this same file with the same name, which
+                // would loop until depth cap and never resolve.
+                const local = findLocalDeclaration(sf, e.importedName);
+                if (local) {
+                    return {
+                        file: relFile,
+                        decl: local,
+                        sourceFile: sf,
+                        typeOnly: e.typeOnly || local.kind === 'interface' || local.kind === 'type',
+                    };
+                }
+                const imp = findImportBinding(sf, e.importedName);
+                if (imp) {
+                    const target = resolveSpecifierToFile(join(rootDir, relFile), imp.fromSpec, rootDir);
+                    if (target) {
+                        const sub = findOriginalDeclaration(
+                            target,
+                            imp.importedName,
+                            sourceFileByRel,
+                            rootDir,
+                            depth + 1,
+                        );
+                        if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
+                    }
+                }
             }
         }
     }
@@ -679,13 +779,16 @@ export function runCli({ rootDir, check, stdout = process.stdout, stderr = proce
             stderr.write('✗ CODEMAP.md is missing. Run `npm run codemap` and commit the result.\n');
             return 1;
         }
-        const onDisk = readFileSync(outPath, 'utf8');
-        if (onDisk === markdown) {
+        // Normalize line endings on both sides so git autocrlf on Windows
+        // doesn't produce false-positive staleness against LF-generated output.
+        const onDisk = normalizeLineEndings(readFileSync(outPath, 'utf8'));
+        const expected = normalizeLineEndings(markdown);
+        if (onDisk === expected) {
             stdout.write('✓ CODEMAP.md is up to date\n');
             return 0;
         }
         stderr.write('✗ CODEMAP.md is stale. Run `npm run codemap` and commit the result.\n\n');
-        stderr.write(unifiedDiffPreview(onDisk, markdown, DIFF_PREVIEW_LINES) + '\n');
+        stderr.write(unifiedDiffPreview(onDisk, expected, DIFF_PREVIEW_LINES) + '\n');
         return 1;
     }
 

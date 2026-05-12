@@ -1586,7 +1586,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         },
         {
           "name": "processHandlersRegistered",
-          "kind": "const",
+          "kind": "let",
           "line": 130,
           "exported": false,
           "signature": "let processHandlersRegistered = false"

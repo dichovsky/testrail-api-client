@@ -963,8 +963,10 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { createdBy: [] });
-            const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
-            expect(calledUrl).not.toContain('created_by=');
+            // Assert via toHaveBeenCalledWith rather than indexing mock.calls[0][0]:
+            // if fetch wasn't called, this fails with "expected mock to be called"
+            // instead of a confusing "cannot read property of undefined".
+            expect(mockFetch).toHaveBeenCalledWith(expect.not.stringContaining('created_by='), expect.anything());
         });
 
         it('should pass refsFilter filter', async () => {
@@ -988,10 +990,11 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { suiteId: 2 });
-            const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
-            expect(calledUrl).not.toContain('is_completed');
-            expect(calledUrl).not.toContain('milestone_id');
-            expect(calledUrl).not.toContain('created_after');
+            // Same rationale as the createdBy case: toHaveBeenCalledWith gives a
+            // clear failure if the request wasn't made at all.
+            expect(mockFetch).toHaveBeenCalledWith(expect.not.stringContaining('is_completed'), expect.anything());
+            expect(mockFetch).toHaveBeenCalledWith(expect.not.stringContaining('milestone_id'), expect.anything());
+            expect(mockFetch).toHaveBeenCalledWith(expect.not.stringContaining('created_after'), expect.anything());
         });
 
         it('should throw validation error for invalid projectId in getRuns', async () => {
