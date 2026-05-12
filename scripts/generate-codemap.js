@@ -21,151 +21,270 @@ function readSrc(filename) {
 /** Returns [{name, line}] for all async method declarations. */
 function extractAsyncMethods(lines) {
     return lines.flatMap((line, i) => {
-        const m = line.match(/^\s+async\s+(\w+)\s*\(/);
-        return m ? [{ name: m[1], line: i + 1 }] : [];
+        const match = line.match(/^\s+async\s+(\w+)\s*\(/);
+        return match ? [{ name: match[1], line: i + 1 }] : [];
     });
 }
 
 /** Returns [{name, line}] for exported class / function declarations. */
 function extractExports(lines) {
     return lines.flatMap((line, i) => {
-        const m = line.match(/^export\s+(?:class|function|const|abstract class)\s+(\w+)/);
-        return m ? [{ name: m[1], line: i + 1 }] : [];
+        const match = line.match(/^export\s+(?:class|function|const|abstract class)\s+(\w+)/);
+        return match ? [{ name: match[1], line: i + 1 }] : [];
     });
 }
 
 /** Returns [{name, line}] for exported interface / type alias declarations. */
 function extractTypes(lines) {
     return lines.flatMap((line, i) => {
-        const m = line.match(/^export\s+(?:interface|type)\s+(\w+)/);
-        return m ? [{ name: m[1], line: i + 1 }] : [];
+        const match = line.match(/^export\s+(?:interface|type)\s+(\w+)/);
+        return match ? [{ name: match[1], line: i + 1 }] : [];
     });
 }
 
 /** Returns [{name, value, line}] for exported const declarations. */
 function extractConstants(lines) {
     return lines.flatMap((line, i) => {
-        const m = line.match(/^export\s+const\s+(\w+)\s*=\s*(.+?);/);
-        return m ? [{ name: m[1], value: m[2].trim(), line: i + 1 }] : [];
+        const match = line.match(/^export\s+const\s+(\w+)\s*=\s*(.+?);/);
+        return match ? [{ name: match[1], value: match[2].trim(), line: i + 1 }] : [];
     });
 }
 
-// ── Read source files ─────────────────────────────────────────────────────────
+function findAsyncMethod(lines, methodName) {
+    const startIdx = lines.findIndex((line) => new RegExp(`^\\s+async\\s+${methodName}\\s*\\(`).test(line));
+    if (startIdx === -1) {
+        return null;
+    }
+
+    let endIdx = startIdx + 1;
+    while (endIdx < lines.length && !/^\s+async\s+\w+\s*\(/.test(lines[endIdx])) {
+        endIdx += 1;
+    }
+
+    return {
+        line: startIdx + 1,
+        body: lines.slice(startIdx, endIdx).join('\n'),
+    };
+}
+
+function extractFirstArg(callSource, callee) {
+    const matcher = new RegExp(`${callee}(?:<[^>]+>)?\\(`);
+    const match = matcher.exec(callSource);
+    if (!match) {
+        return null;
+    }
+
+    let cursor = match.index + match[0].length;
+    let depth = 0;
+    let arg = '';
+    let quote = null;
+
+    while (cursor < callSource.length) {
+        const char = callSource[cursor++];
+
+        if (quote) {
+            arg += char;
+            if (char === quote && callSource[cursor - 2] !== '\\') {
+                quote = null;
+            }
+            continue;
+        }
+
+        if (char === "'" || char === '"' || char === '`') {
+            quote = char;
+            arg += char;
+            continue;
+        }
+
+        if (char === '(' || char === '{' || char === '[') {
+            depth += 1;
+        } else if (char === ')' || char === '}' || char === ']') {
+            depth -= 1;
+        }
+
+        if (char === ',' && depth === 0) {
+            break;
+        }
+
+        arg += char;
+    }
+
+    return arg.trim();
+}
+
+function summarizeEndpointExpression(expression, suffix = '') {
+    if (!expression) {
+        return '?';
+    }
+
+    const literals = [...expression.matchAll(/`([^`]+)`|'([^']+)'|"([^"]+)"/g)].map(
+        (match) => match[1] ?? match[2] ?? match[3],
+    );
+
+    return literals.length > 0 ? literals.map((literal) => `${literal}${suffix}`).join(' or ') : '?';
+}
+
+function inferEndpointFromBody(methodBody) {
+    const requestMatch = methodBody.match(
+        /\.(?:client\.)?request(?:<[\s\S]*?>)?\(\s*'(GET|POST)'\s*,\s*(?:`([^`]+)`|'([^']+)')/s,
+    );
+    if (requestMatch) {
+        return { verb: requestMatch[1], endpoint: requestMatch[2] ?? requestMatch[3] };
+    }
+
+    const binaryArg = extractFirstArg(methodBody, 'requestBinary');
+    if (binaryArg) {
+        return { verb: 'GET', endpoint: summarizeEndpointExpression(binaryArg) };
+    }
+
+    const multipartArg = extractFirstArg(methodBody, 'requestMultipart');
+    if (multipartArg) {
+        return { verb: 'POST', endpoint: summarizeEndpointExpression(multipartArg) };
+    }
+
+    const buildEndpointArg = extractFirstArg(methodBody, 'buildEndpoint');
+    if (buildEndpointArg) {
+        return { verb: 'GET', endpoint: summarizeEndpointExpression(buildEndpointArg, '&...') };
+    }
+
+    return { verb: '?', endpoint: '?' };
+}
+
+function extractModuleImportMap(lines) {
+    return new Map(
+        lines.flatMap((line) => {
+            const match = line.match(/^import \{ (\w+) \} from '\.\/modules\/(.+?)\.js';$/);
+            return match ? [[match[1], match[2]]] : [];
+        }),
+    );
+}
+
+function extractModuleInstanceMap(lines, moduleImportMap) {
+    return new Map(
+        lines.flatMap((line) => {
+            const match = line.match(/^\s*this\.(\w+) = new (\w+)\(this\);$/);
+            return match ? [[match[1], moduleImportMap.get(match[2])]] : [];
+        }),
+    );
+}
+
 const clientLines = readSrc('client.ts');
 const coreLines = readSrc('client-core.ts');
 const errorsLines = readSrc('errors.ts');
 const constantsLines = readSrc('constants.ts');
 const typesLines = readSrc('types.ts');
 
-// ── API endpoint methods ───────────────────────────────────────────────────────
-const endpointMethods = extractAsyncMethods(clientLines);
+const moduleImportMap = extractModuleImportMap(clientLines);
+const moduleInstanceMap = extractModuleInstanceMap(clientLines, moduleImportMap);
+const moduleLinesCache = new Map();
 
-// Infer HTTP verb and endpoint template from method body
-function inferEndpoint(methodName, lines) {
-    // Find the method, then scan its body for this.request(...)
-    const startIdx = lines.findIndex((l) => l.includes(`async ${methodName}(`));
-    if (startIdx === -1) return { verb: '?', endpoint: '?' };
-    const relativeEndIdx = lines.slice(startIdx + 1).findIndex((line) => /^\s+async\s+\w+\s*\(/.test(line));
-    const endIdx = relativeEndIdx === -1 ? lines.length : startIdx + 1 + relativeEndIdx;
-    const methodBody = lines.slice(startIdx, endIdx).join('\n');
-
-    const requestMatch = methodBody.match(
-        /this\.request(?:<[\s\S]*?>)?\(\s*'(GET|POST)'\s*,\s*(?:`([^`]+)`|'([^']+)')/,
-    );
-    if (requestMatch) return { verb: requestMatch[1], endpoint: requestMatch[2] ?? requestMatch[3] };
-
-    const binaryMatch = methodBody.match(/this\.requestBinary\(\s*(?:`([^`]+)`|'([^']+)')/);
-    if (binaryMatch) return { verb: 'GET', endpoint: binaryMatch[1] ?? binaryMatch[2] };
-
-    const multipartMatch = methodBody.match(/this\.requestMultipart(?:<[\s\S]*?>)?\(\s*(?:`([^`]+)`|'([^']+)')/);
-    if (multipartMatch) return { verb: 'POST', endpoint: multipartMatch[1] ?? multipartMatch[2] };
-
-    const buildEndpointMatch = methodBody.match(/buildEndpoint\(\s*[`']([^`']+)[`']/);
-    if (buildEndpointMatch) return { verb: 'GET', endpoint: `${buildEndpointMatch[1]}&...` };
-
-    return { verb: '?', endpoint: '?' };
+function getModuleLines(moduleName) {
+    if (!moduleLinesCache.has(moduleName)) {
+        moduleLinesCache.set(moduleName, readSrc(`modules/${moduleName}.ts`));
+    }
+    return moduleLinesCache.get(moduleName);
 }
 
-// ── Infrastructure methods (core) ─────────────────────────────────────────────
+function inferEndpoint(methodName) {
+    const facadeMethod = findAsyncMethod(clientLines, methodName);
+    if (!facadeMethod) {
+        return { verb: '?', endpoint: '?' };
+    }
+
+    const delegateMatch = facadeMethod.body.match(/return this\.(\w+)\.(\w+)\(/);
+    if (!delegateMatch) {
+        return inferEndpointFromBody(facadeMethod.body);
+    }
+
+    const [, moduleProperty, delegatedMethodName] = delegateMatch;
+    const moduleName = moduleInstanceMap.get(moduleProperty);
+    if (!moduleName) {
+        return { verb: '?', endpoint: '?' };
+    }
+
+    const moduleMethod = findAsyncMethod(getModuleLines(moduleName), delegatedMethodName);
+    if (!moduleMethod) {
+        return { verb: '?', endpoint: '?' };
+    }
+
+    return inferEndpointFromBody(moduleMethod.body);
+}
+
+const endpointMethods = extractAsyncMethods(clientLines);
+
 const coreMethods = ['constructor', 'validateId', 'buildEndpoint', 'clearCache', 'destroy', 'request'].map((name) => {
-    const idx = coreLines.findIndex((l) => {
-        if (name === 'constructor') return /^\s+constructor\s*\(/.test(l);
-        if (name === 'request') return /^\s+protected\s+async\s+request/.test(l);
-        return new RegExp(`\\s*(?:public|protected|private)\\s+${name}\\s*[<(]`).test(l);
+    const index = coreLines.findIndex((line) => {
+        if (name === 'constructor') return /^\s+constructor\s*\(/.test(line);
+        if (name === 'request') return /^\s+(?:public|protected)\s+async\s+request/.test(line);
+        return new RegExp(`\\s*(?:public|protected|private)\\s+${name}\\s*[<(]`).test(line);
     });
-    return { name, line: idx + 1 };
+    return { name, line: index + 1 };
 });
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 const constants = extractConstants(constantsLines);
-
-// ── Error classes ─────────────────────────────────────────────────────────────
 const errorClasses = extractExports(errorsLines);
-
-// ── Types (from types.ts) ─────────────────────────────────────────────────────
 const types = extractTypes(typesLines);
 
-// ── Build Markdown ─────────────────────────────────────────────────────────────
 const lines = [];
 
 lines.push('# CODEMAP');
 lines.push('');
 lines.push('Auto-generated symbol index. Run `npm run codemap` to regenerate.');
 lines.push('');
+lines.push(
+    'HTTP and endpoint metadata for facade methods are inferred from delegated module implementations in `src/modules/*`.',
+);
+lines.push('');
 
-// API Methods
 lines.push('## API Endpoint Methods (`src/client.ts`)');
 lines.push('');
 lines.push('| Method | HTTP | Endpoint | Line |');
 lines.push('|--------|------|----------|------|');
-for (const m of endpointMethods) {
-    const { verb, endpoint } = inferEndpoint(m.name, clientLines);
-    lines.push(`| \`${m.name}\` | ${verb} | \`${endpoint}\` | [${m.line}](src/client.ts#L${m.line}) |`);
+for (const method of endpointMethods) {
+    const { verb, endpoint } = inferEndpoint(method.name);
+    lines.push(`| \`${method.name}\` | ${verb} | \`${endpoint}\` | [${method.line}](src/client.ts#L${method.line}) |`);
 }
 lines.push('');
 
-// Core methods
 lines.push('## Core Infrastructure (`src/client-core.ts`)');
 lines.push('');
 lines.push('| Symbol | Line |');
 lines.push('|--------|------|');
-for (const m of coreMethods) {
-    if (m.line > 0) {
-        lines.push(`| \`${m.name}\` | [${m.line}](src/client-core.ts#L${m.line}) |`);
+for (const method of coreMethods) {
+    if (method.line > 0) {
+        lines.push(`| \`${method.name}\` | [${method.line}](src/client-core.ts#L${method.line}) |`);
     }
 }
 lines.push('');
 
-// Errors
 lines.push('## Error Classes (`src/errors.ts`)');
 lines.push('');
 lines.push('| Class | Line |');
 lines.push('|-------|------|');
-for (const e of errorClasses) {
-    lines.push(`| \`${e.name}\` | [${e.line}](src/errors.ts#L${e.line}) |`);
+for (const errorClass of errorClasses) {
+    lines.push(`| \`${errorClass.name}\` | [${errorClass.line}](src/errors.ts#L${errorClass.line}) |`);
 }
 lines.push('');
 
-// Constants
 lines.push('## Constants (`src/constants.ts`)');
 lines.push('');
 lines.push('| Constant | Value | Line |');
 lines.push('|----------|-------|------|');
-for (const c of constants) {
-    lines.push(`| \`${c.name}\` | \`${c.value}\` | [${c.line}](src/constants.ts#L${c.line}) |`);
+for (const constant of constants) {
+    lines.push(
+        `| \`${constant.name}\` | \`${constant.value}\` | [${constant.line}](src/constants.ts#L${constant.line}) |`,
+    );
 }
 lines.push('');
 
-// Types
 lines.push('## Types (`src/types.ts`)');
 lines.push('');
 lines.push('| Type | Line |');
 lines.push('|------|------|');
-for (const t of types) {
-    lines.push(`| \`${t.name}\` | [${t.line}](src/types.ts#L${t.line}) |`);
+for (const type of types) {
+    lines.push(`| \`${type.name}\` | [${type.line}](src/types.ts#L${type.line}) |`);
 }
 lines.push('');
 
-const output = lines.join('\n');
-writeFileSync(path.join(root, 'CODEMAP.md'), output);
+writeFileSync(path.join(root, 'CODEMAP.md'), lines.join('\n'));
 console.log(`CODEMAP.md generated (${lines.length} lines).`);
