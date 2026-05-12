@@ -39,26 +39,38 @@ prompts, telemetry, postinstall hooks, symlink install mode, localization.
 
 ## Release Sequence — 4 PRs, then v2.1.0
 
-### PR 1 — CLI refactor (no behavior change) + BACKLOG.md
+### PR 1 — CLI refactor + BACKLOG.md (shipped on `feat/cli-refactor-and-backlog`)
+
+Pure refactor in spirit; two small defensive fixes folded in after Copilot review surfaced pre-existing edge cases preserved by the move (see commit `7050e84` and below).
 
 **Files added:**
 
-- `src/cli/index.ts` — thin entrypoint (~50 LOC): arg parse, dispatch, top-level error handling
+- `src/cli/index.ts` — thin entrypoint: arg parse, dispatch, auth resolution, handler invocation (wrapped in `async main()` to prevent fall-through after `process.exit()` in test contexts)
 - `src/cli/auth.ts` — env-var + `--flag` resolution; fail-fast on missing
-- `src/cli/output.ts` — JSON/table renderers (moved from `cli.ts`)
-- `src/cli/ids.ts` — `parseId`, `optInt` (moved from `cli.ts`)
+- `src/cli/output.ts` — JSON/table renderers (moved from `cli.ts`); now guards `JSON.stringify` and indexed row access against pathological inputs
+- `src/cli/ids.ts` — `parseId` (throws `IdParseError`), `optInt` (moved from `cli.ts`)
 - `src/cli/dispatch.ts` — handler-table data structure replacing `switch`
-- `src/cli/handlers/{project,suite,case,run,result,milestone,user}.ts` — one read-action handler per resource
+- `src/cli/handler-context.ts` — shared `HandlerArgs` / `HandlerContext` / `Handler` types
+- `src/cli/handlers/{project,suite,case,run,result,milestone,user}.ts` — one async handler per resource:action
 - `BACKLOG.md` — checkbox-grouped deferred items
+- `tests/cli-helpers.test.ts` — direct unit tests for the extracted helpers (symbol/function `valueToString`, `parseId` boundaries, `resolveAuth` precedence, `dispatch` error wording, defensive guards)
 
 **Files modified:**
 
-- `src/cli.ts` → becomes 1-line re-export of `src/cli/index.ts` (preserves `bin` entry)
-- `package.json` `files`: confirm `dist` ships full `cli/` tree
+- `src/cli.ts` → 1-line re-export of `src/cli/index.ts` (preserves `bin` entry, `./cli` subpath export, and `tests/cli.test.ts` import path)
 
-**Tests:** all 456 existing tests stay green; add unit tests for newly-extracted helpers.
+`package.json` was **not** modified — `files: ["dist", ...]` already ships every subdirectory under `dist/`, so the new `dist/cli/` tree is published automatically.
 
-**Risks:** import cycles. Mitigation: handlers receive `out`/`err` via dependency injection, not module import.
+**Tests:** 462 existing tests stay green; +41 new unit tests in `cli-helpers.test.ts` (extracted-helper edge cases + defensive-guard coverage). Total: 503. Coverage 98.05%.
+
+**Risks (now resolved):**
+
+- Import cycles → avoided by injecting `out`/`err` via `HandlerContext` instead of module-level imports
+- `process.exit()` fall-through in tests → eliminated by wrapping the entrypoint in `async main()` with explicit `return` after each exit
+
+**Deferred to follow-up (see `BACKLOG.md`):**
+
+- Stricter numeric parsing in `parseId`/`optInt` (reject `'1e3'`, `'0x10'`) — tightening accept/reject semantics is a minor breaking change, doesn't belong in a refactor PR.
 
 ### PR 2 — Payload schemas as source of truth
 

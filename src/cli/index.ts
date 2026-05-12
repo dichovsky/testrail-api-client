@@ -68,73 +68,86 @@ Options:
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
-if (values.version === true) {
-    process.stdout.write(`testrail-cli v${VERSION}\n`);
-    process.exit(0);
+/**
+ * Compute exit code in an async function and apply `process.exit()` once
+ * at the very end. This avoids fall-through in test contexts where
+ * `process.exit` is mocked to a no-op — each branch returns a number,
+ * so control flow exits cleanly without trusting the mocked exit() to
+ * terminate.
+ */
+async function main(): Promise<number> {
+    if (values.version === true) {
+        process.stdout.write(`testrail-cli v${VERSION}\n`);
+        return 0;
+    }
+
+    if (values.help === true || positionals.length === 0) {
+        process.stdout.write(`${HELP}\n`);
+        return 0;
+    }
+
+    const [resource, action, idArg] = positionals;
+
+    if (resource === undefined || resource === '' || action === undefined || action === '') {
+        process.stderr.write('Usage: testrail <resource> <action> [id] [options]\nRun with --help for details.\n');
+        return 1;
+    }
+
+    const dispatched = dispatch(resource, action);
+    if (!dispatched.ok) {
+        err(dispatched.error);
+        return 1;
+    }
+
+    const auth = resolveAuth(
+        {
+            baseUrl: values['base-url'] as string | undefined,
+            email: values['email'] as string | undefined,
+            apiKey: values['api-key'] as string | undefined,
+        },
+        {
+            ...(process.env['TESTRAIL_BASE_URL'] !== undefined && {
+                TESTRAIL_BASE_URL: process.env['TESTRAIL_BASE_URL'],
+            }),
+            ...(process.env['TESTRAIL_EMAIL'] !== undefined && { TESTRAIL_EMAIL: process.env['TESTRAIL_EMAIL'] }),
+            ...(process.env['TESTRAIL_API_KEY'] !== undefined && { TESTRAIL_API_KEY: process.env['TESTRAIL_API_KEY'] }),
+        },
+    );
+
+    if (!auth.ok) {
+        err(auth.error);
+        return 1;
+    }
+
+    const args: HandlerArgs = {
+        ...(idArg !== undefined && { idArg }),
+        ...(values['project-id'] !== undefined && { projectId: values['project-id'] as string }),
+        ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
+        ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
+        ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
+        ...(values.limit !== undefined && { limit: values.limit as string }),
+        ...(values.offset !== undefined && { offset: values.offset as string }),
+    };
+
+    let client: TestRailClient | undefined;
+    try {
+        client = new TestRailClient(auth.config);
+        await dispatched.handler({ client, args, out });
+        return 0;
+    } catch (e: unknown) {
+        err(e instanceof Error ? e.message : String(e));
+        return 1;
+    } finally {
+        client?.destroy();
+    }
 }
 
-if (values.help === true || positionals.length === 0) {
-    process.stdout.write(`${HELP}\n`);
-    process.exit(0);
-}
-
-const [resource, action, idArg] = positionals;
-
-if (resource === undefined || resource === '' || action === undefined || action === '') {
-    process.stderr.write('Usage: testrail <resource> <action> [id] [options]\nRun with --help for details.\n');
-    process.exit(1);
-}
-
-// ── Dispatch ──────────────────────────────────────────────────────────────────
-
-const dispatched = dispatch(resource, action);
-if (!dispatched.ok) {
-    err(dispatched.error);
-    process.exit(1);
-}
-
-// ── Auth Resolution ───────────────────────────────────────────────────────────
-
-const auth = resolveAuth(
-    {
-        baseUrl: values['base-url'] as string | undefined,
-        email: values['email'] as string | undefined,
-        apiKey: values['api-key'] as string | undefined,
-    },
-    {
-        ...(process.env['TESTRAIL_BASE_URL'] !== undefined && { TESTRAIL_BASE_URL: process.env['TESTRAIL_BASE_URL'] }),
-        ...(process.env['TESTRAIL_EMAIL'] !== undefined && { TESTRAIL_EMAIL: process.env['TESTRAIL_EMAIL'] }),
-        ...(process.env['TESTRAIL_API_KEY'] !== undefined && { TESTRAIL_API_KEY: process.env['TESTRAIL_API_KEY'] }),
+/* v8 ignore start -- defensive: main() catches all reachable errors internally; this handler exists only for hypothetical failures (e.g., broken-pipe in process.stdout.write) that bypass the inner try/catch. */
+main().then(
+    (code) => process.exit(code),
+    (e: unknown) => {
+        err(e instanceof Error ? e.message : String(e));
+        process.exit(1);
     },
 );
-
-if (!auth.ok) {
-    err(auth.error);
-    process.exit(1);
-}
-
-// ── Build Handler Context ─────────────────────────────────────────────────────
-
-const args: HandlerArgs = {
-    ...(idArg !== undefined && { idArg }),
-    ...(values['project-id'] !== undefined && { projectId: values['project-id'] as string }),
-    ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
-    ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
-    ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
-    ...(values.limit !== undefined && { limit: values.limit as string }),
-    ...(values.offset !== undefined && { offset: values.offset as string }),
-};
-
-const client = new TestRailClient(auth.config);
-
-dispatched
-    .handler({ client, args, out })
-    .then(() => {
-        client.destroy();
-        process.exit(0);
-    })
-    .catch((e: unknown) => {
-        err(e instanceof Error ? e.message : String(e));
-        client.destroy();
-        process.exit(1);
-    });
+/* v8 ignore stop */
