@@ -122,15 +122,35 @@ describe('safeJsonStringify', () => {
         expect(parsed['error']).toBe('unserializable');
     });
 
+    it('returns the JSON literal "null" when input is undefined (no JSON representation)', () => {
+        expect(safeJsonStringify(undefined)).toBe('null');
+    });
+
+    it('returns the JSON literal "null" when input is a function (no JSON representation)', () => {
+        expect(safeJsonStringify(() => 42)).toBe('null');
+    });
+
+    it('returns the JSON literal "null" when input is a symbol (no JSON representation)', () => {
+        expect(safeJsonStringify(Symbol('x'))).toBe('null');
+    });
+
     it('output is always valid JSON regardless of input (jq-pipeline guarantee)', () => {
-        expect(() => {
-            JSON.parse(safeJsonStringify({ valid: true }));
-        }).not.toThrow();
-        const circular: Record<string, unknown> = {};
-        circular['self'] = circular;
-        expect(() => {
-            JSON.parse(safeJsonStringify(circular));
-        }).not.toThrow();
+        const cases: unknown[] = [
+            { valid: true },
+            undefined,
+            () => 1,
+            Symbol('s'),
+            (() => {
+                const c: Record<string, unknown> = {};
+                c['self'] = c;
+                return c;
+            })(),
+        ];
+        for (const c of cases) {
+            expect(() => {
+                JSON.parse(safeJsonStringify(c));
+            }).not.toThrow();
+        }
     });
 });
 

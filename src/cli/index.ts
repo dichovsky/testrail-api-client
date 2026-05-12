@@ -12,34 +12,6 @@ import type { HandlerArgs } from './handler-context.js';
 const require = createRequire(import.meta.url);
 const VERSION: string = (require('../../package.json') as { version: string }).version;
 
-// ── Arg Parsing ───────────────────────────────────────────────────────────────
-
-const { values, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    options: {
-        'base-url': { type: 'string' },
-        email: { type: 'string' },
-        'api-key': { type: 'string' },
-        format: { type: 'string', default: 'json' },
-        quiet: { type: 'boolean', default: false },
-        help: { type: 'boolean', default: false },
-        version: { type: 'boolean', default: false },
-        'project-id': { type: 'string' },
-        'suite-id': { type: 'string' },
-        'run-id': { type: 'string' },
-        'case-id': { type: 'string' },
-        limit: { type: 'string' },
-        offset: { type: 'string' },
-    },
-    allowPositionals: true,
-    strict: false,
-});
-
-const quiet = values.quiet === true;
-const formatRaw = values.format;
-const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
-const { out, err } = createOutput({ quiet, format });
-
 // ── Help ──────────────────────────────────────────────────────────────────────
 
 const HELP = `
@@ -70,18 +42,57 @@ Options:
 
 /**
  * Compute exit code in an async function and apply `process.exit()` once
- * at the very end. This avoids fall-through in test contexts where
- * `process.exit` is mocked to a no-op — each branch returns a number,
- * so control flow exits cleanly without trusting the mocked exit() to
- * terminate.
+ * at the very end. parseArgs and createOutput are invoked inside main() so
+ * any failure during initialization (e.g. an invalid CLI shape that makes
+ * parseArgs throw) is funneled through the same exit-code return path
+ * rather than escaping as an uncaught module-evaluation error.
  */
 async function main(): Promise<number> {
-    if (values.version === true) {
+    let values: Record<string, unknown>;
+    let positionals: string[];
+    try {
+        const parsed = parseArgs({
+            args: process.argv.slice(2),
+            options: {
+                'base-url': { type: 'string' },
+                email: { type: 'string' },
+                'api-key': { type: 'string' },
+                format: { type: 'string', default: 'json' },
+                quiet: { type: 'boolean', default: false },
+                help: { type: 'boolean', default: false },
+                version: { type: 'boolean', default: false },
+                'project-id': { type: 'string' },
+                'suite-id': { type: 'string' },
+                'run-id': { type: 'string' },
+                'case-id': { type: 'string' },
+                limit: { type: 'string' },
+                offset: { type: 'string' },
+            },
+            allowPositionals: true,
+            strict: false,
+        });
+        values = parsed.values;
+        positionals = parsed.positionals;
+        /* v8 ignore start -- defensive: parseArgs with strict:false is highly
+           tolerant; this catch funnels any future-Node-version edge cases
+           through the controlled exit path rather than crashing the module. */
+    } catch (e: unknown) {
+        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+        return 1;
+    }
+    /* v8 ignore stop */
+
+    const quiet = values['quiet'] === true;
+    const formatRaw = values['format'];
+    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
+    const { out, err } = createOutput({ quiet, format });
+
+    if (values['version'] === true) {
         process.stdout.write(`testrail-cli v${VERSION}\n`);
         return 0;
     }
 
-    if (values.help === true || positionals.length === 0) {
+    if (values['help'] === true || positionals.length === 0) {
         process.stdout.write(`${HELP}\n`);
         return 0;
     }
@@ -125,8 +136,8 @@ async function main(): Promise<number> {
         ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
         ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
         ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
-        ...(values.limit !== undefined && { limit: values.limit as string }),
-        ...(values.offset !== undefined && { offset: values.offset as string }),
+        ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
+        ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
     };
 
     let client: TestRailClient | undefined;
@@ -146,7 +157,7 @@ async function main(): Promise<number> {
 main().then(
     (code) => process.exit(code),
     (e: unknown) => {
-        err(e instanceof Error ? e.message : String(e));
+        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
         process.exit(1);
     },
 );

@@ -51,17 +51,26 @@ export function renderTable(data: unknown): string {
 }
 
 /**
- * Best-effort JSON.stringify with a structured fallback. If serialization
- * fails (circular reference, nested BigInt, etc.), emits a valid JSON
- * object describing the failure rather than throwing — so callers piping
- * through `jq` always receive parseable JSON.
+ * Best-effort JSON.stringify with two fallbacks, guaranteeing the return
+ * value is always parseable JSON for downstream tools (e.g., `jq`):
  *
- * Exported so unit tests can verify the fallback path without spawning a
+ * 1. If serialization throws (circular reference, nested BigInt, etc.),
+ *    emit a structured `{ error, message }` JSON object.
+ * 2. If `JSON.stringify` returns the JS value `undefined` — which it does
+ *    for `undefined`, function, or symbol inputs — emit the JSON literal
+ *    `"null"`. Without this guard, the caller's template literal would
+ *    coerce that `undefined` to the string `"undefined"`, which is not
+ *    valid JSON.
+ *
+ * Exported so unit tests can verify the fallbacks without spawning a
  * subprocess.
  */
 export function safeJsonStringify(data: unknown): string {
     try {
-        return JSON.stringify(data, null, 2);
+        // JSON.stringify returns the JS value undefined for inputs without a
+        // JSON representation (undefined, function, symbol); fall back to the
+        // JSON literal "null" so the result is always a parseable string.
+        return JSON.stringify(data, null, 2) ?? 'null';
     } catch (e) {
         return JSON.stringify(
             { error: 'unserializable', message: e instanceof Error ? e.message : String(e) },
