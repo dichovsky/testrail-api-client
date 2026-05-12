@@ -10,11 +10,23 @@ export interface Output {
 
 export function valueToString(v: unknown): string {
     if (v === null || v === undefined) return '';
-    if (typeof v === 'object') return JSON.stringify(v);
+    if (typeof v === 'object') {
+        try {
+            return JSON.stringify(v);
+        } catch {
+            // JSON.stringify throws on circular refs and nested BigInt.
+            return '[Object]';
+        }
+    }
     if (typeof v === 'string') return v;
     if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
     if (typeof v === 'symbol') return v.toString();
     return '[Function]';
+}
+
+function getField(row: unknown, key: string): unknown {
+    if (typeof row !== 'object' || row === null) return undefined;
+    return (row as Record<string, unknown>)[key];
 }
 
 export function renderTable(data: unknown): string {
@@ -27,14 +39,12 @@ export function renderTable(data: unknown): string {
     }
 
     const keys = Object.keys(first);
-    const widths = keys.map((k) =>
-        Math.max(k.length, ...rows.map((r) => valueToString((r as Record<string, unknown>)[k]).length)),
-    );
+    const widths = keys.map((k) => Math.max(k.length, ...rows.map((r) => valueToString(getField(r, k)).length)));
 
     const line = widths.map((w) => '-'.repeat(w)).join('-+-');
     const header = keys.map((k, i) => k.padEnd(widths[i] ?? k.length)).join(' | ');
     const body = rows.map((r) =>
-        keys.map((k, i) => valueToString((r as Record<string, unknown>)[k]).padEnd(widths[i] ?? k.length)).join(' | '),
+        keys.map((k, i) => valueToString(getField(r, k)).padEnd(widths[i] ?? k.length)).join(' | '),
     );
 
     return [header, line, ...body].join('\n');

@@ -49,6 +49,16 @@ describe('valueToString', () => {
     it('JSON.stringifies objects', () => {
         expect(valueToString({ a: 1 })).toBe('{"a":1}');
     });
+
+    it('returns "[Object]" when JSON.stringify throws on a circular reference', () => {
+        const circular: Record<string, unknown> = {};
+        circular['self'] = circular;
+        expect(valueToString(circular)).toBe('[Object]');
+    });
+
+    it('returns "[Object]" when an object contains nested BigInt (unserializable)', () => {
+        expect(valueToString({ count: 10n })).toBe('[Object]');
+    });
 });
 
 describe('renderTable', () => {
@@ -74,6 +84,19 @@ describe('renderTable', () => {
         const out = renderTable({ id: 7, name: 'solo' });
         expect(out).toContain('id | name');
         expect(out).toContain('7  | solo');
+    });
+
+    it('renders gracefully when a later row is null (no crash)', () => {
+        const out = renderTable([{ id: 1, name: 'a' }, null]);
+        expect(out).toContain('id | name');
+        // Null row contributes empty cells under each known key.
+        expect(out.split('\n')).toHaveLength(4); // header + separator + 2 data rows
+    });
+
+    it('renders gracefully when a later row is a primitive (no crash)', () => {
+        const out = renderTable([{ id: 1, name: 'a' }, 42]);
+        expect(out).toContain('id | name');
+        expect(out.split('\n')).toHaveLength(4);
     });
 });
 

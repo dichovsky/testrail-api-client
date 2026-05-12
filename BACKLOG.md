@@ -84,6 +84,7 @@ The v2.1 plan locks in hybrid generation with `<!-- GENERATED -->` sentinels +
 
 - [ ] **Coverage delta enforcement** — fail CI if coverage drops below 98% (currently a soft target). **Effort:** S (Vitest config). **Trigger:** a PR that lands with regressed coverage.
 - [ ] **CLI fuzz tests** — random JSON bodies into write actions, assert Zod rejection. **Effort:** M. **Trigger:** real-world payload-shape bugs.
+- [ ] **Stricter numeric parsing in `parseId` / `optInt`** — current `Number(raw)` + `Number.isInteger` check accepts non-decimal numeric literals like `'1e3'` (→ 1000) and `'0x10'` (→ 16). Reject these with a `/^[1-9]\d*$/` (or `/^\d+$/` for `optInt`) pre-check so the CLI rejects what its error message claims to require (decimal positive integers). **Effort:** S. **Trigger:** Copilot review on PR #53; deferred from PR 1 because tightening accept/reject semantics is a (minor) breaking behavior change and PR 1 was scoped as "no behavior change". Bundle with any future v2.x release that documents breaking input-validation tightening.
 
 ---
 
