@@ -31,6 +31,9 @@ jobs:
             - name: Run linting
               run: npm run lint
 
+            - name: Run codemap drift check
+              run: npm run codemap:check
+
             - name: Run tests
               run: npm run test:coverage
 

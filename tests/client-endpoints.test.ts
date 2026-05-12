@@ -963,7 +963,11 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { createdBy: [] });
-            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            // Assert single-call count first so a false-positive cannot arise from
+            // an extra fetch that happens to lack the substring; then assert the
+            // single call's URL omits the param.
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
             expect(calledUrl).not.toContain('created_by=');
         });
 
@@ -988,7 +992,10 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { suiteId: 2 });
-            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            // Pin call count to 1 so the omission assertions cannot pass
+            // vacuously by matching some other fetch call.
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
             expect(calledUrl).not.toContain('is_completed');
             expect(calledUrl).not.toContain('milestone_id');
             expect(calledUrl).not.toContain('created_after');

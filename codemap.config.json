@@ -1,0 +1,16 @@
+{
+    "sourceDirs": ["src"],
+    "entrypoints": ["src/index.ts", "src/cli.ts"],
+    "exclude": [
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "__tests__/**",
+        "tests/**",
+        "test-data/**",
+        "tools/**",
+        "out/**",
+        "dist/**",
+        "coverage/**"
+    ],
+    "maxSignatureLength": 200
+}

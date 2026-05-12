@@ -1,215 +1,4563 @@
 # CODEMAP
 
-Auto-generated symbol index. Run `npm run codemap` to regenerate.
+Machine-readable symbol index for coding agents. Run `npm run codemap` to regenerate.
 
-HTTP and endpoint metadata for facade methods are inferred from delegated module implementations in `src/modules/*`.
+Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sourceHash`.
 
-## API Endpoint Methods (`src/client.ts`)
-
-| Method                       | HTTP | Endpoint                                              | Line                        |
-| ---------------------------- | ---- | ----------------------------------------------------- | --------------------------- |
-| `getProject`                 | GET  | `get_project/${projectId}`                            | [146](src/client.ts#L146)   |
-| `getProjects`                | GET  | `get_projects&...`                                    | [155](src/client.ts#L155)   |
-| `addProject`                 | POST | `add_project`                                         | [163](src/client.ts#L163)   |
-| `updateProject`              | POST | `update_project/${projectId}`                         | [172](src/client.ts#L172)   |
-| `deleteProject`              | POST | `delete_project/${projectId}`                         | [181](src/client.ts#L181)   |
-| `getSuite`                   | GET  | `get_suite/${suiteId}`                                | [192](src/client.ts#L192)   |
-| `getSuites`                  | GET  | `get_suites/${projectId}`                             | [201](src/client.ts#L201)   |
-| `addSuite`                   | POST | `add_suite/${projectId}`                              | [210](src/client.ts#L210)   |
-| `updateSuite`                | POST | `update_suite/${suiteId}`                             | [219](src/client.ts#L219)   |
-| `deleteSuite`                | POST | `delete_suite/${suiteId}`                             | [228](src/client.ts#L228)   |
-| `getSection`                 | GET  | `get_section/${sectionId}`                            | [239](src/client.ts#L239)   |
-| `getSections`                | GET  | `get_sections/${projectId}&...`                       | [251](src/client.ts#L251)   |
-| `addSection`                 | POST | `add_section/${projectId}`                            | [263](src/client.ts#L263)   |
-| `updateSection`              | POST | `update_section/${sectionId}`                         | [272](src/client.ts#L272)   |
-| `deleteSection`              | POST | `delete_section/${sectionId}`                         | [281](src/client.ts#L281)   |
-| `getCase`                    | GET  | `get_case/${caseId}`                                  | [292](src/client.ts#L292)   |
-| `getCases`                   | GET  | `get_cases/${projectId}&...`                          | [313](src/client.ts#L313)   |
-| `addCase`                    | POST | `add_case/${sectionId}`                               | [322](src/client.ts#L322)   |
-| `updateCase`                 | POST | `update_case/${caseId}`                               | [331](src/client.ts#L331)   |
-| `deleteCase`                 | POST | `delete_case/${caseId}`                               | [340](src/client.ts#L340)   |
-| `getPlan`                    | GET  | `get_plan/${planId}`                                  | [351](src/client.ts#L351)   |
-| `getPlans`                   | GET  | `get_plans/${projectId}&...`                          | [363](src/client.ts#L363)   |
-| `addPlan`                    | POST | `add_plan/${projectId}`                               | [372](src/client.ts#L372)   |
-| `updatePlan`                 | POST | `update_plan/${planId}`                               | [381](src/client.ts#L381)   |
-| `closePlan`                  | POST | `close_plan/${planId}`                                | [390](src/client.ts#L390)   |
-| `deletePlan`                 | POST | `delete_plan/${planId}`                               | [399](src/client.ts#L399)   |
-| `addPlanEntry`               | POST | `add_plan_entry/${planId}`                            | [408](src/client.ts#L408)   |
-| `updatePlanEntry`            | POST | `update_plan_entry/${planId}/${entryId}`              | [417](src/client.ts#L417)   |
-| `deletePlanEntry`            | POST | `delete_plan_entry/${planId}/${entryId}`              | [426](src/client.ts#L426)   |
-| `getRun`                     | GET  | `get_run/${runId}`                                    | [437](src/client.ts#L437)   |
-| `getRuns`                    | GET  | `get_runs/${projectId}&...`                           | [449](src/client.ts#L449)   |
-| `addRun`                     | POST | `add_run/${projectId}`                                | [458](src/client.ts#L458)   |
-| `updateRun`                  | POST | `update_run/${runId}`                                 | [467](src/client.ts#L467)   |
-| `closeRun`                   | POST | `close_run/${runId}`                                  | [476](src/client.ts#L476)   |
-| `deleteRun`                  | POST | `delete_run/${runId}`                                 | [485](src/client.ts#L485)   |
-| `getTest`                    | GET  | `get_test/${testId}`                                  | [496](src/client.ts#L496)   |
-| `getTests`                   | GET  | `get_tests/${runId}&...`                              | [507](src/client.ts#L507)   |
-| `getResults`                 | GET  | `get_results/${testId}&...`                           | [521](src/client.ts#L521)   |
-| `getResultsForCase`          | GET  | `get_results_for_case/${runId}/${caseId}&...`         | [534](src/client.ts#L534)   |
-| `getResultsForRun`           | GET  | `get_results_for_run/${runId}&...`                    | [546](src/client.ts#L546)   |
-| `addResult`                  | POST | `add_result/${testId}`                                | [555](src/client.ts#L555)   |
-| `addResultForCase`           | POST | `add_result_for_case/${runId}/${caseId}`              | [564](src/client.ts#L564)   |
-| `addResultsForCases`         | POST | `add_results_for_cases/${runId}`                      | [573](src/client.ts#L573)   |
-| `getMilestone`               | GET  | `get_milestone/${milestoneId}`                        | [584](src/client.ts#L584)   |
-| `getMilestones`              | GET  | `get_milestones/${projectId}&...`                     | [596](src/client.ts#L596)   |
-| `addMilestone`               | POST | `add_milestone/${projectId}`                          | [608](src/client.ts#L608)   |
-| `updateMilestone`            | POST | `update_milestone/${milestoneId}`                     | [620](src/client.ts#L620)   |
-| `deleteMilestone`            | POST | `delete_milestone/${milestoneId}`                     | [631](src/client.ts#L631)   |
-| `getUser`                    | GET  | `get_user/${userId}`                                  | [644](src/client.ts#L644)   |
-| `getUserByEmail`             | GET  | `get_user_by_email&...`                               | [655](src/client.ts#L655)   |
-| `getUsers`                   | GET  | `get_users/${projectId}&... or get_users&...`         | [668](src/client.ts#L668)   |
-| `getCurrentUser`             | GET  | `get_current_user`                                    | [676](src/client.ts#L676)   |
-| `addUser`                    | POST | `add_user`                                            | [686](src/client.ts#L686)   |
-| `updateUser`                 | POST | `update_user/${userId}`                               | [698](src/client.ts#L698)   |
-| `getStatuses`                | GET  | `get_statuses`                                        | [708](src/client.ts#L708)   |
-| `getPriorities`              | GET  | `get_priorities`                                      | [718](src/client.ts#L718)   |
-| `getResultFields`            | GET  | `get_result_fields`                                   | [728](src/client.ts#L728)   |
-| `getCaseFields`              | GET  | `get_case_fields`                                     | [738](src/client.ts#L738)   |
-| `getCaseTypes`               | GET  | `get_case_types`                                      | [746](src/client.ts#L746)   |
-| `getTemplates`               | GET  | `get_templates/${projectId}`                          | [759](src/client.ts#L759)   |
-| `getConfigurations`          | GET  | `get_configs/${projectId}`                            | [772](src/client.ts#L772)   |
-| `addConfigurationGroup`      | POST | `add_config_group/${projectId}`                       | [784](src/client.ts#L784)   |
-| `updateConfigurationGroup`   | POST | `update_config_group/${configGroupId}`                | [796](src/client.ts#L796)   |
-| `deleteConfigurationGroup`   | POST | `delete_config_group/${configGroupId}`                | [810](src/client.ts#L810)   |
-| `addConfiguration`           | POST | `add_config/${configGroupId}`                         | [822](src/client.ts#L822)   |
-| `updateConfiguration`        | POST | `update_config/${configId}`                           | [834](src/client.ts#L834)   |
-| `deleteConfiguration`        | POST | `delete_config/${configId}`                           | [845](src/client.ts#L845)   |
-| `getRoles`                   | GET  | `get_roles`                                           | [855](src/client.ts#L855)   |
-| `getGroup`                   | GET  | `get_group/${groupId}`                                | [868](src/client.ts#L868)   |
-| `getGroups`                  | GET  | `get_groups`                                          | [876](src/client.ts#L876)   |
-| `addGroup`                   | POST | `add_group`                                           | [886](src/client.ts#L886)   |
-| `updateGroup`                | POST | `update_group/${groupId}`                             | [898](src/client.ts#L898)   |
-| `deleteGroup`                | POST | `delete_group/${groupId}`                             | [909](src/client.ts#L909)   |
-| `getAttachmentsForCase`      | GET  | `get_attachments_for_case/${caseId}`                  | [922](src/client.ts#L922)   |
-| `getAttachmentsForRun`       | GET  | `get_attachments_for_run/${runId}`                    | [933](src/client.ts#L933)   |
-| `getAttachmentsForTest`      | GET  | `get_attachments_for_test/${testId}`                  | [944](src/client.ts#L944)   |
-| `getAttachmentsForPlan`      | GET  | `get_attachments_for_plan/${planId}`                  | [955](src/client.ts#L955)   |
-| `getAttachmentsForPlanEntry` | GET  | `get_attachments_for_plan_entry/${planId}/${entryId}` | [967](src/client.ts#L967)   |
-| `getAttachment`              | GET  | `get_attachment/${attachmentId}`                      | [978](src/client.ts#L978)   |
-| `addAttachmentToCase`        | POST | `add_attachment_to_case/${caseId}`                    | [991](src/client.ts#L991)   |
-| `addAttachmentToResult`      | POST | `add_attachment_to_result/${resultId}`                | [1008](src/client.ts#L1008) |
-| `addAttachmentToRun`         | POST | `add_attachment_to_run/${runId}`                      | [1025](src/client.ts#L1025) |
-| `addAttachmentToPlan`        | POST | `add_attachment_to_plan/${planId}`                    | [1042](src/client.ts#L1042) |
-| `addAttachmentToPlanEntry`   | POST | `add_attachment_to_plan_entry/${planId}/${entryId}`   | [1060](src/client.ts#L1060) |
-| `deleteAttachment`           | POST | `delete_attachment/${attachmentId}`                   | [1076](src/client.ts#L1076) |
-| `getSharedStep`              | GET  | `get_shared_step/${sharedStepId}`                     | [1089](src/client.ts#L1089) |
-| `getSharedSteps`             | GET  | `get_shared_steps/${projectId}`                       | [1100](src/client.ts#L1100) |
-| `addSharedStep`              | POST | `add_shared_step/${projectId}`                        | [1112](src/client.ts#L1112) |
-| `updateSharedStep`           | POST | `update_shared_step/${sharedStepId}`                  | [1124](src/client.ts#L1124) |
-| `deleteSharedStep`           | POST | `delete_shared_step/${sharedStepId}`                  | [1135](src/client.ts#L1135) |
-| `getVariables`               | GET  | `get_variables/${projectId}`                          | [1148](src/client.ts#L1148) |
-| `addVariable`                | POST | `add_variable/${projectId}`                           | [1160](src/client.ts#L1160) |
-| `updateVariable`             | POST | `update_variable/${variableId}`                       | [1172](src/client.ts#L1172) |
-| `deleteVariable`             | POST | `delete_variable/${variableId}`                       | [1183](src/client.ts#L1183) |
-| `getDataset`                 | GET  | `get_dataset/${datasetId}`                            | [1196](src/client.ts#L1196) |
-| `getDatasets`                | GET  | `get_datasets/${projectId}`                           | [1207](src/client.ts#L1207) |
-| `addDataset`                 | POST | `add_dataset/${projectId}`                            | [1219](src/client.ts#L1219) |
-| `updateDataset`              | POST | `update_dataset/${datasetId}`                         | [1231](src/client.ts#L1231) |
-| `deleteDataset`              | POST | `delete_dataset/${datasetId}`                         | [1242](src/client.ts#L1242) |
-| `getReports`                 | GET  | `get_reports/${projectId}`                            | [1255](src/client.ts#L1255) |
-| `runReport`                  | GET  | `run_report/${reportTemplateId}`                      | [1266](src/client.ts#L1266) |
-
-## Core Infrastructure (`src/client-core.ts`)
-
-| Symbol          | Line                           |
-| --------------- | ------------------------------ |
-| `constructor`   | [180](src/client-core.ts#L180) |
-| `validateId`    | [399](src/client-core.ts#L399) |
-| `buildEndpoint` | [438](src/client-core.ts#L438) |
-| `clearCache`    | [493](src/client-core.ts#L493) |
-| `destroy`       | [538](src/client-core.ts#L538) |
-| `request`       | [565](src/client-core.ts#L565) |
-
-## Error Classes (`src/errors.ts`)
-
-| Class                     | Line                    |
-| ------------------------- | ----------------------- |
-| `TestRailApiError`        | [6](src/errors.ts#L6)   |
-| `TestRailValidationError` | [20](src/errors.ts#L20) |
-| `handleZodError`          | [33](src/errors.ts#L33) |
-
-## Constants (`src/constants.ts`)
-
-| Constant                             | Value           | Line                       |
-| ------------------------------------ | --------------- | -------------------------- |
-| `BASE_RETRY_DELAY_MS`                | `1000`          | [2](src/constants.ts#L2)   |
-| `MAX_RETRY_DELAY_MS`                 | `10000`         | [3](src/constants.ts#L3)   |
-| `MAX_TIMEOUT_MS`                     | `5 * 60 * 1000` | [6](src/constants.ts#L6)   |
-| `DEFAULT_TIMEOUT_MS`                 | `30000`         | [9](src/constants.ts#L9)   |
-| `DEFAULT_MAX_RETRIES`                | `3`             | [10](src/constants.ts#L10) |
-| `DEFAULT_CACHE_TTL_MS`               | `300000`        | [11](src/constants.ts#L11) |
-| `DEFAULT_CACHE_CLEANUP_INTERVAL_MS`  | `60000`         | [12](src/constants.ts#L12) |
-| `DEFAULT_MAX_CACHE_SIZE`             | `1000`          | [13](src/constants.ts#L13) |
-| `DEFAULT_RATE_LIMIT_MAX_REQUESTS`    | `100`           | [14](src/constants.ts#L14) |
-| `DEFAULT_RATE_LIMIT_WINDOW_MS`       | `60000`         | [15](src/constants.ts#L15) |
-| `DEFAULT_DNS_VALIDATION_MAX_WAIT_MS` | `2000`          | [16](src/constants.ts#L16) |
-
-## Types (`src/types.ts`)
-
-| Type                              | Line                     |
-| --------------------------------- | ------------------------ |
-| `TestRailConfig`                  | [10](src/types.ts#L10)   |
-| `Case`                            | [49](src/types.ts#L49)   |
-| `Suite`                           | [70](src/types.ts#L70)   |
-| `AddSuitePayload`                 | [82](src/types.ts#L82)   |
-| `UpdateSuitePayload`              | [87](src/types.ts#L87)   |
-| `Section`                         | [92](src/types.ts#L92)   |
-| `Project`                         | [102](src/types.ts#L102) |
-| `Plan`                            | [114](src/types.ts#L114) |
-| `PlanEntry`                       | [141](src/types.ts#L141) |
-| `Run`                             | [153](src/types.ts#L153) |
-| `Test`                            | [185](src/types.ts#L185) |
-| `Result`                          | [202](src/types.ts#L202) |
-| `Milestone`                       | [217](src/types.ts#L217) |
-| `User`                            | [233](src/types.ts#L233) |
-| `Status`                          | [242](src/types.ts#L242) |
-| `Priority`                        | [254](src/types.ts#L254) |
-| `GetCasesOptions`                 | [269](src/types.ts#L269) |
-| `AddPlanPayload`                  | [296](src/types.ts#L296) |
-| `UpdatePlanPayload`               | [303](src/types.ts#L303) |
-| `AddPlanEntryPayload`             | [310](src/types.ts#L310) |
-| `UpdatePlanEntryPayload`          | [321](src/types.ts#L321) |
-| `AddSectionPayload`               | [336](src/types.ts#L336) |
-| `UpdateSectionPayload`            | [343](src/types.ts#L343) |
-| `AddMilestonePayload`             | [348](src/types.ts#L348) |
-| `UpdateMilestonePayload`          | [359](src/types.ts#L359) |
-| `GetRunsOptions`                  | [372](src/types.ts#L372) |
-| `ResultFieldConfig`               | [393](src/types.ts#L393) |
-| `ResultField`                     | [407](src/types.ts#L407) |
-| `CaseFieldConfig`                 | [429](src/types.ts#L429) |
-| `CaseField`                       | [444](src/types.ts#L444) |
-| `CaseType`                        | [464](src/types.ts#L464) |
-| `Template`                        | [473](src/types.ts#L473) |
-| `Configuration`                   | [482](src/types.ts#L482) |
-| `ConfigurationGroup`              | [489](src/types.ts#L489) |
-| `AddConfigurationGroupPayload`    | [496](src/types.ts#L496) |
-| `UpdateConfigurationGroupPayload` | [501](src/types.ts#L501) |
-| `AddConfigurationPayload`         | [506](src/types.ts#L506) |
-| `UpdateConfigurationPayload`      | [511](src/types.ts#L511) |
-| `CacheEntry`                      | [516](src/types.ts#L516) |
-| `RateLimiterConfig`               | [521](src/types.ts#L521) |
-| `AddProjectPayload`               | [526](src/types.ts#L526) |
-| `UpdateProjectPayload`            | [533](src/types.ts#L533) |
-| `GetPlansOptions`                 | [544](src/types.ts#L544) |
-| `GetTestsOptions`                 | [564](src/types.ts#L564) |
-| `GetResultsOptions`               | [577](src/types.ts#L577) |
-| `GetMilestonesOptions`            | [595](src/types.ts#L595) |
-| `AddUserPayload`                  | [607](src/types.ts#L607) |
-| `UpdateUserPayload`               | [621](src/types.ts#L621) |
-| `Role`                            | [637](src/types.ts#L637) |
-| `Group`                           | [649](src/types.ts#L649) |
-| `AddGroupPayload`                 | [659](src/types.ts#L659) |
-| `UpdateGroupPayload`              | [667](src/types.ts#L667) |
-| `Attachment`                      | [677](src/types.ts#L677) |
-| `SharedStep`                      | [697](src/types.ts#L697) |
-| `AddSharedStepPayload`            | [719](src/types.ts#L719) |
-| `UpdateSharedStepPayload`         | [727](src/types.ts#L727) |
-| `Variable`                        | [737](src/types.ts#L737) |
-| `AddVariablePayload`              | [745](src/types.ts#L745) |
-| `UpdateVariablePayload`           | [751](src/types.ts#L751) |
-| `Dataset`                         | [759](src/types.ts#L759) |
-| `AddDatasetPayload`               | [773](src/types.ts#L773) |
-| `UpdateDatasetPayload`            | [779](src/types.ts#L779) |
-| `Report`                          | [787](src/types.ts#L787) |
-| `ReportResult`                    | [799](src/types.ts#L799) |
+```json
+{
+  "schema": "codemap.v2",
+  "repo": {
+    "name": "@dichovsky/testrail-api-client",
+    "version": "2.1.0"
+  },
+  "sourceHash": "892896471e89172231a1eff1eff1fe6dcf5f5b104c563669e5048c2f94f62e8a",
+  "entrypoints": [
+    "src/index.ts",
+    "src/cli.ts"
+  ],
+  "publicApi": [
+    {
+      "name": "AddCasePayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 480,
+      "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddCasePayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 469,
+      "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
+    },
+    {
+      "name": "AddConfigurationGroupPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 496,
+      "signature": "export interface AddConfigurationGroupPayload { name: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddConfigurationPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 506,
+      "signature": "export interface AddConfigurationPayload { name: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddDatasetPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 773,
+      "signature": "export interface AddDatasetPayload { name: string; }",
+      "jsdoc": "Payload for creating a dataset via POST /add_dataset/{project_id}",
+      "typeOnly": true
+    },
+    {
+      "name": "AddGroupPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 659,
+      "signature": "export interface AddGroupPayload { name: string; user_ids?: number[]; }",
+      "jsdoc": "Payload for creating a new group via POST /add_group (TestRail 7.5+)",
+      "typeOnly": true
+    },
+    {
+      "name": "AddMilestonePayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 348,
+      "signature": "export interface AddMilestonePayload { name: string; description?: string; due_on?: number; start_on?: number; parent_id?: number; refs?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddPlanEntryPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 310,
+      "signature": "export interface AddPlanEntryPayload { suite_id: number; name?: string; description?: string; assignedto_id?: number; include_all?: boolean; case_ids?: number[]; config_ids?: number[]; runs?: AddRunPa…",
+      "typeOnly": true
+    },
+    {
+      "name": "AddPlanPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 296,
+      "signature": "export interface AddPlanPayload { name: string; description?: string; milestone_id?: number; entries?: AddPlanEntryPayload[]; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddProjectPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 526,
+      "signature": "export interface AddProjectPayload { name: string; announcement?: string; show_announcement?: boolean; suite_mode?: number; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddResultForCasePayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 545,
+      "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddResultForCasePayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 534,
+      "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
+    },
+    {
+      "name": "AddResultPayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 530,
+      "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddResultPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 520,
+      "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
+    },
+    {
+      "name": "AddResultsForCasesPayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 551,
+      "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddResultsForCasesPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 547,
+      "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
+    },
+    {
+      "name": "AddRunPayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 506,
+      "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddRunPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 495,
+      "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
+    },
+    {
+      "name": "AddSectionPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 336,
+      "signature": "export interface AddSectionPayload { name: string; suite_id?: number; parent_id?: number; description?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddSharedStepPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 719,
+      "signature": "export interface AddSharedStepPayload { title: string; custom_steps_separated?: Record<string, unknown>[]; }",
+      "jsdoc": "Payload for creating a shared step via POST /add_shared_step/{project_id} (TestRail 7.0+)",
+      "typeOnly": true
+    },
+    {
+      "name": "AddSuitePayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 82,
+      "signature": "export interface AddSuitePayload { name: string; description?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "AddUserPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 607,
+      "signature": "export interface AddUserPayload { email: string; name: string; is_active?: boolean; role_id?: number; password?: string; }",
+      "jsdoc": "Payload for creating a new user via POST /add_user (TestRail 7.3+)",
+      "typeOnly": true
+    },
+    {
+      "name": "AddVariablePayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 745,
+      "signature": "export interface AddVariablePayload { name: string; }",
+      "jsdoc": "Payload for creating a variable via POST /add_variable/{project_id}",
+      "typeOnly": true
+    },
+    {
+      "name": "Attachment",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 677,
+      "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }",
+      "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints",
+      "typeOnly": true
+    },
+    {
+      "name": "AttachmentSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 397,
+      "signature": "export const AttachmentSchema = zObject({ attachment_id: z.number(), name: z.string(), filename: z.string().optional(), size: z.number().optional(), created_on: z.number().optional(), created_by: z.nu…"
+    },
+    {
+      "name": "Case",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 49,
+      "signature": "export interface Case { id: number; title: string; section_id: number; template_id?: number; type_id?: number; priority_id?: number; milestone_id?: number; refs?: string; created_by: number; created_o…",
+      "typeOnly": true
+    },
+    {
+      "name": "CaseField",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 444,
+      "signature": "export interface CaseField { id: number; system_name: string; label: string; name: string; type_id: number; display_order: number; configs: CaseFieldConfig[]; is_active: boolean; include_all: boolean;…",
+      "jsdoc": "Custom case field definition returned by get_case_fields",
+      "typeOnly": true
+    },
+    {
+      "name": "CaseFieldConfig",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 429,
+      "signature": "export interface CaseFieldConfig { context: { is_global: boolean; project_ids: number[]; }; options: { is_required: boolean; default_value: string; items?: string; format?: string; rows?: string; }; }",
+      "jsdoc": "Context/options configuration block shared by CaseField entries",
+      "typeOnly": true
+    },
+    {
+      "name": "CaseFieldConfigSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 312,
+      "signature": "export const CaseFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
+    },
+    {
+      "name": "CaseFieldSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 319,
+      "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
+    },
+    {
+      "name": "CaseSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 97,
+      "signature": "export const CaseSchema = zObject({ id: z.number(), title: z.string(), section_id: z.number(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), m…"
+    },
+    {
+      "name": "CaseType",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 464,
+      "signature": "export interface CaseType { id: number; name: string; is_default: boolean; }",
+      "jsdoc": "Case type definition returned by get_case_types",
+      "typeOnly": true
+    },
+    {
+      "name": "CaseTypeSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 360,
+      "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+    },
+    {
+      "name": "Configuration",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 482,
+      "signature": "export interface Configuration { id: number; name: string; group_id: number; }",
+      "jsdoc": "An individual configuration (e.g. \"Windows 10\", \"Chrome\") within a group",
+      "typeOnly": true
+    },
+    {
+      "name": "ConfigurationGroup",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 489,
+      "signature": "export interface ConfigurationGroup { id: number; name: string; project_id: number; configs: Configuration[]; }",
+      "jsdoc": "A configuration group (e.g. \"Operating Systems\", \"Browsers\")",
+      "typeOnly": true
+    },
+    {
+      "name": "ConfigurationGroupSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 386,
+      "signature": "export const ConfigurationGroupSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number(), configs: z.array(ConfigurationSchema), })"
+    },
+    {
+      "name": "ConfigurationSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 378,
+      "signature": "export const ConfigurationSchema = zObject({ id: z.number(), name: z.string(), group_id: z.number(), })"
+    },
+    {
+      "name": "Dataset",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 759,
+      "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }",
+      "jsdoc": "A dataset for data-driven testing",
+      "typeOnly": true
+    },
+    {
+      "name": "DatasetSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 434,
+      "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number().optional(), created_on: z.number().optional(), created_by: z.number().optional(), })"
+    },
+    {
+      "name": "GetCasesOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 269,
+      "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number; priorityId?: number; templateId?: number; milestoneId?: number; createdAfter?: number; createdBefore?: number;…",
+      "jsdoc": "Filter options for `getCases()`. All date filters accept Unix timestamps (seconds since epoch).",
+      "typeOnly": true
+    },
+    {
+      "name": "GetMilestonesOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 595,
+      "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }",
+      "jsdoc": "Filter options for `getMilestones()`.",
+      "typeOnly": true
+    },
+    {
+      "name": "GetPlansOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 544,
+      "signature": "export interface GetPlansOptions { created_after?: number; created_before?: number; created_by?: number[]; is_completed?: 0 | 1; milestone_id?: number[]; limit?: number; offset?: number; }",
+      "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
+      "typeOnly": true
+    },
+    {
+      "name": "GetResultsOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 577,
+      "signature": "export interface GetResultsOptions { created_after?: number; created_before?: number; created_by?: number[]; status_id?: number[]; limit?: number; offset?: number; }",
+      "jsdoc": "Filter options for `getResults()`, `getResultsForCase()`, and `getResultsForRun()`. All date filters accept Unix timestamps (seconds).",
+      "typeOnly": true
+    },
+    {
+      "name": "GetRunsOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 372,
+      "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number; refsFilter?: string; suiteId?: number; limit?: numbe…",
+      "typeOnly": true
+    },
+    {
+      "name": "GetTestsOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 564,
+      "signature": "export interface GetTestsOptions { status_id?: number[]; limit?: number; offset?: number; }",
+      "jsdoc": "Filter options for `getTests()`.",
+      "typeOnly": true
+    },
+    {
+      "name": "Group",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 649,
+      "signature": "export interface Group { id: number; name: string; user_ids?: number[]; }",
+      "jsdoc": "A user group returned by GET /get_group and GET /get_groups (TestRail 7.5+)",
+      "typeOnly": true
+    },
+    {
+      "name": "GroupSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 58,
+      "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).optional(), })"
+    },
+    {
+      "name": "handleZodError",
+      "kind": "function",
+      "file": "src/errors.ts",
+      "line": 33,
+      "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
+      "jsdoc": "Utility to convert ZodError into TestRailValidationError."
+    },
+    {
+      "name": "Milestone",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 217,
+      "signature": "export interface Milestone { id: number; name: string; description?: string; start_on?: number; started_on?: number; is_completed: boolean; completed_on?: number; due_on?: number; project_id: number; …",
+      "typeOnly": true
+    },
+    {
+      "name": "MilestoneSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 252,
+      "signature": "export const MilestoneSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), start_on: z.number().optional(), started_on: z.number().optional(), is_completed: z.boole…"
+    },
+    {
+      "name": "PaginationSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 12,
+      "signature": "export const PaginationSchema = zObject({ limit: z.number().optional(), offset: z.number().optional(), })",
+      "jsdoc": "Core schemas for common TestRail API structures. These are used to validate API responses and provide static type inference via `z.infer`."
+    },
+    {
+      "name": "Plan",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 114,
+      "signature": "export interface Plan { id: number; name: string; description?: string; milestone_id?: number; assignedto_id?: number; is_completed: boolean; completed_on?: number; passed_count: number; blocked_count…",
+      "typeOnly": true
+    },
+    {
+      "name": "PlanEntry",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 141,
+      "signature": "export interface PlanEntry { id: string; suite_id: number; name: string; description?: string; assignedto_id?: number; include_all: boolean; case_ids?: number[]; config_ids?: number[]; runs: Run[]; }",
+      "typeOnly": true
+    },
+    {
+      "name": "PlanEntrySchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 170,
+      "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean(), cas…"
+    },
+    {
+      "name": "PlanSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 184,
+      "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), is_completed: z.boo…"
+    },
+    {
+      "name": "Priority",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 254,
+      "signature": "export interface Priority { id: number; name: string; short_name: string; is_default: boolean; priority: number; }",
+      "typeOnly": true
+    },
+    {
+      "name": "PrioritySchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 287,
+      "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
+    },
+    {
+      "name": "Project",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 102,
+      "signature": "export interface Project { id: number; name: string; announcement?: string; show_announcement?: boolean; is_completed?: boolean; completed_on?: number; suite_mode: number; url: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "ProjectSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 68,
+      "signature": "export const ProjectSchema = zObject({ id: z.number(), name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), is_completed: z.boolean().optional(), completed…"
+    },
+    {
+      "name": "RateLimiterConfig",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 521,
+      "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }",
+      "typeOnly": true
+    },
+    {
+      "name": "Report",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 787,
+      "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }",
+      "jsdoc": "A report template returned by GET /get_reports/{project_id}",
+      "typeOnly": true
+    },
+    {
+      "name": "ReportResult",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 799,
+      "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }",
+      "jsdoc": "Result returned by GET /run_report/{report_template_id}",
+      "typeOnly": true
+    },
+    {
+      "name": "ReportResultSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 455,
+      "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), user_report_url: z.string().optional(), })"
+    },
+    {
+      "name": "ReportSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 446,
+      "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), is_shared: z.boolean().optional(), })"
+    },
+    {
+      "name": "Result",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 202,
+      "signature": "export interface Result { id?: number; test_id?: number; status_id: number; comment?: string; version?: string; elapsed?: string; defects?: string; assignedto_id?: number; created_by?: number; created…",
+      "typeOnly": true
+    },
+    {
+      "name": "ResultField",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 407,
+      "signature": "export interface ResultField { id: number; system_name: string; label: string; name: string; type_id: number; display_order: number; configs: ResultFieldConfig[]; is_active: boolean; include_all: bool…",
+      "typeOnly": true
+    },
+    {
+      "name": "ResultFieldConfig",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 393,
+      "signature": "export interface ResultFieldConfig { context: { is_global: boolean; project_ids: number[]; }; options: { is_required: boolean; default_value: string; items?: string; format?: string; rows?: string; };…",
+      "typeOnly": true
+    },
+    {
+      "name": "ResultFieldConfigSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 335,
+      "signature": "export const ResultFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
+    },
+    {
+      "name": "ResultFieldSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 342,
+      "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
+    },
+    {
+      "name": "ResultSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 234,
+      "signature": "export const ResultSchema = zObject({ id: z.number().optional(), test_id: z.number().optional(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.strin…"
+    },
+    {
+      "name": "Role",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 637,
+      "signature": "export interface Role { id: number; name: string; is_default: boolean; }",
+      "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
+      "typeOnly": true
+    },
+    {
+      "name": "RoleSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 50,
+      "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+    },
+    {
+      "name": "Run",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 153,
+      "signature": "export interface Run { id: number; suite_id: number; name: string; description?: string; milestone_id?: number; assignedto_id?: number; include_all: boolean; is_completed: boolean; completed_on?: numb…",
+      "typeOnly": true
+    },
+    {
+      "name": "RunSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 134,
+      "signature": "export const RunSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional()…"
+    },
+    {
+      "name": "Section",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 92,
+      "signature": "export interface Section { id: number; suite_id: number; name: string; description?: string; parent_id?: number; display_order: number; depth: number; }",
+      "typeOnly": true
+    },
+    {
+      "name": "SectionSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 120,
+      "signature": "export const SectionSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().optional(), parent_id: z.number().optional(), display_order: z.number(), depth: z…"
+    },
+    {
+      "name": "SharedStep",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 697,
+      "signature": "export interface SharedStep { id: number; title: string; project_id?: number; case_ids?: number[]; created_on?: number; created_by?: number; updated_on?: number; updated_by?: number; custom_steps_sepa…",
+      "jsdoc": "A shared step set returned by GET /get_shared_step (TestRail 7.0+)",
+      "typeOnly": true
+    },
+    {
+      "name": "SharedStepSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 411,
+      "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().optional(), case_ids: z.array(z.number()).optional(), created_on: z.number().optional(), created_by:…"
+    },
+    {
+      "name": "Status",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 242,
+      "signature": "export interface Status { id: number; name: string; label: string; color_dark: number; color_medium: number; color_bright: number; is_system: boolean; is_untested: boolean; is_final: boolean; }",
+      "typeOnly": true
+    },
+    {
+      "name": "StatusSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 273,
+      "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
+    },
+    {
+      "name": "Suite",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 70,
+      "signature": "export interface Suite { id: number; name: string; description?: string; project_id: number; is_master?: boolean; is_baseline?: boolean; is_completed?: boolean; completed_on?: number; url: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "SuiteSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 81,
+      "signature": "export const SuiteSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), project_id: z.number(), is_master: z.boolean().optional(), is_baseline: z.boolean().optional(…"
+    },
+    {
+      "name": "Template",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 473,
+      "signature": "export interface Template { id: number; name: string; is_default: boolean; }",
+      "jsdoc": "Case template returned by get_templates (requires TestRail 5.2+)",
+      "typeOnly": true
+    },
+    {
+      "name": "TemplateSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 368,
+      "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+    },
+    {
+      "name": "Test",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 185,
+      "signature": "export interface Test { id: number; case_id: number; status_id: number; assignedto_id?: number; run_id: number; title: string; template_id?: number; type_id?: number; priority_id?: number; estimate?: …",
+      "typeOnly": true
+    },
+    {
+      "name": "TestRailApiError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 6,
+      "signature": "export class TestRailApiError extends Error",
+      "jsdoc": "Thrown when the TestRail API returns a non-2xx response or a network error occurs."
+    },
+    {
+      "name": "TestRailClient",
+      "kind": "class",
+      "file": "src/client.ts",
+      "line": 98,
+      "signature": "export class TestRailClient extends TestRailClientCore",
+      "jsdoc": "TestRail API Client"
+    },
+    {
+      "name": "TestRailConfig",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 10,
+      "signature": "export interface TestRailConfig { baseUrl: string; email: string; apiKey: string; timeout?: number; maxRetries?: number; enableCache?: boolean; cacheTtl?: number; cacheCleanupInterval?: number; maxCac…",
+      "jsdoc": "TestRail API client configuration options",
+      "typeOnly": true
+    },
+    {
+      "name": "TestRailConfigSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 17,
+      "signature": "export const TestRailConfigSchema = zObject({ baseUrl: z.string().url(), email: z.string().email(), apiKey: z.string().min(1), timeout: z.number().optional(), maxRetries: z.number().int().nonnegative(…"
+    },
+    {
+      "name": "TestRailValidationError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 20,
+      "signature": "export class TestRailValidationError extends Error",
+      "jsdoc": "Thrown when client configuration or method parameters fail validation."
+    },
+    {
+      "name": "TestSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 215,
+      "signature": "export const TestSchema = zObject({ id: z.number(), case_id: z.number(), status_id: z.number(), assignedto_id: z.number().optional(), run_id: z.number(), title: z.string(), template_id: z.number().opt…"
+    },
+    {
+      "name": "UpdateCasePayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 493,
+      "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateCasePayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 482,
+      "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
+    },
+    {
+      "name": "UpdateConfigurationGroupPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 501,
+      "signature": "export interface UpdateConfigurationGroupPayload { name?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateConfigurationPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 511,
+      "signature": "export interface UpdateConfigurationPayload { name?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateDatasetPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 779,
+      "signature": "export interface UpdateDatasetPayload { name?: string; }",
+      "jsdoc": "Payload for updating a dataset via POST /update_dataset/{dataset_id}",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateGroupPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 667,
+      "signature": "export interface UpdateGroupPayload { name?: string; user_ids?: number[]; }",
+      "jsdoc": "Payload for updating an existing group via POST /update_group/{group_id} (TestRail 7.5+)",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateMilestonePayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 359,
+      "signature": "export interface UpdateMilestonePayload { name?: string; description?: string; due_on?: number; start_on?: number; parent_id?: number; refs?: string; is_completed?: boolean; is_started?: boolean; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdatePlanEntryPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 321,
+      "signature": "export interface UpdatePlanEntryPayload { suite_id?: number; name?: string; description?: string; assignedto_id?: number; include_all?: boolean; case_ids?: number[]; config_ids?: number[]; runs?: AddR…",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdatePlanPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 303,
+      "signature": "export interface UpdatePlanPayload { name?: string; description?: string; milestone_id?: number; assignedto_id?: number; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateProjectPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 533,
+      "signature": "export interface UpdateProjectPayload { name?: string; announcement?: string; show_announcement?: boolean; suite_mode?: number; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateRunPayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 518,
+      "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateRunPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 508,
+      "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
+    },
+    {
+      "name": "UpdateSectionPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 343,
+      "signature": "export interface UpdateSectionPayload { name?: string; description?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateSharedStepPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 727,
+      "signature": "export interface UpdateSharedStepPayload { title?: string; custom_steps_separated?: Record<string, unknown>[]; }",
+      "jsdoc": "Payload for updating a shared step via POST /update_shared_step/{shared_step_id} (TestRail 7.0+)",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateSuitePayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 87,
+      "signature": "export interface UpdateSuitePayload { name?: string; description?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateUserPayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 621,
+      "signature": "export interface UpdateUserPayload { email?: string; name?: string; is_active?: boolean; role_id?: number; password?: string; }",
+      "jsdoc": "Payload for updating an existing user via POST /update_user/{user_id} (TestRail 7.3+)",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateVariablePayload",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 751,
+      "signature": "export interface UpdateVariablePayload { name?: string; }",
+      "jsdoc": "Payload for updating a variable via POST /update_variable/{variable_id}",
+      "typeOnly": true
+    },
+    {
+      "name": "User",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 233,
+      "signature": "export interface User { id: number; name: string; email: string; is_active: boolean; role_id?: number; role?: string; }",
+      "typeOnly": true
+    },
+    {
+      "name": "UserSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 39,
+      "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().optional(), role: z.string().optional(), })"
+    },
+    {
+      "name": "Variable",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 737,
+      "signature": "export interface Variable { id: number; name: string; }",
+      "jsdoc": "A variable used in data-driven testing",
+      "typeOnly": true
+    },
+    {
+      "name": "VariableSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 427,
+      "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })"
+    }
+  ],
+  "files": [
+    {
+      "path": "src/cli.ts",
+      "imports": [
+        "./cli/index.js"
+      ],
+      "reExports": [],
+      "symbols": []
+    },
+    {
+      "path": "src/cli/auth.ts",
+      "imports": [
+        "../types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "AuthFlags",
+          "kind": "interface",
+          "line": 3,
+          "exported": true,
+          "signature": "export interface AuthFlags { baseUrl: string | undefined; email: string | undefined; apiKey: string | undefined; }"
+        },
+        {
+          "name": "AuthEnv",
+          "kind": "interface",
+          "line": 9,
+          "exported": true,
+          "signature": "export interface AuthEnv { TESTRAIL_BASE_URL?: string; TESTRAIL_EMAIL?: string; TESTRAIL_API_KEY?: string; }"
+        },
+        {
+          "name": "AuthResolution",
+          "kind": "type",
+          "line": 15,
+          "exported": true,
+          "signature": "export type AuthResolution = { ok: true; config: TestRailConfig } | { ok: false; error: string }"
+        },
+        {
+          "name": "MISSING_AUTH_MESSAGE",
+          "kind": "const",
+          "line": 17,
+          "exported": true,
+          "signature": "export const MISSING_AUTH_MESSAGE = 'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.'"
+        },
+        {
+          "name": "resolveAuth",
+          "kind": "function",
+          "line": 20,
+          "exported": true,
+          "signature": "export function resolveAuth(flags: AuthFlags, env: AuthEnv): AuthResolution"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/body.ts",
+      "imports": [
+        "./handler-context.js",
+        "node:fs",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "BodySource",
+          "kind": "type",
+          "line": 10,
+          "exported": true,
+          "signature": "export type BodySource = 'data' | 'file' | 'stdin'"
+        },
+        {
+          "name": "BodyResolution",
+          "kind": "type",
+          "line": 12,
+          "exported": true,
+          "signature": "export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | { ok: false; error: string }"
+        },
+        {
+          "name": "resolveBody",
+          "kind": "function",
+          "line": 38,
+          "exported": true,
+          "signature": "export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S): BodyResolution<z.infer<S>>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/dispatch.ts",
+      "imports": [
+        "./handler-context.js",
+        "./handlers/case-write.js",
+        "./handlers/case.js",
+        "./handlers/milestone.js",
+        "./handlers/project.js",
+        "./handlers/result-write.js",
+        "./handlers/result.js",
+        "./handlers/run-write.js",
+        "./handlers/run.js",
+        "./handlers/suite.js",
+        "./handlers/user.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "HANDLERS",
+          "kind": "const",
+          "line": 24,
+          "exported": false,
+          "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'suite:get': handleSuiteGet, 'suite:list': handleSuiteList, 'case:get': handleCaseGet, '…"
+        },
+        {
+          "name": "RESOURCES",
+          "kind": "const",
+          "line": 46,
+          "exported": false,
+          "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
+        },
+        {
+          "name": "DispatchResult",
+          "kind": "type",
+          "line": 61,
+          "exported": true,
+          "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
+        },
+        {
+          "name": "getRegisteredActions",
+          "kind": "function",
+          "line": 68,
+          "exported": true,
+          "signature": "export function getRegisteredActions(): readonly string[]"
+        },
+        {
+          "name": "dispatch",
+          "kind": "function",
+          "line": 72,
+          "exported": true,
+          "signature": "export function dispatch(resource: string, action: string): DispatchResult"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handler-context.ts",
+      "imports": [
+        "../client.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "HandlerArgs",
+          "kind": "interface",
+          "line": 10,
+          "exported": true,
+          "signature": "export interface HandlerArgs { pathParams: readonly string[]; projectId?: string; suiteId?: string; runId?: string; caseId?: string; limit?: string; offset?: string; }"
+        },
+        {
+          "name": "BodyInput",
+          "kind": "interface",
+          "line": 32,
+          "exported": true,
+          "signature": "export interface BodyInput { dataFlag?: string; dataFileFlag?: string; readStdin?: () => string; }"
+        },
+        {
+          "name": "HandlerContext",
+          "kind": "interface",
+          "line": 38,
+          "exported": true,
+          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; out: (data: unknown) => void; }"
+        },
+        {
+          "name": "Handler",
+          "kind": "type",
+          "line": 46,
+          "exported": true,
+          "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/case-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleCaseAdd",
+          "kind": "function",
+          "line": 6,
+          "exported": true,
+          "signature": "export async function handleCaseAdd(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleCaseUpdate",
+          "kind": "function",
+          "line": 17,
+          "exported": true,
+          "signature": "export async function handleCaseUpdate(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/case.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleCaseGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleCaseGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleCaseList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleCaseList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/milestone.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleMilestoneGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleMilestoneGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleMilestoneList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleMilestoneList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/project.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleProjectGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleProjectGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleProjectList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleProjectList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/result-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleResultAdd",
+          "kind": "function",
+          "line": 6,
+          "exported": true,
+          "signature": "export async function handleResultAdd(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleResultAddBulk",
+          "kind": "function",
+          "line": 25,
+          "exported": true,
+          "signature": "export async function handleResultAddBulk(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/result.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleResultList",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleResultList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/run-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleRunAdd",
+          "kind": "function",
+          "line": 6,
+          "exported": true,
+          "signature": "export async function handleRunAdd(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleRunClose",
+          "kind": "function",
+          "line": 23,
+          "exported": true,
+          "signature": "export async function handleRunClose(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/run.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleRunGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleRunGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleRunList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleRunList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/suite.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleSuiteGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleSuiteGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleSuiteList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleSuiteList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/user.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleUserGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleUserGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleUserList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleUserList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/ids.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "IdParseError",
+          "kind": "class",
+          "line": 1,
+          "exported": true,
+          "signature": "export class IdParseError extends Error",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 2
+            }
+          ]
+        },
+        {
+          "name": "parseId",
+          "kind": "function",
+          "line": 8,
+          "exported": true,
+          "signature": "export function parseId(raw: string | undefined, name: string): number"
+        },
+        {
+          "name": "optInt",
+          "kind": "function",
+          "line": 16,
+          "exported": true,
+          "signature": "export function optInt(raw: string | undefined): number | undefined"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/index.ts",
+      "imports": [
+        "../client.js",
+        "./auth.js",
+        "./dispatch.js",
+        "./handler-context.js",
+        "./install-skill.js",
+        "./output.js",
+        "node:fs",
+        "node:module",
+        "node:util"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "require",
+          "kind": "const",
+          "line": 14,
+          "exported": false,
+          "signature": "const require = createRequire(import.meta.url)"
+        },
+        {
+          "name": "VERSION",
+          "kind": "const",
+          "line": 15,
+          "exported": false,
+          "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
+        },
+        {
+          "name": "HELP",
+          "kind": "const",
+          "line": 19,
+          "exported": false,
+          "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
+        },
+        {
+          "name": "main",
+          "kind": "function",
+          "line": 76,
+          "exported": false,
+          "signature": "async function main(): Promise<number>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/install-skill.ts",
+      "imports": [
+        "node:fs",
+        "node:os",
+        "node:path",
+        "node:url"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "InstallSkillOptions",
+          "kind": "interface",
+          "line": 21,
+          "exported": true,
+          "signature": "export interface InstallSkillOptions { global: boolean; force: boolean; printPath: boolean; quiet: boolean; sourceOverride?: string; cwdOverride?: string; homeOverride?: string; }"
+        },
+        {
+          "name": "getBundledSkillPath",
+          "kind": "function",
+          "line": 40,
+          "exported": true,
+          "signature": "export function getBundledSkillPath(metaUrl: string): string"
+        },
+        {
+          "name": "runInstallSkill",
+          "kind": "function",
+          "line": 44,
+          "exported": true,
+          "signature": "export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata.ts",
+      "imports": [
+        "../schemas.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "PathParam",
+          "kind": "interface",
+          "line": 27,
+          "exported": true,
+          "signature": "export interface PathParam { name: string; description: string; }"
+        },
+        {
+          "name": "ActionSpec",
+          "kind": "interface",
+          "line": 32,
+          "exported": true,
+          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; bodySchema?: z.ZodTypeAny; isWrite: boolean; }"
+        },
+        {
+          "name": "ACTIONS",
+          "kind": "const",
+          "line": 45,
+          "exported": true,
+          "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
+        },
+        {
+          "name": "getActionSpec",
+          "kind": "function",
+          "line": 192,
+          "exported": true,
+          "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/output.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "OutputOptions",
+          "kind": "interface",
+          "line": 1,
+          "exported": true,
+          "signature": "export interface OutputOptions { quiet: boolean; format: 'json' | 'table'; }"
+        },
+        {
+          "name": "Output",
+          "kind": "interface",
+          "line": 6,
+          "exported": true,
+          "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; }"
+        },
+        {
+          "name": "valueToString",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export function valueToString(v: unknown): string"
+        },
+        {
+          "name": "getField",
+          "kind": "function",
+          "line": 27,
+          "exported": false,
+          "signature": "function getField(row: unknown, key: string): unknown"
+        },
+        {
+          "name": "renderTable",
+          "kind": "function",
+          "line": 32,
+          "exported": true,
+          "signature": "export function renderTable(data: unknown): string"
+        },
+        {
+          "name": "safeJsonStringify",
+          "kind": "function",
+          "line": 68,
+          "exported": true,
+          "signature": "export function safeJsonStringify(data: unknown): string"
+        },
+        {
+          "name": "createOutput",
+          "kind": "function",
+          "line": 83,
+          "exported": true,
+          "signature": "export function createOutput(opts: OutputOptions): Output"
+        }
+      ]
+    },
+    {
+      "path": "src/client-core.ts",
+      "imports": [
+        "../package.json",
+        "./constants.js",
+        "./errors.js",
+        "./types.js",
+        "./utils.js",
+        "node:net",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "USER_AGENT",
+          "kind": "const",
+          "line": 8,
+          "exported": false,
+          "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
+        },
+        {
+          "name": "PRIVATE_HOST_PATTERNS",
+          "kind": "const",
+          "line": 30,
+          "exported": false,
+          "signature": "const PRIVATE_HOST_PATTERNS: RegExp[] = [ /^localhost\\.?$/i, /^127\\./, /^10\\./, /^172\\.(1[6-9]|2\\d|3[01])\\./, /^192\\.168\\./, /^169\\.254\\./, /^::1$/, /^fe80:/i, /^f[cd][0-9a-f]{2}:/i, /^0\\./, ]"
+        },
+        {
+          "name": "isPrivateOrLoopbackIPv4",
+          "kind": "function",
+          "line": 43,
+          "exported": false,
+          "signature": "function isPrivateOrLoopbackIPv4(ip: string): boolean"
+        },
+        {
+          "name": "isPrivateOrLoopbackIP",
+          "kind": "function",
+          "line": 65,
+          "exported": false,
+          "signature": "function isPrivateOrLoopbackIP(ip: string, family?: number): boolean"
+        },
+        {
+          "name": "validatePublicHost",
+          "kind": "function",
+          "line": 97,
+          "exported": false,
+          "signature": "async function validatePublicHost(hostname: string): Promise<void>"
+        },
+        {
+          "name": "activeClients",
+          "kind": "const",
+          "line": 129,
+          "exported": false,
+          "signature": "const activeClients = new Set<TestRailClientCore>()"
+        },
+        {
+          "name": "processHandlersRegistered",
+          "kind": "let",
+          "line": 130,
+          "exported": false,
+          "signature": "let processHandlersRegistered = false"
+        },
+        {
+          "name": "cleanupAllClients",
+          "kind": "function",
+          "line": 133,
+          "exported": false,
+          "signature": "function cleanupAllClients(): void"
+        },
+        {
+          "name": "registerProcessHandlers",
+          "kind": "function",
+          "line": 139,
+          "exported": false,
+          "signature": "function registerProcessHandlers(): void"
+        },
+        {
+          "name": "TestRailClientCore",
+          "kind": "class",
+          "line": 162,
+          "exported": true,
+          "signature": "export class TestRailClientCore",
+          "members": [
+            {
+              "name": "baseUrl",
+              "kind": "property",
+              "line": 163
+            },
+            {
+              "name": "auth",
+              "kind": "property",
+              "line": 166
+            },
+            {
+              "name": "timeout",
+              "kind": "property",
+              "line": 167
+            },
+            {
+              "name": "maxRetries",
+              "kind": "property",
+              "line": 168
+            },
+            {
+              "name": "enableCache",
+              "kind": "property",
+              "line": 169
+            },
+            {
+              "name": "cacheTtl",
+              "kind": "property",
+              "line": 170
+            },
+            {
+              "name": "cacheCleanupInterval",
+              "kind": "property",
+              "line": 171
+            },
+            {
+              "name": "maxCacheSize",
+              "kind": "property",
+              "line": 172
+            },
+            {
+              "name": "cache",
+              "kind": "property",
+              "line": 173
+            },
+            {
+              "name": "cacheCleanupTimer",
+              "kind": "property",
+              "line": 174
+            },
+            {
+              "name": "rateLimiter",
+              "kind": "property",
+              "line": 175
+            },
+            {
+              "name": "isDestroyed",
+              "kind": "property",
+              "line": 176
+            },
+            {
+              "name": "dnsValidationPromise",
+              "kind": "property",
+              "line": 177
+            },
+            {
+              "name": "dnsValidationError",
+              "kind": "property",
+              "line": 178
+            },
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 180
+            },
+            {
+              "name": "validateConfig",
+              "kind": "method",
+              "line": 230
+            },
+            {
+              "name": "getRetryDelay",
+              "kind": "method",
+              "line": 335
+            },
+            {
+              "name": "parseRetryAfterMs",
+              "kind": "method",
+              "line": 345
+            },
+            {
+              "name": "checkRateLimit",
+              "kind": "method",
+              "line": 371
+            },
+            {
+              "name": "validateId",
+              "kind": "method",
+              "line": 399
+            },
+            {
+              "name": "validateEntryId",
+              "kind": "method",
+              "line": 409
+            },
+            {
+              "name": "validatePaginationParams",
+              "kind": "method",
+              "line": 419
+            },
+            {
+              "name": "buildEndpoint",
+              "kind": "method",
+              "line": 438
+            },
+            {
+              "name": "getCachedData",
+              "kind": "method",
+              "line": 450
+            },
+            {
+              "name": "setCachedData",
+              "kind": "method",
+              "line": 471
+            },
+            {
+              "name": "clearCache",
+              "kind": "method",
+              "line": 493
+            },
+            {
+              "name": "startCacheCleanup",
+              "kind": "method",
+              "line": 497
+            },
+            {
+              "name": "stopCacheCleanup",
+              "kind": "method",
+              "line": 508
+            },
+            {
+              "name": "cleanupExpiredCache",
+              "kind": "method",
+              "line": 515
+            },
+            {
+              "name": "destroy",
+              "kind": "method",
+              "line": 538
+            },
+            {
+              "name": "request",
+              "kind": "method",
+              "line": 565
+            },
+            {
+              "name": "requestMultipart",
+              "kind": "method",
+              "line": 694
+            },
+            {
+              "name": "requestBinary",
+              "kind": "method",
+              "line": 778
+            },
+            {
+              "name": "awaitDnsValidation",
+              "kind": "method",
+              "line": 841
+            },
+            {
+              "name": "parse",
+              "kind": "method",
+              "line": 867
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/client.ts",
+      "imports": [
+        "./client-core.js",
+        "./modules/attachments.js",
+        "./modules/cases.js",
+        "./modules/configurations.js",
+        "./modules/datasets.js",
+        "./modules/metadata.js",
+        "./modules/milestones.js",
+        "./modules/plans.js",
+        "./modules/projects.js",
+        "./modules/reports.js",
+        "./modules/results.js",
+        "./modules/runs.js",
+        "./modules/sections.js",
+        "./modules/sharedSteps.js",
+        "./modules/suites.js",
+        "./modules/tests.js",
+        "./modules/users.js",
+        "./modules/variables.js",
+        "./schemas.js",
+        "./types.js"
+      ],
+      "reExports": [
+        "./errors.js"
+      ],
+      "symbols": [
+        {
+          "name": "TestRailClient",
+          "kind": "class",
+          "line": 98,
+          "exported": true,
+          "signature": "export class TestRailClient extends TestRailClientCore",
+          "members": [
+            {
+              "name": "projects",
+              "kind": "property",
+              "line": 100
+            },
+            {
+              "name": "suites",
+              "kind": "property",
+              "line": 101
+            },
+            {
+              "name": "sections",
+              "kind": "property",
+              "line": 102
+            },
+            {
+              "name": "cases",
+              "kind": "property",
+              "line": 103
+            },
+            {
+              "name": "plans",
+              "kind": "property",
+              "line": 104
+            },
+            {
+              "name": "runs",
+              "kind": "property",
+              "line": 105
+            },
+            {
+              "name": "tests",
+              "kind": "property",
+              "line": 106
+            },
+            {
+              "name": "results",
+              "kind": "property",
+              "line": 107
+            },
+            {
+              "name": "milestones",
+              "kind": "property",
+              "line": 108
+            },
+            {
+              "name": "users",
+              "kind": "property",
+              "line": 109
+            },
+            {
+              "name": "metadata",
+              "kind": "property",
+              "line": 110
+            },
+            {
+              "name": "configurations",
+              "kind": "property",
+              "line": 111
+            },
+            {
+              "name": "attachments",
+              "kind": "property",
+              "line": 112
+            },
+            {
+              "name": "sharedSteps",
+              "kind": "property",
+              "line": 113
+            },
+            {
+              "name": "variables",
+              "kind": "property",
+              "line": 114
+            },
+            {
+              "name": "datasets",
+              "kind": "property",
+              "line": 115
+            },
+            {
+              "name": "reports",
+              "kind": "property",
+              "line": 116
+            },
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 118
+            },
+            {
+              "name": "getProject",
+              "kind": "method",
+              "line": 146
+            },
+            {
+              "name": "getProjects",
+              "kind": "method",
+              "line": 155
+            },
+            {
+              "name": "addProject",
+              "kind": "method",
+              "line": 163
+            },
+            {
+              "name": "updateProject",
+              "kind": "method",
+              "line": 172
+            },
+            {
+              "name": "deleteProject",
+              "kind": "method",
+              "line": 181
+            },
+            {
+              "name": "getSuite",
+              "kind": "method",
+              "line": 192
+            },
+            {
+              "name": "getSuites",
+              "kind": "method",
+              "line": 201
+            },
+            {
+              "name": "addSuite",
+              "kind": "method",
+              "line": 210
+            },
+            {
+              "name": "updateSuite",
+              "kind": "method",
+              "line": 219
+            },
+            {
+              "name": "deleteSuite",
+              "kind": "method",
+              "line": 228
+            },
+            {
+              "name": "getSection",
+              "kind": "method",
+              "line": 239
+            },
+            {
+              "name": "getSections",
+              "kind": "method",
+              "line": 251
+            },
+            {
+              "name": "addSection",
+              "kind": "method",
+              "line": 263
+            },
+            {
+              "name": "updateSection",
+              "kind": "method",
+              "line": 272
+            },
+            {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 281
+            },
+            {
+              "name": "getCase",
+              "kind": "method",
+              "line": 292
+            },
+            {
+              "name": "getCases",
+              "kind": "method",
+              "line": 313
+            },
+            {
+              "name": "addCase",
+              "kind": "method",
+              "line": 322
+            },
+            {
+              "name": "updateCase",
+              "kind": "method",
+              "line": 331
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 340
+            },
+            {
+              "name": "getPlan",
+              "kind": "method",
+              "line": 351
+            },
+            {
+              "name": "getPlans",
+              "kind": "method",
+              "line": 363
+            },
+            {
+              "name": "addPlan",
+              "kind": "method",
+              "line": 372
+            },
+            {
+              "name": "updatePlan",
+              "kind": "method",
+              "line": 381
+            },
+            {
+              "name": "closePlan",
+              "kind": "method",
+              "line": 390
+            },
+            {
+              "name": "deletePlan",
+              "kind": "method",
+              "line": 399
+            },
+            {
+              "name": "addPlanEntry",
+              "kind": "method",
+              "line": 408
+            },
+            {
+              "name": "updatePlanEntry",
+              "kind": "method",
+              "line": 417
+            },
+            {
+              "name": "deletePlanEntry",
+              "kind": "method",
+              "line": 426
+            },
+            {
+              "name": "getRun",
+              "kind": "method",
+              "line": 437
+            },
+            {
+              "name": "getRuns",
+              "kind": "method",
+              "line": 449
+            },
+            {
+              "name": "addRun",
+              "kind": "method",
+              "line": 458
+            },
+            {
+              "name": "updateRun",
+              "kind": "method",
+              "line": 467
+            },
+            {
+              "name": "closeRun",
+              "kind": "method",
+              "line": 476
+            },
+            {
+              "name": "deleteRun",
+              "kind": "method",
+              "line": 485
+            },
+            {
+              "name": "getTest",
+              "kind": "method",
+              "line": 496
+            },
+            {
+              "name": "getTests",
+              "kind": "method",
+              "line": 507
+            },
+            {
+              "name": "getResults",
+              "kind": "method",
+              "line": 521
+            },
+            {
+              "name": "getResultsForCase",
+              "kind": "method",
+              "line": 534
+            },
+            {
+              "name": "getResultsForRun",
+              "kind": "method",
+              "line": 546
+            },
+            {
+              "name": "addResult",
+              "kind": "method",
+              "line": 555
+            },
+            {
+              "name": "addResultForCase",
+              "kind": "method",
+              "line": 564
+            },
+            {
+              "name": "addResultsForCases",
+              "kind": "method",
+              "line": 573
+            },
+            {
+              "name": "getMilestone",
+              "kind": "method",
+              "line": 584
+            },
+            {
+              "name": "getMilestones",
+              "kind": "method",
+              "line": 596
+            },
+            {
+              "name": "addMilestone",
+              "kind": "method",
+              "line": 608
+            },
+            {
+              "name": "updateMilestone",
+              "kind": "method",
+              "line": 620
+            },
+            {
+              "name": "deleteMilestone",
+              "kind": "method",
+              "line": 631
+            },
+            {
+              "name": "getUser",
+              "kind": "method",
+              "line": 644
+            },
+            {
+              "name": "getUserByEmail",
+              "kind": "method",
+              "line": 655
+            },
+            {
+              "name": "getUsers",
+              "kind": "method",
+              "line": 668
+            },
+            {
+              "name": "getCurrentUser",
+              "kind": "method",
+              "line": 676
+            },
+            {
+              "name": "addUser",
+              "kind": "method",
+              "line": 686
+            },
+            {
+              "name": "updateUser",
+              "kind": "method",
+              "line": 698
+            },
+            {
+              "name": "getStatuses",
+              "kind": "method",
+              "line": 708
+            },
+            {
+              "name": "getPriorities",
+              "kind": "method",
+              "line": 718
+            },
+            {
+              "name": "getResultFields",
+              "kind": "method",
+              "line": 728
+            },
+            {
+              "name": "getCaseFields",
+              "kind": "method",
+              "line": 738
+            },
+            {
+              "name": "getCaseTypes",
+              "kind": "method",
+              "line": 746
+            },
+            {
+              "name": "getTemplates",
+              "kind": "method",
+              "line": 759
+            },
+            {
+              "name": "getConfigurations",
+              "kind": "method",
+              "line": 772
+            },
+            {
+              "name": "addConfigurationGroup",
+              "kind": "method",
+              "line": 784
+            },
+            {
+              "name": "updateConfigurationGroup",
+              "kind": "method",
+              "line": 796
+            },
+            {
+              "name": "deleteConfigurationGroup",
+              "kind": "method",
+              "line": 810
+            },
+            {
+              "name": "addConfiguration",
+              "kind": "method",
+              "line": 822
+            },
+            {
+              "name": "updateConfiguration",
+              "kind": "method",
+              "line": 834
+            },
+            {
+              "name": "deleteConfiguration",
+              "kind": "method",
+              "line": 845
+            },
+            {
+              "name": "getRoles",
+              "kind": "method",
+              "line": 855
+            },
+            {
+              "name": "getGroup",
+              "kind": "method",
+              "line": 868
+            },
+            {
+              "name": "getGroups",
+              "kind": "method",
+              "line": 876
+            },
+            {
+              "name": "addGroup",
+              "kind": "method",
+              "line": 886
+            },
+            {
+              "name": "updateGroup",
+              "kind": "method",
+              "line": 898
+            },
+            {
+              "name": "deleteGroup",
+              "kind": "method",
+              "line": 909
+            },
+            {
+              "name": "getAttachmentsForCase",
+              "kind": "method",
+              "line": 922
+            },
+            {
+              "name": "getAttachmentsForRun",
+              "kind": "method",
+              "line": 933
+            },
+            {
+              "name": "getAttachmentsForTest",
+              "kind": "method",
+              "line": 944
+            },
+            {
+              "name": "getAttachmentsForPlan",
+              "kind": "method",
+              "line": 955
+            },
+            {
+              "name": "getAttachmentsForPlanEntry",
+              "kind": "method",
+              "line": 967
+            },
+            {
+              "name": "getAttachment",
+              "kind": "method",
+              "line": 978
+            },
+            {
+              "name": "addAttachmentToCase",
+              "kind": "method",
+              "line": 991
+            },
+            {
+              "name": "addAttachmentToResult",
+              "kind": "method",
+              "line": 1008
+            },
+            {
+              "name": "addAttachmentToRun",
+              "kind": "method",
+              "line": 1025
+            },
+            {
+              "name": "addAttachmentToPlan",
+              "kind": "method",
+              "line": 1042
+            },
+            {
+              "name": "addAttachmentToPlanEntry",
+              "kind": "method",
+              "line": 1060
+            },
+            {
+              "name": "deleteAttachment",
+              "kind": "method",
+              "line": 1076
+            },
+            {
+              "name": "getSharedStep",
+              "kind": "method",
+              "line": 1089
+            },
+            {
+              "name": "getSharedSteps",
+              "kind": "method",
+              "line": 1100
+            },
+            {
+              "name": "addSharedStep",
+              "kind": "method",
+              "line": 1112
+            },
+            {
+              "name": "updateSharedStep",
+              "kind": "method",
+              "line": 1124
+            },
+            {
+              "name": "deleteSharedStep",
+              "kind": "method",
+              "line": 1135
+            },
+            {
+              "name": "getVariables",
+              "kind": "method",
+              "line": 1148
+            },
+            {
+              "name": "addVariable",
+              "kind": "method",
+              "line": 1160
+            },
+            {
+              "name": "updateVariable",
+              "kind": "method",
+              "line": 1172
+            },
+            {
+              "name": "deleteVariable",
+              "kind": "method",
+              "line": 1183
+            },
+            {
+              "name": "getDataset",
+              "kind": "method",
+              "line": 1196
+            },
+            {
+              "name": "getDatasets",
+              "kind": "method",
+              "line": 1207
+            },
+            {
+              "name": "addDataset",
+              "kind": "method",
+              "line": 1219
+            },
+            {
+              "name": "updateDataset",
+              "kind": "method",
+              "line": 1231
+            },
+            {
+              "name": "deleteDataset",
+              "kind": "method",
+              "line": 1242
+            },
+            {
+              "name": "getReports",
+              "kind": "method",
+              "line": 1255
+            },
+            {
+              "name": "runReport",
+              "kind": "method",
+              "line": 1266
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/constants.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "BASE_RETRY_DELAY_MS",
+          "kind": "const",
+          "line": 2,
+          "exported": true,
+          "signature": "export const BASE_RETRY_DELAY_MS = 1000"
+        },
+        {
+          "name": "MAX_RETRY_DELAY_MS",
+          "kind": "const",
+          "line": 3,
+          "exported": true,
+          "signature": "export const MAX_RETRY_DELAY_MS = 10000"
+        },
+        {
+          "name": "MAX_TIMEOUT_MS",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const MAX_TIMEOUT_MS = 5 * 60 * 1000"
+        },
+        {
+          "name": "DEFAULT_TIMEOUT_MS",
+          "kind": "const",
+          "line": 9,
+          "exported": true,
+          "signature": "export const DEFAULT_TIMEOUT_MS = 30000"
+        },
+        {
+          "name": "DEFAULT_MAX_RETRIES",
+          "kind": "const",
+          "line": 10,
+          "exported": true,
+          "signature": "export const DEFAULT_MAX_RETRIES = 3"
+        },
+        {
+          "name": "DEFAULT_CACHE_TTL_MS",
+          "kind": "const",
+          "line": 11,
+          "exported": true,
+          "signature": "export const DEFAULT_CACHE_TTL_MS = 300000"
+        },
+        {
+          "name": "DEFAULT_CACHE_CLEANUP_INTERVAL_MS",
+          "kind": "const",
+          "line": 12,
+          "exported": true,
+          "signature": "export const DEFAULT_CACHE_CLEANUP_INTERVAL_MS = 60000"
+        },
+        {
+          "name": "DEFAULT_MAX_CACHE_SIZE",
+          "kind": "const",
+          "line": 13,
+          "exported": true,
+          "signature": "export const DEFAULT_MAX_CACHE_SIZE = 1000"
+        },
+        {
+          "name": "DEFAULT_RATE_LIMIT_MAX_REQUESTS",
+          "kind": "const",
+          "line": 14,
+          "exported": true,
+          "signature": "export const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100"
+        },
+        {
+          "name": "DEFAULT_RATE_LIMIT_WINDOW_MS",
+          "kind": "const",
+          "line": 15,
+          "exported": true,
+          "signature": "export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000"
+        },
+        {
+          "name": "DEFAULT_DNS_VALIDATION_MAX_WAIT_MS",
+          "kind": "const",
+          "line": 16,
+          "exported": true,
+          "signature": "export const DEFAULT_DNS_VALIDATION_MAX_WAIT_MS = 2000"
+        }
+      ]
+    },
+    {
+      "path": "src/errors.ts",
+      "imports": [
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "TestRailApiError",
+          "kind": "class",
+          "line": 6,
+          "exported": true,
+          "signature": "export class TestRailApiError extends Error",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 7
+            }
+          ]
+        },
+        {
+          "name": "TestRailValidationError",
+          "kind": "class",
+          "line": 20,
+          "exported": true,
+          "signature": "export class TestRailValidationError extends Error",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 21
+            }
+          ]
+        },
+        {
+          "name": "handleZodError",
+          "kind": "function",
+          "line": 33,
+          "exported": true,
+          "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
+        }
+      ]
+    },
+    {
+      "path": "src/index.ts",
+      "imports": [],
+      "reExports": [
+        "./client.js",
+        "./errors.js",
+        "./schemas.js",
+        "./types.js"
+      ],
+      "symbols": []
+    },
+    {
+      "path": "src/modules/attachments.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "AttachmentModule",
+          "kind": "class",
+          "line": 6,
+          "exported": true,
+          "signature": "export class AttachmentModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 7
+            },
+            {
+              "name": "getAttachmentsForCase",
+              "kind": "method",
+              "line": 9
+            },
+            {
+              "name": "getAttachmentsForRun",
+              "kind": "method",
+              "line": 20
+            },
+            {
+              "name": "getAttachmentsForTest",
+              "kind": "method",
+              "line": 31
+            },
+            {
+              "name": "getAttachmentsForPlan",
+              "kind": "method",
+              "line": 42
+            },
+            {
+              "name": "getAttachmentsForPlanEntry",
+              "kind": "method",
+              "line": 53
+            },
+            {
+              "name": "getAttachment",
+              "kind": "method",
+              "line": 65
+            },
+            {
+              "name": "addAttachmentToCase",
+              "kind": "method",
+              "line": 70
+            },
+            {
+              "name": "addAttachmentToResult",
+              "kind": "method",
+              "line": 79
+            },
+            {
+              "name": "addAttachmentToRun",
+              "kind": "method",
+              "line": 88
+            },
+            {
+              "name": "addAttachmentToPlan",
+              "kind": "method",
+              "line": 97
+            },
+            {
+              "name": "addAttachmentToPlanEntry",
+              "kind": "method",
+              "line": 106
+            },
+            {
+              "name": "deleteAttachment",
+              "kind": "method",
+              "line": 121
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/cases.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "CaseModule",
+          "kind": "class",
+          "line": 7,
+          "exported": true,
+          "signature": "export class CaseModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 8
+            },
+            {
+              "name": "getCase",
+              "kind": "method",
+              "line": 10
+            },
+            {
+              "name": "getCases",
+              "kind": "method",
+              "line": 15
+            },
+            {
+              "name": "addCase",
+              "kind": "method",
+              "line": 58
+            },
+            {
+              "name": "updateCase",
+              "kind": "method",
+              "line": 66
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 74
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/configurations.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ConfigurationModule",
+          "kind": "class",
+          "line": 13,
+          "exported": true,
+          "signature": "export class ConfigurationModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 14
+            },
+            {
+              "name": "getConfigurations",
+              "kind": "method",
+              "line": 16
+            },
+            {
+              "name": "addConfigurationGroup",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "updateConfigurationGroup",
+              "kind": "method",
+              "line": 32
+            },
+            {
+              "name": "deleteConfigurationGroup",
+              "kind": "method",
+              "line": 43
+            },
+            {
+              "name": "addConfiguration",
+              "kind": "method",
+              "line": 48
+            },
+            {
+              "name": "updateConfiguration",
+              "kind": "method",
+              "line": 56
+            },
+            {
+              "name": "deleteConfiguration",
+              "kind": "method",
+              "line": 64
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/datasets.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "DatasetModule",
+          "kind": "class",
+          "line": 5,
+          "exported": true,
+          "signature": "export class DatasetModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 6
+            },
+            {
+              "name": "getDataset",
+              "kind": "method",
+              "line": 8
+            },
+            {
+              "name": "getDatasets",
+              "kind": "method",
+              "line": 16
+            },
+            {
+              "name": "addDataset",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "updateDataset",
+              "kind": "method",
+              "line": 32
+            },
+            {
+              "name": "deleteDataset",
+              "kind": "method",
+              "line": 40
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/metadata.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "MetadataModule",
+          "kind": "class",
+          "line": 14,
+          "exported": true,
+          "signature": "export class MetadataModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 15
+            },
+            {
+              "name": "getStatuses",
+              "kind": "method",
+              "line": 17
+            },
+            {
+              "name": "getPriorities",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "getResultFields",
+              "kind": "method",
+              "line": 31
+            },
+            {
+              "name": "getCaseFields",
+              "kind": "method",
+              "line": 38
+            },
+            {
+              "name": "getCaseTypes",
+              "kind": "method",
+              "line": 45
+            },
+            {
+              "name": "getTemplates",
+              "kind": "method",
+              "line": 52
+            },
+            {
+              "name": "getRoles",
+              "kind": "method",
+              "line": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/milestones.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "MilestoneModule",
+          "kind": "class",
+          "line": 6,
+          "exported": true,
+          "signature": "export class MilestoneModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 7
+            },
+            {
+              "name": "getMilestone",
+              "kind": "method",
+              "line": 9
+            },
+            {
+              "name": "getMilestones",
+              "kind": "method",
+              "line": 17
+            },
+            {
+              "name": "addMilestone",
+              "kind": "method",
+              "line": 34
+            },
+            {
+              "name": "updateMilestone",
+              "kind": "method",
+              "line": 42
+            },
+            {
+              "name": "deleteMilestone",
+              "kind": "method",
+              "line": 50
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/plans.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "../utils.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "PlanModule",
+          "kind": "class",
+          "line": 15,
+          "exported": true,
+          "signature": "export class PlanModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 16
+            },
+            {
+              "name": "getPlan",
+              "kind": "method",
+              "line": 18
+            },
+            {
+              "name": "getPlans",
+              "kind": "method",
+              "line": 23
+            },
+            {
+              "name": "addPlan",
+              "kind": "method",
+              "line": 41
+            },
+            {
+              "name": "updatePlan",
+              "kind": "method",
+              "line": 49
+            },
+            {
+              "name": "closePlan",
+              "kind": "method",
+              "line": 57
+            },
+            {
+              "name": "deletePlan",
+              "kind": "method",
+              "line": 62
+            },
+            {
+              "name": "addPlanEntry",
+              "kind": "method",
+              "line": 67
+            },
+            {
+              "name": "updatePlanEntry",
+              "kind": "method",
+              "line": 75
+            },
+            {
+              "name": "deletePlanEntry",
+              "kind": "method",
+              "line": 84
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/projects.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ProjectModule",
+          "kind": "class",
+          "line": 6,
+          "exported": true,
+          "signature": "export class ProjectModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 7
+            },
+            {
+              "name": "getProject",
+              "kind": "method",
+              "line": 14
+            },
+            {
+              "name": "getProjects",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "addProject",
+              "kind": "method",
+              "line": 38
+            },
+            {
+              "name": "updateProject",
+              "kind": "method",
+              "line": 50
+            },
+            {
+              "name": "deleteProject",
+              "kind": "method",
+              "line": 63
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/reports.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ReportModule",
+          "kind": "class",
+          "line": 5,
+          "exported": true,
+          "signature": "export class ReportModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 6
+            },
+            {
+              "name": "getReports",
+              "kind": "method",
+              "line": 8
+            },
+            {
+              "name": "runReport",
+              "kind": "method",
+              "line": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/results.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "../utils.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ResultModule",
+          "kind": "class",
+          "line": 8,
+          "exported": true,
+          "signature": "export class ResultModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 9
+            },
+            {
+              "name": "getResults",
+              "kind": "method",
+              "line": 11
+            },
+            {
+              "name": "getResultsForCase",
+              "kind": "method",
+              "line": 29
+            },
+            {
+              "name": "getResultsForRun",
+              "kind": "method",
+              "line": 48
+            },
+            {
+              "name": "addResult",
+              "kind": "method",
+              "line": 66
+            },
+            {
+              "name": "addResultForCase",
+              "kind": "method",
+              "line": 74
+            },
+            {
+              "name": "addResultsForCases",
+              "kind": "method",
+              "line": 83
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/runs.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "RunModule",
+          "kind": "class",
+          "line": 7,
+          "exported": true,
+          "signature": "export class RunModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 8
+            },
+            {
+              "name": "getRun",
+              "kind": "method",
+              "line": 10
+            },
+            {
+              "name": "getRuns",
+              "kind": "method",
+              "line": 15
+            },
+            {
+              "name": "addRun",
+              "kind": "method",
+              "line": 45
+            },
+            {
+              "name": "updateRun",
+              "kind": "method",
+              "line": 53
+            },
+            {
+              "name": "closeRun",
+              "kind": "method",
+              "line": 61
+            },
+            {
+              "name": "deleteRun",
+              "kind": "method",
+              "line": 66
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/sections.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "SectionModule",
+          "kind": "class",
+          "line": 6,
+          "exported": true,
+          "signature": "export class SectionModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 7
+            },
+            {
+              "name": "getSection",
+              "kind": "method",
+              "line": 9
+            },
+            {
+              "name": "getSections",
+              "kind": "method",
+              "line": 17
+            },
+            {
+              "name": "addSection",
+              "kind": "method",
+              "line": 35
+            },
+            {
+              "name": "updateSection",
+              "kind": "method",
+              "line": 43
+            },
+            {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 51
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/sharedSteps.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "SharedStepModule",
+          "kind": "class",
+          "line": 5,
+          "exported": true,
+          "signature": "export class SharedStepModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 6
+            },
+            {
+              "name": "getSharedStep",
+              "kind": "method",
+              "line": 8
+            },
+            {
+              "name": "getSharedSteps",
+              "kind": "method",
+              "line": 16
+            },
+            {
+              "name": "addSharedStep",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "updateSharedStep",
+              "kind": "method",
+              "line": 32
+            },
+            {
+              "name": "deleteSharedStep",
+              "kind": "method",
+              "line": 40
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/suites.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "SuiteModule",
+          "kind": "class",
+          "line": 6,
+          "exported": true,
+          "signature": "export class SuiteModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 7
+            },
+            {
+              "name": "getSuite",
+              "kind": "method",
+              "line": 14
+            },
+            {
+              "name": "getSuites",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "addSuite",
+              "kind": "method",
+              "line": 37
+            },
+            {
+              "name": "updateSuite",
+              "kind": "method",
+              "line": 50
+            },
+            {
+              "name": "deleteSuite",
+              "kind": "method",
+              "line": 63
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/tests.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js",
+        "../utils.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "TestModule",
+          "kind": "class",
+          "line": 7,
+          "exported": true,
+          "signature": "export class TestModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 8
+            },
+            {
+              "name": "getTest",
+              "kind": "method",
+              "line": 10
+            },
+            {
+              "name": "getTests",
+              "kind": "method",
+              "line": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/users.ts",
+      "imports": [
+        "../client-core.js",
+        "../errors.js",
+        "../schemas.js",
+        "../types.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "EMAIL_REGEX",
+          "kind": "const",
+          "line": 7,
+          "exported": false,
+          "signature": "const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/"
+        },
+        {
+          "name": "UsersModule",
+          "kind": "class",
+          "line": 9,
+          "exported": true,
+          "signature": "export class UsersModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 10
+            },
+            {
+              "name": "getUser",
+              "kind": "method",
+              "line": 12
+            },
+            {
+              "name": "getUserByEmail",
+              "kind": "method",
+              "line": 17
+            },
+            {
+              "name": "getUsers",
+              "kind": "method",
+              "line": 26
+            },
+            {
+              "name": "getCurrentUser",
+              "kind": "method",
+              "line": 43
+            },
+            {
+              "name": "addUser",
+              "kind": "method",
+              "line": 47
+            },
+            {
+              "name": "updateUser",
+              "kind": "method",
+              "line": 51
+            },
+            {
+              "name": "getGroup",
+              "kind": "method",
+              "line": 59
+            },
+            {
+              "name": "getGroups",
+              "kind": "method",
+              "line": 64
+            },
+            {
+              "name": "addGroup",
+              "kind": "method",
+              "line": 71
+            },
+            {
+              "name": "updateGroup",
+              "kind": "method",
+              "line": 75
+            },
+            {
+              "name": "deleteGroup",
+              "kind": "method",
+              "line": 83
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/variables.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "VariableModule",
+          "kind": "class",
+          "line": 5,
+          "exported": true,
+          "signature": "export class VariableModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 6
+            },
+            {
+              "name": "getVariables",
+              "kind": "method",
+              "line": 8
+            },
+            {
+              "name": "addVariable",
+              "kind": "method",
+              "line": 16
+            },
+            {
+              "name": "updateVariable",
+              "kind": "method",
+              "line": 24
+            },
+            {
+              "name": "deleteVariable",
+              "kind": "method",
+              "line": 32
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/schemas.ts",
+      "imports": [
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "zObject",
+          "kind": "const",
+          "line": 3,
+          "exported": false,
+          "signature": "const zObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).passthrough()"
+        },
+        {
+          "name": "PaginationSchema",
+          "kind": "const",
+          "line": 12,
+          "exported": true,
+          "signature": "export const PaginationSchema = zObject({ limit: z.number().optional(), offset: z.number().optional(), })"
+        },
+        {
+          "name": "TestRailConfigSchema",
+          "kind": "const",
+          "line": 17,
+          "exported": true,
+          "signature": "export const TestRailConfigSchema = zObject({ baseUrl: z.string().url(), email: z.string().email(), apiKey: z.string().min(1), timeout: z.number().optional(), maxRetries: z.number().int().nonnegative(…"
+        },
+        {
+          "name": "TestRailConfig",
+          "kind": "type",
+          "line": 35,
+          "exported": true,
+          "signature": "export type TestRailConfig = z.infer<typeof TestRailConfigSchema>"
+        },
+        {
+          "name": "UserSchema",
+          "kind": "const",
+          "line": 39,
+          "exported": true,
+          "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().optional(), role: z.string().optional(), })"
+        },
+        {
+          "name": "User",
+          "kind": "type",
+          "line": 48,
+          "exported": true,
+          "signature": "export type User = z.infer<typeof UserSchema>"
+        },
+        {
+          "name": "RoleSchema",
+          "kind": "const",
+          "line": 50,
+          "exported": true,
+          "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+        },
+        {
+          "name": "Role",
+          "kind": "type",
+          "line": 56,
+          "exported": true,
+          "signature": "export type Role = z.infer<typeof RoleSchema>"
+        },
+        {
+          "name": "GroupSchema",
+          "kind": "const",
+          "line": 58,
+          "exported": true,
+          "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).optional(), })"
+        },
+        {
+          "name": "Group",
+          "kind": "type",
+          "line": 64,
+          "exported": true,
+          "signature": "export type Group = z.infer<typeof GroupSchema>"
+        },
+        {
+          "name": "ProjectSchema",
+          "kind": "const",
+          "line": 68,
+          "exported": true,
+          "signature": "export const ProjectSchema = zObject({ id: z.number(), name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), is_completed: z.boolean().optional(), completed…"
+        },
+        {
+          "name": "Project",
+          "kind": "type",
+          "line": 79,
+          "exported": true,
+          "signature": "export type Project = z.infer<typeof ProjectSchema>"
+        },
+        {
+          "name": "SuiteSchema",
+          "kind": "const",
+          "line": 81,
+          "exported": true,
+          "signature": "export const SuiteSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), project_id: z.number(), is_master: z.boolean().optional(), is_baseline: z.boolean().optional(…"
+        },
+        {
+          "name": "Suite",
+          "kind": "type",
+          "line": 93,
+          "exported": true,
+          "signature": "export type Suite = z.infer<typeof SuiteSchema>"
+        },
+        {
+          "name": "CaseSchema",
+          "kind": "const",
+          "line": 97,
+          "exported": true,
+          "signature": "export const CaseSchema = zObject({ id: z.number(), title: z.string(), section_id: z.number(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), m…"
+        },
+        {
+          "name": "Case",
+          "kind": "type",
+          "line": 118,
+          "exported": true,
+          "signature": "export type Case = z.infer<typeof CaseSchema>"
+        },
+        {
+          "name": "SectionSchema",
+          "kind": "const",
+          "line": 120,
+          "exported": true,
+          "signature": "export const SectionSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().optional(), parent_id: z.number().optional(), display_order: z.number(), depth: z…"
+        },
+        {
+          "name": "Section",
+          "kind": "type",
+          "line": 130,
+          "exported": true,
+          "signature": "export type Section = z.infer<typeof SectionSchema>"
+        },
+        {
+          "name": "RunSchema",
+          "kind": "const",
+          "line": 134,
+          "exported": true,
+          "signature": "export const RunSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional()…"
+        },
+        {
+          "name": "Run",
+          "kind": "type",
+          "line": 166,
+          "exported": true,
+          "signature": "export type Run = z.infer<typeof RunSchema>"
+        },
+        {
+          "name": "PlanEntrySchema",
+          "kind": "const",
+          "line": 170,
+          "exported": true,
+          "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean(), cas…"
+        },
+        {
+          "name": "PlanEntry",
+          "kind": "type",
+          "line": 182,
+          "exported": true,
+          "signature": "export type PlanEntry = z.infer<typeof PlanEntrySchema>"
+        },
+        {
+          "name": "PlanSchema",
+          "kind": "const",
+          "line": 184,
+          "exported": true,
+          "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), is_completed: z.boo…"
+        },
+        {
+          "name": "Plan",
+          "kind": "type",
+          "line": 211,
+          "exported": true,
+          "signature": "export type Plan = z.infer<typeof PlanSchema>"
+        },
+        {
+          "name": "TestSchema",
+          "kind": "const",
+          "line": 215,
+          "exported": true,
+          "signature": "export const TestSchema = zObject({ id: z.number(), case_id: z.number(), status_id: z.number(), assignedto_id: z.number().optional(), run_id: z.number(), title: z.string(), template_id: z.number().opt…"
+        },
+        {
+          "name": "Test",
+          "kind": "type",
+          "line": 232,
+          "exported": true,
+          "signature": "export type Test = z.infer<typeof TestSchema>"
+        },
+        {
+          "name": "ResultSchema",
+          "kind": "const",
+          "line": 234,
+          "exported": true,
+          "signature": "export const ResultSchema = zObject({ id: z.number().optional(), test_id: z.number().optional(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.strin…"
+        },
+        {
+          "name": "Result",
+          "kind": "type",
+          "line": 248,
+          "exported": true,
+          "signature": "export type Result = z.infer<typeof ResultSchema>"
+        },
+        {
+          "name": "MilestoneSchema",
+          "kind": "const",
+          "line": 252,
+          "exported": true,
+          "signature": "export const MilestoneSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), start_on: z.number().optional(), started_on: z.number().optional(), is_completed: z.boole…"
+        },
+        {
+          "name": "Milestone",
+          "kind": "type",
+          "line": 269,
+          "exported": true,
+          "signature": "export type Milestone = z.infer<typeof MilestoneSchema>"
+        },
+        {
+          "name": "StatusSchema",
+          "kind": "const",
+          "line": 273,
+          "exported": true,
+          "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
+        },
+        {
+          "name": "Status",
+          "kind": "type",
+          "line": 285,
+          "exported": true,
+          "signature": "export type Status = z.infer<typeof StatusSchema>"
+        },
+        {
+          "name": "PrioritySchema",
+          "kind": "const",
+          "line": 287,
+          "exported": true,
+          "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
+        },
+        {
+          "name": "Priority",
+          "kind": "type",
+          "line": 295,
+          "exported": true,
+          "signature": "export type Priority = z.infer<typeof PrioritySchema>"
+        },
+        {
+          "name": "FieldConfigOptionsSchema",
+          "kind": "const",
+          "line": 299,
+          "exported": false,
+          "signature": "const FieldConfigOptionsSchema = zObject({ is_required: z.boolean(), default_value: z.string(), items: z.string().optional(), format: z.string().optional(), rows: z.string().optional(), })"
+        },
+        {
+          "name": "FieldConfigContextSchema",
+          "kind": "const",
+          "line": 307,
+          "exported": false,
+          "signature": "const FieldConfigContextSchema = zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), })"
+        },
+        {
+          "name": "CaseFieldConfigSchema",
+          "kind": "const",
+          "line": 312,
+          "exported": true,
+          "signature": "export const CaseFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
+        },
+        {
+          "name": "CaseFieldConfig",
+          "kind": "type",
+          "line": 317,
+          "exported": true,
+          "signature": "export type CaseFieldConfig = z.infer<typeof CaseFieldConfigSchema>"
+        },
+        {
+          "name": "CaseFieldSchema",
+          "kind": "const",
+          "line": 319,
+          "exported": true,
+          "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
+        },
+        {
+          "name": "CaseField",
+          "kind": "type",
+          "line": 333,
+          "exported": true,
+          "signature": "export type CaseField = z.infer<typeof CaseFieldSchema>"
+        },
+        {
+          "name": "ResultFieldConfigSchema",
+          "kind": "const",
+          "line": 335,
+          "exported": true,
+          "signature": "export const ResultFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
+        },
+        {
+          "name": "ResultFieldConfig",
+          "kind": "type",
+          "line": 340,
+          "exported": true,
+          "signature": "export type ResultFieldConfig = z.infer<typeof ResultFieldConfigSchema>"
+        },
+        {
+          "name": "ResultFieldSchema",
+          "kind": "const",
+          "line": 342,
+          "exported": true,
+          "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
+        },
+        {
+          "name": "ResultField",
+          "kind": "type",
+          "line": 356,
+          "exported": true,
+          "signature": "export type ResultField = z.infer<typeof ResultFieldSchema>"
+        },
+        {
+          "name": "CaseTypeSchema",
+          "kind": "const",
+          "line": 360,
+          "exported": true,
+          "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+        },
+        {
+          "name": "CaseType",
+          "kind": "type",
+          "line": 366,
+          "exported": true,
+          "signature": "export type CaseType = z.infer<typeof CaseTypeSchema>"
+        },
+        {
+          "name": "TemplateSchema",
+          "kind": "const",
+          "line": 368,
+          "exported": true,
+          "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+        },
+        {
+          "name": "Template",
+          "kind": "type",
+          "line": 374,
+          "exported": true,
+          "signature": "export type Template = z.infer<typeof TemplateSchema>"
+        },
+        {
+          "name": "ConfigurationSchema",
+          "kind": "const",
+          "line": 378,
+          "exported": true,
+          "signature": "export const ConfigurationSchema = zObject({ id: z.number(), name: z.string(), group_id: z.number(), })"
+        },
+        {
+          "name": "Configuration",
+          "kind": "type",
+          "line": 384,
+          "exported": true,
+          "signature": "export type Configuration = z.infer<typeof ConfigurationSchema>"
+        },
+        {
+          "name": "ConfigurationGroupSchema",
+          "kind": "const",
+          "line": 386,
+          "exported": true,
+          "signature": "export const ConfigurationGroupSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number(), configs: z.array(ConfigurationSchema), })"
+        },
+        {
+          "name": "ConfigurationGroup",
+          "kind": "type",
+          "line": 393,
+          "exported": true,
+          "signature": "export type ConfigurationGroup = z.infer<typeof ConfigurationGroupSchema>"
+        },
+        {
+          "name": "AttachmentSchema",
+          "kind": "const",
+          "line": 397,
+          "exported": true,
+          "signature": "export const AttachmentSchema = zObject({ attachment_id: z.number(), name: z.string(), filename: z.string().optional(), size: z.number().optional(), created_on: z.number().optional(), created_by: z.nu…"
+        },
+        {
+          "name": "Attachment",
+          "kind": "type",
+          "line": 407,
+          "exported": true,
+          "signature": "export type Attachment = z.infer<typeof AttachmentSchema>"
+        },
+        {
+          "name": "SharedStepSchema",
+          "kind": "const",
+          "line": 411,
+          "exported": true,
+          "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().optional(), case_ids: z.array(z.number()).optional(), created_on: z.number().optional(), created_by:…"
+        },
+        {
+          "name": "SharedStep",
+          "kind": "type",
+          "line": 423,
+          "exported": true,
+          "signature": "export type SharedStep = z.infer<typeof SharedStepSchema>"
+        },
+        {
+          "name": "VariableSchema",
+          "kind": "const",
+          "line": 427,
+          "exported": true,
+          "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })"
+        },
+        {
+          "name": "Variable",
+          "kind": "type",
+          "line": 432,
+          "exported": true,
+          "signature": "export type Variable = z.infer<typeof VariableSchema>"
+        },
+        {
+          "name": "DatasetSchema",
+          "kind": "const",
+          "line": 434,
+          "exported": true,
+          "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number().optional(), created_on: z.number().optional(), created_by: z.number().optional(), })"
+        },
+        {
+          "name": "Dataset",
+          "kind": "type",
+          "line": 442,
+          "exported": true,
+          "signature": "export type Dataset = z.infer<typeof DatasetSchema>"
+        },
+        {
+          "name": "ReportSchema",
+          "kind": "const",
+          "line": 446,
+          "exported": true,
+          "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().optional(), is_shared: z.boolean().optional(), })"
+        },
+        {
+          "name": "Report",
+          "kind": "type",
+          "line": 453,
+          "exported": true,
+          "signature": "export type Report = z.infer<typeof ReportSchema>"
+        },
+        {
+          "name": "ReportResultSchema",
+          "kind": "const",
+          "line": 455,
+          "exported": true,
+          "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), user_report_url: z.string().optional(), })"
+        },
+        {
+          "name": "ReportResult",
+          "kind": "type",
+          "line": 460,
+          "exported": true,
+          "signature": "export type ReportResult = z.infer<typeof ReportResultSchema>"
+        },
+        {
+          "name": "AddCasePayloadSchema",
+          "kind": "const",
+          "line": 469,
+          "exported": true,
+          "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
+        },
+        {
+          "name": "AddCasePayload",
+          "kind": "type",
+          "line": 480,
+          "exported": true,
+          "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>"
+        },
+        {
+          "name": "UpdateCasePayloadSchema",
+          "kind": "const",
+          "line": 482,
+          "exported": true,
+          "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
+        },
+        {
+          "name": "UpdateCasePayload",
+          "kind": "type",
+          "line": 493,
+          "exported": true,
+          "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>"
+        },
+        {
+          "name": "AddRunPayloadSchema",
+          "kind": "const",
+          "line": 495,
+          "exported": true,
+          "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
+        },
+        {
+          "name": "AddRunPayload",
+          "kind": "type",
+          "line": 506,
+          "exported": true,
+          "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>"
+        },
+        {
+          "name": "UpdateRunPayloadSchema",
+          "kind": "const",
+          "line": 508,
+          "exported": true,
+          "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
+        },
+        {
+          "name": "UpdateRunPayload",
+          "kind": "type",
+          "line": 518,
+          "exported": true,
+          "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>"
+        },
+        {
+          "name": "AddResultPayloadSchema",
+          "kind": "const",
+          "line": 520,
+          "exported": true,
+          "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
+        },
+        {
+          "name": "AddResultPayload",
+          "kind": "type",
+          "line": 530,
+          "exported": true,
+          "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>"
+        },
+        {
+          "name": "AddResultForCasePayloadSchema",
+          "kind": "const",
+          "line": 534,
+          "exported": true,
+          "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
+        },
+        {
+          "name": "AddResultForCasePayload",
+          "kind": "type",
+          "line": 545,
+          "exported": true,
+          "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>"
+        },
+        {
+          "name": "AddResultsForCasesPayloadSchema",
+          "kind": "const",
+          "line": 547,
+          "exported": true,
+          "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
+        },
+        {
+          "name": "AddResultsForCasesPayload",
+          "kind": "type",
+          "line": 551,
+          "exported": true,
+          "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/types.ts",
+      "imports": [
+        "./schemas.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "TestRailConfig",
+          "kind": "interface",
+          "line": 10,
+          "exported": true,
+          "signature": "export interface TestRailConfig { baseUrl: string; email: string; apiKey: string; timeout?: number; maxRetries?: number; enableCache?: boolean; cacheTtl?: number; cacheCleanupInterval?: number; maxCac…"
+        },
+        {
+          "name": "Case",
+          "kind": "interface",
+          "line": 49,
+          "exported": true,
+          "signature": "export interface Case { id: number; title: string; section_id: number; template_id?: number; type_id?: number; priority_id?: number; milestone_id?: number; refs?: string; created_by: number; created_o…"
+        },
+        {
+          "name": "Suite",
+          "kind": "interface",
+          "line": 70,
+          "exported": true,
+          "signature": "export interface Suite { id: number; name: string; description?: string; project_id: number; is_master?: boolean; is_baseline?: boolean; is_completed?: boolean; completed_on?: number; url: string; }"
+        },
+        {
+          "name": "AddSuitePayload",
+          "kind": "interface",
+          "line": 82,
+          "exported": true,
+          "signature": "export interface AddSuitePayload { name: string; description?: string; }"
+        },
+        {
+          "name": "UpdateSuitePayload",
+          "kind": "interface",
+          "line": 87,
+          "exported": true,
+          "signature": "export interface UpdateSuitePayload { name?: string; description?: string; }"
+        },
+        {
+          "name": "Section",
+          "kind": "interface",
+          "line": 92,
+          "exported": true,
+          "signature": "export interface Section { id: number; suite_id: number; name: string; description?: string; parent_id?: number; display_order: number; depth: number; }"
+        },
+        {
+          "name": "Project",
+          "kind": "interface",
+          "line": 102,
+          "exported": true,
+          "signature": "export interface Project { id: number; name: string; announcement?: string; show_announcement?: boolean; is_completed?: boolean; completed_on?: number; suite_mode: number; url: string; }"
+        },
+        {
+          "name": "Plan",
+          "kind": "interface",
+          "line": 114,
+          "exported": true,
+          "signature": "export interface Plan { id: number; name: string; description?: string; milestone_id?: number; assignedto_id?: number; is_completed: boolean; completed_on?: number; passed_count: number; blocked_count…"
+        },
+        {
+          "name": "PlanEntry",
+          "kind": "interface",
+          "line": 141,
+          "exported": true,
+          "signature": "export interface PlanEntry { id: string; suite_id: number; name: string; description?: string; assignedto_id?: number; include_all: boolean; case_ids?: number[]; config_ids?: number[]; runs: Run[]; }"
+        },
+        {
+          "name": "Run",
+          "kind": "interface",
+          "line": 153,
+          "exported": true,
+          "signature": "export interface Run { id: number; suite_id: number; name: string; description?: string; milestone_id?: number; assignedto_id?: number; include_all: boolean; is_completed: boolean; completed_on?: numb…"
+        },
+        {
+          "name": "Test",
+          "kind": "interface",
+          "line": 185,
+          "exported": true,
+          "signature": "export interface Test { id: number; case_id: number; status_id: number; assignedto_id?: number; run_id: number; title: string; template_id?: number; type_id?: number; priority_id?: number; estimate?: …"
+        },
+        {
+          "name": "Result",
+          "kind": "interface",
+          "line": 202,
+          "exported": true,
+          "signature": "export interface Result { id?: number; test_id?: number; status_id: number; comment?: string; version?: string; elapsed?: string; defects?: string; assignedto_id?: number; created_by?: number; created…"
+        },
+        {
+          "name": "Milestone",
+          "kind": "interface",
+          "line": 217,
+          "exported": true,
+          "signature": "export interface Milestone { id: number; name: string; description?: string; start_on?: number; started_on?: number; is_completed: boolean; completed_on?: number; due_on?: number; project_id: number; …"
+        },
+        {
+          "name": "User",
+          "kind": "interface",
+          "line": 233,
+          "exported": true,
+          "signature": "export interface User { id: number; name: string; email: string; is_active: boolean; role_id?: number; role?: string; }"
+        },
+        {
+          "name": "Status",
+          "kind": "interface",
+          "line": 242,
+          "exported": true,
+          "signature": "export interface Status { id: number; name: string; label: string; color_dark: number; color_medium: number; color_bright: number; is_system: boolean; is_untested: boolean; is_final: boolean; }"
+        },
+        {
+          "name": "Priority",
+          "kind": "interface",
+          "line": 254,
+          "exported": true,
+          "signature": "export interface Priority { id: number; name: string; short_name: string; is_default: boolean; priority: number; }"
+        },
+        {
+          "name": "GetCasesOptions",
+          "kind": "interface",
+          "line": 269,
+          "exported": true,
+          "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number; priorityId?: number; templateId?: number; milestoneId?: number; createdAfter?: number; createdBefore?: number;…"
+        },
+        {
+          "name": "AddPlanPayload",
+          "kind": "interface",
+          "line": 296,
+          "exported": true,
+          "signature": "export interface AddPlanPayload { name: string; description?: string; milestone_id?: number; entries?: AddPlanEntryPayload[]; }"
+        },
+        {
+          "name": "UpdatePlanPayload",
+          "kind": "interface",
+          "line": 303,
+          "exported": true,
+          "signature": "export interface UpdatePlanPayload { name?: string; description?: string; milestone_id?: number; assignedto_id?: number; }"
+        },
+        {
+          "name": "AddPlanEntryPayload",
+          "kind": "interface",
+          "line": 310,
+          "exported": true,
+          "signature": "export interface AddPlanEntryPayload { suite_id: number; name?: string; description?: string; assignedto_id?: number; include_all?: boolean; case_ids?: number[]; config_ids?: number[]; runs?: AddRunPa…"
+        },
+        {
+          "name": "UpdatePlanEntryPayload",
+          "kind": "interface",
+          "line": 321,
+          "exported": true,
+          "signature": "export interface UpdatePlanEntryPayload { suite_id?: number; name?: string; description?: string; assignedto_id?: number; include_all?: boolean; case_ids?: number[]; config_ids?: number[]; runs?: AddR…"
+        },
+        {
+          "name": "AddSectionPayload",
+          "kind": "interface",
+          "line": 336,
+          "exported": true,
+          "signature": "export interface AddSectionPayload { name: string; suite_id?: number; parent_id?: number; description?: string; }"
+        },
+        {
+          "name": "UpdateSectionPayload",
+          "kind": "interface",
+          "line": 343,
+          "exported": true,
+          "signature": "export interface UpdateSectionPayload { name?: string; description?: string; }"
+        },
+        {
+          "name": "AddMilestonePayload",
+          "kind": "interface",
+          "line": 348,
+          "exported": true,
+          "signature": "export interface AddMilestonePayload { name: string; description?: string; due_on?: number; start_on?: number; parent_id?: number; refs?: string; }"
+        },
+        {
+          "name": "UpdateMilestonePayload",
+          "kind": "interface",
+          "line": 359,
+          "exported": true,
+          "signature": "export interface UpdateMilestonePayload { name?: string; description?: string; due_on?: number; start_on?: number; parent_id?: number; refs?: string; is_completed?: boolean; is_started?: boolean; }"
+        },
+        {
+          "name": "GetRunsOptions",
+          "kind": "interface",
+          "line": 372,
+          "exported": true,
+          "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number; refsFilter?: string; suiteId?: number; limit?: numbe…"
+        },
+        {
+          "name": "ResultFieldConfig",
+          "kind": "interface",
+          "line": 393,
+          "exported": true,
+          "signature": "export interface ResultFieldConfig { context: { is_global: boolean; project_ids: number[]; }; options: { is_required: boolean; default_value: string; items?: string; format?: string; rows?: string; };…"
+        },
+        {
+          "name": "ResultField",
+          "kind": "interface",
+          "line": 407,
+          "exported": true,
+          "signature": "export interface ResultField { id: number; system_name: string; label: string; name: string; type_id: number; display_order: number; configs: ResultFieldConfig[]; is_active: boolean; include_all: bool…"
+        },
+        {
+          "name": "CaseFieldConfig",
+          "kind": "interface",
+          "line": 429,
+          "exported": true,
+          "signature": "export interface CaseFieldConfig { context: { is_global: boolean; project_ids: number[]; }; options: { is_required: boolean; default_value: string; items?: string; format?: string; rows?: string; }; }"
+        },
+        {
+          "name": "CaseField",
+          "kind": "interface",
+          "line": 444,
+          "exported": true,
+          "signature": "export interface CaseField { id: number; system_name: string; label: string; name: string; type_id: number; display_order: number; configs: CaseFieldConfig[]; is_active: boolean; include_all: boolean;…"
+        },
+        {
+          "name": "CaseType",
+          "kind": "interface",
+          "line": 464,
+          "exported": true,
+          "signature": "export interface CaseType { id: number; name: string; is_default: boolean; }"
+        },
+        {
+          "name": "Template",
+          "kind": "interface",
+          "line": 473,
+          "exported": true,
+          "signature": "export interface Template { id: number; name: string; is_default: boolean; }"
+        },
+        {
+          "name": "Configuration",
+          "kind": "interface",
+          "line": 482,
+          "exported": true,
+          "signature": "export interface Configuration { id: number; name: string; group_id: number; }"
+        },
+        {
+          "name": "ConfigurationGroup",
+          "kind": "interface",
+          "line": 489,
+          "exported": true,
+          "signature": "export interface ConfigurationGroup { id: number; name: string; project_id: number; configs: Configuration[]; }"
+        },
+        {
+          "name": "AddConfigurationGroupPayload",
+          "kind": "interface",
+          "line": 496,
+          "exported": true,
+          "signature": "export interface AddConfigurationGroupPayload { name: string; }"
+        },
+        {
+          "name": "UpdateConfigurationGroupPayload",
+          "kind": "interface",
+          "line": 501,
+          "exported": true,
+          "signature": "export interface UpdateConfigurationGroupPayload { name?: string; }"
+        },
+        {
+          "name": "AddConfigurationPayload",
+          "kind": "interface",
+          "line": 506,
+          "exported": true,
+          "signature": "export interface AddConfigurationPayload { name: string; }"
+        },
+        {
+          "name": "UpdateConfigurationPayload",
+          "kind": "interface",
+          "line": 511,
+          "exported": true,
+          "signature": "export interface UpdateConfigurationPayload { name?: string; }"
+        },
+        {
+          "name": "CacheEntry",
+          "kind": "interface",
+          "line": 516,
+          "exported": true,
+          "signature": "export interface CacheEntry<T> { data: T; expiry: number; }"
+        },
+        {
+          "name": "RateLimiterConfig",
+          "kind": "interface",
+          "line": 521,
+          "exported": true,
+          "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }"
+        },
+        {
+          "name": "AddProjectPayload",
+          "kind": "interface",
+          "line": 526,
+          "exported": true,
+          "signature": "export interface AddProjectPayload { name: string; announcement?: string; show_announcement?: boolean; suite_mode?: number; }"
+        },
+        {
+          "name": "UpdateProjectPayload",
+          "kind": "interface",
+          "line": 533,
+          "exported": true,
+          "signature": "export interface UpdateProjectPayload { name?: string; announcement?: string; show_announcement?: boolean; suite_mode?: number; }"
+        },
+        {
+          "name": "GetPlansOptions",
+          "kind": "interface",
+          "line": 544,
+          "exported": true,
+          "signature": "export interface GetPlansOptions { created_after?: number; created_before?: number; created_by?: number[]; is_completed?: 0 | 1; milestone_id?: number[]; limit?: number; offset?: number; }"
+        },
+        {
+          "name": "GetTestsOptions",
+          "kind": "interface",
+          "line": 564,
+          "exported": true,
+          "signature": "export interface GetTestsOptions { status_id?: number[]; limit?: number; offset?: number; }"
+        },
+        {
+          "name": "GetResultsOptions",
+          "kind": "interface",
+          "line": 577,
+          "exported": true,
+          "signature": "export interface GetResultsOptions { created_after?: number; created_before?: number; created_by?: number[]; status_id?: number[]; limit?: number; offset?: number; }"
+        },
+        {
+          "name": "GetMilestonesOptions",
+          "kind": "interface",
+          "line": 595,
+          "exported": true,
+          "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }"
+        },
+        {
+          "name": "AddUserPayload",
+          "kind": "interface",
+          "line": 607,
+          "exported": true,
+          "signature": "export interface AddUserPayload { email: string; name: string; is_active?: boolean; role_id?: number; password?: string; }"
+        },
+        {
+          "name": "UpdateUserPayload",
+          "kind": "interface",
+          "line": 621,
+          "exported": true,
+          "signature": "export interface UpdateUserPayload { email?: string; name?: string; is_active?: boolean; role_id?: number; password?: string; }"
+        },
+        {
+          "name": "Role",
+          "kind": "interface",
+          "line": 637,
+          "exported": true,
+          "signature": "export interface Role { id: number; name: string; is_default: boolean; }"
+        },
+        {
+          "name": "Group",
+          "kind": "interface",
+          "line": 649,
+          "exported": true,
+          "signature": "export interface Group { id: number; name: string; user_ids?: number[]; }"
+        },
+        {
+          "name": "AddGroupPayload",
+          "kind": "interface",
+          "line": 659,
+          "exported": true,
+          "signature": "export interface AddGroupPayload { name: string; user_ids?: number[]; }"
+        },
+        {
+          "name": "UpdateGroupPayload",
+          "kind": "interface",
+          "line": 667,
+          "exported": true,
+          "signature": "export interface UpdateGroupPayload { name?: string; user_ids?: number[]; }"
+        },
+        {
+          "name": "Attachment",
+          "kind": "interface",
+          "line": 677,
+          "exported": true,
+          "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }"
+        },
+        {
+          "name": "SharedStep",
+          "kind": "interface",
+          "line": 697,
+          "exported": true,
+          "signature": "export interface SharedStep { id: number; title: string; project_id?: number; case_ids?: number[]; created_on?: number; created_by?: number; updated_on?: number; updated_by?: number; custom_steps_sepa…"
+        },
+        {
+          "name": "AddSharedStepPayload",
+          "kind": "interface",
+          "line": 719,
+          "exported": true,
+          "signature": "export interface AddSharedStepPayload { title: string; custom_steps_separated?: Record<string, unknown>[]; }"
+        },
+        {
+          "name": "UpdateSharedStepPayload",
+          "kind": "interface",
+          "line": 727,
+          "exported": true,
+          "signature": "export interface UpdateSharedStepPayload { title?: string; custom_steps_separated?: Record<string, unknown>[]; }"
+        },
+        {
+          "name": "Variable",
+          "kind": "interface",
+          "line": 737,
+          "exported": true,
+          "signature": "export interface Variable { id: number; name: string; }"
+        },
+        {
+          "name": "AddVariablePayload",
+          "kind": "interface",
+          "line": 745,
+          "exported": true,
+          "signature": "export interface AddVariablePayload { name: string; }"
+        },
+        {
+          "name": "UpdateVariablePayload",
+          "kind": "interface",
+          "line": 751,
+          "exported": true,
+          "signature": "export interface UpdateVariablePayload { name?: string; }"
+        },
+        {
+          "name": "Dataset",
+          "kind": "interface",
+          "line": 759,
+          "exported": true,
+          "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }"
+        },
+        {
+          "name": "AddDatasetPayload",
+          "kind": "interface",
+          "line": 773,
+          "exported": true,
+          "signature": "export interface AddDatasetPayload { name: string; }"
+        },
+        {
+          "name": "UpdateDatasetPayload",
+          "kind": "interface",
+          "line": 779,
+          "exported": true,
+          "signature": "export interface UpdateDatasetPayload { name?: string; }"
+        },
+        {
+          "name": "Report",
+          "kind": "interface",
+          "line": 787,
+          "exported": true,
+          "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }"
+        },
+        {
+          "name": "ReportResult",
+          "kind": "interface",
+          "line": 799,
+          "exported": true,
+          "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }"
+        }
+      ]
+    },
+    {
+      "path": "src/utils.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "base64Encode",
+          "kind": "function",
+          "line": 2,
+          "exported": true,
+          "signature": "export function base64Encode(str: string): string"
+        },
+        {
+          "name": "sleep",
+          "kind": "function",
+          "line": 13,
+          "exported": true,
+          "signature": "export function sleep(ms: number): Promise<void>"
+        },
+        {
+          "name": "serializeIdList",
+          "kind": "function",
+          "line": 18,
+          "exported": true,
+          "signature": "export function serializeIdList(ids?: number[]): string | undefined"
+        }
+      ]
+    }
+  ]
+}
+```

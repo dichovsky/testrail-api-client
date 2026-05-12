@@ -5,6 +5,7 @@ export default defineConfig({
         globals: true,
         pool: 'forks',
         isolate: true,
+        exclude: ['**/node_modules/**', '**/dist/**', 'tests/fixtures/**'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],
