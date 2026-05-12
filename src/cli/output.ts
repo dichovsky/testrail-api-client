@@ -1,0 +1,56 @@
+export interface OutputOptions {
+    quiet: boolean;
+    format: 'json' | 'table';
+}
+
+export interface Output {
+    out: (data: unknown) => void;
+    err: (message: string) => void;
+}
+
+export function valueToString(v: unknown): string {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'object') return JSON.stringify(v);
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+    if (typeof v === 'symbol') return v.toString();
+    return '[Function]';
+}
+
+export function renderTable(data: unknown): string {
+    const rows: unknown[] = Array.isArray(data) ? (data as unknown[]) : [data];
+    if (rows.length === 0) return '(empty)';
+
+    const first: unknown = rows[0];
+    if (typeof first !== 'object' || first === null) {
+        return rows.map(String).join('\n');
+    }
+
+    const keys = Object.keys(first);
+    const widths = keys.map((k) =>
+        Math.max(k.length, ...rows.map((r) => valueToString((r as Record<string, unknown>)[k]).length)),
+    );
+
+    const line = widths.map((w) => '-'.repeat(w)).join('-+-');
+    const header = keys.map((k, i) => k.padEnd(widths[i] ?? k.length)).join(' | ');
+    const body = rows.map((r) =>
+        keys.map((k, i) => valueToString((r as Record<string, unknown>)[k]).padEnd(widths[i] ?? k.length)).join(' | '),
+    );
+
+    return [header, line, ...body].join('\n');
+}
+
+export function createOutput(opts: OutputOptions): Output {
+    const out = (data: unknown): void => {
+        if (opts.quiet) return;
+        if (opts.format === 'table') {
+            process.stdout.write(`${renderTable(data)}\n`);
+        } else {
+            process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+        }
+    };
+    const err = (message: string): void => {
+        if (!opts.quiet) process.stderr.write(`Error: ${message}\n`);
+    };
+    return { out, err };
+}
