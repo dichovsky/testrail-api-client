@@ -123,10 +123,14 @@ describe('safeJsonStringify', () => {
     });
 
     it('output is always valid JSON regardless of input (jq-pipeline guarantee)', () => {
-        expect(() => JSON.parse(safeJsonStringify({ valid: true }))).not.toThrow();
+        expect(() => {
+            JSON.parse(safeJsonStringify({ valid: true }));
+        }).not.toThrow();
         const circular: Record<string, unknown> = {};
         circular['self'] = circular;
-        expect(() => JSON.parse(safeJsonStringify(circular))).not.toThrow();
+        expect(() => {
+            JSON.parse(safeJsonStringify(circular));
+        }).not.toThrow();
     });
 });
 
