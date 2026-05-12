@@ -458,3 +458,94 @@ export const ReportResultSchema = zObject({
 });
 
 export type ReportResult = z.infer<typeof ReportResultSchema>;
+
+// ── Write Payload Schemas ─────────────────────────────────────────────────────
+// Source-of-truth schemas for POST bodies sent by the TestRail client. Each is
+// `.passthrough()` via `zObject`, so TestRail's user-configured `custom_*`
+// fields (or any other forward-compatible extension) pass through unchanged.
+// TypeScript payload types are derived via `z.infer` and exported alongside
+// each schema; no separate handwritten interface lives in `src/types.ts`.
+
+export const AddCasePayloadSchema = zObject({
+    title: z.string(),
+    template_id: z.number().optional(),
+    type_id: z.number().optional(),
+    priority_id: z.number().optional(),
+    estimate: z.string().optional(),
+    milestone_id: z.number().optional(),
+    refs: z.string().optional(),
+    custom_fields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>;
+
+export const UpdateCasePayloadSchema = zObject({
+    title: z.string().optional(),
+    template_id: z.number().optional(),
+    type_id: z.number().optional(),
+    priority_id: z.number().optional(),
+    estimate: z.string().optional(),
+    milestone_id: z.number().optional(),
+    refs: z.string().optional(),
+    custom_fields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>;
+
+export const AddRunPayloadSchema = zObject({
+    name: z.string(),
+    suite_id: z.number().optional(),
+    description: z.string().optional(),
+    milestone_id: z.number().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+    refs: z.string().optional(),
+});
+
+export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>;
+
+export const UpdateRunPayloadSchema = zObject({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    milestone_id: z.number().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+    refs: z.string().optional(),
+});
+
+export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>;
+
+export const AddResultPayloadSchema = zObject({
+    status_id: z.number(),
+    comment: z.string().optional(),
+    version: z.string().optional(),
+    elapsed: z.string().optional(),
+    defects: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    custom_fields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>;
+
+// Inlined rather than `.extend(AddResultPayloadSchema)` so the passthrough()
+// behavior is unambiguous and the inferred type stays a plain object literal.
+export const AddResultForCasePayloadSchema = zObject({
+    case_id: z.number(),
+    status_id: z.number(),
+    comment: z.string().optional(),
+    version: z.string().optional(),
+    elapsed: z.string().optional(),
+    defects: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    custom_fields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>;
+
+export const AddResultsForCasesPayloadSchema = zObject({
+    results: z.array(AddResultForCasePayloadSchema),
+});
+
+export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>;

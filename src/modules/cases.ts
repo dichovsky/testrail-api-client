@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Case, GetCasesOptions, AddCasePayload, UpdateCasePayload } from '../types.js';
+import type { Case, GetCasesOptions } from '../types.js';
+import type { AddCasePayload, UpdateCasePayload } from '../schemas.js';
 import { CaseSchema } from '../schemas.js';
 import { z } from 'zod';
 
