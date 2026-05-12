@@ -3,8 +3,7 @@ import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
-import { ZodError } from 'zod';
-import * as z from 'zod';
+import { ZodError, type ZodType } from 'zod';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -865,8 +864,7 @@ export class TestRailClientCore {
      * Validates `data` against `schema` and returns it typed as `T`.
      * @throws {TestRailValidationError} When data does not conform to schema
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    public parse<T>(schema: z.ZodType<any>, data: unknown): T {
+    public parse<T>(schema: ZodType, data: unknown): T {
         try {
             return schema.parse(data) as T;
         } catch (err) {

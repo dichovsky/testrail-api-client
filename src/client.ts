@@ -647,6 +647,7 @@ export class TestRailClient extends TestRailClientCore {
      * Get user by email.
      *
      * @param email - Email address to look up.
+     * @throws {TestRailValidationError} When email format is invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getUserByEmail(email: string): Promise<User> {
@@ -658,7 +659,7 @@ export class TestRailClient extends TestRailClientCore {
      *
      * @param limit - Optional maximum number of results to return.
      * @param offset - Optional number of results to skip before returning results.
-     * @param projectId - Project identifier.
+     * @param projectId - Optional project identifier to scope results when provided.
      * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */

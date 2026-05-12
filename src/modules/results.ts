@@ -1,11 +1,8 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Result, GetResultsOptions, AddResultPayload, AddResultsForCasesPayload } from '../types.js';
 import { ResultSchema } from '../schemas.js';
+import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
-
-function serializeIdList(ids?: number[]): string | undefined {
-    return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
-}
 
 export class ResultModule {
     constructor(private readonly client: TestRailClientCore) {}

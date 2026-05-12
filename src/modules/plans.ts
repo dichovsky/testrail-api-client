@@ -9,11 +9,8 @@ import type {
     UpdatePlanEntryPayload,
 } from '../types.js';
 import { PlanSchema, PlanEntrySchema } from '../schemas.js';
+import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
-
-function serializeIdList(ids?: number[]): string | undefined {
-    return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
-}
 
 export class PlanModule {
     constructor(private readonly client: TestRailClientCore) {}

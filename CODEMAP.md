@@ -57,69 +57,69 @@ HTTP and endpoint metadata for facade methods are inferred from delegated module
 | `updateMilestone`            | POST | `update_milestone/${milestoneId}`                     | [618](src/client.ts#L618)   |
 | `deleteMilestone`            | POST | `delete_milestone/${milestoneId}`                     | [629](src/client.ts#L629)   |
 | `getUser`                    | GET  | `get_user/${userId}`                                  | [642](src/client.ts#L642)   |
-| `getUserByEmail`             | GET  | `get_user_by_email&...`                               | [652](src/client.ts#L652)   |
-| `getUsers`                   | GET  | `get_users/${projectId}&... or get_users&...`         | [665](src/client.ts#L665)   |
-| `getCurrentUser`             | GET  | `get_current_user`                                    | [673](src/client.ts#L673)   |
-| `addUser`                    | POST | `add_user`                                            | [683](src/client.ts#L683)   |
-| `updateUser`                 | POST | `update_user/${userId}`                               | [695](src/client.ts#L695)   |
-| `getStatuses`                | GET  | `get_statuses`                                        | [705](src/client.ts#L705)   |
-| `getPriorities`              | GET  | `get_priorities`                                      | [715](src/client.ts#L715)   |
-| `getResultFields`            | GET  | `get_result_fields`                                   | [725](src/client.ts#L725)   |
-| `getCaseFields`              | GET  | `get_case_fields`                                     | [735](src/client.ts#L735)   |
-| `getCaseTypes`               | GET  | `get_case_types`                                      | [743](src/client.ts#L743)   |
-| `getTemplates`               | GET  | `get_templates/${projectId}`                          | [756](src/client.ts#L756)   |
-| `getConfigurations`          | GET  | `get_configs/${projectId}`                            | [769](src/client.ts#L769)   |
-| `addConfigurationGroup`      | POST | `add_config_group/${projectId}`                       | [781](src/client.ts#L781)   |
-| `updateConfigurationGroup`   | POST | `update_config_group/${configGroupId}`                | [793](src/client.ts#L793)   |
-| `deleteConfigurationGroup`   | POST | `delete_config_group/${configGroupId}`                | [807](src/client.ts#L807)   |
-| `addConfiguration`           | POST | `add_config/${configGroupId}`                         | [819](src/client.ts#L819)   |
-| `updateConfiguration`        | POST | `update_config/${configId}`                           | [831](src/client.ts#L831)   |
-| `deleteConfiguration`        | POST | `delete_config/${configId}`                           | [842](src/client.ts#L842)   |
-| `getRoles`                   | GET  | `get_roles`                                           | [852](src/client.ts#L852)   |
-| `getGroup`                   | GET  | `get_group/${groupId}`                                | [865](src/client.ts#L865)   |
-| `getGroups`                  | GET  | `get_groups`                                          | [873](src/client.ts#L873)   |
-| `addGroup`                   | POST | `add_group`                                           | [883](src/client.ts#L883)   |
-| `updateGroup`                | POST | `update_group/${groupId}`                             | [895](src/client.ts#L895)   |
-| `deleteGroup`                | POST | `delete_group/${groupId}`                             | [906](src/client.ts#L906)   |
-| `getAttachmentsForCase`      | GET  | `get_attachments_for_case/${caseId}`                  | [919](src/client.ts#L919)   |
-| `getAttachmentsForRun`       | GET  | `get_attachments_for_run/${runId}`                    | [930](src/client.ts#L930)   |
-| `getAttachmentsForTest`      | GET  | `get_attachments_for_test/${testId}`                  | [941](src/client.ts#L941)   |
-| `getAttachmentsForPlan`      | GET  | `get_attachments_for_plan/${planId}`                  | [952](src/client.ts#L952)   |
-| `getAttachmentsForPlanEntry` | GET  | `get_attachments_for_plan_entry/${planId}/${entryId}` | [964](src/client.ts#L964)   |
-| `getAttachment`              | GET  | `get_attachment/${attachmentId}`                      | [975](src/client.ts#L975)   |
-| `addAttachmentToCase`        | POST | `add_attachment_to_case/${caseId}`                    | [988](src/client.ts#L988)   |
-| `addAttachmentToResult`      | POST | `add_attachment_to_result/${resultId}`                | [1005](src/client.ts#L1005) |
-| `addAttachmentToRun`         | POST | `add_attachment_to_run/${runId}`                      | [1022](src/client.ts#L1022) |
-| `addAttachmentToPlan`        | POST | `add_attachment_to_plan/${planId}`                    | [1039](src/client.ts#L1039) |
-| `addAttachmentToPlanEntry`   | POST | `add_attachment_to_plan_entry/${planId}/${entryId}`   | [1057](src/client.ts#L1057) |
-| `deleteAttachment`           | POST | `delete_attachment/${attachmentId}`                   | [1073](src/client.ts#L1073) |
-| `getSharedStep`              | GET  | `get_shared_step/${sharedStepId}`                     | [1086](src/client.ts#L1086) |
-| `getSharedSteps`             | GET  | `get_shared_steps/${projectId}`                       | [1097](src/client.ts#L1097) |
-| `addSharedStep`              | POST | `add_shared_step/${projectId}`                        | [1109](src/client.ts#L1109) |
-| `updateSharedStep`           | POST | `update_shared_step/${sharedStepId}`                  | [1121](src/client.ts#L1121) |
-| `deleteSharedStep`           | POST | `delete_shared_step/${sharedStepId}`                  | [1132](src/client.ts#L1132) |
-| `getVariables`               | GET  | `get_variables/${projectId}`                          | [1145](src/client.ts#L1145) |
-| `addVariable`                | POST | `add_variable/${projectId}`                           | [1157](src/client.ts#L1157) |
-| `updateVariable`             | POST | `update_variable/${variableId}`                       | [1169](src/client.ts#L1169) |
-| `deleteVariable`             | POST | `delete_variable/${variableId}`                       | [1180](src/client.ts#L1180) |
-| `getDataset`                 | GET  | `get_dataset/${datasetId}`                            | [1193](src/client.ts#L1193) |
-| `getDatasets`                | GET  | `get_datasets/${projectId}`                           | [1204](src/client.ts#L1204) |
-| `addDataset`                 | POST | `add_dataset/${projectId}`                            | [1216](src/client.ts#L1216) |
-| `updateDataset`              | POST | `update_dataset/${datasetId}`                         | [1228](src/client.ts#L1228) |
-| `deleteDataset`              | POST | `delete_dataset/${datasetId}`                         | [1239](src/client.ts#L1239) |
-| `getReports`                 | GET  | `get_reports/${projectId}`                            | [1252](src/client.ts#L1252) |
-| `runReport`                  | GET  | `run_report/${reportTemplateId}`                      | [1263](src/client.ts#L1263) |
+| `getUserByEmail`             | GET  | `get_user_by_email&...`                               | [653](src/client.ts#L653)   |
+| `getUsers`                   | GET  | `get_users/${projectId}&... or get_users&...`         | [666](src/client.ts#L666)   |
+| `getCurrentUser`             | GET  | `get_current_user`                                    | [674](src/client.ts#L674)   |
+| `addUser`                    | POST | `add_user`                                            | [684](src/client.ts#L684)   |
+| `updateUser`                 | POST | `update_user/${userId}`                               | [696](src/client.ts#L696)   |
+| `getStatuses`                | GET  | `get_statuses`                                        | [706](src/client.ts#L706)   |
+| `getPriorities`              | GET  | `get_priorities`                                      | [716](src/client.ts#L716)   |
+| `getResultFields`            | GET  | `get_result_fields`                                   | [726](src/client.ts#L726)   |
+| `getCaseFields`              | GET  | `get_case_fields`                                     | [736](src/client.ts#L736)   |
+| `getCaseTypes`               | GET  | `get_case_types`                                      | [744](src/client.ts#L744)   |
+| `getTemplates`               | GET  | `get_templates/${projectId}`                          | [757](src/client.ts#L757)   |
+| `getConfigurations`          | GET  | `get_configs/${projectId}`                            | [770](src/client.ts#L770)   |
+| `addConfigurationGroup`      | POST | `add_config_group/${projectId}`                       | [782](src/client.ts#L782)   |
+| `updateConfigurationGroup`   | POST | `update_config_group/${configGroupId}`                | [794](src/client.ts#L794)   |
+| `deleteConfigurationGroup`   | POST | `delete_config_group/${configGroupId}`                | [808](src/client.ts#L808)   |
+| `addConfiguration`           | POST | `add_config/${configGroupId}`                         | [820](src/client.ts#L820)   |
+| `updateConfiguration`        | POST | `update_config/${configId}`                           | [832](src/client.ts#L832)   |
+| `deleteConfiguration`        | POST | `delete_config/${configId}`                           | [843](src/client.ts#L843)   |
+| `getRoles`                   | GET  | `get_roles`                                           | [853](src/client.ts#L853)   |
+| `getGroup`                   | GET  | `get_group/${groupId}`                                | [866](src/client.ts#L866)   |
+| `getGroups`                  | GET  | `get_groups`                                          | [874](src/client.ts#L874)   |
+| `addGroup`                   | POST | `add_group`                                           | [884](src/client.ts#L884)   |
+| `updateGroup`                | POST | `update_group/${groupId}`                             | [896](src/client.ts#L896)   |
+| `deleteGroup`                | POST | `delete_group/${groupId}`                             | [907](src/client.ts#L907)   |
+| `getAttachmentsForCase`      | GET  | `get_attachments_for_case/${caseId}`                  | [920](src/client.ts#L920)   |
+| `getAttachmentsForRun`       | GET  | `get_attachments_for_run/${runId}`                    | [931](src/client.ts#L931)   |
+| `getAttachmentsForTest`      | GET  | `get_attachments_for_test/${testId}`                  | [942](src/client.ts#L942)   |
+| `getAttachmentsForPlan`      | GET  | `get_attachments_for_plan/${planId}`                  | [953](src/client.ts#L953)   |
+| `getAttachmentsForPlanEntry` | GET  | `get_attachments_for_plan_entry/${planId}/${entryId}` | [965](src/client.ts#L965)   |
+| `getAttachment`              | GET  | `get_attachment/${attachmentId}`                      | [976](src/client.ts#L976)   |
+| `addAttachmentToCase`        | POST | `add_attachment_to_case/${caseId}`                    | [989](src/client.ts#L989)   |
+| `addAttachmentToResult`      | POST | `add_attachment_to_result/${resultId}`                | [1006](src/client.ts#L1006) |
+| `addAttachmentToRun`         | POST | `add_attachment_to_run/${runId}`                      | [1023](src/client.ts#L1023) |
+| `addAttachmentToPlan`        | POST | `add_attachment_to_plan/${planId}`                    | [1040](src/client.ts#L1040) |
+| `addAttachmentToPlanEntry`   | POST | `add_attachment_to_plan_entry/${planId}/${entryId}`   | [1058](src/client.ts#L1058) |
+| `deleteAttachment`           | POST | `delete_attachment/${attachmentId}`                   | [1074](src/client.ts#L1074) |
+| `getSharedStep`              | GET  | `get_shared_step/${sharedStepId}`                     | [1087](src/client.ts#L1087) |
+| `getSharedSteps`             | GET  | `get_shared_steps/${projectId}`                       | [1098](src/client.ts#L1098) |
+| `addSharedStep`              | POST | `add_shared_step/${projectId}`                        | [1110](src/client.ts#L1110) |
+| `updateSharedStep`           | POST | `update_shared_step/${sharedStepId}`                  | [1122](src/client.ts#L1122) |
+| `deleteSharedStep`           | POST | `delete_shared_step/${sharedStepId}`                  | [1133](src/client.ts#L1133) |
+| `getVariables`               | GET  | `get_variables/${projectId}`                          | [1146](src/client.ts#L1146) |
+| `addVariable`                | POST | `add_variable/${projectId}`                           | [1158](src/client.ts#L1158) |
+| `updateVariable`             | POST | `update_variable/${variableId}`                       | [1170](src/client.ts#L1170) |
+| `deleteVariable`             | POST | `delete_variable/${variableId}`                       | [1181](src/client.ts#L1181) |
+| `getDataset`                 | GET  | `get_dataset/${datasetId}`                            | [1194](src/client.ts#L1194) |
+| `getDatasets`                | GET  | `get_datasets/${projectId}`                           | [1205](src/client.ts#L1205) |
+| `addDataset`                 | POST | `add_dataset/${projectId}`                            | [1217](src/client.ts#L1217) |
+| `updateDataset`              | POST | `update_dataset/${datasetId}`                         | [1229](src/client.ts#L1229) |
+| `deleteDataset`              | POST | `delete_dataset/${datasetId}`                         | [1240](src/client.ts#L1240) |
+| `getReports`                 | GET  | `get_reports/${projectId}`                            | [1253](src/client.ts#L1253) |
+| `runReport`                  | GET  | `run_report/${reportTemplateId}`                      | [1264](src/client.ts#L1264) |
 
 ## Core Infrastructure (`src/client-core.ts`)
 
 | Symbol          | Line                           |
 | --------------- | ------------------------------ |
-| `constructor`   | [181](src/client-core.ts#L181) |
-| `validateId`    | [400](src/client-core.ts#L400) |
-| `buildEndpoint` | [439](src/client-core.ts#L439) |
-| `clearCache`    | [494](src/client-core.ts#L494) |
-| `destroy`       | [539](src/client-core.ts#L539) |
-| `request`       | [566](src/client-core.ts#L566) |
+| `constructor`   | [180](src/client-core.ts#L180) |
+| `validateId`    | [399](src/client-core.ts#L399) |
+| `buildEndpoint` | [438](src/client-core.ts#L438) |
+| `clearCache`    | [493](src/client-core.ts#L493) |
+| `destroy`       | [538](src/client-core.ts#L538) |
+| `request`       | [565](src/client-core.ts#L565) |
 
 ## Error Classes (`src/errors.ts`)
 
