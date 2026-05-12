@@ -650,6 +650,14 @@ describe('CLI', () => {
         });
     });
 
+    describe('install-skill', () => {
+        it('--print-path emits the bundled SKILL.md path and exits 0 without writing', async () => {
+            const { stdout, exitCodes } = await runCli(['install-skill', '--print-path']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('SKILL.md');
+        });
+    });
+
     describe('result add-bulk', () => {
         it('POSTs the array payload', async () => {
             // ResultSchema requires status_id; bare {id} would fail response validation.

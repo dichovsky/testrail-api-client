@@ -6,6 +6,7 @@ import { TestRailClient } from '../client.js';
 import { resolveAuth } from './auth.js';
 import { createOutput } from './output.js';
 import { dispatch } from './dispatch.js';
+import { runInstallSkill } from './install-skill.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -35,6 +36,12 @@ Write actions (body via --data | --data-file | stdin):
   result add <run_id> <case_id>     --data '{"status_id":1}'
   result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
 
+Meta:
+  install-skill [--global] [--force] [--print-path]
+                                    Install the testrail-cli skill to
+                                    ./.claude/skills/testrail-cli (default)
+                                    or ~/.claude/skills/testrail-cli (--global)
+
 Auth (env var or flag):
   TESTRAIL_BASE_URL / --base-url <url>
   TESTRAIL_EMAIL    / --email <email>
@@ -46,6 +53,9 @@ Options:
   --dry-run             Validate payload but don't call the API
   --format json|table   Output format (default: json)
   --quiet               Suppress output; use exit code 0/1
+  --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
+  --force               install-skill: overwrite an existing SKILL.md
+  --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
   --version             Print version
 
@@ -86,6 +96,9 @@ async function main(): Promise<number> {
                 data: { type: 'string' },
                 'data-file': { type: 'string' },
                 'dry-run': { type: 'boolean', default: false },
+                global: { type: 'boolean', default: false },
+                force: { type: 'boolean', default: false },
+                'print-path': { type: 'boolean', default: false },
             },
             allowPositionals: true,
             strict: false,
@@ -114,6 +127,21 @@ async function main(): Promise<number> {
     if (values['help'] === true || positionals.length === 0) {
         process.stdout.write(`${HELP}\n`);
         return 0;
+    }
+
+    // `install-skill` is a meta-command (manages the bundled skill on the
+    // user's filesystem). It deliberately sits outside the normal
+    // resource:action dispatch since there is no API call involved.
+    if (positionals[0] === 'install-skill') {
+        return runInstallSkill(
+            {
+                global: values['global'] === true,
+                force: values['force'] === true,
+                printPath: values['print-path'] === true,
+                quiet,
+            },
+            import.meta.url,
+        );
     }
 
     const [resource, action, ...rest] = positionals;

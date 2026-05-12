@@ -55,6 +55,26 @@ A comprehensive, type-safe TypeScript/JavaScript client for the [TestRail API](h
 npm install @dichovsky/testrail-api-client
 ```
 
+## Using with AI Coding Agents
+
+This package ships a Claude Code skill at `skill/SKILL.md` that teaches coding agents how to use the bundled `testrail` CLI. Install it into your project (or globally) so Claude Code auto-loads it whenever you ask the agent to query or write TestRail entities.
+
+```bash
+# Install into the current project: ./.claude/skills/testrail-cli/SKILL.md
+npx testrail install-skill
+
+# Or globally: ~/.claude/skills/testrail-cli/SKILL.md
+npx testrail install-skill --global
+
+# Overwrite an existing install
+npx testrail install-skill --force
+
+# Just print the bundled SKILL.md path (for scripting / vendoring)
+npx testrail install-skill --print-path
+```
+
+The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface and recipes.
+
 ## Quick Start
 
 ```typescript
