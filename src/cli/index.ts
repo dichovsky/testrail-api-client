@@ -49,8 +49,9 @@ Options:
   --help                Show this help
   --version             Print version
 
-For write actions, exactly one body source is required (--data | --data-file | stdin).
-Stdin is auto-detected when input is piped (process.stdin.isTTY === false).
+For body-bearing write actions (all except 'run close'), exactly one body source
+is required (--data | --data-file | stdin). Stdin is auto-detected when input
+is piped (process.stdin.isTTY === false).
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────

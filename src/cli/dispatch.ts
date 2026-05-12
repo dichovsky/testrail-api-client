@@ -60,6 +60,15 @@ const RESOURCES: Record<string, readonly string[]> = (() => {
 
 export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string };
 
+/**
+ * Returns every registered `resource:action` key. Used by the
+ * metadata↔dispatch consistency tests to catch handlers added without a
+ * matching metadata entry — the inverse of the metadata-first check.
+ */
+export function getRegisteredActions(): readonly string[] {
+    return Object.keys(HANDLERS);
+}
+
 export function dispatch(resource: string, action: string): DispatchResult {
     const actions = RESOURCES[resource];
     if (actions === undefined) {

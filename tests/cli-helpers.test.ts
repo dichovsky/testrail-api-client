@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
 import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
-import { dispatch } from '../src/cli/dispatch.js';
+import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
 
 describe('valueToString', () => {
@@ -323,6 +323,16 @@ describe('metadata vs dispatch consistency', () => {
             expect(result.ok, `metadata declares ${spec.resource}:${spec.action} but no handler is registered`).toBe(
                 true,
             );
+        }
+    });
+
+    it('every registered dispatch handler has a metadata entry', () => {
+        for (const key of getRegisteredActions()) {
+            const [resource, action] = key.split(':');
+            expect(resource).toBeDefined();
+            expect(action).toBeDefined();
+            const spec = getActionSpec(resource as string, action as string);
+            expect(spec, `handler ${key} is registered in dispatch but has no metadata entry`).toBeDefined();
         }
     });
 

@@ -11,9 +11,10 @@ import {
  * Declarative spec for every resource:action exposed by the CLI.
  *
  * Single source of truth shared by:
- * - PR 3 tests: assert that every entry in dispatch's HANDLERS map has a
- *   matching metadata entry (and vice versa) — prevents drift between the
- *   runtime registry and this documentation surface.
+ * - PR 3 tests: assert both directions of the metadata↔dispatch
+ *   correspondence — every `ACTIONS` entry must have a registered handler
+ *   in `dispatch.ts` HANDLERS, and every HANDLERS key must have an
+ *   `ACTIONS` entry. Catches drift in either direction.
  * - PR 4 skill generator: renders the `<!-- GENERATED:command-table -->` and
  *   `<!-- GENERATED:payload-schemas -->` regions of `skill/SKILL.md` from
  *   this array.
