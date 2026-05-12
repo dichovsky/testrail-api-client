@@ -30,12 +30,13 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `src/cli/{auth,output,ids,dispatch,handler-context}.ts` | CLI infrastructure (env+flag resolution, JSON/table rendering, ID parsing, handler-table dispatch, shared types)                |
 | `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user, read-only as of v2.0)                      |
 | `src/index.ts`                                          | Public barrel exports                                                                                                           |
-| `CODEMAP.md`                                            | Symbol index with exact file:line refs (auto-gen)                                                                               |
-| `scripts/generate-codemap.js`                           | Regenerates CODEMAP.md from source                                                                                              |
+| `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                               |
+| `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                            |
+| `scripts/generate-codemap.js`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                |
 
 ## API Symbol Index
 
-See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and constant with exact file:line links.
+See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and constant with exact file:line links. The file embeds a `codemap.v2` JSON block — agents can `JSON.parse` the fenced block, then look up symbols in `publicApi[]` (transitively re-exported from `src/index.ts` and `src/cli.ts`) or `files[]` (every declaration, including private). `npm run codemap:check` (run by `pretest` and CI) fails if the committed file drifts from source.
 
 ## Architecture Invariants
 

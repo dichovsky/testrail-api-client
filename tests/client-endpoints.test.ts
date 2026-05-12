@@ -963,7 +963,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { createdBy: [] });
-            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
             expect(calledUrl).not.toContain('created_by=');
         });
 
@@ -988,7 +988,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.getRuns(1, { suiteId: 2 });
-            const calledUrl = mockFetch.mock.calls[0][0] as string;
+            const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
             expect(calledUrl).not.toContain('is_completed');
             expect(calledUrl).not.toContain('milestone_id');
             expect(calledUrl).not.toContain('created_after');

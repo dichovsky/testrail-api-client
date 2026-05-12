@@ -1,290 +1,711 @@
 #!/usr/bin/env node
 /**
  * Generates CODEMAP.md — a machine-readable symbol index for coding agents.
- * Run: node scripts/generate-codemap.js  (or: npm run codemap)
+ * Run: node scripts/generate-codemap.js          (regenerate)
+ *      node scripts/generate-codemap.js --check  (verify committed CODEMAP.md is up to date)
  *
- * Reads src/ files and outputs a Markdown table of every public API method,
- * infrastructure method, exported type, and constant with exact file:line refs.
+ * Output shape (schema "codemap.v2"): a short Markdown preamble followed by a
+ * single fenced ```json``` block.
+ *
+ *   {
+ *     "schema": "codemap.v2",
+ *     "repo": { "name", "version" },
+ *     "sourceHash": "<sha256 of sorted path\\0content\\0...>",
+ *     "entrypoints": [...relative paths],
+ *     "publicApi": [{ name, kind, file, line, signature, jsdoc?, typeOnly? }, ...],
+ *     "files":     [{ path, imports: string[], reExports: string[], symbols: [...] }]
+ *   }
+ *
+ * Determinism: NO timestamps anywhere. All arrays sorted by stable keys; running
+ * the script twice produces byte-identical output. Staleness is detected via
+ * the sourceHash + --check mode.
+ *
+ * Token-efficiency: signatures only, no implementation bodies; type alias RHS
+ * truncated to maxSignatureLength chars; whitespace-normalized via the TS
+ * scanner so string literals are preserved.
+ *
+ * Sanity bound (not enforced): target ≤ 150 KB for this repo.
+ *
+ * Deviations from the original spec:
+ *   - .gitignore is NOT parsed; sourceDirs + exclude in codemap.config.json
+ *     are the sole filters. Adding a parser would be dead code given this
+ *     repo's layout (every ignored path is already outside sourceDirs).
+ *   - The script is .js (not .ts) so no new devDep (tsx) is needed; the
+ *     TypeScript Compiler API is imported directly from the existing devDep.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import ts from 'typescript';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, '..');
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-function readSrc(filename) {
-    return readFileSync(path.join(root, 'src', filename), 'utf8').split('\n');
+const SCHEMA_VERSION = 'codemap.v2';
+const RE_EXPORT_DEPTH_CAP = 8;
+const JSDOC_EXAMPLE_TRUNCATE = 80;
+const DIFF_PREVIEW_LINES = 40;
+
+// ── Config + filesystem helpers ───────────────────────────────────────────────
+
+function toPosix(p) {
+    return p.split(/[\\/]/).join('/');
 }
 
-/** Returns [{name, line}] for all async method declarations. */
-function extractAsyncMethods(lines) {
-    return lines.flatMap((line, i) => {
-        const match = line.match(/^\s+async\s+(\w+)\s*\(/);
-        return match ? [{ name: match[1], line: i + 1 }] : [];
-    });
-}
-
-/** Returns [{name, line}] for exported class / function declarations. */
-function extractExports(lines) {
-    return lines.flatMap((line, i) => {
-        const match = line.match(/^export\s+(?:class|function|const|abstract class)\s+(\w+)/);
-        return match ? [{ name: match[1], line: i + 1 }] : [];
-    });
-}
-
-/** Returns [{name, line}] for exported interface / type alias declarations. */
-function extractTypes(lines) {
-    return lines.flatMap((line, i) => {
-        const match = line.match(/^export\s+(?:interface|type)\s+(\w+)/);
-        return match ? [{ name: match[1], line: i + 1 }] : [];
-    });
-}
-
-/** Returns [{name, value, line}] for exported const declarations. */
-function extractConstants(lines) {
-    return lines.flatMap((line, i) => {
-        const match = line.match(/^export\s+const\s+(\w+)\s*=\s*(.+?);/);
-        return match ? [{ name: match[1], value: match[2].trim(), line: i + 1 }] : [];
-    });
-}
-
-function findAsyncMethod(lines, methodName) {
-    const startIdx = lines.findIndex((line) => new RegExp(`^\\s+async\\s+${methodName}\\s*\\(`).test(line));
-    if (startIdx === -1) {
-        return null;
+function loadConfig(rootDir) {
+    const configPath = join(rootDir, 'codemap.config.json');
+    if (!existsSync(configPath)) {
+        throw new Error(`codemap.config.json not found at ${configPath}`);
     }
-
-    let endIdx = startIdx + 1;
-    while (endIdx < lines.length && !/^\s+async\s+\w+\s*\(/.test(lines[endIdx])) {
-        endIdx += 1;
-    }
-
+    const cfg = JSON.parse(readFileSync(configPath, 'utf8'));
     return {
-        line: startIdx + 1,
-        body: lines.slice(startIdx, endIdx).join('\n'),
+        sourceDirs: cfg.sourceDirs ?? ['src'],
+        entrypoints: cfg.entrypoints ?? ['src/index.ts'],
+        exclude: cfg.exclude ?? [],
+        maxSignatureLength: cfg.maxSignatureLength ?? 200,
     };
 }
 
-function extractFirstArg(callSource, callee) {
-    const matcher = new RegExp(`${callee}(?:<[^>]+>)?\\(`);
-    const match = matcher.exec(callSource);
-    if (!match) {
-        return null;
+// Hand-rolled glob → regex. Supports **, *, ?, literal segments.
+// Patterns are matched against POSIX-normalized paths relative to rootDir.
+function globToRegex(glob) {
+    let re = '';
+    let i = 0;
+    while (i < glob.length) {
+        const c = glob[i];
+        if (c === '*' && glob[i + 1] === '*') {
+            if (glob[i + 2] === '/') {
+                // '**/' matches zero or more path segments.
+                re += '(?:.*/)?';
+                i += 3;
+            } else {
+                re += '.*';
+                i += 2;
+            }
+        } else if (c === '*') {
+            re += '[^/]*';
+            i += 1;
+        } else if (c === '?') {
+            re += '[^/]';
+            i += 1;
+        } else if ('.+^$(){}|[]\\'.includes(c)) {
+            re += '\\' + c;
+            i += 1;
+        } else {
+            re += c;
+            i += 1;
+        }
     }
+    return new RegExp('^' + re + '$');
+}
 
-    let cursor = match.index + match[0].length;
-    let depth = 0;
-    let arg = '';
-    let quote = null;
+function matchesAnyGlob(relPath, compiledGlobs) {
+    return compiledGlobs.some((re) => re.test(relPath));
+}
 
-    while (cursor < callSource.length) {
-        const char = callSource[cursor++];
+function collectSourceFiles(rootDir, sourceDirs, exclude) {
+    const compiled = exclude.map(globToRegex);
+    const files = [];
+    for (const dir of sourceDirs) {
+        const abs = join(rootDir, dir);
+        if (!existsSync(abs)) continue;
+        walk(abs, rootDir, compiled, files);
+    }
+    files.sort();
+    return files;
+}
 
-        if (quote) {
-            arg += char;
-            if (char === quote && callSource[cursor - 2] !== '\\') {
-                quote = null;
+function walk(absDir, rootDir, compiledExcludes, out) {
+    for (const name of readdirSync(absDir)) {
+        const abs = join(absDir, name);
+        const rel = toPosix(relative(rootDir, abs));
+        if (matchesAnyGlob(rel, compiledExcludes)) continue;
+        const st = statSync(abs);
+        if (st.isDirectory()) {
+            walk(abs, rootDir, compiledExcludes, out);
+        } else if (st.isFile() && rel.endsWith('.ts')) {
+            // Exclude *.d.ts unless under src/types/ (per spec).
+            if (rel.endsWith('.d.ts') && !rel.includes('/types/')) continue;
+            out.push(rel);
+        }
+    }
+}
+
+function computeSourceHash(rootDir, relFiles) {
+    const h = createHash('sha256');
+    for (const rel of [...relFiles].sort()) {
+        const content = readFileSync(join(rootDir, rel), 'utf8');
+        h.update(rel);
+        h.update('\0');
+        h.update(content);
+        h.update('\0');
+    }
+    return h.digest('hex');
+}
+
+// ── AST: signature extraction via scanner (preserves string literals) ─────────
+
+function normalizeWhitespace(source) {
+    // Tokenize via TS scanner so string literals (which may contain spaces or
+    // newlines) are not corrupted by a naive `replace(/\s+/g, ' ')`.
+    const scanner = ts.createScanner(
+        ts.ScriptTarget.Latest,
+        /* skipTrivia */ false,
+        ts.LanguageVariant.Standard,
+        source,
+    );
+    let out = '';
+    let needSpace = false;
+    while (true) {
+        const kind = scanner.scan();
+        if (kind === ts.SyntaxKind.EndOfFileToken) break;
+        if (
+            kind === ts.SyntaxKind.WhitespaceTrivia ||
+            kind === ts.SyntaxKind.NewLineTrivia ||
+            kind === ts.SyntaxKind.SingleLineCommentTrivia ||
+            kind === ts.SyntaxKind.MultiLineCommentTrivia
+        ) {
+            needSpace = out.length > 0;
+            continue;
+        }
+        if (needSpace) {
+            out += ' ';
+            needSpace = false;
+        }
+        out += scanner.getTokenText();
+    }
+    return out;
+}
+
+function truncate(s, maxLen) {
+    return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+}
+
+function sliceFunctionSignature(node, sourceFile, maxLen) {
+    const text = sourceFile.text;
+    const start = node.getStart(sourceFile);
+    const end = node.body ? node.body.getStart(sourceFile) : node.getEnd();
+    const normalized = normalizeWhitespace(text.slice(start, end))
+        .trim()
+        .replace(/[\s{]+$/, '')
+        .trim();
+    return truncate(normalized, maxLen);
+}
+
+function sliceClassHeader(node, sourceFile, maxLen) {
+    const text = sourceFile.text;
+    const start = node.getStart(sourceFile);
+    const openBrace = text.indexOf('{', start);
+    const slice = openBrace > -1 ? text.slice(start, openBrace) : text.slice(start, node.getEnd());
+    return truncate(normalizeWhitespace(slice).trim(), maxLen);
+}
+
+function sliceFull(node, sourceFile, maxLen) {
+    const normalized = normalizeWhitespace(node.getText(sourceFile)).trim().replace(/;\s*$/, '');
+    return truncate(normalized, maxLen);
+}
+
+function sliceVariable(stmt, sourceFile, maxLen) {
+    const normalized = normalizeWhitespace(stmt.getText(sourceFile)).trim().replace(/;\s*$/, '');
+    return truncate(normalized, maxLen);
+}
+
+// ── AST: JSDoc extraction (first paragraph + inline tag mentions) ─────────────
+
+function commentToString(comment) {
+    if (typeof comment === 'string') return comment;
+    if (!comment) return '';
+    return comment.map((c) => c.text ?? '').join('');
+}
+
+function extractJsdoc(node) {
+    const docs = ts.getJSDocCommentsAndTags(node);
+    if (!docs || docs.length === 0) return undefined;
+    const jsDocNode = docs.find((d) => d.kind === ts.SyntaxKind.JSDoc);
+    if (!jsDocNode) return undefined;
+
+    const commentText = commentToString(jsDocNode.comment);
+    const firstParagraph = commentText.split(/\n\s*\n/)[0] ?? '';
+    let text = firstParagraph.replace(/\s+/g, ' ').trim();
+
+    const inline = [];
+    let exampleSeen = false;
+    for (const tag of jsDocNode.tags ?? []) {
+        const tagName = tag.tagName.escapedText;
+        if (tagName === 'param' || tagName === 'returns' || tagName === 'return') continue;
+        const c = commentToString(tag.comment).replace(/\s+/g, ' ').trim();
+        if (tagName === 'deprecated') {
+            inline.push(c ? `@deprecated ${c}` : '@deprecated');
+        } else if (tagName === 'since') {
+            inline.push(c ? `@since ${c}` : '@since');
+        } else if (tagName === 'example' && !exampleSeen) {
+            exampleSeen = true;
+            const ex = truncate(c, JSDOC_EXAMPLE_TRUNCATE);
+            inline.push(ex ? `@example ${ex}` : '@example');
+        }
+    }
+    if (inline.length > 0) {
+        text = text ? `${text} ${inline.join(' ')}` : inline.join(' ');
+    }
+    return text || undefined;
+}
+
+// ── AST: helpers ──────────────────────────────────────────────────────────────
+
+function lineOf(node, sourceFile) {
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    return line + 1;
+}
+
+function hasModifier(node, kind) {
+    if (!ts.canHaveModifiers(node)) return false;
+    const mods = ts.getModifiers(node);
+    return mods ? mods.some((m) => m.kind === kind) : false;
+}
+
+const hasExportModifier = (node) => hasModifier(node, ts.SyntaxKind.ExportKeyword);
+const hasDefaultModifier = (node) => hasModifier(node, ts.SyntaxKind.DefaultKeyword);
+
+function classifyMember(member) {
+    if (ts.isConstructorDeclaration(member)) return 'constructor';
+    if (ts.isMethodDeclaration(member)) return 'method';
+    if (ts.isPropertyDeclaration(member)) return 'property';
+    if (ts.isGetAccessorDeclaration(member)) return 'getter';
+    if (ts.isSetAccessorDeclaration(member)) return 'setter';
+    return undefined;
+}
+
+function memberName(member) {
+    if (ts.isConstructorDeclaration(member)) return 'constructor';
+    const n = member.name;
+    if (!n) return undefined;
+    if (ts.isIdentifier(n) || ts.isPrivateIdentifier(n) || ts.isStringLiteral(n) || ts.isNumericLiteral(n)) {
+        return n.text;
+    }
+    return n.getText();
+}
+
+// ── AST: per-file symbol extraction (all top-level declarations) ──────────────
+
+function extractFileSymbols(sourceFile, maxLen) {
+    const symbols = [];
+    for (const stmt of sourceFile.statements) {
+        const line = lineOf(stmt, sourceFile);
+        const exported = hasExportModifier(stmt);
+        const isDefault = hasDefaultModifier(stmt);
+
+        if (ts.isFunctionDeclaration(stmt) && (stmt.name || isDefault)) {
+            symbols.push({
+                name: isDefault ? 'default' : stmt.name.text,
+                kind: 'function',
+                line,
+                exported,
+                signature: sliceFunctionSignature(stmt, sourceFile, maxLen),
+            });
+        } else if (ts.isClassDeclaration(stmt)) {
+            const name = isDefault ? 'default' : stmt.name ? stmt.name.text : '<anonymous>';
+            const members = [];
+            for (const m of stmt.members) {
+                const kind = classifyMember(m);
+                const nm = memberName(m);
+                if (!kind || !nm) continue;
+                members.push({ name: nm, kind, line: lineOf(m, sourceFile) });
+            }
+            members.sort((a, b) => a.line - b.line || a.name.localeCompare(b.name));
+            symbols.push({
+                name,
+                kind: 'class',
+                line,
+                exported,
+                signature: sliceClassHeader(stmt, sourceFile, maxLen),
+                members,
+            });
+        } else if (ts.isInterfaceDeclaration(stmt)) {
+            symbols.push({
+                name: stmt.name.text,
+                kind: 'interface',
+                line,
+                exported,
+                signature: sliceFull(stmt, sourceFile, maxLen),
+            });
+        } else if (ts.isTypeAliasDeclaration(stmt)) {
+            symbols.push({
+                name: stmt.name.text,
+                kind: 'type',
+                line,
+                exported,
+                signature: sliceFull(stmt, sourceFile, maxLen),
+            });
+        } else if (ts.isEnumDeclaration(stmt)) {
+            symbols.push({
+                name: stmt.name.text,
+                kind: 'enum',
+                line,
+                exported,
+                signature: sliceFull(stmt, sourceFile, maxLen),
+            });
+        } else if (ts.isVariableStatement(stmt)) {
+            for (const decl of stmt.declarationList.declarations) {
+                if (!ts.isIdentifier(decl.name)) continue;
+                symbols.push({
+                    name: decl.name.text,
+                    kind: 'const',
+                    line: lineOf(decl, sourceFile),
+                    exported,
+                    signature: sliceVariable(stmt, sourceFile, maxLen),
+                });
+            }
+        } else if (ts.isModuleDeclaration(stmt) && stmt.name) {
+            symbols.push({
+                name: stmt.name.text,
+                kind: 'namespace',
+                line,
+                exported,
+                signature: sliceFull(stmt, sourceFile, maxLen),
+            });
+        }
+    }
+    symbols.sort((a, b) => a.line - b.line || a.name.localeCompare(b.name));
+    return symbols;
+}
+
+// ── AST: imports + reExports (sorted module specifiers) ───────────────────────
+
+function extractImportsAndReExports(sourceFile) {
+    const imports = new Set();
+    const reExports = new Set();
+    for (const stmt of sourceFile.statements) {
+        if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
+            imports.add(stmt.moduleSpecifier.text);
+        } else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
+            reExports.add(stmt.moduleSpecifier.text);
+        }
+    }
+    return { imports: [...imports].sort(), reExports: [...reExports].sort() };
+}
+
+// ── Public API: transitive re-export resolver ────────────────────────────────
+
+function resolveSpecifierToFile(fromAbsFile, specifier, rootDir) {
+    if (!specifier.startsWith('.')) return undefined; // bare or absolute: out of scope
+    const fromDir = dirname(fromAbsFile);
+    const tsSpec = specifier.replace(/\.js$/, '.ts');
+    const candidates = [resolve(fromDir, tsSpec), resolve(fromDir, tsSpec.replace(/\.ts$/, '/index.ts'))];
+    for (const abs of candidates) {
+        if (existsSync(abs)) return toPosix(relative(rootDir, abs));
+    }
+    return undefined;
+}
+
+function classifyDeclaration(stmt) {
+    if (ts.isFunctionDeclaration(stmt)) return 'function';
+    if (ts.isClassDeclaration(stmt)) return 'class';
+    if (ts.isInterfaceDeclaration(stmt)) return 'interface';
+    if (ts.isTypeAliasDeclaration(stmt)) return 'type';
+    if (ts.isEnumDeclaration(stmt)) return 'enum';
+    if (ts.isModuleDeclaration(stmt)) return 'namespace';
+    return undefined;
+}
+
+/**
+ * Enumerate this file's exports as a flat list of records:
+ *   - { kind: 'star',           fromSpec, typeOnly }                    export * from '...'
+ *   - { kind: 'namespace-star', name, fromSpec, typeOnly }              export * as X from '...'
+ *   - { kind: 'named',          name, importedName, fromSpec?, typeOnly } export { A as B } from '...' / export { X }
+ *   - { kind: 'declaration',    name, decl, typeOnly }                  export class/function/const/...
+ */
+function collectFileExports(sourceFile) {
+    const out = [];
+    for (const stmt of sourceFile.statements) {
+        if (ts.isExportDeclaration(stmt)) {
+            const fromSpec =
+                stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)
+                    ? stmt.moduleSpecifier.text
+                    : undefined;
+            const typeOnly = stmt.isTypeOnly === true;
+            if (stmt.exportClause === undefined && fromSpec) {
+                out.push({ kind: 'star', fromSpec, typeOnly });
+            } else if (stmt.exportClause && ts.isNamespaceExport(stmt.exportClause) && fromSpec) {
+                out.push({ kind: 'namespace-star', name: stmt.exportClause.name.text, fromSpec, typeOnly });
+            } else if (stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
+                for (const el of stmt.exportClause.elements) {
+                    out.push({
+                        kind: 'named',
+                        name: el.name.text,
+                        importedName: el.propertyName ? el.propertyName.text : el.name.text,
+                        fromSpec,
+                        typeOnly: typeOnly || el.isTypeOnly === true,
+                    });
+                }
             }
             continue;
         }
+        if (!hasExportModifier(stmt)) continue;
+        const isDefault = hasDefaultModifier(stmt);
 
-        if (char === "'" || char === '"' || char === '`') {
-            quote = char;
-            arg += char;
+        if (ts.isVariableStatement(stmt)) {
+            for (const decl of stmt.declarationList.declarations) {
+                if (!ts.isIdentifier(decl.name)) continue;
+                out.push({
+                    kind: 'declaration',
+                    name: decl.name.text,
+                    decl: { kind: 'const', node: decl, parent: stmt },
+                    typeOnly: false,
+                });
+            }
             continue;
         }
+        const declKind = classifyDeclaration(stmt);
+        if (!declKind) continue;
+        const name = isDefault ? 'default' : stmt.name && ts.isIdentifier(stmt.name) ? stmt.name.text : '<anonymous>';
+        out.push({
+            kind: 'declaration',
+            name,
+            decl: { kind: declKind, node: stmt },
+            typeOnly: declKind === 'interface' || declKind === 'type',
+        });
+    }
+    return out;
+}
 
-        if (char === '(' || char === '{' || char === '[') {
-            depth += 1;
-        } else if (char === ')' || char === '}' || char === ']') {
-            depth -= 1;
+function buildSymbolFromDecl(decl, sourceFile, relFile, maxLen) {
+    const { kind, node, parent } = decl;
+    let signature;
+    let line;
+    if (kind === 'function') {
+        signature = sliceFunctionSignature(node, sourceFile, maxLen);
+        line = lineOf(node, sourceFile);
+    } else if (kind === 'class') {
+        signature = sliceClassHeader(node, sourceFile, maxLen);
+        line = lineOf(node, sourceFile);
+    } else if (kind === 'const') {
+        signature = sliceVariable(parent, sourceFile, maxLen);
+        line = lineOf(node, sourceFile);
+    } else {
+        signature = sliceFull(node, sourceFile, maxLen);
+        line = lineOf(node, sourceFile);
+    }
+    const jsdoc = extractJsdoc(parent ?? node);
+    return { kind, file: relFile, line, signature, jsdoc };
+}
+
+function resolvePublicApi(entrypoints, rootDir, sourceFileByRel, maxLen) {
+    const collected = [];
+    const seen = new Set();
+
+    function emit(relFile, decl, sourceFile, name, typeOnly) {
+        const key = `${relFile}:::${name}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const sym = buildSymbolFromDecl(decl, sourceFile, relFile, maxLen);
+        const entry = { name, ...sym };
+        if (typeOnly || decl.kind === 'interface' || decl.kind === 'type') entry.typeOnly = true;
+        if (!entry.jsdoc) delete entry.jsdoc;
+        collected.push(entry);
+    }
+
+    function visit(relFile, depth) {
+        if (depth > RE_EXPORT_DEPTH_CAP) return;
+        const sf = sourceFileByRel.get(relFile);
+        if (!sf) return;
+        const exports = collectFileExports(sf);
+
+        for (const e of exports) {
+            if (e.kind === 'star') {
+                const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
+                if (target && sourceFileByRel.has(target)) visit(target, depth + 1);
+            } else if (e.kind === 'namespace-star') {
+                const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
+                if (target && sourceFileByRel.has(target)) {
+                    const key = `${target}:::${e.name}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        const entry = {
+                            name: e.name,
+                            kind: 'namespace',
+                            file: target,
+                            line: 1,
+                            signature: `namespace ${e.name}`,
+                        };
+                        if (e.typeOnly) entry.typeOnly = true;
+                        collected.push(entry);
+                    }
+                }
+            } else if (e.kind === 'named') {
+                if (e.fromSpec) {
+                    const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
+                    if (target && sourceFileByRel.has(target)) {
+                        const sub = findOriginalDeclaration(
+                            target,
+                            e.importedName,
+                            sourceFileByRel,
+                            rootDir,
+                            depth + 1,
+                        );
+                        if (sub) emit(sub.file, sub.decl, sub.sourceFile, e.name, e.typeOnly || sub.typeOnly);
+                    }
+                } else {
+                    const sub = findOriginalDeclaration(relFile, e.importedName, sourceFileByRel, rootDir, depth);
+                    if (sub) emit(sub.file, sub.decl, sub.sourceFile, e.name, e.typeOnly || sub.typeOnly);
+                }
+            } else if (e.kind === 'declaration') {
+                emit(relFile, e.decl, sf, e.name, e.typeOnly);
+            }
         }
+    }
 
-        if (char === ',' && depth === 0) {
-            break;
+    for (const ep of entrypoints) visit(ep, 0);
+    return collected;
+}
+
+function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir, depth) {
+    if (depth > RE_EXPORT_DEPTH_CAP) return undefined;
+    const sf = sourceFileByRel.get(relFile);
+    if (!sf) return undefined;
+    const exports = collectFileExports(sf);
+    for (const e of exports) {
+        if (e.kind === 'declaration' && e.name === exportedName) {
+            return { file: relFile, decl: e.decl, sourceFile: sf, typeOnly: e.typeOnly };
         }
-
-        arg += char;
+        if (e.kind === 'named' && e.name === exportedName) {
+            if (e.fromSpec) {
+                const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
+                if (target) {
+                    const sub = findOriginalDeclaration(target, e.importedName, sourceFileByRel, rootDir, depth + 1);
+                    if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
+                }
+            } else {
+                const sub = findOriginalDeclaration(relFile, e.importedName, sourceFileByRel, rootDir, depth + 1);
+                if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
+            }
+        }
     }
-
-    return arg.trim();
+    for (const e of exports) {
+        if (e.kind === 'star') {
+            const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
+            if (target) {
+                const sub = findOriginalDeclaration(target, exportedName, sourceFileByRel, rootDir, depth + 1);
+                if (sub) return sub;
+            }
+        }
+    }
+    return undefined;
 }
 
-function summarizeEndpointExpression(expression, suffix = '') {
-    if (!expression) {
-        return '?';
+// ── Top-level builder ─────────────────────────────────────────────────────────
+
+export function buildCodemap({ rootDir }) {
+    const root = resolve(rootDir);
+    const config = loadConfig(root);
+    const relFiles = collectSourceFiles(root, config.sourceDirs, config.exclude);
+    const sourceHash = computeSourceHash(root, relFiles);
+
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+
+    // Parse source files directly. We only need AST walking, not type-checking,
+    // and createProgram doesn't reliably attach `.jsDoc` arrays to nodes (which
+    // ts.getJSDocCommentsAndTags relies on). createSourceFile with
+    // setParentNodes=true gives us both JSDoc attachment and `.parent` chains.
+    const sourceFileByRel = new Map();
+    for (const rel of relFiles) {
+        const abs = join(root, rel);
+        const text = readFileSync(abs, 'utf8');
+        const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, /* setParentNodes */ true);
+        if (!sf.isDeclarationFile) sourceFileByRel.set(rel, sf);
     }
 
-    const literals = [...expression.matchAll(/`([^`]+)`|'([^']+)'|"([^"]+)"/g)].map(
-        (match) => match[1] ?? match[2] ?? match[3],
-    );
+    const files = [];
+    for (const rel of relFiles) {
+        const sf = sourceFileByRel.get(rel);
+        if (!sf) continue;
+        const { imports, reExports } = extractImportsAndReExports(sf);
+        const symbols = extractFileSymbols(sf, config.maxSignatureLength);
+        files.push({ path: rel, imports, reExports, symbols });
+    }
+    files.sort((a, b) => a.path.localeCompare(b.path));
 
-    return literals.length > 0 ? literals.map((literal) => `${literal}${suffix}`).join(' or ') : '?';
+    const publicApi = resolvePublicApi(config.entrypoints, root, sourceFileByRel, config.maxSignatureLength);
+    publicApi.sort((a, b) => a.name.localeCompare(b.name) || a.file.localeCompare(b.file));
+
+    const data = {
+        schema: SCHEMA_VERSION,
+        repo: { name: pkg.name, version: pkg.version },
+        sourceHash,
+        entrypoints: [...config.entrypoints],
+        publicApi,
+        files,
+    };
+
+    return { markdown: renderMarkdown(data), sourceHash, data };
 }
 
-function inferEndpointFromBody(methodBody) {
-    const requestMatch = methodBody.match(
-        /\.(?:client\.)?request(?:<[\s\S]*?>)?\(\s*'(GET|POST)'\s*,\s*(?:`([^`]+)`|'([^']+)')/s,
-    );
-    if (requestMatch) {
-        return { verb: requestMatch[1], endpoint: requestMatch[2] ?? requestMatch[3] };
+function renderMarkdown(data) {
+    const preamble = [
+        '# CODEMAP',
+        '',
+        'Machine-readable symbol index for coding agents. Run `npm run codemap` to regenerate.',
+        '',
+        'Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sourceHash`.',
+        '',
+    ].join('\n');
+    return `${preamble}\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n`;
+}
+
+// ── --check mode ──────────────────────────────────────────────────────────────
+
+function unifiedDiffPreview(expected, actual, maxLines) {
+    const e = expected.split('\n');
+    const a = actual.split('\n');
+    const out = [];
+    const max = Math.max(e.length, a.length);
+    for (let i = 0; i < max && out.length < maxLines; i++) {
+        const left = e[i];
+        const right = a[i];
+        if (left === right) continue;
+        if (left !== undefined) out.push(`- ${left}`);
+        if (out.length >= maxLines) break;
+        if (right !== undefined) out.push(`+ ${right}`);
+    }
+    return out.join('\n');
+}
+
+export function runCli({ rootDir, check, stdout = process.stdout, stderr = process.stderr }) {
+    const { markdown } = buildCodemap({ rootDir });
+    const outPath = join(resolve(rootDir), 'CODEMAP.md');
+
+    if (check) {
+        if (!existsSync(outPath)) {
+            stderr.write('✗ CODEMAP.md is missing. Run `npm run codemap` and commit the result.\n');
+            return 1;
+        }
+        const onDisk = readFileSync(outPath, 'utf8');
+        if (onDisk === markdown) {
+            stdout.write('✓ CODEMAP.md is up to date\n');
+            return 0;
+        }
+        stderr.write('✗ CODEMAP.md is stale. Run `npm run codemap` and commit the result.\n\n');
+        stderr.write(unifiedDiffPreview(onDisk, markdown, DIFF_PREVIEW_LINES) + '\n');
+        return 1;
     }
 
-    const binaryArg = extractFirstArg(methodBody, 'requestBinary');
-    if (binaryArg) {
-        return { verb: 'GET', endpoint: summarizeEndpointExpression(binaryArg) };
+    writeFileSync(outPath, markdown, 'utf8');
+    stdout.write('✓ Wrote CODEMAP.md\n');
+    return 0;
+}
+
+// ── Entry ─────────────────────────────────────────────────────────────────────
+
+const isDirectInvocation = (() => {
+    try {
+        return fileURLToPath(import.meta.url) === resolve(process.argv[1] ?? '');
+    } catch {
+        return false;
     }
+})();
 
-    const multipartArg = extractFirstArg(methodBody, 'requestMultipart');
-    if (multipartArg) {
-        return { verb: 'POST', endpoint: summarizeEndpointExpression(multipartArg) };
-    }
-
-    const buildEndpointArg = extractFirstArg(methodBody, 'buildEndpoint');
-    if (buildEndpointArg) {
-        return { verb: 'GET', endpoint: summarizeEndpointExpression(buildEndpointArg, '&...') };
-    }
-
-    return { verb: '?', endpoint: '?' };
+if (isDirectInvocation) {
+    const check = process.argv.includes('--check');
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+    process.exit(runCli({ rootDir: repoRoot, check }));
 }
-
-function extractModuleImportMap(lines) {
-    return new Map(
-        lines.flatMap((line) => {
-            const match = line.match(/^import \{ (\w+) \} from '\.\/modules\/(.+?)\.js';$/);
-            return match ? [[match[1], match[2]]] : [];
-        }),
-    );
-}
-
-function extractModuleInstanceMap(lines, moduleImportMap) {
-    return new Map(
-        lines.flatMap((line) => {
-            const match = line.match(/^\s*this\.(\w+) = new (\w+)\(this\);$/);
-            return match ? [[match[1], moduleImportMap.get(match[2])]] : [];
-        }),
-    );
-}
-
-const clientLines = readSrc('client.ts');
-const coreLines = readSrc('client-core.ts');
-const errorsLines = readSrc('errors.ts');
-const constantsLines = readSrc('constants.ts');
-const typesLines = readSrc('types.ts');
-
-const moduleImportMap = extractModuleImportMap(clientLines);
-const moduleInstanceMap = extractModuleInstanceMap(clientLines, moduleImportMap);
-const moduleLinesCache = new Map();
-
-function getModuleLines(moduleName) {
-    if (!moduleLinesCache.has(moduleName)) {
-        moduleLinesCache.set(moduleName, readSrc(`modules/${moduleName}.ts`));
-    }
-    return moduleLinesCache.get(moduleName);
-}
-
-function inferEndpoint(methodName) {
-    const facadeMethod = findAsyncMethod(clientLines, methodName);
-    if (!facadeMethod) {
-        return { verb: '?', endpoint: '?' };
-    }
-
-    const delegateMatch = facadeMethod.body.match(/return this\.(\w+)\.(\w+)\(/);
-    if (!delegateMatch) {
-        return inferEndpointFromBody(facadeMethod.body);
-    }
-
-    const [, moduleProperty, delegatedMethodName] = delegateMatch;
-    const moduleName = moduleInstanceMap.get(moduleProperty);
-    if (!moduleName) {
-        return { verb: '?', endpoint: '?' };
-    }
-
-    const moduleMethod = findAsyncMethod(getModuleLines(moduleName), delegatedMethodName);
-    if (!moduleMethod) {
-        return { verb: '?', endpoint: '?' };
-    }
-
-    return inferEndpointFromBody(moduleMethod.body);
-}
-
-const endpointMethods = extractAsyncMethods(clientLines);
-
-const coreMethods = ['constructor', 'validateId', 'buildEndpoint', 'clearCache', 'destroy', 'request'].map((name) => {
-    const index = coreLines.findIndex((line) => {
-        if (name === 'constructor') return /^\s+constructor\s*\(/.test(line);
-        if (name === 'request') return /^\s+(?:public|protected)\s+async\s+request/.test(line);
-        return new RegExp(`\\s*(?:public|protected|private)\\s+${name}\\s*[<(]`).test(line);
-    });
-    return { name, line: index + 1 };
-});
-
-const constants = extractConstants(constantsLines);
-const errorClasses = extractExports(errorsLines);
-const types = extractTypes(typesLines);
-
-const lines = [];
-
-lines.push('# CODEMAP');
-lines.push('');
-lines.push('Auto-generated symbol index. Run `npm run codemap` to regenerate.');
-lines.push('');
-lines.push(
-    'HTTP and endpoint metadata for facade methods are inferred from delegated module implementations in `src/modules/*`.',
-);
-lines.push('');
-
-lines.push('## API Endpoint Methods (`src/client.ts`)');
-lines.push('');
-lines.push('| Method | HTTP | Endpoint | Line |');
-lines.push('|--------|------|----------|------|');
-for (const method of endpointMethods) {
-    const { verb, endpoint } = inferEndpoint(method.name);
-    lines.push(`| \`${method.name}\` | ${verb} | \`${endpoint}\` | [${method.line}](src/client.ts#L${method.line}) |`);
-}
-lines.push('');
-
-lines.push('## Core Infrastructure (`src/client-core.ts`)');
-lines.push('');
-lines.push('| Symbol | Line |');
-lines.push('|--------|------|');
-for (const method of coreMethods) {
-    if (method.line > 0) {
-        lines.push(`| \`${method.name}\` | [${method.line}](src/client-core.ts#L${method.line}) |`);
-    }
-}
-lines.push('');
-
-lines.push('## Error Classes (`src/errors.ts`)');
-lines.push('');
-lines.push('| Class | Line |');
-lines.push('|-------|------|');
-for (const errorClass of errorClasses) {
-    lines.push(`| \`${errorClass.name}\` | [${errorClass.line}](src/errors.ts#L${errorClass.line}) |`);
-}
-lines.push('');
-
-lines.push('## Constants (`src/constants.ts`)');
-lines.push('');
-lines.push('| Constant | Value | Line |');
-lines.push('|----------|-------|------|');
-for (const constant of constants) {
-    lines.push(
-        `| \`${constant.name}\` | \`${constant.value}\` | [${constant.line}](src/constants.ts#L${constant.line}) |`,
-    );
-}
-lines.push('');
-
-lines.push('## Types (`src/types.ts`)');
-lines.push('');
-lines.push('| Type | Line |');
-lines.push('|------|------|');
-for (const type of types) {
-    lines.push(`| \`${type.name}\` | [${type.line}](src/types.ts#L${type.line}) |`);
-}
-lines.push('');
-
-writeFileSync(path.join(root, 'CODEMAP.md'), lines.join('\n'));
-console.log(`CODEMAP.md generated (${lines.length} lines).`);

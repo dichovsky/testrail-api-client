@@ -4,8 +4,6 @@
         "module": "NodeNext",
         "lib": ["ES2022"],
         "moduleResolution": "NodeNext",
-        "outDir": "./dist",
-        "rootDir": "./src",
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
@@ -37,10 +35,11 @@
         "resolveJsonModule": true,
         "skipLibCheck": true,
         // Emit
+        "noEmit": true,
         "removeComments": false,
         "preserveConstEnums": true,
         "incremental": false
     },
-    "include": ["src/**/*"],
-    "exclude": ["node_modules", "dist", "tests"]
+    "include": ["src/**/*", "tests/**/*", "example.ts", "vitest.config.ts"],
+    "exclude": ["node_modules", "dist"]
 }

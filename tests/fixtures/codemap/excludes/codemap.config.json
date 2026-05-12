@@ -1,0 +1,6 @@
+{
+    "sourceDirs": ["src"],
+    "entrypoints": ["src/index.ts"],
+    "exclude": ["**/*.test.ts"],
+    "maxSignatureLength": 200
+}

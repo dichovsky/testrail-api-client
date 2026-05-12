@@ -44,21 +44,22 @@
         "LICENSE"
     ],
     "scripts": {
-        "build": "rm -rf dist && tsc",
+        "build": "rm -rf dist && tsc -p tsconfig.prod.json",
         "clean:maps": "find dist -name '*.map' -delete",
         "codemap": "node scripts/generate-codemap.js",
+        "codemap:check": "node scripts/generate-codemap.js --check",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint .",
-        "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run skill && npm run skill:check && npm run clean:maps",
-        "pretest": "npm run typecheck && npm run lint && npm run format:check",
+        "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run skill && npm run skill:check && npm run codemap:check && npm run clean:maps",
+        "pretest": "npm run typecheck && npm run lint && npm run format:check && npm run codemap:check",
         "skill": "npm run build && node scripts/generate-skill.js",
         "skill:check": "git diff --exit-code skill/SKILL.md",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",
         "test:watch": "vitest",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc"
     },
     "dependencies": {
         "zod": "^4.4.3"
