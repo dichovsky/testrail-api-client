@@ -2,7 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId, optInt } from '../ids.js';
 
 export async function handleMilestoneGet(ctx: HandlerContext): Promise<void> {
-    const id = parseId(ctx.args.idArg, 'milestone id');
+    const id = parseId(ctx.args.pathParams[0], 'milestone id');
     ctx.out(await ctx.client.getMilestone(id));
 }
 
