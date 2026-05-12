@@ -22,12 +22,17 @@ export interface HandlerArgs {
  * consume any of these (write handlers do; read handlers ignore). When all
  * three are absent for a write action, the resolver emits a "body required"
  * error.
+ *
+ * `readStdin` is a thunk rather than pre-read contents so stdin is *only*
+ * drained when the resolver actually selects it as the body source. Read
+ * actions and no-body writes (`run close`) never invoke it — avoiding the
+ * "tail -f | testrail run close" hang and the cost of slurping a large
+ * redirected stdin that the handler will throw away.
  */
 export interface BodyInput {
     dataFlag?: string;
     dataFileFlag?: string;
-    /** Stdin contents when piped (auto-detected via !process.stdin.isTTY). */
-    stdin?: string;
+    readStdin?: () => string;
 }
 
 export interface HandlerContext {

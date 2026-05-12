@@ -18,8 +18,10 @@ export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | {
  * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; read via
  *   readFileSync so failures surface as a structured `ok: false` rather than
  *   crashing the CLI)
- * - stdin (provided via `BodyInput.stdin`; the caller is responsible for
- *   reading and detecting non-TTY availability before populating this field)
+ * - stdin (provided via `BodyInput.readStdin` thunk; the caller is
+ *   responsible for non-TTY detection — only set the thunk when stdin is
+ *   piped. The resolver invokes the thunk *only* when stdin is the
+ *   selected source, so read actions and no-body writes never drain it.)
  *
  * After source resolution: JSON-parse the raw string, then validate against
  * the supplied Zod schema. No coercion is applied (Q8 lock from
@@ -37,7 +39,7 @@ export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S)
     const sources = [
         input.dataFlag !== undefined ? 'data' : null,
         input.dataFileFlag !== undefined ? 'file' : null,
-        input.stdin !== undefined ? 'stdin' : null,
+        input.readStdin !== undefined ? 'stdin' : null,
     ].filter((s): s is BodySource => s !== null);
 
     if (sources.length === 0) {
@@ -69,8 +71,16 @@ export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S)
         }
         source = 'file';
     } else {
-        // stdin is the only remaining source (sources.length === 1, and the other two are undefined).
-        raw = input.stdin as string;
+        // stdin is the only remaining source. Invoke the thunk now (and only
+        // now) so the underlying readFileSync(0) call happens lazily.
+        try {
+            raw = (input.readStdin as () => string)();
+        } catch (e) {
+            return {
+                ok: false,
+                error: `Cannot read stdin: ${e instanceof Error ? e.message : String(e)}`,
+            };
+        }
         source = 'stdin';
     }
 

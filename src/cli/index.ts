@@ -160,11 +160,14 @@ async function main(): Promise<number> {
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
     };
 
-    const stdinValue = readStdinIfPiped();
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
         ...(values['data-file'] !== undefined && { dataFileFlag: values['data-file'] as string }),
-        ...(stdinValue !== undefined && { stdin: stdinValue }),
+        // Pass a thunk (not the read contents) so resolveBody() only drains
+        // stdin when it actually selects stdin as the body source. Read
+        // actions, no-body writes (`run close`), and write actions that
+        // received --data or --data-file never invoke this.
+        ...(process.stdin.isTTY === false && { readStdin: () => readFileSync(0, 'utf-8') }),
     };
 
     const dryRun = values['dry-run'] === true;
@@ -180,34 +183,6 @@ async function main(): Promise<number> {
     } finally {
         client?.destroy();
     }
-}
-
-/**
- * Read stdin synchronously when input is piped (non-TTY). Result is cached
- * across the two calls in BodyInput construction so we don't drain the
- * stream twice.
- *
- * `process.stdin.isTTY === false` is the only safe trigger: `true` means a
- * terminal is attached (no producer; reading would hang), and `undefined`
- * happens on environments where TTY detection is unreliable — in that case
- * we err on the side of skipping.
- */
-let stdinCache: string | undefined;
-let stdinChecked = false;
-function readStdinIfPiped(): string | undefined {
-    if (stdinChecked) return stdinCache;
-    stdinChecked = true;
-    if (process.stdin.isTTY !== false) return undefined;
-    /* v8 ignore start -- platform-specific synchronous fd 0 read; in unit tests
-       process.stdin.isTTY is true so this branch never executes. Exercised at
-       runtime by piped input (`echo '{...}' | testrail case add 1`). */
-    try {
-        stdinCache = readFileSync(0, 'utf-8');
-    } catch {
-        stdinCache = undefined;
-    }
-    return stdinCache;
-    /* v8 ignore stop */
 }
 
 /* v8 ignore start -- defensive: main() catches all reachable errors internally; this handler exists only for hypothetical failures (e.g., broken-pipe in process.stdout.write) that bypass the inner try/catch. */

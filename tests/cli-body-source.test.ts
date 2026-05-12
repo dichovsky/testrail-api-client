@@ -92,7 +92,7 @@ describe('resolveBody', () => {
 
     describe('stdin', () => {
         it('parses stdin contents when provided', () => {
-            const result = resolveBody({ stdin: VALID_JSON }, AddCasePayloadSchema);
+            const result = resolveBody({ readStdin: () => VALID_JSON }, AddCasePayloadSchema);
             expect(result.ok).toBe(true);
             if (result.ok) {
                 expect(result.source).toBe('stdin');
@@ -101,9 +101,38 @@ describe('resolveBody', () => {
         });
 
         it('rejects stdin with malformed JSON', () => {
-            const result = resolveBody({ stdin: 'not json' }, AddCasePayloadSchema);
+            const result = resolveBody({ readStdin: () => 'not json' }, AddCasePayloadSchema);
             expect(result.ok).toBe(false);
             if (!result.ok) expect(result.error).toContain('Invalid JSON');
+        });
+
+        it('surfaces a thunk failure as a structured "Cannot read stdin" error', () => {
+            const result = resolveBody(
+                {
+                    readStdin: () => {
+                        throw new Error('EAGAIN');
+                    },
+                },
+                AddCasePayloadSchema,
+            );
+            expect(result.ok).toBe(false);
+            if (!result.ok) expect(result.error).toContain('Cannot read stdin');
+        });
+
+        it('does not invoke the thunk when --data is also provided (mutex check happens first)', () => {
+            let called = 0;
+            const result = resolveBody(
+                {
+                    dataFlag: VALID_JSON,
+                    readStdin: () => {
+                        called += 1;
+                        return VALID_JSON;
+                    },
+                },
+                AddCasePayloadSchema,
+            );
+            expect(result.ok).toBe(false); // mutex error
+            expect(called).toBe(0); // thunk never ran
         });
     });
 
@@ -119,7 +148,7 @@ describe('resolveBody', () => {
         });
 
         it('rejects when --data and stdin are both provided', () => {
-            const result = resolveBody({ dataFlag: VALID_JSON, stdin: VALID_JSON }, AddCasePayloadSchema);
+            const result = resolveBody({ dataFlag: VALID_JSON, readStdin: () => VALID_JSON }, AddCasePayloadSchema);
             expect(result.ok).toBe(false);
             if (!result.ok) expect(result.error).toContain('Multiple body sources');
         });
@@ -128,7 +157,7 @@ describe('resolveBody', () => {
             const path = join(tmp, 'p.json');
             writeFileSync(path, VALID_JSON, 'utf-8');
             const result = resolveBody(
-                { dataFlag: VALID_JSON, dataFileFlag: path, stdin: VALID_JSON },
+                { dataFlag: VALID_JSON, dataFileFlag: path, readStdin: () => VALID_JSON },
                 AddCasePayloadSchema,
             );
             expect(result.ok).toBe(false);
