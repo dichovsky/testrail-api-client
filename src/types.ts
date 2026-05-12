@@ -1,3 +1,9 @@
+// AddRunPayload is the source-of-truth payload type derived from
+// `AddRunPayloadSchema` in `./schemas.ts`. It's re-imported here because
+// `AddPlanEntryPayload` / `UpdatePlanEntryPayload` (which remain handwritten
+// in this file as part of v2.1 scope) contain `runs?: AddRunPayload[]`.
+import type { AddRunPayload } from './schemas.js';
+
 /**
  * TestRail API client configuration options
  */
@@ -253,27 +259,8 @@ export interface Priority {
     priority: number; // weight/level
 }
 
-export interface AddCasePayload {
-    title: string;
-    template_id?: number;
-    type_id?: number;
-    priority_id?: number;
-    estimate?: string;
-    milestone_id?: number;
-    refs?: string;
-    custom_fields?: Record<string, unknown>;
-}
-
-export interface UpdateCasePayload {
-    title?: string;
-    template_id?: number;
-    type_id?: number;
-    priority_id?: number;
-    estimate?: string;
-    milestone_id?: number;
-    refs?: string;
-    custom_fields?: Record<string, unknown>;
-}
+// AddCasePayload and UpdateCasePayload now live in `./schemas.ts` as Zod
+// schemas (source of truth for runtime validation + inferred TS types).
 
 /**
  * Filter options for `getCases()`.
@@ -342,45 +329,9 @@ export interface UpdatePlanEntryPayload {
     runs?: AddRunPayload[];
 }
 
-export interface AddRunPayload {
-    suite_id?: number;
-    name: string;
-    description?: string;
-    milestone_id?: number;
-    assignedto_id?: number;
-    include_all?: boolean;
-    case_ids?: number[];
-    refs?: string;
-}
-
-export interface UpdateRunPayload {
-    name?: string;
-    description?: string;
-    milestone_id?: number;
-    assignedto_id?: number;
-    include_all?: boolean;
-    case_ids?: number[];
-    refs?: string;
-}
-
-export interface AddResultPayload {
-    /** e.g., 1=Passed */
-    status_id: number;
-    comment?: string;
-    version?: string;
-    elapsed?: string; // e.g. "5m 30s"
-    defects?: string;
-    assignedto_id?: number;
-    custom_fields?: Record<string, unknown>;
-}
-
-export interface AddResultsForCasesPayload {
-    results: AddResultForCasePayload[];
-}
-
-export interface AddResultForCasePayload extends AddResultPayload {
-    case_id: number;
-}
+// AddRunPayload, UpdateRunPayload, AddResultPayload, AddResultsForCasesPayload,
+// and AddResultForCasePayload now live in `./schemas.ts` as Zod schemas
+// (source of truth for runtime validation + inferred TS types).
 
 export interface AddSectionPayload {
     name: string;

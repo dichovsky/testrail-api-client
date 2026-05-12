@@ -11,8 +11,6 @@ import type {
     User,
     Status,
     Priority,
-    AddCasePayload,
-    UpdateCasePayload,
     AddSuitePayload,
     UpdateSuitePayload,
     AddPlanPayload,
@@ -20,10 +18,6 @@ import type {
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
     PlanEntry,
-    AddRunPayload,
-    UpdateRunPayload,
-    AddResultPayload,
-    AddResultsForCasesPayload,
     AddSectionPayload,
     UpdateSectionPayload,
     AddMilestonePayload,
@@ -65,6 +59,14 @@ import type {
     Report,
     ReportResult,
 } from './types.js';
+import type {
+    AddCasePayload,
+    UpdateCasePayload,
+    AddRunPayload,
+    UpdateRunPayload,
+    AddResultPayload,
+    AddResultsForCasesPayload,
+} from './schemas.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
 import { SuiteModule } from './modules/suites.js';

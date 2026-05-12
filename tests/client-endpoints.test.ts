@@ -14,18 +14,12 @@ import type {
     User,
     Status,
     Priority,
-    AddCasePayload,
-    UpdateCasePayload,
     AddSuitePayload,
     UpdateSuitePayload,
     AddPlanPayload,
     UpdatePlanPayload,
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
-    AddRunPayload,
-    UpdateRunPayload,
-    AddResultPayload,
-    AddResultsForCasesPayload,
     AddMilestonePayload,
     UpdateMilestonePayload,
     GetRunsOptions,
@@ -36,6 +30,14 @@ import type {
     ConfigurationGroup,
     Configuration,
 } from '../src/types.js';
+import type {
+    AddCasePayload,
+    UpdateCasePayload,
+    AddRunPayload,
+    UpdateRunPayload,
+    AddResultPayload,
+    AddResultsForCasesPayload,
+} from '../src/schemas.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 
 // Mock global fetch
