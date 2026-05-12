@@ -7,7 +7,7 @@
  * resolveAuth precedence between flags and env.
  */
 import { describe, it, expect } from 'vitest';
-import { valueToString, renderTable } from '../src/cli/output.js';
+import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
 import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import { dispatch } from '../src/cli/dispatch.js';
@@ -97,6 +97,36 @@ describe('renderTable', () => {
         const out = renderTable([{ id: 1, name: 'a' }, 42]);
         expect(out).toContain('id | name');
         expect(out.split('\n')).toHaveLength(4);
+    });
+});
+
+describe('safeJsonStringify', () => {
+    it('returns a pretty-printed JSON string for a plain object', () => {
+        const out = safeJsonStringify({ id: 1, name: 'a' });
+        expect(JSON.parse(out)).toEqual({ id: 1, name: 'a' });
+        expect(out).toContain('\n'); // pretty-printed
+    });
+
+    it('returns a structured error JSON when input has a circular reference', () => {
+        const circular: Record<string, unknown> = {};
+        circular['self'] = circular;
+        const out = safeJsonStringify(circular);
+        const parsed = JSON.parse(out) as Record<string, unknown>;
+        expect(parsed['error']).toBe('unserializable');
+        expect(typeof parsed['message']).toBe('string');
+    });
+
+    it('returns a structured error JSON when input contains a nested BigInt', () => {
+        const out = safeJsonStringify({ count: 10n });
+        const parsed = JSON.parse(out) as Record<string, unknown>;
+        expect(parsed['error']).toBe('unserializable');
+    });
+
+    it('output is always valid JSON regardless of input (jq-pipeline guarantee)', () => {
+        expect(() => JSON.parse(safeJsonStringify({ valid: true }))).not.toThrow();
+        const circular: Record<string, unknown> = {};
+        circular['self'] = circular;
+        expect(() => JSON.parse(safeJsonStringify(circular))).not.toThrow();
     });
 });
 

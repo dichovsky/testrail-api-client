@@ -47,9 +47,9 @@ Pure refactor in spirit; two small defensive fixes folded in after Copilot revie
 
 - `src/cli/index.ts` — thin entrypoint: arg parse, dispatch, auth resolution, handler invocation (wrapped in `async main()` to prevent fall-through after `process.exit()` in test contexts)
 - `src/cli/auth.ts` — env-var + `--flag` resolution; fail-fast on missing
-- `src/cli/output.ts` — JSON/table renderers (moved from `cli.ts`); now guards `JSON.stringify` and indexed row access against pathological inputs
+- `src/cli/output.ts` — JSON/table renderers (moved from `cli.ts`); guards both output paths against pathological inputs: `valueToString` wraps `JSON.stringify` in try/catch with `[Object]` fallback, `renderTable` accesses row fields via a defensive helper that handles `null`/primitive rows, and `createOutput`'s `--format json` path delegates to `safeJsonStringify` which falls back to a structured `{ error: 'unserializable', message }` JSON object on circular refs or nested `BigInt`
 - `src/cli/ids.ts` — `parseId` (throws `IdParseError`), `optInt` (moved from `cli.ts`)
-- `src/cli/dispatch.ts` — handler-table data structure replacing `switch`
+- `src/cli/dispatch.ts` — single `HANDLERS` map (resource:action → handler) replaces the prior `switch`; the allowed-resource and allowed-action-per-resource lists are derived from the map's keys, so adding a new handler entry automatically updates dispatch behavior and error messages with no parallel registry to keep in sync
 - `src/cli/handler-context.ts` — shared `HandlerArgs` / `HandlerContext` / `Handler` types
 - `src/cli/handlers/{project,suite,case,run,result,milestone,user}.ts` — one async handler per resource:action
 - `BACKLOG.md` — checkbox-grouped deferred items

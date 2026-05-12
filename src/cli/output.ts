@@ -50,13 +50,34 @@ export function renderTable(data: unknown): string {
     return [header, line, ...body].join('\n');
 }
 
+/**
+ * Best-effort JSON.stringify with a structured fallback. If serialization
+ * fails (circular reference, nested BigInt, etc.), emits a valid JSON
+ * object describing the failure rather than throwing — so callers piping
+ * through `jq` always receive parseable JSON.
+ *
+ * Exported so unit tests can verify the fallback path without spawning a
+ * subprocess.
+ */
+export function safeJsonStringify(data: unknown): string {
+    try {
+        return JSON.stringify(data, null, 2);
+    } catch (e) {
+        return JSON.stringify(
+            { error: 'unserializable', message: e instanceof Error ? e.message : String(e) },
+            null,
+            2,
+        );
+    }
+}
+
 export function createOutput(opts: OutputOptions): Output {
     const out = (data: unknown): void => {
         if (opts.quiet) return;
         if (opts.format === 'table') {
             process.stdout.write(`${renderTable(data)}\n`);
         } else {
-            process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+            process.stdout.write(`${safeJsonStringify(data)}\n`);
         }
     };
     const err = (message: string): void => {
