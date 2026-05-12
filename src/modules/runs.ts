@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Run, GetRunsOptions, AddRunPayload, UpdateRunPayload } from '../types.js';
+import type { Run, GetRunsOptions } from '../types.js';
+import type { AddRunPayload, UpdateRunPayload } from '../schemas.js';
 import { RunSchema } from '../schemas.js';
 import { z } from 'zod';
 

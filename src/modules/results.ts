@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Result, GetResultsOptions, AddResultPayload, AddResultsForCasesPayload } from '../types.js';
+import type { Result, GetResultsOptions } from '../types.js';
+import type { AddResultPayload, AddResultsForCasesPayload } from '../schemas.js';
 import { ResultSchema } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
