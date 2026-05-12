@@ -4,7 +4,7 @@ import type { AddProjectPayload, UpdateProjectPayload, Project } from '../src/ty
 import { createClient, mockOk, mockErr } from './helpers.js';
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch as unknown as typeof fetch;
+global.fetch = mockFetch;
 
 describe('Project CRUD', () => {
     let client: TestRailClient;
@@ -18,7 +18,7 @@ describe('Project CRUD', () => {
     describe('addProject', () => {
         it('success', async () => {
             const payload: AddProjectPayload = { name: 'New Project', suite_mode: 1 };
-            const mockProject: Project = { id: 10, name: 'New Project', suite_mode: 1, url: 'url' } as Project;
+            const mockProject: Project = { id: 10, name: 'New Project', suite_mode: 1, url: 'url' };
             mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
             const result = await client.addProject(payload);
@@ -36,7 +36,7 @@ describe('Project CRUD', () => {
     describe('updateProject', () => {
         it('success', async () => {
             const payload: UpdateProjectPayload = { name: 'Updated' };
-            const mockProject: Project = { id: 1, name: 'Updated', suite_mode: 1, url: 'url' } as Project;
+            const mockProject: Project = { id: 1, name: 'Updated', suite_mode: 1, url: 'url' };
             mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
             const result = await client.updateProject(1, payload);

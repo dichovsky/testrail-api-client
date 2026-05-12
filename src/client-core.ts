@@ -1,8 +1,9 @@
 import type { TestRailConfig, CacheEntry } from './types.js';
 import { base64Encode, sleep } from './utils.js';
-import { TestRailApiError, TestRailValidationError } from './errors.js';
+import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
+import { ZodError, type ZodType } from 'zod';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -395,7 +396,7 @@ export class TestRailClientCore {
      * Validates that an ID is a positive integer.
      * @throws {TestRailValidationError} When ID is invalid
      */
-    protected validateId(id: number, name: string): void {
+    public validateId(id: number, name: string): void {
         if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
             throw new TestRailValidationError(`${name} must be a positive integer`);
         }
@@ -405,7 +406,7 @@ export class TestRailClientCore {
      * Validates that a string entry ID is non-empty.
      * @throws {TestRailValidationError} When entryId is not a non-empty string
      */
-    protected validateEntryId(entryId: string): void {
+    public validateEntryId(entryId: string): void {
         if (typeof entryId !== 'string' || entryId.trim() === '') {
             throw new TestRailValidationError('entryId must be a non-empty string');
         }
@@ -415,7 +416,7 @@ export class TestRailClientCore {
      * Validates optional pagination parameters.
      * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
      */
-    protected validatePaginationParams(limit?: number, offset?: number): void {
+    public validatePaginationParams(limit?: number, offset?: number): void {
         if (limit !== undefined) {
             if (typeof limit !== 'number' || !Number.isInteger(limit) || limit <= 0) {
                 throw new TestRailValidationError('limit must be a positive integer');
@@ -434,7 +435,7 @@ export class TestRailClientCore {
      * Keys and values are automatically percent-encoded via `encodeURIComponent`.
      * Do NOT pre-encode values before passing them; doing so will cause double-encoding.
      */
-    protected buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string {
+    public buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string {
         const parts: string[] = [];
         for (const [key, value] of Object.entries(params)) {
             if (value !== undefined) {
@@ -561,7 +562,7 @@ export class TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails or network error occurs
      * @throws {Error} When called after `destroy()`
      */
-    protected async request<T>(
+    public async request<T>(
         method: string,
         endpoint: string,
         data?: unknown,
@@ -690,7 +691,7 @@ export class TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails or network error occurs
      * @throws {Error} When called after `destroy()`
      */
-    protected async requestMultipart<T>(
+    public async requestMultipart<T>(
         endpoint: string,
         file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
@@ -774,7 +775,7 @@ export class TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails or network error occurs
      * @throws {Error} When called after `destroy()`
      */
-    protected async requestBinary(endpoint: string, retryCount = 0): Promise<ArrayBuffer> {
+    public async requestBinary(endpoint: string, retryCount = 0): Promise<ArrayBuffer> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
@@ -856,6 +857,21 @@ export class TestRailClientCore {
 
         if (this.dnsValidationError !== undefined) {
             throw this.dnsValidationError;
+        }
+    }
+
+    /**
+     * Validates `data` against `schema` and returns it typed as `T`.
+     * @throws {TestRailValidationError} When data does not conform to schema
+     */
+    public parse<T>(schema: ZodType, data: unknown): T {
+        try {
+            return schema.parse(data) as T;
+        } catch (err) {
+            if (err instanceof ZodError) {
+                throw handleZodError(err);
+            }
+            throw err;
         }
     }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { base64Encode, sleep } from '../src/utils.js';
+import { base64Encode, serializeIdList, sleep } from '../src/utils.js';
 
 describe('Utils', () => {
     describe('base64Encode', () => {
@@ -86,6 +86,20 @@ describe('Utils', () => {
             await vi.runAllTimersAsync();
 
             expect(callback).toHaveBeenCalled();
+        });
+    });
+
+    describe('serializeIdList', () => {
+        it('should join non-empty ID lists', () => {
+            expect(serializeIdList([1, 2, 3])).toBe('1,2,3');
+        });
+
+        it('should return undefined for empty lists', () => {
+            expect(serializeIdList([])).toBeUndefined();
+        });
+
+        it('should return undefined when IDs are omitted', () => {
+            expect(serializeIdList()).toBeUndefined();
         });
     });
 });

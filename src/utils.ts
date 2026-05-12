@@ -13,3 +13,8 @@ export function base64Encode(str: string): string {
 export function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** Serializes numeric ID filters for TestRail list endpoints. */
+export function serializeIdList(ids?: number[]): string | undefined {
+    return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
+}

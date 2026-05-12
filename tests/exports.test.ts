@@ -14,6 +14,7 @@ describe('Index exports', () => {
         });
         expect(client).toBeDefined();
         expect(client).toBeInstanceOf(TestRailClient);
+        expect(client.metadata).toBeDefined();
     });
 
     it('should export and create TestRailApiError instances', () => {

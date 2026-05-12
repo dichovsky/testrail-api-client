@@ -66,37 +66,23 @@ import type {
     ReportResult,
 } from './types.js';
 import { TestRailClientCore } from './client-core.js';
-import { TestRailValidationError, handleZodError } from './errors.js';
-import {
-    ProjectSchema,
-    SuiteSchema,
-    SectionSchema,
-    CaseSchema,
-    PlanSchema,
-    PlanEntrySchema,
-    RunSchema,
-    TestSchema,
-    ResultSchema,
-    MilestoneSchema,
-    UserSchema,
-    StatusSchema,
-    PrioritySchema,
-    RoleSchema,
-    GroupSchema,
-    AttachmentSchema,
-    SharedStepSchema,
-    VariableSchema,
-    DatasetSchema,
-    ReportSchema,
-    ReportResultSchema,
-    CaseFieldSchema,
-    CaseTypeSchema,
-    TemplateSchema,
-    ConfigurationGroupSchema,
-    ConfigurationSchema,
-    ResultFieldSchema,
-} from './schemas.js';
-import { ZodError, z } from 'zod';
+import { ProjectModule } from './modules/projects.js';
+import { SuiteModule } from './modules/suites.js';
+import { SectionModule } from './modules/sections.js';
+import { CaseModule } from './modules/cases.js';
+import { PlanModule } from './modules/plans.js';
+import { RunModule } from './modules/runs.js';
+import { TestModule } from './modules/tests.js';
+import { ResultModule } from './modules/results.js';
+import { MilestoneModule } from './modules/milestones.js';
+import { UsersModule } from './modules/users.js';
+import { MetadataModule } from './modules/metadata.js';
+import { ConfigurationModule } from './modules/configurations.js';
+import { AttachmentModule } from './modules/attachments.js';
+import { SharedStepModule } from './modules/sharedSteps.js';
+import { VariableModule } from './modules/variables.js';
+import { DatasetModule } from './modules/datasets.js';
+import { ReportModule } from './modules/reports.js';
 
 export { TestRailApiError, TestRailValidationError } from './errors.js';
 
@@ -108,6 +94,46 @@ export { TestRailApiError, TestRailValidationError } from './errors.js';
  * Extends {@link TestRailClientCore} for HTTP pipeline, caching, rate limiting, and retry.
  */
 export class TestRailClient extends TestRailClientCore {
+    // ── Domain modules ────────────────────────────────────────────────────────
+    public readonly projects: ProjectModule;
+    public readonly suites: SuiteModule;
+    public readonly sections: SectionModule;
+    public readonly cases: CaseModule;
+    public readonly plans: PlanModule;
+    public readonly runs: RunModule;
+    public readonly tests: TestModule;
+    public readonly results: ResultModule;
+    public readonly milestones: MilestoneModule;
+    public readonly users: UsersModule;
+    public readonly metadata: MetadataModule;
+    public readonly configurations: ConfigurationModule;
+    public readonly attachments: AttachmentModule;
+    public readonly sharedSteps: SharedStepModule;
+    public readonly variables: VariableModule;
+    public readonly datasets: DatasetModule;
+    public readonly reports: ReportModule;
+
+    constructor(...args: ConstructorParameters<typeof TestRailClientCore>) {
+        super(...args);
+        this.projects = new ProjectModule(this);
+        this.suites = new SuiteModule(this);
+        this.sections = new SectionModule(this);
+        this.cases = new CaseModule(this);
+        this.plans = new PlanModule(this);
+        this.runs = new RunModule(this);
+        this.tests = new TestModule(this);
+        this.results = new ResultModule(this);
+        this.milestones = new MilestoneModule(this);
+        this.users = new UsersModule(this);
+        this.metadata = new MetadataModule(this);
+        this.configurations = new ConfigurationModule(this);
+        this.attachments = new AttachmentModule(this);
+        this.sharedSteps = new SharedStepModule(this);
+        this.variables = new VariableModule(this);
+        this.datasets = new DatasetModule(this);
+        this.reports = new ReportModule(this);
+    }
+
     // ── Projects ──────────────────────────────────────────────────────────────
 
     /**
@@ -116,8 +142,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getProject(projectId: number): Promise<Project> {
-        this.validateId(projectId, 'projectId');
-        return this.parse(ProjectSchema, await this.request<unknown>('GET', `get_project/${projectId}`));
+        return this.projects.getProject(projectId);
     }
 
     /**
@@ -126,13 +151,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint('get_projects', { limit, offset });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return (
-            this.parse<{ projects?: Project[] }>(z.object({ projects: z.array(ProjectSchema).optional() }), raw)
-                .projects ?? []
-        );
+        return this.projects.getProjects(limit, offset);
     }
 
     /**
@@ -140,7 +159,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addProject(payload: AddProjectPayload): Promise<Project> {
-        return this.parse<Project>(ProjectSchema, await this.request<unknown>('POST', 'add_project', payload));
+        return this.projects.addProject(payload);
     }
 
     /**
@@ -149,11 +168,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Project>(
-            ProjectSchema,
-            await this.request<unknown>('POST', `update_project/${projectId}`, payload),
-        );
+        return this.projects.updateProject(projectId, payload);
     }
 
     /**
@@ -162,8 +177,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteProject(projectId: number): Promise<void> {
-        this.validateId(projectId, 'projectId');
-        await this.request<void>('POST', `delete_project/${projectId}`);
+        return this.projects.deleteProject(projectId);
     }
 
     // ── Suites ────────────────────────────────────────────────────────────────
@@ -174,8 +188,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getSuite(suiteId: number): Promise<Suite> {
-        this.validateId(suiteId, 'suiteId');
-        return this.parse<Suite>(SuiteSchema, await this.request<unknown>('GET', `get_suite/${suiteId}`));
+        return this.suites.getSuite(suiteId);
     }
 
     /**
@@ -184,8 +197,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getSuites(projectId: number): Promise<Suite[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Suite[]>(z.array(SuiteSchema), await this.request<unknown>('GET', `get_suites/${projectId}`));
+        return this.suites.getSuites(projectId);
     }
 
     /**
@@ -194,8 +206,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Suite>(SuiteSchema, await this.request<unknown>('POST', `add_suite/${projectId}`, payload));
+        return this.suites.addSuite(projectId, payload);
     }
 
     /**
@@ -204,8 +215,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite> {
-        this.validateId(suiteId, 'suiteId');
-        return this.parse<Suite>(SuiteSchema, await this.request<unknown>('POST', `update_suite/${suiteId}`, payload));
+        return this.suites.updateSuite(suiteId, payload);
     }
 
     /**
@@ -214,8 +224,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteSuite(suiteId: number): Promise<void> {
-        this.validateId(suiteId, 'suiteId');
-        await this.request<void>('POST', `delete_suite/${suiteId}`);
+        return this.suites.deleteSuite(suiteId);
     }
 
     // ── Sections ──────────────────────────────────────────────────────────────
@@ -226,8 +235,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getSection(sectionId: number): Promise<Section> {
-        this.validateId(sectionId, 'sectionId');
-        return this.parse<Section>(SectionSchema, await this.request<unknown>('GET', `get_section/${sectionId}`));
+        return this.sections.getSection(sectionId);
     }
 
     /**
@@ -242,18 +250,7 @@ export class TestRailClient extends TestRailClientCore {
         projectId: number,
         options?: { suiteId?: number; limit?: number; offset?: number },
     ): Promise<Section[]> {
-        this.validateId(projectId, 'projectId');
-        const { suiteId, limit, offset } = options ?? {};
-        if (suiteId !== undefined) {
-            this.validateId(suiteId, 'suiteId');
-        }
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return (
-            this.parse<{ sections?: Section[] }>(z.object({ sections: z.array(SectionSchema).optional() }), raw)
-                .sections ?? []
-        );
+        return this.sections.getSections(projectId, options);
     }
 
     /**
@@ -262,11 +259,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Section>(
-            SectionSchema,
-            await this.request<unknown>('POST', `add_section/${projectId}`, payload),
-        );
+        return this.sections.addSection(projectId, payload);
     }
 
     /**
@@ -275,11 +268,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
-        this.validateId(sectionId, 'sectionId');
-        return this.parse<Section>(
-            SectionSchema,
-            await this.request<unknown>('POST', `update_section/${sectionId}`, payload),
-        );
+        return this.sections.updateSection(sectionId, payload);
     }
 
     /**
@@ -288,8 +277,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteSection(sectionId: number): Promise<void> {
-        this.validateId(sectionId, 'sectionId');
-        await this.request<void>('POST', `delete_section/${sectionId}`);
+        return this.sections.deleteSection(sectionId);
     }
 
     // ── Cases ─────────────────────────────────────────────────────────────────
@@ -300,8 +288,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getCase(caseId: number): Promise<Case> {
-        this.validateId(caseId, 'caseId');
-        return this.parse<Case>(CaseSchema, await this.request<unknown>('GET', `get_case/${caseId}`));
+        return this.cases.getCase(caseId);
     }
 
     /**
@@ -322,44 +309,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
-        this.validateId(projectId, 'projectId');
-        const {
-            suiteId,
-            sectionId,
-            typeId,
-            priorityId,
-            templateId,
-            milestoneId,
-            createdAfter,
-            createdBefore,
-            updatedAfter,
-            updatedBefore,
-            limit,
-            offset,
-        } = options ?? {};
-        if (suiteId !== undefined) this.validateId(suiteId, 'suiteId');
-        if (sectionId !== undefined) this.validateId(sectionId, 'sectionId');
-        if (typeId !== undefined) this.validateId(typeId, 'typeId');
-        if (priorityId !== undefined) this.validateId(priorityId, 'priorityId');
-        if (templateId !== undefined) this.validateId(templateId, 'templateId');
-        if (milestoneId !== undefined) this.validateId(milestoneId, 'milestoneId');
-        this.validatePaginationParams(limit, offset);
-        const endpoint = this.buildEndpoint(`get_cases/${projectId}`, {
-            suite_id: suiteId,
-            section_id: sectionId,
-            type_id: typeId,
-            priority_id: priorityId,
-            template_id: templateId,
-            milestone_id: milestoneId,
-            created_after: createdAfter,
-            created_before: createdBefore,
-            updated_after: updatedAfter,
-            updated_before: updatedBefore,
-            limit,
-            offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return this.parse<{ cases?: Case[] }>(z.object({ cases: z.array(CaseSchema).optional() }), raw).cases ?? [];
+        return this.cases.getCases(projectId, options);
     }
 
     /**
@@ -368,8 +318,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
-        this.validateId(sectionId, 'sectionId');
-        return this.parse<Case>(CaseSchema, await this.request<unknown>('POST', `add_case/${sectionId}`, payload));
+        return this.cases.addCase(sectionId, payload);
     }
 
     /**
@@ -378,8 +327,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
-        this.validateId(caseId, 'caseId');
-        return this.parse<Case>(CaseSchema, await this.request<unknown>('POST', `update_case/${caseId}`, payload));
+        return this.cases.updateCase(caseId, payload);
     }
 
     /**
@@ -388,8 +336,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteCase(caseId: number): Promise<void> {
-        this.validateId(caseId, 'caseId');
-        await this.request<void>('POST', `delete_case/${caseId}`);
+        return this.cases.deleteCase(caseId);
     }
 
     // ── Plans ─────────────────────────────────────────────────────────────────
@@ -400,8 +347,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getPlan(planId: number): Promise<Plan> {
-        this.validateId(planId, 'planId');
-        return this.parse<Plan>(PlanSchema, await this.request<unknown>('GET', `get_plan/${planId}`));
+        return this.plans.getPlan(planId);
     }
 
     /**
@@ -413,19 +359,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
-        this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.buildEndpoint(`get_plans/${projectId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: this.serializeIdList(options?.created_by),
-            is_completed: options?.is_completed,
-            milestone_id: this.serializeIdList(options?.milestone_id),
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return this.parse<{ plans?: Plan[] }>(z.object({ plans: z.array(PlanSchema).optional() }), raw).plans ?? [];
+        return this.plans.getPlans(projectId, options);
     }
 
     /**
@@ -434,8 +368,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Plan>(PlanSchema, await this.request<unknown>('POST', `add_plan/${projectId}`, payload));
+        return this.plans.addPlan(projectId, payload);
     }
 
     /**
@@ -444,8 +377,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
-        this.validateId(planId, 'planId');
-        return this.parse<Plan>(PlanSchema, await this.request<unknown>('POST', `update_plan/${planId}`, payload));
+        return this.plans.updatePlan(planId, payload);
     }
 
     /**
@@ -454,8 +386,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async closePlan(planId: number): Promise<Plan> {
-        this.validateId(planId, 'planId');
-        return this.parse<Plan>(PlanSchema, await this.request<unknown>('POST', `close_plan/${planId}`));
+        return this.plans.closePlan(planId);
     }
 
     /**
@@ -464,8 +395,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deletePlan(planId: number): Promise<void> {
-        this.validateId(planId, 'planId');
-        await this.request<void>('POST', `delete_plan/${planId}`);
+        return this.plans.deletePlan(planId);
     }
 
     /**
@@ -474,11 +404,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
-        this.validateId(planId, 'planId');
-        return this.parse<PlanEntry>(
-            PlanEntrySchema,
-            await this.request<unknown>('POST', `add_plan_entry/${planId}`, payload),
-        );
+        return this.plans.addPlanEntry(planId, payload);
     }
 
     /**
@@ -487,12 +413,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
-        this.validateId(planId, 'planId');
-        this.validateEntryId(entryId);
-        return this.parse<PlanEntry>(
-            PlanEntrySchema,
-            await this.request<unknown>('POST', `update_plan_entry/${planId}/${entryId}`, payload),
-        );
+        return this.plans.updatePlanEntry(planId, entryId, payload);
     }
 
     /**
@@ -501,9 +422,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deletePlanEntry(planId: number, entryId: string): Promise<void> {
-        this.validateId(planId, 'planId');
-        this.validateEntryId(entryId);
-        await this.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
+        return this.plans.deletePlanEntry(planId, entryId);
     }
 
     // ── Runs ──────────────────────────────────────────────────────────────────
@@ -514,8 +433,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getRun(runId: number): Promise<Run> {
-        this.validateId(runId, 'runId');
-        return this.parse<Run>(RunSchema, await this.request<unknown>('GET', `get_run/${runId}`));
+        return this.runs.getRun(runId);
     }
 
     /**
@@ -527,33 +445,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
-        this.validateId(projectId, 'projectId');
-        const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
-            options ?? {};
-        this.validatePaginationParams(limit, offset);
-        if (milestoneId !== undefined) {
-            this.validateId(milestoneId, 'milestoneId');
-        }
-        if (suiteId !== undefined) {
-            this.validateId(suiteId, 'suiteId');
-        }
-        if (createdBy !== undefined) {
-            createdBy.forEach((userId) => this.validateId(userId, 'createdBy'));
-        }
-        const createdByFilter = createdBy && createdBy.length > 0 ? createdBy.join(',') : undefined;
-        const endpoint = this.buildEndpoint(`get_runs/${projectId}`, {
-            created_after: createdAfter,
-            created_before: createdBefore,
-            created_by: createdByFilter,
-            is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-            milestone_id: milestoneId,
-            refs_filter: refsFilter,
-            suite_id: suiteId,
-            limit,
-            offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return this.parse<{ runs?: Run[] }>(z.object({ runs: z.array(RunSchema).optional() }), raw).runs ?? [];
+        return this.runs.getRuns(projectId, options);
     }
 
     /**
@@ -562,8 +454,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Run>(RunSchema, await this.request<unknown>('POST', `add_run/${projectId}`, payload));
+        return this.runs.addRun(projectId, payload);
     }
 
     /**
@@ -572,8 +463,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
-        this.validateId(runId, 'runId');
-        return this.parse<Run>(RunSchema, await this.request<unknown>('POST', `update_run/${runId}`, payload));
+        return this.runs.updateRun(runId, payload);
     }
 
     /**
@@ -582,8 +472,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async closeRun(runId: number): Promise<Run> {
-        this.validateId(runId, 'runId');
-        return this.parse<Run>(RunSchema, await this.request<unknown>('POST', `close_run/${runId}`));
+        return this.runs.closeRun(runId);
     }
 
     /**
@@ -592,8 +481,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteRun(runId: number): Promise<void> {
-        this.validateId(runId, 'runId');
-        await this.request<void>('POST', `delete_run/${runId}`);
+        return this.runs.deleteRun(runId);
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
@@ -604,8 +492,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getTest(testId: number): Promise<Test> {
-        this.validateId(testId, 'testId');
-        return this.parse<Test>(TestSchema, await this.request<unknown>('GET', `get_test/${testId}`));
+        return this.tests.getTest(testId);
     }
 
     /**
@@ -616,15 +503,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
-        this.validateId(runId, 'runId');
-        this.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.buildEndpoint(`get_tests/${runId}`, {
-            status_id: this.serializeIdList(options?.status_id),
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return this.parse<{ tests?: Test[] }>(z.object({ tests: z.array(TestSchema).optional() }), raw).tests ?? [];
+        return this.tests.getTests(runId, options);
     }
 
     // ── Results ───────────────────────────────────────────────────────────────
@@ -638,21 +517,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
-        this.validateId(testId, 'testId');
-        this.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.buildEndpoint(`get_results/${testId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: this.serializeIdList(options?.created_by),
-            status_id: this.serializeIdList(options?.status_id),
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return (
-            this.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw).results ??
-            []
-        );
+        return this.results.getResults(testId, options);
     }
 
     /**
@@ -665,22 +530,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getResultsForCase(runId: number, caseId: number, options?: GetResultsOptions): Promise<Result[]> {
-        this.validateId(runId, 'runId');
-        this.validateId(caseId, 'caseId');
-        this.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: this.serializeIdList(options?.created_by),
-            status_id: this.serializeIdList(options?.status_id),
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return (
-            this.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw).results ??
-            []
-        );
+        return this.results.getResultsForCase(runId, caseId, options);
     }
 
     /**
@@ -692,21 +542,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getResultsForRun(runId: number, options?: GetResultsOptions): Promise<Result[]> {
-        this.validateId(runId, 'runId');
-        this.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.buildEndpoint(`get_results_for_run/${runId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: this.serializeIdList(options?.created_by),
-            status_id: this.serializeIdList(options?.status_id),
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return (
-            this.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw).results ??
-            []
-        );
+        return this.results.getResultsForRun(runId, options);
     }
 
     /**
@@ -715,8 +551,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
-        this.validateId(testId, 'testId');
-        return this.parse<Result>(ResultSchema, await this.request<unknown>('POST', `add_result/${testId}`, payload));
+        return this.results.addResult(testId, payload);
     }
 
     /**
@@ -725,12 +560,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
-        this.validateId(runId, 'runId');
-        this.validateId(caseId, 'caseId');
-        return this.parse<Result>(
-            ResultSchema,
-            await this.request<unknown>('POST', `add_result_for_case/${runId}/${caseId}`, payload),
-        );
+        return this.results.addResultForCase(runId, caseId, payload);
     }
 
     /**
@@ -739,11 +569,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
-        this.validateId(runId, 'runId');
-        return this.parse<Result[]>(
-            z.array(ResultSchema),
-            await this.request<unknown>('POST', `add_results_for_cases/${runId}`, payload),
-        );
+        return this.results.addResultsForCases(runId, payload);
     }
 
     // ── Milestones ────────────────────────────────────────────────────────────
@@ -754,120 +580,91 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getMilestone(milestoneId: number): Promise<Milestone> {
-        this.validateId(milestoneId, 'milestoneId');
-        return this.parse<Milestone>(
-            MilestoneSchema,
-            await this.request<unknown>('GET', `get_milestone/${milestoneId}`),
-        );
+        return this.milestones.getMilestone(milestoneId);
     }
 
     /**
-     * Get all milestones for a project with optional filters.
-     * @param projectId - The project ID
-     * @param options - Optional filter parameters (is_completed, limit, offset)
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get milestones.
+     *
+     * @param projectId - Project identifier.
+     * @param options - Optional filters and pagination settings.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getMilestones(projectId: number, options?: GetMilestonesOptions): Promise<Milestone[]> {
-        this.validateId(projectId, 'projectId');
-        this.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.buildEndpoint(`get_milestones/${projectId}`, {
-            is_completed: options?.is_completed,
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return (
-            this.parse<{ milestones?: Milestone[] }>(z.object({ milestones: z.array(MilestoneSchema).optional() }), raw)
-                .milestones ?? []
-        );
+        return this.milestones.getMilestones(projectId, options);
     }
 
     /**
-     * Add a new milestone to a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Add milestone.
+     *
+     * @param projectId - Project identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Milestone>(
-            MilestoneSchema,
-            await this.request<unknown>('POST', `add_milestone/${projectId}`, payload),
-        );
+        return this.milestones.addMilestone(projectId, payload);
     }
 
     /**
-     * Update an existing milestone.
-     * @throws {TestRailValidationError} When milestoneId is invalid
+     * Update milestone.
+     *
+     * @param milestoneId - Milestone identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
-        this.validateId(milestoneId, 'milestoneId');
-        return this.parse<Milestone>(
-            MilestoneSchema,
-            await this.request<unknown>('POST', `update_milestone/${milestoneId}`, payload),
-        );
+        return this.milestones.updateMilestone(milestoneId, payload);
     }
 
     /**
-     * Delete a milestone.
-     * @throws {TestRailValidationError} When milestoneId is invalid
+     * Delete milestone.
+     *
+     * @param milestoneId - Milestone identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteMilestone(milestoneId: number): Promise<void> {
-        this.validateId(milestoneId, 'milestoneId');
-        await this.request<void>('POST', `delete_milestone/${milestoneId}`);
+        return this.milestones.deleteMilestone(milestoneId);
     }
 
     // ── Users ─────────────────────────────────────────────────────────────────
 
     /**
-     * Get a user by ID.
-     * @throws {TestRailValidationError} When userId is invalid
+     * Get user.
+     *
+     * @param userId - User identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getUser(userId: number): Promise<User> {
-        this.validateId(userId, 'userId');
-        return this.parse<User>(UserSchema, await this.request<unknown>('GET', `get_user/${userId}`));
+        return this.users.getUser(userId);
     }
 
     /**
-     * Get a user by email address.
+     * Get user by email.
+     *
+     * @param email - Email address to look up.
      * @throws {TestRailValidationError} When email format is invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getUserByEmail(email: string): Promise<User> {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            throw new TestRailValidationError('Invalid email format');
-        }
-
-        // buildEndpoint now encodes all values via encodeURIComponent internally.
-        return this.parse<User>(
-            UserSchema,
-            await this.request<unknown>('GET', this.buildEndpoint('get_user_by_email', { email })),
-        );
+        return this.users.getUserByEmail(email);
     }
 
     /**
-     * Get all users, optionally scoped to a project.
-     * @param limit - Maximum number of users to return
-     * @param offset - Number of users to skip
-     * @param projectId - When provided, returns only users with access to the specified project
-     * @throws {TestRailValidationError} When pagination or projectId is invalid
+     * Get users.
+     *
+     * @param limit - Optional maximum number of results to return.
+     * @param offset - Optional number of results to skip before returning results.
+     * @param projectId - Optional project identifier to scope results when provided.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getUsers(limit?: number, offset?: number, projectId?: number): Promise<User[]> {
-        this.validatePaginationParams(limit, offset);
-        if (projectId !== undefined) {
-            this.validateId(projectId, 'projectId');
-        }
-        const endpoint = this.buildEndpoint(projectId !== undefined ? `get_users/${projectId}` : 'get_users', {
-            limit,
-            offset,
-        });
-        const raw = await this.request<unknown>('GET', endpoint);
-        return this.parse<{ users?: User[] }>(z.object({ users: z.array(UserSchema).optional() }), raw).users ?? [];
+        return this.users.getUsers(limit, offset, projectId);
     }
 
     /**
@@ -875,340 +672,318 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails
      */
     async getCurrentUser(): Promise<User> {
-        return this.parse<User>(UserSchema, await this.request<unknown>('GET', 'get_current_user'));
+        return this.users.getCurrentUser();
+    }
+
+    /**
+     * Add user.
+     *
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addUser(payload: AddUserPayload): Promise<User> {
+        return this.users.addUser(payload);
+    }
+
+    /**
+     * Update user.
+     *
+     * @param userId - User identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
+        return this.users.updateUser(userId, payload);
     }
 
     // ── Statuses ──────────────────────────────────────────────────────────────
 
     /**
-     * Get all test statuses.
+     * Get statuses.
      * @throws {TestRailApiError} When the API request fails
      */
     async getStatuses(): Promise<Status[]> {
-        return this.parse<Status[]>(z.array(StatusSchema), await this.request<unknown>('GET', 'get_statuses'));
+        return this.metadata.getStatuses();
     }
 
     // ── Priorities ────────────────────────────────────────────────────────────
 
     /**
-     * Get all case priorities.
+     * Get priorities.
      * @throws {TestRailApiError} When the API request fails
      */
     async getPriorities(): Promise<Priority[]> {
-        return this.parse<Priority[]>(z.array(PrioritySchema), await this.request<unknown>('GET', 'get_priorities'));
+        return this.metadata.getPriorities();
     }
 
     // ── Result Fields ─────────────────────────────────────────────────────────
 
     /**
-     * Get all available custom result fields.
+     * Get result fields.
      * @throws {TestRailApiError} When the API request fails
      */
     async getResultFields(): Promise<ResultField[]> {
-        return this.parse<ResultField[]>(
-            z.array(ResultFieldSchema),
-            await this.request<unknown>('GET', 'get_result_fields'),
-        );
+        return this.metadata.getResultFields();
     }
 
     // ── Case Fields & Types ───────────────────────────────────────────────────
 
     /**
-     * Get all available custom case fields.
+     * Get case fields.
      * @throws {TestRailApiError} When the API request fails
      */
     async getCaseFields(): Promise<CaseField[]> {
-        return this.parse<CaseField[]>(z.array(CaseFieldSchema), await this.request<unknown>('GET', 'get_case_fields'));
+        return this.metadata.getCaseFields();
     }
 
     /**
-     * Get all available case types.
+     * Get case types.
      * @throws {TestRailApiError} When the API request fails
      */
     async getCaseTypes(): Promise<CaseType[]> {
-        return this.parse<CaseType[]>(z.array(CaseTypeSchema), await this.request<unknown>('GET', 'get_case_types'));
+        return this.metadata.getCaseTypes();
     }
 
     // ── Templates ─────────────────────────────────────────────────────────────
 
     /**
-     * Get all available case templates for a project (requires TestRail 5.2+).
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get templates.
+     *
+     * @param projectId - Project identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getTemplates(projectId: number): Promise<Template[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Template[]>(
-            z.array(TemplateSchema),
-            await this.request<unknown>('GET', `get_templates/${projectId}`),
-        );
+        return this.metadata.getTemplates(projectId);
     }
 
     // ── Configurations ────────────────────────────────────────────────────────
 
     /**
-     * Get all configuration groups and their configurations for a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get configurations.
+     *
+     * @param projectId - Project identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getConfigurations(projectId: number): Promise<ConfigurationGroup[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<ConfigurationGroup[]>(
-            z.array(ConfigurationGroupSchema),
-            await this.request<unknown>('GET', `get_configs/${projectId}`),
-        );
+        return this.configurations.getConfigurations(projectId);
     }
 
     /**
-     * Add a new configuration group to a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Add configuration group.
+     *
+     * @param projectId - Project identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addConfigurationGroup(projectId: number, payload: AddConfigurationGroupPayload): Promise<ConfigurationGroup> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<ConfigurationGroup>(
-            ConfigurationGroupSchema,
-            await this.request<unknown>('POST', `add_config_group/${projectId}`, payload),
-        );
+        return this.configurations.addConfigurationGroup(projectId, payload);
     }
 
     /**
-     * Update an existing configuration group.
-     * @throws {TestRailValidationError} When configGroupId is invalid
+     * Update configuration group.
+     *
+     * @param configGroupId - Config group identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateConfigurationGroup(
         configGroupId: number,
         payload: UpdateConfigurationGroupPayload,
     ): Promise<ConfigurationGroup> {
-        this.validateId(configGroupId, 'configGroupId');
-        return this.parse<ConfigurationGroup>(
-            ConfigurationGroupSchema,
-            await this.request<unknown>('POST', `update_config_group/${configGroupId}`, payload),
-        );
+        return this.configurations.updateConfigurationGroup(configGroupId, payload);
     }
 
     /**
-     * Delete an existing configuration group and all its configurations.
-     * @throws {TestRailValidationError} When configGroupId is invalid
+     * Delete configuration group.
+     *
+     * @param configGroupId - Config group identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteConfigurationGroup(configGroupId: number): Promise<void> {
-        this.validateId(configGroupId, 'configGroupId');
-        await this.request<void>('POST', `delete_config_group/${configGroupId}`);
+        return this.configurations.deleteConfigurationGroup(configGroupId);
     }
 
     /**
-     * Add a new configuration to a configuration group.
-     * @throws {TestRailValidationError} When configGroupId is invalid
+     * Add configuration.
+     *
+     * @param configGroupId - Config group identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addConfiguration(configGroupId: number, payload: AddConfigurationPayload): Promise<Configuration> {
-        this.validateId(configGroupId, 'configGroupId');
-        return this.parse<Configuration>(
-            ConfigurationSchema,
-            await this.request<unknown>('POST', `add_config/${configGroupId}`, payload),
-        );
+        return this.configurations.addConfiguration(configGroupId, payload);
     }
 
     /**
-     * Update an existing configuration.
-     * @throws {TestRailValidationError} When configId is invalid
+     * Update configuration.
+     *
+     * @param configId - Config identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateConfiguration(configId: number, payload: UpdateConfigurationPayload): Promise<Configuration> {
-        this.validateId(configId, 'configId');
-        return this.parse<Configuration>(
-            ConfigurationSchema,
-            await this.request<unknown>('POST', `update_config/${configId}`, payload),
-        );
+        return this.configurations.updateConfiguration(configId, payload);
     }
 
     /**
-     * Delete an existing configuration.
-     * @throws {TestRailValidationError} When configId is invalid
+     * Delete configuration.
+     *
+     * @param configId - Config identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteConfiguration(configId: number): Promise<void> {
-        this.validateId(configId, 'configId');
-        await this.request<void>('POST', `delete_config/${configId}`);
+        return this.configurations.deleteConfiguration(configId);
     }
 
-    // ── User Management (TASK-024, requires TestRail 7.3+) ────────────────────
+    // ── Roles ─────────────────────────────────────────────────────────────────
 
     /**
-     * Create a new TestRail user (requires TestRail 7.3+).
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async addUser(payload: AddUserPayload): Promise<User> {
-        return this.parse<User>(UserSchema, await this.request<unknown>('POST', 'add_user', payload));
-    }
-
-    /**
-     * Update an existing TestRail user (requires TestRail 7.3+).
-     * @throws {TestRailValidationError} When userId is invalid
-     * @throws {TestRailApiError} When the API request fails
-     */
-    async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
-        this.validateId(userId, 'userId');
-        return this.parse<User>(UserSchema, await this.request<unknown>('POST', `update_user/${userId}`, payload));
-    }
-
-    // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────
-
-    /**
-     * Get all available user roles (requires TestRail 7.3+).
+     * Get roles.
      * @throws {TestRailApiError} When the API request fails
      */
     async getRoles(): Promise<Role[]> {
-        return this.parse<Role[]>(z.array(RoleSchema), await this.request<unknown>('GET', 'get_roles'));
+        return this.metadata.getRoles();
     }
 
-    // ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────
+    // ── Groups ────────────────────────────────────────────────────────────────
 
     /**
-     * Get a single group by ID (requires TestRail 7.5+).
-     * @throws {TestRailValidationError} When groupId is invalid
+     * Get group.
+     *
+     * @param groupId - Group identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getGroup(groupId: number): Promise<Group> {
-        this.validateId(groupId, 'groupId');
-        return this.parse<Group>(GroupSchema, await this.request<unknown>('GET', `get_group/${groupId}`));
+        return this.users.getGroup(groupId);
     }
 
     /**
-     * Get all groups (requires TestRail 7.5+).
+     * Get groups.
      * @throws {TestRailApiError} When the API request fails
      */
     async getGroups(): Promise<Group[]> {
-        return this.parse<Group[]>(z.array(GroupSchema), await this.request<unknown>('GET', 'get_groups'));
+        return this.users.getGroups();
     }
 
     /**
-     * Create a new group (requires TestRail 7.5+).
+     * Add group.
+     *
+     * @param payload - Request payload for this operation.
      * @throws {TestRailApiError} When the API request fails
      */
     async addGroup(payload: AddGroupPayload): Promise<Group> {
-        return this.parse<Group>(GroupSchema, await this.request<unknown>('POST', 'add_group', payload));
+        return this.users.addGroup(payload);
     }
 
     /**
-     * Update an existing group (requires TestRail 7.5+).
-     * @throws {TestRailValidationError} When groupId is invalid
+     * Update group.
+     *
+     * @param groupId - Group identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
-        this.validateId(groupId, 'groupId');
-        return this.parse<Group>(GroupSchema, await this.request<unknown>('POST', `update_group/${groupId}`, payload));
+        return this.users.updateGroup(groupId, payload);
     }
 
     /**
-     * Delete a group (requires TestRail 7.5+).
-     * @throws {TestRailValidationError} When groupId is invalid
+     * Delete group.
+     *
+     * @param groupId - Group identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteGroup(groupId: number): Promise<void> {
-        this.validateId(groupId, 'groupId');
-        await this.request<void>('POST', `delete_group/${groupId}`);
+        return this.users.deleteGroup(groupId);
     }
 
-    // ── Attachments (TASK-027) ────────────────────────────────────────────────
+    // ── Attachments ───────────────────────────────────────────────────────────
 
     /**
-     * Get all attachments for a test case.
-     * @throws {TestRailValidationError} When caseId is invalid
+     * Get attachments for case.
+     *
+     * @param caseId - Case identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getAttachmentsForCase(caseId: number): Promise<Attachment[]> {
-        this.validateId(caseId, 'caseId');
-        const raw = await this.request<unknown>('GET', `get_attachments_for_case/${caseId}`);
-        return (
-            this.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
-            ).attachments ?? []
-        );
+        return this.attachments.getAttachmentsForCase(caseId);
     }
 
     /**
-     * Get all attachments for a test run.
-     * @throws {TestRailValidationError} When runId is invalid
+     * Get attachments for run.
+     *
+     * @param runId - Run identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getAttachmentsForRun(runId: number): Promise<Attachment[]> {
-        this.validateId(runId, 'runId');
-        const raw = await this.request<unknown>('GET', `get_attachments_for_run/${runId}`);
-        return (
-            this.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
-            ).attachments ?? []
-        );
+        return this.attachments.getAttachmentsForRun(runId);
     }
 
     /**
-     * Get all attachments for a test.
-     * @throws {TestRailValidationError} When testId is invalid
+     * Get attachments for test.
+     *
+     * @param testId - Test identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getAttachmentsForTest(testId: number): Promise<Attachment[]> {
-        this.validateId(testId, 'testId');
-        const raw = await this.request<unknown>('GET', `get_attachments_for_test/${testId}`);
-        return (
-            this.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
-            ).attachments ?? []
-        );
+        return this.attachments.getAttachmentsForTest(testId);
     }
 
     /**
-     * Get all attachments for a test plan.
-     * @throws {TestRailValidationError} When planId is invalid
+     * Get attachments for plan.
+     *
+     * @param planId - Plan identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
-        this.validateId(planId, 'planId');
-        const raw = await this.request<unknown>('GET', `get_attachments_for_plan/${planId}`);
-        return (
-            this.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
-            ).attachments ?? []
-        );
+        return this.attachments.getAttachmentsForPlan(planId);
     }
 
     /**
-     * Get all attachments for a specific plan entry.
-     * @throws {TestRailValidationError} When planId or entryId is invalid
+     * Get attachments for plan entry.
+     *
+     * @param planId - Plan identifier.
+     * @param entryId - Plan entry identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getAttachmentsForPlanEntry(planId: number, entryId: number): Promise<Attachment[]> {
-        this.validateId(planId, 'planId');
-        this.validateId(entryId, 'entryId');
-        const raw = await this.request<unknown>('GET', `get_attachments_for_plan_entry/${planId}/${entryId}`);
-        return (
-            this.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
-            ).attachments ?? []
-        );
+        return this.attachments.getAttachmentsForPlanEntry(planId, entryId);
     }
 
     /**
-     * Download the raw binary content of an attachment.
-     * @param attachmentId - The attachment ID (numeric)
-     * @throws {TestRailValidationError} When attachmentId is invalid
+     * Download an attachment by ID.
+     *
+     * @param attachmentId - Attachment identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getAttachment(attachmentId: number): Promise<ArrayBuffer> {
-        this.validateId(attachmentId, 'attachmentId');
-        return this.requestBinary(`get_attachment/${attachmentId}`);
+        return this.attachments.getAttachment(attachmentId);
     }
 
     /**
-     * Upload a file attachment to a test case.
-     * @throws {TestRailValidationError} When caseId is invalid
+     * Add attachment to case.
+     *
+     * @param caseId - Case identifier.
+     * @param file - Attachment contents to upload.
+     * @param filename - Filename to send with the uploaded attachment.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addAttachmentToCase(
@@ -1216,13 +991,16 @@ export class TestRailClient extends TestRailClientCore {
         file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
-        this.validateId(caseId, 'caseId');
-        return this.requestMultipart<Attachment>(`add_attachment_to_case/${caseId}`, file, filename);
+        return this.attachments.addAttachmentToCase(caseId, file, filename);
     }
 
     /**
-     * Upload a file attachment to a test result.
-     * @throws {TestRailValidationError} When resultId is invalid
+     * Add attachment to result.
+     *
+     * @param resultId - Result identifier.
+     * @param file - Attachment contents to upload.
+     * @param filename - Filename to send with the uploaded attachment.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addAttachmentToResult(
@@ -1230,13 +1008,16 @@ export class TestRailClient extends TestRailClientCore {
         file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
-        this.validateId(resultId, 'resultId');
-        return this.requestMultipart<Attachment>(`add_attachment_to_result/${resultId}`, file, filename);
+        return this.attachments.addAttachmentToResult(resultId, file, filename);
     }
 
     /**
-     * Upload a file attachment to a test run.
-     * @throws {TestRailValidationError} When runId is invalid
+     * Add attachment to run.
+     *
+     * @param runId - Run identifier.
+     * @param file - Attachment contents to upload.
+     * @param filename - Filename to send with the uploaded attachment.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addAttachmentToRun(
@@ -1244,13 +1025,16 @@ export class TestRailClient extends TestRailClientCore {
         file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
-        this.validateId(runId, 'runId');
-        return this.requestMultipart<Attachment>(`add_attachment_to_run/${runId}`, file, filename);
+        return this.attachments.addAttachmentToRun(runId, file, filename);
     }
 
     /**
-     * Upload a file attachment to a test plan (requires TestRail 6.5.2+).
-     * @throws {TestRailValidationError} When planId is invalid
+     * Add attachment to plan.
+     *
+     * @param planId - Plan identifier.
+     * @param file - Attachment contents to upload.
+     * @param filename - Filename to send with the uploaded attachment.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addAttachmentToPlan(
@@ -1258,13 +1042,17 @@ export class TestRailClient extends TestRailClientCore {
         file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
-        this.validateId(planId, 'planId');
-        return this.requestMultipart<Attachment>(`add_attachment_to_plan/${planId}`, file, filename);
+        return this.attachments.addAttachmentToPlan(planId, file, filename);
     }
 
     /**
-     * Upload a file attachment to a specific plan entry (requires TestRail 6.5.2+).
-     * @throws {TestRailValidationError} When planId or entryId is invalid
+     * Add attachment to plan entry.
+     *
+     * @param planId - Plan identifier.
+     * @param entryId - Plan entry identifier.
+     * @param file - Attachment contents to upload.
+     * @param filename - Filename to send with the uploaded attachment.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addAttachmentToPlanEntry(
@@ -1273,245 +1061,207 @@ export class TestRailClient extends TestRailClientCore {
         file: globalThis.Blob | Uint8Array | globalThis.File,
         filename: string,
     ): Promise<Attachment> {
-        this.validateId(planId, 'planId');
-        this.validateId(entryId, 'entryId');
-        return this.requestMultipart<Attachment>(`add_attachment_to_plan_entry/${planId}/${entryId}`, file, filename);
+        return this.attachments.addAttachmentToPlanEntry(planId, entryId, file, filename);
     }
 
     /**
-     * Delete an attachment by ID.
-     * @throws {TestRailValidationError} When attachmentId is invalid
+     * Delete attachment.
+     *
+     * @param attachmentId - Attachment identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteAttachment(attachmentId: number): Promise<void> {
-        this.validateId(attachmentId, 'attachmentId');
-        await this.request<void>('POST', `delete_attachment/${attachmentId}`);
+        return this.attachments.deleteAttachment(attachmentId);
     }
 
-    // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────
+    // ── Shared Steps ──────────────────────────────────────────────────────────
 
     /**
-     * Get a single shared step by ID (requires TestRail 7.0+).
-     * @throws {TestRailValidationError} When sharedStepId is invalid
+     * Get shared step.
+     *
+     * @param sharedStepId - Shared step identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getSharedStep(sharedStepId: number): Promise<SharedStep> {
-        this.validateId(sharedStepId, 'sharedStepId');
-        return this.parse<SharedStep>(
-            SharedStepSchema,
-            await this.request<unknown>('GET', `get_shared_step/${sharedStepId}`),
-        );
+        return this.sharedSteps.getSharedStep(sharedStepId);
     }
 
     /**
-     * Get all shared steps for a project (requires TestRail 7.0+).
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get shared steps.
+     *
+     * @param projectId - Project identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<SharedStep[]>(
-            z.array(SharedStepSchema),
-            await this.request<unknown>('GET', `get_shared_steps/${projectId}`),
-        );
+        return this.sharedSteps.getSharedSteps(projectId);
     }
 
     /**
-     * Create a new shared step in a project (requires TestRail 7.0+).
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Add shared step.
+     *
+     * @param projectId - Project identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<SharedStep>(
-            SharedStepSchema,
-            await this.request<unknown>('POST', `add_shared_step/${projectId}`, payload),
-        );
+        return this.sharedSteps.addSharedStep(projectId, payload);
     }
 
     /**
-     * Update an existing shared step (requires TestRail 7.0+).
-     * @throws {TestRailValidationError} When sharedStepId is invalid
+     * Update shared step.
+     *
+     * @param sharedStepId - Shared step identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
-        this.validateId(sharedStepId, 'sharedStepId');
-        return this.parse<SharedStep>(
-            SharedStepSchema,
-            await this.request<unknown>('POST', `update_shared_step/${sharedStepId}`, payload),
-        );
+        return this.sharedSteps.updateSharedStep(sharedStepId, payload);
     }
 
     /**
-     * Delete a shared step (requires TestRail 7.0+).
-     * @throws {TestRailValidationError} When sharedStepId is invalid
+     * Delete shared step.
+     *
+     * @param sharedStepId - Shared step identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteSharedStep(sharedStepId: number): Promise<void> {
-        this.validateId(sharedStepId, 'sharedStepId');
-        await this.request<void>('POST', `delete_shared_step/${sharedStepId}`);
+        return this.sharedSteps.deleteSharedStep(sharedStepId);
     }
 
-    // ── Variables (TASK-029) ──────────────────────────────────────────────────
+    // ── Variables ─────────────────────────────────────────────────────────────
 
     /**
-     * Get all variables for a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get variables.
+     *
+     * @param projectId - Project identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getVariables(projectId: number): Promise<Variable[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Variable[]>(
-            z.array(VariableSchema),
-            await this.request<unknown>('GET', `get_variables/${projectId}`),
-        );
+        return this.variables.getVariables(projectId);
     }
 
     /**
-     * Create a new variable in a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Add variable.
+     *
+     * @param projectId - Project identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addVariable(projectId: number, payload: AddVariablePayload): Promise<Variable> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Variable>(
-            VariableSchema,
-            await this.request<unknown>('POST', `add_variable/${projectId}`, payload),
-        );
+        return this.variables.addVariable(projectId, payload);
     }
 
     /**
-     * Update an existing variable.
-     * @throws {TestRailValidationError} When variableId is invalid
+     * Update variable.
+     *
+     * @param variableId - Variable identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateVariable(variableId: number, payload: UpdateVariablePayload): Promise<Variable> {
-        this.validateId(variableId, 'variableId');
-        return this.parse<Variable>(
-            VariableSchema,
-            await this.request<unknown>('POST', `update_variable/${variableId}`, payload),
-        );
+        return this.variables.updateVariable(variableId, payload);
     }
 
     /**
-     * Delete a variable.
-     * @throws {TestRailValidationError} When variableId is invalid
+     * Delete variable.
+     *
+     * @param variableId - Variable identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteVariable(variableId: number): Promise<void> {
-        this.validateId(variableId, 'variableId');
-        await this.request<void>('POST', `delete_variable/${variableId}`);
+        return this.variables.deleteVariable(variableId);
     }
 
-    // ── Datasets (TASK-030) ───────────────────────────────────────────────────
+    // ── Datasets ──────────────────────────────────────────────────────────────
 
     /**
-     * Get a single dataset by ID.
-     * @throws {TestRailValidationError} When datasetId is invalid
+     * Get dataset.
+     *
+     * @param datasetId - Dataset identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getDataset(datasetId: number): Promise<Dataset> {
-        this.validateId(datasetId, 'datasetId');
-        return this.parse<Dataset>(DatasetSchema, await this.request<unknown>('GET', `get_dataset/${datasetId}`));
+        return this.datasets.getDataset(datasetId);
     }
 
     /**
-     * Get all datasets for a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get datasets.
+     *
+     * @param projectId - Project identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getDatasets(projectId: number): Promise<Dataset[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Dataset[]>(
-            z.array(DatasetSchema),
-            await this.request<unknown>('GET', `get_datasets/${projectId}`),
-        );
+        return this.datasets.getDatasets(projectId);
     }
 
     /**
-     * Create a new dataset in a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Add dataset.
+     *
+     * @param projectId - Project identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async addDataset(projectId: number, payload: AddDatasetPayload): Promise<Dataset> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Dataset>(
-            DatasetSchema,
-            await this.request<unknown>('POST', `add_dataset/${projectId}`, payload),
-        );
+        return this.datasets.addDataset(projectId, payload);
     }
 
     /**
-     * Update an existing dataset.
-     * @throws {TestRailValidationError} When datasetId is invalid
+     * Update dataset.
+     *
+     * @param datasetId - Dataset identifier.
+     * @param payload - Request payload for this operation.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async updateDataset(datasetId: number, payload: UpdateDatasetPayload): Promise<Dataset> {
-        this.validateId(datasetId, 'datasetId');
-        return this.parse<Dataset>(
-            DatasetSchema,
-            await this.request<unknown>('POST', `update_dataset/${datasetId}`, payload),
-        );
+        return this.datasets.updateDataset(datasetId, payload);
     }
 
     /**
-     * Delete a dataset.
-     * @throws {TestRailValidationError} When datasetId is invalid
+     * Delete dataset.
+     *
+     * @param datasetId - Dataset identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async deleteDataset(datasetId: number): Promise<void> {
-        this.validateId(datasetId, 'datasetId');
-        await this.request<void>('POST', `delete_dataset/${datasetId}`);
+        return this.datasets.deleteDataset(datasetId);
     }
 
-    // ── Reports (TASK-031) ────────────────────────────────────────────────────
+    // ── Reports ───────────────────────────────────────────────────────────────
 
     /**
-     * Get all available report templates for a project.
-     * @throws {TestRailValidationError} When projectId is invalid
+     * Get reports.
+     *
+     * @param projectId - Project identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async getReports(projectId: number): Promise<Report[]> {
-        this.validateId(projectId, 'projectId');
-        return this.parse<Report[]>(
-            z.array(ReportSchema),
-            await this.request<unknown>('GET', `get_reports/${projectId}`),
-        );
+        return this.reports.getReports(projectId);
     }
 
     /**
-     * Execute a report template and return URLs to the generated output.
-     * @throws {TestRailValidationError} When reportTemplateId is invalid
+     * Run report.
+     *
+     * @param reportTemplateId - Report template identifier.
+     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
     async runReport(reportTemplateId: number): Promise<ReportResult> {
-        this.validateId(reportTemplateId, 'reportTemplateId');
-        return this.parse<ReportResult>(
-            ReportResultSchema,
-            await this.request<unknown>('GET', `run_report/${reportTemplateId}`),
-        );
-    }
-
-    private serializeIdList(ids?: number[]): string | undefined {
-        return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
-    }
-
-    /**
-     * Validates `data` against `schema` and returns it typed as `T`.
-     * Uses a type-erased schema parameter to bridge Zod's inferred types (which include
-     * `| undefined` on optional properties) with the existing interface types that use
-     * strict optional properties (`exactOptionalPropertyTypes: true`).
-     * @throws {TestRailValidationError} When data does not conform to schema
-     */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private parse<T>(schema: z.ZodType<any>, data: unknown): T {
-        try {
-            return schema.parse(data) as T;
-        } catch (err) {
-            if (err instanceof ZodError) {
-                throw handleZodError(err);
-            }
-            throw err;
-        }
+        return this.reports.runReport(reportTemplateId);
     }
 }
