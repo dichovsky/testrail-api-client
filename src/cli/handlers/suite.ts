@@ -2,7 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 
 export async function handleSuiteGet(ctx: HandlerContext): Promise<void> {
-    const id = parseId(ctx.args.idArg, 'suite id');
+    const id = parseId(ctx.args.pathParams[0], 'suite id');
     ctx.out(await ctx.client.getSuite(id));
 }
 

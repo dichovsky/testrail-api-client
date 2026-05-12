@@ -1,11 +1,14 @@
 import type { TestRailClient } from '../client.js';
 
 /**
- * Parsed CLI argument bundle passed to every handler. All fields are optional —
- * each handler reads only what it needs and validates accordingly.
+ * Parsed CLI argument bundle passed to every handler.
+ *
+ * `pathParams` is the slice of positional args after `[resource, action]` —
+ * read handlers consume `pathParams[0]` (the single id), write handlers may
+ * consume multiple (e.g., `result add <run_id> <case_id>` uses [0] and [1]).
  */
 export interface HandlerArgs {
-    idArg?: string;
+    pathParams: readonly string[];
     projectId?: string;
     suiteId?: string;
     runId?: string;
@@ -14,9 +17,29 @@ export interface HandlerArgs {
     offset?: string;
 }
 
+/**
+ * Raw inputs for the body-source resolver. The handler decides whether to
+ * consume any of these (write handlers do; read handlers ignore). When all
+ * three are absent for a write action, the resolver emits a "body required"
+ * error.
+ *
+ * `readStdin` is a thunk rather than pre-read contents so stdin is *only*
+ * drained when the resolver actually selects it as the body source. Read
+ * actions and no-body writes (`run close`) never invoke it — avoiding the
+ * "tail -f | testrail run close" hang and the cost of slurping a large
+ * redirected stdin that the handler will throw away.
+ */
+export interface BodyInput {
+    dataFlag?: string;
+    dataFileFlag?: string;
+    readStdin?: () => string;
+}
+
 export interface HandlerContext {
     client: TestRailClient;
     args: HandlerArgs;
+    bodyInput: BodyInput;
+    dryRun: boolean;
     out: (data: unknown) => void;
 }
 

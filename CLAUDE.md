@@ -95,6 +95,16 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 6. Add a test case to the matching `tests/client-*.test.ts` file
 7. Run `npm run codemap` to update CODEMAP.md
 
+**Add CLI write action:**
+
+1. Add a Zod payload schema to `src/schemas.ts` if one doesn't exist (mirror the existing `Add*PayloadSchema` pattern with `zObject()` for `.passthrough()`)
+2. Create or extend the appropriate write handler file (`src/cli/handlers/{resource}-write.ts`); each handler: parses path params via `parseId(ctx.args.pathParams[N], 'name')`, resolves body via `resolveBody(ctx.bodyInput, Schema)`, checks `ctx.dryRun`, calls the client method
+3. Register `'{resource}:{action}': handle{Resource}{Action}` in `src/cli/dispatch.ts` HANDLERS (RESOURCES auto-derives)
+4. Add an `ActionSpec` entry to `ACTIONS` in `src/cli/metadata.ts` (skill generator + drift tests consume this)
+5. Update the HELP text in `src/cli/index.ts`
+6. Add unit tests to `tests/cli-write-handlers.test.ts` (happy + dry-run + body reject + path-param reject) and a subprocess case to `tests/cli.test.ts`
+7. Run `npm run codemap` to update CODEMAP.md
+
 **Modify caching:** `getCachedData()` / `setCachedData()` / `cleanupExpiredCache()` in `src/client-core.ts`.
 
 **Modify retry/rate limits:** Edit constants in `src/constants.ts`. Config overrides via `TestRailConfig.rateLimiter` / `maxRetries` / `timeout`.

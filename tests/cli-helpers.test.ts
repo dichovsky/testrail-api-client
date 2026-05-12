@@ -10,7 +10,8 @@ import { describe, it, expect } from 'vitest';
 import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
 import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
-import { dispatch } from '../src/cli/dispatch.js';
+import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
+import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
 
 describe('valueToString', () => {
     it('returns empty string for null', () => {
@@ -299,12 +300,71 @@ describe('dispatch', () => {
         }
     });
 
-    it('rejects result:get (only list is valid for result)', () => {
+    it('rejects result:get (only list/add/add-bulk are valid for result)', () => {
         const result = dispatch('result', 'get');
         expect(result.ok).toBe(false);
         if (!result.ok) {
             expect(result.error).toContain("Unknown action 'get' for result");
-            expect(result.error).toContain('Use: list');
         }
+    });
+});
+
+describe('metadata vs dispatch consistency', () => {
+    /**
+     * The single source of truth for "what does this CLI support" is split
+     * between two places: `HANDLERS` in dispatch.ts (runtime routing) and
+     * `ACTIONS` in metadata.ts (documentation + skill-generator input).
+     * If they drift, the CLI surface and what we tell agents diverge —
+     * exactly the silent-failure mode that motivates these tests.
+     */
+    it('every metadata entry has a registered dispatch handler', () => {
+        for (const spec of ACTIONS) {
+            const result = dispatch(spec.resource, spec.action);
+            expect(result.ok, `metadata declares ${spec.resource}:${spec.action} but no handler is registered`).toBe(
+                true,
+            );
+        }
+    });
+
+    it('every registered dispatch handler has a metadata entry', () => {
+        for (const key of getRegisteredActions()) {
+            const [resource, action] = key.split(':');
+            expect(resource).toBeDefined();
+            expect(action).toBeDefined();
+            const spec = getActionSpec(resource as string, action as string);
+            expect(spec, `handler ${key} is registered in dispatch but has no metadata entry`).toBeDefined();
+        }
+    });
+
+    it('write actions in metadata carry a body schema except run close', () => {
+        for (const spec of ACTIONS) {
+            if (!spec.isWrite) continue;
+            if (spec.resource === 'run' && spec.action === 'close') {
+                expect(spec.bodySchema, 'run close should have no body schema').toBeUndefined();
+                continue;
+            }
+            expect(spec.bodySchema, `${spec.resource}:${spec.action} should carry a body schema`).toBeDefined();
+        }
+    });
+
+    it('every metadata entry has at least one path param documented (except list actions)', () => {
+        for (const spec of ACTIONS) {
+            if (spec.action === 'list') continue;
+            expect(
+                spec.pathParams.length,
+                `${spec.resource}:${spec.action} should declare path params`,
+            ).toBeGreaterThan(0);
+        }
+    });
+
+    it('getActionSpec finds a known entry', () => {
+        const spec = getActionSpec('case', 'add');
+        expect(spec).toBeDefined();
+        expect(spec?.isWrite).toBe(true);
+    });
+
+    it('getActionSpec returns undefined for unknown entries', () => {
+        expect(getActionSpec('webhook', 'list')).toBeUndefined();
+        expect(getActionSpec('case', 'delete')).toBeUndefined();
     });
 });

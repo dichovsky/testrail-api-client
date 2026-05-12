@@ -2,7 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId, optInt } from '../ids.js';
 
 export async function handleRunGet(ctx: HandlerContext): Promise<void> {
-    const id = parseId(ctx.args.idArg, 'run id');
+    const id = parseId(ctx.args.pathParams[0], 'run id');
     ctx.out(await ctx.client.getRun(id));
 }
 

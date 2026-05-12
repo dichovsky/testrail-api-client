@@ -565,4 +565,99 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
     });
+
+    // ── Write actions (subprocess happy-paths) ────────────────────────────────
+
+    describe('case add', () => {
+        it('POSTs the payload and returns the created case', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case', 'add', '5', '--data', '{"title":"New Case"}'],
+                [jsonResponse(MOCK_CASE)],
+            );
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_CASE;
+            expect(parsed.id).toBe(1);
+            expect(exitCodes).toContain(0);
+        });
+
+        it('exits 1 when body is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['case', 'add', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('exits 1 on malformed JSON', async () => {
+            const { stderr, exitCodes } = await runCli(['case', 'add', '5', '--data', '{ broken']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Invalid JSON');
+        });
+
+        it('--dry-run validates payload but does not POST', async () => {
+            const { stdout, exitCodes } = await runCli(['case', 'add', '5', '--data', '{"title":"x"}', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"sectionId": 5');
+        });
+    });
+
+    describe('case update', () => {
+        it('POSTs the partial payload', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'update', '7', '--data', '{"title":"Renamed"}'],
+                [jsonResponse({ ...MOCK_CASE, title: 'Renamed' })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+    });
+
+    describe('run add', () => {
+        it('POSTs the payload and returns the created run', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'add', '1', '--data', '{"name":"smoke"}'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('exits 1 when payload is missing required `name`', async () => {
+            const { stderr, exitCodes } = await runCli(['run', 'add', '1', '--data', '{"suite_id":1}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+    });
+
+    describe('run close', () => {
+        it('POSTs without a body', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'close', '10'],
+                [jsonResponse({ ...MOCK_RUN, is_completed: true })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+    });
+
+    describe('result add', () => {
+        it('POSTs the payload with both positional ids', async () => {
+            const { exitCodes } = await runCli(
+                ['result', 'add', '5', '7', '--data', '{"status_id":1}'],
+                [jsonResponse({ id: 100, status_id: 1 })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('exits 1 when case_id positional is missing', async () => {
+            const { exitCodes } = await runCli(['result', 'add', '5', '--data', '{"status_id":1}']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    describe('result add-bulk', () => {
+        it('POSTs the array payload', async () => {
+            // ResultSchema requires status_id; bare {id} would fail response validation.
+            const { exitCodes } = await runCli(
+                ['result', 'add-bulk', '11', '--data', '{"results":[{"case_id":1,"status_id":1}]}'],
+                [jsonResponse([{ id: 100, status_id: 1 }])],
+            );
+            expect(exitCodes).toContain(0);
+        });
+    });
 });

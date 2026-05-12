@@ -2,8 +2,11 @@ import type { Handler } from './handler-context.js';
 import { handleProjectGet, handleProjectList } from './handlers/project.js';
 import { handleSuiteGet, handleSuiteList } from './handlers/suite.js';
 import { handleCaseGet, handleCaseList } from './handlers/case.js';
+import { handleCaseAdd, handleCaseUpdate } from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
+import { handleRunAdd, handleRunClose } from './handlers/run-write.js';
 import { handleResultList } from './handlers/result.js';
+import { handleResultAdd, handleResultAddBulk } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList } from './handlers/user.js';
 
@@ -25,9 +28,15 @@ const HANDLERS: Record<string, Handler> = {
     'suite:list': handleSuiteList,
     'case:get': handleCaseGet,
     'case:list': handleCaseList,
+    'case:add': handleCaseAdd,
+    'case:update': handleCaseUpdate,
     'run:get': handleRunGet,
     'run:list': handleRunList,
+    'run:add': handleRunAdd,
+    'run:close': handleRunClose,
     'result:list': handleResultList,
+    'result:add': handleResultAdd,
+    'result:add-bulk': handleResultAddBulk,
     'milestone:get': handleMilestoneGet,
     'milestone:list': handleMilestoneList,
     'user:get': handleUserGet,
@@ -50,6 +59,15 @@ const RESOURCES: Record<string, readonly string[]> = (() => {
 })();
 
 export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string };
+
+/**
+ * Returns every registered `resource:action` key. Used by the
+ * metadata↔dispatch consistency tests to catch handlers added without a
+ * matching metadata entry — the inverse of the metadata-first check.
+ */
+export function getRegisteredActions(): readonly string[] {
+    return Object.keys(HANDLERS);
+}
 
 export function dispatch(resource: string, action: string): DispatchResult {
     const actions = RESOURCES[resource];

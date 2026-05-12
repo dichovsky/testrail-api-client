@@ -2,7 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId, optInt } from '../ids.js';
 
 export async function handleProjectGet(ctx: HandlerContext): Promise<void> {
-    const id = parseId(ctx.args.idArg, 'project id');
+    const id = parseId(ctx.args.pathParams[0], 'project id');
     ctx.out(await ctx.client.getProject(id));
 }
 

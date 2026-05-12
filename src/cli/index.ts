@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { TestRailClient } from '../client.js';
 import { resolveAuth } from './auth.js';
 import { createOutput } from './output.js';
 import { dispatch } from './dispatch.js';
-import type { HandlerArgs } from './handler-context.js';
+import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
 
@@ -15,9 +16,9 @@ const VERSION: string = (require('../../package.json') as { version: string }).v
 // ── Help ──────────────────────────────────────────────────────────────────────
 
 const HELP = `
-testrail <resource> <action> [id] [options]
+testrail <resource> <action> [args] [options]
 
-Resources & actions:
+Read actions:
   project  get <id> | list [--limit N] [--offset N]
   suite    get <id> | list --project-id <id>
   case     get <id> | list --project-id <id> [--suite-id <id>]
@@ -26,16 +27,31 @@ Resources & actions:
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
 
+Write actions (body via --data | --data-file | stdin):
+  case   add <section_id>           --data '{"title":"..."}'
+  case   update <case_id>           --data '{"title":"..."}'
+  run    add <project_id>           --data '{"name":"..."}'
+  run    close <run_id>             (no body)
+  result add <run_id> <case_id>     --data '{"status_id":1}'
+  result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
+
 Auth (env var or flag):
   TESTRAIL_BASE_URL / --base-url <url>
   TESTRAIL_EMAIL    / --email <email>
   TESTRAIL_API_KEY  / --api-key <key>
 
 Options:
+  --data <json>         Inline JSON body for write actions
+  --data-file <path>    Read JSON body from file
+  --dry-run             Validate payload but don't call the API
   --format json|table   Output format (default: json)
   --quiet               Suppress output; use exit code 0/1
   --help                Show this help
   --version             Print version
+
+For body-bearing write actions (all except 'run close'), exactly one body source
+is required (--data | --data-file | stdin). Stdin is auto-detected when input
+is piped (process.stdin.isTTY === false).
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -67,6 +83,9 @@ async function main(): Promise<number> {
                 'case-id': { type: 'string' },
                 limit: { type: 'string' },
                 offset: { type: 'string' },
+                data: { type: 'string' },
+                'data-file': { type: 'string' },
+                'dry-run': { type: 'boolean', default: false },
             },
             allowPositionals: true,
             strict: false,
@@ -97,10 +116,11 @@ async function main(): Promise<number> {
         return 0;
     }
 
-    const [resource, action, idArg] = positionals;
+    const [resource, action, ...rest] = positionals;
+    const pathParams: readonly string[] = rest;
 
     if (resource === undefined || resource === '' || action === undefined || action === '') {
-        process.stderr.write('Usage: testrail <resource> <action> [id] [options]\nRun with --help for details.\n');
+        process.stderr.write('Usage: testrail <resource> <action> [args] [options]\nRun with --help for details.\n');
         return 1;
     }
 
@@ -131,7 +151,7 @@ async function main(): Promise<number> {
     }
 
     const args: HandlerArgs = {
-        ...(idArg !== undefined && { idArg }),
+        pathParams,
         ...(values['project-id'] !== undefined && { projectId: values['project-id'] as string }),
         ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
         ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
@@ -140,10 +160,22 @@ async function main(): Promise<number> {
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
     };
 
+    const bodyInput: BodyInput = {
+        ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
+        ...(values['data-file'] !== undefined && { dataFileFlag: values['data-file'] as string }),
+        // Pass a thunk (not the read contents) so resolveBody() only drains
+        // stdin when it actually selects stdin as the body source. Read
+        // actions, no-body writes (`run close`), and write actions that
+        // received --data or --data-file never invoke this.
+        ...(process.stdin.isTTY === false && { readStdin: () => readFileSync(0, 'utf-8') }),
+    };
+
+    const dryRun = values['dry-run'] === true;
+
     let client: TestRailClient | undefined;
     try {
         client = new TestRailClient(auth.config);
-        await dispatched.handler({ client, args, out });
+        await dispatched.handler({ client, args, bodyInput, dryRun, out });
         return 0;
     } catch (e: unknown) {
         err(e instanceof Error ? e.message : String(e));
