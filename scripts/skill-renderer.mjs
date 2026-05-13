@@ -11,6 +11,9 @@ const SCHEMA_NAMES = new Map([
     ['run:add', 'AddRunPayloadSchema'],
     ['result:add', 'AddResultPayloadSchema'],
     ['result:add-bulk', 'AddResultsForCasesPayloadSchema'],
+    ['plan:add', 'AddPlanPayloadSchema'],
+    ['plan:update', 'UpdatePlanPayloadSchema'],
+    ['plan:add-entry', 'AddPlanEntryPayloadSchema'],
 ]);
 
 export function schemaNameFor(spec) {

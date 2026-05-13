@@ -710,6 +710,10 @@ describe('CLI', () => {
                 [jsonResponse({ plans: [MOCK_PLAN] })],
             );
             expect(exitCodes).toContain(0);
+            // Verify both flags actually reach the TestRail URL — without this,
+            // dropping either forward in handlePlanList would still pass.
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=5'), expect.anything());
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('offset=10'), expect.anything());
         });
 
         it('plan add POSTs the payload and returns the created plan', async () => {

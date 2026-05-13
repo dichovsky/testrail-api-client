@@ -78,9 +78,9 @@ on stderr. Never echo or log the API key.
 | run | close | `<run_id>` | — (no body) | Close a test run (no body) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
-| plan | add | `<project_id>` | `(body)` | Create a new test plan in a project (optionally with nested entries) |
-| plan | update | `<plan_id>` | `(body)` | Update an existing test plan (partial fields) |
-| plan | add-entry | `<plan_id>` | `(body)` | Add an entry (suite + optional runs) to an existing test plan |
+| plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
+| plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
+| plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
 | attachment | list-for-run | `<run_id>` | — | List attachments on a test run |
 | attachment | list-for-test | `<test_id>` | — | List attachments on a test (run instance of a case) |
@@ -198,7 +198,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 }
 ```
 
-### `(body)` (used by `plan add`)
+### `AddPlanPayloadSchema` (used by `plan add`)
 
 ```jsonc
 {
@@ -209,7 +209,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 }
 ```
 
-### `(body)` (used by `plan update`)
+### `UpdatePlanPayloadSchema` (used by `plan update`)
 
 ```jsonc
 {
@@ -220,7 +220,7 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 }
 ```
 
-### `(body)` (used by `plan add-entry`)
+### `AddPlanEntryPayloadSchema` (used by `plan add-entry`)
 
 ```jsonc
 {

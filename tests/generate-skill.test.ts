@@ -123,10 +123,30 @@ describe('schemaNameFor', () => {
     it('maps known write actions to their schema name', () => {
         expect(schemaNameFor({ resource: 'case', action: 'add' })).toBe('AddCasePayloadSchema');
         expect(schemaNameFor({ resource: 'result', action: 'add-bulk' })).toBe('AddResultsForCasesPayloadSchema');
+        expect(schemaNameFor({ resource: 'plan', action: 'add' })).toBe('AddPlanPayloadSchema');
+        expect(schemaNameFor({ resource: 'plan', action: 'update' })).toBe('UpdatePlanPayloadSchema');
+        expect(schemaNameFor({ resource: 'plan', action: 'add-entry' })).toBe('AddPlanEntryPayloadSchema');
     });
 
     it('returns "(body)" for unmapped actions', () => {
         expect(schemaNameFor({ resource: 'webhook', action: 'fire' })).toBe('(body)');
+    });
+
+    // Drift guard: every ACTIONS entry that carries a bodySchema (i.e., the
+    // skill generator will render a schema heading for it) must be in the
+    // SCHEMA_NAMES map. Without this check, a contributor adding a write
+    // action without updating skill-renderer.mjs would silently ship a skill
+    // with "(body)" instead of the schema name (the regression Copilot
+    // flagged on PR #60).
+    it('covers every bodySchema-bearing ActionSpec in metadata.ts', async () => {
+        const { ACTIONS } = await import('../src/cli/metadata.js');
+        const missing = ACTIONS.filter((a) => a.bodySchema !== undefined).filter((a) => schemaNameFor(a) === '(body)');
+        expect(
+            missing,
+            `Add schema-name entries in scripts/skill-renderer.mjs for: ${missing
+                .map((a) => `${a.resource}:${a.action}`)
+                .join(', ')}`,
+        ).toEqual([]);
     });
 });
 

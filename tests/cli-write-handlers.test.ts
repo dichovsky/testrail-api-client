@@ -1,5 +1,6 @@
 /**
- * Unit tests for the 6 write handlers (src/cli/handlers/{case,result,run}-write.ts).
+ * Unit tests for the write handlers in
+ * src/cli/handlers/{case,result,run,plan}-write.ts.
  *
  * Each handler is tested in isolation with a mocked TestRailClient (no
  * subprocess, no real HTTP). Coverage per handler:
@@ -12,6 +13,10 @@
  *   - path-param validation: non-positive-integer ids reject before the
  *     body is even read
  *   - missing body (where applicable): "Body required" message
+ *
+ * Plan handlers additionally cover nested validation (entries[] / runs[]
+ * inside AddPlanPayloadSchema) since that's the main schema-complexity
+ * delta over the flat case/run/result payloads.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { handleCaseAdd, handleCaseUpdate } from '../src/cli/handlers/case-write.js';
