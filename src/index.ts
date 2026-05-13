@@ -39,6 +39,11 @@ export {
     AddResultPayloadSchema,
     AddResultForCasePayloadSchema,
     AddResultsForCasesPayloadSchema,
+    PlanEntryRunPayloadSchema,
+    AddPlanEntryPayloadSchema,
+    UpdatePlanEntryPayloadSchema,
+    AddPlanPayloadSchema,
+    UpdatePlanPayloadSchema,
 } from './schemas.js';
 export type {
     AddCasePayload,
@@ -48,6 +53,11 @@ export type {
     AddResultPayload,
     AddResultForCasePayload,
     AddResultsForCasesPayload,
+    PlanEntryRunPayload,
+    AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
+    AddPlanPayload,
+    UpdatePlanPayload,
 } from './schemas.js';
 export type {
     TestRailConfig,
@@ -67,10 +77,6 @@ export type {
     User,
     Status,
     Priority,
-    AddPlanPayload,
-    UpdatePlanPayload,
-    AddPlanEntryPayload,
-    UpdatePlanEntryPayload,
     AddSectionPayload,
     UpdateSectionPayload,
     AddMilestonePayload,

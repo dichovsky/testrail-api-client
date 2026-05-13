@@ -9,6 +9,8 @@ import { handleResultList } from './handlers/result.js';
 import { handleResultAdd, handleResultAddBulk } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList } from './handlers/user.js';
+import { handlePlanGet, handlePlanList } from './handlers/plan.js';
+import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from './handlers/plan-write.js';
 import {
     handleAttachmentListForCase,
     handleAttachmentListForRun,
@@ -57,6 +59,11 @@ const HANDLERS: Record<string, Handler> = {
     'milestone:list': handleMilestoneList,
     'user:get': handleUserGet,
     'user:list': handleUserList,
+    'plan:get': handlePlanGet,
+    'plan:list': handlePlanList,
+    'plan:add': handlePlanAdd,
+    'plan:update': handlePlanUpdate,
+    'plan:add-entry': handlePlanAddEntry,
     'attachment:list-for-case': handleAttachmentListForCase,
     'attachment:list-for-run': handleAttachmentListForRun,
     'attachment:list-for-test': handleAttachmentListForTest,

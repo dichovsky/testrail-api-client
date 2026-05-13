@@ -13,10 +13,6 @@ import type {
     Priority,
     AddSuitePayload,
     UpdateSuitePayload,
-    AddPlanPayload,
-    UpdatePlanPayload,
-    AddPlanEntryPayload,
-    UpdatePlanEntryPayload,
     PlanEntry,
     AddSectionPayload,
     UpdateSectionPayload,
@@ -66,6 +62,10 @@ import type {
     UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
+    AddPlanPayload,
+    UpdatePlanPayload,
+    AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
 } from './schemas.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
