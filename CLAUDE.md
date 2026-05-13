@@ -28,7 +28,8 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                |
 | `src/cli/index.ts`                                      | CLI entry: arg parse, dispatch, auth, handler invocation (wrapped in `async main()`)                                            |
 | `src/cli/{auth,output,ids,dispatch,handler-context}.ts` | CLI infrastructure (env+flag resolution, JSON/table rendering, ID parsing, handler-table dispatch, shared types)                |
-| `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user, read-only as of v2.0)                      |
+| `src/cli/{file-input,file-output}.ts`                   | Binary file-input resolver (`--file`) and binary download resolver (`--out`) for attachment actions                             |
+| `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user/attachment)                                 |
 | `src/index.ts`                                          | Public barrel exports                                                                                                           |
 | `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                               |
 | `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                            |
@@ -105,6 +106,18 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 5. Update the HELP text in `src/cli/index.ts`
 6. Add unit tests to `tests/cli-write-handlers.test.ts` (happy + dry-run + body reject + path-param reject) and a subprocess case to `tests/cli.test.ts`
 7. Run `npm run codemap` to update CODEMAP.md
+
+**Add CLI attachment-style action (binary file I/O):**
+
+1. The programmatic method (`addAttachmentTo*` / `getAttachment` / `deleteAttachment`) already exists in `src/modules/attachments.ts` and is exposed via `TestRailClient`
+2. Pick the I/O shape: file upload → `fileInput: true` in metadata + `resolveFile()` from `src/cli/file-input.ts`; binary download → `fileOutput: true` + `resolveOut()` from `src/cli/file-output.ts`; destructive op → `destructive: true` + check `ctx.confirmDestructive`
+3. Add handler to `src/cli/handlers/attachment.ts` (read) or `attachment-write.ts` (write). Upload handlers use the shared `setupUpload()` helper for dry-run preview + content read
+4. Register in `src/cli/dispatch.ts` HANDLERS and add an `ActionSpec` entry to `ACTIONS` in `src/cli/metadata.ts`
+5. Update HELP text in `src/cli/index.ts` under "Attachment actions"
+6. Add unit tests to `tests/cli-attachment-handlers.test.ts` (happy + dry-run + missing-flag + path-param reject; delete actions add `--yes` gate + dry-run-wins coverage) and a subprocess case to `tests/cli.test.ts`
+7. Run `npm run codemap` and `npm run skill` to regenerate CODEMAP.md and skill/SKILL.md
+
+**Destructive-ops convention:** `--yes` flag gates all destructive CLI actions. `--dry-run` wins over `--yes` (preview-without-API). Set `destructive: true` in metadata so the skill generator surfaces the gate in the command table.
 
 **Modify caching:** `getCachedData()` / `setCachedData()` / `cleanupExpiredCache()` in `src/client-core.ts`.
 

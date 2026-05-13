@@ -36,6 +36,20 @@ Write actions (body via --data | --data-file | stdin):
   result add <run_id> <case_id>     --data '{"status_id":1}'
   result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
 
+Attachment actions (binary file I/O):
+  attachment list-for-case <case_id>
+  attachment list-for-run <run_id>
+  attachment list-for-test <test_id>
+  attachment list-for-plan <plan_id>
+  attachment list-for-plan-entry <plan_id> <entry_id>
+  attachment get <attachment_id>           --out <path> [--force]
+  attachment add-to-case <case_id>         --file <path> [--filename <name>]
+  attachment add-to-result <result_id>     --file <path> [--filename <name>]
+  attachment add-to-run <run_id>           --file <path> [--filename <name>]
+  attachment add-to-plan <plan_id>         --file <path> [--filename <name>]
+  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path> [--filename <name>]
+  attachment delete <attachment_id>        --yes
+
 Meta:
   install-skill [--global] [--force] [--print-path]
                                     Install the testrail-cli skill to
@@ -53,15 +67,22 @@ Options:
   --dry-run             Validate payload but don't call the API
   --format json|table   Output format (default: json)
   --quiet               Suppress output; use exit code 0/1
+  --file <path>         Binary file to upload (attachment add-to-* actions)
+  --filename <name>     Override the upload filename (default: basename of --file)
+  --out <path>          Local path to write the downloaded attachment to (attachment get)
+  --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
+  --yes                 Required to execute destructive actions (e.g. attachment delete)
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
-  --force               install-skill: overwrite an existing SKILL.md
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
   --version             Print version
 
 For body-bearing write actions (all except 'run close'), exactly one body source
 is required (--data | --data-file | stdin). Stdin is auto-detected when input
-is piped (process.stdin.isTTY === false).
+is piped (process.stdin.isTTY === false). Attachment upload actions take a
+binary file via --file <path> and do not accept --data/--data-file/stdin.
+Destructive actions (attachment delete) require --yes; pass --dry-run together
+with --yes to preview without making the API call (dry-run wins).
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -99,6 +120,10 @@ async function main(): Promise<number> {
                 global: { type: 'boolean', default: false },
                 force: { type: 'boolean', default: false },
                 'print-path': { type: 'boolean', default: false },
+                file: { type: 'string' },
+                filename: { type: 'string' },
+                out: { type: 'string' },
+                yes: { type: 'boolean', default: false },
             },
             allowPositionals: true,
             strict: false,
@@ -186,7 +211,12 @@ async function main(): Promise<number> {
         ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
         ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
+        ...(values['file'] !== undefined && { file: values['file'] as string }),
+        ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
+        ...(values['out'] !== undefined && { out: values['out'] as string }),
     };
+
+    const fileFlagPresent = values['file'] !== undefined;
 
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
@@ -194,16 +224,20 @@ async function main(): Promise<number> {
         // Pass a thunk (not the read contents) so resolveBody() only drains
         // stdin when it actually selects stdin as the body source. Read
         // actions, no-body writes (`run close`), and write actions that
-        // received --data or --data-file never invoke this.
-        ...(process.stdin.isTTY === false && { readStdin: () => readFileSync(0, 'utf-8') }),
+        // received --data or --data-file never invoke this. File-input
+        // actions (`--file` present) explicitly suppress stdin to avoid the
+        // "binary upload but also piped JSON?" ambiguity.
+        ...(process.stdin.isTTY === false && !fileFlagPresent && { readStdin: () => readFileSync(0, 'utf-8') }),
     };
 
     const dryRun = values['dry-run'] === true;
+    const force = values['force'] === true;
+    const confirmDestructive = values['yes'] === true;
 
     let client: TestRailClient | undefined;
     try {
         client = new TestRailClient(auth.config);
-        await dispatched.handler({ client, args, bodyInput, dryRun, out });
+        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
         return 0;
     } catch (e: unknown) {
         err(e instanceof Error ? e.message : String(e));

@@ -15,6 +15,12 @@ export interface HandlerArgs {
     caseId?: string;
     limit?: string;
     offset?: string;
+    /** Path to a binary file for attachment upload actions (`--file <path>`). */
+    file?: string;
+    /** Optional override for the upload filename; otherwise derived from `basename(file)`. */
+    filename?: string;
+    /** Path to write a binary download to for `attachment get` (`--out <path>`). */
+    out?: string;
 }
 
 /**
@@ -40,6 +46,12 @@ export interface HandlerContext {
     args: HandlerArgs;
     bodyInput: BodyInput;
     dryRun: boolean;
+    /** True when `--force` is set; permits overwriting an existing `--out` file. */
+    force: boolean;
+    /** True when `--yes` is set; required to execute destructive actions
+     *  (e.g. `attachment delete`). When both `--dry-run` and `--yes` are
+     *  passed, dry-run wins and the destructive call is not executed. */
+    confirmDestructive: boolean;
     out: (data: unknown) => void;
 }
 

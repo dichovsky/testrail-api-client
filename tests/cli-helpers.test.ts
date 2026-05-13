@@ -336,14 +336,47 @@ describe('metadata vs dispatch consistency', () => {
         }
     });
 
-    it('write actions in metadata carry a body schema except run close', () => {
+    it('write actions in metadata carry a body schema except no-body or file-input writes', () => {
         for (const spec of ACTIONS) {
             if (!spec.isWrite) continue;
+            // No-body POSTs: `run close`, `attachment delete`.
             if (spec.resource === 'run' && spec.action === 'close') {
                 expect(spec.bodySchema, 'run close should have no body schema').toBeUndefined();
                 continue;
             }
+            if (spec.resource === 'attachment' && spec.action === 'delete') {
+                expect(spec.bodySchema, 'attachment delete should have no body schema').toBeUndefined();
+                continue;
+            }
+            // File-input writes (attachment upload): payload is binary via --file,
+            // so no JSON body schema applies.
+            if (spec.fileInput === true) {
+                expect(
+                    spec.bodySchema,
+                    `${spec.resource}:${spec.action} is file-input; should have no body schema`,
+                ).toBeUndefined();
+                continue;
+            }
             expect(spec.bodySchema, `${spec.resource}:${spec.action} should carry a body schema`).toBeDefined();
+        }
+    });
+
+    it('file-input and bodySchema are mutually exclusive', () => {
+        for (const spec of ACTIONS) {
+            if (spec.fileInput === true) {
+                expect(
+                    spec.bodySchema,
+                    `${spec.resource}:${spec.action} has fileInput; must not also carry bodySchema`,
+                ).toBeUndefined();
+            }
+        }
+    });
+
+    it('destructive actions are flagged as writes', () => {
+        for (const spec of ACTIONS) {
+            if (spec.destructive === true) {
+                expect(spec.isWrite, `${spec.resource}:${spec.action} is destructive; must also be a write`).toBe(true);
+            }
         }
     });
 

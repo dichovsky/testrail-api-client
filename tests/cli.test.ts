@@ -14,6 +14,9 @@
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // Mock DNS so validatePublicHost() resolves immediately without hitting the network.
 // Returns a single public IP (example.com) so the private-IP check passes cleanly.
@@ -77,6 +80,14 @@ function jsonResponse(data: unknown, status = 200): Response {
         status,
         statusText: status === 200 ? 'OK' : 'Error',
         headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+function binaryResponse(bytes: Uint8Array, status = 200): Response {
+    return new Response(bytes, {
+        status,
+        statusText: status === 200 ? 'OK' : 'Error',
+        headers: { 'Content-Type': 'application/octet-stream' },
     });
 }
 
@@ -666,6 +677,98 @@ describe('CLI', () => {
                 [jsonResponse([{ id: 100, status_id: 1 }])],
             );
             expect(exitCodes).toContain(0);
+        });
+    });
+
+    describe('attachment', () => {
+        let tmp: string;
+        beforeEach(() => {
+            tmp = mkdtempSync(join(tmpdir(), 'tr-cli-attach-'));
+        });
+        afterEach(() => {
+            rmSync(tmp, { recursive: true, force: true });
+        });
+
+        it('list-for-case GETs and returns the array', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['attachment', 'list-for-case', '42'],
+                [jsonResponse({ attachments: [{ attachment_id: 1, name: 'a.png' }] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"attachment_id"');
+        });
+
+        it('add-to-case uploads --file and returns attachment_id', async () => {
+            const filePath = join(tmp, 'shot.png');
+            writeFileSync(filePath, Buffer.from([1, 2, 3]));
+            const { exitCodes, stdout } = await runCli(
+                ['attachment', 'add-to-case', '42', '--file', filePath],
+                [jsonResponse({ attachment_id: 999 })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('999');
+        });
+
+        it('add-to-case --dry-run skips fetch entirely', async () => {
+            const filePath = join(tmp, 'shot.png');
+            writeFileSync(filePath, Buffer.from([1, 2, 3]));
+            const { exitCodes, stdout } = await runCli([
+                'attachment',
+                'add-to-case',
+                '42',
+                '--file',
+                filePath,
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun"');
+            expect(stdout).toContain('"size"');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('add-to-case exits 1 when --file is missing', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'add-to-case', '42']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--file');
+        });
+
+        it('get downloads binary to --out path', async () => {
+            const outPath = join(tmp, 'fetched.bin');
+            const { exitCodes, stdout } = await runCli(
+                ['attachment', 'get', '42', '--out', outPath],
+                [binaryResponse(new Uint8Array([0xab, 0xcd]))],
+            );
+            expect(exitCodes).toContain(0);
+            expect(existsSync(outPath)).toBe(true);
+            expect(Array.from(readFileSync(outPath))).toEqual([0xab, 0xcd]);
+            expect(stdout).toContain('"size"');
+        });
+
+        it('get refuses to overwrite without --force', async () => {
+            const outPath = join(tmp, 'exists.bin');
+            writeFileSync(outPath, 'old');
+            const { exitCodes, stderr } = await runCli(['attachment', 'get', '42', '--out', outPath]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Refusing to overwrite');
+            expect(readFileSync(outPath, 'utf-8')).toBe('old');
+        });
+
+        it('delete without --yes exits 1', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'delete', '42']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--yes');
+        });
+
+        it('delete --yes succeeds', async () => {
+            const { exitCodes } = await runCli(['attachment', 'delete', '42', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+        });
+
+        it('delete --yes --dry-run skips API call (dry-run wins)', async () => {
+            const { exitCodes, stdout } = await runCli(['attachment', 'delete', '42', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"destructive": true');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 });

@@ -9,6 +9,22 @@ import { handleResultList } from './handlers/result.js';
 import { handleResultAdd, handleResultAddBulk } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList } from './handlers/user.js';
+import {
+    handleAttachmentListForCase,
+    handleAttachmentListForRun,
+    handleAttachmentListForTest,
+    handleAttachmentListForPlan,
+    handleAttachmentListForPlanEntry,
+    handleAttachmentGet,
+} from './handlers/attachment.js';
+import {
+    handleAttachmentAddToCase,
+    handleAttachmentAddToResult,
+    handleAttachmentAddToRun,
+    handleAttachmentAddToPlan,
+    handleAttachmentAddToPlanEntry,
+    handleAttachmentDelete,
+} from './handlers/attachment-write.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -41,6 +57,18 @@ const HANDLERS: Record<string, Handler> = {
     'milestone:list': handleMilestoneList,
     'user:get': handleUserGet,
     'user:list': handleUserList,
+    'attachment:list-for-case': handleAttachmentListForCase,
+    'attachment:list-for-run': handleAttachmentListForRun,
+    'attachment:list-for-test': handleAttachmentListForTest,
+    'attachment:list-for-plan': handleAttachmentListForPlan,
+    'attachment:list-for-plan-entry': handleAttachmentListForPlanEntry,
+    'attachment:get': handleAttachmentGet,
+    'attachment:add-to-case': handleAttachmentAddToCase,
+    'attachment:add-to-result': handleAttachmentAddToResult,
+    'attachment:add-to-run': handleAttachmentAddToRun,
+    'attachment:add-to-plan': handleAttachmentAddToPlan,
+    'attachment:add-to-plan-entry': handleAttachmentAddToPlanEntry,
+    'attachment:delete': handleAttachmentDelete,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {
