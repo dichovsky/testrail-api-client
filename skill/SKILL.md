@@ -382,7 +382,11 @@ to overwrite. JSON ack on stdout includes `attachmentId`, `out`, and `size`.
 # 1. List + audit
 testrail attachment list-for-case 42
 
-# 2. Dry-run each delete to confirm intent (no API call, no --yes needed)
+# 2. Dry-run each delete to preview intent without calling the API.
+#    Passing --yes alongside --dry-run is optional but recommended:
+#    dry-run wins (no API call either way), and including --yes here
+#    means step 3 differs only by dropping --dry-run — minimum delta
+#    between test and real invocation.
 for ID in 101 102 103; do
     testrail attachment delete "$ID" --yes --dry-run
 done

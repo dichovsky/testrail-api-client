@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "663103088d9058634403f467a27428c008cdd092411b82a27f94a82ac4144dcb",
+  "sourceHash": "d174e1c795a98e5c42a1828ee6d2f9f752bf8f22ab313be3f3bd69bbb5b503e7",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1563,6 +1563,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./dispatch.js",
         "./handler-context.js",
         "./install-skill.js",
+        "./metadata.js",
         "./output.js",
         "node:fs",
         "node:module",
@@ -1573,28 +1574,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 14,
+          "line": 15,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 15,
+          "line": 16,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 19,
+          "line": 20,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 97,
+          "line": 98,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }

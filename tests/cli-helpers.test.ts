@@ -380,6 +380,34 @@ describe('metadata vs dispatch consistency', () => {
         }
     });
 
+    /**
+     * The CLI in src/cli/index.ts gates stdin suppression on
+     * `ActionSpec.fileInput === true` (PR #59 review feedback): suppressing
+     * stdin purely on `--file` presence would also kill piped JSON bodies
+     * for unrelated write actions that happened to have `--file` typo'd in.
+     * Lock the discriminator's expected shape so the gate stays correct:
+     * only attachment uploads carry `fileInput: true`; nothing else.
+     */
+    it('only attachment add-to-* actions are flagged as fileInput', () => {
+        for (const spec of ACTIONS) {
+            if (spec.fileInput === true) {
+                expect(
+                    spec.resource === 'attachment' && spec.action.startsWith('add-to-'),
+                    `${spec.resource}:${spec.action} carries fileInput but is not an attachment upload`,
+                ).toBe(true);
+            }
+        }
+        // Inverse: every attachment add-to-* must be fileInput.
+        for (const spec of ACTIONS) {
+            if (spec.resource === 'attachment' && spec.action.startsWith('add-to-')) {
+                expect(
+                    spec.fileInput,
+                    `${spec.resource}:${spec.action} is an attachment upload; must carry fileInput`,
+                ).toBe(true);
+            }
+        }
+    });
+
     it('every metadata entry has at least one path param documented (except list actions)', () => {
         for (const spec of ACTIONS) {
             if (spec.action === 'list') continue;

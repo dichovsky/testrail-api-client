@@ -6,6 +6,7 @@ import { TestRailClient } from '../client.js';
 import { resolveAuth } from './auth.js';
 import { createOutput } from './output.js';
 import { dispatch } from './dispatch.js';
+import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
@@ -216,7 +217,14 @@ async function main(): Promise<number> {
         ...(values['out'] !== undefined && { out: values['out'] as string }),
     };
 
-    const fileFlagPresent = values['file'] !== undefined;
+    // Suppress stdin only when the dispatched action's ActionSpec marks it
+    // as a file-input action (`fileInput: true`). Gating purely on `--file`
+    // presence would also kill stdin for unrelated actions where `--file`
+    // is a typo/no-op (e.g. `echo '{...}' | testrail result add ... --file
+    // x`), surfacing as a misleading "Body required" error instead of the
+    // ignored flag.
+    const actionSpec = getActionSpec(resource, action);
+    const isFileInputAction = actionSpec?.fileInput === true;
 
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
@@ -225,9 +233,9 @@ async function main(): Promise<number> {
         // stdin when it actually selects stdin as the body source. Read
         // actions, no-body writes (`run close`), and write actions that
         // received --data or --data-file never invoke this. File-input
-        // actions (`--file` present) explicitly suppress stdin to avoid the
-        // "binary upload but also piped JSON?" ambiguity.
-        ...(process.stdin.isTTY === false && !fileFlagPresent && { readStdin: () => readFileSync(0, 'utf-8') }),
+        // actions (e.g. `attachment add-to-case`) suppress stdin entirely
+        // since their payload is the binary file, not JSON.
+        ...(process.stdin.isTTY === false && !isFileInputAction && { readStdin: () => readFileSync(0, 'utf-8') }),
     };
 
     const dryRun = values['dry-run'] === true;
