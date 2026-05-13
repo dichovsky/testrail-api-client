@@ -1,14 +1,13 @@
 import { TestRailClientCore } from '../client-core.js';
-import type {
-    Plan,
-    PlanEntry,
-    GetPlansOptions,
-    AddPlanPayload,
-    UpdatePlanPayload,
-    AddPlanEntryPayload,
-    UpdatePlanEntryPayload,
-} from '../types.js';
-import { PlanSchema, PlanEntrySchema } from '../schemas.js';
+import type { Plan, PlanEntry, GetPlansOptions } from '../types.js';
+import {
+    PlanSchema,
+    PlanEntrySchema,
+    type AddPlanPayload,
+    type UpdatePlanPayload,
+    type AddPlanEntryPayload,
+    type UpdatePlanEntryPayload,
+} from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
 

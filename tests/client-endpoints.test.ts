@@ -16,10 +16,6 @@ import type {
     Priority,
     AddSuitePayload,
     UpdateSuitePayload,
-    AddPlanPayload,
-    UpdatePlanPayload,
-    AddPlanEntryPayload,
-    UpdatePlanEntryPayload,
     AddMilestonePayload,
     UpdateMilestonePayload,
     GetRunsOptions,
@@ -37,6 +33,10 @@ import type {
     UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
+    AddPlanPayload,
+    UpdatePlanPayload,
+    AddPlanEntryPayload,
+    UpdatePlanEntryPayload,
 } from '../src/schemas.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 

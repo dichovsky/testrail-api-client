@@ -15,25 +15,25 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 
 ## File Map
 
-| File                                                    | Purpose                                                                                                                         |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `src/client-core.ts`                                    | HTTP pipeline, cache, rate limiter, retry, lifecycle                                                                            |
-| `src/client.ts`                                         | `TestRailClient` facade composing domain modules; re-exports their methods                                                      |
-| `src/modules/*.ts`                                      | Per-domain endpoint methods (cases, runs, results, projects, suites, sections, plans, tests, milestones, …)                     |
-| `src/types.ts`                                          | Response interfaces + payload types that aren't Zod-derived (e.g., `AddPlanEntryPayload`, `GetCasesOptions`)                    |
-| `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for `AddCasePayload`, `AddRunPayload`, etc. via `z.infer` |
-| `src/errors.ts`                                         | `TestRailApiError`, `TestRailValidationError`, `handleZodError`                                                                 |
-| `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits)                                                                            |
-| `src/utils.ts`                                          | `base64Encode`, `sleep`                                                                                                         |
-| `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                |
-| `src/cli/index.ts`                                      | CLI entry: arg parse, dispatch, auth, handler invocation (wrapped in `async main()`)                                            |
-| `src/cli/{auth,output,ids,dispatch,handler-context}.ts` | CLI infrastructure (env+flag resolution, JSON/table rendering, ID parsing, handler-table dispatch, shared types)                |
-| `src/cli/{file-input,file-output}.ts`                   | Binary file-input resolver (`--file`) and binary download resolver (`--out`) for attachment actions                             |
-| `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user/attachment)                                 |
-| `src/index.ts`                                          | Public barrel exports                                                                                                           |
-| `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                               |
-| `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                            |
-| `scripts/generate-codemap.js`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                |
+| File                                                    | Purpose                                                                                                                                           |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/client-core.ts`                                    | HTTP pipeline, cache, rate limiter, retry, lifecycle                                                                                              |
+| `src/client.ts`                                         | `TestRailClient` facade composing domain modules; re-exports their methods                                                                        |
+| `src/modules/*.ts`                                      | Per-domain endpoint methods (cases, runs, results, projects, suites, sections, plans, tests, milestones, …)                                       |
+| `src/types.ts`                                          | Response interfaces + payload types that aren't Zod-derived (e.g., `GetCasesOptions`, `GetPlansOptions`, `AddSuitePayload`)                       |
+| `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for `AddCasePayload`, `AddRunPayload`, `AddPlanPayload`, etc. via `z.infer` |
+| `src/errors.ts`                                         | `TestRailApiError`, `TestRailValidationError`, `handleZodError`                                                                                   |
+| `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits)                                                                                              |
+| `src/utils.ts`                                          | `base64Encode`, `sleep`                                                                                                                           |
+| `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                                  |
+| `src/cli/index.ts`                                      | CLI entry: arg parse, dispatch, auth, handler invocation (wrapped in `async main()`)                                                              |
+| `src/cli/{auth,output,ids,dispatch,handler-context}.ts` | CLI infrastructure (env+flag resolution, JSON/table rendering, ID parsing, handler-table dispatch, shared types)                                  |
+| `src/cli/{file-input,file-output}.ts`                   | Binary file-input resolver (`--file`) and binary download resolver (`--out`) for attachment actions                                               |
+| `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user/plan/attachment)                                              |
+| `src/index.ts`                                          | Public barrel exports                                                                                                                             |
+| `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                                                 |
+| `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                                              |
+| `scripts/generate-codemap.js`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                                  |
 
 ## API Symbol Index
 

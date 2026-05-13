@@ -26,7 +26,7 @@ once via the TestRail UI.
 - [ ] **`section add` / `section update`** — `addSection` / `updateSection`. **Effort:** S. **Trigger:** agents authoring large batches of cases that need new sections.
 - [ ] **`milestone add` / `milestone update`** — `addMilestone` / `updateMilestone`. **Effort:** S. **Trigger:** release-coordination automations.
 - [ ] **`user add` / `user update`** — `addUser` / `updateUser`. **Effort:** S. **Trigger:** identity-provisioning workflows. Note: TestRail 7.3+ only.
-- [ ] **`plan add` / `plan update` / `plan add-entry`** — `addPlan` / `updatePlan` / `addPlanEntry`. **Effort:** M. **Trigger:** test-plan-driven CI workflows; richer payload than runs.
+- [x] **`plan add` / `plan update` / `plan add-entry`** — `addPlan` / `updatePlan` / `addPlanEntry`. Shipped together with `plan get` / `plan list` (the 5 actions closed plan's read/write asymmetry). Plan payload schemas migrated from handwritten interfaces in `types.ts` to Zod in `schemas.ts` (matches the precedent for run/case/result payloads). Nested `entries[]` are fully Zod-validated; nested `runs[]` inside an entry use a separate `PlanEntryRunPayloadSchema` (all fields optional, including `name`) since TestRail derives the run name from the config. `plan close`, `plan delete`, `plan-entry update`, `plan-entry delete` remain deferred — the last two also need a UUID-style string-ID parser (`entry_id` is a string, not a number).
 
 ## CLI write surface — destructive operations
 

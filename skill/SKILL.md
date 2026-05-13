@@ -1,6 +1,6 @@
 ---
 name: testrail-cli
-description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities, or when TESTRAIL_BASE_URL / TESTRAIL_EMAIL / TESTRAIL_API_KEY are set in the environment.
+description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, plans, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities, or when TESTRAIL_BASE_URL / TESTRAIL_EMAIL / TESTRAIL_API_KEY are set in the environment.
 version: 2.1.0
 license: MIT
 homepage: https://github.com/dichovsky/testrail-api-client
@@ -9,8 +9,9 @@ homepage: https://github.com/dichovsky/testrail-api-client
 # `testrail` CLI
 
 A zero-dependency Node CLI for the TestRail REST API. Covers query (`get`,
-`list`) and write (`add`, `update`, `add-bulk`, `close`) operations across
-projects, suites, cases, runs, results, milestones, and users.
+`list`) and write (`add`, `update`, `add-bulk`, `add-entry`, `close`)
+operations across projects, suites, cases, runs, plans, results,
+milestones, and users.
 
 This skill is designed for **coding agents** running shell commands. It is
 not a TestRail user manual. For the browser UI, see TestRail's own docs.
@@ -69,12 +70,17 @@ on stderr. Never echo or log the API key.
 | milestone | list | — | — | List milestones in a project (paginated) |
 | user | get | `<user_id>` | — | Fetch a single user by ID |
 | user | list | — | — | List users (paginated) |
+| plan | get | `<plan_id>` | — | Fetch a single test plan by ID |
+| plan | list | — | — | List plans in a project (paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
 | run | close | `<run_id>` | — (no body) | Close a test run (no body) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
+| plan | add | `<project_id>` | `(body)` | Create a new test plan in a project (optionally with nested entries) |
+| plan | update | `<plan_id>` | `(body)` | Update an existing test plan (partial fields) |
+| plan | add-entry | `<plan_id>` | `(body)` | Add an entry (suite + optional runs) to an existing test plan |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
 | attachment | list-for-run | `<run_id>` | — | List attachments on a test run |
 | attachment | list-for-test | `<test_id>` | — | List attachments on a test (run instance of a case) |
@@ -189,6 +195,43 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 ```jsonc
 {
     "results": "object[] (required)"
+}
+```
+
+### `(body)` (used by `plan add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "description": "string?",
+    "milestone_id": "number?",
+    "entries": "object[]?"
+}
+```
+
+### `(body)` (used by `plan update`)
+
+```jsonc
+{
+    "name": "string?",
+    "description": "string?",
+    "milestone_id": "number?",
+    "assignedto_id": "number?"
+}
+```
+
+### `(body)` (used by `plan add-entry`)
+
+```jsonc
+{
+    "suite_id": "number (required)",
+    "name": "string?",
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "config_ids": "number[]?",
+    "runs": "object[]?"
 }
 ```
 <!-- /GENERATED:payload-schemas -->
@@ -395,6 +438,67 @@ done
 for ID in 101 102 103; do
     testrail attachment delete "$ID" --yes
 done
+```
+
+### 19. Fetch a single test plan
+
+```bash
+testrail plan get 50
+```
+
+### 20. List active plans for a project
+
+```bash
+# `plan list` is paginated; --limit / --offset are the only filters exposed.
+# To filter by milestone or completion status, paginate and filter client-side.
+testrail plan list --project-id 1 --limit 25
+```
+
+### 21. Create an empty test plan
+
+```bash
+testrail plan add 1 --data '{
+    "name": "Release 1.0",
+    "description": "Smoke + regression for the 1.0 cut",
+    "milestone_id": 4
+}'
+```
+
+### 22. Create a plan with nested entries (matrix testing in one call)
+
+```bash
+# Each entry is a suite to run. `config_ids` slot the entry into a TestRail
+# configuration matrix (e.g., Linux + macOS). The nested `runs[]` overrides
+# per config — name is auto-derived from the config, so omit it.
+testrail plan add 1 --data '{
+    "name": "Release 1.0 — Cross-platform",
+    "entries": [
+        {
+            "suite_id": 1,
+            "include_all": true,
+            "config_ids": [10, 11],
+            "runs": [
+                { "config_ids": [10], "assignedto_id": 7 },
+                { "config_ids": [11], "assignedto_id": 8 }
+            ]
+        }
+    ]
+}'
+
+# Rename the plan after creation:
+testrail plan update 50 --data '{"name":"Release 1.0 — final"}'
+```
+
+### 23. Add an entry to an existing plan
+
+```bash
+# Use this for plans that grow over a release cycle. Returns the new entry
+# (including its UUID-style `id` and the runs auto-created for any configs).
+testrail plan add-entry 50 --data '{
+    "suite_id": 2,
+    "include_all": true,
+    "assignedto_id": 7
+}'
 ```
 
 ## Destructive actions

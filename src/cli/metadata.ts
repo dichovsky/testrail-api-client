@@ -5,6 +5,9 @@ import {
     AddRunPayloadSchema,
     AddResultPayloadSchema,
     AddResultsForCasesPayloadSchema,
+    AddPlanPayloadSchema,
+    UpdatePlanPayloadSchema,
+    AddPlanEntryPayloadSchema,
 } from '../schemas.js';
 
 /**
@@ -145,6 +148,20 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [],
         isWrite: false,
     },
+    {
+        resource: 'plan',
+        action: 'get',
+        summary: 'Fetch a single test plan by ID',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'plan',
+        action: 'list',
+        summary: 'List plans in a project (paginated)',
+        pathParams: [],
+        isWrite: false,
+    },
     // ── Write actions ─────────────────────────────────────────────────────
     {
         resource: 'case',
@@ -194,6 +211,30 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary: 'Record multiple results for cases in one API call',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         bodySchema: AddResultsForCasesPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'plan',
+        action: 'add',
+        summary: 'Create a new test plan in a project (optionally with nested entries)',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        bodySchema: AddPlanPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'plan',
+        action: 'update',
+        summary: 'Update an existing test plan (partial fields)',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        bodySchema: UpdatePlanPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'plan',
+        action: 'add-entry',
+        summary: 'Add an entry (suite + optional runs) to an existing test plan',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        bodySchema: AddPlanEntryPayloadSchema,
         isWrite: true,
     },
     // ── Attachment read actions ───────────────────────────────────────────

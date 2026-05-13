@@ -62,6 +62,27 @@ const MOCK_MILESTONE = {
     url: 'https://example.testrail.io/milestones/view/1',
 };
 const MOCK_USER = { id: 1, name: 'Alice', email: 'alice@example.com', is_active: true };
+const MOCK_PLAN = {
+    id: 50,
+    name: 'Release 1.0',
+    is_completed: false,
+    passed_count: 0,
+    blocked_count: 0,
+    untested_count: 0,
+    retest_count: 0,
+    failed_count: 0,
+    project_id: 1,
+    created_on: 0,
+    created_by: 1,
+    url: 'https://example.testrail.io/plans/view/50',
+};
+const MOCK_PLAN_ENTRY = {
+    id: 'abc-def-uuid',
+    suite_id: 1,
+    name: 'Entry A',
+    include_all: true,
+    runs: [],
+};
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -666,6 +687,72 @@ describe('CLI', () => {
             const { stdout, exitCodes } = await runCli(['install-skill', '--print-path']);
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('SKILL.md');
+        });
+    });
+
+    describe('plan', () => {
+        it('plan get <id> should exit 0', async () => {
+            const { exitCodes } = await runCli(['plan', 'get', '50'], [jsonResponse(MOCK_PLAN)]);
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan list --project-id <id> should exit 0', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'list', '--project-id', '1'],
+                [jsonResponse({ plans: [MOCK_PLAN] })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan list honors --limit and --offset', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'list', '--project-id', '1', '--limit', '5', '--offset', '10'],
+                [jsonResponse({ plans: [MOCK_PLAN] })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan add POSTs the payload and returns the created plan', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'add', '1', '--data', '{"name":"Release 1.0"}'],
+                [jsonResponse(MOCK_PLAN)],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan add exits 1 when payload is missing required `name`', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'add', '1', '--data', '{"description":"d"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('plan update POSTs the payload', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'update', '50', '--data', '{"name":"renamed"}'],
+                [jsonResponse({ ...MOCK_PLAN, name: 'renamed' })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan add-entry POSTs the payload and returns the created entry', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'add-entry', '50', '--data', '{"suite_id":1,"include_all":true}'],
+                [jsonResponse(MOCK_PLAN_ENTRY)],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan add-entry exits 1 when payload is missing required suite_id', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'add-entry', '50', '--data', '{"name":"oops"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('plan add --dry-run does not call the API', async () => {
+            const { stdout, exitCodes } = await runCli(['plan', 'add', '1', '--data', '{"name":"R"}', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('plan add');
         });
     });
 

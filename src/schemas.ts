@@ -549,3 +549,66 @@ export const AddResultsForCasesPayloadSchema = zObject({
 });
 
 export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>;
+
+// ── Plan write payloads ───────────────────────────────────────────────────────
+// Plans nest entries, and entries nest runs. The run shape inside a plan entry
+// is intentionally looser than AddRunPayloadSchema: TestRail derives the run
+// name from the config when nested, so `name` (and every other field) is
+// optional here. Using a separate schema avoids loosening the standalone
+// `run add` contract.
+
+export const PlanEntryRunPayloadSchema = zObject({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+    config_ids: z.array(z.number()).optional(),
+    refs: z.string().optional(),
+});
+
+export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>;
+
+export const AddPlanEntryPayloadSchema = zObject({
+    suite_id: z.number(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+    config_ids: z.array(z.number()).optional(),
+    runs: z.array(PlanEntryRunPayloadSchema).optional(),
+});
+
+export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>;
+
+export const UpdatePlanEntryPayloadSchema = zObject({
+    suite_id: z.number().optional(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+    config_ids: z.array(z.number()).optional(),
+    runs: z.array(PlanEntryRunPayloadSchema).optional(),
+});
+
+export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>;
+
+export const AddPlanPayloadSchema = zObject({
+    name: z.string(),
+    description: z.string().optional(),
+    milestone_id: z.number().optional(),
+    entries: z.array(AddPlanEntryPayloadSchema).optional(),
+});
+
+export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>;
+
+export const UpdatePlanPayloadSchema = zObject({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    milestone_id: z.number().optional(),
+    assignedto_id: z.number().optional(),
+});
+
+export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>;

@@ -1,5 +1,5 @@
 /**
- * Unit tests for the 7 write-payload Zod schemas in src/schemas.ts.
+ * Unit tests for the write-payload Zod schemas in src/schemas.ts.
  *
  * Validates that each schema:
  * - parses minimal valid payloads,
@@ -19,6 +19,11 @@ import {
     AddResultPayloadSchema,
     AddResultForCasePayloadSchema,
     AddResultsForCasesPayloadSchema,
+    PlanEntryRunPayloadSchema,
+    AddPlanEntryPayloadSchema,
+    UpdatePlanEntryPayloadSchema,
+    AddPlanPayloadSchema,
+    UpdatePlanPayloadSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -178,5 +183,146 @@ describe('AddResultsForCasesPayloadSchema', () => {
 
     it('rejects when results is not an array', () => {
         expect(() => AddResultsForCasesPayloadSchema.parse({ results: 'not-an-array' })).toThrow();
+    });
+});
+
+describe('PlanEntryRunPayloadSchema', () => {
+    it('parses an empty payload (every field optional)', () => {
+        const parsed = PlanEntryRunPayloadSchema.parse({});
+        expect(parsed).toEqual({});
+    });
+
+    it('parses a fully-populated payload', () => {
+        const parsed = PlanEntryRunPayloadSchema.parse({
+            name: 'Linux run',
+            description: 'd',
+            assignedto_id: 7,
+            include_all: false,
+            case_ids: [1, 2, 3],
+            config_ids: [4, 5],
+            refs: 'JIRA-1',
+        });
+        expect(parsed.config_ids).toEqual([4, 5]);
+    });
+
+    it('rejects non-string name', () => {
+        expect(() => PlanEntryRunPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through unchanged', () => {
+        const parsed = PlanEntryRunPayloadSchema.parse({ custom_label: 'beta' }) as Record<string, unknown>;
+        expect(parsed['custom_label']).toBe('beta');
+    });
+});
+
+describe('AddPlanEntryPayloadSchema', () => {
+    it('parses a minimal valid payload (suite_id only)', () => {
+        const parsed = AddPlanEntryPayloadSchema.parse({ suite_id: 1 });
+        expect(parsed.suite_id).toBe(1);
+    });
+
+    it('parses a payload with nested runs', () => {
+        const parsed = AddPlanEntryPayloadSchema.parse({
+            suite_id: 1,
+            include_all: true,
+            config_ids: [10, 11],
+            runs: [{ config_ids: [10] }, { config_ids: [11] }],
+        });
+        expect(parsed.runs).toHaveLength(2);
+    });
+
+    it('rejects payload missing suite_id', () => {
+        expect(() => AddPlanEntryPayloadSchema.parse({ name: 'oops' })).toThrow();
+    });
+
+    it('rejects non-number suite_id', () => {
+        expect(() => AddPlanEntryPayloadSchema.parse({ suite_id: '1' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through unchanged', () => {
+        const parsed = AddPlanEntryPayloadSchema.parse({ suite_id: 1, custom_owner: 'team-a' }) as Record<
+            string,
+            unknown
+        >;
+        expect(parsed['custom_owner']).toBe('team-a');
+    });
+});
+
+describe('UpdatePlanEntryPayloadSchema', () => {
+    it('parses an empty payload (suite_id optional on update)', () => {
+        const parsed = UpdatePlanEntryPayloadSchema.parse({});
+        expect(parsed).toEqual({});
+    });
+
+    it('parses a payload with name + runs', () => {
+        const parsed = UpdatePlanEntryPayloadSchema.parse({
+            name: 'renamed entry',
+            runs: [{ name: 'override' }],
+        });
+        expect(parsed.name).toBe('renamed entry');
+    });
+
+    it('rejects non-array runs', () => {
+        expect(() => UpdatePlanEntryPayloadSchema.parse({ runs: 'nope' })).toThrow();
+    });
+});
+
+describe('AddPlanPayloadSchema', () => {
+    it('parses a minimal valid payload (name only)', () => {
+        const parsed = AddPlanPayloadSchema.parse({ name: 'Release 1.0' });
+        expect(parsed.name).toBe('Release 1.0');
+    });
+
+    it('parses a payload with nested entries', () => {
+        const parsed = AddPlanPayloadSchema.parse({
+            name: 'Release 1.0',
+            milestone_id: 4,
+            entries: [{ suite_id: 1, include_all: true }, { suite_id: 2 }],
+        });
+        expect(parsed.entries).toHaveLength(2);
+    });
+
+    it('rejects payload missing name', () => {
+        expect(() => AddPlanPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects payload with entry missing suite_id', () => {
+        expect(() =>
+            AddPlanPayloadSchema.parse({
+                name: 'R',
+                entries: [{ name: 'broken' }],
+            }),
+        ).toThrow();
+    });
+
+    it('lets custom_* fields pass through unchanged', () => {
+        const parsed = AddPlanPayloadSchema.parse({ name: 'R', custom_tag: 'foo' }) as Record<string, unknown>;
+        expect(parsed['custom_tag']).toBe('foo');
+    });
+});
+
+describe('UpdatePlanPayloadSchema', () => {
+    it('parses an empty payload (all fields optional)', () => {
+        const parsed = UpdatePlanPayloadSchema.parse({});
+        expect(parsed).toEqual({});
+    });
+
+    it('parses a payload with multiple fields', () => {
+        const parsed = UpdatePlanPayloadSchema.parse({
+            name: 'renamed',
+            description: 'd',
+            milestone_id: 9,
+            assignedto_id: 7,
+        });
+        expect(parsed.name).toBe('renamed');
+    });
+
+    it('rejects non-string description', () => {
+        expect(() => UpdatePlanPayloadSchema.parse({ description: 123 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through unchanged', () => {
+        const parsed = UpdatePlanPayloadSchema.parse({ custom_state: 'frozen' }) as Record<string, unknown>;
+        expect(parsed['custom_state']).toBe('frozen');
     });
 });

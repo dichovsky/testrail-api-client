@@ -28,6 +28,7 @@ Read actions:
   result   list --run-id <id> [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
+  plan     get <id> | list --project-id <id> [--limit N] [--offset N]
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
@@ -36,6 +37,9 @@ Write actions (body via --data | --data-file | stdin):
   run    close <run_id>             (no body)
   result add <run_id> <case_id>     --data '{"status_id":1}'
   result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
+  plan   add <project_id>           --data '{"name":"...","entries":[{"suite_id":1}]}'
+  plan   update <plan_id>           --data '{"name":"..."}'
+  plan   add-entry <plan_id>        --data '{"suite_id":1,"include_all":true}'
 
 Attachment actions (binary file I/O):
   attachment list-for-case <case_id>

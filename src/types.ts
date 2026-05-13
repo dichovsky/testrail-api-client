@@ -1,9 +1,3 @@
-// AddRunPayload is the source-of-truth payload type derived from
-// `AddRunPayloadSchema` in `./schemas.ts`. It's re-imported here because
-// `AddPlanEntryPayload` / `UpdatePlanEntryPayload` (which remain handwritten
-// in this file as part of v2.1 scope) contain `runs?: AddRunPayload[]`.
-import type { AddRunPayload } from './schemas.js';
-
 /**
  * TestRail API client configuration options
  */
@@ -293,44 +287,10 @@ export interface GetCasesOptions {
     offset?: number;
 }
 
-export interface AddPlanPayload {
-    name: string;
-    description?: string;
-    milestone_id?: number;
-    entries?: AddPlanEntryPayload[];
-}
-
-export interface UpdatePlanPayload {
-    name?: string;
-    description?: string;
-    milestone_id?: number;
-    assignedto_id?: number;
-}
-
-export interface AddPlanEntryPayload {
-    suite_id: number;
-    name?: string;
-    description?: string;
-    assignedto_id?: number;
-    include_all?: boolean;
-    case_ids?: number[];
-    config_ids?: number[];
-    runs?: AddRunPayload[];
-}
-
-export interface UpdatePlanEntryPayload {
-    suite_id?: number;
-    name?: string;
-    description?: string;
-    assignedto_id?: number;
-    include_all?: boolean;
-    case_ids?: number[];
-    config_ids?: number[];
-    runs?: AddRunPayload[];
-}
-
-// AddRunPayload, UpdateRunPayload, AddResultPayload, AddResultsForCasesPayload,
-// and AddResultForCasePayload now live in `./schemas.ts` as Zod schemas
+// AddPlanPayload, UpdatePlanPayload, AddPlanEntryPayload,
+// UpdatePlanEntryPayload, and PlanEntryRunPayload now live in `./schemas.ts`
+// as Zod schemas. AddRunPayload, UpdateRunPayload, AddResultPayload,
+// AddResultsForCasesPayload, and AddResultForCasePayload also live there
 // (source of truth for runtime validation + inferred TS types).
 
 export interface AddSectionPayload {
