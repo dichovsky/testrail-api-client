@@ -23,8 +23,13 @@ function renderPathArgs(spec) {
 }
 
 function bodyLabel(spec) {
+    if (spec.fileInput === true) return '`--file <path>`';
+    if (spec.fileOutput === true) return '`--out <path>` (binary)';
     if (!spec.isWrite) return '—';
-    if (!spec.bodySchema) return '— (no body)';
+    if (!spec.bodySchema) {
+        if (spec.destructive === true) return '— (no body, requires `--yes`)';
+        return '— (no body)';
+    }
     return `\`${schemaNameFor(spec)}\``;
 }
 

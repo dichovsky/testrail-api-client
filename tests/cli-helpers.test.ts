@@ -336,14 +336,75 @@ describe('metadata vs dispatch consistency', () => {
         }
     });
 
-    it('write actions in metadata carry a body schema except run close', () => {
+    it('write actions in metadata carry a body schema except no-body or file-input writes', () => {
         for (const spec of ACTIONS) {
             if (!spec.isWrite) continue;
+            // No-body POSTs: `run close`, `attachment delete`.
             if (spec.resource === 'run' && spec.action === 'close') {
                 expect(spec.bodySchema, 'run close should have no body schema').toBeUndefined();
                 continue;
             }
+            if (spec.resource === 'attachment' && spec.action === 'delete') {
+                expect(spec.bodySchema, 'attachment delete should have no body schema').toBeUndefined();
+                continue;
+            }
+            // File-input writes (attachment upload): payload is binary via --file,
+            // so no JSON body schema applies.
+            if (spec.fileInput === true) {
+                expect(
+                    spec.bodySchema,
+                    `${spec.resource}:${spec.action} is file-input; should have no body schema`,
+                ).toBeUndefined();
+                continue;
+            }
             expect(spec.bodySchema, `${spec.resource}:${spec.action} should carry a body schema`).toBeDefined();
+        }
+    });
+
+    it('file-input and bodySchema are mutually exclusive', () => {
+        for (const spec of ACTIONS) {
+            if (spec.fileInput === true) {
+                expect(
+                    spec.bodySchema,
+                    `${spec.resource}:${spec.action} has fileInput; must not also carry bodySchema`,
+                ).toBeUndefined();
+            }
+        }
+    });
+
+    it('destructive actions are flagged as writes', () => {
+        for (const spec of ACTIONS) {
+            if (spec.destructive === true) {
+                expect(spec.isWrite, `${spec.resource}:${spec.action} is destructive; must also be a write`).toBe(true);
+            }
+        }
+    });
+
+    /**
+     * The CLI in src/cli/index.ts gates stdin suppression on
+     * `ActionSpec.fileInput === true` (PR #59 review feedback): suppressing
+     * stdin purely on `--file` presence would also kill piped JSON bodies
+     * for unrelated write actions that happened to have `--file` typo'd in.
+     * Lock the discriminator's expected shape so the gate stays correct:
+     * only attachment uploads carry `fileInput: true`; nothing else.
+     */
+    it('only attachment add-to-* actions are flagged as fileInput', () => {
+        for (const spec of ACTIONS) {
+            if (spec.fileInput === true) {
+                expect(
+                    spec.resource === 'attachment' && spec.action.startsWith('add-to-'),
+                    `${spec.resource}:${spec.action} carries fileInput but is not an attachment upload`,
+                ).toBe(true);
+            }
+        }
+        // Inverse: every attachment add-to-* must be fileInput.
+        for (const spec of ACTIONS) {
+            if (spec.resource === 'attachment' && spec.action.startsWith('add-to-')) {
+                expect(
+                    spec.fileInput,
+                    `${spec.resource}:${spec.action} is an attachment upload; must carry fileInput`,
+                ).toBe(true);
+            }
         }
     });
 

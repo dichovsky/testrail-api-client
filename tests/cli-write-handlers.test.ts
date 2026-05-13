@@ -56,6 +56,8 @@ function buildCtx(
         args: { pathParams: overrides.pathParams ?? [] },
         bodyInput: overrides.dataFlag !== undefined ? { dataFlag: overrides.dataFlag } : {},
         dryRun: overrides.dryRun ?? false,
+        force: false,
+        confirmDestructive: false,
         out,
     };
     return { ctx, out };

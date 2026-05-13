@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "892896471e89172231a1eff1eff1fe6dcf5f5b104c563669e5048c2f94f62e8a",
+  "sourceHash": "d174e1c795a98e5c42a1828ee6d2f9f752bf8f22ab313be3f3bd69bbb5b503e7",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -996,6 +996,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/dispatch.ts",
       "imports": [
         "./handler-context.js",
+        "./handlers/attachment-write.js",
+        "./handlers/attachment.js",
         "./handlers/case-write.js",
         "./handlers/case.js",
         "./handlers/milestone.js",
@@ -1012,37 +1014,112 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 24,
+          "line": 40,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'suite:get': handleSuiteGet, 'suite:list': handleSuiteList, 'case:get': handleCaseGet, '…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 46,
+          "line": 74,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 61,
+          "line": 89,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 68,
+          "line": 96,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 72,
+          "line": 100,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/file-input.ts",
+      "imports": [
+        "node:fs",
+        "node:path"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "FileInput",
+          "kind": "interface",
+          "line": 10,
+          "exported": true,
+          "signature": "export interface FileInput { fileFlag?: string; filenameFlag?: string; }"
+        },
+        {
+          "name": "FileResolution",
+          "kind": "type",
+          "line": 20,
+          "exported": true,
+          "signature": "export type FileResolution = | { ok: true; path: string; filename: string; size: number; contents?: Uint8Array } | { ok: false; error: string }"
+        },
+        {
+          "name": "ResolveFileOptions",
+          "kind": "interface",
+          "line": 24,
+          "exported": true,
+          "signature": "export interface ResolveFileOptions { read: boolean; }"
+        },
+        {
+          "name": "resolveFile",
+          "kind": "function",
+          "line": 38,
+          "exported": true,
+          "signature": "export function resolveFile(input: FileInput, opts: ResolveFileOptions): FileResolution"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/file-output.ts",
+      "imports": [
+        "node:fs"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "FileOutput",
+          "kind": "interface",
+          "line": 7,
+          "exported": true,
+          "signature": "export interface FileOutput { outFlag?: string; }"
+        },
+        {
+          "name": "OutputResolution",
+          "kind": "type",
+          "line": 11,
+          "exported": true,
+          "signature": "export type OutputResolution = { ok: true; path: string } | { ok: false; error: string }"
+        },
+        {
+          "name": "ResolveOutOptions",
+          "kind": "interface",
+          "line": 13,
+          "exported": true,
+          "signature": "export interface ResolveOutOptions { force: boolean; dryRun: boolean; }"
+        },
+        {
+          "name": "resolveOut",
+          "kind": "function",
+          "line": 27,
+          "exported": true,
+          "signature": "export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputResolution"
         }
       ]
     },
@@ -1058,28 +1135,149 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 10,
           "exported": true,
-          "signature": "export interface HandlerArgs { pathParams: readonly string[]; projectId?: string; suiteId?: string; runId?: string; caseId?: string; limit?: string; offset?: string; }"
+          "signature": "export interface HandlerArgs { pathParams: readonly string[]; projectId?: string; suiteId?: string; runId?: string; caseId?: string; limit?: string; offset?: string; file?: string; filename?: string; …"
         },
         {
           "name": "BodyInput",
           "kind": "interface",
-          "line": 32,
+          "line": 38,
           "exported": true,
           "signature": "export interface BodyInput { dataFlag?: string; dataFileFlag?: string; readStdin?: () => string; }"
         },
         {
           "name": "HandlerContext",
           "kind": "interface",
-          "line": 38,
+          "line": 44,
           "exported": true,
-          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; out: (data: unknown) => void; }"
+          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: (data: unknown) => void; }"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 46,
+          "line": 58,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/attachment-write.ts",
+      "imports": [
+        "../file-input.js",
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ResolvedUpload",
+          "kind": "interface",
+          "line": 10,
+          "exported": false,
+          "signature": "interface ResolvedUpload { filename: string; contents: Uint8Array; }"
+        },
+        {
+          "name": "setupUpload",
+          "kind": "function",
+          "line": 21,
+          "exported": false,
+          "signature": "function setupUpload(ctx: HandlerContext, action: string, idFields: Record<string, number>): ResolvedUpload | null"
+        },
+        {
+          "name": "handleAttachmentAddToCase",
+          "kind": "function",
+          "line": 50,
+          "exported": true,
+          "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentAddToResult",
+          "kind": "function",
+          "line": 57,
+          "exported": true,
+          "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentAddToRun",
+          "kind": "function",
+          "line": 64,
+          "exported": true,
+          "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentAddToPlan",
+          "kind": "function",
+          "line": 71,
+          "exported": true,
+          "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentAddToPlanEntry",
+          "kind": "function",
+          "line": 78,
+          "exported": true,
+          "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentDelete",
+          "kind": "function",
+          "line": 91,
+          "exported": true,
+          "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/attachment.ts",
+      "imports": [
+        "../file-output.js",
+        "../handler-context.js",
+        "../ids.js",
+        "node:fs"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleAttachmentListForCase",
+          "kind": "function",
+          "line": 6,
+          "exported": true,
+          "signature": "export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentListForRun",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentListForTest",
+          "kind": "function",
+          "line": 16,
+          "exported": true,
+          "signature": "export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentListForPlan",
+          "kind": "function",
+          "line": 21,
+          "exported": true,
+          "signature": "export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentListForPlanEntry",
+          "kind": "function",
+          "line": 26,
+          "exported": true,
+          "signature": "export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleAttachmentGet",
+          "kind": "function",
+          "line": 38,
+          "exported": true,
+          "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -1365,6 +1563,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./dispatch.js",
         "./handler-context.js",
         "./install-skill.js",
+        "./metadata.js",
         "./output.js",
         "node:fs",
         "node:module",
@@ -1375,28 +1574,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 14,
+          "line": 15,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 15,
+          "line": 16,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 19,
+          "line": 20,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 76,
+          "line": 98,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -1455,19 +1654,19 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 32,
           "exported": true,
-          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; bodySchema?: z.ZodTypeAny; isWrite: boolean; }"
+          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boolean; isWrite: boolea…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 45,
+          "line": 55,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 192,
+          "line": 302,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

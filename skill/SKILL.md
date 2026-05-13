@@ -75,6 +75,18 @@ on stderr. Never echo or log the API key.
 | run | close | `<run_id>` | — (no body) | Close a test run (no body) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
+| attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
+| attachment | list-for-run | `<run_id>` | — | List attachments on a test run |
+| attachment | list-for-test | `<test_id>` | — | List attachments on a test (run instance of a case) |
+| attachment | list-for-plan | `<plan_id>` | — | List attachments on a test plan |
+| attachment | list-for-plan-entry | `<plan_id>` `<entry_id>` | — | List attachments on a plan entry |
+| attachment | get | `<attachment_id>` | `--out <path>` (binary) | Download an attachment by ID to --out <path> |
+| attachment | add-to-case | `<case_id>` | `--file <path>` | Upload an attachment to a test case |
+| attachment | add-to-result | `<result_id>` | `--file <path>` | Upload an attachment to a test result |
+| attachment | add-to-run | `<run_id>` | `--file <path>` | Upload an attachment to a test run |
+| attachment | add-to-plan | `<plan_id>` | `--file <path>` | Upload an attachment to a test plan |
+| attachment | add-to-plan-entry | `<plan_id>` `<entry_id>` | `--file <path>` | Upload an attachment to a plan entry |
+| attachment | delete | `<attachment_id>` | — (no body, requires `--yes`) | Delete an attachment by ID (requires --yes) |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -334,6 +346,68 @@ testrail result add 100 42 --data '{"status_id":1,"comment":"sanity check"}' --d
 
 Prints the parsed payload + a `"dryRun": true` marker; no API call made.
 
+### 15. Attach a Playwright screenshot to a test result
+
+```bash
+RESULT=$(testrail result add "$RUN_ID" 42 --data '{"status_id":5,"comment":"failed"}')
+RESULT_ID=$(echo "$RESULT" | jq '.id')
+testrail attachment add-to-result "$RESULT_ID" --file ./test-results/screenshot.png
+```
+
+Output is `{ "attachment_id": <id> }`. Filename uploaded is `screenshot.png`
+(basename of `--file`). Use `--filename <name>` to rename on upload.
+
+### 16. Attach a repro file to a test case
+
+```bash
+testrail attachment add-to-case 42 --file ./repro.zip --filename "bug-1234-repro.zip"
+```
+
+`--filename` overrides the path basename so the attachment shows up with a
+meaningful name in the TestRail UI even when the local file is generic.
+
+### 17. Download the latest attachment on a case to inspect locally
+
+```bash
+LATEST_ID=$(testrail attachment list-for-case 42 | jq 'max_by(.attachment_id).attachment_id')
+testrail attachment get "$LATEST_ID" --out ./fetched.bin
+```
+
+`--out` is required. Refuses to overwrite an existing file; pass `--force`
+to overwrite. JSON ack on stdout includes `attachmentId`, `out`, and `size`.
+
+### 18. Audit then delete attachments on a deprecated case
+
+```bash
+# 1. List + audit
+testrail attachment list-for-case 42
+
+# 2. Dry-run each delete to preview intent without calling the API.
+#    Passing --yes alongside --dry-run is optional but recommended:
+#    dry-run wins (no API call either way), and including --yes here
+#    means step 3 differs only by dropping --dry-run — minimum delta
+#    between test and real invocation.
+for ID in 101 102 103; do
+    testrail attachment delete "$ID" --yes --dry-run
+done
+
+# 3. Real delete (drop --dry-run)
+for ID in 101 102 103; do
+    testrail attachment delete "$ID" --yes
+done
+```
+
+## Destructive actions
+
+Destructive actions (currently `attachment delete`) require `--yes` to
+execute. Without `--yes`, the CLI exits 1 with `Destructive action; pass
+--yes to confirm.` This is the only gate — there is no interactive prompt
+(by design; this skill targets agents, not humans).
+
+`--dry-run` always wins over `--yes`: `attachment delete 42 --yes --dry-run`
+emits a preview (`"destructive": true`) without calling the API, so agents
+can validate the call shape safely before committing.
+
 ## Errors & exit codes
 
 | Exit | Meaning                                                                            |
@@ -346,12 +420,16 @@ causes:
 
 - `Missing auth.` → env vars / flags not set.
 - `<param> must be a positive integer` → bad path arg (e.g. `project get abc`).
-- `Unknown resource '<x>'. Use: project, suite, case, run, result, milestone, user`
+- `Unknown resource '<x>'. Use: project, suite, case, run, result, milestone, user, attachment`
 - `Unknown action '<a>' for <r>. Use: get, list, …`
 - `Body required.` → write action invoked with no `--data` / `--data-file` / stdin.
 - `Invalid JSON: …` → malformed body.
 - `Payload validation failed: …` → body shape doesn't match the Zod schema.
 - `TestRail API error: 404 Not Found …` → 4xx/5xx response from TestRail.
+- `--file <path> required for upload actions.` → attachment upload missing `--file`.
+- `--out <path> required for binary download.` → `attachment get` missing `--out`.
+- `Refusing to overwrite '<path>'; pass --force to overwrite.` → `--out` target exists.
+- `Destructive action; pass --yes to confirm.` → `attachment delete` without `--yes`.
 
 ## Limits & gotchas
 

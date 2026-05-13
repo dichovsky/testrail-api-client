@@ -34,12 +34,22 @@ export interface ActionSpec {
     action: string;
     summary: string;
     pathParams: readonly PathParam[];
-    /** Zod schema for the request body. `undefined` for read actions and for
-     *  no-body POSTs like `run close`. */
+    /** Zod schema for the request body. `undefined` for read actions, for
+     *  no-body POSTs like `run close`, and for file-input write actions
+     *  (which take `--file <path>` instead of a JSON body). */
     bodySchema?: z.ZodTypeAny;
+    /** True for actions that take a binary file via `--file <path>` instead
+     *  of a JSON body. Skill generator branches on this to emit file-upload
+     *  recipes; mutually exclusive with `bodySchema`. */
+    fileInput?: boolean;
+    /** True for actions that emit binary output via `--out <path>` instead
+     *  of JSON to stdout. Currently only `attachment get` (download). */
+    fileOutput?: boolean;
     /** True for write actions (POST / payload-bearing). Affects skill recipes,
      *  generator output, and `--dry-run` applicability. */
     isWrite: boolean;
+    /** True for destructive actions that require `--yes` to execute. */
+    destructive?: boolean;
 }
 
 export const ACTIONS: readonly ActionSpec[] = [
@@ -185,6 +195,106 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         bodySchema: AddResultsForCasesPayloadSchema,
         isWrite: true,
+    },
+    // ── Attachment read actions ───────────────────────────────────────────
+    {
+        resource: 'attachment',
+        action: 'list-for-case',
+        summary: 'List attachments on a test case',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'attachment',
+        action: 'list-for-run',
+        summary: 'List attachments on a test run',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'attachment',
+        action: 'list-for-test',
+        summary: 'List attachments on a test (run instance of a case)',
+        pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'attachment',
+        action: 'list-for-plan',
+        summary: 'List attachments on a test plan',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'attachment',
+        action: 'list-for-plan-entry',
+        summary: 'List attachments on a plan entry',
+        pathParams: [
+            { name: 'plan_id', description: 'TestRail plan ID' },
+            { name: 'entry_id', description: 'TestRail plan entry ID' },
+        ],
+        isWrite: false,
+    },
+    {
+        resource: 'attachment',
+        action: 'get',
+        summary: 'Download an attachment by ID to --out <path>',
+        pathParams: [{ name: 'attachment_id', description: 'TestRail attachment ID' }],
+        fileOutput: true,
+        isWrite: false,
+    },
+    // ── Attachment write actions (file input) ─────────────────────────────
+    {
+        resource: 'attachment',
+        action: 'add-to-case',
+        summary: 'Upload an attachment to a test case',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        fileInput: true,
+        isWrite: true,
+    },
+    {
+        resource: 'attachment',
+        action: 'add-to-result',
+        summary: 'Upload an attachment to a test result',
+        pathParams: [{ name: 'result_id', description: 'TestRail result ID' }],
+        fileInput: true,
+        isWrite: true,
+    },
+    {
+        resource: 'attachment',
+        action: 'add-to-run',
+        summary: 'Upload an attachment to a test run',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        fileInput: true,
+        isWrite: true,
+    },
+    {
+        resource: 'attachment',
+        action: 'add-to-plan',
+        summary: 'Upload an attachment to a test plan',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        fileInput: true,
+        isWrite: true,
+    },
+    {
+        resource: 'attachment',
+        action: 'add-to-plan-entry',
+        summary: 'Upload an attachment to a plan entry',
+        pathParams: [
+            { name: 'plan_id', description: 'TestRail plan ID' },
+            { name: 'entry_id', description: 'TestRail plan entry ID' },
+        ],
+        fileInput: true,
+        isWrite: true,
+    },
+    // ── Attachment destructive action (requires --yes) ────────────────────
+    {
+        resource: 'attachment',
+        action: 'delete',
+        summary: 'Delete an attachment by ID (requires --yes)',
+        pathParams: [{ name: 'attachment_id', description: 'TestRail attachment ID' }],
+        isWrite: true,
+        destructive: true,
     },
 ];
 

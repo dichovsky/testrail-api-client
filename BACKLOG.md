@@ -50,11 +50,21 @@ Other bulk endpoints are deferred.
 
 - [ ] **Output format: `yaml`** — `--format yaml`. **Effort:** S (requires a dep or hand-rolled emitter). **Trigger:** Kubernetes-adjacent workflows.
 - [ ] **Output format: `csv`** — `--format csv`. **Effort:** S. **Trigger:** spreadsheet-import use cases.
-- [ ] **Attachment upload** — `addAttachmentToCase`, `addAttachmentToResult`, etc. CLI subcommand `attachment upload <target> <file>`. **Effort:** M (multipart body handling; CLI doesn't currently send anything but JSON). **Trigger:** screenshot/log evidence in CI.
-- [ ] **Attachment download** — `getAttachment`. **Effort:** S. **Trigger:** same.
+- [x] **Attachment upload** — `addAttachmentToCase`, `addAttachmentToResult`, etc. Shipped as `attachment add-to-case|result|run|plan|plan-entry --file <path> [--filename <name>]`. Actual effort was S+ (the programmatic multipart code path already existed in `client-core.ts`).
+- [x] **Attachment download** — `getAttachment`. Shipped as `attachment get <id> --out <path> [--force]`. Refuses to overwrite without `--force`.
 - [ ] **Watch mode** — `testrail run watch <run_id>` polling until completion. **Effort:** M. **Trigger:** CI orchestrators waiting on async test execution.
 - [!] **Interactive prompts** — `--interactive` mode for human input. **Won't do.** Conflicts with agent/scripting target audience; humans should use the TestRail web UI.
 - [!] **Telemetry / usage analytics** — **Won't do.** Conflicts with zero-dependency ethos; user-hostile.
+
+## Attachment surface — deferred follow-ups
+
+Shipped in the v2.2 attachment-surface PR: 11 read/write/download actions + `attachment delete` (gated by `--yes`). The destructive-ops gating pattern (`--yes` flag; `--dry-run` wins) was locked in here and is now the precedent for all future delete actions.
+
+- [ ] **Binary stdin upload** — `cat foo.png | attachment add-to-case 42 --filename foo.png`. **Effort:** S (handle binary stdin platform issues; require `--filename`). **Trigger:** agents that pipe artifacts from another tool without a temp file. Currently the CLI suppresses stdin when `--file` is set; we'd reverse that gate.
+- [ ] **Binary stdout download** — `attachment get 42 --out -` to stream to stdout for piping (e.g. `| sha256sum`). **Effort:** S. **Trigger:** Unix-y shell composition use cases. Requires `isTTY` refusal to prevent terminal corruption.
+- [ ] **Pagination on `attachment list-for-*`** — programmatic methods don't currently accept `limit`/`offset`. **Effort:** S+ (extend programmatic API first, then CLI flags). **Trigger:** cases/runs with hundreds of attachments hitting TestRail's default page size.
+- [ ] **Streaming upload for very large files** — `--file` currently buffers fully into a `Uint8Array`. TestRail accepts up to 256 MB. **Effort:** M (route around the existing `requestMultipart` which expects `Blob | Uint8Array`). **Trigger:** real-world memory pressure on CI runners.
+- [ ] **Destructive-ops env-var alternative** — accept `TESTRAIL_ALLOW_DESTRUCTIVE=1` as an alternative to `--yes`. **Effort:** S. **Trigger:** documented user request from CI environments that prefer env-var-based gating. (Currently `--yes` is the only path; chose flag-only in v2.2 design for per-command audit clarity.)
 
 ## Skill scope expansion
 
@@ -85,6 +95,59 @@ The v2.1 plan locks in hybrid generation with `<!-- GENERATED -->` sentinels +
 - [ ] **Coverage delta enforcement** — fail CI if coverage drops below 98% (currently a soft target). **Effort:** S (Vitest config). **Trigger:** a PR that lands with regressed coverage.
 - [ ] **CLI fuzz tests** — random JSON bodies into write actions, assert Zod rejection. **Effort:** M. **Trigger:** real-world payload-shape bugs.
 - [ ] **Stricter numeric parsing in `parseId` / `optInt`** — current `Number(raw)` + `Number.isInteger` check accepts non-decimal numeric literals like `'1e3'` (→ 1000) and `'0x10'` (→ 16). Reject these with a `/^[1-9]\d*$/` (or `/^\d+$/` for `optInt`) pre-check so the CLI rejects what its error message claims to require (decimal positive integers). **Effort:** S. **Trigger:** Copilot review on PR #53; deferred from PR 1 because tightening accept/reject semantics is a (minor) breaking behavior change and PR 1 was scoped as "no behavior change". Bundle with any future v2.x release that documents breaking input-validation tightening.
+
+## TestRail API methods — not yet implemented
+
+Gap analysis against the [TestRail API reference](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference). These are programmatic-client gaps (independent of CLI exposure); each would land as a new method on `TestRailClient` + Zod schema + tests.
+
+Implementation conventions for every item below: add the method to the relevant module in `src/modules/`, validate IDs via `this.client.validateId(...)`, parse responses with `this.client.parse(Schema, raw)`, define request payload + response schemas in `src/schemas.ts` with `.passthrough()` so `custom_*` fields survive, re-export public types from `src/index.ts`, and add tests to the matching `tests/client-*.test.ts`. See `CLAUDE.md` → "Add API endpoint" for the full checklist.
+
+### BDDs ([API docs](https://support.testrail.com/hc/en-us/articles/7832161593620-BDDs)) — entire category, TestRail 7.5+
+
+- [ ] **`getBdd(caseId)`** — `GET get_bdd/{case_id}`. Returns `.feature` text (Gherkin), **not JSON**. Requires extending `client-core.ts` to expose a text-response path (or returning the raw `Response` body) — current `request()` always `JSON.parse`s. **Effort:** S–M. **Module:** `cases.ts` or new `bdd.ts`. **Trigger:** BDD/Gherkin export workflows.
+- [ ] **`addBdd(caseId, file)`** — `POST add_bdd/{case_id}` with multipart `.feature` upload. Reuses the multipart pipeline from `attachments.ts` (`AttachmentModule.addAttachment*`). **Effort:** S. **Trigger:** same; bundle with `getBdd`.
+
+### Cases ([API docs](https://support.testrail.com/hc/en-us/articles/7077292642580-Cases)) — bulk and history
+
+- [ ] **`updateCases(suiteId, payload)`** — `POST update_cases/{suite_id}` with body `{ case_ids: number[], ...sharedFields }`. Bulk-applies the same field values to many cases. Reuses `UpdateCasePayloadSchema` shape + `case_ids` array. **Effort:** M (payload schema, partial-failure semantics, doc the "all-or-nothing" server behavior). **Module:** `cases.ts`. **Trigger:** agents performing field-level batch edits.
+- [ ] **`deleteCases(suiteId, payload, options?)`** — `POST delete_cases/{suite_id}&project_id=X[&soft=1]`. Body: `{ case_ids: number[] }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** cleanup automations.
+- [ ] **`copyCasesToSection(sectionId, caseIds)`** — `POST copy_cases_to_section/{section_id}` with body `{ case_ids: number[] }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** suite reorganization tooling.
+- [ ] **`moveCasesToSection(sectionId, payload)`** — `POST move_cases_to_section/{section_id}` with body `{ case_ids: number[], suite_id?: number, section_id: number }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** same as above.
+- [ ] **`getHistoryForCase(caseId, options?)`** — `GET get_history_for_case/{case_id}[&limit=&offset=]` (TestRail 7.5+). Returns paginated history entries (similar bulk shape to `getCases`). **Effort:** S. **Module:** `cases.ts`. **Trigger:** audit/compliance workflows.
+
+### Case Fields ([API docs](https://support.testrail.com/hc/en-us/articles/7077272415636-Case-fields))
+
+- [ ] **`addCaseField(payload)`** — `POST add_case_field`. Body includes `type` (String/Integer/Text/URL/Checkbox/Dropdown/User/Date/Milestone/Steps/Multi-select), `name`, `label`, `description`, `configs[]` (nested per-project visibility/context config). The nested `configs` shape is the non-trivial part of the schema. **Effort:** S–M. **Module:** new methods in a `caseFields.ts` module (extract from current case-fields handling) or extend `cases.ts`. **Trigger:** project bootstrapping that needs custom fields.
+
+### Plans ([API docs](https://support.testrail.com/hc/en-us/articles/7077711537684-Plans)) — per-entry run management
+
+- [ ] **`addRunToPlanEntry(planId, entryId, payload)`** — `POST add_run_to_plan_entry/{plan_id}/{entry_id}`. Adds a config-specific run to an existing entry. Payload: `{ config_ids: number[], description?, assignedto_id?, include_all?, case_ids?, refs? }`. Returns a `Run`. **Effort:** S. **Module:** `plans.ts`. **Trigger:** any non-trivial plan automation.
+- [ ] **`updateRunInPlanEntry(runId, payload)`** — `POST update_run_in_plan_entry/{run_id}`. Updates a single run inside a plan entry (subset of `updateRun` fields: `description`, `assignedto_id`, `include_all`, `case_ids`). **Effort:** S. **Module:** `plans.ts`. **Trigger:** same; bundle with above.
+- [ ] **`deleteRunFromPlanEntry(runId)`** — `POST delete_run_from_plan_entry/{run_id}`. **Effort:** S. **Module:** `plans.ts`. **Trigger:** same; bundle with above.
+
+### Results ([API docs](https://support.testrail.com/hc/en-us/articles/7077819312404-Results))
+
+- [ ] **`addResults(runId, payload)`** — `POST add_results/{run_id}`. Bulk-add results by `test_id` (existing `addResultsForCases` is by `case_id`). Body: `{ results: Array<{ test_id, status_id?, comment?, ... }> }`. Reuses `AddResultPayloadSchema` with `test_id` added. **Effort:** S. **Module:** `results.ts`. **Trigger:** automation runners that already know test IDs (after calling `getTests`).
+
+### Sections ([API docs](https://support.testrail.com/hc/en-us/articles/7077853258868-Sections))
+
+- [ ] **`moveSection(sectionId, payload)`** — `POST move_section/{section_id}` (TestRail 6.5.2+). Body: `{ parent_id?: number | null, after_id?: number | null }`. `parent_id=null` moves to root; `after_id=null` moves to top. **Effort:** S. **Module:** `sections.ts`. **Trigger:** suite restructuring.
+
+### Shared Steps ([API docs](https://support.testrail.com/hc/en-us/articles/7077874763156-Shared-steps))
+
+- [ ] **`getSharedStepHistory(sharedUpdateId, options?)`** — `GET get_shared_step_history/{shared_update_id}[&limit=&offset=]`. Paginated history (same bulk-response shape as other history endpoints). **Effort:** S. **Module:** `sharedSteps.ts`. **Trigger:** audit workflows; bundle with `getHistoryForCase`.
+
+### Statuses ([API docs](https://support.testrail.com/hc/en-us/articles/7077935129364-Statuses))
+
+- [ ] **`getCaseStatuses()`** — `GET get_case_statuses` (TestRail 7.5+). Returns case-level statuses (e.g., draft/approved), **distinct** from the existing `getStatuses()` which returns result statuses. Define a separate `CaseStatusSchema` to avoid conflating the two. **Effort:** S. **Module:** new method in existing statuses location (currently in `metadata.ts`). **Trigger:** reporting tooling that distinguishes case lifecycle states.
+
+### Suggested grouping for future PRs
+
+1. **Bulk case operations PR** — `updateCases`, `deleteCases`, `copyCasesToSection`, `moveCasesToSection` (share suite/section validation).
+2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
+3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
+4. **History/statuses PR** — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (small read-only additions).
+5. **Standalone** — `addResults`, `moveSection`, `addCaseField` (independent).
 
 ---
 

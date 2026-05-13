@@ -21,6 +21,9 @@ interface ActionFixture {
     pathParams: { name: string; description: string }[];
     isWrite: boolean;
     bodySchema?: unknown;
+    fileInput?: boolean;
+    fileOutput?: boolean;
+    destructive?: boolean;
 }
 
 const READ_FIXTURE: ActionFixture = {
@@ -74,6 +77,45 @@ describe('renderCommandTable', () => {
         const listFixture: ActionFixture = { ...READ_FIXTURE, action: 'list', pathParams: [] };
         const out = renderCommandTable([listFixture]) as string;
         expect(out).toContain('| project | list | — | — |');
+    });
+
+    it('renders a file-input action with `--file <path>` in the body column', () => {
+        const fixture: ActionFixture = {
+            resource: 'attachment',
+            action: 'add-to-case',
+            summary: 'Upload',
+            pathParams: [{ name: 'case_id', description: 'id' }],
+            isWrite: true,
+            fileInput: true,
+        };
+        const out = renderCommandTable([fixture]) as string;
+        expect(out).toContain('`--file <path>`');
+    });
+
+    it('renders a file-output action with `--out <path> (binary)` in the body column', () => {
+        const fixture: ActionFixture = {
+            resource: 'attachment',
+            action: 'get',
+            summary: 'Download',
+            pathParams: [{ name: 'attachment_id', description: 'id' }],
+            isWrite: false,
+            fileOutput: true,
+        };
+        const out = renderCommandTable([fixture]) as string;
+        expect(out).toContain('`--out <path>` (binary)');
+    });
+
+    it('renders a destructive no-body action with the --yes hint', () => {
+        const fixture: ActionFixture = {
+            resource: 'attachment',
+            action: 'delete',
+            summary: 'Delete',
+            pathParams: [{ name: 'attachment_id', description: 'id' }],
+            isWrite: true,
+            destructive: true,
+        };
+        const out = renderCommandTable([fixture]) as string;
+        expect(out).toContain('requires `--yes`');
     });
 });
 
