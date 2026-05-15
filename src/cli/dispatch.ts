@@ -28,6 +28,7 @@ import {
     handleAttachmentDelete,
 } from './handlers/attachment-write.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
+import { handleCaseStatusList } from './handlers/case-status.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -82,6 +83,7 @@ const HANDLERS: Record<string, Handler> = {
     'shared-step:get': handleSharedStepGet,
     'shared-step:list': handleSharedStepList,
     'shared-step:history': handleSharedStepHistory,
+    'case-status:list': handleCaseStatusList,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {

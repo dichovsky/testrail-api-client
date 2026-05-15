@@ -567,6 +567,35 @@ describe('CLI', () => {
         });
     });
 
+    // ── case-status ───────────────────────────────────────────────────────────
+
+    describe('case-status', () => {
+        it('case-status list should exit 0 and call get_case_statuses', async () => {
+            const { exitCodes } = await runCli(
+                ['case-status', 'list'],
+                [
+                    jsonResponse([
+                        {
+                            case_status_id: 1,
+                            name: 'Approved',
+                            abbreviation: 'APP',
+                            is_default: true,
+                            is_approved: true,
+                            is_untested: false,
+                        },
+                    ]),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_statuses'), expect.anything());
+        });
+
+        it('case-status unknown action should exit 1', async () => {
+            const { exitCodes } = await runCli(['case-status', 'get', '1']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
     // ── unknown resource ──────────────────────────────────────────────────────
 
     describe('unknown resource', () => {

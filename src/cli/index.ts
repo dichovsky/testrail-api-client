@@ -32,6 +32,7 @@ Read actions:
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
   shared-step  get <id> | list --project-id <id>
   shared-step  history <shared_update_id> [--limit N] [--offset N]
+  case-status  list
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'

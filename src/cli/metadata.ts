@@ -275,6 +275,14 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'shared_update_id', description: 'TestRail shared step ID' }],
         isWrite: false,
     },
+    // ── Case-status read action ───────────────────────────────────────────
+    {
+        resource: 'case-status',
+        action: 'list',
+        summary: 'List case-level lifecycle statuses (TestRail 7.5+)',
+        pathParams: [],
+        isWrite: false,
+    },
     // ── Attachment read actions ───────────────────────────────────────────
     {
         resource: 'attachment',
