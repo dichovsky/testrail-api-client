@@ -29,6 +29,7 @@ import {
 } from './handlers/attachment-write.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
 import { handleCaseStatusList } from './handlers/case-status.js';
+import { handleCaseFieldAdd } from './handlers/case-field-write.js';
 import { handleSectionMove } from './handlers/section-write.js';
 
 /**
@@ -85,6 +86,7 @@ const HANDLERS: Record<string, Handler> = {
     'shared-step:list': handleSharedStepList,
     'shared-step:history': handleSharedStepHistory,
     'case-status:list': handleCaseStatusList,
+    'case-field:add': handleCaseFieldAdd,
     'section:move': handleSectionMove,
 };
 

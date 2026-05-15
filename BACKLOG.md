@@ -117,7 +117,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Case Fields ([API docs](https://support.testrail.com/hc/en-us/articles/7077272415636-Case-fields))
 
-- [ ] **`addCaseField(payload)`** — `POST add_case_field`. Body includes `type` (String/Integer/Text/URL/Checkbox/Dropdown/User/Date/Milestone/Steps/Multi-select), `name`, `label`, `description`, `configs[]` (nested per-project visibility/context config). The nested `configs` shape is the non-trivial part of the schema. **Effort:** S–M. **Module:** new methods in a `caseFields.ts` module (extract from current case-fields handling) or extend `cases.ts`. **Trigger:** project bootstrapping that needs custom fields.
+- [x] **`addCaseField(payload)`** — Shipped with the "addCaseField" PR. `POST add_case_field` (admin-only; admin permissions required on the TestRail server). Inlined `AddCaseFieldPayloadSchema` with a dedicated nested `AddCaseFieldConfigPayloadSchema` for `configs[]` — mirrors the response-side `context`/`options` shape but lives as a separate write payload so future response-only fields can't drift in. `.passthrough()` lets TestRail be the source of truth on field-type-specific quirks (Steps rejects `items`, `name` must be a system slug). Returns the newly created `CaseField`. Exposed on CLI as `case-field add --data ...` (no path params; first hyphenated-resource write action, following the `case-status` precedent).
 
 ### Plans ([API docs](https://support.testrail.com/hc/en-us/articles/7077711537684-Plans)) — per-entry run management
 
@@ -145,7 +145,7 @@ Implementation conventions for every item below: add the method to the relevant 
 2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
 3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
 4. ~~**History/statuses PR**~~ — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (shipped).
-5. **Standalone** — ~~`addResults`~~ (shipped), ~~`moveSection`~~ (shipped), `addCaseField` (independent).
+5. **Standalone** — ~~`addResults`~~ (shipped), ~~`moveSection`~~ (shipped), ~~`addCaseField`~~ (shipped) (independent).
 
 ---
 
