@@ -23,6 +23,7 @@ interface ActionFixture {
     bodySchema?: unknown;
     fileInput?: boolean;
     fileOutput?: boolean;
+    outputKind?: 'binary' | 'text';
     destructive?: boolean;
 }
 
@@ -103,6 +104,40 @@ describe('renderCommandTable', () => {
         };
         const out = renderCommandTable([fixture]) as string;
         expect(out).toContain('`--out <path>` (binary)');
+    });
+
+    it('renders a text file-output action with `--out <path> (text)` in the body column', () => {
+        // `bdd get` writes UTF-8 Gherkin via writeFileSync(path, text, 'utf-8').
+        // Labelling it `(binary)` (the pre-`outputKind` default) misleads skill
+        // users; opt into the `text` kind so the table reflects reality.
+        const fixture: ActionFixture = {
+            resource: 'bdd',
+            action: 'get',
+            summary: 'Download Gherkin',
+            pathParams: [{ name: 'case_id', description: 'id' }],
+            isWrite: false,
+            fileOutput: true,
+            outputKind: 'text',
+        };
+        const out = renderCommandTable([fixture]) as string;
+        expect(out).toContain('`--out <path>` (text)');
+        expect(out).not.toContain('(binary)');
+    });
+
+    it('defaults `outputKind` to `binary` when omitted (back-compat)', () => {
+        // Specs predating the `outputKind` field must keep their existing
+        // `(binary)` label so the renderer change is non-breaking.
+        const fixture: ActionFixture = {
+            resource: 'attachment',
+            action: 'get',
+            summary: 'Download',
+            pathParams: [{ name: 'attachment_id', description: 'id' }],
+            isWrite: false,
+            fileOutput: true,
+        };
+        const out = renderCommandTable([fixture]) as string;
+        expect(out).toContain('(binary)');
+        expect(out).not.toContain('(text)');
     });
 
     it('renders a destructive no-body action with the --yes hint', () => {

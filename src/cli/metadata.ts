@@ -48,9 +48,17 @@ export interface ActionSpec {
      *  of a JSON body. Skill generator branches on this to emit file-upload
      *  recipes; mutually exclusive with `bodySchema`. */
     fileInput?: boolean;
-    /** True for actions that emit binary output via `--out <path>` instead
-     *  of JSON to stdout. Currently only `attachment get` (download). */
+    /** True for actions that emit non-JSON output via `--out <path>` instead
+     *  of JSON to stdout. `attachment get` (binary download) and `bdd get`
+     *  (UTF-8 text) both use this. The on-the-wire encoding is signalled by
+     *  `outputKind`. */
     fileOutput?: boolean;
+    /** Encoding of the bytes written to `--out <path>` when `fileOutput` is
+     *  true. `'binary'` (default) for opaque blobs like attachment downloads;
+     *  `'text'` for UTF-8 payloads like `bdd get` (Gherkin `.feature`). Drives
+     *  the body-label rendered in skill/SKILL.md so users see an accurate
+     *  description instead of a hard-coded `(binary)` suffix. */
+    outputKind?: 'binary' | 'text';
     /** True for write actions (POST / payload-bearing). Affects skill recipes,
      *  generator output, and `--dry-run` applicability. */
     isWrite: boolean;
@@ -401,6 +409,26 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'attachment_id', description: 'TestRail attachment ID' }],
         isWrite: true,
         destructive: true,
+    },
+    // ── BDD actions (text I/O for `get`, file input for `add`) ────────────
+    // `bdd get` returns Gherkin `.feature` text (not JSON); written to --out
+    // as UTF-8. `bdd add` reuses the multipart upload path of attachments.
+    {
+        resource: 'bdd',
+        action: 'get',
+        summary: "Download a case's BDD (Gherkin .feature) content to --out <path>",
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        fileOutput: true,
+        outputKind: 'text',
+        isWrite: false,
+    },
+    {
+        resource: 'bdd',
+        action: 'add',
+        summary: 'Upload a .feature file as the BDD content for a case',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        fileInput: true,
+        isWrite: true,
     },
 ];
 

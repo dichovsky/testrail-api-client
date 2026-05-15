@@ -101,6 +101,8 @@ on stderr. Never echo or log the API key.
 | attachment | add-to-plan | `<plan_id>` | `--file <path>` | Upload an attachment to a test plan |
 | attachment | add-to-plan-entry | `<plan_id>` `<entry_id>` | `--file <path>` | Upload an attachment to a plan entry |
 | attachment | delete | `<attachment_id>` | — (no body, requires `--yes`) | Delete an attachment by ID (requires --yes) |
+| bdd | get | `<case_id>` | `--out <path>` (text) | Download a case's BDD (Gherkin .feature) content to --out <path> |
+| bdd | add | `<case_id>` | `--file <path>` | Upload a .feature file as the BDD content for a case |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
