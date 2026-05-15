@@ -270,14 +270,14 @@ describe('handleCaseDeleteBulk', () => {
         await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/suite_id/);
     });
 
-    it('rejects non-positive project_id', async () => {
+    it('rejects non-positive --project-id', async () => {
         const { ctx } = buildCtx(buildClient(), {
             pathParams: ['5'],
             projectId: '0',
             confirmDestructive: true,
             dataFlag: '{"case_ids":[1]}',
         });
-        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/project_id/);
+        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/--project-id/);
     });
 
     it('dry-run wins over --yes: no API call, preview marks destructive', async () => {

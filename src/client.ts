@@ -76,7 +76,7 @@ import type {
     AddRunToPlanEntryPayload,
     UpdateRunInPlanEntryPayload,
 } from './schemas.js';
-import type { DeleteCasesOptions, GetHistoryForCaseOptions } from './modules/cases.js';
+import type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
@@ -372,8 +372,20 @@ export class TestRailClient extends TestRailClientCore {
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
+        options: DeleteCasesOptions & { soft: true },
+    ): Promise<DeleteCasesPreview>;
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
         options?: DeleteCasesOptions,
-    ): Promise<void> {
+    ): Promise<void | DeleteCasesPreview>;
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
+        options?: DeleteCasesOptions,
+    ): Promise<void | DeleteCasesPreview> {
         return this.cases.deleteCases(suiteId, projectId, payload, options);
     }
 

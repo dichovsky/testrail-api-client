@@ -62,7 +62,7 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
     if (projectIdRaw === undefined) {
         throw new Error('case delete-bulk requires --project-id <id>');
     }
-    const projectId = parseId(projectIdRaw, 'project_id');
+    const projectId = parseId(projectIdRaw, '--project-id');
     const body = resolveBody(ctx.bodyInput, DeleteCasesPayloadSchema);
     if (!body.ok) throw new Error(body.error);
 

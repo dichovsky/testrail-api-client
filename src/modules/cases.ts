@@ -25,6 +25,12 @@ export interface DeleteCasesOptions {
     soft?: boolean;
 }
 
+export interface DeleteCasesPreview {
+    /** Number of tests affected by a soft-delete preview (`soft=1`). */
+    affected_tests?: number;
+    [key: string]: unknown;
+}
+
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
 
@@ -124,15 +130,33 @@ export class CaseModule {
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
+        options: DeleteCasesOptions & { soft: true },
+    ): Promise<DeleteCasesPreview>;
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
         options?: DeleteCasesOptions,
-    ): Promise<void> {
+    ): Promise<void | DeleteCasesPreview>;
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
+        options?: DeleteCasesOptions,
+    ): Promise<void | DeleteCasesPreview> {
         this.client.validateId(suiteId, 'suiteId');
         this.client.validateId(projectId, 'projectId');
         const endpoint = this.client.buildEndpoint(`delete_cases/${suiteId}`, {
             project_id: projectId,
             ...(options?.soft === true && { soft: 1 }),
         });
-        await this.client.request<void>('POST', endpoint, payload);
+        const raw = await this.client.request<unknown>('POST', endpoint, payload);
+        if (options?.soft === true) {
+            return this.client.parse<DeleteCasesPreview>(
+                z.object({ affected_tests: z.number().optional() }).passthrough(),
+                raw,
+            );
+        }
     }
 
     /**

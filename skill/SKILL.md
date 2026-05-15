@@ -562,14 +562,15 @@ testrail plan add-entry 50 --data '{
 
 ## Destructive actions
 
-Destructive actions (currently `attachment delete`) require `--yes` to
-execute. Without `--yes`, the CLI exits 1 with `Destructive action; pass
---yes to confirm.` This is the only gate — there is no interactive prompt
-(by design; this skill targets agents, not humans).
+Destructive actions (`attachment delete`, `case delete-bulk`) require
+`--yes` to execute. Without `--yes`, the CLI exits 1 with `Destructive
+action; pass --yes to confirm.` This is the only gate — there is no
+interactive prompt (by design; this skill targets agents, not humans).
 
-`--dry-run` always wins over `--yes`: `attachment delete 42 --yes --dry-run`
-emits a preview (`"destructive": true`) without calling the API, so agents
-can validate the call shape safely before committing.
+`--dry-run` always wins over `--yes`: `case delete-bulk 5 --project-id 9
+--yes --dry-run --data '{"case_ids":[1]}'` emits a preview
+(`"destructive": true`) without calling the API, so agents can validate
+the call shape safely before committing.
 
 ## Errors & exit codes
 
@@ -592,7 +593,7 @@ causes:
 - `--file <path> required for upload actions.` → attachment upload missing `--file`.
 - `--out <path> required for binary download.` → `attachment get` missing `--out`.
 - `Refusing to overwrite '<path>'; pass --force to overwrite.` → `--out` target exists.
-- `Destructive action; pass --yes to confirm.` → `attachment delete` without `--yes`.
+- `Destructive action; pass --yes to confirm.` → `attachment delete` or `case delete-bulk` without `--yes`.
 
 ## Limits & gotchas
 

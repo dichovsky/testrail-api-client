@@ -77,7 +77,7 @@ export type {
     AddPlanPayload,
     UpdatePlanPayload,
 } from './schemas.js';
-export type { DeleteCasesOptions, GetHistoryForCaseOptions } from './modules/cases.js';
+export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 export type {
     TestRailConfig,

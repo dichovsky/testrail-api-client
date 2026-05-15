@@ -608,11 +608,13 @@ describe('TestRailClient', () => {
                 expect(JSON.parse(init.body as string)).toEqual(payload);
             });
 
-            it('adds soft=1 to the URL when options.soft is true', async () => {
-                mockFetch.mockResolvedValueOnce(mockEmpty());
-                await client.deleteCases(5, 9, { case_ids: [1] }, { soft: true });
+            it('returns preview payload and adds soft=1 when options.soft is true', async () => {
+                const preview = { affected_tests: 3 };
+                mockFetch.mockResolvedValueOnce(mockOk(preview));
+                const result = await client.deleteCases(5, 9, { case_ids: [1] }, { soft: true });
                 const url = mockFetch.mock.calls[0]?.[0] as string;
                 expect(url).toContain('soft=1');
+                expect(result).toEqual(preview);
             });
 
             it('omits soft when options.soft is false', async () => {

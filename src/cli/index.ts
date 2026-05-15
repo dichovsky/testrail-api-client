@@ -96,8 +96,9 @@ For body-bearing write actions (all except 'run close'), exactly one body source
 is required (--data | --data-file | stdin). Stdin is auto-detected when input
 is piped (process.stdin.isTTY === false). Attachment upload actions take a
 binary file via --file <path> and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete) require --yes; pass --dry-run together
-with --yes to preview without making the API call (dry-run wins).
+Destructive actions (attachment delete, case delete-bulk) require --yes; pass
+--dry-run together with --yes to preview without making the API call
+(dry-run wins).
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
