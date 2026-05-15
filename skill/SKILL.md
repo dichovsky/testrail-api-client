@@ -75,6 +75,10 @@ on stderr. Never echo or log the API key.
 | plan | list | — | — | List plans in a project (paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
+| case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
+| case | delete-bulk | `<suite_id>` | `DeleteCasesPayloadSchema` | Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion) |
+| case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
+| case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
 | run | close | `<run_id>` | — (no body) | Close a test run (no body) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
@@ -168,6 +172,47 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "milestone_id": "number?",
     "refs": "string?",
     "custom_fields": "Record<string, unknown>?"
+}
+```
+
+### `UpdateCasesPayloadSchema` (used by `case update-bulk`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)",
+    "title": "string?",
+    "template_id": "number?",
+    "type_id": "number?",
+    "priority_id": "number?",
+    "estimate": "string?",
+    "milestone_id": "number?",
+    "refs": "string?",
+    "custom_fields": "Record<string, unknown>?"
+}
+```
+
+### `DeleteCasesPayloadSchema` (used by `case delete-bulk`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)"
+}
+```
+
+### `CopyCasesToSectionPayloadSchema` (used by `case copy-to-section`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)"
+}
+```
+
+### `MoveCasesToSectionPayloadSchema` (used by `case move-to-section`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)",
+    "suite_id": "number (required)"
 }
 ```
 
@@ -544,14 +589,15 @@ testrail plan add-entry 50 --data '{
 
 ## Destructive actions
 
-Destructive actions (currently `attachment delete`) require `--yes` to
-execute. Without `--yes`, the CLI exits 1 with `Destructive action; pass
---yes to confirm.` This is the only gate — there is no interactive prompt
-(by design; this skill targets agents, not humans).
+Destructive actions (`attachment delete`, `case delete-bulk`) require
+`--yes` to execute. Without `--yes`, the CLI exits 1 with `Destructive
+action; pass --yes to confirm.` This is the only gate — there is no
+interactive prompt (by design; this skill targets agents, not humans).
 
-`--dry-run` always wins over `--yes`: `attachment delete 42 --yes --dry-run`
-emits a preview (`"destructive": true`) without calling the API, so agents
-can validate the call shape safely before committing.
+`--dry-run` always wins over `--yes`: `case delete-bulk 5 --project-id 9
+--yes --dry-run --data '{"case_ids":[1]}'` emits a preview
+(`"destructive": true`) without calling the API, so agents can validate
+the call shape safely before committing.
 
 ## Errors & exit codes
 
@@ -574,7 +620,7 @@ causes:
 - `--file <path> required for upload actions.` → attachment upload missing `--file`.
 - `--out <path> required for binary download.` → `attachment get` missing `--out`.
 - `Refusing to overwrite '<path>'; pass --force to overwrite.` → `--out` target exists.
-- `Destructive action; pass --yes to confirm.` → `attachment delete` without `--yes`.
+- `Destructive action; pass --yes to confirm.` → `attachment delete` or `case delete-bulk` without `--yes`.
 
 ## Limits & gotchas
 

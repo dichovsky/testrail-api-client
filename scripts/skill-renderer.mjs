@@ -8,6 +8,10 @@
 const SCHEMA_NAMES = new Map([
     ['case:add', 'AddCasePayloadSchema'],
     ['case:update', 'UpdateCasePayloadSchema'],
+    ['case:update-bulk', 'UpdateCasesPayloadSchema'],
+    ['case:delete-bulk', 'DeleteCasesPayloadSchema'],
+    ['case:copy-to-section', 'CopyCasesToSectionPayloadSchema'],
+    ['case:move-to-section', 'MoveCasesToSectionPayloadSchema'],
     ['case-field:add', 'AddCaseFieldPayloadSchema'],
     ['run:add', 'AddRunPayloadSchema'],
     ['result:add', 'AddResultPayloadSchema'],

@@ -31,6 +31,10 @@ import type {
 import type {
     AddCasePayload,
     UpdateCasePayload,
+    UpdateCasesPayload,
+    DeleteCasesPayload,
+    CopyCasesToSectionPayload,
+    MoveCasesToSectionPayload,
     AddCaseFieldPayload,
     MoveSectionPayload,
     AddRunPayload,
@@ -586,6 +590,113 @@ describe('TestRailClient', () => {
 
         it('should reject invalid caseId in getHistoryForCase', async () => {
             await expect(client.getHistoryForCase(-1)).rejects.toThrow('caseId must be a positive integer');
+        });
+    });
+
+    describe('Bulk case operations', () => {
+        const mockCase: Case = {
+            id: 1,
+            title: 'C',
+            section_id: 1,
+            suite_id: 1,
+            created_by: 1,
+            created_on: 0,
+            updated_by: 1,
+            updated_on: 0,
+        };
+
+        describe('updateCases', () => {
+            it('POSTs to update_cases/{suite_id} with the payload', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk([mockCase, { ...mockCase, id: 2 }]));
+                const payload: UpdateCasesPayload = { case_ids: [1, 2], priority_id: 3 };
+                const result = await client.updateCases(5, payload);
+                expect(result).toHaveLength(2);
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('update_cases/5'), expect.anything());
+                const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body as string)).toEqual(payload);
+            });
+
+            it('rejects non-positive-integer suiteId', async () => {
+                await expect(client.updateCases(0, { case_ids: [1] })).rejects.toThrow(TestRailValidationError);
+            });
+        });
+
+        describe('deleteCases', () => {
+            it('POSTs to delete_cases/{suite_id}&project_id=X with the payload', async () => {
+                mockFetch.mockResolvedValueOnce(mockEmpty());
+                const payload: DeleteCasesPayload = { case_ids: [1, 2] };
+                await client.deleteCases(5, 9, payload);
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+                const url = mockFetch.mock.calls[0]?.[0] as string;
+                expect(url).toContain('delete_cases/5');
+                expect(url).toContain('project_id=9');
+                expect(url).not.toContain('soft=');
+                const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body as string)).toEqual(payload);
+            });
+
+            it('returns preview payload and adds soft=1 when options.soft is true', async () => {
+                const preview = { affected_tests: 3 };
+                mockFetch.mockResolvedValueOnce(mockOk(preview));
+                const result = await client.deleteCases(5, 9, { case_ids: [1] }, { soft: true });
+                const url = mockFetch.mock.calls[0]?.[0] as string;
+                expect(url).toContain('soft=1');
+                expect(result).toEqual(preview);
+            });
+
+            it('omits soft when options.soft is false', async () => {
+                mockFetch.mockResolvedValueOnce(mockEmpty());
+                await client.deleteCases(5, 9, { case_ids: [1] }, { soft: false });
+                const url = mockFetch.mock.calls[0]?.[0] as string;
+                expect(url).not.toContain('soft=');
+            });
+
+            it('rejects non-positive-integer suiteId', async () => {
+                await expect(client.deleteCases(-1, 9, { case_ids: [1] })).rejects.toThrow(TestRailValidationError);
+            });
+
+            it('rejects non-positive-integer projectId', async () => {
+                await expect(client.deleteCases(5, 0, { case_ids: [1] })).rejects.toThrow(TestRailValidationError);
+            });
+        });
+
+        describe('copyCasesToSection', () => {
+            it('POSTs to copy_cases_to_section/{section_id} and returns Case[]', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk([mockCase]));
+                const payload: CopyCasesToSectionPayload = { case_ids: [1] };
+                const result = await client.copyCasesToSection(7, payload);
+                expect(result).toEqual([mockCase]);
+                expect(mockFetch).toHaveBeenCalledWith(
+                    expect.stringContaining('copy_cases_to_section/7'),
+                    expect.anything(),
+                );
+            });
+
+            it('rejects non-positive-integer sectionId', async () => {
+                await expect(client.copyCasesToSection(0, { case_ids: [1] })).rejects.toThrow(TestRailValidationError);
+            });
+        });
+
+        describe('moveCasesToSection', () => {
+            it('POSTs to move_cases_to_section/{section_id} with case_ids + suite_id', async () => {
+                mockFetch.mockResolvedValueOnce(mockEmpty());
+                const payload: MoveCasesToSectionPayload = { case_ids: [1, 2], suite_id: 3 };
+                await client.moveCasesToSection(7, payload);
+                expect(mockFetch).toHaveBeenCalledWith(
+                    expect.stringContaining('move_cases_to_section/7'),
+                    expect.anything(),
+                );
+                const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+                expect(JSON.parse(init.body as string)).toEqual(payload);
+            });
+
+            it('rejects non-positive-integer sectionId', async () => {
+                await expect(client.moveCasesToSection(-1, { case_ids: [1], suite_id: 3 })).rejects.toThrow(
+                    TestRailValidationError,
+                );
+            });
         });
     });
 

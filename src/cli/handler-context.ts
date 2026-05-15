@@ -21,6 +21,10 @@ export interface HandlerArgs {
     filename?: string;
     /** Path to write a binary download to for `attachment get` (`--out <path>`). */
     out?: string;
+    /** True when `--soft` is set; adds `soft=1` to `case delete-bulk` for a
+     *  server-side preview (TestRail returns affected counts without
+     *  deleting). Distinct from `--dry-run` (client-side, no API call). */
+    soft?: boolean;
 }
 
 /**

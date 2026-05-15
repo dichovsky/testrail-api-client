@@ -37,6 +37,10 @@ Read actions:
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
   case   update <case_id>           --data '{"title":"..."}'
+  case   update-bulk <suite_id>     --data '{"case_ids":[1,2],"priority_id":3}'
+  case   delete-bulk <suite_id>     --project-id <id> [--soft] --data '{"case_ids":[1,2]}' --yes
+  case   copy-to-section <section_id>  --data '{"case_ids":[1,2]}'
+  case   move-to-section <section_id>  --data '{"case_ids":[1,2],"suite_id":3}'
   run    add <project_id>           --data '{"name":"..."}'
   run    close <run_id>             (no body)
   result add <run_id> <case_id>     --data '{"status_id":1}'
@@ -87,7 +91,8 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (e.g. attachment delete)
+  --yes                 Required to execute destructive actions (e.g. attachment delete, case delete-bulk)
+  --soft                case delete-bulk: server-side preview (TestRail returns counts without deleting); distinct from --dry-run which makes NO API call
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
@@ -97,8 +102,9 @@ For body-bearing write actions (all except 'run close'), exactly one body source
 is required (--data | --data-file | stdin). Stdin is auto-detected when input
 is piped (process.stdin.isTTY === false). Attachment upload actions take a
 binary file via --file <path> and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete) require --yes; pass --dry-run together
-with --yes to preview without making the API call (dry-run wins).
+Destructive actions (attachment delete, case delete-bulk) require --yes; pass
+--dry-run together with --yes to preview without making the API call
+(dry-run wins).
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -140,6 +146,7 @@ async function main(): Promise<number> {
                 filename: { type: 'string' },
                 out: { type: 'string' },
                 yes: { type: 'boolean', default: false },
+                soft: { type: 'boolean', default: false },
             },
             allowPositionals: true,
             strict: false,
@@ -230,6 +237,7 @@ async function main(): Promise<number> {
         ...(values['file'] !== undefined && { file: values['file'] as string }),
         ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
         ...(values['out'] !== undefined && { out: values['out'] as string }),
+        ...(values['soft'] === true && { soft: true }),
     };
 
     // Suppress stdin only when the dispatched action's ActionSpec marks it
