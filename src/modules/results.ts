@@ -1,6 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Result, GetResultsOptions } from '../types.js';
-import type { AddResultPayload, AddResultsForCasesPayload } from '../schemas.js';
+import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload } from '../schemas.js';
 import { ResultSchema } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
@@ -85,6 +85,14 @@ export class ResultModule {
         return this.client.parse<Result[]>(
             z.array(ResultSchema),
             await this.client.request<unknown>('POST', `add_results_for_cases/${runId}`, payload),
+        );
+    }
+
+    async addResults(runId: number, payload: AddResultsPayload): Promise<Result[]> {
+        this.client.validateId(runId, 'runId');
+        return this.client.parse<Result[]>(
+            z.array(ResultSchema),
+            await this.client.request<unknown>('POST', `add_results/${runId}`, payload),
         );
     }
 }

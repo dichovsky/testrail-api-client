@@ -300,7 +300,7 @@ describe('dispatch', () => {
         }
     });
 
-    it('rejects result:get (only list/add/add-bulk are valid for result)', () => {
+    it('rejects result:get (only list/add/add-bulk/add-bulk-by-test are valid for result)', () => {
         const result = dispatch('result', 'get');
         expect(result.ok).toBe(false);
         if (!result.ok) {

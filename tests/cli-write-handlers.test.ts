@@ -21,7 +21,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { handleCaseAdd, handleCaseUpdate } from '../src/cli/handlers/case-write.js';
 import { handleRunAdd, handleRunClose } from '../src/cli/handlers/run-write.js';
-import { handleResultAdd, handleResultAddBulk } from '../src/cli/handlers/result-write.js';
+import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -33,6 +33,7 @@ interface MockedClient {
     closeRun: ReturnType<typeof vi.fn>;
     addResultForCase: ReturnType<typeof vi.fn>;
     addResultsForCases: ReturnType<typeof vi.fn>;
+    addResults: ReturnType<typeof vi.fn>;
     addPlan: ReturnType<typeof vi.fn>;
     updatePlan: ReturnType<typeof vi.fn>;
     addPlanEntry: ReturnType<typeof vi.fn>;
@@ -46,6 +47,7 @@ function buildClient(): MockedClient {
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
         addResultForCase: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
         addResultsForCases: vi.fn().mockResolvedValue([{ id: 100 }, { id: 101 }]),
+        addResults: vi.fn().mockResolvedValue([{ id: 200 }, { id: 201 }]),
         addPlan: vi.fn().mockResolvedValue({ id: 50, name: 'p' }),
         updatePlan: vi.fn().mockResolvedValue({ id: 50, name: 'p2' }),
         addPlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'e' }),
@@ -263,6 +265,56 @@ describe('handleResultAddBulk', () => {
         expect(client.addResultsForCases).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'result add-bulk', runId: 11 }),
+        );
+    });
+});
+
+// ── result add-bulk-by-test ──────────────────────────────────────────────
+
+describe('handleResultAddBulkByTest', () => {
+    it('calls client.addResults with the array payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['11'],
+            dataFlag: '{"results":[{"test_id":1,"status_id":1},{"test_id":2,"status_id":5}]}',
+        });
+        await handleResultAddBulkByTest(ctx);
+        expect(client.addResults).toHaveBeenCalledWith(
+            11,
+            expect.objectContaining({ results: expect.arrayContaining([expect.objectContaining({ test_id: 1 })]) }),
+        );
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('rejects when a result lacks test_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['11'], dataFlag: '{"results":[{"status_id":1}]}' });
+        await expect(handleResultAddBulkByTest(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects empty body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['11'] });
+        await expect(handleResultAddBulkByTest(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects non-positive-integer run_id', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['0'],
+            dataFlag: '{"results":[{"test_id":1,"status_id":1}]}',
+        });
+        await expect(handleResultAddBulkByTest(ctx)).rejects.toThrow();
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['11'],
+            dataFlag: '{"results":[]}',
+            dryRun: true,
+        });
+        await handleResultAddBulkByTest(ctx);
+        expect(client.addResults).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'result add-bulk-by-test', runId: 11 }),
         );
     });
 });

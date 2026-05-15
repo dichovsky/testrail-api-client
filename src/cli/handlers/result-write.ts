@@ -1,7 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveBody } from '../body.js';
-import { AddResultPayloadSchema, AddResultsForCasesPayloadSchema } from '../../schemas.js';
+import { AddResultPayloadSchema, AddResultsForCasesPayloadSchema, AddResultsPayloadSchema } from '../../schemas.js';
 
 export async function handleResultAdd(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
@@ -37,4 +37,21 @@ export async function handleResultAddBulk(ctx: HandlerContext): Promise<void> {
         return;
     }
     ctx.out(await ctx.client.addResultsForCases(runId, body.payload));
+}
+
+export async function handleResultAddBulkByTest(ctx: HandlerContext): Promise<void> {
+    const runId = parseId(ctx.args.pathParams[0], 'run_id');
+    const body = resolveBody(ctx.bodyInput, AddResultsPayloadSchema);
+    if (!body.ok) throw new Error(body.error);
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: 'result add-bulk-by-test',
+            runId,
+            payload: body.payload,
+            source: body.source,
+        });
+        return;
+    }
+    ctx.out(await ctx.client.addResults(runId, body.payload));
 }

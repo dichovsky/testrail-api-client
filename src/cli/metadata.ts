@@ -5,6 +5,7 @@ import {
     AddRunPayloadSchema,
     AddResultPayloadSchema,
     AddResultsForCasesPayloadSchema,
+    AddResultsPayloadSchema,
     AddPlanPayloadSchema,
     UpdatePlanPayloadSchema,
     AddPlanEntryPayloadSchema,
@@ -211,6 +212,14 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary: 'Record multiple results for cases in one API call',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         bodySchema: AddResultsForCasesPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'result',
+        action: 'add-bulk-by-test',
+        summary: 'Record multiple results for tests (by test_id) in one API call',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        bodySchema: AddResultsPayloadSchema,
         isWrite: true,
     },
     {

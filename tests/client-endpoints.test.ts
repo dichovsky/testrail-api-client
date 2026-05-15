@@ -33,6 +33,7 @@ import type {
     UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
+    AddResultsPayload,
     AddPlanPayload,
     UpdatePlanPayload,
     AddPlanEntryPayload,
@@ -1552,6 +1553,39 @@ describe('TestRailClient', () => {
 
             const result = await client.addResultsForCases(1, payload);
             expect(result).toEqual(mockResults);
+        });
+
+        it('should add multiple results by test_id', async () => {
+            const mockResults: Result[] = [
+                {
+                    id: 1,
+                    test_id: 42,
+                    status_id: 1,
+                },
+            ];
+
+            const payload: AddResultsPayload = {
+                results: [
+                    {
+                        test_id: 42,
+                        status_id: 1,
+                        comment: 'passed',
+                    },
+                ],
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockResults));
+
+            const result = await client.addResults(7, payload);
+            expect(result).toEqual(mockResults);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_results/7'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should reject invalid run ID for addResults', async () => {
+            await expect(client.addResults(0, { results: [] })).rejects.toThrow(TestRailValidationError);
         });
     });
 

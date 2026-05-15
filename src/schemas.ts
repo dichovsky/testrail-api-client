@@ -550,6 +550,28 @@ export const AddResultsForCasesPayloadSchema = zObject({
 
 export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>;
 
+// Same precedent as AddResultForCasePayloadSchema: inlined rather than
+// `.extend(AddResultPayloadSchema)` so the passthrough() behavior is
+// unambiguous and the inferred type stays a plain object literal.
+export const AddResultForTestPayloadSchema = zObject({
+    test_id: z.number(),
+    status_id: z.number(),
+    comment: z.string().optional(),
+    version: z.string().optional(),
+    elapsed: z.string().optional(),
+    defects: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    custom_fields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>;
+
+export const AddResultsPayloadSchema = zObject({
+    results: z.array(AddResultForTestPayloadSchema),
+});
+
+export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>;
+
 // ── Plan write payloads ───────────────────────────────────────────────────────
 // Plans nest entries, and entries nest runs. The run shape inside a plan entry
 // is intentionally looser than AddRunPayloadSchema: TestRail derives the run

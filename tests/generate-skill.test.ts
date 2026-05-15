@@ -123,6 +123,7 @@ describe('schemaNameFor', () => {
     it('maps known write actions to their schema name', () => {
         expect(schemaNameFor({ resource: 'case', action: 'add' })).toBe('AddCasePayloadSchema');
         expect(schemaNameFor({ resource: 'result', action: 'add-bulk' })).toBe('AddResultsForCasesPayloadSchema');
+        expect(schemaNameFor({ resource: 'result', action: 'add-bulk-by-test' })).toBe('AddResultsPayloadSchema');
         expect(schemaNameFor({ resource: 'plan', action: 'add' })).toBe('AddPlanPayloadSchema');
         expect(schemaNameFor({ resource: 'plan', action: 'update' })).toBe('UpdatePlanPayloadSchema');
         expect(schemaNameFor({ resource: 'plan', action: 'add-entry' })).toBe('AddPlanEntryPayloadSchema');

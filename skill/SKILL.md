@@ -78,6 +78,7 @@ on stderr. Never echo or log the API key.
 | run | close | `<run_id>` | — (no body) | Close a test run (no body) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
+| result | add-bulk-by-test | `<run_id>` | `AddResultsPayloadSchema` | Record multiple results for tests (by test_id) in one API call |
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
@@ -191,6 +192,14 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 ```
 
 ### `AddResultsForCasesPayloadSchema` (used by `result add-bulk`)
+
+```jsonc
+{
+    "results": "object[] (required)"
+}
+```
+
+### `AddResultsPayloadSchema` (used by `result add-bulk-by-test`)
 
 ```jsonc
 {

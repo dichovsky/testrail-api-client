@@ -125,7 +125,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Results ([API docs](https://support.testrail.com/hc/en-us/articles/7077819312404-Results))
 
-- [ ] **`addResults(runId, payload)`** — `POST add_results/{run_id}`. Bulk-add results by `test_id` (existing `addResultsForCases` is by `case_id`). Body: `{ results: Array<{ test_id, status_id?, comment?, ... }> }`. Reuses `AddResultPayloadSchema` with `test_id` added. **Effort:** S. **Module:** `results.ts`. **Trigger:** automation runners that already know test IDs (after calling `getTests`).
+- [x] **`addResults(runId, payload)`** — Shipped together with CLI `result add-bulk-by-test <run_id> --data ...`. New dedicated payload schemas (`AddResultForTestPayloadSchema` with `test_id`+`status_id` required; `AddResultsPayloadSchema` wraps the array). Inlined rather than extending `AddResultPayloadSchema` (same precedent as `AddResultForCasePayloadSchema`) — keeps `.passthrough()` behavior unambiguous and the inferred type a plain object literal. Returns `Result[]` matching the server response order.
 
 ### Sections ([API docs](https://support.testrail.com/hc/en-us/articles/7077853258868-Sections))
 
@@ -145,7 +145,7 @@ Implementation conventions for every item below: add the method to the relevant 
 2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
 3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
 4. **History/statuses PR** — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (small read-only additions).
-5. **Standalone** — `addResults`, `moveSection`, `addCaseField` (independent).
+5. **Standalone** — ~~`addResults`~~ (shipped), `moveSection`, `addCaseField` (independent).
 
 ---
 
