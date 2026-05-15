@@ -1117,6 +1117,33 @@ describe('TestRailClient - Enhanced Features', () => {
             );
         });
 
+        it('should JSON-stringify the body when requestText is called with data', async () => {
+            // Exercises the `if (data !== undefined) { options.body = JSON.stringify(data) }`
+            // branch in `requestText`. The retry/AbortError tests above call
+            // GET-only and never hit this path, so we cover it explicitly here.
+            const freshClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 0,
+            });
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => 'ack',
+                headers: { get: () => null },
+            });
+
+            const payload = { foo: 'bar', n: 1 };
+            const result = await freshClient.requestText('POST', 'noop_endpoint', payload);
+
+            expect(result).toBe('ack');
+            const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+            expect(opts.method).toBe('POST');
+            expect(opts.body).toBe(JSON.stringify(payload));
+        });
+
         it('should invalidate JSON cache on mutating requestText call (POST)', async () => {
             // First, prime the cache with a JSON GET.
             mockFetch.mockResolvedValueOnce({
