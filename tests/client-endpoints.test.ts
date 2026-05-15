@@ -31,6 +31,7 @@ import type {
 import type {
     AddCasePayload,
     UpdateCasePayload,
+    AddCaseFieldPayload,
     MoveSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
@@ -2093,6 +2094,61 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk([fieldWithDescription]));
             const result = await client.getCaseFields();
             expect(result[0]).toHaveProperty('description', 'Step-by-step instructions');
+        });
+
+        describe('addCaseField', () => {
+            const validPayload: AddCaseFieldPayload = {
+                type: 'String',
+                name: 'preconds',
+                label: 'Preconditions',
+                configs: [
+                    {
+                        context: { is_global: true, project_ids: [] },
+                        options: { is_required: false, default_value: '' },
+                    },
+                ],
+            };
+
+            it('POSTs to add_case_field with the payload and parses the response as CaseField', async () => {
+                const createdField: CaseField = {
+                    ...mockCaseField,
+                    id: 99,
+                    name: 'preconds',
+                    system_name: 'custom_preconds',
+                    label: 'Preconditions',
+                };
+                mockFetch.mockResolvedValueOnce(mockOk(createdField));
+                const result = await client.addCaseField(validPayload);
+                expect(result).toEqual(createdField);
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_case_field'), expect.anything());
+                const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body as string)).toEqual(validPayload);
+            });
+
+            it('propagates 403 Forbidden (admin-only endpoint)', async () => {
+                mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
+                await expect(client.addCaseField(validPayload)).rejects.toThrow('TestRail API error: 403 Forbidden');
+            });
+
+            it('propagates 400 from the server on invalid field-type-specific payload', async () => {
+                // TestRail rejects `items` on Steps fields server-side; client does
+                // not pre-empt this — we surface the upstream 400.
+                mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request'));
+                await expect(
+                    client.addCaseField({
+                        ...validPayload,
+                        type: 'Steps',
+                        configs: [
+                            {
+                                context: { is_global: true, project_ids: [] },
+                                options: { is_required: false, default_value: '', items: 'illegal-on-steps' },
+                            },
+                        ],
+                    }),
+                ).rejects.toThrow('TestRail API error: 400 Bad Request');
+            });
         });
 
         const mockCaseType: CaseType = { id: 1, name: 'Functional', is_default: true };

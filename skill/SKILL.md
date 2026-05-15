@@ -88,6 +88,7 @@ on stderr. Never echo or log the API key.
 | shared-step | list | — | — | List shared steps in a project |
 | shared-step | history | `<shared_update_id>` | — | List revision history for a shared step (paginated) |
 | case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
+| case-field | add | — | `AddCaseFieldPayloadSchema` | Create a custom case field (admin-only); no path params, payload-only |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
 | attachment | list-for-run | `<run_id>` | — | List attachments on a test run |
 | attachment | list-for-test | `<test_id>` | — | List attachments on a test (run instance of a case) |
@@ -258,6 +259,20 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 {
     "parent_id": "number?",
     "after_id": "number?"
+}
+```
+
+### `AddCaseFieldPayloadSchema` (used by `case-field add`)
+
+```jsonc
+{
+    "type": "string (required)",
+    "name": "string (required)",
+    "label": "string (required)",
+    "description": "string?",
+    "include_all": "boolean?",
+    "template_ids": "number[]?",
+    "configs": "object[] (required)"
 }
 ```
 <!-- /GENERATED:payload-schemas -->
