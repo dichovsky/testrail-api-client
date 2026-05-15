@@ -408,9 +408,15 @@ describe('metadata vs dispatch consistency', () => {
         }
     });
 
-    it('every metadata entry has at least one path param documented (except list actions)', () => {
+    it('every metadata entry has at least one path param documented (except list actions and payload-only writes)', () => {
+        // Payload-only write actions: the TestRail endpoint takes no path or
+        // query params and is fully driven by the request body (admin-level
+        // POSTs that create instance-wide objects, e.g. `add_case_field`).
+        // These intentionally have `pathParams: []`.
+        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add']);
         for (const spec of ACTIONS) {
             if (spec.action === 'list') continue;
+            if (PAYLOAD_ONLY_WRITES.has(`${spec.resource}:${spec.action}`)) continue;
             expect(
                 spec.pathParams.length,
                 `${spec.resource}:${spec.action} should declare path params`,

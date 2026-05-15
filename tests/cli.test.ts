@@ -697,6 +697,75 @@ describe('CLI', () => {
         });
     });
 
+    // ── case-field ────────────────────────────────────────────────────────────
+
+    describe('case-field', () => {
+        const VALID_PAYLOAD = JSON.stringify({
+            type: 'String',
+            name: 'preconds',
+            label: 'Preconditions',
+            configs: [
+                {
+                    context: { is_global: true, project_ids: [] },
+                    options: { is_required: false, default_value: '' },
+                },
+            ],
+        });
+
+        const MOCK_CASE_FIELD = {
+            id: 99,
+            system_name: 'custom_preconds',
+            label: 'Preconditions',
+            name: 'preconds',
+            type_id: 1,
+            display_order: 1,
+            configs: [
+                {
+                    context: { is_global: true, project_ids: [] },
+                    options: { is_required: false, default_value: '' },
+                },
+            ],
+            is_active: true,
+            include_all: true,
+            template_ids: [],
+        };
+
+        it('case-field add POSTs to add_case_field and returns the created field', async () => {
+            const { exitCodes } = await runCli(
+                ['case-field', 'add', '--data', VALID_PAYLOAD],
+                [jsonResponse(MOCK_CASE_FIELD)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_case_field');
+        });
+
+        it('case-field add exits 1 when body is missing', async () => {
+            const { exitCodes, stderr } = await runCli(['case-field', 'add']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('case-field add --dry-run validates payload but does not POST', async () => {
+            const { stdout, exitCodes } = await runCli(['case-field', 'add', '--data', VALID_PAYLOAD, '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('case-field add');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('case-field add rejects body missing required fields', async () => {
+            const { exitCodes, stderr } = await runCli(['case-field', 'add', '--data', '{"type":"String","name":"x"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/validation failed/);
+        });
+
+        it('case-field unknown action should exit 1', async () => {
+            const { exitCodes } = await runCli(['case-field', 'list']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
     // ── unknown resource ──────────────────────────────────────────────────────
 
     describe('unknown resource', () => {

@@ -50,6 +50,7 @@ Write actions (body via --data | --data-file | stdin):
   plan   update <plan_id>           --data '{"name":"..."}'
   plan   add-entry <plan_id>        --data '{"suite_id":1,"include_all":true}'
   section move <section_id>         --data '{"parent_id":null,"after_id":42}'
+  case-field add                    --data '{"type":"String","name":"foo","label":"Foo","configs":[{"context":{"is_global":true,"project_ids":[]},"options":{"is_required":false,"default_value":""}}]}' (admin-only)
 
 Attachment actions (binary file I/O):
   attachment list-for-case <case_id>

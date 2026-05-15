@@ -27,6 +27,7 @@ import {
     handleCaseCopyToSection,
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
+import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
 import { handleRunAdd, handleRunClose } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
@@ -41,6 +42,7 @@ interface MockedClient {
     deleteCases: ReturnType<typeof vi.fn>;
     copyCasesToSection: ReturnType<typeof vi.fn>;
     moveCasesToSection: ReturnType<typeof vi.fn>;
+    addCaseField: ReturnType<typeof vi.fn>;
     moveSection: ReturnType<typeof vi.fn>;
     addRun: ReturnType<typeof vi.fn>;
     closeRun: ReturnType<typeof vi.fn>;
@@ -60,6 +62,7 @@ function buildClient(): MockedClient {
         deleteCases: vi.fn().mockResolvedValue(undefined),
         copyCasesToSection: vi.fn().mockResolvedValue([{ id: 11 }, { id: 12 }]),
         moveCasesToSection: vi.fn().mockResolvedValue(undefined),
+        addCaseField: vi.fn().mockResolvedValue({ id: 99, name: 'preconds', label: 'Preconditions' }),
         moveSection: vi.fn().mockResolvedValue(undefined),
         addRun: vi.fn().mockResolvedValue({ id: 10, name: 'r' }),
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
@@ -389,6 +392,74 @@ describe('handleCaseMoveToSection', () => {
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'case move-to-section', sectionId: 7 }),
         );
+    });
+});
+
+// ── case-field add ────────────────────────────────────────────────────────
+
+describe('handleCaseFieldAdd', () => {
+    const validBody = JSON.stringify({
+        type: 'String',
+        name: 'preconds',
+        label: 'Preconditions',
+        configs: [
+            {
+                context: { is_global: true, project_ids: [] },
+                options: { is_required: false, default_value: '' },
+            },
+        ],
+    });
+
+    it('calls client.addCaseField with parsed payload and outputs result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: validBody });
+        await handleCaseFieldAdd(ctx);
+        expect(client.addCaseField).toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'String', name: 'preconds', label: 'Preconditions' }),
+        );
+        expect(out).toHaveBeenCalledWith({ id: 99, name: 'preconds', label: 'Preconditions' });
+    });
+
+    it('dry-run does not call client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: validBody, dryRun: true });
+        await handleCaseFieldAdd(ctx);
+        expect(client.addCaseField).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'case-field add' }));
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), {});
+        await expect(handleCaseFieldAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required `type`', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            dataFlag: '{"name":"x","label":"X","configs":[]}',
+        });
+        await expect(handleCaseFieldAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body missing required `name`', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            dataFlag: '{"type":"String","label":"X","configs":[]}',
+        });
+        await expect(handleCaseFieldAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body missing required `configs`', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            dataFlag: '{"type":"String","name":"x","label":"X"}',
+        });
+        await expect(handleCaseFieldAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects malformed configs[] item (missing context)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            dataFlag:
+                '{"type":"String","name":"x","label":"X","configs":[{"options":{"is_required":false,"default_value":""}}]}',
+        });
+        await expect(handleCaseFieldAdd(ctx)).rejects.toThrow(/validation failed/);
     });
 });
 

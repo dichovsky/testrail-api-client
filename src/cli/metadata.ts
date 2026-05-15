@@ -6,6 +6,7 @@ import {
     DeleteCasesPayloadSchema,
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
+    AddCaseFieldPayloadSchema,
     MoveSectionPayloadSchema,
     AddRunPayloadSchema,
     AddResultPayloadSchema,
@@ -329,6 +330,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary: 'List case-level lifecycle statuses (TestRail 7.5+)',
         pathParams: [],
         isWrite: false,
+    },
+    // ── Case-field write action ───────────────────────────────────────────
+    {
+        resource: 'case-field',
+        action: 'add',
+        summary: 'Create a custom case field (admin-only); no path params, payload-only',
+        pathParams: [],
+        bodySchema: AddCaseFieldPayloadSchema,
+        isWrite: true,
     },
     // ── Attachment read actions ───────────────────────────────────────────
     {
