@@ -392,15 +392,21 @@ export class TestRailClient extends TestRailClientCore {
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options?: DeleteCasesOptions,
-    ): Promise<void | DeleteCasesPreview>;
+        options?: DeleteCasesOptions & { soft?: false },
+    ): Promise<void>;
     async deleteCases(
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
         options?: DeleteCasesOptions,
     ): Promise<void | DeleteCasesPreview> {
-        return this.cases.deleteCases(suiteId, projectId, payload, options);
+        // Branch by `soft` so both module overloads resolve cleanly. The public
+        // overloads above already gave callers a precise return type — this
+        // delegate just routes to the matching module overload at runtime.
+        if (options?.soft === true) {
+            return this.cases.deleteCases(suiteId, projectId, payload, { ...options, soft: true });
+        }
+        return this.cases.deleteCases(suiteId, projectId, payload, options as DeleteCasesOptions & { soft?: false });
     }
 
     /**

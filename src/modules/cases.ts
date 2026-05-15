@@ -104,8 +104,8 @@ export class CaseModule {
     }
 
     /**
-     * Bulk-update many cases with the same field values in one API call. The
-     * payload's `case_ids` is the targets; all other fields are applied
+     * Bulk-update many cases with the same field values in one API call.
+     * `payload.case_ids` identifies the targets; all other fields are applied
      * uniformly to every listed case. TestRail returns the array of updated
      * cases.
      *
@@ -136,8 +136,8 @@ export class CaseModule {
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options?: DeleteCasesOptions,
-    ): Promise<void | DeleteCasesPreview>;
+        options?: DeleteCasesOptions & { soft?: false },
+    ): Promise<void>;
     async deleteCases(
         suiteId: number,
         projectId: number,

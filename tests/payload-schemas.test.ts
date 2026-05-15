@@ -145,6 +145,18 @@ describe('DeleteCasesPayloadSchema', () => {
     it('rejects case_ids with non-number elements', () => {
         expect(() => DeleteCasesPayloadSchema.parse({ case_ids: [1, '2'] })).toThrow();
     });
+
+    it('rejects body-level `soft` (must be query flag, not body field)', () => {
+        // Guards against an agent pasting `{ "case_ids": [1], "soft": true }`
+        // expecting a server-side preview — TestRail toggles soft-preview via
+        // the query string, so a body `soft` would silently passthrough and
+        // could turn intended preview into a hard delete (or vice versa).
+        expect(() => DeleteCasesPayloadSchema.parse({ case_ids: [1], soft: true })).toThrow(/soft/);
+    });
+
+    it('rejects body-level `soft: false` too (any presence is misuse)', () => {
+        expect(() => DeleteCasesPayloadSchema.parse({ case_ids: [1], soft: false })).toThrow(/soft/);
+    });
 });
 
 describe('CopyCasesToSectionPayloadSchema', () => {

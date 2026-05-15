@@ -572,8 +572,19 @@ export const UpdateCasesPayloadSchema = zObject({
 
 export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>;
 
+// Body schema for bulk delete. We refine away a misplaced `soft` key on the
+// body — TestRail toggles the soft-preview path via the `soft=1` *query*
+// param, not a body field. The CLI surfaces this via `--soft`. Accepting a
+// body-level `soft` would silently pass `.passthrough()` and could turn an
+// intended preview into a hard delete (or vice versa) when callers paste
+// example JSON that mixes the two. Surface the misuse early at the schema
+// boundary so destructive intent stays unambiguous.
 export const DeleteCasesPayloadSchema = zObject({
     case_ids: z.array(z.number()),
+}).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), {
+    message:
+        '`soft` is not a body field — use the `--soft` CLI flag or the `options.soft` argument on `deleteCases()` to toggle the server-side preview.',
+    path: ['soft'],
 });
 
 export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>;
