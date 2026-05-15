@@ -242,6 +242,56 @@ describe('AddCaseFieldPayloadSchema', () => {
         }) as Record<string, unknown>;
         expect(parsed['future_field']).toBe('preserve me');
     });
+
+    it('parses a payload with an empty configs[] array (schema permits it; server enforces)', () => {
+        // TestRail server requires at least one config in practice, but the
+        // payload schema only validates structural shape. An empty array is
+        // structurally valid; a missing `configs` key is not (rejected
+        // elsewhere). Surfacing the server-side 400 stays the responsibility
+        // of the upstream API per the .passthrough() / fail-open design.
+        const parsed = AddCaseFieldPayloadSchema.parse({
+            type: 'String',
+            name: 'x',
+            label: 'X',
+            configs: [],
+        });
+        expect(parsed.configs).toEqual([]);
+    });
+
+    it('parses a payload with multiple configs[] entries', () => {
+        const parsed = AddCaseFieldPayloadSchema.parse({
+            type: 'String',
+            name: 'x',
+            label: 'X',
+            configs: [
+                validConfig,
+                {
+                    context: { is_global: false, project_ids: [42] },
+                    options: { is_required: true, default_value: 'fallback' },
+                },
+            ],
+        });
+        expect(parsed.configs).toHaveLength(2);
+        expect(parsed.configs[1]?.context.project_ids).toEqual([42]);
+    });
+
+    it('preserves unknown fields inside a nested configs[] entry via passthrough()', () => {
+        const parsed = AddCaseFieldPayloadSchema.parse({
+            type: 'String',
+            name: 'x',
+            label: 'X',
+            configs: [
+                {
+                    ...validConfig,
+                    future_nested_field: 'preserve me too',
+                },
+            ],
+        });
+        // Index into the parsed array as an untyped record to assert the
+        // passthrough survival of an unknown nested field.
+        const nested = parsed.configs[0] as unknown as Record<string, unknown>;
+        expect(nested['future_nested_field']).toBe('preserve me too');
+    });
 });
 
 describe('MoveSectionPayloadSchema', () => {
