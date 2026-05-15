@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Status, Priority, ResultField, CaseField, CaseType, Template, Role } from '../types.js';
+import type { Status, Priority, ResultField, CaseField, CaseType, Template, Role, CaseStatus } from '../types.js';
 import {
     StatusSchema,
     PrioritySchema,
@@ -8,6 +8,7 @@ import {
     CaseTypeSchema,
     TemplateSchema,
     RoleSchema,
+    CaseStatusSchema,
 } from '../schemas.js';
 import { z } from 'zod';
 
@@ -18,6 +19,13 @@ export class MetadataModule {
         return this.client.parse<Status[]>(
             z.array(StatusSchema),
             await this.client.request<unknown>('GET', 'get_statuses'),
+        );
+    }
+
+    async getCaseStatuses(): Promise<CaseStatus[]> {
+        return this.client.parse<CaseStatus[]>(
+            z.array(CaseStatusSchema),
+            await this.client.request<unknown>('GET', 'get_case_statuses'),
         );
     }
 

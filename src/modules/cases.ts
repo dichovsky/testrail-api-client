@@ -1,8 +1,15 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Case, GetCasesOptions } from '../types.js';
+import type { Case, GetCasesOptions, HistoryEntry } from '../types.js';
 import type { AddCasePayload, UpdateCasePayload } from '../schemas.js';
-import { CaseSchema } from '../schemas.js';
+import { CaseSchema, HistoryEntrySchema } from '../schemas.js';
 import { z } from 'zod';
+
+export interface GetHistoryForCaseOptions {
+    /** Maximum number of history entries to return */
+    limit?: number;
+    /** Pagination offset */
+    offset?: number;
+}
 
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -74,5 +81,21 @@ export class CaseModule {
     async deleteCase(caseId: number): Promise<void> {
         this.client.validateId(caseId, 'caseId');
         await this.client.request<void>('POST', `delete_case/${caseId}`);
+    }
+
+    async getHistoryForCase(caseId: number, options?: GetHistoryForCaseOptions): Promise<HistoryEntry[]> {
+        this.client.validateId(caseId, 'caseId');
+        this.client.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.client.buildEndpoint(`get_history_for_case/${caseId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
+        });
+        const raw = await this.client.request<unknown>('GET', endpoint);
+        return (
+            this.client.parse<{ history?: HistoryEntry[] }>(
+                z.object({ history: z.array(HistoryEntrySchema).optional() }),
+                raw,
+            ).history ?? []
+        );
     }
 }

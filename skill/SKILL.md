@@ -63,6 +63,7 @@ on stderr. Never echo or log the API key.
 | suite | list | — | — | List suites in a project |
 | case | get | `<case_id>` | — | Fetch a single test case by ID |
 | case | list | — | — | List cases in a project (optionally filtered by suite) |
+| case | history | `<case_id>` | — | List edit history for a test case (paginated; TestRail 7.5+) |
 | run | get | `<run_id>` | — | Fetch a single run by ID |
 | run | list | — | — | List runs in a project (paginated) |
 | result | list | — | — | List results for a run (paginated) |
@@ -82,6 +83,10 @@ on stderr. Never echo or log the API key.
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
+| shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
+| shared-step | list | — | — | List shared steps in a project |
+| shared-step | history | `<shared_update_id>` | — | List revision history for a shared step (paginated) |
+| case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
 | attachment | list-for-run | `<run_id>` | — | List attachments on a test run |
 | attachment | list-for-test | `<test_id>` | — | List attachments on a test (run instance of a case) |

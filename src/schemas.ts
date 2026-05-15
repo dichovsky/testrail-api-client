@@ -294,6 +294,49 @@ export const PrioritySchema = zObject({
 
 export type Priority = z.infer<typeof PrioritySchema>;
 
+// ── Case Status Schema ────────────────────────────────────────────────────────
+
+// `get_case_statuses` (TestRail 7.5+) returns *case-level* lifecycle statuses
+// (draft, approved, etc.), distinct from `get_statuses` which returns result
+// statuses. The primary key is `case_status_id`, not `id`.
+export const CaseStatusSchema = zObject({
+    case_status_id: z.number(),
+    name: z.string(),
+    abbreviation: z.string(),
+    is_default: z.boolean(),
+    is_approved: z.boolean(),
+    is_untested: z.boolean(),
+});
+
+export type CaseStatus = z.infer<typeof CaseStatusSchema>;
+
+// ── History Schemas ───────────────────────────────────────────────────────────
+
+// Per-field delta inside a history entry's `changes[]`. All fields optional
+// because TestRail emits different subsets per change type.
+const HistoryChangeSchema = zObject({
+    field: z.string().optional(),
+    type_id: z.number().optional(),
+    old_text: z.string().optional(),
+    new_text: z.string().optional(),
+});
+
+// Shared entry shape used by `get_history_for_case` and
+// `get_shared_step_history`. The two endpoints emit slightly different
+// timestamp keys (`timestamp` vs `created_on`); both are optional so the
+// schema accepts either. `.passthrough()` (via zObject) preserves any
+// endpoint-specific fields.
+export const HistoryEntrySchema = zObject({
+    id: z.number(),
+    user_id: z.number(),
+    type_id: z.number(),
+    timestamp: z.number().optional(),
+    created_on: z.number().optional(),
+    changes: z.array(HistoryChangeSchema).optional(),
+});
+
+export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
+
 // ── Field Config Schemas ──────────────────────────────────────────────────────
 
 const FieldConfigOptionsSchema = zObject({

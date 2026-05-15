@@ -101,6 +101,13 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: false,
     },
     {
+        resource: 'case',
+        action: 'history',
+        summary: 'List edit history for a test case (paginated; TestRail 7.5+)',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        isWrite: false,
+    },
+    {
         resource: 'run',
         action: 'get',
         summary: 'Fetch a single run by ID',
@@ -245,6 +252,36 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         bodySchema: AddPlanEntryPayloadSchema,
         isWrite: true,
+    },
+    // ── Shared-step read actions ──────────────────────────────────────────
+    {
+        resource: 'shared-step',
+        action: 'get',
+        summary: 'Fetch a single shared step by ID',
+        pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'shared-step',
+        action: 'list',
+        summary: 'List shared steps in a project',
+        pathParams: [],
+        isWrite: false,
+    },
+    {
+        resource: 'shared-step',
+        action: 'history',
+        summary: 'List revision history for a shared step (paginated)',
+        pathParams: [{ name: 'shared_update_id', description: 'TestRail shared update (revision) ID' }],
+        isWrite: false,
+    },
+    // ── Case-status read action ───────────────────────────────────────────
+    {
+        resource: 'case-status',
+        action: 'list',
+        summary: 'List case-level lifecycle statuses (TestRail 7.5+)',
+        pathParams: [],
+        isWrite: false,
     },
     // ── Attachment read actions ───────────────────────────────────────────
     {

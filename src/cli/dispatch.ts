@@ -1,7 +1,7 @@
 import type { Handler } from './handler-context.js';
 import { handleProjectGet, handleProjectList } from './handlers/project.js';
 import { handleSuiteGet, handleSuiteList } from './handlers/suite.js';
-import { handleCaseGet, handleCaseList } from './handlers/case.js';
+import { handleCaseGet, handleCaseList, handleCaseHistory } from './handlers/case.js';
 import { handleCaseAdd, handleCaseUpdate } from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
 import { handleRunAdd, handleRunClose } from './handlers/run-write.js';
@@ -27,6 +27,8 @@ import {
     handleAttachmentAddToPlanEntry,
     handleAttachmentDelete,
 } from './handlers/attachment-write.js';
+import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
+import { handleCaseStatusList } from './handlers/case-status.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -46,6 +48,7 @@ const HANDLERS: Record<string, Handler> = {
     'suite:list': handleSuiteList,
     'case:get': handleCaseGet,
     'case:list': handleCaseList,
+    'case:history': handleCaseHistory,
     'case:add': handleCaseAdd,
     'case:update': handleCaseUpdate,
     'run:get': handleRunGet,
@@ -77,6 +80,10 @@ const HANDLERS: Record<string, Handler> = {
     'attachment:add-to-plan': handleAttachmentAddToPlan,
     'attachment:add-to-plan-entry': handleAttachmentAddToPlanEntry,
     'attachment:delete': handleAttachmentDelete,
+    'shared-step:get': handleSharedStepGet,
+    'shared-step:list': handleSharedStepList,
+    'shared-step:history': handleSharedStepHistory,
+    'case-status:list': handleCaseStatusList,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {

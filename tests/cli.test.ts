@@ -83,6 +83,15 @@ const MOCK_PLAN_ENTRY = {
     include_all: true,
     runs: [],
 };
+const MOCK_SHARED_STEP = {
+    id: 1,
+    title: 'Login Steps',
+    project_id: 1,
+    created_by: 1,
+    created_on: 0,
+    updated_by: 1,
+    updated_on: 0,
+};
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -361,6 +370,34 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['case', 'update', '1']);
             expect(exitCodes).toContain(1);
         });
+
+        it('case history <id> should exit 0 and call get_history_for_case', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'history', '42'],
+                [jsonResponse({ history: [{ id: 1, user_id: 5, type_id: 2, timestamp: 1700000000 }] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_history_for_case/42'),
+                expect.anything(),
+            );
+        });
+
+        it('case history passes --limit and --offset to the API', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'history', '42', '--limit', '10', '--offset', '20'],
+                [jsonResponse({ history: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=10');
+            expect(url).toContain('offset=20');
+        });
+
+        it('case history rejects non-positive id', async () => {
+            const { exitCodes } = await runCli(['case', 'history', '0']);
+            expect(exitCodes).toContain(1);
+        });
     });
 
     // ── run ───────────────────────────────────────────────────────────────────
@@ -469,6 +506,92 @@ describe('CLI', () => {
 
         it('user unknown action should exit 1', async () => {
             const { exitCodes } = await runCli(['user', 'create']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    // ── shared-step ───────────────────────────────────────────────────────────
+
+    describe('shared-step', () => {
+        it('shared-step get <id> should exit 0', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'get', '1'], [jsonResponse(MOCK_SHARED_STEP)]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_step/1'), expect.anything());
+        });
+
+        it('shared-step list --project-id should exit 0', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'list', '--project-id', '3'],
+                [jsonResponse([MOCK_SHARED_STEP])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_steps/3'), expect.anything());
+        });
+
+        it('shared-step get rejects non-positive id', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'get', '0']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('shared-step list requires --project-id', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'list']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('shared-step history <id> should exit 0 and call get_shared_step_history', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'history', '42'],
+                [jsonResponse({ history: [{ id: 1, user_id: 5, type_id: 2, created_on: 1700000000 }] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_shared_step_history/42'),
+                expect.anything(),
+            );
+        });
+
+        it('shared-step history passes --limit and --offset to the API', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'history', '42', '--limit', '5', '--offset', '15'],
+                [jsonResponse({ history: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=5');
+            expect(url).toContain('offset=15');
+        });
+
+        it('shared-step history rejects non-positive id', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'history', '-1']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    // ── case-status ───────────────────────────────────────────────────────────
+
+    describe('case-status', () => {
+        it('case-status list should exit 0 and call get_case_statuses', async () => {
+            const { exitCodes } = await runCli(
+                ['case-status', 'list'],
+                [
+                    jsonResponse([
+                        {
+                            case_status_id: 1,
+                            name: 'Approved',
+                            abbreviation: 'APP',
+                            is_default: true,
+                            is_approved: true,
+                            is_untested: false,
+                        },
+                    ]),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_statuses'), expect.anything());
+        });
+
+        it('case-status unknown action should exit 1', async () => {
+            const { exitCodes } = await runCli(['case-status', 'get', '1']);
             expect(exitCodes).toContain(1);
         });
     });

@@ -113,7 +113,7 @@ Implementation conventions for every item below: add the method to the relevant 
 - [ ] **`deleteCases(suiteId, payload, options?)`** — `POST delete_cases/{suite_id}&project_id=X[&soft=1]`. Body: `{ case_ids: number[] }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** cleanup automations.
 - [ ] **`copyCasesToSection(sectionId, caseIds)`** — `POST copy_cases_to_section/{section_id}` with body `{ case_ids: number[] }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** suite reorganization tooling.
 - [ ] **`moveCasesToSection(sectionId, payload)`** — `POST move_cases_to_section/{section_id}` with body `{ case_ids: number[], suite_id?: number, section_id: number }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** same as above.
-- [ ] **`getHistoryForCase(caseId, options?)`** — `GET get_history_for_case/{case_id}[&limit=&offset=]` (TestRail 7.5+). Returns paginated history entries (similar bulk shape to `getCases`). **Effort:** S. **Module:** `cases.ts`. **Trigger:** audit/compliance workflows.
+- [x] **`getHistoryForCase(caseId, options?)`** — Shipped with the "History/statuses" PR alongside `getSharedStepHistory` and `getCaseStatuses`. Exposed on CLI as `case history <case_id> [--limit N] [--offset N]`. Shares the new `HistoryEntrySchema` with `getSharedStepHistory` (one schema, `.passthrough()` covers `timestamp` vs `created_on` divergence).
 
 ### Case Fields ([API docs](https://support.testrail.com/hc/en-us/articles/7077272415636-Case-fields))
 
@@ -133,18 +133,18 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Shared Steps ([API docs](https://support.testrail.com/hc/en-us/articles/7077874763156-Shared-steps))
 
-- [ ] **`getSharedStepHistory(sharedUpdateId, options?)`** — `GET get_shared_step_history/{shared_update_id}[&limit=&offset=]`. Paginated history (same bulk-response shape as other history endpoints). **Effort:** S. **Module:** `sharedSteps.ts`. **Trigger:** audit workflows; bundle with `getHistoryForCase`.
+- [x] **`getSharedStepHistory(sharedUpdateId, options?)`** — Shipped with the "History/statuses" PR. Exposed on CLI as `shared-step history <shared_update_id> [--limit N] [--offset N]`. The PR also introduced `shared-step get/list` CLI actions so the new namespace is not half-built (the programmatic methods already existed).
 
 ### Statuses ([API docs](https://support.testrail.com/hc/en-us/articles/7077935129364-Statuses))
 
-- [ ] **`getCaseStatuses()`** — `GET get_case_statuses` (TestRail 7.5+). Returns case-level statuses (e.g., draft/approved), **distinct** from the existing `getStatuses()` which returns result statuses. Define a separate `CaseStatusSchema` to avoid conflating the two. **Effort:** S. **Module:** new method in existing statuses location (currently in `metadata.ts`). **Trigger:** reporting tooling that distinguishes case lifecycle states.
+- [x] **`getCaseStatuses()`** — Shipped with the "History/statuses" PR. Dedicated `CaseStatusSchema` keyed on `case_status_id` (not `id`), keeping it disjoint from the result-status `StatusSchema`. Exposed on CLI as `case-status list` — the first metadata-style endpoint to land in the CLI; justified by its distinct purpose vs. `getStatuses`, not as a precedent for the other metadata getters.
 
 ### Suggested grouping for future PRs
 
 1. **Bulk case operations PR** — `updateCases`, `deleteCases`, `copyCasesToSection`, `moveCasesToSection` (share suite/section validation).
 2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
 3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
-4. **History/statuses PR** — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (small read-only additions).
+4. ~~**History/statuses PR**~~ — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (shipped).
 5. **Standalone** — ~~`addResults`~~ (shipped), `moveSection`, `addCaseField` (independent).
 
 ---

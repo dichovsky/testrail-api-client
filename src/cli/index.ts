@@ -24,11 +24,15 @@ Read actions:
   project  get <id> | list [--limit N] [--offset N]
   suite    get <id> | list --project-id <id>
   case     get <id> | list --project-id <id> [--suite-id <id>]
+  case     history <case_id> [--limit N] [--offset N]
   run      get <id> | list --project-id <id> [--limit N] [--offset N]
   result   list --run-id <id> [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
+  shared-step  get <id> | list --project-id <id>
+  shared-step  history <shared_update_id> [--limit N] [--offset N]
+  case-status  list
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
