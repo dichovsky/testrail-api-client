@@ -18,6 +18,8 @@ export {
     MilestoneSchema,
     StatusSchema,
     PrioritySchema,
+    CaseStatusSchema,
+    HistoryEntrySchema,
     CaseFieldConfigSchema,
     CaseFieldSchema,
     ResultFieldConfigSchema,
@@ -66,7 +68,11 @@ export type {
     UpdateRunInPlanEntryPayload,
     AddPlanPayload,
     UpdatePlanPayload,
+    CaseStatus,
+    HistoryEntry,
 } from './schemas.js';
+export type { GetHistoryForCaseOptions } from './modules/cases.js';
+export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 export type {
     TestRailConfig,
     RateLimiterConfig,

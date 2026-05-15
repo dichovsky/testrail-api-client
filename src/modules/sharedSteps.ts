@@ -1,6 +1,15 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload } from '../types.js';
-import { SharedStepSchema } from '../schemas.js';
+import type { HistoryEntry } from '../schemas.js';
+import { SharedStepSchema, HistoryEntrySchema } from '../schemas.js';
+import { z } from 'zod';
+
+export interface GetSharedStepHistoryOptions {
+    /** Maximum number of history entries to return */
+    limit?: number;
+    /** Pagination offset */
+    offset?: number;
+}
 
 export class SharedStepModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -40,5 +49,24 @@ export class SharedStepModule {
     async deleteSharedStep(sharedStepId: number): Promise<void> {
         this.client.validateId(sharedStepId, 'sharedStepId');
         await this.client.request<void>('POST', `delete_shared_step/${sharedStepId}`);
+    }
+
+    async getSharedStepHistory(
+        sharedUpdateId: number,
+        options?: GetSharedStepHistoryOptions,
+    ): Promise<HistoryEntry[]> {
+        this.client.validateId(sharedUpdateId, 'sharedUpdateId');
+        this.client.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.client.buildEndpoint(`get_shared_step_history/${sharedUpdateId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
+        });
+        const raw = await this.client.request<unknown>('GET', endpoint);
+        return (
+            this.client.parse<{ history?: HistoryEntry[] }>(
+                z.object({ history: z.array(HistoryEntrySchema).optional() }),
+                raw,
+            ).history ?? []
+        );
     }
 }

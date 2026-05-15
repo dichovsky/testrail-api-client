@@ -40,6 +40,8 @@ import type {
     UpdatePlanEntryPayload,
     AddRunToPlanEntryPayload,
     UpdateRunInPlanEntryPayload,
+    HistoryEntry,
+    CaseStatus,
 } from '../src/schemas.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 
@@ -516,6 +518,45 @@ describe('TestRailClient', () => {
 
             await client.deleteCase(1);
             expect(mockFetch).toHaveBeenCalled();
+        });
+
+        it('should get history for a case', async () => {
+            const mockHistory: HistoryEntry[] = [
+                {
+                    id: 1,
+                    user_id: 5,
+                    type_id: 2,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'title', type_id: 1, old_text: 'old', new_text: 'new' }],
+                },
+            ];
+
+            mockFetch.mockResolvedValueOnce(mockOk({ history: mockHistory }));
+
+            const result = await client.getHistoryForCase(42);
+            expect(result).toEqual(mockHistory);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_history_for_case/42'),
+                expect.anything(),
+            );
+        });
+
+        it('should pass limit and offset to getHistoryForCase', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ history: [] }));
+            await client.getHistoryForCase(42, { limit: 50, offset: 100 });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('limit=50');
+            expect(url).toContain('offset=100');
+        });
+
+        it('should return empty array when history envelope is missing', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            const result = await client.getHistoryForCase(42);
+            expect(result).toEqual([]);
+        });
+
+        it('should reject invalid caseId in getHistoryForCase', async () => {
+            await expect(client.getHistoryForCase(-1)).rejects.toThrow('caseId must be a positive integer');
         });
     });
 
@@ -1877,6 +1918,33 @@ describe('TestRailClient', () => {
             const result = await client.getStatuses();
             expect(result).toEqual(mockStatuses);
         });
+
+        it('should get all case statuses', async () => {
+            const mockCaseStatuses: CaseStatus[] = [
+                {
+                    case_status_id: 1,
+                    name: 'Approved',
+                    abbreviation: 'APP',
+                    is_default: true,
+                    is_approved: true,
+                    is_untested: false,
+                },
+                {
+                    case_status_id: 2,
+                    name: 'Draft',
+                    abbreviation: 'DR',
+                    is_default: false,
+                    is_approved: false,
+                    is_untested: true,
+                },
+            ];
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockCaseStatuses));
+
+            const result = await client.getCaseStatuses();
+            expect(result).toEqual(mockCaseStatuses);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_statuses'), expect.anything());
+        });
     });
 
     describe('Priorities', () => {
@@ -2704,6 +2772,47 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid sharedStepId', async () => {
             await expect(client.deleteSharedStep(-1)).rejects.toThrow('sharedStepId must be a positive integer');
+        });
+    });
+
+    describe('getSharedStepHistory', () => {
+        it('should return history for a shared step', async () => {
+            const mockHistory: HistoryEntry[] = [
+                {
+                    id: 10,
+                    user_id: 5,
+                    type_id: 2,
+                    created_on: 1700000000,
+                    changes: [{ field: 'title', type_id: 1, old_text: 'old', new_text: 'new' }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history: mockHistory }));
+            const result = await client.getSharedStepHistory(42);
+            expect(result).toEqual(mockHistory);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_shared_step_history/42'),
+                expect.anything(),
+            );
+        });
+
+        it('should pass limit and offset to getSharedStepHistory', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ history: [] }));
+            await client.getSharedStepHistory(42, { limit: 25, offset: 50 });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('limit=25');
+            expect(url).toContain('offset=50');
+        });
+
+        it('should return empty array when history envelope is missing', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            const result = await client.getSharedStepHistory(42);
+            expect(result).toEqual([]);
+        });
+
+        it('should reject invalid sharedUpdateId', async () => {
+            await expect(client.getSharedStepHistory(0)).rejects.toThrow(
+                'sharedUpdateId must be a positive integer',
+            );
         });
     });
 

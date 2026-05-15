@@ -69,7 +69,11 @@ import type {
     UpdatePlanEntryPayload,
     AddRunToPlanEntryPayload,
     UpdateRunInPlanEntryPayload,
+    HistoryEntry,
+    CaseStatus,
 } from './schemas.js';
+import type { GetHistoryForCaseOptions } from './modules/cases.js';
+import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
 import { SuiteModule } from './modules/suites.js';
@@ -342,6 +346,15 @@ export class TestRailClient extends TestRailClientCore {
      */
     async deleteCase(caseId: number): Promise<void> {
         return this.cases.deleteCase(caseId);
+    }
+
+    /**
+     * Get the edit history for a test case (TestRail 7.5+).
+     * @throws {TestRailValidationError} When caseId or pagination params are invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getHistoryForCase(caseId: number, options?: GetHistoryForCaseOptions): Promise<HistoryEntry[]> {
+        return this.cases.getHistoryForCase(caseId, options);
     }
 
     // ── Plans ─────────────────────────────────────────────────────────────────
@@ -746,6 +759,15 @@ export class TestRailClient extends TestRailClientCore {
      */
     async getStatuses(): Promise<Status[]> {
         return this.metadata.getStatuses();
+    }
+
+    /**
+     * Get case-level lifecycle statuses (draft/approved/etc., TestRail 7.5+).
+     * Distinct from `getStatuses()`, which returns result statuses.
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getCaseStatuses(): Promise<CaseStatus[]> {
+        return this.metadata.getCaseStatuses();
     }
 
     // ── Priorities ────────────────────────────────────────────────────────────
@@ -1173,6 +1195,18 @@ export class TestRailClient extends TestRailClientCore {
      */
     async deleteSharedStep(sharedStepId: number): Promise<void> {
         return this.sharedSteps.deleteSharedStep(sharedStepId);
+    }
+
+    /**
+     * Get history for a shared step (paginated).
+     * @throws {TestRailValidationError} When sharedUpdateId or pagination params are invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getSharedStepHistory(
+        sharedUpdateId: number,
+        options?: GetSharedStepHistoryOptions,
+    ): Promise<HistoryEntry[]> {
+        return this.sharedSteps.getSharedStepHistory(sharedUpdateId, options);
     }
 
     // ── Variables ─────────────────────────────────────────────────────────────
