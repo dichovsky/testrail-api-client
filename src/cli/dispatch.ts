@@ -27,7 +27,7 @@ import {
     handleAttachmentAddToPlanEntry,
     handleAttachmentDelete,
 } from './handlers/attachment-write.js';
-import { handleSharedStepGet, handleSharedStepList } from './handlers/shared-step.js';
+import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -81,6 +81,7 @@ const HANDLERS: Record<string, Handler> = {
     'attachment:delete': handleAttachmentDelete,
     'shared-step:get': handleSharedStepGet,
     'shared-step:list': handleSharedStepList,
+    'shared-step:history': handleSharedStepHistory,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {

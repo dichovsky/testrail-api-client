@@ -268,6 +268,13 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [],
         isWrite: false,
     },
+    {
+        resource: 'shared-step',
+        action: 'history',
+        summary: 'List revision history for a shared step (paginated)',
+        pathParams: [{ name: 'shared_update_id', description: 'TestRail shared step ID' }],
+        isWrite: false,
+    },
     // ── Attachment read actions ───────────────────────────────────────────
     {
         resource: 'attachment',

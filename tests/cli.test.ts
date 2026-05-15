@@ -537,6 +537,34 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['shared-step', 'list']);
             expect(exitCodes).toContain(1);
         });
+
+        it('shared-step history <id> should exit 0 and call get_shared_step_history', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'history', '42'],
+                [jsonResponse({ history: [{ id: 1, user_id: 5, type_id: 2, created_on: 1700000000 }] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_shared_step_history/42'),
+                expect.anything(),
+            );
+        });
+
+        it('shared-step history passes --limit and --offset to the API', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'history', '42', '--limit', '5', '--offset', '15'],
+                [jsonResponse({ history: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=5');
+            expect(url).toContain('offset=15');
+        });
+
+        it('shared-step history rejects non-positive id', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'history', '-1']);
+            expect(exitCodes).toContain(1);
+        });
     });
 
     // ── unknown resource ──────────────────────────────────────────────────────
