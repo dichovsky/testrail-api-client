@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "994d5b119149aa9b8fca38441a4e6ec03d95bfee4c0fc54f54792bb6448b306f",
+  "sourceHash": "4b4c6e26f4296fdd8662cbb4d62443f1992a925f23748f25542991b1fb3bdd07",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1591,14 +1591,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleCaseCopyToSection",
           "kind": "function",
-          "line": 93,
+          "line": 98,
           "exported": true,
           "signature": "export async function handleCaseCopyToSection(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleCaseMoveToSection",
           "kind": "function",
-          "line": 110,
+          "line": 115,
           "exported": true,
           "signature": "export async function handleCaseMoveToSection(ctx: HandlerContext): Promise<void>"
         }

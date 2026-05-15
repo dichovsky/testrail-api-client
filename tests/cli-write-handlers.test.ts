@@ -222,9 +222,11 @@ describe('handleCaseDeleteBulk', () => {
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }));
     });
 
-    it('passes soft=true when ctx.args.soft is set', async () => {
+    it('passes soft=true and surfaces preview counts when ctx.args.soft is set', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, {
+        // Soft preview returns affected-test counts from TestRail.
+        client.deleteCases.mockResolvedValueOnce({ affected_tests: 7 });
+        const { ctx, out } = buildCtx(client, {
             pathParams: ['5'],
             projectId: '9',
             confirmDestructive: true,
@@ -233,6 +235,13 @@ describe('handleCaseDeleteBulk', () => {
         });
         await handleCaseDeleteBulk(ctx);
         expect(client.deleteCases).toHaveBeenCalledWith(5, 9, { case_ids: [1] }, { soft: true });
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                soft: true,
+                deleted: false,
+                preview: { affected_tests: 7 },
+            }),
+        );
     });
 
     it('rejects without --yes', async () => {

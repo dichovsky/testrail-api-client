@@ -86,8 +86,13 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
         throw new Error('Destructive action; pass --yes to confirm.');
     }
 
-    await ctx.client.deleteCases(suiteId, projectId, body.payload, { soft });
-    ctx.out({ suiteId, projectId, soft, deleted: true });
+    if (soft) {
+        const preview = await ctx.client.deleteCases(suiteId, projectId, body.payload, { soft: true });
+        ctx.out({ suiteId, projectId, soft: true, deleted: false, preview });
+        return;
+    }
+    await ctx.client.deleteCases(suiteId, projectId, body.payload, { soft: false });
+    ctx.out({ suiteId, projectId, soft: false, deleted: true });
 }
 
 export async function handleCaseCopyToSection(ctx: HandlerContext): Promise<void> {
