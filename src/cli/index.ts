@@ -24,6 +24,7 @@ Read actions:
   project  get <id> | list [--limit N] [--offset N]
   suite    get <id> | list --project-id <id>
   case     get <id> | list --project-id <id> [--suite-id <id>]
+  case     history <case_id> [--limit N] [--offset N]
   run      get <id> | list --project-id <id> [--limit N] [--offset N]
   result   list --run-id <id> [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]

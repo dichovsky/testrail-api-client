@@ -1,7 +1,7 @@
 import type { Handler } from './handler-context.js';
 import { handleProjectGet, handleProjectList } from './handlers/project.js';
 import { handleSuiteGet, handleSuiteList } from './handlers/suite.js';
-import { handleCaseGet, handleCaseList } from './handlers/case.js';
+import { handleCaseGet, handleCaseList, handleCaseHistory } from './handlers/case.js';
 import { handleCaseAdd, handleCaseUpdate } from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
 import { handleRunAdd, handleRunClose } from './handlers/run-write.js';
@@ -46,6 +46,7 @@ const HANDLERS: Record<string, Handler> = {
     'suite:list': handleSuiteList,
     'case:get': handleCaseGet,
     'case:list': handleCaseList,
+    'case:history': handleCaseHistory,
     'case:add': handleCaseAdd,
     'case:update': handleCaseUpdate,
     'run:get': handleRunGet,

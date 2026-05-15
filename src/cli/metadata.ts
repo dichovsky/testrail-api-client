@@ -101,6 +101,13 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: false,
     },
     {
+        resource: 'case',
+        action: 'history',
+        summary: 'List edit history for a test case (paginated; TestRail 7.5+)',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        isWrite: false,
+    },
+    {
         resource: 'run',
         action: 'get',
         summary: 'Fetch a single run by ID',

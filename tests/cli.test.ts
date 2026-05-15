@@ -361,6 +361,34 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['case', 'update', '1']);
             expect(exitCodes).toContain(1);
         });
+
+        it('case history <id> should exit 0 and call get_history_for_case', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'history', '42'],
+                [jsonResponse({ history: [{ id: 1, user_id: 5, type_id: 2, timestamp: 1700000000 }] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_history_for_case/42'),
+                expect.anything(),
+            );
+        });
+
+        it('case history passes --limit and --offset to the API', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'history', '42', '--limit', '10', '--offset', '20'],
+                [jsonResponse({ history: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=10');
+            expect(url).toContain('offset=20');
+        });
+
+        it('case history rejects non-positive id', async () => {
+            const { exitCodes } = await runCli(['case', 'history', '0']);
+            expect(exitCodes).toContain(1);
+        });
     });
 
     // ── run ───────────────────────────────────────────────────────────────────

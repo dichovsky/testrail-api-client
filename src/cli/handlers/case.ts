@@ -11,3 +11,15 @@ export async function handleCaseList(ctx: HandlerContext): Promise<void> {
     const suiteId = optInt(ctx.args.suiteId);
     ctx.out(await ctx.client.getCases(pid, suiteId !== undefined ? { suiteId } : undefined));
 }
+
+export async function handleCaseHistory(ctx: HandlerContext): Promise<void> {
+    const id = parseId(ctx.args.pathParams[0], 'case id');
+    const limit = optInt(ctx.args.limit);
+    const offset = optInt(ctx.args.offset);
+    ctx.out(
+        await ctx.client.getHistoryForCase(id, {
+            ...(limit !== undefined && { limit }),
+            ...(offset !== undefined && { offset }),
+        }),
+    );
+}
