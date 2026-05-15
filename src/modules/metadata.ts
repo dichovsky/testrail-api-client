@@ -1,6 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Status, Priority, ResultField, CaseField, CaseType, Template, Role } from '../types.js';
-import type { CaseStatus } from '../schemas.js';
+import type { Status, Priority, ResultField, CaseField, CaseType, Template, Role, CaseStatus } from '../types.js';
 import {
     StatusSchema,
     PrioritySchema,

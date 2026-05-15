@@ -54,6 +54,8 @@ import type {
     UpdateDatasetPayload,
     Report,
     ReportResult,
+    HistoryEntry,
+    CaseStatus,
 } from './types.js';
 import type {
     AddCasePayload,
@@ -69,8 +71,6 @@ import type {
     UpdatePlanEntryPayload,
     AddRunToPlanEntryPayload,
     UpdateRunInPlanEntryPayload,
-    HistoryEntry,
-    CaseStatus,
 } from './schemas.js';
 import type { GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';

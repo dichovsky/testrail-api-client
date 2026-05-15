@@ -253,6 +253,33 @@ export interface Priority {
     priority: number; // weight/level
 }
 
+export interface CaseStatus {
+    case_status_id: number;
+    name: string;
+    abbreviation: string;
+    is_default: boolean;
+    is_approved: boolean;
+    is_untested: boolean;
+}
+
+export interface HistoryChange {
+    field?: string;
+    type_id?: number;
+    old_text?: string;
+    new_text?: string;
+}
+
+export interface HistoryEntry {
+    id: number;
+    user_id: number;
+    type_id: number;
+    /** Present on case-history entries */
+    timestamp?: number;
+    /** Present on shared-step-history entries */
+    created_on?: number;
+    changes?: HistoryChange[];
+}
+
 // AddCasePayload and UpdateCasePayload now live in `./schemas.ts` as Zod
 // schemas (source of truth for runtime validation + inferred TS types).
 

@@ -68,8 +68,6 @@ export type {
     UpdateRunInPlanEntryPayload,
     AddPlanPayload,
     UpdatePlanPayload,
-    CaseStatus,
-    HistoryEntry,
 } from './schemas.js';
 export type { GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
@@ -133,4 +131,7 @@ export type {
     UpdateDatasetPayload,
     Report,
     ReportResult,
+    HistoryEntry,
+    HistoryChange,
+    CaseStatus,
 } from './types.js';

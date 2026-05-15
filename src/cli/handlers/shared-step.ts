@@ -12,7 +12,7 @@ export async function handleSharedStepList(ctx: HandlerContext): Promise<void> {
 }
 
 export async function handleSharedStepHistory(ctx: HandlerContext): Promise<void> {
-    const id = parseId(ctx.args.pathParams[0], 'shared step id');
+    const id = parseId(ctx.args.pathParams[0], 'shared update id');
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
     ctx.out(

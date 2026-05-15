@@ -25,6 +25,8 @@ import type {
     Template,
     ConfigurationGroup,
     Configuration,
+    HistoryEntry,
+    CaseStatus,
 } from '../src/types.js';
 import type {
     AddCasePayload,
@@ -40,8 +42,6 @@ import type {
     UpdatePlanEntryPayload,
     AddRunToPlanEntryPayload,
     UpdateRunInPlanEntryPayload,
-    HistoryEntry,
-    CaseStatus,
 } from '../src/schemas.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';
 

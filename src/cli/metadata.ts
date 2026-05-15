@@ -272,7 +272,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         resource: 'shared-step',
         action: 'history',
         summary: 'List revision history for a shared step (paginated)',
-        pathParams: [{ name: 'shared_update_id', description: 'TestRail shared step ID' }],
+        pathParams: [{ name: 'shared_update_id', description: 'TestRail shared update (revision) ID' }],
         isWrite: false,
     },
     // ── Case-status read action ───────────────────────────────────────────
