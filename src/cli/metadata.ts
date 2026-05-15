@@ -383,6 +383,25 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: true,
         destructive: true,
     },
+    // ── BDD actions (text I/O for `get`, file input for `add`) ────────────
+    // `bdd get` returns Gherkin `.feature` text (not JSON); written to --out
+    // as UTF-8. `bdd add` reuses the multipart upload path of attachments.
+    {
+        resource: 'bdd',
+        action: 'get',
+        summary: "Download a case's BDD (Gherkin .feature) content to --out <path>",
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        fileOutput: true,
+        isWrite: false,
+    },
+    {
+        resource: 'bdd',
+        action: 'add',
+        summary: 'Upload a .feature file as the BDD content for a case',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        fileInput: true,
+        isWrite: true,
+    },
 ];
 
 /** Look up the spec for a resource:action pair, or return undefined. */

@@ -681,6 +681,100 @@ export class TestRailClientCore {
     }
 
     /**
+     * Makes an HTTP request to the TestRail API and returns the raw text body.
+     * Used for endpoints whose response is **not** JSON — currently only the
+     * BDD endpoint `get_bdd/{case_id}`, which returns a Gherkin `.feature`
+     * file as `text/plain`.
+     *
+     * Mirrors the retry / rate-limit / timeout / DNS-validation pipeline of
+     * {@link request} but swaps the JSON parse for `response.text()`.
+     * Intentionally bypasses the GET-LRU cache: text-response endpoints are
+     * rare and the cache key would collide with the JSON `request<T>()`
+     * variant for the same endpoint (e.g. a future endpoint hit by both).
+     * Mutating callers (`method !== 'GET'`) still invalidate the JSON cache.
+     *
+     * @param method - HTTP method (GET, POST)
+     * @param endpoint - API endpoint path (without base URL prefix)
+     * @param data - Optional request body
+     * @param retryCount - Current retry attempt (internal — do not pass)
+     * @throws {TestRailApiError} When the API request fails or network error occurs
+     * @throws {Error} When called after `destroy()`
+     */
+    public async requestText(method: string, endpoint: string, data?: unknown, retryCount = 0): Promise<string> {
+        if (this.isDestroyed) {
+            throw new Error('Cannot use TestRailClient after destroy() has been called');
+        }
+
+        await this.awaitDnsValidation();
+
+        this.checkRateLimit();
+
+        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
+        const headers: Record<string, string> = {
+            Authorization: `Basic ${this.auth}`,
+            'Content-Type': 'application/json',
+            'User-Agent': USER_AGENT,
+        };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        const options: RequestInit = {
+            method,
+            headers,
+            signal: controller.signal,
+        };
+
+        if (data !== undefined) {
+            options.body = JSON.stringify(data);
+        }
+
+        try {
+            const response: Response = await fetch(url, options);
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+
+                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
+                    const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+                    const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
+                    await sleep(delay);
+                    return this.requestText(method, endpoint, data, retryCount + 1);
+                }
+
+                throw new TestRailApiError(response.status, response.statusText, errorText);
+            }
+
+            // Mutating calls still invalidate the JSON cache so subsequent
+            // GETs see the new state.
+            if (method !== 'GET') {
+                this.clearCache();
+            }
+
+            return response.text();
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            if (error instanceof TestRailApiError) {
+                throw error;
+            }
+
+            const isAbortError = (error as Error).name === 'AbortError';
+            if (isAbortError) {
+                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
+            }
+
+            if (retryCount < this.maxRetries) {
+                await sleep(this.getRetryDelay(retryCount));
+                return this.requestText(method, endpoint, data, retryCount + 1);
+            }
+
+            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+        }
+    }
+
+    /**
      * Makes a multipart/form-data POST request to the TestRail API.
      * Used exclusively for file attachment uploads. Applies rate limiting
      * and throws on failure, but does NOT retry (uploads are not idempotent).

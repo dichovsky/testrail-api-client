@@ -88,6 +88,7 @@ import { UsersModule } from './modules/users.js';
 import { MetadataModule } from './modules/metadata.js';
 import { ConfigurationModule } from './modules/configurations.js';
 import { AttachmentModule } from './modules/attachments.js';
+import { BddModule } from './modules/bdd.js';
 import { SharedStepModule } from './modules/sharedSteps.js';
 import { VariableModule } from './modules/variables.js';
 import { DatasetModule } from './modules/datasets.js';
@@ -117,6 +118,7 @@ export class TestRailClient extends TestRailClientCore {
     public readonly metadata: MetadataModule;
     public readonly configurations: ConfigurationModule;
     public readonly attachments: AttachmentModule;
+    public readonly bdd: BddModule;
     public readonly sharedSteps: SharedStepModule;
     public readonly variables: VariableModule;
     public readonly datasets: DatasetModule;
@@ -137,6 +139,7 @@ export class TestRailClient extends TestRailClientCore {
         this.metadata = new MetadataModule(this);
         this.configurations = new ConfigurationModule(this);
         this.attachments = new AttachmentModule(this);
+        this.bdd = new BddModule(this);
         this.sharedSteps = new SharedStepModule(this);
         this.variables = new VariableModule(this);
         this.datasets = new DatasetModule(this);
@@ -1136,6 +1139,40 @@ export class TestRailClient extends TestRailClientCore {
      */
     async deleteAttachment(attachmentId: number): Promise<void> {
         return this.attachments.deleteAttachment(attachmentId);
+    }
+
+    // ── BDDs ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Get the BDD (Gherkin `.feature`) content for a case as raw text.
+     *
+     * Unlike most endpoints this returns text, not JSON — the response is the
+     * `.feature` file body (Gherkin syntax). Returns an empty string when the
+     * case has no BDD content. TestRail 7.5+.
+     *
+     * @param caseId - Case identifier.
+     * @throws {TestRailValidationError} When caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async getBdd(caseId: number): Promise<string> {
+        return this.bdd.getBdd(caseId);
+    }
+
+    /**
+     * Upload a `.feature` file to a case as its BDD content. TestRail 7.5+.
+     *
+     * @param caseId - Case identifier.
+     * @param file - `.feature` file contents to upload (Gherkin).
+     * @param filename - Filename to send with the multipart upload.
+     * @throws {TestRailValidationError} When caseId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addBdd(
+        caseId: number,
+        file: globalThis.Blob | Uint8Array | globalThis.File,
+        filename: string,
+    ): Promise<Case> {
+        return this.bdd.addBdd(caseId, file, filename);
     }
 
     // ── Shared Steps ──────────────────────────────────────────────────────────

@@ -1011,4 +1011,85 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });
+
+    describe('bdd', () => {
+        let tmp: string;
+        beforeEach(() => {
+            tmp = mkdtempSync(join(tmpdir(), 'tr-cli-bdd-'));
+        });
+        afterEach(() => {
+            rmSync(tmp, { recursive: true, force: true });
+        });
+
+        it('get writes Gherkin text to --out path', async () => {
+            const outPath = join(tmp, 'login.feature');
+            const gherkin = 'Feature: Login\n  Scenario: ok\n';
+            // text/plain — must NOT be JSON-parsed.
+            const textResp = new Response(gherkin, {
+                status: 200,
+                statusText: 'OK',
+                headers: { 'Content-Type': 'text/plain' },
+            });
+            const { exitCodes, stdout } = await runCli(['bdd', 'get', '42', '--out', outPath], [textResp]);
+            expect(exitCodes).toContain(0);
+            expect(existsSync(outPath)).toBe(true);
+            expect(readFileSync(outPath, 'utf-8')).toBe(gherkin);
+            expect(stdout).toContain('"size"');
+        });
+
+        it('get refuses to overwrite without --force', async () => {
+            const outPath = join(tmp, 'exists.feature');
+            writeFileSync(outPath, 'old');
+            const { exitCodes, stderr } = await runCli(['bdd', 'get', '42', '--out', outPath]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Refusing to overwrite');
+            expect(readFileSync(outPath, 'utf-8')).toBe('old');
+        });
+
+        it('get --dry-run skips fetch and write', async () => {
+            const outPath = join(tmp, 'preview.feature');
+            const { exitCodes, stdout } = await runCli(['bdd', 'get', '42', '--out', outPath, '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun"');
+            expect(existsSync(outPath)).toBe(false);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('add uploads --file and returns updated Case', async () => {
+            const filePath = join(tmp, 'login.feature');
+            writeFileSync(filePath, 'Feature: Login\n');
+            const updatedCase = {
+                id: 1,
+                title: 'BDD case',
+                section_id: 1,
+                suite_id: 1,
+                created_by: 1,
+                created_on: 0,
+                updated_by: 1,
+                updated_on: 0,
+            };
+            const { exitCodes, stdout } = await runCli(
+                ['bdd', 'add', '1', '--file', filePath],
+                [jsonResponse(updatedCase)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"id"');
+        });
+
+        it('add --dry-run skips fetch entirely', async () => {
+            const filePath = join(tmp, 'login.feature');
+            writeFileSync(filePath, 'Feature: Login\n');
+            const { exitCodes, stdout } = await runCli(['bdd', 'add', '1', '--file', filePath, '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun"');
+            expect(stdout).toContain('"size"');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('add exits 1 when --file is missing', async () => {
+            const { exitCodes, stderr } = await runCli(['bdd', 'add', '1']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--file');
+        });
+    });
 });

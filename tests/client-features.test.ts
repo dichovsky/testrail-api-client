@@ -1004,6 +1004,164 @@ describe('TestRailClient - Enhanced Features', () => {
         });
     });
 
+    describe('requestText - retry, timeout, and network error paths', () => {
+        beforeEach(() => {
+            client = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 1,
+                enableCache: false,
+            });
+        });
+
+        it('should retry on 5xx and succeed on second attempt', async () => {
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    text: async () => 'server error',
+                    headers: { get: () => null },
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => 'Feature: ok\n',
+                    headers: { get: () => null },
+                });
+
+            const result = await client.getBdd(1);
+            expect(result).toBe('Feature: ok\n');
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            expect(sleep).toHaveBeenCalledTimes(1);
+        });
+
+        it('should retry on 429 honoring Retry-After header', async () => {
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    text: async () => 'rate limited',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '1' : null) },
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => 'Feature: ok\n',
+                    headers: { get: () => null },
+                });
+
+            const result = await client.getBdd(1);
+            expect(result).toBe('Feature: ok\n');
+            expect(sleep).toHaveBeenCalledWith(1000);
+        });
+
+        it('should throw TestRailApiError after exhausting retries on 5xx', async () => {
+            mockFetch.mockResolvedValue({
+                ok: false,
+                status: 500,
+                statusText: 'Internal Server Error',
+                text: async () => 'server error',
+                headers: { get: () => null },
+            });
+
+            await expect(client.getBdd(1)).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
+        });
+
+        it('should throw TestRailApiError on requestText timeout (AbortError)', async () => {
+            mockFetch.mockImplementationOnce(() => {
+                const err = new Error('The operation was aborted');
+                err.name = 'AbortError';
+                return Promise.reject(err);
+            });
+
+            await expect(client.getBdd(1)).rejects.toThrow('Request timeout after');
+        });
+
+        it('should retry on network error and succeed', async () => {
+            mockFetch.mockRejectedValueOnce(new Error('ECONNRESET')).mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => 'Feature: ok\n',
+                headers: { get: () => null },
+            });
+
+            const result = await client.getBdd(1);
+            expect(result).toBe('Feature: ok\n');
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('should throw TestRailApiError after exhausting retries on network error', async () => {
+            mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+
+            await expect(client.getBdd(1)).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
+        });
+
+        it('should throw when requestText is called after destroy()', async () => {
+            const destroyedClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+            destroyedClient.destroy();
+
+            await expect(destroyedClient.getBdd(1)).rejects.toThrow(
+                'Cannot use TestRailClient after destroy() has been called',
+            );
+        });
+
+        it('should invalidate JSON cache on mutating requestText call (POST)', async () => {
+            // First, prime the cache with a JSON GET.
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () =>
+                    JSON.stringify({ id: 1, name: 'Proj', suite_mode: 1, url: 'https://example.testrail.io/p/1' }),
+                headers: { get: () => null },
+            });
+            const freshClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 0,
+            });
+            await freshClient.getProject(1);
+
+            // Now invoke requestText with a POST method via the public API surface:
+            // BddModule does GET only, so call requestText directly to exercise the
+            // POST branch that clears the cache.
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => 'ok',
+                headers: { get: () => null },
+            });
+            await freshClient.requestText('POST', 'noop_endpoint');
+
+            // After cache clear, GET will hit the network again.
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () =>
+                    JSON.stringify({ id: 1, name: 'Proj', suite_mode: 1, url: 'https://example.testrail.io/p/1' }),
+                headers: { get: () => null },
+            });
+            await freshClient.getProject(1);
+            // 3 calls total: initial GET, POST via requestText, second GET after cache invalidation.
+            expect(mockFetch).toHaveBeenCalledTimes(3);
+        });
+    });
+
     describe('validateConfig - additional URL edge cases', () => {
         it('should throw for a non-parseable URL string', () => {
             expect(() => {

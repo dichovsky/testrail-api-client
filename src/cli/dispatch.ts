@@ -29,6 +29,7 @@ import {
 } from './handlers/attachment-write.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
 import { handleCaseStatusList } from './handlers/case-status.js';
+import { handleBddGet, handleBddAdd } from './handlers/bdd.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -84,6 +85,8 @@ const HANDLERS: Record<string, Handler> = {
     'shared-step:list': handleSharedStepList,
     'shared-step:history': handleSharedStepHistory,
     'case-status:list': handleCaseStatusList,
+    'bdd:get': handleBddGet,
+    'bdd:add': handleBddAdd,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {
