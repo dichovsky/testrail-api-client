@@ -1,6 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Project, AddProjectPayload, UpdateProjectPayload } from '../types.js';
+import type { Project } from '../types.js';
 import { ProjectSchema } from '../schemas.js';
+import type { AddProjectPayload, UpdateProjectPayload } from '../schemas.js';
 import { z } from 'zod';
 
 export class ProjectModule {

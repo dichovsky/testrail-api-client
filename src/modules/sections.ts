@@ -1,6 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Section, AddSectionPayload, UpdateSectionPayload } from '../types.js';
-import type { MoveSectionPayload } from '../schemas.js';
+import type { Section } from '../types.js';
+import type { AddSectionPayload, MoveSectionPayload, UpdateSectionPayload } from '../schemas.js';
 import { SectionSchema } from '../schemas.js';
 import { z } from 'zod';
 

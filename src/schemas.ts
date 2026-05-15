@@ -824,3 +824,89 @@ export const UpdatePlanPayloadSchema = zObject({
 });
 
 export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>;
+
+// ── Structural-setup write payloads ───────────────────────────────────────────
+// Project, Suite, Section, and Milestone create/update payloads. All schemas use
+// `.passthrough()` (via `zObject`) so forward-compatible TestRail fields and any
+// `custom_*` keys survive a round-trip through Zod parsing. `suite_mode` is left
+// as a plain `z.number()` rather than a `1|2|3` literal union — TestRail rejects
+// invalid values server-side with a clear error, and a client-side literal union
+// would have to track future modes the schema can't anticipate.
+
+export const AddProjectPayloadSchema = zObject({
+    name: z.string(),
+    announcement: z.string().optional(),
+    show_announcement: z.boolean().optional(),
+    suite_mode: z.number().optional(),
+});
+
+export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>;
+
+export const UpdateProjectPayloadSchema = zObject({
+    name: z.string().optional(),
+    announcement: z.string().optional(),
+    show_announcement: z.boolean().optional(),
+    suite_mode: z.number().optional(),
+});
+
+export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>;
+
+export const AddSuitePayloadSchema = zObject({
+    name: z.string(),
+    description: z.string().optional(),
+});
+
+export type AddSuitePayload = z.infer<typeof AddSuitePayloadSchema>;
+
+export const UpdateSuitePayloadSchema = zObject({
+    name: z.string().optional(),
+    description: z.string().optional(),
+});
+
+export type UpdateSuitePayload = z.infer<typeof UpdateSuitePayloadSchema>;
+
+// `suite_id` is required by TestRail when adding a section to a multi-suite-mode
+// project (suite_mode 2 or 3) and forbidden in single-suite mode (suite_mode 1).
+// Modelled as optional so both modes work; the server returns a 400 if the
+// caller's mode/`suite_id` combination is invalid. We do NOT replicate that
+// suite-mode interaction client-side — TestRail is the authoritative source on
+// the project's mode at request time.
+export const AddSectionPayloadSchema = zObject({
+    name: z.string(),
+    suite_id: z.number().optional(),
+    parent_id: z.number().optional(),
+    description: z.string().optional(),
+});
+
+export type AddSectionPayload = z.infer<typeof AddSectionPayloadSchema>;
+
+export const UpdateSectionPayloadSchema = zObject({
+    name: z.string().optional(),
+    description: z.string().optional(),
+});
+
+export type UpdateSectionPayload = z.infer<typeof UpdateSectionPayloadSchema>;
+
+export const AddMilestonePayloadSchema = zObject({
+    name: z.string(),
+    description: z.string().optional(),
+    due_on: z.number().optional(),
+    start_on: z.number().optional(),
+    parent_id: z.number().optional(),
+    refs: z.string().optional(),
+});
+
+export type AddMilestonePayload = z.infer<typeof AddMilestonePayloadSchema>;
+
+export const UpdateMilestonePayloadSchema = zObject({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    due_on: z.number().optional(),
+    start_on: z.number().optional(),
+    parent_id: z.number().optional(),
+    refs: z.string().optional(),
+    is_completed: z.boolean().optional(),
+    is_started: z.boolean().optional(),
+});
+
+export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>;

@@ -971,6 +971,118 @@ describe('CLI', () => {
         });
     });
 
+    // ── Structural-setup write actions ────────────────────────────────────
+    // Subprocess coverage for the project/suite/section/milestone add+update
+    // CLI surface. Unit-level coverage lives in tests/cli-write-handlers.test.ts;
+    // these cases verify the end-to-end shape: dispatch → handler → URL → exit.
+    describe('project add/update', () => {
+        it('project add POSTs to add_project (no path param) with the payload', async () => {
+            const { exitCodes } = await runCli(
+                ['project', 'add', '--data', '{"name":"P","suite_mode":1}'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_project');
+        });
+
+        it('project update POSTs to update_project/{project_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['project', 'update', '1', '--data', '{"name":"Renamed"}'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_project/1');
+        });
+    });
+
+    describe('suite add/update', () => {
+        it('suite add POSTs to add_suite/{project_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['suite', 'add', '1', '--data', '{"name":"S"}'],
+                [jsonResponse(MOCK_SUITE)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_suite/1');
+        });
+
+        it('suite update POSTs to update_suite/{suite_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['suite', 'update', '1', '--data', '{"name":"S2"}'],
+                [jsonResponse(MOCK_SUITE)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_suite/1');
+        });
+    });
+
+    describe('section add/update', () => {
+        it('section add POSTs to add_section/{project_id} with suite_id in body', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'add', '1', '--data', '{"name":"Sec","suite_id":1}'],
+                [jsonResponse({ id: 33, suite_id: 1, name: 'Sec', display_order: 1, depth: 0 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_section/1');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['suite_id']).toBe(1);
+        });
+
+        it('section update POSTs to update_section/{section_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'update', '33', '--data', '{"name":"Sec2"}'],
+                [jsonResponse({ id: 33, suite_id: 1, name: 'Sec2', display_order: 1, depth: 0 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_section/33');
+        });
+
+        it('section add --dry-run does not POST', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'section',
+                'add',
+                '1',
+                '--data',
+                '{"name":"Sec"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('milestone add/update', () => {
+        it('milestone add POSTs to add_milestone/{project_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['milestone', 'add', '1', '--data', '{"name":"M"}'],
+                [jsonResponse(MOCK_MILESTONE)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_milestone/1');
+        });
+
+        it('milestone update POSTs is_completed toggle', async () => {
+            const { exitCodes } = await runCli(
+                ['milestone', 'update', '5', '--data', '{"is_completed":true}'],
+                [jsonResponse({ ...MOCK_MILESTONE, is_completed: true })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_milestone/5');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['is_completed']).toBe(true);
+        });
+    });
+
     describe('run add', () => {
         it('POSTs the payload and returns the created run', async () => {
             const { exitCodes } = await runCli(

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient } from '../src/client.js';
-import type { AddProjectPayload, UpdateProjectPayload, Project } from '../src/types.js';
+import type { Project } from '../src/types.js';
+import type { AddProjectPayload, UpdateProjectPayload } from '../src/schemas.js';
 import { createClient, mockOk, mockErr } from './helpers.js';
 
 const mockFetch = vi.fn();

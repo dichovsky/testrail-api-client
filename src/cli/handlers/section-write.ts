@@ -1,7 +1,41 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveBody } from '../body.js';
-import { MoveSectionPayloadSchema } from '../../schemas.js';
+import { AddSectionPayloadSchema, MoveSectionPayloadSchema, UpdateSectionPayloadSchema } from '../../schemas.js';
+
+export async function handleSectionAdd(ctx: HandlerContext): Promise<void> {
+    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
+    const body = resolveBody(ctx.bodyInput, AddSectionPayloadSchema);
+    if (!body.ok) throw new Error(body.error);
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: 'section add',
+            projectId,
+            payload: body.payload,
+            source: body.source,
+        });
+        return;
+    }
+    ctx.out(await ctx.client.addSection(projectId, body.payload));
+}
+
+export async function handleSectionUpdate(ctx: HandlerContext): Promise<void> {
+    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
+    const body = resolveBody(ctx.bodyInput, UpdateSectionPayloadSchema);
+    if (!body.ok) throw new Error(body.error);
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: 'section update',
+            sectionId,
+            payload: body.payload,
+            source: body.source,
+        });
+        return;
+    }
+    ctx.out(await ctx.client.updateSection(sectionId, body.payload));
+}
 
 /**
  * Move a section to a new parent and/or position (TestRail 6.5.2+).

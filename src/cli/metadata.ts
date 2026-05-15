@@ -15,6 +15,14 @@ import {
     AddPlanPayloadSchema,
     UpdatePlanPayloadSchema,
     AddPlanEntryPayloadSchema,
+    AddProjectPayloadSchema,
+    UpdateProjectPayloadSchema,
+    AddSuitePayloadSchema,
+    UpdateSuitePayloadSchema,
+    AddSectionPayloadSchema,
+    UpdateSectionPayloadSchema,
+    AddMilestonePayloadSchema,
+    UpdateMilestonePayloadSchema,
 } from '../schemas.js';
 
 /**
@@ -303,10 +311,79 @@ export const ACTIONS: readonly ActionSpec[] = [
     },
     {
         resource: 'section',
+        action: 'add',
+        summary: 'Create a new section in a project (suite_id required for multi-suite-mode projects)',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        bodySchema: AddSectionPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'section',
+        action: 'update',
+        summary: 'Update an existing section (partial fields)',
+        pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        bodySchema: UpdateSectionPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'section',
         action: 'move',
         summary: 'Move a section to a new parent and/or position (TestRail 6.5.2+)',
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
         bodySchema: MoveSectionPayloadSchema,
+        isWrite: true,
+    },
+    // ── Structural-setup write actions ────────────────────────────────────
+    // `project`, `suite`, and `milestone` add/update. Programmatic methods
+    // already exist; these expose them via the CLI for agent provisioning
+    // workflows. `user add/update` is intentionally deferred (TestRail 7.3+
+    // version gate + password-handling design questions).
+    {
+        resource: 'project',
+        action: 'add',
+        summary: 'Create a new project (no path params, payload-only)',
+        pathParams: [],
+        bodySchema: AddProjectPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'project',
+        action: 'update',
+        summary: 'Update an existing project (partial fields)',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        bodySchema: UpdateProjectPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'suite',
+        action: 'add',
+        summary: 'Create a new test suite in a project',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        bodySchema: AddSuitePayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'suite',
+        action: 'update',
+        summary: 'Update an existing test suite (partial fields)',
+        pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        bodySchema: UpdateSuitePayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'milestone',
+        action: 'add',
+        summary: 'Create a new milestone in a project',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        bodySchema: AddMilestonePayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'milestone',
+        action: 'update',
+        summary: 'Update an existing milestone (partial fields, including is_completed/is_started toggles)',
+        pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
+        bodySchema: UpdateMilestonePayloadSchema,
         isWrite: true,
     },
     // ── Shared-step read actions ──────────────────────────────────────────
