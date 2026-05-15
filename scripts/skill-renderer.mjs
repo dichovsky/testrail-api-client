@@ -11,6 +11,7 @@ const SCHEMA_NAMES = new Map([
     ['run:add', 'AddRunPayloadSchema'],
     ['result:add', 'AddResultPayloadSchema'],
     ['result:add-bulk', 'AddResultsForCasesPayloadSchema'],
+    ['result:add-bulk-by-test', 'AddResultsPayloadSchema'],
     ['plan:add', 'AddPlanPayloadSchema'],
     ['plan:update', 'UpdatePlanPayloadSchema'],
     ['plan:add-entry', 'AddPlanEntryPayloadSchema'],

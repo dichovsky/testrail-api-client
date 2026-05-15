@@ -19,6 +19,8 @@ import {
     AddResultPayloadSchema,
     AddResultForCasePayloadSchema,
     AddResultsForCasesPayloadSchema,
+    AddResultForTestPayloadSchema,
+    AddResultsPayloadSchema,
     PlanEntryRunPayloadSchema,
     AddPlanEntryPayloadSchema,
     UpdatePlanEntryPayloadSchema,
@@ -185,6 +187,64 @@ describe('AddResultsForCasesPayloadSchema', () => {
 
     it('rejects when results is not an array', () => {
         expect(() => AddResultsForCasesPayloadSchema.parse({ results: 'not-an-array' })).toThrow();
+    });
+});
+
+describe('AddResultForTestPayloadSchema', () => {
+    it('parses a minimal payload (test_id + status_id)', () => {
+        const parsed = AddResultForTestPayloadSchema.parse({ test_id: 42, status_id: 1 });
+        expect(parsed.test_id).toBe(42);
+        expect(parsed.status_id).toBe(1);
+    });
+
+    it('rejects when test_id is missing', () => {
+        expect(() => AddResultForTestPayloadSchema.parse({ status_id: 1 })).toThrow();
+    });
+
+    it('rejects when status_id is missing', () => {
+        expect(() => AddResultForTestPayloadSchema.parse({ test_id: 42 })).toThrow();
+    });
+
+    it('passes through custom_* fields unchanged', () => {
+        const parsed = AddResultForTestPayloadSchema.parse({
+            test_id: 42,
+            status_id: 1,
+            custom_browser: 'firefox',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_browser']).toBe('firefox');
+    });
+});
+
+describe('AddResultsPayloadSchema', () => {
+    it('parses a payload with an array of results', () => {
+        const parsed = AddResultsPayloadSchema.parse({
+            results: [
+                { test_id: 1, status_id: 1 },
+                { test_id: 2, status_id: 5, comment: 'failed' },
+            ],
+        });
+        expect(parsed.results).toHaveLength(2);
+    });
+
+    it('parses a payload with an empty results array', () => {
+        const parsed = AddResultsPayloadSchema.parse({ results: [] });
+        expect(parsed.results).toEqual([]);
+    });
+
+    it('rejects when results is missing', () => {
+        expect(() => AddResultsPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects when a nested result lacks test_id', () => {
+        expect(() =>
+            AddResultsPayloadSchema.parse({
+                results: [{ status_id: 1 }],
+            }),
+        ).toThrow();
+    });
+
+    it('rejects when results is not an array', () => {
+        expect(() => AddResultsPayloadSchema.parse({ results: 'not-an-array' })).toThrow();
     });
 });
 

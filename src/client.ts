@@ -62,6 +62,7 @@ import type {
     UpdateRunPayload,
     AddResultPayload,
     AddResultsForCasesPayload,
+    AddResultsPayload,
     AddPlanPayload,
     UpdatePlanPayload,
     AddPlanEntryPayload,
@@ -601,6 +602,15 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
         return this.results.addResultsForCases(runId, payload);
+    }
+
+    /**
+     * Add multiple results for tests in a run (by test_id).
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addResults(runId: number, payload: AddResultsPayload): Promise<Result[]> {
+        return this.results.addResults(runId, payload);
     }
 
     // ── Milestones ────────────────────────────────────────────────────────────

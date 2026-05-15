@@ -771,6 +771,32 @@ describe('CLI', () => {
         });
     });
 
+    describe('result add-bulk-by-test', () => {
+        it('POSTs the array payload to add_results/{run_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['result', 'add-bulk-by-test', '11', '--data', '{"results":[{"test_id":42,"status_id":1}]}'],
+                [jsonResponse([{ id: 200, status_id: 1 }])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_results/11'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('rejects body missing test_id', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'result',
+                'add-bulk-by-test',
+                '11',
+                '--data',
+                '{"results":[{"status_id":1}]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/validation failed/i);
+        });
+    });
+
     describe('attachment', () => {
         let tmp: string;
         beforeEach(() => {
