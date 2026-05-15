@@ -87,7 +87,15 @@ on stderr. Never echo or log the API key.
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
+| section | add | `<project_id>` | `AddSectionPayloadSchema` | Create a new section in a project (suite_id required for multi-suite-mode projects) |
+| section | update | `<section_id>` | `UpdateSectionPayloadSchema` | Update an existing section (partial fields) |
 | section | move | `<section_id>` | `MoveSectionPayloadSchema` | Move a section to a new parent and/or position (TestRail 6.5.2+) |
+| project | add | — | `AddProjectPayloadSchema` | Create a new project (no path params, payload-only) |
+| project | update | `<project_id>` | `UpdateProjectPayloadSchema` | Update an existing project (partial fields) |
+| suite | add | `<project_id>` | `AddSuitePayloadSchema` | Create a new test suite in a project |
+| suite | update | `<suite_id>` | `UpdateSuitePayloadSchema` | Update an existing test suite (partial fields) |
+| milestone | add | `<project_id>` | `AddMilestonePayloadSchema` | Create a new milestone in a project |
+| milestone | update | `<milestone_id>` | `UpdateMilestonePayloadSchema` | Update an existing milestone (partial fields, including is_completed/is_started toggles) |
 | shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
 | shared-step | list | — | — | List shared steps in a project |
 | shared-step | history | `<shared_update_id>` | — | List revision history for a shared step (paginated) |
@@ -298,12 +306,100 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 }
 ```
 
+### `AddSectionPayloadSchema` (used by `section add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "suite_id": "number?",
+    "parent_id": "number?",
+    "description": "string?"
+}
+```
+
+### `UpdateSectionPayloadSchema` (used by `section update`)
+
+```jsonc
+{
+    "name": "string?",
+    "description": "string?"
+}
+```
+
 ### `MoveSectionPayloadSchema` (used by `section move`)
 
 ```jsonc
 {
     "parent_id": "number?",
     "after_id": "number?"
+}
+```
+
+### `AddProjectPayloadSchema` (used by `project add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "announcement": "string?",
+    "show_announcement": "boolean?",
+    "suite_mode": "number?"
+}
+```
+
+### `UpdateProjectPayloadSchema` (used by `project update`)
+
+```jsonc
+{
+    "name": "string?",
+    "announcement": "string?",
+    "show_announcement": "boolean?",
+    "suite_mode": "number?"
+}
+```
+
+### `AddSuitePayloadSchema` (used by `suite add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "description": "string?"
+}
+```
+
+### `UpdateSuitePayloadSchema` (used by `suite update`)
+
+```jsonc
+{
+    "name": "string?",
+    "description": "string?"
+}
+```
+
+### `AddMilestonePayloadSchema` (used by `milestone add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "description": "string?",
+    "due_on": "number?",
+    "start_on": "number?",
+    "parent_id": "number?",
+    "refs": "string?"
+}
+```
+
+### `UpdateMilestonePayloadSchema` (used by `milestone update`)
+
+```jsonc
+{
+    "name": "string?",
+    "description": "string?",
+    "due_on": "number?",
+    "start_on": "number?",
+    "parent_id": "number?",
+    "refs": "string?",
+    "is_completed": "boolean?",
+    "is_started": "boolean?"
 }
 ```
 

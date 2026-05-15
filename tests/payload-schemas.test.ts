@@ -35,6 +35,14 @@ import {
     UpdateRunInPlanEntryPayloadSchema,
     AddPlanPayloadSchema,
     UpdatePlanPayloadSchema,
+    AddProjectPayloadSchema,
+    UpdateProjectPayloadSchema,
+    AddSuitePayloadSchema,
+    UpdateSuitePayloadSchema,
+    AddSectionPayloadSchema,
+    UpdateSectionPayloadSchema,
+    AddMilestonePayloadSchema,
+    UpdateMilestonePayloadSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -812,5 +820,179 @@ describe('UpdatePlanPayloadSchema', () => {
     it('lets custom_* fields pass through unchanged', () => {
         const parsed = UpdatePlanPayloadSchema.parse({ custom_state: 'frozen' }) as Record<string, unknown>;
         expect(parsed['custom_state']).toBe('frozen');
+    });
+});
+
+// ── Structural-setup payloads ─────────────────────────────────────────────
+
+describe('AddProjectPayloadSchema', () => {
+    it('parses a minimal valid payload (name only)', () => {
+        expect(AddProjectPayloadSchema.parse({ name: 'P' }).name).toBe('P');
+    });
+
+    it('parses a fully-populated payload', () => {
+        const parsed = AddProjectPayloadSchema.parse({
+            name: 'P',
+            announcement: 'a',
+            show_announcement: true,
+            suite_mode: 3,
+        });
+        expect(parsed.suite_mode).toBe(3);
+    });
+
+    it('rejects payload missing required name', () => {
+        expect(() => AddProjectPayloadSchema.parse({ suite_mode: 1 })).toThrow();
+    });
+
+    it('rejects non-numeric suite_mode (no coercion)', () => {
+        expect(() => AddProjectPayloadSchema.parse({ name: 'P', suite_mode: '1' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddProjectPayloadSchema.parse({ name: 'P', custom_tier: 'gold' }) as Record<string, unknown>;
+        expect(parsed['custom_tier']).toBe('gold');
+    });
+});
+
+describe('UpdateProjectPayloadSchema', () => {
+    it('parses an empty body (all fields optional)', () => {
+        expect(UpdateProjectPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a partial update', () => {
+        expect(UpdateProjectPayloadSchema.parse({ name: 'New' }).name).toBe('New');
+    });
+
+    it('rejects non-boolean show_announcement', () => {
+        expect(() => UpdateProjectPayloadSchema.parse({ show_announcement: 'yes' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateProjectPayloadSchema.parse({ custom_x: 1 }) as Record<string, unknown>;
+        expect(parsed['custom_x']).toBe(1);
+    });
+});
+
+describe('AddSuitePayloadSchema', () => {
+    it('parses a minimal valid payload', () => {
+        expect(AddSuitePayloadSchema.parse({ name: 'S' }).name).toBe('S');
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddSuitePayloadSchema.parse({ description: 'd' })).toThrow();
+    });
+
+    it('rejects non-string description', () => {
+        expect(() => AddSuitePayloadSchema.parse({ name: 'S', description: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddSuitePayloadSchema.parse({ name: 'S', custom_kind: 'manual' }) as Record<string, unknown>;
+        expect(parsed['custom_kind']).toBe('manual');
+    });
+});
+
+describe('UpdateSuitePayloadSchema', () => {
+    it('parses an empty body', () => {
+        expect(UpdateSuitePayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses partial updates', () => {
+        expect(UpdateSuitePayloadSchema.parse({ name: 'S2' }).name).toBe('S2');
+    });
+
+    it('rejects non-string name', () => {
+        expect(() => UpdateSuitePayloadSchema.parse({ name: 9 })).toThrow();
+    });
+});
+
+describe('AddSectionPayloadSchema', () => {
+    it('parses a minimal valid payload (single-suite-mode)', () => {
+        expect(AddSectionPayloadSchema.parse({ name: 'Sec' }).name).toBe('Sec');
+    });
+
+    it('parses a payload with suite_id (multi-suite-mode)', () => {
+        const parsed = AddSectionPayloadSchema.parse({ name: 'Sec', suite_id: 22 });
+        expect(parsed.suite_id).toBe(22);
+    });
+
+    it('parses a payload with parent_id', () => {
+        const parsed = AddSectionPayloadSchema.parse({ name: 'Sub', parent_id: 11 });
+        expect(parsed.parent_id).toBe(11);
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddSectionPayloadSchema.parse({ suite_id: 22 })).toThrow();
+    });
+
+    it('rejects non-number suite_id (no coercion)', () => {
+        expect(() => AddSectionPayloadSchema.parse({ name: 'Sec', suite_id: '22' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddSectionPayloadSchema.parse({ name: 'Sec', custom_tag: 'reg' }) as Record<string, unknown>;
+        expect(parsed['custom_tag']).toBe('reg');
+    });
+});
+
+describe('UpdateSectionPayloadSchema', () => {
+    it('parses an empty body', () => {
+        expect(UpdateSectionPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('rejects non-string description', () => {
+        expect(() => UpdateSectionPayloadSchema.parse({ description: 1 })).toThrow();
+    });
+});
+
+describe('AddMilestonePayloadSchema', () => {
+    it('parses a minimal valid payload (name only)', () => {
+        expect(AddMilestonePayloadSchema.parse({ name: 'M' }).name).toBe('M');
+    });
+
+    it('parses a fully-populated payload', () => {
+        const parsed = AddMilestonePayloadSchema.parse({
+            name: 'M',
+            description: 'd',
+            due_on: 1700000000,
+            start_on: 1690000000,
+            parent_id: 5,
+            refs: 'JIRA-1',
+        });
+        expect(parsed.due_on).toBe(1700000000);
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddMilestonePayloadSchema.parse({ refs: 'X' })).toThrow();
+    });
+
+    it('rejects non-numeric due_on (no coercion)', () => {
+        expect(() => AddMilestonePayloadSchema.parse({ name: 'M', due_on: '1700000000' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddMilestonePayloadSchema.parse({ name: 'M', custom_owner: 'u' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('u');
+    });
+});
+
+describe('UpdateMilestonePayloadSchema', () => {
+    it('parses an empty body', () => {
+        expect(UpdateMilestonePayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses state-toggle fields (is_completed / is_started)', () => {
+        const parsed = UpdateMilestonePayloadSchema.parse({ is_completed: true, is_started: false });
+        expect(parsed.is_completed).toBe(true);
+        expect(parsed.is_started).toBe(false);
+    });
+
+    it('rejects non-boolean is_completed', () => {
+        expect(() => UpdateMilestonePayloadSchema.parse({ is_completed: 'yes' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateMilestonePayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('x');
     });
 });

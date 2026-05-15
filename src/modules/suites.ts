@@ -1,6 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Suite, AddSuitePayload, UpdateSuitePayload } from '../types.js';
+import type { Suite } from '../types.js';
 import { SuiteSchema } from '../schemas.js';
+import type { AddSuitePayload, UpdateSuitePayload } from '../schemas.js';
 import { z } from 'zod';
 
 export class SuiteModule {

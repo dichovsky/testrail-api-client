@@ -14,10 +14,6 @@ import type {
     User,
     Status,
     Priority,
-    AddSuitePayload,
-    UpdateSuitePayload,
-    AddMilestonePayload,
-    UpdateMilestonePayload,
     GetRunsOptions,
     ResultField,
     CaseField,
@@ -47,6 +43,10 @@ import type {
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
     AddRunToPlanEntryPayload,
+    AddSuitePayload,
+    UpdateSuitePayload,
+    AddMilestonePayload,
+    UpdateMilestonePayload,
     UpdateRunInPlanEntryPayload,
 } from '../src/schemas.js';
 import { createClient, mockOk, mockErr, mockEmpty } from './helpers.js';

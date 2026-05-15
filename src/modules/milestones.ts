@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Milestone, GetMilestonesOptions, AddMilestonePayload, UpdateMilestonePayload } from '../types.js';
+import type { Milestone, GetMilestonesOptions } from '../types.js';
+import type { AddMilestonePayload, UpdateMilestonePayload } from '../schemas.js';
 import { MilestoneSchema } from '../schemas.js';
 import { z } from 'zod';
 

@@ -38,7 +38,10 @@ import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } fr
 import { handleCaseStatusList } from './handlers/case-status.js';
 import { handleBddGet, handleBddAdd } from './handlers/bdd.js';
 import { handleCaseFieldAdd } from './handlers/case-field-write.js';
-import { handleSectionMove } from './handlers/section-write.js';
+import { handleSectionAdd, handleSectionMove, handleSectionUpdate } from './handlers/section-write.js';
+import { handleProjectAdd, handleProjectUpdate } from './handlers/project-write.js';
+import { handleSuiteAdd, handleSuiteUpdate } from './handlers/suite-write.js';
+import { handleMilestoneAdd, handleMilestoneUpdate } from './handlers/milestone-write.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -54,8 +57,12 @@ import { handleSectionMove } from './handlers/section-write.js';
 const HANDLERS: Record<string, Handler> = {
     'project:get': handleProjectGet,
     'project:list': handleProjectList,
+    'project:add': handleProjectAdd,
+    'project:update': handleProjectUpdate,
     'suite:get': handleSuiteGet,
     'suite:list': handleSuiteList,
+    'suite:add': handleSuiteAdd,
+    'suite:update': handleSuiteUpdate,
     'case:get': handleCaseGet,
     'case:list': handleCaseList,
     'case:history': handleCaseHistory,
@@ -75,6 +82,8 @@ const HANDLERS: Record<string, Handler> = {
     'result:add-bulk-by-test': handleResultAddBulkByTest,
     'milestone:get': handleMilestoneGet,
     'milestone:list': handleMilestoneList,
+    'milestone:add': handleMilestoneAdd,
+    'milestone:update': handleMilestoneUpdate,
     'user:get': handleUserGet,
     'user:list': handleUserList,
     'plan:get': handlePlanGet,
@@ -101,6 +110,8 @@ const HANDLERS: Record<string, Handler> = {
     'bdd:get': handleBddGet,
     'bdd:add': handleBddAdd,
     'case-field:add': handleCaseFieldAdd,
+    'section:add': handleSectionAdd,
+    'section:update': handleSectionUpdate,
     'section:move': handleSectionMove,
 };
 

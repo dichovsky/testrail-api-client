@@ -73,15 +73,8 @@ export interface Suite {
     url: string;
 }
 
-export interface AddSuitePayload {
-    name: string;
-    description?: string;
-}
-
-export interface UpdateSuitePayload {
-    name?: string;
-    description?: string;
-}
+// AddSuitePayload and UpdateSuitePayload now live in `./schemas.ts` as Zod
+// schemas (source of truth for runtime validation + inferred TS types).
 
 export interface Section {
     id: number;
@@ -320,41 +313,9 @@ export interface GetCasesOptions {
 // AddResultsForCasesPayload, and AddResultForCasePayload also live there
 // (source of truth for runtime validation + inferred TS types).
 
-export interface AddSectionPayload {
-    name: string;
-    suite_id?: number;
-    parent_id?: number;
-    description?: string;
-}
-
-export interface UpdateSectionPayload {
-    name?: string;
-    description?: string;
-}
-
-export interface AddMilestonePayload {
-    name: string;
-    description?: string;
-    /** Unix timestamp */
-    due_on?: number;
-    /** Unix timestamp */
-    start_on?: number;
-    parent_id?: number;
-    refs?: string;
-}
-
-export interface UpdateMilestonePayload {
-    name?: string;
-    description?: string;
-    /** Unix timestamp */
-    due_on?: number;
-    /** Unix timestamp */
-    start_on?: number;
-    parent_id?: number;
-    refs?: string;
-    is_completed?: boolean;
-    is_started?: boolean;
-}
+// AddSectionPayload, UpdateSectionPayload, AddMilestonePayload, and
+// UpdateMilestonePayload now live in `./schemas.ts` as Zod schemas (source of
+// truth for runtime validation + inferred TS types).
 
 export interface GetRunsOptions {
     /** Return only runs created after this Unix timestamp */
@@ -510,19 +471,8 @@ export interface RateLimiterConfig {
     windowMs: number;
 }
 
-export interface AddProjectPayload {
-    name: string;
-    announcement?: string;
-    show_announcement?: boolean;
-    suite_mode?: number;
-}
-
-export interface UpdateProjectPayload {
-    name?: string;
-    announcement?: string;
-    show_announcement?: boolean;
-    suite_mode?: number;
-}
+// AddProjectPayload and UpdateProjectPayload now live in `./schemas.ts` as Zod
+// schemas (source of truth for runtime validation + inferred TS types).
 
 /**
  * Filter options for `getPlans()`.

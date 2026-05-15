@@ -296,7 +296,7 @@ describe('dispatch', () => {
         const result = dispatch('project', 'delete');
         expect(result.ok).toBe(false);
         if (!result.ok) {
-            expect(result.error).toBe("Unknown action 'delete' for project. Use: get, list");
+            expect(result.error).toBe("Unknown action 'delete' for project. Use: get, list, add, update");
         }
     });
 
@@ -423,7 +423,10 @@ describe('metadata vs dispatch consistency', () => {
         // query params and is fully driven by the request body (admin-level
         // POSTs that create instance-wide objects, e.g. `add_case_field`).
         // These intentionally have `pathParams: []`.
-        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add']);
+        // `project:add` joins the payload-only set: it creates an instance-wide
+        // project (no parent ID exists in the URL because the project itself is
+        // the top-level entity).
+        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add', 'project:add']);
         for (const spec of ACTIONS) {
             if (spec.action === 'list') continue;
             if (PAYLOAD_ONLY_WRITES.has(`${spec.resource}:${spec.action}`)) continue;

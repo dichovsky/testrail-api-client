@@ -31,7 +31,10 @@ import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
 import { handleRunAdd, handleRunClose } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
-import { handleSectionMove } from '../src/cli/handlers/section-write.js';
+import { handleSectionAdd, handleSectionMove, handleSectionUpdate } from '../src/cli/handlers/section-write.js';
+import { handleProjectAdd, handleProjectUpdate } from '../src/cli/handlers/project-write.js';
+import { handleSuiteAdd, handleSuiteUpdate } from '../src/cli/handlers/suite-write.js';
+import { handleMilestoneAdd, handleMilestoneUpdate } from '../src/cli/handlers/milestone-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
@@ -52,6 +55,14 @@ interface MockedClient {
     addPlan: ReturnType<typeof vi.fn>;
     updatePlan: ReturnType<typeof vi.fn>;
     addPlanEntry: ReturnType<typeof vi.fn>;
+    addProject: ReturnType<typeof vi.fn>;
+    updateProject: ReturnType<typeof vi.fn>;
+    addSuite: ReturnType<typeof vi.fn>;
+    updateSuite: ReturnType<typeof vi.fn>;
+    addSection: ReturnType<typeof vi.fn>;
+    updateSection: ReturnType<typeof vi.fn>;
+    addMilestone: ReturnType<typeof vi.fn>;
+    updateMilestone: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -72,6 +83,14 @@ function buildClient(): MockedClient {
         addPlan: vi.fn().mockResolvedValue({ id: 50, name: 'p' }),
         updatePlan: vi.fn().mockResolvedValue({ id: 50, name: 'p2' }),
         addPlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'e' }),
+        addProject: vi.fn().mockResolvedValue({ id: 7, name: 'New', suite_mode: 1, url: 'u' }),
+        updateProject: vi.fn().mockResolvedValue({ id: 7, name: 'Renamed', suite_mode: 1, url: 'u' }),
+        addSuite: vi.fn().mockResolvedValue({ id: 22, name: 'S', project_id: 7, url: 'u' }),
+        updateSuite: vi.fn().mockResolvedValue({ id: 22, name: 'S2', project_id: 7, url: 'u' }),
+        addSection: vi.fn().mockResolvedValue({ id: 33, name: 'Sec', suite_id: 22, display_order: 1, depth: 0 }),
+        updateSection: vi.fn().mockResolvedValue({ id: 33, name: 'Sec2', suite_id: 22, display_order: 1, depth: 0 }),
+        addMilestone: vi.fn().mockResolvedValue({ id: 44, name: 'M', is_completed: false, project_id: 7, url: 'u' }),
+        updateMilestone: vi.fn().mockResolvedValue({ id: 44, name: 'M', is_completed: true, project_id: 7, url: 'u' }),
     };
 }
 
@@ -835,5 +854,283 @@ describe('handlePlanAddEntry', () => {
     it('rejects when plan_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], dataFlag: '{"suite_id":1}' });
         await expect(handlePlanAddEntry(ctx)).rejects.toThrow(/plan_id/);
+    });
+});
+
+// ── project add ──────────────────────────────────────────────────────────
+
+describe('handleProjectAdd', () => {
+    it('calls client.addProject with parsed payload (no path params)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"name":"New","suite_mode":1}' });
+        await handleProjectAdd(ctx);
+        expect(client.addProject).toHaveBeenCalledWith(expect.objectContaining({ name: 'New', suite_mode: 1 }));
+        expect(out).toHaveBeenCalledWith({ id: 7, name: 'New', suite_mode: 1, url: 'u' });
+    });
+
+    it('dry-run does not call client and emits preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"name":"New"}', dryRun: true });
+        await handleProjectAdd(ctx);
+        expect(client.addProject).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'project add' }));
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), {});
+        await expect(handleProjectAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"suite_mode":1}' });
+        await expect(handleProjectAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+});
+
+// ── project update ────────────────────────────────────────────────────────
+
+describe('handleProjectUpdate', () => {
+    it('calls client.updateProject with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"Renamed"}' });
+        await handleProjectUpdate(ctx);
+        expect(client.updateProject).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'Renamed' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body (all fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['7'], dataFlag: '{}' });
+        await handleProjectUpdate(ctx);
+        expect(client.updateProject).toHaveBeenCalledWith(7, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleProjectUpdate(ctx);
+        expect(client.updateProject).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'project update', projectId: 7 }),
+        );
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{}' });
+        await expect(handleProjectUpdate(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+// ── suite add ────────────────────────────────────────────────────────────
+
+describe('handleSuiteAdd', () => {
+    it('calls client.addSuite with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"S"}' });
+        await handleSuiteAdd(ctx);
+        expect(client.addSuite).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'S' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"S"}', dryRun: true });
+        await handleSuiteAdd(ctx);
+        expect(client.addSuite).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'suite add', projectId: 7 }));
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleSuiteAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"description":"oops"}' });
+        await expect(handleSuiteAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{"name":"S"}' });
+        await expect(handleSuiteAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+// ── suite update ────────────────────────────────────────────────────────
+
+describe('handleSuiteUpdate', () => {
+    it('calls client.updateSuite with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['22'], dataFlag: '{"name":"S2"}' });
+        await handleSuiteUpdate(ctx);
+        expect(client.updateSuite).toHaveBeenCalledWith(22, expect.objectContaining({ name: 'S2' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body (all fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['22'], dataFlag: '{}' });
+        await handleSuiteUpdate(ctx);
+        expect(client.updateSuite).toHaveBeenCalledWith(22, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['22'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleSuiteUpdate(ctx);
+        expect(client.updateSuite).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'suite update', suiteId: 22 }),
+        );
+    });
+
+    it('rejects when suite_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['bad'], dataFlag: '{}' });
+        await expect(handleSuiteUpdate(ctx)).rejects.toThrow(/suite_id/);
+    });
+});
+
+// ── section add ─────────────────────────────────────────────────────────
+
+describe('handleSectionAdd', () => {
+    it('calls client.addSection with parsed payload (suite_id passes through for multi-suite)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"Sec","suite_id":22}' });
+        await handleSectionAdd(ctx);
+        expect(client.addSection).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'Sec', suite_id: 22 }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"Sec"}', dryRun: true });
+        await handleSectionAdd(ctx);
+        expect(client.addSection).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'section add', projectId: 7 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleSectionAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"suite_id":22}' });
+        await expect(handleSectionAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], dataFlag: '{"name":"Sec"}' });
+        await expect(handleSectionAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+// ── section update ──────────────────────────────────────────────────────
+
+describe('handleSectionUpdate', () => {
+    it('calls client.updateSection with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['33'], dataFlag: '{"name":"Sec2"}' });
+        await handleSectionUpdate(ctx);
+        expect(client.updateSection).toHaveBeenCalledWith(33, expect.objectContaining({ name: 'Sec2' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['33'], dataFlag: '{}' });
+        await handleSectionUpdate(ctx);
+        expect(client.updateSection).toHaveBeenCalledWith(33, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['33'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleSectionUpdate(ctx);
+        expect(client.updateSection).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'section update', sectionId: 33 }),
+        );
+    });
+
+    it('rejects when section_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{}' });
+        await expect(handleSectionUpdate(ctx)).rejects.toThrow(/section_id/);
+    });
+});
+
+// ── milestone add ───────────────────────────────────────────────────────
+
+describe('handleMilestoneAdd', () => {
+    it('calls client.addMilestone with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"name":"M","due_on":1700000000}',
+        });
+        await handleMilestoneAdd(ctx);
+        expect(client.addMilestone).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'M', due_on: 1700000000 }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"M"}', dryRun: true });
+        await handleMilestoneAdd(ctx);
+        expect(client.addMilestone).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'milestone add', projectId: 7 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleMilestoneAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"refs":"R-1"}' });
+        await expect(handleMilestoneAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"name":"M"}' });
+        await expect(handleMilestoneAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+// ── milestone update ───────────────────────────────────────────────────
+
+describe('handleMilestoneUpdate', () => {
+    it('calls client.updateMilestone with parsed payload (state toggle)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['44'], dataFlag: '{"is_completed":true}' });
+        await handleMilestoneUpdate(ctx);
+        expect(client.updateMilestone).toHaveBeenCalledWith(44, expect.objectContaining({ is_completed: true }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['44'], dataFlag: '{}' });
+        await handleMilestoneUpdate(ctx);
+        expect(client.updateMilestone).toHaveBeenCalledWith(44, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['44'], dataFlag: '{"is_started":true}', dryRun: true });
+        await handleMilestoneUpdate(ctx);
+        expect(client.updateMilestone).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'milestone update', milestoneId: 44 }),
+        );
+    });
+
+    it('rejects when milestone_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{}' });
+        await expect(handleMilestoneUpdate(ctx)).rejects.toThrow(/milestone_id/);
     });
 });

@@ -20,7 +20,15 @@ const SCHEMA_NAMES = new Map([
     ['plan:add', 'AddPlanPayloadSchema'],
     ['plan:update', 'UpdatePlanPayloadSchema'],
     ['plan:add-entry', 'AddPlanEntryPayloadSchema'],
+    ['section:add', 'AddSectionPayloadSchema'],
+    ['section:update', 'UpdateSectionPayloadSchema'],
     ['section:move', 'MoveSectionPayloadSchema'],
+    ['project:add', 'AddProjectPayloadSchema'],
+    ['project:update', 'UpdateProjectPayloadSchema'],
+    ['suite:add', 'AddSuitePayloadSchema'],
+    ['suite:update', 'UpdateSuitePayloadSchema'],
+    ['milestone:add', 'AddMilestonePayloadSchema'],
+    ['milestone:update', 'UpdateMilestonePayloadSchema'],
 ]);
 
 export function schemaNameFor(spec) {
