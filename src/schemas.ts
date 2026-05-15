@@ -585,9 +585,9 @@ export const AddRunToPlanEntryPayloadSchema = zObject({
 
 export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>;
 
-// Payload for POST update_run_in_plan_entry/{run_id}. Only the four mutable
-// per-run fields — `config_ids`, `name`, and `refs` are not accepted by the
-// endpoint, so we omit them client-side rather than silently passing them.
+// Payload for POST update_run_in_plan_entry/{run_id}. The endpoint only accepts
+// `description`, `assignedto_id`, `include_all`, and `case_ids`. `config_ids`,
+// `name`, and `refs` are silently dropped, so we omit them client-side.
 export const UpdateRunInPlanEntryPayloadSchema = zObject({
     description: z.string().optional(),
     assignedto_id: z.number().optional(),
