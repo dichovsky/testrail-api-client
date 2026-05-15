@@ -36,6 +36,7 @@ export {
     ReportResultSchema,
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
+    MoveSectionPayloadSchema,
     AddRunPayloadSchema,
     UpdateRunPayloadSchema,
     AddResultPayloadSchema,
@@ -54,6 +55,7 @@ export {
 export type {
     AddCasePayload,
     UpdateCasePayload,
+    MoveSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,

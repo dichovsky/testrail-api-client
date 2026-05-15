@@ -14,6 +14,7 @@ import { describe, it, expect } from 'vitest';
 import {
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
+    MoveSectionPayloadSchema,
     AddRunPayloadSchema,
     UpdateRunPayloadSchema,
     AddResultPayloadSchema,
@@ -84,6 +85,51 @@ describe('UpdateCasePayloadSchema', () => {
 
     it('rejects wrong type on optional field (no coercion)', () => {
         expect(() => UpdateCasePayloadSchema.parse({ priority_id: 'high' })).toThrow();
+    });
+});
+
+describe('MoveSectionPayloadSchema', () => {
+    it('parses an empty object (both fields optional)', () => {
+        const parsed = MoveSectionPayloadSchema.parse({});
+        expect(parsed).toEqual({});
+    });
+
+    it('parses parent_id=null (explicit move-to-root)', () => {
+        const parsed = MoveSectionPayloadSchema.parse({ parent_id: null });
+        expect(parsed.parent_id).toBeNull();
+    });
+
+    it('parses after_id=null (move-to-top)', () => {
+        const parsed = MoveSectionPayloadSchema.parse({ after_id: null });
+        expect(parsed.after_id).toBeNull();
+    });
+
+    it('parses parent_id and after_id together as numbers', () => {
+        const parsed = MoveSectionPayloadSchema.parse({ parent_id: 5, after_id: 10 });
+        expect(parsed.parent_id).toBe(5);
+        expect(parsed.after_id).toBe(10);
+    });
+
+    it('parses parent_id=null with after_id as a number', () => {
+        const parsed = MoveSectionPayloadSchema.parse({ parent_id: null, after_id: 42 });
+        expect(parsed.parent_id).toBeNull();
+        expect(parsed.after_id).toBe(42);
+    });
+
+    it('rejects parent_id as a string (no coercion)', () => {
+        expect(() => MoveSectionPayloadSchema.parse({ parent_id: '5' })).toThrow();
+    });
+
+    it('rejects after_id as a string (no coercion)', () => {
+        expect(() => MoveSectionPayloadSchema.parse({ after_id: '10' })).toThrow();
+    });
+
+    it('preserves unknown fields via passthrough()', () => {
+        const parsed = MoveSectionPayloadSchema.parse({
+            parent_id: 1,
+            custom_meta: { reason: 'restructure' },
+        }) as Record<string, unknown>;
+        expect(parsed['custom_meta']).toEqual({ reason: 'restructure' });
     });
 });
 

@@ -23,12 +23,14 @@ import { handleCaseAdd, handleCaseUpdate } from '../src/cli/handlers/case-write.
 import { handleRunAdd, handleRunClose } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
+import { handleSectionMove } from '../src/cli/handlers/section-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
     addCase: ReturnType<typeof vi.fn>;
     updateCase: ReturnType<typeof vi.fn>;
+    moveSection: ReturnType<typeof vi.fn>;
     addRun: ReturnType<typeof vi.fn>;
     closeRun: ReturnType<typeof vi.fn>;
     addResultForCase: ReturnType<typeof vi.fn>;
@@ -43,6 +45,7 @@ function buildClient(): MockedClient {
     return {
         addCase: vi.fn().mockResolvedValue({ id: 1, title: 'created' }),
         updateCase: vi.fn().mockResolvedValue({ id: 1, title: 'updated' }),
+        moveSection: vi.fn().mockResolvedValue(undefined),
         addRun: vi.fn().mockResolvedValue({ id: 10, name: 'r' }),
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
         addResultForCase: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
@@ -136,6 +139,59 @@ describe('handleCaseUpdate', () => {
         await handleCaseUpdate(ctx);
         expect(client.updateCase).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'case update', caseId: 7 }));
+    });
+});
+
+// ── section move ─────────────────────────────────────────────────────────
+
+describe('handleSectionMove', () => {
+    it('calls client.moveSection with parsed payload (parent_id=null preserved)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            dataFlag: '{"parent_id":null,"after_id":42}',
+        });
+        await handleSectionMove(ctx);
+        // null must reach the client method as null (explicit "move to root"),
+        // NOT be elided to undefined.
+        expect(client.moveSection).toHaveBeenCalledWith(5, { parent_id: null, after_id: 42 });
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ sectionId: 5, moved: true }));
+    });
+
+    it('accepts an empty body (both fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'], dataFlag: '{}' });
+        await handleSectionMove(ctx);
+        expect(client.moveSection).toHaveBeenCalledWith(5, {});
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['5'] });
+        await expect(handleSectionMove(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body with parent_id as string (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['5'], dataFlag: '{"parent_id":"3"}' });
+        await expect(handleSectionMove(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects non-positive section_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{"parent_id":null}' });
+        await expect(handleSectionMove(ctx)).rejects.toThrow(/section_id/);
+    });
+
+    it('dry-run does not call client and emits preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            dataFlag: '{"after_id":null}',
+            dryRun: true,
+        });
+        await handleSectionMove(ctx);
+        expect(client.moveSection).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'section move', sectionId: 5 }),
+        );
     });
 });
 
