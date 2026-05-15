@@ -34,7 +34,14 @@ function renderPathArgs(spec) {
 
 function bodyLabel(spec) {
     if (spec.fileInput === true) return '`--file <path>`';
-    if (spec.fileOutput === true) return '`--out <path>` (binary)';
+    if (spec.fileOutput === true) {
+        // `outputKind` differentiates UTF-8 text payloads (e.g. `bdd get`
+        // writes Gherkin) from opaque binary blobs (e.g. `attachment get`).
+        // Default to `binary` for backward compatibility with action specs
+        // that pre-date the field.
+        const kind = spec.outputKind === 'text' ? 'text' : 'binary';
+        return `\`--out <path>\` (${kind})`;
+    }
     if (!spec.isWrite) return '—';
     if (!spec.bodySchema) {
         if (spec.destructive === true) return '— (no body, requires `--yes`)';

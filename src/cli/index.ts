@@ -66,6 +66,10 @@ Attachment actions (binary file I/O):
   attachment add-to-plan-entry <plan_id> <entry_id>  --file <path> [--filename <name>]
   attachment delete <attachment_id>        --yes
 
+BDD actions (Gherkin .feature text I/O):
+  bdd get <case_id>                        --out <path> [--force]
+  bdd add <case_id>                        --file <path> [--filename <name>]
+
 Meta:
   install-skill [--global] [--force] [--print-path]
                                     Install the testrail-cli skill to

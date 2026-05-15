@@ -104,8 +104,8 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### BDDs ([API docs](https://support.testrail.com/hc/en-us/articles/7832161593620-BDDs)) — entire category, TestRail 7.5+
 
-- [ ] **`getBdd(caseId)`** — `GET get_bdd/{case_id}`. Returns `.feature` text (Gherkin), **not JSON**. Requires extending `client-core.ts` to expose a text-response path (or returning the raw `Response` body) — current `request()` always `JSON.parse`s. **Effort:** S–M. **Module:** `cases.ts` or new `bdd.ts`. **Trigger:** BDD/Gherkin export workflows.
-- [ ] **`addBdd(caseId, file)`** — `POST add_bdd/{case_id}` with multipart `.feature` upload. Reuses the multipart pipeline from `attachments.ts` (`AttachmentModule.addAttachment*`). **Effort:** S. **Trigger:** same; bundle with `getBdd`.
+- [x] **`getBdd(caseId)`** — Shipped with the "BDD endpoints" PR. `GET get_bdd/{case_id}` returns raw Gherkin `.feature` text (TestRail 7.5+). Required extending `TestRailClientCore` with a new `requestText()` method that mirrors `request<T>()`'s retry/rate-limit/timeout/DNS pipeline but swaps the JSON parse for `response.text()`. Lives in a new `src/modules/bdd.ts` module (not `cases.ts`) since BDDs are a distinct TestRail concept. CLI: `bdd get <case_id> --out <path> [--force]` writes UTF-8 text and emits an ack with byte count.
+- [x] **`addBdd(caseId, file, filename)`** — Shipped with the "BDD endpoints" PR. `POST add_bdd/{case_id}` with a multipart `.feature` upload via the existing `requestMultipart` pipeline. Returns the updated `Case` (verified against `CaseSchema`). CLI: `bdd add <case_id> --file <path> [--filename <name>]` (mirrors `attachment add-to-case` semantics, including dry-run preview).
 
 ### Cases ([API docs](https://support.testrail.com/hc/en-us/articles/7077292642580-Cases)) — bulk and history
 
@@ -143,7 +143,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 1. ~~**Bulk case operations PR**~~ — `updateCases`, `deleteCases`, `copyCasesToSection`, `moveCasesToSection` (shipped).
 2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
-3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
+3. ~~**BDD PR**~~ — `getBdd`, `addBdd` (shipped).
 4. ~~**History/statuses PR**~~ — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (shipped).
 5. **Standalone** — ~~`addResults`~~ (shipped), ~~`moveSection`~~ (shipped), ~~`addCaseField`~~ (shipped) (independent).
 

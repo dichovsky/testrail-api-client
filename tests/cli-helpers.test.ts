@@ -386,14 +386,18 @@ describe('metadata vs dispatch consistency', () => {
      * stdin purely on `--file` presence would also kill piped JSON bodies
      * for unrelated write actions that happened to have `--file` typo'd in.
      * Lock the discriminator's expected shape so the gate stays correct:
-     * only attachment uploads carry `fileInput: true`; nothing else.
+     * only attachment uploads and the BDD upload carry `fileInput: true`;
+     * nothing else. `bdd:add` is included because it shares the same
+     * multipart pipeline and the same stdin-suppression rationale.
      */
-    it('only attachment add-to-* actions are flagged as fileInput', () => {
+    it('only attachment add-to-* and bdd:add actions are flagged as fileInput', () => {
         for (const spec of ACTIONS) {
             if (spec.fileInput === true) {
+                const isAttachmentAdd = spec.resource === 'attachment' && spec.action.startsWith('add-to-');
+                const isBddAdd = spec.resource === 'bdd' && spec.action === 'add';
                 expect(
-                    spec.resource === 'attachment' && spec.action.startsWith('add-to-'),
-                    `${spec.resource}:${spec.action} carries fileInput but is not an attachment upload`,
+                    isAttachmentAdd || isBddAdd,
+                    `${spec.resource}:${spec.action} carries fileInput but is not an attachment/bdd upload`,
                 ).toBe(true);
             }
         }
@@ -404,6 +408,12 @@ describe('metadata vs dispatch consistency', () => {
                     spec.fileInput,
                     `${spec.resource}:${spec.action} is an attachment upload; must carry fileInput`,
                 ).toBe(true);
+            }
+        }
+        // Inverse: bdd:add must carry fileInput.
+        for (const spec of ACTIONS) {
+            if (spec.resource === 'bdd' && spec.action === 'add') {
+                expect(spec.fileInput, 'bdd:add is a multipart upload; must carry fileInput').toBe(true);
             }
         }
     });

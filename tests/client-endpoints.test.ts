@@ -3185,4 +3185,87 @@ describe('TestRailClient', () => {
             await expect(client.runReport(-1)).rejects.toThrow('reportTemplateId must be a positive integer');
         });
     });
+
+    // ── BDDs (Gherkin .feature) ───────────────────────────────────────────────
+
+    describe('getBdd', () => {
+        it('should return the BDD content as raw Gherkin text (not JSON)', async () => {
+            const gherkin = 'Feature: Login\n  Scenario: Valid credentials\n    Given a user\n';
+            // text/plain — must NOT be parsed as JSON.
+            mockFetch.mockResolvedValueOnce(
+                new Response(gherkin, {
+                    status: 200,
+                    headers: { 'Content-Type': 'text/plain' },
+                }),
+            );
+            const result = await client.getBdd(1);
+            expect(result).toBe(gherkin);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_bdd/1'),
+                expect.objectContaining({ method: 'GET' }),
+            );
+        });
+
+        it('should return an empty string when the case has no BDD content', async () => {
+            mockFetch.mockResolvedValueOnce(
+                new Response('', { status: 200, headers: { 'Content-Type': 'text/plain' } }),
+            );
+            const result = await client.getBdd(1);
+            expect(result).toBe('');
+        });
+
+        it('should throw for invalid caseId', async () => {
+            await expect(client.getBdd(0)).rejects.toThrow('caseId must be a positive integer');
+        });
+
+        it('should propagate API errors with structured body', async () => {
+            mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', 'no such case'));
+            await expect(client.getBdd(1)).rejects.toThrow();
+        });
+    });
+
+    describe('addBdd', () => {
+        it('should upload a .feature file and return the updated Case', async () => {
+            const updatedCase = {
+                id: 1,
+                title: 'BDD case',
+                section_id: 1,
+                suite_id: 1,
+                created_by: 1,
+                created_on: 0,
+                updated_by: 1,
+                updated_on: 0,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(updatedCase));
+            const blob = new globalThis.Blob(['Feature: x\n'], { type: 'text/plain' });
+            const result = await client.addBdd(1, blob, 'login.feature');
+            expect(result).toEqual(updatedCase);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_bdd/1'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should accept Uint8Array as file content', async () => {
+            const updatedCase = {
+                id: 2,
+                title: 'BDD case 2',
+                section_id: 1,
+                suite_id: 1,
+                created_by: 1,
+                created_on: 0,
+                updated_by: 1,
+                updated_on: 0,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(updatedCase));
+            const bytes = new globalThis.TextEncoder().encode('Feature: y\n');
+            const result = await client.addBdd(2, bytes, 'y.feature');
+            expect(result.id).toBe(2);
+        });
+
+        it('should throw for invalid caseId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.addBdd(0, blob, 'x.feature')).rejects.toThrow('caseId must be a positive integer');
+        });
+    });
 });
