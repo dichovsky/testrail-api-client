@@ -865,6 +865,43 @@ describe('CLI', () => {
         });
     });
 
+    describe('section move', () => {
+        it('POSTs to move_section/{section_id} with parent_id=null body', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'move', '5', '--data', '{"parent_id":null,"after_id":42}'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('move_section/5');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['parent_id']).toBeNull();
+            expect(body['after_id']).toBe(42);
+        });
+
+        it('exits 1 when body is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['section', 'move', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('--dry-run validates payload but does not POST', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'section',
+                'move',
+                '5',
+                '--data',
+                '{"parent_id":null}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"sectionId": 5');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
     describe('run add', () => {
         it('POSTs the payload and returns the created run', async () => {
             const { exitCodes } = await runCli(

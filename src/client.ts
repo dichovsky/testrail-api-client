@@ -64,6 +64,7 @@ import type {
     DeleteCasesPayload,
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
+    MoveSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,
@@ -291,6 +292,18 @@ export class TestRailClient extends TestRailClientCore {
      */
     async deleteSection(sectionId: number): Promise<void> {
         return this.sections.deleteSection(sectionId);
+    }
+
+    /**
+     * Move a section to a new parent and/or position within its container
+     * (TestRail 6.5.2+). `parent_id: null` moves to root; `after_id: null`
+     * moves to the top of the container. Omitted fields leave that axis
+     * unchanged. Returns no body.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async moveSection(sectionId: number, payload: MoveSectionPayload): Promise<void> {
+        return this.sections.moveSection(sectionId, payload);
     }
 
     // ── Cases ─────────────────────────────────────────────────────────────────

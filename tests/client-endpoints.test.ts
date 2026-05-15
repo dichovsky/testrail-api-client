@@ -35,6 +35,7 @@ import type {
     DeleteCasesPayload,
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
+    MoveSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,
@@ -325,6 +326,33 @@ describe('TestRailClient', () => {
 
             const result = await client.getSections(1);
             expect(result).toEqual([]);
+        });
+
+        describe('moveSection', () => {
+            it('POSTs to move_section/{section_id} with the payload', async () => {
+                mockFetch.mockResolvedValueOnce(mockEmpty());
+                const payload: MoveSectionPayload = { parent_id: null, after_id: 42 };
+                await client.moveSection(5, payload);
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('move_section/5'), expect.anything());
+                const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+                expect(init.method).toBe('POST');
+                // null must survive serialization — it carries the explicit
+                // "move to root" semantic and is NOT the same as omitting the
+                // field.
+                const body = JSON.parse(init.body as string) as Record<string, unknown>;
+                expect(body['parent_id']).toBeNull();
+                expect(body['after_id']).toBe(42);
+            });
+
+            it('accepts an empty payload (both fields optional)', async () => {
+                mockFetch.mockResolvedValueOnce(mockEmpty());
+                await client.moveSection(5, {});
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+            });
+
+            it('rejects non-positive-integer sectionId', async () => {
+                await expect(client.moveSection(0, {})).rejects.toThrow(TestRailValidationError);
+            });
         });
     });
 
