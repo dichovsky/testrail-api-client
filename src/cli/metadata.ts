@@ -253,6 +253,21 @@ export const ACTIONS: readonly ActionSpec[] = [
         bodySchema: AddPlanEntryPayloadSchema,
         isWrite: true,
     },
+    // ── Shared-step read actions ──────────────────────────────────────────
+    {
+        resource: 'shared-step',
+        action: 'get',
+        summary: 'Fetch a single shared step by ID',
+        pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
+        isWrite: false,
+    },
+    {
+        resource: 'shared-step',
+        action: 'list',
+        summary: 'List shared steps in a project',
+        pathParams: [],
+        isWrite: false,
+    },
     // ── Attachment read actions ───────────────────────────────────────────
     {
         resource: 'attachment',

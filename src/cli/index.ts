@@ -30,6 +30,7 @@ Read actions:
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
+  shared-step  get <id> | list --project-id <id>
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'

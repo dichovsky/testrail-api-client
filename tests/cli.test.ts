@@ -83,6 +83,15 @@ const MOCK_PLAN_ENTRY = {
     include_all: true,
     runs: [],
 };
+const MOCK_SHARED_STEP = {
+    id: 1,
+    title: 'Login Steps',
+    project_id: 1,
+    created_by: 1,
+    created_on: 0,
+    updated_by: 1,
+    updated_on: 0,
+};
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -497,6 +506,35 @@ describe('CLI', () => {
 
         it('user unknown action should exit 1', async () => {
             const { exitCodes } = await runCli(['user', 'create']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    // ── shared-step ───────────────────────────────────────────────────────────
+
+    describe('shared-step', () => {
+        it('shared-step get <id> should exit 0', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'get', '1'], [jsonResponse(MOCK_SHARED_STEP)]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_step/1'), expect.anything());
+        });
+
+        it('shared-step list --project-id should exit 0', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'list', '--project-id', '3'],
+                [jsonResponse([MOCK_SHARED_STEP])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_steps/3'), expect.anything());
+        });
+
+        it('shared-step get rejects non-positive id', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'get', '0']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('shared-step list requires --project-id', async () => {
+            const { exitCodes } = await runCli(['shared-step', 'list']);
             expect(exitCodes).toContain(1);
         });
     });
