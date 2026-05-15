@@ -1,4 +1,4 @@
-import { TestRailClient } from '@dichovsky/testrail-api-client';
+import { TestRailClient } from './src/index.js';
 
 /**
  * Example usage of the TestRail API Client

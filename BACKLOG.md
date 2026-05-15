@@ -121,9 +121,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Plans ([API docs](https://support.testrail.com/hc/en-us/articles/7077711537684-Plans)) — per-entry run management
 
-- [ ] **`addRunToPlanEntry(planId, entryId, payload)`** — `POST add_run_to_plan_entry/{plan_id}/{entry_id}`. Adds a config-specific run to an existing entry. Payload: `{ config_ids: number[], description?, assignedto_id?, include_all?, case_ids?, refs? }`. Returns a `Run`. **Effort:** S. **Module:** `plans.ts`. **Trigger:** any non-trivial plan automation.
-- [ ] **`updateRunInPlanEntry(runId, payload)`** — `POST update_run_in_plan_entry/{run_id}`. Updates a single run inside a plan entry (subset of `updateRun` fields: `description`, `assignedto_id`, `include_all`, `case_ids`). **Effort:** S. **Module:** `plans.ts`. **Trigger:** same; bundle with above.
-- [ ] **`deleteRunFromPlanEntry(runId)`** — `POST delete_run_from_plan_entry/{run_id}`. **Effort:** S. **Module:** `plans.ts`. **Trigger:** same; bundle with above.
+- [x] **`addRunToPlanEntry(planId, entryId, payload)` / `updateRunInPlanEntry(runId, payload)` / `deleteRunFromPlanEntry(runId)`** — Shipped together as the "Plan entry runs" PR. Three programmatic methods on `TestRailClient` (no CLI surface — deferred to a future PR once the `plan-entry` resource naming is settled). Two new dedicated payload schemas (`AddRunToPlanEntryPayloadSchema` with `config_ids` required; `UpdateRunInPlanEntryPayloadSchema` with the four mutable fields, all optional) — distinct from the loose `PlanEntryRunPayloadSchema` used for nested entries, matching Decision Log Q8 (honest fail-fast > silent fix). `update_run_in_plan_entry` rejects `name` / `config_ids` / `refs` client-side because the endpoint silently drops them.
 
 ### Results ([API docs](https://support.testrail.com/hc/en-us/articles/7077819312404-Results))
 

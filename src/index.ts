@@ -42,6 +42,8 @@ export {
     PlanEntryRunPayloadSchema,
     AddPlanEntryPayloadSchema,
     UpdatePlanEntryPayloadSchema,
+    AddRunToPlanEntryPayloadSchema,
+    UpdateRunInPlanEntryPayloadSchema,
     AddPlanPayloadSchema,
     UpdatePlanPayloadSchema,
 } from './schemas.js';
@@ -56,6 +58,8 @@ export type {
     PlanEntryRunPayload,
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
+    AddRunToPlanEntryPayload,
+    UpdateRunInPlanEntryPayload,
     AddPlanPayload,
     UpdatePlanPayload,
 } from './schemas.js';

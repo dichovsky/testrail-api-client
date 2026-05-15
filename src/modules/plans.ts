@@ -1,12 +1,15 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Plan, PlanEntry, GetPlansOptions } from '../types.js';
+import type { Plan, PlanEntry, Run, GetPlansOptions } from '../types.js';
 import {
     PlanSchema,
     PlanEntrySchema,
+    RunSchema,
     type AddPlanPayload,
     type UpdatePlanPayload,
     type AddPlanEntryPayload,
     type UpdatePlanEntryPayload,
+    type AddRunToPlanEntryPayload,
+    type UpdateRunInPlanEntryPayload,
 } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
@@ -84,5 +87,27 @@ export class PlanModule {
         this.client.validateId(planId, 'planId');
         this.client.validateEntryId(entryId);
         await this.client.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
+    }
+
+    async addRunToPlanEntry(planId: number, entryId: string, payload: AddRunToPlanEntryPayload): Promise<Run> {
+        this.client.validateId(planId, 'planId');
+        this.client.validateEntryId(entryId);
+        return this.client.parse<Run>(
+            RunSchema,
+            await this.client.request<unknown>('POST', `add_run_to_plan_entry/${planId}/${entryId}`, payload),
+        );
+    }
+
+    async updateRunInPlanEntry(runId: number, payload: UpdateRunInPlanEntryPayload): Promise<Run> {
+        this.client.validateId(runId, 'runId');
+        return this.client.parse<Run>(
+            RunSchema,
+            await this.client.request<unknown>('POST', `update_run_in_plan_entry/${runId}`, payload),
+        );
+    }
+
+    async deleteRunFromPlanEntry(runId: number): Promise<void> {
+        this.client.validateId(runId, 'runId');
+        await this.client.request<void>('POST', `delete_run_from_plan_entry/${runId}`);
     }
 }

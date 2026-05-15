@@ -66,6 +66,8 @@ import type {
     UpdatePlanPayload,
     AddPlanEntryPayload,
     UpdatePlanEntryPayload,
+    AddRunToPlanEntryPayload,
+    UpdateRunInPlanEntryPayload,
 } from './schemas.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
@@ -425,6 +427,33 @@ export class TestRailClient extends TestRailClientCore {
      */
     async deletePlanEntry(planId: number, entryId: string): Promise<void> {
         return this.plans.deletePlanEntry(planId, entryId);
+    }
+
+    /**
+     * Add a per-config run to an existing plan entry.
+     * @throws {TestRailValidationError} When planId is invalid or entryId is not a non-empty string
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async addRunToPlanEntry(planId: number, entryId: string, payload: AddRunToPlanEntryPayload): Promise<Run> {
+        return this.plans.addRunToPlanEntry(planId, entryId, payload);
+    }
+
+    /**
+     * Update a single run inside a plan entry.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateRunInPlanEntry(runId: number, payload: UpdateRunInPlanEntryPayload): Promise<Run> {
+        return this.plans.updateRunInPlanEntry(runId, payload);
+    }
+
+    /**
+     * Delete a single run from a plan entry.
+     * @throws {TestRailValidationError} When runId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteRunFromPlanEntry(runId: number): Promise<void> {
+        return this.plans.deleteRunFromPlanEntry(runId);
     }
 
     // ── Runs ──────────────────────────────────────────────────────────────────
