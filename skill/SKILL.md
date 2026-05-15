@@ -83,6 +83,7 @@ on stderr. Never echo or log the API key.
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
+| section | move | `<section_id>` | `MoveSectionPayloadSchema` | Move a section to a new parent and/or position (TestRail 6.5.2+) |
 | shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
 | shared-step | list | — | — | List shared steps in a project |
 | shared-step | history | `<shared_update_id>` | — | List revision history for a shared step (paginated) |
@@ -248,6 +249,15 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "case_ids": "number[]?",
     "config_ids": "number[]?",
     "runs": "object[]?"
+}
+```
+
+### `MoveSectionPayloadSchema` (used by `section move`)
+
+```jsonc
+{
+    "parent_id": "number?",
+    "after_id": "number?"
 }
 ```
 <!-- /GENERATED:payload-schemas -->

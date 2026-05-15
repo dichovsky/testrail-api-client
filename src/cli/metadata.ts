@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import {
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
+    MoveSectionPayloadSchema,
     AddRunPayloadSchema,
     AddResultPayloadSchema,
     AddResultsForCasesPayloadSchema,
@@ -251,6 +252,14 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary: 'Add an entry (suite + optional runs) to an existing test plan',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         bodySchema: AddPlanEntryPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'section',
+        action: 'move',
+        summary: 'Move a section to a new parent and/or position (TestRail 6.5.2+)',
+        pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        bodySchema: MoveSectionPayloadSchema,
         isWrite: true,
     },
     // ── Shared-step read actions ──────────────────────────────────────────

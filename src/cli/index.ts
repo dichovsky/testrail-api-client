@@ -45,6 +45,7 @@ Write actions (body via --data | --data-file | stdin):
   plan   add <project_id>           --data '{"name":"...","entries":[{"suite_id":1}]}'
   plan   update <plan_id>           --data '{"name":"..."}'
   plan   add-entry <plan_id>        --data '{"suite_id":1,"include_all":true}'
+  section move <section_id>         --data '{"parent_id":null,"after_id":42}'
 
 Attachment actions (binary file I/O):
   attachment list-for-case <case_id>
