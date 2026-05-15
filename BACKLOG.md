@@ -109,10 +109,10 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Cases ([API docs](https://support.testrail.com/hc/en-us/articles/7077292642580-Cases)) — bulk and history
 
-- [ ] **`updateCases(suiteId, payload)`** — `POST update_cases/{suite_id}` with body `{ case_ids: number[], ...sharedFields }`. Bulk-applies the same field values to many cases. Reuses `UpdateCasePayloadSchema` shape + `case_ids` array. **Effort:** M (payload schema, partial-failure semantics, doc the "all-or-nothing" server behavior). **Module:** `cases.ts`. **Trigger:** agents performing field-level batch edits.
-- [ ] **`deleteCases(suiteId, payload, options?)`** — `POST delete_cases/{suite_id}&project_id=X[&soft=1]`. Body: `{ case_ids: number[] }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** cleanup automations.
-- [ ] **`copyCasesToSection(sectionId, caseIds)`** — `POST copy_cases_to_section/{section_id}` with body `{ case_ids: number[] }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** suite reorganization tooling.
-- [ ] **`moveCasesToSection(sectionId, payload)`** — `POST move_cases_to_section/{section_id}` with body `{ case_ids: number[], suite_id?: number, section_id: number }`. **Effort:** S. **Module:** `cases.ts`. **Trigger:** same as above.
+- [x] **`updateCases(suiteId, payload)`** — Shipped with the "Bulk case operations" PR. `POST update_cases/{suite_id}` with body `{ case_ids: number[], ...sharedFields }`. Returns the array of updated cases. Inlined `UpdateCasesPayloadSchema` (not `.extend(UpdateCasePayloadSchema)`) to keep the `.passthrough()` behavior unambiguous, mirroring `AddResultForTestPayloadSchema`. Exposed on CLI as `case update-bulk <suite_id> --data ...`. Note: TestRail's online docs list `suite_id` as single-suite-mode optional; the reference Python client (`tolstislon/testrail-api`) and live API both treat it as required, so we keep it required as the path param.
+- [x] **`deleteCases(suiteId, projectId, payload, options?)`** — Shipped with the "Bulk case operations" PR. `POST delete_cases/{suite_id}&project_id=X[&soft=1]`. `project_id` is a required positional argument (not buried in options); `options.soft=true` adds `soft=1` (server-side preview — returns counts without deleting). Distinct from CLI `--dry-run` which short-circuits before any API call. CLI: `case delete-bulk <suite_id> --project-id <id> [--soft] --data ... --yes` (destructive, gated by `--yes`; `--dry-run` still wins over `--yes`).
+- [x] **`copyCasesToSection(sectionId, payload)`** — Shipped with the "Bulk case operations" PR. `POST copy_cases_to_section/{section_id}` with body `{ case_ids: number[] }`. Returns the new case copies as `Case[]`. CLI: `case copy-to-section <section_id> --data ...`. Schema is intentionally separate from `DeleteCasesPayloadSchema` despite the identical shape — a future field on either endpoint must not silently spread.
+- [x] **`moveCasesToSection(sectionId, payload)`** — Shipped with the "Bulk case operations" PR. `POST move_cases_to_section/{section_id}` with body `{ case_ids: number[], suite_id: number }`. **Original BACKLOG draft was wrong on the body shape**: TestRail does NOT take `section_id` in the body (it's path-only), and `suite_id` is required (not optional) — verified against the live API and the reference Python client. CLI: `case move-to-section <section_id> --data ...`.
 - [x] **`getHistoryForCase(caseId, options?)`** — Shipped with the "History/statuses" PR alongside `getSharedStepHistory` and `getCaseStatuses`. Exposed on CLI as `case history <case_id> [--limit N] [--offset N]`. Shares the new `HistoryEntrySchema` with `getSharedStepHistory` (one schema, `.passthrough()` covers `timestamp` vs `created_on` divergence).
 
 ### Case Fields ([API docs](https://support.testrail.com/hc/en-us/articles/7077272415636-Case-fields))
@@ -141,7 +141,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Suggested grouping for future PRs
 
-1. **Bulk case operations PR** — `updateCases`, `deleteCases`, `copyCasesToSection`, `moveCasesToSection` (share suite/section validation).
+1. ~~**Bulk case operations PR**~~ — `updateCases`, `deleteCases`, `copyCasesToSection`, `moveCasesToSection` (shipped).
 2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
 3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
 4. ~~**History/statuses PR**~~ — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (shipped).

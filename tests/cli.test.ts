@@ -398,6 +398,107 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['case', 'history', '0']);
             expect(exitCodes).toContain(1);
         });
+
+        it('case update-bulk POSTs to update_cases/{suite_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'update-bulk', '5', '--data', '{"case_ids":[1,2],"priority_id":3}'],
+                [jsonResponse([MOCK_CASE])],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_cases/5');
+        });
+
+        it('case delete-bulk requires --yes', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'case',
+                'delete-bulk',
+                '5',
+                '--project-id',
+                '9',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes/);
+        });
+
+        it('case delete-bulk with --yes POSTs and includes project_id query param', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'delete-bulk', '5', '--project-id', '9', '--yes', '--data', '{"case_ids":[1,2]}'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_cases/5');
+            expect(url).toContain('project_id=9');
+        });
+
+        it('case delete-bulk with --soft adds soft=1 to the URL', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'delete-bulk', '5', '--project-id', '9', '--soft', '--yes', '--data', '{"case_ids":[1]}'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('soft=1');
+        });
+
+        it('case delete-bulk with --dry-run skips the API call even with --yes', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'case',
+                'delete-bulk',
+                '5',
+                '--project-id',
+                '9',
+                '--yes',
+                '--dry-run',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        it('case delete-bulk without --project-id rejects', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'case',
+                'delete-bulk',
+                '5',
+                '--yes',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--project-id/);
+        });
+
+        it('case copy-to-section POSTs to copy_cases_to_section/{section_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'copy-to-section', '7', '--data', '{"case_ids":[1,2]}'],
+                [jsonResponse([MOCK_CASE])],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('copy_cases_to_section/7');
+        });
+
+        it('case move-to-section POSTs to move_cases_to_section/{section_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'move-to-section', '7', '--data', '{"case_ids":[1,2],"suite_id":3}'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('move_cases_to_section/7');
+        });
+
+        it('case move-to-section rejects body missing suite_id', async () => {
+            const { exitCodes } = await runCli(['case', 'move-to-section', '7', '--data', '{"case_ids":[1]}']);
+            expect(exitCodes).toContain(1);
+        });
     });
 
     // ── run ───────────────────────────────────────────────────────────────────

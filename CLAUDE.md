@@ -119,6 +119,8 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 **Destructive-ops convention:** `--yes` flag gates all destructive CLI actions. `--dry-run` wins over `--yes` (preview-without-API). Set `destructive: true` in metadata so the skill generator surfaces the gate in the command table.
 
+**`--soft` vs `--dry-run` (case delete-bulk):** `--soft` adds TestRail's `soft=1` query param — a _server-side_ preview where TestRail returns affected-test counts without deleting. The CLI still hits the API. `--dry-run` is _client-side_ — no API call at all. They are independent: `--dry-run --yes --soft` short-circuits before any request and emits a preview noting `soft: true`.
+
 **Modify caching:** `getCachedData()` / `setCachedData()` / `cleanupExpiredCache()` in `src/client-core.ts`.
 
 **Modify retry/rate limits:** Edit constants in `src/constants.ts`. Config overrides via `TestRailConfig.rateLimiter` / `maxRetries` / `timeout`.

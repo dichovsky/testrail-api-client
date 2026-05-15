@@ -19,7 +19,14 @@
  * delta over the flat case/run/result payloads.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { handleCaseAdd, handleCaseUpdate } from '../src/cli/handlers/case-write.js';
+import {
+    handleCaseAdd,
+    handleCaseUpdate,
+    handleCaseUpdateBulk,
+    handleCaseDeleteBulk,
+    handleCaseCopyToSection,
+    handleCaseMoveToSection,
+} from '../src/cli/handlers/case-write.js';
 import { handleRunAdd, handleRunClose } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
@@ -29,6 +36,10 @@ import type { HandlerContext } from '../src/cli/handler-context.js';
 interface MockedClient {
     addCase: ReturnType<typeof vi.fn>;
     updateCase: ReturnType<typeof vi.fn>;
+    updateCases: ReturnType<typeof vi.fn>;
+    deleteCases: ReturnType<typeof vi.fn>;
+    copyCasesToSection: ReturnType<typeof vi.fn>;
+    moveCasesToSection: ReturnType<typeof vi.fn>;
     addRun: ReturnType<typeof vi.fn>;
     closeRun: ReturnType<typeof vi.fn>;
     addResultForCase: ReturnType<typeof vi.fn>;
@@ -43,6 +54,10 @@ function buildClient(): MockedClient {
     return {
         addCase: vi.fn().mockResolvedValue({ id: 1, title: 'created' }),
         updateCase: vi.fn().mockResolvedValue({ id: 1, title: 'updated' }),
+        updateCases: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
+        deleteCases: vi.fn().mockResolvedValue(undefined),
+        copyCasesToSection: vi.fn().mockResolvedValue([{ id: 11 }, { id: 12 }]),
+        moveCasesToSection: vi.fn().mockResolvedValue(undefined),
         addRun: vi.fn().mockResolvedValue({ id: 10, name: 'r' }),
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
         addResultForCase: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
@@ -58,6 +73,9 @@ interface CtxOverrides {
     pathParams?: string[];
     dataFlag?: string;
     dryRun?: boolean;
+    projectId?: string;
+    soft?: boolean;
+    confirmDestructive?: boolean;
 }
 
 function buildCtx(
@@ -67,11 +85,15 @@ function buildCtx(
     const out = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
-        args: { pathParams: overrides.pathParams ?? [] },
+        args: {
+            pathParams: overrides.pathParams ?? [],
+            ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),
+            ...(overrides.soft === true && { soft: true }),
+        },
         bodyInput: overrides.dataFlag !== undefined ? { dataFlag: overrides.dataFlag } : {},
         dryRun: overrides.dryRun ?? false,
         force: false,
-        confirmDestructive: false,
+        confirmDestructive: overrides.confirmDestructive ?? false,
         out,
     };
     return { ctx, out };
@@ -136,6 +158,225 @@ describe('handleCaseUpdate', () => {
         await handleCaseUpdate(ctx);
         expect(client.updateCase).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'case update', caseId: 7 }));
+    });
+});
+
+// ── case update-bulk ──────────────────────────────────────────────────────
+
+describe('handleCaseUpdateBulk', () => {
+    it('calls client.updateCases with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            dataFlag: '{"case_ids":[1,2],"priority_id":3}',
+        });
+        await handleCaseUpdateBulk(ctx);
+        expect(client.updateCases).toHaveBeenCalledWith(
+            5,
+            expect.objectContaining({ case_ids: [1, 2], priority_id: 3 }),
+        );
+        expect(out).toHaveBeenCalledWith([{ id: 1 }, { id: 2 }]);
+    });
+
+    it('rejects body missing case_ids', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['5'], dataFlag: '{"priority_id":3}' });
+        await expect(handleCaseUpdateBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects non-positive suite_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{"case_ids":[1]}' });
+        await expect(handleCaseUpdateBulk(ctx)).rejects.toThrow(/suite_id/);
+    });
+
+    it('dry-run does not call client and emits preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            dataFlag: '{"case_ids":[1]}',
+            dryRun: true,
+        });
+        await handleCaseUpdateBulk(ctx);
+        expect(client.updateCases).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'case update-bulk', suiteId: 5 }),
+        );
+    });
+});
+
+// ── case delete-bulk ──────────────────────────────────────────────────────
+
+describe('handleCaseDeleteBulk', () => {
+    it('calls client.deleteCases with suite_id, project_id, and parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            projectId: '9',
+            confirmDestructive: true,
+            dataFlag: '{"case_ids":[1,2]}',
+        });
+        await handleCaseDeleteBulk(ctx);
+        expect(client.deleteCases).toHaveBeenCalledWith(5, 9, { case_ids: [1, 2] }, { soft: false });
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ deleted: true }));
+    });
+
+    it('passes soft=true when ctx.args.soft is set', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['5'],
+            projectId: '9',
+            confirmDestructive: true,
+            soft: true,
+            dataFlag: '{"case_ids":[1]}',
+        });
+        await handleCaseDeleteBulk(ctx);
+        expect(client.deleteCases).toHaveBeenCalledWith(5, 9, { case_ids: [1] }, { soft: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['5'],
+            projectId: '9',
+            dataFlag: '{"case_ids":[1]}',
+        });
+        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('rejects when --project-id is missing', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['5'],
+            confirmDestructive: true,
+            dataFlag: '{"case_ids":[1]}',
+        });
+        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/--project-id/);
+    });
+
+    it('rejects body missing case_ids', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['5'],
+            projectId: '9',
+            confirmDestructive: true,
+            dataFlag: '{}',
+        });
+        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects non-positive suite_id before checking --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['0'],
+            projectId: '9',
+            confirmDestructive: true,
+            dataFlag: '{"case_ids":[1]}',
+        });
+        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/suite_id/);
+    });
+
+    it('rejects non-positive project_id', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['5'],
+            projectId: '0',
+            confirmDestructive: true,
+            dataFlag: '{"case_ids":[1]}',
+        });
+        await expect(handleCaseDeleteBulk(ctx)).rejects.toThrow(/project_id/);
+    });
+
+    it('dry-run wins over --yes: no API call, preview marks destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            projectId: '9',
+            confirmDestructive: true,
+            soft: true,
+            dryRun: true,
+            dataFlag: '{"case_ids":[1]}',
+        });
+        await handleCaseDeleteBulk(ctx);
+        expect(client.deleteCases).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'case delete-bulk',
+                suiteId: 5,
+                projectId: 9,
+                soft: true,
+                destructive: true,
+            }),
+        );
+    });
+});
+
+// ── case copy-to-section ──────────────────────────────────────────────────
+
+describe('handleCaseCopyToSection', () => {
+    it('calls client.copyCasesToSection with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"case_ids":[10,11]}' });
+        await handleCaseCopyToSection(ctx);
+        expect(client.copyCasesToSection).toHaveBeenCalledWith(7, { case_ids: [10, 11] });
+        expect(out).toHaveBeenCalledWith([{ id: 11 }, { id: 12 }]);
+    });
+
+    it('rejects body missing case_ids', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{}' });
+        await expect(handleCaseCopyToSection(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects non-positive section_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"case_ids":[1]}' });
+        await expect(handleCaseCopyToSection(ctx)).rejects.toThrow(/section_id/);
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"case_ids":[1]}',
+            dryRun: true,
+        });
+        await handleCaseCopyToSection(ctx);
+        expect(client.copyCasesToSection).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'case copy-to-section', sectionId: 7 }),
+        );
+    });
+});
+
+// ── case move-to-section ──────────────────────────────────────────────────
+
+describe('handleCaseMoveToSection', () => {
+    it('calls client.moveCasesToSection with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"case_ids":[1,2],"suite_id":3}',
+        });
+        await handleCaseMoveToSection(ctx);
+        expect(client.moveCasesToSection).toHaveBeenCalledWith(7, { case_ids: [1, 2], suite_id: 3 });
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ moved: true }));
+    });
+
+    it('rejects body missing suite_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"case_ids":[1]}' });
+        await expect(handleCaseMoveToSection(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects non-positive section_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], dataFlag: '{"case_ids":[1],"suite_id":2}' });
+        await expect(handleCaseMoveToSection(ctx)).rejects.toThrow(/section_id/);
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"case_ids":[1],"suite_id":2}',
+            dryRun: true,
+        });
+        await handleCaseMoveToSection(ctx);
+        expect(client.moveCasesToSection).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'case move-to-section', sectionId: 7 }),
+        );
     });
 });
 

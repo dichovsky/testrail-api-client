@@ -36,6 +36,10 @@ export {
     ReportResultSchema,
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
+    UpdateCasesPayloadSchema,
+    DeleteCasesPayloadSchema,
+    CopyCasesToSectionPayloadSchema,
+    MoveCasesToSectionPayloadSchema,
     AddRunPayloadSchema,
     UpdateRunPayloadSchema,
     AddResultPayloadSchema,
@@ -54,6 +58,10 @@ export {
 export type {
     AddCasePayload,
     UpdateCasePayload,
+    UpdateCasesPayload,
+    DeleteCasesPayload,
+    CopyCasesToSectionPayload,
+    MoveCasesToSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,
@@ -69,7 +77,7 @@ export type {
     AddPlanPayload,
     UpdatePlanPayload,
 } from './schemas.js';
-export type { GetHistoryForCaseOptions } from './modules/cases.js';
+export type { DeleteCasesOptions, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 export type {
     TestRailConfig,

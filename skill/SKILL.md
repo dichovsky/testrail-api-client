@@ -75,6 +75,10 @@ on stderr. Never echo or log the API key.
 | plan | list | — | — | List plans in a project (paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
+| case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
+| case | delete-bulk | `<suite_id>` | `DeleteCasesPayloadSchema` | Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion) |
+| case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
+| case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
 | run | close | `<run_id>` | — (no body) | Close a test run (no body) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
@@ -164,6 +168,47 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "milestone_id": "number?",
     "refs": "string?",
     "custom_fields": "Record<string, unknown>?"
+}
+```
+
+### `UpdateCasesPayloadSchema` (used by `case update-bulk`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)",
+    "title": "string?",
+    "template_id": "number?",
+    "type_id": "number?",
+    "priority_id": "number?",
+    "estimate": "string?",
+    "milestone_id": "number?",
+    "refs": "string?",
+    "custom_fields": "Record<string, unknown>?"
+}
+```
+
+### `DeleteCasesPayloadSchema` (used by `case delete-bulk`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)"
+}
+```
+
+### `CopyCasesToSectionPayloadSchema` (used by `case copy-to-section`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)"
+}
+```
+
+### `MoveCasesToSectionPayloadSchema` (used by `case move-to-section`)
+
+```jsonc
+{
+    "case_ids": "number[] (required)",
+    "suite_id": "number (required)"
 }
 ```
 

@@ -535,6 +535,54 @@ export const UpdateCasePayloadSchema = zObject({
 
 export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>;
 
+// ── Bulk case payloads ────────────────────────────────────────────────────────
+// Inlined rather than `.extend(UpdateCasePayloadSchema)` so the passthrough()
+// behavior is unambiguous and the inferred type stays a plain object literal
+// (same precedent as AddResultForTestPayloadSchema). `case_ids` is required —
+// the endpoint server-side rejects an empty body; surfacing that here lets
+// agents see the contract failure at the CLI boundary.
+export const UpdateCasesPayloadSchema = zObject({
+    case_ids: z.array(z.number()),
+    title: z.string().optional(),
+    template_id: z.number().optional(),
+    type_id: z.number().optional(),
+    priority_id: z.number().optional(),
+    estimate: z.string().optional(),
+    milestone_id: z.number().optional(),
+    refs: z.string().optional(),
+    custom_fields: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>;
+
+export const DeleteCasesPayloadSchema = zObject({
+    case_ids: z.array(z.number()),
+});
+
+export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>;
+
+// Identical shape to DeleteCasesPayloadSchema but intentionally a separate
+// schema — a future TestRail change to either endpoint (e.g. delete adds a
+// `force` flag) must not silently spread to the other.
+export const CopyCasesToSectionPayloadSchema = zObject({
+    case_ids: z.array(z.number()),
+});
+
+export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>;
+
+// `suite_id` is required by TestRail when moving cases across suites and is
+// harmless (ignored server-side) for same-suite moves. The Python reference
+// client (`tolstislon/testrail-api`) treats it as required for the same
+// reason. Path-only `section_id` is NOT in the body (TestRail's online docs
+// have historically listed both — confirmed wrong against the live API and
+// reference clients).
+export const MoveCasesToSectionPayloadSchema = zObject({
+    case_ids: z.array(z.number()),
+    suite_id: z.number(),
+});
+
+export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>;
+
 export const AddRunPayloadSchema = zObject({
     name: z.string(),
     suite_id: z.number().optional(),

@@ -60,6 +60,10 @@ import type {
 import type {
     AddCasePayload,
     UpdateCasePayload,
+    UpdateCasesPayload,
+    DeleteCasesPayload,
+    CopyCasesToSectionPayload,
+    MoveCasesToSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
     AddResultPayload,
@@ -72,7 +76,7 @@ import type {
     AddRunToPlanEntryPayload,
     UpdateRunInPlanEntryPayload,
 } from './schemas.js';
-import type { GetHistoryForCaseOptions } from './modules/cases.js';
+import type { DeleteCasesOptions, GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
@@ -346,6 +350,49 @@ export class TestRailClient extends TestRailClientCore {
      */
     async deleteCase(caseId: number): Promise<void> {
         return this.cases.deleteCase(caseId);
+    }
+
+    /**
+     * Bulk-update many cases with the same field values in one API call.
+     * @throws {TestRailValidationError} When suiteId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
+        return this.cases.updateCases(suiteId, payload);
+    }
+
+    /**
+     * Bulk-delete cases under a suite. `projectId` is required (query param);
+     * `options.soft=true` adds `soft=1` for a server-side preview that
+     * returns counts without deleting.
+     * @throws {TestRailValidationError} When suiteId or projectId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
+        options?: DeleteCasesOptions,
+    ): Promise<void> {
+        return this.cases.deleteCases(suiteId, projectId, payload, options);
+    }
+
+    /**
+     * Copy cases into a target section. Returns the newly created case copies.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<Case[]> {
+        return this.cases.copyCasesToSection(sectionId, payload);
+    }
+
+    /**
+     * Move cases into a target section. `payload.suite_id` is required.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails
+     */
+    async moveCasesToSection(sectionId: number, payload: MoveCasesToSectionPayload): Promise<void> {
+        return this.cases.moveCasesToSection(sectionId, payload);
     }
 
     /**

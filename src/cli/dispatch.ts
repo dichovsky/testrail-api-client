@@ -2,7 +2,14 @@ import type { Handler } from './handler-context.js';
 import { handleProjectGet, handleProjectList } from './handlers/project.js';
 import { handleSuiteGet, handleSuiteList } from './handlers/suite.js';
 import { handleCaseGet, handleCaseList, handleCaseHistory } from './handlers/case.js';
-import { handleCaseAdd, handleCaseUpdate } from './handlers/case-write.js';
+import {
+    handleCaseAdd,
+    handleCaseUpdate,
+    handleCaseUpdateBulk,
+    handleCaseDeleteBulk,
+    handleCaseCopyToSection,
+    handleCaseMoveToSection,
+} from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
 import { handleRunAdd, handleRunClose } from './handlers/run-write.js';
 import { handleResultList } from './handlers/result.js';
@@ -51,6 +58,10 @@ const HANDLERS: Record<string, Handler> = {
     'case:history': handleCaseHistory,
     'case:add': handleCaseAdd,
     'case:update': handleCaseUpdate,
+    'case:update-bulk': handleCaseUpdateBulk,
+    'case:delete-bulk': handleCaseDeleteBulk,
+    'case:copy-to-section': handleCaseCopyToSection,
+    'case:move-to-section': handleCaseMoveToSection,
     'run:get': handleRunGet,
     'run:list': handleRunList,
     'run:add': handleRunAdd,

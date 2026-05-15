@@ -14,6 +14,10 @@ import { describe, it, expect } from 'vitest';
 import {
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
+    UpdateCasesPayloadSchema,
+    DeleteCasesPayloadSchema,
+    CopyCasesToSectionPayloadSchema,
+    MoveCasesToSectionPayloadSchema,
     AddRunPayloadSchema,
     UpdateRunPayloadSchema,
     AddResultPayloadSchema,
@@ -84,6 +88,97 @@ describe('UpdateCasePayloadSchema', () => {
 
     it('rejects wrong type on optional field (no coercion)', () => {
         expect(() => UpdateCasePayloadSchema.parse({ priority_id: 'high' })).toThrow();
+    });
+});
+
+describe('UpdateCasesPayloadSchema', () => {
+    it('parses a minimal valid payload (case_ids only)', () => {
+        const parsed = UpdateCasesPayloadSchema.parse({ case_ids: [1, 2, 3] });
+        expect(parsed.case_ids).toEqual([1, 2, 3]);
+    });
+
+    it('parses case_ids plus shared fields', () => {
+        const parsed = UpdateCasesPayloadSchema.parse({
+            case_ids: [1, 2],
+            priority_id: 3,
+            milestone_id: 10,
+            refs: 'JIRA-1',
+        });
+        expect(parsed.priority_id).toBe(3);
+        expect(parsed.refs).toBe('JIRA-1');
+    });
+
+    it('rejects when case_ids is missing', () => {
+        expect(() => UpdateCasesPayloadSchema.parse({ priority_id: 1 })).toThrow();
+    });
+
+    it('rejects when case_ids contains a string (no coercion)', () => {
+        expect(() => UpdateCasesPayloadSchema.parse({ case_ids: ['1', '2'] })).toThrow();
+    });
+
+    it('rejects wrong type on a shared optional field (no coercion)', () => {
+        expect(() => UpdateCasesPayloadSchema.parse({ case_ids: [1], priority_id: 'high' })).toThrow();
+    });
+
+    it('preserves unknown custom_* fields via passthrough()', () => {
+        const parsed = UpdateCasesPayloadSchema.parse({
+            case_ids: [1],
+            custom_qa_state: 'approved',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_qa_state']).toBe('approved');
+    });
+});
+
+describe('DeleteCasesPayloadSchema', () => {
+    it('parses a valid payload', () => {
+        const parsed = DeleteCasesPayloadSchema.parse({ case_ids: [1, 2] });
+        expect(parsed.case_ids).toEqual([1, 2]);
+    });
+
+    it('rejects when case_ids is missing', () => {
+        expect(() => DeleteCasesPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects case_ids with non-number elements', () => {
+        expect(() => DeleteCasesPayloadSchema.parse({ case_ids: [1, '2'] })).toThrow();
+    });
+});
+
+describe('CopyCasesToSectionPayloadSchema', () => {
+    it('parses a valid payload', () => {
+        const parsed = CopyCasesToSectionPayloadSchema.parse({ case_ids: [10, 11] });
+        expect(parsed.case_ids).toEqual([10, 11]);
+    });
+
+    it('rejects when case_ids is missing', () => {
+        expect(() => CopyCasesToSectionPayloadSchema.parse({})).toThrow();
+    });
+
+    it('passes through extra fields without dropping them', () => {
+        const parsed = CopyCasesToSectionPayloadSchema.parse({
+            case_ids: [1],
+            note: 'tracking',
+        }) as Record<string, unknown>;
+        expect(parsed['note']).toBe('tracking');
+    });
+});
+
+describe('MoveCasesToSectionPayloadSchema', () => {
+    it('parses a valid payload (case_ids + suite_id required)', () => {
+        const parsed = MoveCasesToSectionPayloadSchema.parse({ case_ids: [1], suite_id: 7 });
+        expect(parsed.suite_id).toBe(7);
+    });
+
+    it('rejects when suite_id is missing', () => {
+        expect(() => MoveCasesToSectionPayloadSchema.parse({ case_ids: [1] })).toThrow();
+    });
+
+    it('rejects when case_ids is missing', () => {
+        expect(() => MoveCasesToSectionPayloadSchema.parse({ suite_id: 7 })).toThrow();
+    });
+
+    it('rejects when suite_id is a string (no coercion)', () => {
+        expect(() => MoveCasesToSectionPayloadSchema.parse({ case_ids: [1], suite_id: '7' })).toThrow();
     });
 });
 
