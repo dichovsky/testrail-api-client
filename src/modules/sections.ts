@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Section, AddSectionPayload, UpdateSectionPayload } from '../types.js';
+import type { MoveSectionPayload } from '../schemas.js';
 import { SectionSchema } from '../schemas.js';
 import { z } from 'zod';
 
@@ -51,5 +52,22 @@ export class SectionModule {
     async deleteSection(sectionId: number): Promise<void> {
         this.client.validateId(sectionId, 'sectionId');
         await this.client.request<void>('POST', `delete_section/${sectionId}`);
+    }
+
+    /**
+     * Move a section to a new parent and/or position (TestRail 6.5.2+).
+     *
+     * Both payload fields are independently optional AND nullable:
+     *   - `parent_id: null` moves the section to root (top-level under suite)
+     *   - `after_id: null` moves the section to the top of its container
+     *   - omitting a field leaves that axis unchanged
+     *
+     * The endpoint returns no body in older TestRail versions and the updated
+     * section in newer ones; we default to `void` and recommend a follow-up
+     * `getSection(sectionId)` when callers need the post-move state.
+     */
+    async moveSection(sectionId: number, payload: MoveSectionPayload): Promise<void> {
+        this.client.validateId(sectionId, 'sectionId');
+        await this.client.request<void>('POST', `move_section/${sectionId}`, payload);
     }
 }

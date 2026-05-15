@@ -129,6 +129,23 @@ export const SectionSchema = zObject({
 
 export type Section = z.infer<typeof SectionSchema>;
 
+// ── Move-section payload (TestRail 6.5.2+) ────────────────────────────────────
+// Both fields are optional AND nullable, encoding three semantics:
+//   - `parent_id: null` / `after_id: null` — explicit move-to-root / move-to-top
+//   - `parent_id: <number>` / `after_id: <number>` — move under/after that target
+//   - field omitted entirely (undefined) — don't change that axis
+// `.nullable().optional()` yields type `number | null | undefined`; the
+// CLI body resolver and the client request serializer must preserve the
+// null-vs-undefined distinction (do NOT collapse null → undefined). We
+// deliberately do not impose `min(1)` here: TestRail performs its own
+// validation, and 0 is a useful sentinel in some installs.
+export const MoveSectionPayloadSchema = zObject({
+    parent_id: z.number().nullable().optional(),
+    after_id: z.number().nullable().optional(),
+});
+
+export type MoveSectionPayload = z.infer<typeof MoveSectionPayloadSchema>;
+
 // ── Run Schema (forward declaration needed for PlanEntry) ─────────────────────
 
 export const RunSchema = zObject({

@@ -129,7 +129,7 @@ Implementation conventions for every item below: add the method to the relevant 
 
 ### Sections ([API docs](https://support.testrail.com/hc/en-us/articles/7077853258868-Sections))
 
-- [ ] **`moveSection(sectionId, payload)`** — `POST move_section/{section_id}` (TestRail 6.5.2+). Body: `{ parent_id?: number | null, after_id?: number | null }`. `parent_id=null` moves to root; `after_id=null` moves to top. **Effort:** S. **Module:** `sections.ts`. **Trigger:** suite restructuring.
+- [x] **`moveSection(sectionId, payload)`** — Shipped with the "moveSection" PR. `POST move_section/{section_id}` (TestRail 6.5.2+). Body: `{ parent_id?: number | null, after_id?: number | null }`. Both fields modelled as `z.number().nullable().optional()` so `null` (explicit "move to root" / "move to top") and field-omitted ("don't change that axis") stay semantically distinct end-to-end — `null` survives JSON serialization to the API rather than being elided. Returns no body (`Promise<void>`); callers wanting the post-move state should `getSection(sectionId)`. Exposed on CLI as `section move <section_id> --data '{"parent_id":null,"after_id":42}'`. First section-namespaced CLI write action — new `src/cli/handlers/section-write.ts` mirrors the case-write pattern.
 
 ### Shared Steps ([API docs](https://support.testrail.com/hc/en-us/articles/7077874763156-Shared-steps))
 
@@ -145,7 +145,7 @@ Implementation conventions for every item below: add the method to the relevant 
 2. **Plan entry runs PR** — `addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry` (cohesive feature).
 3. **BDD PR** — `getBdd`, `addBdd` (cohesive; reuses multipart path).
 4. ~~**History/statuses PR**~~ — `getHistoryForCase`, `getSharedStepHistory`, `getCaseStatuses` (shipped).
-5. **Standalone** — ~~`addResults`~~ (shipped), `moveSection`, ~~`addCaseField`~~ (shipped) (independent).
+5. **Standalone** — ~~`addResults`~~ (shipped), ~~`moveSection`~~ (shipped), ~~`addCaseField`~~ (shipped) (independent).
 
 ---
 

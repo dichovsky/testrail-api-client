@@ -30,6 +30,7 @@ import {
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
 import { handleCaseStatusList } from './handlers/case-status.js';
 import { handleCaseFieldAdd } from './handlers/case-field-write.js';
+import { handleSectionMove } from './handlers/section-write.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -86,6 +87,7 @@ const HANDLERS: Record<string, Handler> = {
     'shared-step:history': handleSharedStepHistory,
     'case-status:list': handleCaseStatusList,
     'case-field:add': handleCaseFieldAdd,
+    'section:move': handleSectionMove,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {
