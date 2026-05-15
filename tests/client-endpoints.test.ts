@@ -2810,9 +2810,7 @@ describe('TestRailClient', () => {
         });
 
         it('should reject invalid sharedUpdateId', async () => {
-            await expect(client.getSharedStepHistory(0)).rejects.toThrow(
-                'sharedUpdateId must be a positive integer',
-            );
+            await expect(client.getSharedStepHistory(0)).rejects.toThrow('sharedUpdateId must be a positive integer');
         });
     });
 

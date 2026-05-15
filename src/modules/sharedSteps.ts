@@ -51,10 +51,7 @@ export class SharedStepModule {
         await this.client.request<void>('POST', `delete_shared_step/${sharedStepId}`);
     }
 
-    async getSharedStepHistory(
-        sharedUpdateId: number,
-        options?: GetSharedStepHistoryOptions,
-    ): Promise<HistoryEntry[]> {
+    async getSharedStepHistory(sharedUpdateId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
         this.client.validateId(sharedUpdateId, 'sharedUpdateId');
         this.client.validatePaginationParams(options?.limit, options?.offset);
         const endpoint = this.client.buildEndpoint(`get_shared_step_history/${sharedUpdateId}`, {
