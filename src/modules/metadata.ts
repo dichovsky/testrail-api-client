@@ -10,6 +10,7 @@ import {
     RoleSchema,
     CaseStatusSchema,
 } from '../schemas.js';
+import type { AddCaseFieldPayload } from '../schemas.js';
 import { z } from 'zod';
 
 export class MetadataModule {
@@ -48,6 +49,24 @@ export class MetadataModule {
             z.array(CaseFieldSchema),
             await this.client.request<unknown>('GET', 'get_case_fields'),
         );
+    }
+
+    /**
+     * Create a new custom case field (admin-only). The endpoint is
+     * `POST add_case_field` with no path or query params. Returns the
+     * newly created `CaseField`, including its assigned `id`, `system_name`,
+     * and `display_order`.
+     *
+     * Server validates: `name` must be a valid system slug (lowercase,
+     * alphanumeric + underscore); field-type-specific rules (e.g. `Steps`
+     * fields reject `options.items`). We do NOT enforce these client-side —
+     * `AddCaseFieldPayloadSchema.passthrough()` lets TestRail be the source
+     * of truth on quirks, and a 400 from the server surfaces with the
+     * upstream message.
+     */
+    async addCaseField(payload: AddCaseFieldPayload): Promise<CaseField> {
+        const raw = await this.client.request<unknown>('POST', 'add_case_field', payload);
+        return this.client.parse<CaseField>(CaseFieldSchema, raw);
     }
 
     async getCaseTypes(): Promise<CaseType[]> {

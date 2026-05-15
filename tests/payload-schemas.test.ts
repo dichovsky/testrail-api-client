@@ -14,6 +14,8 @@ import { describe, it, expect } from 'vitest';
 import {
     AddCasePayloadSchema,
     UpdateCasePayloadSchema,
+    AddCaseFieldPayloadSchema,
+    AddCaseFieldConfigPayloadSchema,
     AddRunPayloadSchema,
     UpdateRunPayloadSchema,
     AddResultPayloadSchema,
@@ -84,6 +86,160 @@ describe('UpdateCasePayloadSchema', () => {
 
     it('rejects wrong type on optional field (no coercion)', () => {
         expect(() => UpdateCasePayloadSchema.parse({ priority_id: 'high' })).toThrow();
+    });
+});
+
+describe('AddCaseFieldConfigPayloadSchema', () => {
+    it('parses a minimal valid config (required context + options only)', () => {
+        const parsed = AddCaseFieldConfigPayloadSchema.parse({
+            context: { is_global: true, project_ids: [] },
+            options: { is_required: false, default_value: '' },
+        });
+        expect(parsed.context.is_global).toBe(true);
+        expect(parsed.options.default_value).toBe('');
+    });
+
+    it('parses a config with all optional options fields', () => {
+        const parsed = AddCaseFieldConfigPayloadSchema.parse({
+            context: { is_global: false, project_ids: [1, 2] },
+            options: {
+                is_required: true,
+                default_value: 'medium',
+                items: '1, Low\n2, Medium\n3, High',
+                format: 'markdown',
+                rows: '5',
+            },
+        });
+        expect(parsed.context.project_ids).toEqual([1, 2]);
+        expect(parsed.options.items).toContain('Medium');
+    });
+
+    it('rejects when context is missing', () => {
+        expect(() =>
+            AddCaseFieldConfigPayloadSchema.parse({
+                options: { is_required: false, default_value: '' },
+            }),
+        ).toThrow();
+    });
+
+    it('rejects when options.is_required is missing', () => {
+        expect(() =>
+            AddCaseFieldConfigPayloadSchema.parse({
+                context: { is_global: true, project_ids: [] },
+                options: { default_value: '' },
+            }),
+        ).toThrow();
+    });
+
+    it('rejects when options.default_value is missing (required as a string)', () => {
+        expect(() =>
+            AddCaseFieldConfigPayloadSchema.parse({
+                context: { is_global: true, project_ids: [] },
+                options: { is_required: false },
+            }),
+        ).toThrow();
+    });
+
+    it('rejects wrong type on context.is_global (no coercion)', () => {
+        expect(() =>
+            AddCaseFieldConfigPayloadSchema.parse({
+                context: { is_global: 'true', project_ids: [] },
+                options: { is_required: false, default_value: '' },
+            }),
+        ).toThrow();
+    });
+});
+
+describe('AddCaseFieldPayloadSchema', () => {
+    const validConfig = {
+        context: { is_global: true, project_ids: [] },
+        options: { is_required: false, default_value: '' },
+    };
+
+    it('parses a minimal valid payload (type + name + label + configs[])', () => {
+        const parsed = AddCaseFieldPayloadSchema.parse({
+            type: 'String',
+            name: 'preconds',
+            label: 'Preconditions',
+            configs: [validConfig],
+        });
+        expect(parsed.name).toBe('preconds');
+        expect(parsed.configs).toHaveLength(1);
+    });
+
+    it('parses a fully-populated payload', () => {
+        const parsed = AddCaseFieldPayloadSchema.parse({
+            type: 'Dropdown',
+            name: 'severity',
+            label: 'Severity',
+            description: 'Defect severity for triage',
+            include_all: false,
+            template_ids: [1, 2],
+            configs: [
+                {
+                    context: { is_global: false, project_ids: [1, 2] },
+                    options: { is_required: true, default_value: '2', items: '1,Low\n2,Medium\n3,High' },
+                },
+            ],
+        });
+        expect(parsed.template_ids).toEqual([1, 2]);
+        expect(parsed.include_all).toBe(false);
+    });
+
+    it('rejects when type is missing', () => {
+        expect(() => AddCaseFieldPayloadSchema.parse({ name: 'x', label: 'X', configs: [validConfig] })).toThrow();
+    });
+
+    it('rejects when name is missing', () => {
+        expect(() => AddCaseFieldPayloadSchema.parse({ type: 'String', label: 'X', configs: [validConfig] })).toThrow();
+    });
+
+    it('rejects when label is missing', () => {
+        expect(() => AddCaseFieldPayloadSchema.parse({ type: 'String', name: 'x', configs: [validConfig] })).toThrow();
+    });
+
+    it('rejects when configs is missing', () => {
+        expect(() => AddCaseFieldPayloadSchema.parse({ type: 'String', name: 'x', label: 'X' })).toThrow();
+    });
+
+    it('rejects when configs[] item is malformed (missing context)', () => {
+        expect(() =>
+            AddCaseFieldPayloadSchema.parse({
+                type: 'String',
+                name: 'x',
+                label: 'X',
+                configs: [{ options: { is_required: false, default_value: '' } }],
+            }),
+        ).toThrow();
+    });
+
+    it('rejects wrong type on type field (no coercion)', () => {
+        expect(() =>
+            AddCaseFieldPayloadSchema.parse({ type: 7, name: 'x', label: 'X', configs: [validConfig] }),
+        ).toThrow();
+    });
+
+    it('rejects wrong type on template_ids (no coercion)', () => {
+        expect(() =>
+            AddCaseFieldPayloadSchema.parse({
+                type: 'String',
+                name: 'x',
+                label: 'X',
+                template_ids: ['1', '2'],
+                configs: [validConfig],
+            }),
+        ).toThrow();
+    });
+
+    it('preserves unknown top-level fields via passthrough()', () => {
+        const parsed = AddCaseFieldPayloadSchema.parse({
+            type: 'String',
+            name: 'x',
+            label: 'X',
+            configs: [validConfig],
+            future_field: 'preserve me',
+        }) as Record<string, unknown>;
+        expect(parsed['future_field']).toBe('preserve me');
     });
 });
 

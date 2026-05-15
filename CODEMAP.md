@@ -11,12 +11,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "418dda458c623bec211477cdc8ef370d422ed4e49c5d486676af1a46bd1174df",
+  "sourceHash": "0cda280802ce1e4ace4f8cbf7441c385d1f8db17047e2f2147eac0abc3742604",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
   ],
   "publicApi": [
+    {
+      "name": "AddCaseFieldConfigPayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 567,
+      "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddCaseFieldConfigPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 553,
+      "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), }), options: zObject({ is_required: z.boolean(), default_value: z.…"
+    },
+    {
+      "name": "AddCaseFieldPayload",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 579,
+      "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "AddCaseFieldPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 569,
+      "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), template_ids: z.array…"
+    },
     {
       "name": "AddCasePayload",
       "kind": "type",
@@ -78,7 +108,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 676,
+      "line": 719,
       "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -86,14 +116,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 665,
+      "line": 708,
       "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
     },
     {
       "name": "AddPlanPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 698,
+      "line": 741,
       "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>",
       "typeOnly": true
     },
@@ -101,7 +131,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddPlanPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 691,
+      "line": 734,
       "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), entries: z.array(AddPlanEntryPayloadSchema).optional(), })"
     },
     {
@@ -116,7 +146,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultForCasePayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 588,
+      "line": 631,
       "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>",
       "typeOnly": true
     },
@@ -124,14 +154,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultForCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 577,
+      "line": 620,
       "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
     },
     {
       "name": "AddResultForTestPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 610,
+      "line": 653,
       "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>",
       "typeOnly": true
     },
@@ -139,14 +169,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultForTestPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 599,
+      "line": 642,
       "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
     },
     {
       "name": "AddResultPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 573,
+      "line": 616,
       "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>",
       "typeOnly": true
     },
@@ -154,14 +184,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 563,
+      "line": 606,
       "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
     },
     {
       "name": "AddResultsForCasesPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 594,
+      "line": 637,
       "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -169,14 +199,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultsForCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 590,
+      "line": 633,
       "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
     },
     {
       "name": "AddResultsPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 616,
+      "line": 659,
       "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>",
       "typeOnly": true
     },
@@ -184,14 +214,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultsPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 612,
+      "line": 655,
       "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
     },
     {
       "name": "AddRunPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 549,
+      "line": 592,
       "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>",
       "typeOnly": true
     },
@@ -199,14 +229,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 538,
+      "line": 581,
       "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
     },
     {
       "name": "AddRunToPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 651,
+      "line": 694,
       "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -214,7 +244,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddRunToPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 642,
+      "line": 685,
       "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
     },
     {
@@ -561,7 +591,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PlanEntryRunPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 635,
+      "line": 678,
       "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>",
       "typeOnly": true
     },
@@ -569,7 +599,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PlanEntryRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 625,
+      "line": 668,
       "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
     },
     {
@@ -829,7 +859,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
-      "line": 105,
+      "line": 106,
       "signature": "export class TestRailClient extends TestRailClientCore",
       "jsdoc": "TestRail API Client"
     },
@@ -925,7 +955,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdatePlanEntryPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 689,
+      "line": 732,
       "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -933,14 +963,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdatePlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 678,
+      "line": 721,
       "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
     },
     {
       "name": "UpdatePlanPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 707,
+      "line": 750,
       "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>",
       "typeOnly": true
     },
@@ -948,7 +978,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdatePlanPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 700,
+      "line": 743,
       "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), })"
     },
     {
@@ -963,7 +993,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateRunInPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 663,
+      "line": 706,
       "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -971,14 +1001,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateRunInPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 656,
+      "line": 699,
       "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
     },
     {
       "name": "UpdateRunPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 561,
+      "line": 604,
       "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>",
       "typeOnly": true
     },
@@ -986,7 +1016,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 551,
+      "line": 594,
       "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
     },
     {
@@ -1155,6 +1185,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handler-context.js",
         "./handlers/attachment-write.js",
         "./handlers/attachment.js",
+        "./handlers/case-field-write.js",
         "./handlers/case-status.js",
         "./handlers/case-write.js",
         "./handlers/case.js",
@@ -1175,35 +1206,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 44,
+          "line": 45,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'suite:get': handleSuiteGet, 'suite:list': handleSuiteList, 'case:get': handleCaseGet, '…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 89,
+          "line": 91,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 104,
+          "line": 106,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 111,
+          "line": 113,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 115,
+          "line": 117,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1439,6 +1470,24 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 38,
           "exported": true,
           "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/case-field-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleCaseFieldAdd",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export async function handleCaseFieldAdd(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -1874,7 +1923,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 107,
+          "line": 108,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -1924,28 +1973,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 31,
+          "line": 32,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 36,
+          "line": 37,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boolean; isWrite: boolea…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 59,
+          "line": 60,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 389,
+          "line": 399,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
@@ -2300,639 +2349,644 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "TestRailClient",
           "kind": "class",
-          "line": 105,
+          "line": 106,
           "exported": true,
           "signature": "export class TestRailClient extends TestRailClientCore",
           "members": [
             {
               "name": "projects",
               "kind": "property",
-              "line": 107
+              "line": 108
             },
             {
               "name": "suites",
               "kind": "property",
-              "line": 108
+              "line": 109
             },
             {
               "name": "sections",
               "kind": "property",
-              "line": 109
+              "line": 110
             },
             {
               "name": "cases",
               "kind": "property",
-              "line": 110
+              "line": 111
             },
             {
               "name": "plans",
               "kind": "property",
-              "line": 111
+              "line": 112
             },
             {
               "name": "runs",
               "kind": "property",
-              "line": 112
+              "line": 113
             },
             {
               "name": "tests",
               "kind": "property",
-              "line": 113
+              "line": 114
             },
             {
               "name": "results",
               "kind": "property",
-              "line": 114
+              "line": 115
             },
             {
               "name": "milestones",
               "kind": "property",
-              "line": 115
+              "line": 116
             },
             {
               "name": "users",
               "kind": "property",
-              "line": 116
+              "line": 117
             },
             {
               "name": "metadata",
               "kind": "property",
-              "line": 117
+              "line": 118
             },
             {
               "name": "configurations",
               "kind": "property",
-              "line": 118
+              "line": 119
             },
             {
               "name": "attachments",
               "kind": "property",
-              "line": 119
+              "line": 120
             },
             {
               "name": "sharedSteps",
               "kind": "property",
-              "line": 120
+              "line": 121
             },
             {
               "name": "variables",
               "kind": "property",
-              "line": 121
+              "line": 122
             },
             {
               "name": "datasets",
               "kind": "property",
-              "line": 122
+              "line": 123
             },
             {
               "name": "reports",
               "kind": "property",
-              "line": 123
+              "line": 124
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 125
+              "line": 126
             },
             {
               "name": "getProject",
               "kind": "method",
-              "line": 153
+              "line": 154
             },
             {
               "name": "getProjects",
               "kind": "method",
-              "line": 162
+              "line": 163
             },
             {
               "name": "addProject",
               "kind": "method",
-              "line": 170
+              "line": 171
             },
             {
               "name": "updateProject",
               "kind": "method",
-              "line": 179
+              "line": 180
             },
             {
               "name": "deleteProject",
               "kind": "method",
-              "line": 188
+              "line": 189
             },
             {
               "name": "getSuite",
               "kind": "method",
-              "line": 199
+              "line": 200
             },
             {
               "name": "getSuites",
               "kind": "method",
-              "line": 208
+              "line": 209
             },
             {
               "name": "addSuite",
               "kind": "method",
-              "line": 217
+              "line": 218
             },
             {
               "name": "updateSuite",
               "kind": "method",
-              "line": 226
+              "line": 227
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 235
+              "line": 236
             },
             {
               "name": "getSection",
               "kind": "method",
-              "line": 246
+              "line": 247
             },
             {
               "name": "getSections",
               "kind": "method",
-              "line": 258
+              "line": 259
             },
             {
               "name": "addSection",
               "kind": "method",
-              "line": 270
+              "line": 271
             },
             {
               "name": "updateSection",
               "kind": "method",
-              "line": 279
+              "line": 280
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 288
+              "line": 289
             },
             {
               "name": "getCase",
               "kind": "method",
-              "line": 299
+              "line": 300
             },
             {
               "name": "getCases",
               "kind": "method",
-              "line": 320
+              "line": 321
             },
             {
               "name": "addCase",
               "kind": "method",
-              "line": 329
+              "line": 330
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 338
+              "line": 339
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 347
+              "line": 348
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 356
+              "line": 357
             },
             {
               "name": "getPlan",
               "kind": "method",
-              "line": 367
+              "line": 368
             },
             {
               "name": "getPlans",
               "kind": "method",
-              "line": 379
+              "line": 380
             },
             {
               "name": "addPlan",
               "kind": "method",
-              "line": 388
+              "line": 389
             },
             {
               "name": "updatePlan",
               "kind": "method",
-              "line": 397
+              "line": 398
             },
             {
               "name": "closePlan",
               "kind": "method",
-              "line": 406
+              "line": 407
             },
             {
               "name": "deletePlan",
               "kind": "method",
-              "line": 415
+              "line": 416
             },
             {
               "name": "addPlanEntry",
               "kind": "method",
-              "line": 424
+              "line": 425
             },
             {
               "name": "updatePlanEntry",
               "kind": "method",
-              "line": 433
+              "line": 434
             },
             {
               "name": "deletePlanEntry",
               "kind": "method",
-              "line": 442
+              "line": 443
             },
             {
               "name": "addRunToPlanEntry",
               "kind": "method",
-              "line": 451
+              "line": 452
             },
             {
               "name": "updateRunInPlanEntry",
               "kind": "method",
-              "line": 460
+              "line": 461
             },
             {
               "name": "deleteRunFromPlanEntry",
               "kind": "method",
-              "line": 469
+              "line": 470
             },
             {
               "name": "getRun",
               "kind": "method",
-              "line": 480
+              "line": 481
             },
             {
               "name": "getRuns",
               "kind": "method",
-              "line": 492
+              "line": 493
             },
             {
               "name": "addRun",
               "kind": "method",
-              "line": 501
+              "line": 502
             },
             {
               "name": "updateRun",
               "kind": "method",
-              "line": 510
+              "line": 511
             },
             {
               "name": "closeRun",
               "kind": "method",
-              "line": 519
+              "line": 520
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 528
+              "line": 529
             },
             {
               "name": "getTest",
               "kind": "method",
-              "line": 539
+              "line": 540
             },
             {
               "name": "getTests",
               "kind": "method",
-              "line": 550
+              "line": 551
             },
             {
               "name": "getResults",
               "kind": "method",
-              "line": 564
+              "line": 565
             },
             {
               "name": "getResultsForCase",
               "kind": "method",
-              "line": 577
+              "line": 578
             },
             {
               "name": "getResultsForRun",
               "kind": "method",
-              "line": 589
+              "line": 590
             },
             {
               "name": "addResult",
               "kind": "method",
-              "line": 598
+              "line": 599
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 607
+              "line": 608
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 616
+              "line": 617
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 625
+              "line": 626
             },
             {
               "name": "getMilestone",
               "kind": "method",
-              "line": 636
+              "line": 637
             },
             {
               "name": "getMilestones",
               "kind": "method",
-              "line": 648
+              "line": 649
             },
             {
               "name": "addMilestone",
               "kind": "method",
-              "line": 660
+              "line": 661
             },
             {
               "name": "updateMilestone",
               "kind": "method",
-              "line": 672
+              "line": 673
             },
             {
               "name": "deleteMilestone",
               "kind": "method",
-              "line": 683
+              "line": 684
             },
             {
               "name": "getUser",
               "kind": "method",
-              "line": 696
+              "line": 697
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 707
+              "line": 708
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 720
+              "line": 721
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 728
+              "line": 729
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 738
+              "line": 739
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 750
+              "line": 751
             },
             {
               "name": "getStatuses",
               "kind": "method",
-              "line": 760
+              "line": 761
             },
             {
               "name": "getCaseStatuses",
               "kind": "method",
-              "line": 769
+              "line": 770
             },
             {
               "name": "getPriorities",
               "kind": "method",
-              "line": 779
+              "line": 780
             },
             {
               "name": "getResultFields",
               "kind": "method",
-              "line": 789
+              "line": 790
             },
             {
               "name": "getCaseFields",
               "kind": "method",
-              "line": 799
+              "line": 800
             },
             {
-              "name": "getCaseTypes",
-              "kind": "method",
-              "line": 807
-            },
-            {
-              "name": "getTemplates",
+              "name": "addCaseField",
               "kind": "method",
               "line": 820
             },
             {
+              "name": "getCaseTypes",
+              "kind": "method",
+              "line": 828
+            },
+            {
+              "name": "getTemplates",
+              "kind": "method",
+              "line": 841
+            },
+            {
               "name": "getConfigurations",
               "kind": "method",
-              "line": 833
+              "line": 854
             },
             {
               "name": "addConfigurationGroup",
               "kind": "method",
-              "line": 845
+              "line": 866
             },
             {
               "name": "updateConfigurationGroup",
               "kind": "method",
-              "line": 857
+              "line": 878
             },
             {
               "name": "deleteConfigurationGroup",
               "kind": "method",
-              "line": 871
+              "line": 892
             },
             {
               "name": "addConfiguration",
               "kind": "method",
-              "line": 883
+              "line": 904
             },
             {
               "name": "updateConfiguration",
               "kind": "method",
-              "line": 895
+              "line": 916
             },
             {
               "name": "deleteConfiguration",
               "kind": "method",
-              "line": 906
+              "line": 927
             },
             {
               "name": "getRoles",
               "kind": "method",
-              "line": 916
+              "line": 937
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 929
+              "line": 950
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 937
+              "line": 958
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 947
+              "line": 968
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 959
+              "line": 980
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 970
+              "line": 991
             },
             {
               "name": "getAttachmentsForCase",
               "kind": "method",
-              "line": 983
+              "line": 1004
             },
             {
               "name": "getAttachmentsForRun",
               "kind": "method",
-              "line": 994
+              "line": 1015
             },
             {
               "name": "getAttachmentsForTest",
               "kind": "method",
-              "line": 1005
+              "line": 1026
             },
             {
               "name": "getAttachmentsForPlan",
               "kind": "method",
-              "line": 1016
+              "line": 1037
             },
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 1028
+              "line": 1049
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 1039
+              "line": 1060
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 1052
+              "line": 1073
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 1069
+              "line": 1090
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 1086
+              "line": 1107
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 1103
+              "line": 1124
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 1121
+              "line": 1142
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 1137
+              "line": 1158
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 1150
+              "line": 1171
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 1161
+              "line": 1182
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 1173
+              "line": 1194
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 1185
+              "line": 1206
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 1196
+              "line": 1217
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 1205
+              "line": 1226
             },
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 1218
+              "line": 1239
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 1230
+              "line": 1251
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 1242
+              "line": 1263
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 1253
+              "line": 1274
             },
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 1266
+              "line": 1287
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 1277
+              "line": 1298
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 1289
+              "line": 1310
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 1301
+              "line": 1322
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 1312
+              "line": 1333
             },
             {
               "name": "getReports",
               "kind": "method",
-              "line": 1325
+              "line": 1346
             },
             {
               "name": "runReport",
               "kind": "method",
-              "line": 1336
+              "line": 1357
             }
           ]
         }
@@ -3352,54 +3406,59 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "MetadataModule",
           "kind": "class",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export class MetadataModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 16
+              "line": 17
             },
             {
               "name": "getStatuses",
               "kind": "method",
-              "line": 18
+              "line": 19
             },
             {
               "name": "getCaseStatuses",
               "kind": "method",
-              "line": 25
+              "line": 26
             },
             {
               "name": "getPriorities",
               "kind": "method",
-              "line": 32
+              "line": 33
             },
             {
               "name": "getResultFields",
               "kind": "method",
-              "line": 39
+              "line": 40
             },
             {
               "name": "getCaseFields",
               "kind": "method",
-              "line": 46
+              "line": 47
+            },
+            {
+              "name": "addCaseField",
+              "kind": "method",
+              "line": 67
             },
             {
               "name": "getCaseTypes",
               "kind": "method",
-              "line": 53
+              "line": 72
             },
             {
               "name": "getTemplates",
               "kind": "method",
-              "line": 60
+              "line": 79
             },
             {
               "name": "getRoles",
               "kind": "method",
-              "line": 68
+              "line": 87
             }
           ]
         }
@@ -4602,198 +4661,226 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>"
         },
         {
+          "name": "AddCaseFieldConfigPayloadSchema",
+          "kind": "const",
+          "line": 553,
+          "exported": true,
+          "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), }), options: zObject({ is_required: z.boolean(), default_value: z.…"
+        },
+        {
+          "name": "AddCaseFieldConfigPayload",
+          "kind": "type",
+          "line": 567,
+          "exported": true,
+          "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>"
+        },
+        {
+          "name": "AddCaseFieldPayloadSchema",
+          "kind": "const",
+          "line": 569,
+          "exported": true,
+          "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), template_ids: z.array…"
+        },
+        {
+          "name": "AddCaseFieldPayload",
+          "kind": "type",
+          "line": 579,
+          "exported": true,
+          "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>"
+        },
+        {
           "name": "AddRunPayloadSchema",
           "kind": "const",
-          "line": 538,
+          "line": 581,
           "exported": true,
           "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
         },
         {
           "name": "AddRunPayload",
           "kind": "type",
-          "line": 549,
+          "line": 592,
           "exported": true,
           "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>"
         },
         {
           "name": "UpdateRunPayloadSchema",
           "kind": "const",
-          "line": 551,
+          "line": 594,
           "exported": true,
           "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
         },
         {
           "name": "UpdateRunPayload",
           "kind": "type",
-          "line": 561,
+          "line": 604,
           "exported": true,
           "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>"
         },
         {
           "name": "AddResultPayloadSchema",
           "kind": "const",
-          "line": 563,
+          "line": 606,
           "exported": true,
           "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
         },
         {
           "name": "AddResultPayload",
           "kind": "type",
-          "line": 573,
+          "line": 616,
           "exported": true,
           "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>"
         },
         {
           "name": "AddResultForCasePayloadSchema",
           "kind": "const",
-          "line": 577,
+          "line": 620,
           "exported": true,
           "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
         },
         {
           "name": "AddResultForCasePayload",
           "kind": "type",
-          "line": 588,
+          "line": 631,
           "exported": true,
           "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>"
         },
         {
           "name": "AddResultsForCasesPayloadSchema",
           "kind": "const",
-          "line": 590,
+          "line": 633,
           "exported": true,
           "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
         },
         {
           "name": "AddResultsForCasesPayload",
           "kind": "type",
-          "line": 594,
+          "line": 637,
           "exported": true,
           "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>"
         },
         {
           "name": "AddResultForTestPayloadSchema",
           "kind": "const",
-          "line": 599,
+          "line": 642,
           "exported": true,
           "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
         },
         {
           "name": "AddResultForTestPayload",
           "kind": "type",
-          "line": 610,
+          "line": 653,
           "exported": true,
           "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>"
         },
         {
           "name": "AddResultsPayloadSchema",
           "kind": "const",
-          "line": 612,
+          "line": 655,
           "exported": true,
           "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
         },
         {
           "name": "AddResultsPayload",
           "kind": "type",
-          "line": 616,
+          "line": 659,
           "exported": true,
           "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>"
         },
         {
           "name": "PlanEntryRunPayloadSchema",
           "kind": "const",
-          "line": 625,
+          "line": 668,
           "exported": true,
           "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
         },
         {
           "name": "PlanEntryRunPayload",
           "kind": "type",
-          "line": 635,
+          "line": 678,
           "exported": true,
           "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>"
         },
         {
           "name": "AddRunToPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 642,
+          "line": 685,
           "exported": true,
           "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
         },
         {
           "name": "AddRunToPlanEntryPayload",
           "kind": "type",
-          "line": 651,
+          "line": 694,
           "exported": true,
           "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>"
         },
         {
           "name": "UpdateRunInPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 656,
+          "line": 699,
           "exported": true,
           "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
         },
         {
           "name": "UpdateRunInPlanEntryPayload",
           "kind": "type",
-          "line": 663,
+          "line": 706,
           "exported": true,
           "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>"
         },
         {
           "name": "AddPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 665,
+          "line": 708,
           "exported": true,
           "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
         },
         {
           "name": "AddPlanEntryPayload",
           "kind": "type",
-          "line": 676,
+          "line": 719,
           "exported": true,
           "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>"
         },
         {
           "name": "UpdatePlanEntryPayloadSchema",
           "kind": "const",
-          "line": 678,
+          "line": 721,
           "exported": true,
           "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
         },
         {
           "name": "UpdatePlanEntryPayload",
           "kind": "type",
-          "line": 689,
+          "line": 732,
           "exported": true,
           "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>"
         },
         {
           "name": "AddPlanPayloadSchema",
           "kind": "const",
-          "line": 691,
+          "line": 734,
           "exported": true,
           "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), entries: z.array(AddPlanEntryPayloadSchema).optional(), })"
         },
         {
           "name": "AddPlanPayload",
           "kind": "type",
-          "line": 698,
+          "line": 741,
           "exported": true,
           "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>"
         },
         {
           "name": "UpdatePlanPayloadSchema",
           "kind": "const",
-          "line": 700,
+          "line": 743,
           "exported": true,
           "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), })"
         },
         {
           "name": "UpdatePlanPayload",
           "kind": "type",
-          "line": 707,
+          "line": 750,
           "exported": true,
           "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>"
         }

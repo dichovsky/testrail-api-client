@@ -535,6 +535,49 @@ export const UpdateCasePayloadSchema = zObject({
 
 export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>;
 
+// ── Case-field payloads ───────────────────────────────────────────────────────
+// `add_case_field` (admin-only) creates a custom case field at the
+// instance/project level. The payload mirrors the response-side
+// `CaseFieldConfigSchema` for `configs[]` (same private `context`/`options`
+// helpers), but is intentionally a separate top-level schema — write payloads
+// must not drift if TestRail later adds response-only fields like
+// `display_order` or `is_active` to the GET response.
+//
+// Inlined (not `.extend()`-ed off CaseFieldSchema) so the inferred type stays
+// a plain object literal and `.passthrough()` behaviour is unambiguous —
+// same precedent as AddResultForTestPayloadSchema. `.passthrough()` also
+// lets TestRail be the source of truth on field-type-specific quirks (e.g.
+// some versions reject `items` when `type=Steps`, and `name` must be a
+// valid system slug). We surface the server's 400 instead of duplicating
+// those rules client-side.
+export const AddCaseFieldConfigPayloadSchema = zObject({
+    context: zObject({
+        is_global: z.boolean(),
+        project_ids: z.array(z.number()),
+    }),
+    options: zObject({
+        is_required: z.boolean(),
+        default_value: z.string(),
+        items: z.string().optional(),
+        format: z.string().optional(),
+        rows: z.string().optional(),
+    }),
+});
+
+export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>;
+
+export const AddCaseFieldPayloadSchema = zObject({
+    type: z.string(),
+    name: z.string(),
+    label: z.string(),
+    description: z.string().optional(),
+    include_all: z.boolean().optional(),
+    template_ids: z.array(z.number()).optional(),
+    configs: z.array(AddCaseFieldConfigPayloadSchema),
+});
+
+export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>;
+
 export const AddRunPayloadSchema = zObject({
     name: z.string(),
     suite_id: z.number().optional(),
