@@ -22,6 +22,8 @@ import {
     PlanEntryRunPayloadSchema,
     AddPlanEntryPayloadSchema,
     UpdatePlanEntryPayloadSchema,
+    AddRunToPlanEntryPayloadSchema,
+    UpdateRunInPlanEntryPayloadSchema,
     AddPlanPayloadSchema,
     UpdatePlanPayloadSchema,
 } from '../src/schemas.js';
@@ -264,6 +266,73 @@ describe('UpdatePlanEntryPayloadSchema', () => {
 
     it('rejects non-array runs', () => {
         expect(() => UpdatePlanEntryPayloadSchema.parse({ runs: 'nope' })).toThrow();
+    });
+});
+
+describe('AddRunToPlanEntryPayloadSchema', () => {
+    it('parses a minimal valid payload (config_ids only)', () => {
+        const parsed = AddRunToPlanEntryPayloadSchema.parse({ config_ids: [1] });
+        expect(parsed.config_ids).toEqual([1]);
+    });
+
+    it('parses a fully-populated payload', () => {
+        const parsed = AddRunToPlanEntryPayloadSchema.parse({
+            config_ids: [1, 2],
+            description: 'Smoke',
+            assignedto_id: 7,
+            include_all: false,
+            case_ids: [10, 20, 30],
+            refs: 'JIRA-1',
+        });
+        expect(parsed.case_ids).toEqual([10, 20, 30]);
+        expect(parsed.refs).toBe('JIRA-1');
+    });
+
+    it('rejects payload missing config_ids', () => {
+        expect(() => AddRunToPlanEntryPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects payload with config_ids of wrong type', () => {
+        expect(() => AddRunToPlanEntryPayloadSchema.parse({ config_ids: 'all' })).toThrow();
+    });
+
+    it('rejects payload with non-numeric config_ids elements', () => {
+        expect(() => AddRunToPlanEntryPayloadSchema.parse({ config_ids: ['1'] })).toThrow();
+    });
+
+    it('lets custom_* fields pass through unchanged', () => {
+        const parsed = AddRunToPlanEntryPayloadSchema.parse({
+            config_ids: [1],
+            custom_owner: 'team-a',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('team-a');
+    });
+});
+
+describe('UpdateRunInPlanEntryPayloadSchema', () => {
+    it('parses an empty payload (all fields optional)', () => {
+        const parsed = UpdateRunInPlanEntryPayloadSchema.parse({});
+        expect(parsed).toEqual({});
+    });
+
+    it('parses a payload with all four mutable fields', () => {
+        const parsed = UpdateRunInPlanEntryPayloadSchema.parse({
+            description: 'updated',
+            assignedto_id: 7,
+            include_all: false,
+            case_ids: [1, 2],
+        });
+        expect(parsed.description).toBe('updated');
+        expect(parsed.case_ids).toEqual([1, 2]);
+    });
+
+    it('rejects bad types for case_ids', () => {
+        expect(() => UpdateRunInPlanEntryPayloadSchema.parse({ case_ids: 'all' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through unchanged', () => {
+        const parsed = UpdateRunInPlanEntryPayloadSchema.parse({ custom_owner: 'team-a' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('team-a');
     });
 });
 

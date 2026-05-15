@@ -569,6 +569,34 @@ export const PlanEntryRunPayloadSchema = zObject({
 
 export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>;
 
+// Payload for POST add_run_to_plan_entry/{plan_id}/{entry_id}. `config_ids` is
+// required: an entry-level run is created for a specific config combination.
+// `name` is intentionally absent — TestRail derives the run name from the
+// config. Distinct from `PlanEntryRunPayloadSchema` (used for nested entries
+// where every field is optional).
+export const AddRunToPlanEntryPayloadSchema = zObject({
+    config_ids: z.array(z.number()),
+    description: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+    refs: z.string().optional(),
+});
+
+export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>;
+
+// Payload for POST update_run_in_plan_entry/{run_id}. Only the four mutable
+// per-run fields — `config_ids`, `name`, and `refs` are not accepted by the
+// endpoint, so we omit them client-side rather than silently passing them.
+export const UpdateRunInPlanEntryPayloadSchema = zObject({
+    description: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    include_all: z.boolean().optional(),
+    case_ids: z.array(z.number()).optional(),
+});
+
+export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>;
+
 export const AddPlanEntryPayloadSchema = zObject({
     suite_id: z.number(),
     name: z.string().optional(),
