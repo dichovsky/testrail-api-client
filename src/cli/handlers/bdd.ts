@@ -1,8 +1,8 @@
-import { writeFileSync } from 'node:fs';
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { resolveFile } from '../file-input.js';
+import { safeWriteText } from '../safe-write.js';
 
 /**
  * Download a case's BDD (Gherkin `.feature`) content to a local file.
@@ -31,7 +31,7 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
     }
 
     const text = await ctx.client.getBdd(caseId);
-    writeFileSync(resolved.path, text, 'utf-8');
+    safeWriteText(resolved.path, text, ctx.force);
     ctx.out({
         caseId,
         out: resolved.path,

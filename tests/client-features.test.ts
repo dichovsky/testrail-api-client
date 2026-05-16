@@ -158,6 +158,67 @@ describe('TestRailClient - Enhanced Features', () => {
             await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
         });
+
+        it('should fail closed when DNS lookup errors (no fail-open warn-and-proceed)', async () => {
+            // Previously a SERVFAIL/NXDOMAIN reply would emit console.warn and let
+            // the request continue, converting validation into a no-op — that path
+            // is now treated as a hard validation failure.
+            mockDnsLookup.mockRejectedValueOnce(Object.assign(new Error('queryA ESERVFAIL'), { code: 'ESERVFAIL' }));
+            client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+
+            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should re-resolve on every request (no construction-time caching)', async () => {
+            // Defends against DNS rebinding: validating once at construction lets an
+            // attacker who returns a public IP for the construction lookup, then a
+            // private IP for fetch's subsequent lookup, bypass the check entirely.
+            // Re-validation per request closes that window to microseconds.
+            mockDnsLookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }] as never);
+            client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: false,
+            });
+
+            mockFetch.mockResolvedValue({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+            });
+
+            await client.getProject(1);
+            await client.getProject(2);
+
+            expect(mockDnsLookup).toHaveBeenCalledTimes(2);
+        });
+
+        it('should skip DNS validation entirely when allowPrivateHosts is true', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+            });
+            client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                allowPrivateHosts: true,
+                enableCache: false,
+            });
+
+            await client.getProject(1);
+
+            expect(mockDnsLookup).not.toHaveBeenCalled();
+        });
     });
 
     describe('Caching', () => {
