@@ -42,7 +42,7 @@ Write actions (body via --data | --data-file | stdin):
   case   copy-to-section <section_id>  --data '{"case_ids":[1,2]}'
   case   move-to-section <section_id>  --data '{"case_ids":[1,2],"suite_id":3}'
   run    add <project_id>           --data '{"name":"..."}'
-  run    close <run_id>             (no body)
+  run    close <run_id>             --yes  (no body; irreversible)
   result add <run_id> <case_id>     --data '{"status_id":1}'
   result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
   result add-bulk-by-test <run_id>  --data '{"results":[{"test_id":1,"status_id":1}]}'
@@ -110,9 +110,9 @@ For body-bearing write actions (all except 'run close'), exactly one body source
 is required (--data | --data-file | stdin). Stdin is auto-detected when input
 is piped (process.stdin.isTTY === false). Attachment upload actions take a
 binary file via --file <path> and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete, case delete-bulk) require --yes; pass
---dry-run together with --yes to preview without making the API call
-(dry-run wins).
+Destructive actions (attachment delete, case delete-bulk, run close) require
+--yes; pass --dry-run together with --yes to preview without making the API
+call (dry-run wins). 'run close' is irreversible — TestRail offers no reopen.
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────

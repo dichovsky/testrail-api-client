@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "0d47c51cf1ec9cb558924750f12d3bac53d76705b4a1ca413d74f8a07d637848",
+  "sourceHash": "f4f039ccb1a1e0d84e8477b23d1f47325d108a2067892e616d088ec97327fc74",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1998,7 +1998,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleRunClose",
           "kind": "function",
-          "line": 23,
+          "line": 28,
           "exported": true,
           "signature": "export async function handleRunClose(ctx: HandlerContext): Promise<void>"
         }
@@ -2312,7 +2312,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 551,
+          "line": 552,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

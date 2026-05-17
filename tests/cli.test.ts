@@ -525,9 +525,29 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
-        it('run unknown action should exit 1', async () => {
-            const { exitCodes } = await runCli(['run', 'close', '1']);
+        it('run close without --yes rejects (destructive: irreversible)', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'close', '1']);
             expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('run close with --yes POSTs to close_run/{run_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'close', '42', '--yes'],
+                [jsonResponse({ ...MOCK_RUN, id: 42, is_completed: true })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('close_run/42');
+        });
+
+        it('run close with --dry-run skips the API call even with --yes; preview marks destructive', async () => {
+            const { exitCodes, stdout } = await runCli(['run', 'close', '42', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
         });
     });
 
@@ -1100,9 +1120,9 @@ describe('CLI', () => {
     });
 
     describe('run close', () => {
-        it('POSTs without a body', async () => {
+        it('POSTs without a body when --yes is passed', async () => {
             const { exitCodes } = await runCli(
-                ['run', 'close', '10'],
+                ['run', 'close', '10', '--yes'],
                 [jsonResponse({ ...MOCK_RUN, is_completed: true })],
             );
             expect(exitCodes).toContain(0);

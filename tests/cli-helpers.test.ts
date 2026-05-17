@@ -381,6 +381,19 @@ describe('metadata vs dispatch consistency', () => {
     });
 
     /**
+     * Pin the exact set of destructive actions so any future addition of
+     * an irreversible operation (e.g., `plan close`) must consciously
+     * extend this list, ensuring the `--yes` gate isn't forgotten. CTF
+     * audit finding #6 caught `run close` missing from this set — locked
+     * in here to prevent regression.
+     */
+    it('destructive action set is exactly {attachment:delete, case:delete-bulk, run:close}', () => {
+        const got = new Set(ACTIONS.filter((s) => s.destructive === true).map((s) => `${s.resource}:${s.action}`));
+        const want = new Set(['attachment:delete', 'case:delete-bulk', 'run:close']);
+        expect(got).toEqual(want);
+    });
+
+    /**
      * The CLI in src/cli/index.ts gates stdin suppression on
      * `ActionSpec.fileInput === true` (PR #59 review feedback): suppressing
      * stdin purely on `--file` presence would also kill piped JSON bodies

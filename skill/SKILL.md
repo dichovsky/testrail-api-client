@@ -80,7 +80,7 @@ on stderr. Never echo or log the API key.
 | case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
 | case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
-| run | close | `<run_id>` | — (no body) | Close a test run (no body) |
+| run | close | `<run_id>` | — (no body, requires `--yes`) | Close a test run permanently — irreversible (no body; requires --yes) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
 | result | add-bulk-by-test | `<run_id>` | `AddResultsPayloadSchema` | Record multiple results for tests (by test_id) in one API call |
@@ -560,8 +560,13 @@ Where `/tmp/results.json` has shape:
 ### 13. Close a run when CI finishes
 
 ```bash
-testrail run close "$RUN_ID"
+testrail run close "$RUN_ID" --yes
 ```
+
+Destructive: closing a run is irreversible (TestRail has no `open_run`).
+The `--yes` gate prevents accidental closure from agent-issued commands.
+Combine with `--dry-run` (preview wins) to confirm the target before
+committing.
 
 ### 14. Validate a payload before sending (`--dry-run`)
 
