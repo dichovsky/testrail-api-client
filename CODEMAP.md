@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "f4f039ccb1a1e0d84e8477b23d1f47325d108a2067892e616d088ec97327fc74",
+  "sourceHash": "b6e5c8b7fa0230062aac6c7acb079b5550f7d7a447737a0a434f1db81389dca4",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1468,6 +1468,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/flags.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "CLI_OPTIONS",
+          "kind": "const",
+          "line": 20,
+          "exported": true,
+          "signature": "export const CLI_OPTIONS = { 'base-url': { type: 'string' as const }, email: { type: 'string' as const }, 'api-key': { type: 'string' as const }, format: { type: 'string' as const, default: 'json' }, …"
+        },
+        {
+          "name": "KNOWN_FLAGS",
+          "kind": "const",
+          "line": 47,
+          "exported": true,
+          "signature": "export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(CLI_OPTIONS))"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handler-context.ts",
       "imports": [
         "../client.js"
@@ -2207,6 +2228,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client.js",
         "./auth.js",
         "./dispatch.js",
+        "./flags.js",
         "./handler-context.js",
         "./install-skill.js",
         "./metadata.js",
@@ -2220,28 +2242,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 15,
+          "line": 16,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 16,
+          "line": 17,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 20,
+          "line": 21,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 127,
+          "line": 128,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }

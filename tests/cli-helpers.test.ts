@@ -12,6 +12,7 @@ import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
+import { CLI_OPTIONS, KNOWN_FLAGS } from '../src/cli/flags.js';
 
 describe('valueToString', () => {
     it('returns empty string for null', () => {
@@ -459,5 +460,51 @@ describe('metadata vs dispatch consistency', () => {
     it('getActionSpec returns undefined for unknown entries', () => {
         expect(getActionSpec('webhook', 'list')).toBeUndefined();
         expect(getActionSpec('case', 'delete')).toBeUndefined();
+    });
+});
+
+// ── KNOWN_FLAGS inventory (CTF #10 drift guard) ──────────────────────────────
+//
+// parseArgs in src/cli/index.ts is invoked with strict:false (defensive
+// future-Node tolerance). A post-parse loop rejects any flag not in
+// KNOWN_FLAGS — without that gate, typos like `--dryrun` are silently
+// accepted as free-form keys, executing what the user intended as a
+// preview. The drift risk is that someone adds a flag to CLI_OPTIONS but
+// forgets to keep KNOWN_FLAGS in sync (or vice-versa). Locking the
+// invariant here ensures the gate keeps matching the parser declaration.
+
+describe('KNOWN_FLAGS inventory', () => {
+    it('contains every documented CLI flag (none missing, none extra)', () => {
+        const expected = new Set([
+            'base-url',
+            'email',
+            'api-key',
+            'format',
+            'quiet',
+            'help',
+            'version',
+            'project-id',
+            'suite-id',
+            'run-id',
+            'case-id',
+            'limit',
+            'offset',
+            'data',
+            'data-file',
+            'dry-run',
+            'global',
+            'force',
+            'print-path',
+            'file',
+            'filename',
+            'out',
+            'yes',
+            'soft',
+        ]);
+        expect(KNOWN_FLAGS).toEqual(expected);
+    });
+
+    it('equals Object.keys(CLI_OPTIONS) — the parser declaration is the only source of truth', () => {
+        expect(KNOWN_FLAGS).toEqual(new Set(Object.keys(CLI_OPTIONS)));
     });
 });

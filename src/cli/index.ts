@@ -8,6 +8,7 @@ import { createOutput } from './output.js';
 import { dispatch } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
+import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -130,32 +131,7 @@ async function main(): Promise<number> {
     try {
         const parsed = parseArgs({
             args: process.argv.slice(2),
-            options: {
-                'base-url': { type: 'string' },
-                email: { type: 'string' },
-                'api-key': { type: 'string' },
-                format: { type: 'string', default: 'json' },
-                quiet: { type: 'boolean', default: false },
-                help: { type: 'boolean', default: false },
-                version: { type: 'boolean', default: false },
-                'project-id': { type: 'string' },
-                'suite-id': { type: 'string' },
-                'run-id': { type: 'string' },
-                'case-id': { type: 'string' },
-                limit: { type: 'string' },
-                offset: { type: 'string' },
-                data: { type: 'string' },
-                'data-file': { type: 'string' },
-                'dry-run': { type: 'boolean', default: false },
-                global: { type: 'boolean', default: false },
-                force: { type: 'boolean', default: false },
-                'print-path': { type: 'boolean', default: false },
-                file: { type: 'string' },
-                filename: { type: 'string' },
-                out: { type: 'string' },
-                yes: { type: 'boolean', default: false },
-                soft: { type: 'boolean', default: false },
-            },
+            options: CLI_OPTIONS,
             allowPositionals: true,
             strict: false,
         });
@@ -169,6 +145,16 @@ async function main(): Promise<number> {
         return 1;
     }
     /* v8 ignore stop */
+
+    // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
+    // typos like `--dryrun` that parseArgs({strict: false}) would silently
+    // accept, bypassing the gate the user intended. See CTF audit #10.
+    for (const key of Object.keys(values)) {
+        if (!KNOWN_FLAGS.has(key)) {
+            process.stderr.write(`Error: unknown flag '--${key}'. Run --help for the full list.\n`);
+            return 1;
+        }
+    }
 
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];

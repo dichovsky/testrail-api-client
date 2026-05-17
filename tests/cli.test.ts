@@ -796,6 +796,67 @@ describe('CLI', () => {
         });
     });
 
+    // ── unknown flag rejection (CTF #10) ─────────────────────────────────────
+    //
+    // parseArgs is invoked with strict:false for defensive future-Node
+    // tolerance, but a post-parse loop in main() rejects any flag not in
+    // KNOWN_FLAGS. Without this gate, `--dryrun` (missing hyphen) is
+    // silently accepted as a free-form key while `values['dry-run']`
+    // stays undefined, executing what the user intended as a preview.
+    describe('unknown flag rejection', () => {
+        it('case delete-bulk: --dryrun typo is rejected, no API call made', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'case',
+                'delete-bulk',
+                '7',
+                '--project-id',
+                '1',
+                '--yes',
+                '--dryrun',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--dryrun'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('attachment delete: --dryrun typo is rejected, no API call made', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'delete', '1', '--yes', '--dryrun']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--dryrun'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('positive control: --dry-run (correct spelling) is accepted', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'case',
+                'delete-bulk',
+                '7',
+                '--project-id',
+                '1',
+                '--yes',
+                '--dry-run',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('unknown flag emits exit 1 even on a read action that would otherwise succeed', async () => {
+            // Don't queue a fetch response — the validation gate must reject
+            // before any API call, so an unconsumed mockResolvedValueOnce
+            // would leak into the next test's queue (vi.clearAllMocks() only
+            // clears call history, not the .mockResolvedValueOnce stack).
+            const { exitCodes, stderr } = await runCli(['project', 'list', '--limmit', '10']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--limmit'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
     // ── output format ─────────────────────────────────────────────────────────
 
     describe('--format table', () => {
