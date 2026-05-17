@@ -190,8 +190,9 @@ are rejected via a post-parse strict gate so typos like `--dryrun` no longer
 silently bypass `--dry-run`. `--api-key <key>` argv was removed; the API
 key must come from `TESTRAIL_API_KEY` (recommended) or `--api-key-stdin`.
 Stderr error messages and `--format table` cell values are sanitized to
-strip ANSI/OSC terminal escape sequences. Stdin reads are bounded at 1 MiB.
-Breaking-change migration notes in the v3.0 release PR.
+strip ANSI/OSC terminal escape sequences. Stdin reads are bounded at 1 MiB
+(memory-DoS only — see #24 for the open wall-clock-deadline follow-up).
+Breaking-change migration notes in [CHANGELOG.md](CHANGELOG.md).
 
 ### 1. DNS-rebinding bypass of SSRF guard — `src/client-core.ts` (Severity: HIGH) — [SHIPPED]
 
@@ -2931,7 +2932,23 @@ Tests:
   burst followed by a `skipCache: true` call still issues a
   fresh fetch (`skipCache` honoured).
 
-### 24. Unbounded stdin read for write-action bodies — `src/cli/index.ts:269`, `src/cli/body.ts:75–78` (Severity: LOW–MEDIUM) — [SHIPPED]
+### 24. Unbounded stdin read for write-action bodies — `src/cli/index.ts:269`, `src/cli/body.ts:75–78` (Severity: LOW–MEDIUM) — [SHIPPED — partial]
+
+> **Scope shipped in v3.0:** memory-exhaustion DoS only. `readBoundedStdin`
+> in `src/cli/stdin.ts` caps accumulated bytes at 1 MiB; pipes larger
+> than that throw before any allocation past the cap.
+>
+> **Follow-up (not shipped):** a producer that holds the pipe open
+> without ever sending more than `maxBytes` (e.g. `tail -f`, a FIFO
+> writer that never closes, a slow trickle) still blocks the CLI
+> indefinitely on the synchronous `fs.readSync` call. Closing that
+> requires switching `BodyInput.readStdin` from `() => string` to
+> `() => Promise<string>`, replacing the `readSync` loop with an
+> async stream reader gated by an `AbortController`/wall-clock
+> deadline (e.g. 30 s), and threading the async signature through
+> `resolveBody`. Surfaced by Copilot review on PR #70. Track as
+> "stdin wall-clock deadline" — extends this finding rather than
+> reopens it, since the memory-DoS half is locked in.
 
 The CLI exposes stdin as the third body source (alongside `--data`
 and `--data-file`) via a thunk that performs an *unbounded* read from

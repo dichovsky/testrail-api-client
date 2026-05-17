@@ -43,7 +43,12 @@ export function renderTable(data: unknown): string {
 
     const first: unknown = rows[0];
     if (typeof first !== 'object' || first === null) {
-        return rows.map(String).join('\n');
+        // CTF #18: route the primitive-array branch through valueToString
+        // so a top-level string / number array carrying control chars
+        // (e.g. `['safe', '\x1b[31mRED\x1b[0m', 42]`) is sanitized the
+        // same way as object cells. Without this the primitive path
+        // would emit raw ESC bytes to stdout under --format table.
+        return rows.map(valueToString).join('\n');
     }
 
     // CTF #18 defense-in-depth: sanitize column keys too. TestRail field

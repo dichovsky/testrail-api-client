@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.0.0"
   },
-  "sourceHash": "868d95d4d76a156485bb045ff6d476a2b100fc9837a8231c25b55e4db67db471",
+  "sourceHash": "cd14e49e2c6eb5a250f5450a819062f42137639913a9004005ba75cd32ca50e6",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2388,14 +2388,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 84,
+          "line": 89,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 99,
+          "line": 104,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -2462,7 +2462,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "readBoundedStdin",
           "kind": "function",
-          "line": 24,
+          "line": 39,
           "exported": true,
           "signature": "export function readBoundedStdin(maxBytes: number, fd = 0): string"
         }

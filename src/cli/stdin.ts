@@ -15,6 +15,21 @@ import { readSync } from 'node:fs';
  *
  * CTF audit #24. See also `MAX_STDIN_BYTES` in src/constants.ts.
  *
+ * **Scope (what this fixes):** memory-exhaustion DoS from a producer
+ * that pipes a multi-GB payload. The cap is enforced before the
+ * accumulated bytes exceed `maxBytes`, so the process never allocates
+ * past the cap.
+ *
+ * **Out of scope (what this does NOT fix):** a producer that holds
+ * the pipe open without ever sending more than `maxBytes` (e.g.
+ * `tail -f`, a FIFO writer that never closes, a slow trickle).
+ * `readSync` is a blocking syscall; without a wall-clock deadline the
+ * CLI will block on the first chunk indefinitely. Adding an async
+ * stream reader with `AbortController` is tracked as a follow-up in
+ * `BACKLOG.md` — it requires switching `BodyInput.readStdin` from
+ * `() => string` to `() => Promise<string>` and an async resolver
+ * path, a larger refactor than the v3.0 release was scoped for.
+ *
  * @param maxBytes Hard cap on accumulated bytes. Throws if exceeded.
  * @param fd File descriptor to read from. Defaults to 0 (stdin).
  *

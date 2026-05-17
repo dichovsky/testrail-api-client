@@ -140,6 +140,31 @@ describe('renderTable', () => {
         expect(out).not.toContain('\x1b');
         expect(out).not.toContain('\x07');
     });
+
+    // Regression for Copilot PR #70 review comment: when the input is a
+    // top-level primitive array (string / number / boolean), the renderer
+    // takes the early `rows.map(...)` branch — pre-fix, this used `String`
+    // directly and bypassed valueToString's sanitization, emitting raw
+    // ESC bytes under --format table for primitive-array data.
+    it('strips control chars from primitive-array cell values (top-level string array)', () => {
+        const out = renderTable(['safe', '\x1b[31mRED\x1b[0m', 'after\x07bell']);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+        // Sanitized fragments still surface.
+        expect(out).toContain('safe');
+        expect(out).toContain('[31mRED[0m');
+        expect(out).toContain('afterbell');
+    });
+
+    it('mixed primitive array (string + number + boolean) sanitizes string entries only', () => {
+        const out = renderTable(['a\x1b[1mb', 42, true, '\x07c']);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+        expect(out).toContain('a[1mb');
+        expect(out).toContain('42');
+        expect(out).toContain('true');
+        expect(out).toContain('c');
+    });
 });
 
 describe('safeJsonStringify', () => {
