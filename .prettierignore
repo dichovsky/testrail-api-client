@@ -19,3 +19,10 @@ CODEMAP.md
 # inputs to the parser; formatter rewrites would change AST line numbers
 # and break assertions.
 tests/fixtures/codemap/**
+
+# Long-form planning prose with nested numbered lists containing inline
+# code spans; prettier's markdown handling destructively reflows these
+# bullets (collapses multi-line items, mangles backtick-adjacent
+# whitespace). The file is a planning doc, not API contract — drift
+# protection is low-value vs. the reflow damage.
+BACKLOG.md
