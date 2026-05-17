@@ -1,3 +1,5 @@
+import { sanitizeForTerminal } from './sanitize.js';
+
 export interface OutputOptions {
     quiet: boolean;
     format: 'json' | 'table';
@@ -90,7 +92,11 @@ export function createOutput(opts: OutputOptions): Output {
         }
     };
     const err = (message: string): void => {
-        if (!opts.quiet) process.stderr.write(`Error: ${message}\n`);
+        // CTF #16: sanitize before writing to stderr so TestRail-controlled
+        // strings reflected through error messages (validation errors,
+        // server response bodies, IDs echoed back) can't inject ANSI/OSC
+        // escapes into the user's terminal.
+        if (!opts.quiet) process.stderr.write(`Error: ${sanitizeForTerminal(message)}\n`);
     };
     return { out, err };
 }

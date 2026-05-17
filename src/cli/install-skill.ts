@@ -17,6 +17,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sanitizeForTerminal } from './sanitize.js';
 
 export interface InstallSkillOptions {
     global: boolean;
@@ -46,7 +47,11 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     // output.ts): when quiet, suppress both stdout success messages AND
     // stderr errors. Callers rely on exit code 0/1 only.
     const writeErr = (message: string): void => {
-        if (!opts.quiet) process.stderr.write(`Error: ${message}\n`);
+        // CTF #16: sanitize before writing to stderr. Error messages may
+        // interpolate paths derived from opts.cwdOverride / opts.homeOverride
+        // or filesystem error.message strings, which can carry control chars
+        // from attacker-controlled environment variables (HOME, CWD).
+        if (!opts.quiet) process.stderr.write(`Error: ${sanitizeForTerminal(message)}\n`);
     };
 
     const source = opts.sourceOverride ?? getBundledSkillPath(metaUrl);

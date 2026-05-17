@@ -840,6 +840,55 @@ describe('CLI', () => {
         });
     });
 
+    // ── stderr sanitization (CTF #16) ────────────────────────────────────────
+    //
+    // Error messages reflected from TestRail (server response bodies,
+    // validation errors carrying user input) and from argv echoed back in
+    // CLI rejection messages must be sanitized before reaching the user's
+    // terminal. Otherwise an attacker who controls a TestRail field value
+    // (or a typo'd flag name) can inject ANSI/OSC escapes — recoloring,
+    // cursor movement, window-title spoofing, or command injection on
+    // terminals that honour OSC 7/9.
+    describe('stderr sanitization', () => {
+        it('strips ESC + BEL from --data-file error messages reflecting the user-supplied path', async () => {
+            // body.ts reflects --data-file <path> verbatim in the error
+            // message when readFileSync fails. Argv carrying an OSC 0
+            // window-title-spoof payload reaches err() through that path.
+            const { exitCodes, stderr } = await runCli([
+                'project',
+                'add',
+                '--data-file',
+                '/tmp/nonexistent-\x1b]0;evil\x07-path',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).not.toContain('\x1b');
+            expect(stderr).not.toContain('\x07');
+            // The sanitized fragment 'evil' (with controls stripped)
+            // should still surface for debuggability.
+            expect(stderr).toContain('evil');
+            expect(stderr).toMatch(/Cannot read --data-file/);
+        });
+
+        it('strips control chars from the flag name in unknown-flag errors', async () => {
+            // Argv-injected ESC in the flag name itself. Without the
+            // sanitizer at the unknown-flag write site, the OSC would fire
+            // when the validation error is printed.
+            const { exitCodes, stderr } = await runCli(['--ev\x1bil-flag', 'project', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).not.toContain('\x1b');
+            expect(stderr).toMatch(/unknown flag/);
+        });
+
+        it('strips control chars from a validation error carrying user input', async () => {
+            // parseId reflects the raw `--project-id` value in the error
+            // message; the err() boundary sanitizes before write.
+            const { exitCodes, stderr } = await runCli(['project', 'get', 'ab\x07c']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).not.toContain('\x07');
+            expect(stderr).toMatch(/must be a positive integer/);
+        });
+    });
+
     // ── unknown flag rejection (CTF #10) ─────────────────────────────────────
     //
     // parseArgs is invoked with strict:false for defensive future-Node

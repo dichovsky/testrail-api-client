@@ -13,6 +13,7 @@ import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from '../src/cli/flags.js';
+import { sanitizeForTerminal } from '../src/cli/sanitize.js';
 
 describe('valueToString', () => {
     it('returns empty string for null', () => {
@@ -506,5 +507,55 @@ describe('KNOWN_FLAGS inventory', () => {
 
     it('equals Object.keys(CLI_OPTIONS) — the parser declaration is the only source of truth', () => {
         expect(KNOWN_FLAGS).toEqual(new Set(Object.keys(CLI_OPTIONS)));
+    });
+});
+
+// ── sanitizeForTerminal (CTF #16 + #18) ──────────────────────────────────────
+//
+// Strict denylist: strip all C0 (U+0000–U+001F), DEL (U+007F), and C1
+// (U+0080–U+009F) bytes. Used at every stdout/stderr boundary that
+// reflects untrusted strings (TestRail field values, server error text,
+// user argv echoed in validation errors). Defends against ANSI/OSC
+// injection — color codes, cursor moves, window-title spoofing, and
+// (on some terminals) command-injection via OSC 7/9/iTerm2 escapes.
+
+describe('sanitizeForTerminal', () => {
+    it('strips ESC (0x1B), the most common ANSI introducer', () => {
+        expect(sanitizeForTerminal('hello\x1b[31mRED\x1b[0m')).toBe('hello[31mRED[0m');
+    });
+
+    it('strips BEL (0x07), used to terminate OSC escapes', () => {
+        expect(sanitizeForTerminal('safe\x07bell')).toBe('safebell');
+    });
+
+    it('strips CR, LF, TAB, and the rest of the C0 control band', () => {
+        expect(sanitizeForTerminal('a\rb\nc\td')).toBe('abcd');
+        expect(sanitizeForTerminal('\x00\x01\x02\x1f')).toBe('');
+    });
+
+    it('strips DEL (0x7F)', () => {
+        expect(sanitizeForTerminal('before\x7Fafter')).toBe('beforeafter');
+    });
+
+    it('strips C1 controls (0x80-0x9F), including the 8-bit OSC introducer (0x9D)', () => {
+        expect(sanitizeForTerminal('a\x80b\x9Dc\x9Fd')).toBe('abcd');
+    });
+
+    it('preserves printable ASCII, space, and Unicode', () => {
+        expect(sanitizeForTerminal('Hello, world! 123 ()[]{}<>')).toBe('Hello, world! 123 ()[]{}<>');
+        expect(sanitizeForTerminal('日本語 中文 한국어 العربية')).toBe('日本語 中文 한국어 العربية');
+        expect(sanitizeForTerminal('emoji: 🔥💀✅')).toBe('emoji: 🔥💀✅');
+    });
+
+    it('defeats the OSC 0 window-title spoof (ESC ] 0 ; title BEL)', () => {
+        const evil = '\x1b]0;Pwned!\x07legitimate text';
+        expect(sanitizeForTerminal(evil)).toBe(']0;Pwned!legitimate text');
+        // Critical: no surviving ESC, no surviving BEL.
+        expect(sanitizeForTerminal(evil)).not.toContain('\x1b');
+        expect(sanitizeForTerminal(evil)).not.toContain('\x07');
+    });
+
+    it('returns empty string for input that is entirely control chars', () => {
+        expect(sanitizeForTerminal('\x1b\x07\r\n\t\x00')).toBe('');
     });
 });

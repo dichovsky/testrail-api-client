@@ -9,6 +9,7 @@ import { dispatch } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
+import { sanitizeForTerminal } from './sanitize.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -145,7 +146,7 @@ async function main(): Promise<number> {
            tolerant; this catch funnels any future-Node-version edge cases
            through the controlled exit path rather than crashing the module. */
     } catch (e: unknown) {
-        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+        process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
         return 1;
     }
     /* v8 ignore stop */
@@ -155,7 +156,12 @@ async function main(): Promise<number> {
     // accept, bypassing the gate the user intended. See CTF audit #10.
     for (const key of Object.keys(values)) {
         if (!KNOWN_FLAGS.has(key)) {
-            process.stderr.write(`Error: unknown flag '--${key}'. Run --help for the full list.\n`);
+            // CTF #16: sanitize the user-controlled flag name before
+            // reflecting it back to the terminal. An argv like
+            // `--\x1b]0;evil\x07` would otherwise execute the OSC.
+            process.stderr.write(
+                `Error: unknown flag '--${sanitizeForTerminal(key)}'. Run --help for the full list.\n`,
+            );
             return 1;
         }
     }
@@ -225,7 +231,9 @@ async function main(): Promise<number> {
             // without the user having to strip the \n themselves.
             apiKeyFromStdin = readFileSync(0, 'utf-8').trim();
         } catch (e: unknown) {
-            process.stderr.write(`Error: cannot read --api-key-stdin: ${e instanceof Error ? e.message : String(e)}\n`);
+            process.stderr.write(
+                `Error: cannot read --api-key-stdin: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`,
+            );
             return 1;
         }
         if (apiKeyFromStdin === '') {
@@ -303,6 +311,7 @@ async function main(): Promise<number> {
         await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
         return 0;
     } catch (e: unknown) {
+        // err() already sanitizes; passing the raw message is safe.
         err(e instanceof Error ? e.message : String(e));
         return 1;
     } finally {
@@ -314,7 +323,7 @@ async function main(): Promise<number> {
 main().then(
     (code) => process.exit(code),
     (e: unknown) => {
-        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+        process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
         process.exit(1);
     },
 );
