@@ -39,15 +39,21 @@ without a global install.
 
 ## Authentication
 
-The CLI requires three credentials. Provide them either as environment
-variables (preferred — keeps secrets out of argv and shell history) or as
-flags:
+The CLI requires three credentials. Environment variables are the only
+recommended channel for the API key (CTF #11, v3.0):
 
-| Purpose       | Env var             | Flag               |
-| ------------- | ------------------- | ------------------ |
-| TestRail URL  | `TESTRAIL_BASE_URL` | `--base-url <url>` |
-| Account email | `TESTRAIL_EMAIL`    | `--email <email>`  |
-| API key       | `TESTRAIL_API_KEY`  | `--api-key <key>`  |
+| Purpose       | Env var             | Flag                                                                  |
+| ------------- | ------------------- | --------------------------------------------------------------------- |
+| TestRail URL  | `TESTRAIL_BASE_URL` | `--base-url <url>`                                                    |
+| Account email | `TESTRAIL_EMAIL`    | `--email <email>`                                                     |
+| API key       | `TESTRAIL_API_KEY`  | `--api-key-stdin` (pipe key on stdin; `--api-key <key>` removed v3.0) |
+
+`--api-key <key>` was removed in v3.0 because argv is visible to other
+processes via `/proc/<pid>/cmdline`, shell history, CI step logs,
+container audit trails, and crash dumps. If you can't use the env var,
+pipe the key: `echo "$KEY" | testrail ... --api-key-stdin`. Note that
+`--api-key-stdin` consumes stdin, so JSON bodies for write actions must
+come from `--data` or `--data-file`, not stdin.
 
 If credentials are missing, the CLI exits 1 with `Error: Missing auth...`
 on stderr. Never echo or log the API key.

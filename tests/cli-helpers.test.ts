@@ -478,7 +478,7 @@ describe('KNOWN_FLAGS inventory', () => {
         const expected = new Set([
             'base-url',
             'email',
-            'api-key',
+            'api-key-stdin',
             'format',
             'quiet',
             'help',

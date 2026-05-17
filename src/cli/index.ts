@@ -85,12 +85,16 @@ Meta:
                                     ./.claude/skills/testrail-cli (default)
                                     or ~/.claude/skills/testrail-cli (--global)
 
-Auth (env var or flag):
+Auth (env var preferred — argv is visible to other processes):
   TESTRAIL_BASE_URL / --base-url <url>
   TESTRAIL_EMAIL    / --email <email>
-  TESTRAIL_API_KEY  / --api-key <key>
+  TESTRAIL_API_KEY  (recommended) | echo "$KEY" | testrail ... --api-key-stdin
+                    NOTE: --api-key (argv) was removed in v3.0 — see CHANGELOG.
 
 Options:
+  --api-key-stdin       Read API key from stdin (single line; mutually
+                        exclusive with stdin-piped JSON body). Use the
+                        TESTRAIL_API_KEY env var when possible.
   --data <json>         Inline JSON body for write actions
   --data-file <path>    Read JSON body from file
   --dry-run             Validate payload but don't call the API
@@ -200,11 +204,41 @@ async function main(): Promise<number> {
         return 1;
     }
 
+    // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
+    // visible via /proc/<pid>/cmdline, shell history, CI step logs, and
+    // crash dumps. Acceptable channels: TESTRAIL_API_KEY env var, or pipe
+    // the key on stdin with --api-key-stdin. The stdin path consumes
+    // stdin BEFORE the body resolver wires its own stdin thunk — they
+    // can't both own fd 0, so the body must come from --data or
+    // --data-file when --api-key-stdin is used.
+    const apiKeyStdin = values['api-key-stdin'] === true;
+    let apiKeyFromStdin: string | undefined;
+    if (apiKeyStdin) {
+        if (process.stdin.isTTY !== false) {
+            process.stderr.write(
+                'Error: --api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).\n',
+            );
+            return 1;
+        }
+        try {
+            // Trim trailing newline / whitespace so `echo $KEY | …` works
+            // without the user having to strip the \n themselves.
+            apiKeyFromStdin = readFileSync(0, 'utf-8').trim();
+        } catch (e: unknown) {
+            process.stderr.write(`Error: cannot read --api-key-stdin: ${e instanceof Error ? e.message : String(e)}\n`);
+            return 1;
+        }
+        if (apiKeyFromStdin === '') {
+            process.stderr.write('Error: --api-key-stdin received an empty stdin input.\n');
+            return 1;
+        }
+    }
+
     const auth = resolveAuth(
         {
             baseUrl: values['base-url'] as string | undefined,
             email: values['email'] as string | undefined,
-            apiKey: values['api-key'] as string | undefined,
+            apiKey: apiKeyFromStdin,
         },
         {
             ...(process.env['TESTRAIL_BASE_URL'] !== undefined && {
@@ -251,8 +285,12 @@ async function main(): Promise<number> {
         // actions, no-body writes (`run close`), and write actions that
         // received --data or --data-file never invoke this. File-input
         // actions (e.g. `attachment add-to-case`) suppress stdin entirely
-        // since their payload is the binary file, not JSON.
-        ...(process.stdin.isTTY === false && !isFileInputAction && { readStdin: () => readFileSync(0, 'utf-8') }),
+        // since their payload is the binary file, not JSON. CTF #11:
+        // --api-key-stdin already consumed stdin for the credential, so
+        // the body must use --data or --data-file.
+        ...(process.stdin.isTTY === false &&
+            !isFileInputAction &&
+            !apiKeyStdin && { readStdin: () => readFileSync(0, 'utf-8') }),
     };
 
     const dryRun = values['dry-run'] === true;

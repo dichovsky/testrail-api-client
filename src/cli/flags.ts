@@ -20,7 +20,11 @@
 export const CLI_OPTIONS = {
     'base-url': { type: 'string' as const },
     email: { type: 'string' as const },
-    'api-key': { type: 'string' as const },
+    // CTF #11: --api-key (string) removed in v3.0 — exposed credentials
+    // via /proc/<pid>/cmdline, shell history, CI step logs, container
+    // audit trails, and crash dumps. Use TESTRAIL_API_KEY env var or
+    // pipe the key on stdin with --api-key-stdin.
+    'api-key-stdin': { type: 'boolean' as const, default: false },
     format: { type: 'string' as const, default: 'json' },
     quiet: { type: 'boolean' as const, default: false },
     help: { type: 'boolean' as const, default: false },

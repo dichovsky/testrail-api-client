@@ -250,24 +250,68 @@ describe('CLI', () => {
             expect(stderr).toContain('Missing auth');
         });
 
-        it('should accept credentials from --base-url / --email / --api-key flags', async () => {
+        it('should accept --base-url / --email flags with the API key from env', async () => {
+            // CTF #11: --api-key (argv) was removed in v3.0. The remaining
+            // non-env channel is --api-key-stdin (covered by the stdin test
+            // below). The URL/email flags still work because they don't
+            // carry secrets.
             const resp = jsonResponse(MOCK_PROJECT);
             const { exitCodes } = await runCli(
-                [
-                    '--base-url',
-                    'https://example.testrail.io',
-                    '--email',
-                    'test@example.com',
-                    '--api-key',
-                    'test-api-key',
-                    'project',
-                    'get',
-                    '1',
-                ],
+                ['--base-url', 'https://example.testrail.io', '--email', 'test@example.com', 'project', 'get', '1'],
                 [resp],
-                {}, // No env vars — credentials come from flags
+                { TESTRAIL_API_KEY: 'test-api-key' },
             );
             expect(exitCodes).toContain(0);
+        });
+
+        it('--api-key-stdin requires piped stdin (rejects when stdin is a TTY)', async () => {
+            // runCli runs in-process; vitest workers typically have
+            // process.stdin.isTTY === undefined (treated as TTY for the
+            // purposes of CTF #11's gate). The gate must reject because
+            // there's no way to read a credential from a terminal-attached
+            // stdin without prompting (and the CLI is non-interactive).
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { exitCodes, stderr } = await runCli(
+                    [
+                        '--base-url',
+                        'https://example.testrail.io',
+                        '--email',
+                        'test@example.com',
+                        '--api-key-stdin',
+                        'project',
+                        'get',
+                        '1',
+                    ],
+                    [],
+                    {},
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/--api-key-stdin requires the API key to be piped/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('rejects --api-key (argv) as an unknown flag — removed in v3.0 (CTF #11)', async () => {
+            const { exitCodes, stderr } = await runCli([
+                '--base-url',
+                'https://example.testrail.io',
+                '--email',
+                'test@example.com',
+                '--api-key',
+                'sk-secret-12345',
+                'project',
+                'get',
+                '1',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--api-key'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+            // Defense-in-depth: stderr must not echo the secret it received.
+            expect(stderr).not.toContain('sk-secret-12345');
         });
     });
 

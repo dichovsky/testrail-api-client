@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "2.1.0"
   },
-  "sourceHash": "b6e5c8b7fa0230062aac6c7acb079b5550f7d7a447737a0a434f1db81389dca4",
+  "sourceHash": "134a9e1e0fa12f6cc1e9ca094c6d8ce8170eed4f59b3e773c890463ed4b09e41",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1283,7 +1283,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 17,
           "exported": true,
-          "signature": "export const MISSING_AUTH_MESSAGE = 'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.'"
+          "signature": "export const MISSING_AUTH_MESSAGE = 'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY (or pass --base-url / --email; the API key must come from the env var or --api-key-stdin — ar…"
         },
         {
           "name": "resolveAuth",
@@ -1477,12 +1477,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 20,
           "exported": true,
-          "signature": "export const CLI_OPTIONS = { 'base-url': { type: 'string' as const }, email: { type: 'string' as const }, 'api-key': { type: 'string' as const }, format: { type: 'string' as const, default: 'json' }, …"
+          "signature": "export const CLI_OPTIONS = { 'base-url': { type: 'string' as const }, email: { type: 'string' as const }, 'api-key-stdin': { type: 'boolean' as const, default: false }, format: { type: 'string' as con…"
         },
         {
           "name": "KNOWN_FLAGS",
           "kind": "const",
-          "line": 47,
+          "line": 51,
           "exported": true,
           "signature": "export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(CLI_OPTIONS))"
         }
@@ -2263,7 +2263,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 128,
+          "line": 132,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
