@@ -166,3 +166,91 @@ future contributors don't re-propose them without new information.
 
 When pulling an item out of "won't do", document the new information that
 changed the calculus.
+
+---
+
+## Security Findings (CTF audit, 2026-05-16)
+
+Three vulnerabilities surfaced during a CTF-style read-through of the request
+pipeline and CLI file I/O. Severity is the audit's own rating; effort lines
+sketch a minimal fix.
+
+**Status:** All three findings shipped together. DNS validation now runs fresh
+before every request (no construction-time caching) and is fail-closed on
+lookup errors; `allowPrivateHosts: true` is the documented escape hatch for
+both private-host and DNS-validation-unavailable scenarios. `--out` paths are
+lstat-checked (catches broken symlinks) and writes use `wx`/post-lstat to
+keep the TOCTOU window microseconds-wide. New tests in
+`tests/cli-file-output.test.ts`, `tests/cli-safe-write.test.ts`, and the
+`DNS validation` block of `tests/client-features.test.ts`.
+
+### 1. DNS-rebinding bypass of SSRF guard — `src/client-core.ts` (Severity: HIGH) — [SHIPPED]
+
+`validatePublicHost()` (~L97–127) resolves the configured `baseUrl` hostname
+**once at client construction** and stores the outcome in a single promise
+(`dnsValidationPromise`). Every subsequent `request*()` awaits the same
+already-settled promise and then calls `fetch(url, …)`, which performs its
+**own** DNS lookup against the OS resolver at request time. The two lookups
+are independent — the pinned IP from validation never flows into `fetch()`.
+
+Attack: an attacker-controlled authoritative DNS server for `evil.example.com`
+returns a public IP (`1.2.3.4`) with a very low TTL during the construction
+lookup, then immediately returns `169.254.169.254` (cloud metadata) or
+`127.0.0.1` for the next query. The validation passes; `fetch()` hits the
+private/loopback target carrying the full `Authorization: Basic <creds>`
+header — converting the client into a credentialed SSRF probe.
+
+The synchronous `PRIVATE_HOST_PATTERNS` regex on `url.hostname` doesn't help:
+the hostname string is still the attacker's public domain.
+
+**Fix sketch (S):** resolve once with `dns.lookup`, then pass the pinned IP
+as the URL host while putting the original hostname in the `Host` header (or
+use a custom `undici` Dispatcher / `lookup` agent option). Re-validate IPs on
+every request rather than caching the construction-time result.
+
+### 2. Fail-open DNS validation — `src/client-core.ts:118–126` (Severity: HIGH) — [SHIPPED]
+
+Inside `validatePublicHost()` the `dns.lookup` call is wrapped in
+`try/catch`. On any non-`TestRailValidationError` throw — including
+`SERVFAIL`, `NXDOMAIN`, `REFUSED`, or an `import('node:dns/promises')` failure
+under a constrained runtime — the catch emits `console.warn(...)` and
+**returns normally**, letting the client proceed to `fetch()`.
+
+Attack: an attacker who controls the authoritative DNS for their domain
+serves `SERVFAIL` to the validation lookup (or uses an IDN/punycode form the
+local resolver rejects), suppressing the only IP-level check. The
+construction-time regex sees a benign-looking hostname; `fetch()` later
+resolves the same name to a private IP via the OS resolver, which may be
+configured with different timeouts/servers and succeed.
+
+Combined with finding #1, this is a one-step SSRF: rebinding isn't even
+required because validation never produces a verdict.
+
+**Fix sketch (S):** treat lookup errors as failures (`allowPrivateHosts:
+true` is the documented escape hatch). At minimum, distinguish "lookup
+timed out" from "lookup returned a private IP" and only fail-open on the
+former when a new `allowDnsFailures` flag is set.
+
+### 3. TOCTOU symlink-clobber in `attachment get --out` — `src/cli/file-output.ts` + `src/cli/handlers/attachment.ts` (Severity: MEDIUM) — [SHIPPED]
+
+`resolveOut()` rejects the call when `existsSync(path)` is true and `--force`
+is not set. `existsSync` **follows symlinks** — a broken symlink (target does
+not exist) returns `false`. After the check passes, `handleAttachmentGet`
+calls `getAttachment()` (a network round-trip, hundreds of ms to seconds),
+**then** `writeFileSync(resolved.path, bytes)`. `writeFileSync` opens with
+the default `'w'` flag, which **follows symlinks** and truncates/creates
+their target.
+
+Attack: in a shared-filesystem context (CI runner, multi-user host, container
+with mounted volumes) a co-tenant places a broken symlink at the agent's
+expected `--out` path pointing to, e.g., `~/.ssh/authorized_keys` or a CI
+secret file. The network round-trip is the attack window. When the
+attachment lands, its bytes overwrite the symlink target — silent
+arbitrary-file write under the CLI user's UID.
+
+**Fix sketch (S):** open with `flag: 'wx'` on the non-`--force` path so the
+kernel atomically refuses an existing path (including broken symlinks);
+when `--force` is set, `lstat()` the path first and reject symlinks unless
+the user passes an additional opt-in (or use `O_NOFOLLOW` via `open()` +
+`fs.write`). Tests: drop a broken symlink, then run `attachment get --out
+<symlink>` and assert the target file is unchanged.

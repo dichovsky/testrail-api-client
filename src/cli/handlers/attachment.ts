@@ -1,7 +1,7 @@
-import { writeFileSync } from 'node:fs';
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
+import { safeWriteBinary } from '../safe-write.js';
 
 export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
@@ -55,7 +55,7 @@ export async function handleAttachmentGet(ctx: HandlerContext): Promise<void> {
 
     const buf = await ctx.client.getAttachment(attachmentId);
     const bytes = new Uint8Array(buf);
-    writeFileSync(resolved.path, bytes);
+    safeWriteBinary(resolved.path, bytes, ctx.force);
     ctx.out({
         attachmentId,
         out: resolved.path,

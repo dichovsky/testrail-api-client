@@ -17,16 +17,17 @@ import {
     DEFAULT_MAX_CACHE_SIZE,
     DEFAULT_RATE_LIMIT_MAX_REQUESTS,
     DEFAULT_RATE_LIMIT_WINDOW_MS,
-    DEFAULT_DNS_VALIDATION_MAX_WAIT_MS,
 } from './constants.js';
 
 // Reject loopback, link-local, and private-range hosts to prevent SSRF.
 // All requests carry a full Authorization header, making the client a credentialed
 // probe for internal services when baseUrl is attacker-controlled.
 // Protection combines syntactic checks (regex on hostname string) with DNS resolution:
-// validatePublicHost() resolves the hostname and checks resulting IPs. A DNS validation
-// promise is awaited briefly before each request. This blocks obvious private-host
-// resolutions but does not fully eliminate rebinding after initial validation.
+// validatePublicHost() resolves the hostname and checks resulting IPs. Resolution
+// runs fresh before EVERY request (no caching of the construction-time result) so a
+// DNS-rebinding attacker can't lock in a public answer once and then flip to a
+// private target. DNS lookup errors are fail-closed — callers needing to operate
+// without DNS validation must set allowPrivateHosts: true.
 const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^localhost\.?$/i, // matches "localhost" with or without trailing dot
     /^127\./,
@@ -104,25 +105,42 @@ async function validatePublicHost(hostname: string): Promise<void> {
         );
     }
 
+    // IP literals don't need DNS resolution — validate the address directly.
+    if (isIP(bare) !== 0) {
+        if (isPrivateOrLoopbackIP(bare)) {
+            throw new TestRailValidationError(
+                `baseUrl resolves to a private/loopback host ("${hostname}"). ` +
+                    'Set allowPrivateHosts: true to allow on-premise deployments.',
+            );
+        }
+        return;
+    }
+
+    // Hostname → resolve fresh. Lookup errors are fail-closed: a server that
+    // returns SERVFAIL/NXDOMAIN to our validation lookup but succeeds for
+    // fetch's lookup (different timeouts/resolvers) would otherwise yield a
+    // one-step SSRF. Callers operating in environments without DNS must set
+    // allowPrivateHosts: true to bypass this check entirely.
+    let lookups: { address: string; family: number }[];
     try {
         const dns = await import('node:dns/promises');
-        const lookups = await dns.lookup(bare, { all: true }).catch(() => []);
-        for (const lookup of lookups) {
-            if (lookup.address !== '' && isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
-                throw new TestRailValidationError(
-                    `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
-                        'Set allowPrivateHosts: true to allow on-premise deployments.',
-                );
-            }
-        }
+        lookups = await dns.lookup(bare, { all: true });
     } catch (err) {
         if (err instanceof TestRailValidationError) throw err;
-        // DNS/import failures are ignored to avoid blocking valid public hosts
-        // when DNS is temporarily unavailable in constrained runtimes.
-        // eslint-disable-next-line no-console
-        console.warn(
-            `Warning: DNS host validation skipped due to lookup error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        throw new TestRailValidationError(
+            `baseUrl DNS validation failed for "${hostname}": ${message}. ` +
+                'Set allowPrivateHosts: true to allow deployments where DNS validation is not desired.',
         );
+    }
+
+    for (const lookup of lookups) {
+        if (lookup.address !== '' && isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
+            throw new TestRailValidationError(
+                `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
+                    'Set allowPrivateHosts: true to allow on-premise deployments.',
+            );
+        }
     }
 }
 
@@ -174,12 +192,15 @@ export class TestRailClientCore {
     private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
     private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
     private isDestroyed = false;
-    private readonly dnsValidationPromise: Promise<void> | undefined;
-    private dnsValidationError: TestRailValidationError | undefined;
+    private readonly hostname: string;
+    private readonly allowPrivateHosts: boolean;
 
     constructor(config: TestRailConfig) {
         this.validateConfig(config);
         this.baseUrl = config.baseUrl.replace(/\/$/, '');
+        // URL already validated by validateConfig — this parse cannot throw.
+        this.hostname = new URL(config.baseUrl).hostname;
+        this.allowPrivateHosts = config.allowPrivateHosts === true;
         this.auth = base64Encode(`${config.email}:${config.apiKey}`);
         this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
         this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -202,20 +223,11 @@ export class TestRailClientCore {
             requests: [],
         };
 
-        // Start async DNS host validation in the background and await it in request().
-        // If DNS resolves to a private IP, mark this client so all requests fail.
-        // The synchronous regex check in validateConfig already blocks obvious private addresses.
-        if (config.allowPrivateHosts !== true) {
-            // URL already validated by validateConfig — this parse cannot throw.
-            const url = new URL(config.baseUrl);
-            this.dnsValidationPromise = validatePublicHost(url.hostname).catch((err: unknown) => {
-                if (err instanceof TestRailValidationError) {
-                    this.dnsValidationError = err;
-                }
-            });
-        } else {
-            this.dnsValidationPromise = undefined;
-        }
+        // DNS host validation runs fresh before every request (see awaitDnsValidation).
+        // Resolving once at construction would let a DNS-rebinding attacker pin a
+        // public IP for the validation lookup and then flip to a private target
+        // before fetch performs its own (independent) lookup. The sync regex check
+        // in validateConfig already blocks obvious private host literals.
 
         // Register this instance for automatic cleanup
         activeClients.add(this);
@@ -932,26 +944,17 @@ export class TestRailClientCore {
         }
     }
 
+    /**
+     * Re-validates the baseUrl hostname against the public-IP allowlist before
+     * each request. Performing the lookup per-request (rather than caching the
+     * construction-time result) eliminates the window in which a DNS-rebinding
+     * authority could serve a public IP to validation and a private IP to fetch.
+     * Lookup errors are fail-closed; callers needing to operate without DNS
+     * must set allowPrivateHosts: true.
+     */
     private async awaitDnsValidation(): Promise<void> {
-        if (this.dnsValidationPromise !== undefined) {
-            let timeoutId: ReturnType<typeof setTimeout> | undefined;
-            try {
-                await Promise.race([
-                    this.dnsValidationPromise,
-                    new Promise<void>((resolve) => {
-                        timeoutId = setTimeout(resolve, DEFAULT_DNS_VALIDATION_MAX_WAIT_MS);
-                    }),
-                ]);
-            } finally {
-                if (timeoutId !== undefined) {
-                    clearTimeout(timeoutId);
-                }
-            }
-        }
-
-        if (this.dnsValidationError !== undefined) {
-            throw this.dnsValidationError;
-        }
+        if (this.allowPrivateHosts) return;
+        await validatePublicHost(this.hostname);
     }
 
     /**

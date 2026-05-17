@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { lstatSync } from 'node:fs';
 
 /**
  * Raw input for the binary-download output resolver. Only `outFlag`; no
@@ -19,10 +19,15 @@ export interface ResolveOutOptions {
 
 /**
  * Resolve a `--out <path>` binary-download output target. Validates flag
- * presence; refuses to overwrite an existing file unless `--force`. In
- * dry-run, no filesystem precondition is checked — dry-run is meant to be
- * side-effect-free and not act as a clobber pre-check (the real run enforces
- * the no-clobber rule).
+ * presence; refuses to overwrite an existing file unless `--force`. Always
+ * refuses to write through a symbolic link (even with `--force`) — the
+ * target file is never followed, eliminating a TOCTOU symlink-clobber where
+ * an attacker plants a broken symlink to a sensitive file during the
+ * network round-trip.
+ *
+ * In dry-run, no filesystem precondition is checked — dry-run is meant to
+ * be side-effect-free and not act as a clobber pre-check (the real run
+ * enforces the no-clobber + no-symlink rule).
  */
 export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputResolution {
     if (input.outFlag === undefined || input.outFlag === '') {
@@ -30,7 +35,35 @@ export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputRe
     }
     const path = input.outFlag;
 
-    if (!opts.dryRun && !opts.force && existsSync(path)) {
+    if (opts.dryRun) {
+        return { ok: true, path };
+    }
+
+    // lstatSync (not existsSync) so a broken symlink doesn't slip past the
+    // clobber check — existsSync follows symlinks and returns false for a
+    // dangling target, letting the subsequent write follow the link and
+    // overwrite an attacker-chosen file.
+    let stat: ReturnType<typeof lstatSync>;
+    try {
+        stat = lstatSync(path);
+    } catch (err) {
+        if ((err as { code?: string }).code === 'ENOENT') {
+            return { ok: true, path };
+        }
+        return {
+            ok: false,
+            error: `Cannot stat '${path}': ${(err as Error).message}`,
+        };
+    }
+
+    if (stat.isSymbolicLink()) {
+        return {
+            ok: false,
+            error: `Refusing to write through symbolic link '${path}'.`,
+        };
+    }
+
+    if (!opts.force) {
         return {
             ok: false,
             error: `Refusing to overwrite '${path}'; pass --force to overwrite.`,
