@@ -11,18 +11,24 @@ export interface Output {
 }
 
 export function valueToString(v: unknown): string {
+    // CTF #18: every branch routes its return through sanitizeForTerminal
+    // so the --format table renderer can't surface attacker-controlled
+    // bytes (TestRail field values, server response strings) that the
+    // terminal would interpret as ANSI/OSC escapes. The renderer trusts
+    // its inputs are display-safe by the time renderTable concatenates
+    // them into header/row strings.
     if (v === null || v === undefined) return '';
     if (typeof v === 'object') {
         try {
-            return JSON.stringify(v);
+            return sanitizeForTerminal(JSON.stringify(v));
         } catch {
             // JSON.stringify throws on circular refs and nested BigInt.
             return '[Object]';
         }
     }
-    if (typeof v === 'string') return v;
+    if (typeof v === 'string') return sanitizeForTerminal(v);
     if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
-    if (typeof v === 'symbol') return v.toString();
+    if (typeof v === 'symbol') return sanitizeForTerminal(v.toString());
     return '[Function]';
 }
 
@@ -40,13 +46,21 @@ export function renderTable(data: unknown): string {
         return rows.map(String).join('\n');
     }
 
-    const keys = Object.keys(first);
-    const widths = keys.map((k) => Math.max(k.length, ...rows.map((r) => valueToString(getField(r, k)).length)));
+    // CTF #18 defense-in-depth: sanitize column keys too. TestRail field
+    // names today are alphanumeric/snake_case (safe), but the API contract
+    // isn't a security boundary — a future field name carrying a control
+    // byte would otherwise pass straight through `Object.keys()` into the
+    // header row.
+    const keys = Object.keys(first).map(sanitizeForTerminal);
+    const rawKeys = Object.keys(first);
+    const widths = keys.map((k, i) =>
+        Math.max(k.length, ...rows.map((r) => valueToString(getField(r, rawKeys[i] ?? k)).length)),
+    );
 
     const line = widths.map((w) => '-'.repeat(w)).join('-+-');
     const header = keys.map((k, i) => k.padEnd(widths[i] ?? k.length)).join(' | ');
     const body = rows.map((r) =>
-        keys.map((k, i) => valueToString(getField(r, k)).padEnd(widths[i] ?? k.length)).join(' | '),
+        keys.map((_k, i) => valueToString(getField(r, rawKeys[i] ?? '')).padEnd(widths[i] ?? 0)).join(' | '),
     );
 
     return [header, line, ...body].join('\n');

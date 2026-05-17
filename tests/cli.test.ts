@@ -887,6 +887,29 @@ describe('CLI', () => {
             expect(stderr).not.toContain('\x07');
             expect(stderr).toMatch(/must be a positive integer/);
         });
+
+        // CTF #18: --format table renders TestRail-controlled field values
+        // verbatim. Without sanitization, a malicious title (or any string
+        // cell) injected into the response payload would execute terminal
+        // escape sequences on the user's stdout. The renderer's
+        // valueToString boundary now scrubs every cell.
+        it('--format table strips ANSI escapes from TestRail-returned cell values', async () => {
+            const evilProject = {
+                ...MOCK_PROJECT,
+                name: 'innocent \x1b]0;Pwned!\x07 name',
+                announcement: 'a\x1b[31mred\x1b[0m b',
+            };
+            const { exitCodes, stdout } = await runCli(
+                ['project', 'get', '1', '--format', 'table'],
+                [jsonResponse(evilProject)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).not.toContain('\x1b');
+            expect(stdout).not.toContain('\x07');
+            // Sanitized text still surfaces so users can see the field value.
+            expect(stdout).toContain('Pwned');
+            expect(stdout).toContain('red');
+        });
     });
 
     // ── unknown flag rejection (CTF #10) ─────────────────────────────────────

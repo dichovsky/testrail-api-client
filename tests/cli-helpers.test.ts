@@ -101,6 +101,40 @@ describe('renderTable', () => {
         expect(out).toContain('id | name');
         expect(out.split('\n')).toHaveLength(4);
     });
+
+    // CTF #18: TestRail-controlled cell values must be sanitized before
+    // landing in the table output. A malicious title containing `\x1b[31m`
+    // would otherwise recolour the user's terminal; OSC 0 would spoof the
+    // window title; OSC 7/9 can chain into command-injection on terminals
+    // that honour it (e.g. iTerm2 dynamic actions).
+    it('strips ANSI escapes from cell values (CTF #18)', () => {
+        const out = renderTable([{ id: 1, title: 'safe \x1b[31mRED\x1b[0m text' }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).toContain('safe [31mRED[0m text');
+    });
+
+    it('strips BEL + OSC 0 window-title spoofs from cell values', () => {
+        const out = renderTable([{ id: 1, title: '\x1b]0;Pwned!\x07legit title' }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+        expect(out).toContain(']0;Pwned!legit title');
+    });
+
+    it('strips control chars from column keys too (defense-in-depth)', () => {
+        // TestRail field names today are safe (alphanumeric), but the API
+        // contract isn't a security boundary — pin the behaviour.
+        const out = renderTable([{ 'safe\x1bkey': 'v' }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).toContain('safekey');
+    });
+
+    it('strips control chars from stringified object cell values', () => {
+        // Nested objects render via JSON.stringify; the result is sanitized
+        // post-stringify so embedded controls in string values don't survive.
+        const out = renderTable([{ id: 1, meta: { name: 'a\x1b]0;evil\x07b' } }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+    });
 });
 
 describe('safeJsonStringify', () => {
