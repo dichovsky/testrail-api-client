@@ -140,6 +140,10 @@ echo '{"title":"New case"}' | testrail case add 5
 ```
 
 The CLI exits 1 if zero or more than one body source is provided.
+Stdin reads are capped at 1 MiB (v3.0); for larger payloads use
+`--data-file` (file reads are not subject to the cap). Stdin is
+unavailable for body input when `--api-key-stdin` is also passed —
+fd 0 can only be consumed by one source per invocation.
 
 ### `--dry-run`
 
@@ -696,15 +700,21 @@ testrail plan add-entry 50 --data '{
 
 ## Destructive actions
 
-Destructive actions (`attachment delete`, `case delete-bulk`) require
-`--yes` to execute. Without `--yes`, the CLI exits 1 with `Destructive
-action; pass --yes to confirm.` This is the only gate — there is no
-interactive prompt (by design; this skill targets agents, not humans).
+Destructive actions (`attachment delete`, `case delete-bulk`, `run close`)
+require `--yes` to execute. Without `--yes`, the CLI exits 1 with
+`Destructive action; pass --yes to confirm.` This is the only gate —
+there is no interactive prompt (by design; this skill targets agents,
+not humans).
+
+`run close` is irreversible: TestRail has no `open_run` endpoint and
+the web UI offers no reopen action. Once closed, a run accepts no new
+results, no edits to existing ones, and no re-association — only reads.
 
 `--dry-run` always wins over `--yes`: `case delete-bulk 5 --project-id 9
 --yes --dry-run --data '{"case_ids":[1]}'` emits a preview
 (`"destructive": true`) without calling the API, so agents can validate
-the call shape safely before committing.
+the call shape safely before committing. The same pattern applies to
+`run close 42 --yes --dry-run`.
 
 ## Errors & exit codes
 
@@ -727,7 +737,10 @@ causes:
 - `--file <path> required for upload actions.` → attachment upload missing `--file`.
 - `--out <path> required for binary download.` → `attachment get` missing `--out`.
 - `Refusing to overwrite '<path>'; pass --force to overwrite.` → `--out` target exists.
-- `Destructive action; pass --yes to confirm.` → `attachment delete` or `case delete-bulk` without `--yes`.
+- `Destructive action; pass --yes to confirm.` → `attachment delete`, `case delete-bulk`, or `run close` without `--yes`.
+- `unknown flag '--<name>'. Run --help for the full list.` → typo'd flag (e.g. `--dryrun` for `--dry-run`); strict gate added v3.0 to prevent silent bypass of `--dry-run` / `--soft` gates.
+- `--api-key-stdin requires the API key to be piped on stdin (…).` → `--api-key-stdin` passed without piped stdin.
+- `Input exceeds maximum 1048576 bytes. …` → stdin body or `--api-key-stdin` payload exceeded the 1 MiB cap.
 
 ## Limits & gotchas
 
@@ -746,21 +759,40 @@ causes:
   bugs at the CLI boundary rather than the API call site.
 - **`custom_*` fields:** Pass through `.passthrough()` schemas unchanged.
   Field naming follows TestRail's `custom_<field-system-name>` convention.
+- **Terminal output sanitization (v3.0):** stderr error messages and
+  `--format table` cell values strip C0/C1/DEL control bytes before
+  writing. Defends against TestRail-controlled strings carrying ANSI/OSC
+  escape sequences that would otherwise execute on the user's terminal.
+  Side-effect: a TestRail field value containing a literal `\n` or
+  `\t` renders without the whitespace under `--format table`. Switch
+  to `--format json` (the default) if you need the raw byte sequence
+  preserved.
+- **Stdin 1 MiB cap (v3.0):** piped stdin (for body or `--api-key-stdin`)
+  is bounded at 1 MiB. Larger payloads must use `--data-file` (file
+  reads are unbounded). The cap addresses memory-exhaustion DoS only;
+  a producer that holds the pipe open without sending data (e.g.
+  `tail -f`) still blocks the CLI — open follow-up.
+- **Strict flag parsing (v3.0):** typo'd flags (e.g. `--dryrun` for
+  `--dry-run`) exit 1 with `unknown flag '--<name>'` rather than
+  silently no-op'ing. Previously a typo on a safety flag could
+  silently bypass the gate it was supposed to enable.
 
 ## When NOT to use this skill
 
 - **Writing TypeScript/JavaScript code that imports the package.**
   This skill documents the CLI surface only. For programmatic use,
   read `README.md` and `CODEMAP.md` in the package — the programmatic
-  API exposes 101 methods, far beyond what the CLI covers.
-- **Project / suite / section / milestone / user CRUD** beyond the 6
-  write actions listed above. Use the TestRail web UI for structural
-  setup (or the programmatic API).
-- **Deletes** of any kind. The CLI deliberately does not expose `delete`
-  actions to keep agents away from irrecoverable operations.
-- **Attachments** (upload/download). Not in the CLI surface; use the
-  programmatic API.
+  API exposes 100+ methods, a superset of the CLI surface.
+- **Structural CRUD beyond what the command table lists.** The CLI
+  surfaces project/suite/section/milestone create+update, but no
+  per-entity delete (other than `case delete-bulk` and `attachment
+  delete`). User CRUD and case-status CRUD are read-only via the CLI.
+  Use the TestRail web UI or the programmatic API for unsurfaced ops.
 - **Browser/UI workflows.** This is a non-interactive CLI.
+
+The CLI **does** support attachment upload/download/delete and BDD
+(Gherkin .feature) upload/download — see the command table above and
+the file-I/O recipes below.
 
 ## See also
 

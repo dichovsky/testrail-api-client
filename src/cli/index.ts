@@ -106,7 +106,7 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (e.g. attachment delete, case delete-bulk)
+  --yes                 Required to execute destructive actions (attachment delete, case delete-bulk, run close)
   --soft                case delete-bulk: server-side preview (TestRail returns counts without deleting); distinct from --dry-run which makes NO API call
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
