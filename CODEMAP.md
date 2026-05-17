@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "2.1.0"
+    "version": "3.0.0"
   },
-  "sourceHash": "acb5db262d974412c82cf634f60c7bc1762f01d91f08c512067ed8c489a21c11",
+  "sourceHash": "868d95d4d76a156485bb045ff6d476a2b100fc9837a8231c25b55e4db67db471",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2226,6 +2226,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/index.ts",
       "imports": [
         "../client.js",
+        "../constants.js",
         "./auth.js",
         "./dispatch.js",
         "./flags.js",
@@ -2234,7 +2235,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./metadata.js",
         "./output.js",
         "./sanitize.js",
-        "node:fs",
+        "./stdin.js",
         "node:module",
         "node:util"
       ],
@@ -2243,28 +2244,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 17,
+          "line": 18,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 18,
+          "line": 19,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 22,
+          "line": 23,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 133,
+          "line": 134,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2448,6 +2449,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 29,
           "exported": true,
           "signature": "export function sanitizeForTerminal(s: string): string"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/stdin.ts",
+      "imports": [
+        "node:fs"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "readBoundedStdin",
+          "kind": "function",
+          "line": 24,
+          "exported": true,
+          "signature": "export function readBoundedStdin(maxBytes: number, fd = 0): string"
         }
       ]
     },
@@ -3517,6 +3534,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 15,
           "exported": true,
           "signature": "export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000"
+        },
+        {
+          "name": "MAX_STDIN_BYTES",
+          "kind": "const",
+          "line": 29,
+          "exported": true,
+          "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         }
       ]
     },

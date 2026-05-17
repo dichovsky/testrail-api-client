@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
 import { TestRailClient } from '../client.js';
+import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
 import { createOutput } from './output.js';
 import { dispatch } from './dispatch.js';
@@ -10,6 +10,7 @@ import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
+import { readBoundedStdin } from './stdin.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -228,8 +229,10 @@ async function main(): Promise<number> {
         }
         try {
             // Trim trailing newline / whitespace so `echo $KEY | …` works
-            // without the user having to strip the \n themselves.
-            apiKeyFromStdin = readFileSync(0, 'utf-8').trim();
+            // without the user having to strip the \n themselves. The
+            // 1 MiB cap (CTF #24) is orders of magnitude beyond any sane
+            // API key; if it's exceeded the user piped the wrong thing.
+            apiKeyFromStdin = readBoundedStdin(MAX_STDIN_BYTES).trim();
         } catch (e: unknown) {
             process.stderr.write(
                 `Error: cannot read --api-key-stdin: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`,
@@ -298,7 +301,7 @@ async function main(): Promise<number> {
         // the body must use --data or --data-file.
         ...(process.stdin.isTTY === false &&
             !isFileInputAction &&
-            !apiKeyStdin && { readStdin: () => readFileSync(0, 'utf-8') }),
+            !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
 
     const dryRun = values['dry-run'] === true;

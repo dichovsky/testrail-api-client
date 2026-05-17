@@ -6,7 +6,7 @@
  * symbol/function values in renderTable, parseId boundary conditions, and
  * resolveAuth precedence between flags and env.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
 import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
@@ -14,6 +14,11 @@ import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from '../src/cli/flags.js';
 import { sanitizeForTerminal } from '../src/cli/sanitize.js';
+import { readBoundedStdin } from '../src/cli/stdin.js';
+import { MAX_STDIN_BYTES } from '../src/constants.js';
+import { openSync, closeSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('valueToString', () => {
     it('returns empty string for null', () => {
@@ -591,5 +596,80 @@ describe('sanitizeForTerminal', () => {
 
     it('returns empty string for input that is entirely control chars', () => {
         expect(sanitizeForTerminal('\x1b\x07\r\n\t\x00')).toBe('');
+    });
+});
+
+// ── readBoundedStdin (CTF #24) ───────────────────────────────────────────────
+//
+// Read fd 0 (or any fd) into a UTF-8 string with a hard byte cap. Replaces
+// the unbounded `readFileSync(0, 'utf-8')` that OOM-kills the process when
+// piped a multi-GB payload. Tested against a real fd backed by a tmpfile
+// rather than mocked fs — covers the chunked-read loop end-to-end.
+
+describe('readBoundedStdin', () => {
+    let tmpDir: string;
+
+    function withFd<T>(contents: Buffer | string, fn: (fd: number) => T): T {
+        const path = join(tmpDir, 'stdin-fixture');
+        writeFileSync(path, contents);
+        const fd = openSync(path, 'r');
+        try {
+            return fn(fd);
+        } finally {
+            closeSync(fd);
+        }
+    }
+
+    beforeAll(() => {
+        tmpDir = mkdtempSync(join(tmpdir(), 'testrail-stdin-'));
+    });
+
+    afterAll(() => {
+        rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('reads a small payload (well under the cap) in full', () => {
+        const result = withFd('{"hello":"world"}', (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result).toBe('{"hello":"world"}');
+    });
+
+    it('reads a payload that spans multiple 64KiB chunks', () => {
+        // 200 KiB — guarantees the chunked-read loop iterates more than once.
+        const payload = 'A'.repeat(200 * 1024);
+        const result = withFd(payload, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result.length).toBe(200 * 1024);
+        expect(result).toBe(payload);
+    });
+
+    it('rejects a payload that exceeds the cap', () => {
+        const oversized = 'B'.repeat(MAX_STDIN_BYTES + 1);
+        expect(() => withFd(oversized, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd))).toThrow(
+            /Input exceeds maximum 1048576 bytes/,
+        );
+    });
+
+    it('rejects on the first chunk that pushes total past the cap (no overflow buffering)', () => {
+        // With a small synthetic cap and a payload that exceeds it by exactly
+        // one byte, the throw must happen — we never see the bytes past the
+        // cap returned as data.
+        const cap = 1000;
+        const payload = 'C'.repeat(cap + 50);
+        expect(() => withFd(payload, (fd) => readBoundedStdin(cap, fd))).toThrow(/Input exceeds maximum 1000 bytes/);
+    });
+
+    it('returns empty string for an empty fd (EOF on first read)', () => {
+        const result = withFd('', (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result).toBe('');
+    });
+
+    it('preserves UTF-8 multi-byte sequences across chunk boundaries', () => {
+        // A payload long enough to span multiple chunks, containing
+        // multi-byte UTF-8 sequences. Buffer.concat + toString('utf-8')
+        // joins the byte chunks before decoding, so multi-byte chars
+        // split across chunk boundaries decode correctly.
+        const unit = '日本語🔥 ';
+        const payload = unit.repeat(20000); // ~280 KiB
+        const result = withFd(payload, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result).toBe(payload);
     });
 });

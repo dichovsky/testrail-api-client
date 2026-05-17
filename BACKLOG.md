@@ -175,14 +175,23 @@ Three vulnerabilities surfaced during a CTF-style read-through of the request
 pipeline and CLI file I/O. Severity is the audit's own rating; effort lines
 sketch a minimal fix.
 
-**Status:** All three findings shipped together. DNS validation now runs fresh
-before every request (no construction-time caching) and is fail-closed on
-lookup errors; `allowPrivateHosts: true` is the documented escape hatch for
-both private-host and DNS-validation-unavailable scenarios. `--out` paths are
-lstat-checked (catches broken symlinks) and writes use `wx`/post-lstat to
+**Status (v2.2):** Findings #1–#3 shipped together. DNS validation now runs
+fresh before every request (no construction-time caching) and is fail-closed
+on lookup errors; `allowPrivateHosts: true` is the documented escape hatch
+for both private-host and DNS-validation-unavailable scenarios. `--out` paths
+are lstat-checked (catches broken symlinks) and writes use `wx`/post-lstat to
 keep the TOCTOU window microseconds-wide. New tests in
 `tests/cli-file-output.test.ts`, `tests/cli-safe-write.test.ts`, and the
 `DNS validation` block of `tests/client-features.test.ts`.
+
+**Status (v3.0, CLI safety cluster):** Findings #6, #10, #11, #16, #18, #24
+shipped together. `run close` now requires `--yes`. parseArgs unknown flags
+are rejected via a post-parse strict gate so typos like `--dryrun` no longer
+silently bypass `--dry-run`. `--api-key <key>` argv was removed; the API
+key must come from `TESTRAIL_API_KEY` (recommended) or `--api-key-stdin`.
+Stderr error messages and `--format table` cell values are sanitized to
+strip ANSI/OSC terminal escape sequences. Stdin reads are bounded at 1 MiB.
+Breaking-change migration notes in the v3.0 release PR.
 
 ### 1. DNS-rebinding bypass of SSRF guard — `src/client-core.ts` (Severity: HIGH) — [SHIPPED]
 
@@ -378,7 +387,7 @@ and assert (a) the call returns 1 with a "symlink refused" error, (b) the
 sentinel file's bytes are unchanged, and (c) the symlink itself still
 points where it did. Add a `--force` variant of the same test.
 
-### 6. `run close` is irreversible but not `--yes` gated — `src/cli/handlers/run-write.ts:23–30` + `src/cli/metadata.ts:254–260` (Severity: MEDIUM) — [OPEN]
+### 6. `run close` is irreversible but not `--yes` gated — `src/cli/handlers/run-write.ts:23–30` + `src/cli/metadata.ts:254–260` (Severity: MEDIUM) — [SHIPPED]
 
 The destructive-ops convention introduced in v2.2 (`--yes` gates anything
 the API can't undo; `--dry-run` wins for preview) covers `attachment delete`
@@ -805,7 +814,7 @@ Tests:
   `clearCache()` runs (this is the regression that proves the bug
   exists today; flip the assertion when the fix lands).
 
-### 10. `parseArgs({strict: false})` silently swallows typo'd safety flags — `src/cli/index.ts:131–161` (Severity: MEDIUM) — [OPEN]
+### 10. `parseArgs({strict: false})` silently swallows typo'd safety flags — `src/cli/index.ts:131–161` (Severity: MEDIUM) — [SHIPPED]
 
 The CLI entrypoint parses argv with `strict: false`:
 
@@ -914,7 +923,7 @@ Tests:
   config so adding a flag in one place forces an update in the
   other.
 
-### 11. CLI accepts `--api-key <key>` argv with no stdin/file alternative — `src/cli/auth.ts` + `src/cli/index.ts:136,221` (Severity: MEDIUM) — [OPEN]
+### 11. CLI accepts `--api-key <key>` argv with no stdin/file alternative — `src/cli/auth.ts` + `src/cli/index.ts:136,221` (Severity: MEDIUM) — [SHIPPED]
 
 `resolveAuth()` reads the TestRail credential from `--api-key <key>`
 argv as a peer alternative to the `TESTRAIL_API_KEY` env var:
@@ -1652,7 +1661,7 @@ Tests:
   needs 6to4 to a public IPv4, that's a niche workflow that
   should opt in.
 
-### 16. Reflected user input in stderr error messages enables ANSI/OSC terminal injection — `src/cli/output.ts:93`, `src/cli/index.ts:168,282,293`, `src/cli/install-skill.ts:49`, `src/cli/ids.ts:11` (Severity: MEDIUM) — [OPEN]
+### 16. Reflected user input in stderr error messages enables ANSI/OSC terminal injection — `src/cli/output.ts:93`, `src/cli/index.ts:168,282,293`, `src/cli/install-skill.ts:49`, `src/cli/ids.ts:11` (Severity: MEDIUM) — [SHIPPED]
 
 Every CLI error path funnels through one of two shapes:
 
@@ -1961,7 +1970,7 @@ Tests:
 - Positive control: legitimate `--data-file` with a regular
   4 KB JSON file still succeeds.
 
-### 18. `--format table` reflects TestRail-controlled string fields verbatim to stdout (ANSI/OSC terminal injection on the success path) — `src/cli/output.ts:11–25, 32–51` (Severity: MEDIUM) — [OPEN]
+### 18. `--format table` reflects TestRail-controlled string fields verbatim to stdout (ANSI/OSC terminal injection on the success path) — `src/cli/output.ts:11–25, 32–51` (Severity: MEDIUM) — [SHIPPED]
 
 Finding #16 closed the **error** reflection path (`stderr` via
 `Error: ${message}`). The **success** path has the same class of bug
@@ -2922,7 +2931,7 @@ Tests:
   burst followed by a `skipCache: true` call still issues a
   fresh fetch (`skipCache` honoured).
 
-### 24. Unbounded stdin read for write-action bodies — `src/cli/index.ts:269`, `src/cli/body.ts:75–78` (Severity: LOW–MEDIUM) — [OPEN]
+### 24. Unbounded stdin read for write-action bodies — `src/cli/index.ts:269`, `src/cli/body.ts:75–78` (Severity: LOW–MEDIUM) — [SHIPPED]
 
 The CLI exposes stdin as the third body source (alongside `--data`
 and `--data-file`) via a thunk that performs an *unbounded* read from
