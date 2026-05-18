@@ -3894,3 +3894,30 @@ Tests:
   exits validation with the strict error — proves the same
   malicious shape that finding #4 closes for redirects is
   closed here for path interpolation.
+
+---
+
+## Migrated from active BACKLOG (2026-05-18)
+
+> **Agent Rules:** Append completed tasks here. Add Impl: (Implementation details) and Rat: (Rationale/Why).
+
+### Completed (shipped)
+
+- [x] 🔴 🐛 SEC #4: HTTP redirect bypass of SSRF guard (`client-core.ts`)
+  - **Impl:** Shipped in 3.4.0. All four fetch sites set `redirect: 'manual'` and pipe response through `assertNotRedirect()`; 3xx surfaces as `TestRailApiError` with blocked `Location` embedded, never retries, never poisons GET cache.
+  - **Rat:** SSRF guard hole — `Location` header pointing at private/metadata IP bypassed `validateBaseUrl` + DNS pinning.
+- [x] 🟡 🐛 SEC #9: Schema-invalid response poisons GET cache for full TTL (`client-core.ts`)
+  - **Impl:** Shipped in 3.2.0. New `requestParsed<T>` validates before caching.
+  - **Rat:** Cache served bad data for full TTL until natural expiry.
+- [x] 🟡 🐛 SEC #13: POST retries can duplicate writes (`client-core.ts`)
+  - **Impl:** Shipped in 3.3.0. Non-GET methods retry only on 429; 5xx + network errors surface immediately.
+  - **Rat:** Retry on 5xx / network for writes risked duplicate side-effects.
+
+### 🚫 Decision Log (won't-do)
+
+- 🟢 🚫 CLI: `result delete` — TestRail API does not support deleting individual results.
+- 🟢 🚫 CLI: `run add-bulk` — TestRail API does not expose bulk run creation.
+- 🟢 🚫 CLI: interactive prompts — conflicts with agent/scripting audience.
+- 🟢 🚫 CLI: telemetry / usage analytics — conflicts with zero-dependency ethos.
+- 🟢 🚫 SKILL: symlink install option — Windows permission issues + broken-link edge cases.
+- 🟢 🚫 SKILL: `postinstall` auto-install hook — runs without consent; breaks CI.
