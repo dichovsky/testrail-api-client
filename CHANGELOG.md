@@ -5,6 +5,59 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
+
+Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**
+`TestRailClient` construction silently registered three process-level listeners
+(`exit`, `SIGINT`, `SIGTERM`) on the Node.js `process` object. The SIGINT and
+SIGTERM handlers additionally called `process.exit(130)` / `process.exit(143)`.
+For library consumers — Express servers, NestJS apps, background daemons,
+Electron processes, or any host that already manages graceful shutdown — this
+meant:
+
+- The host's own SIGINT/SIGTERM handler chain ran in an indeterminate order
+  alongside the client's, and the client could shortcut the process via
+  `process.exit()` before the host finished closing sockets, flushing logs,
+  rolling back transactions, or persisting state.
+- The host could not opt out: the side effect ran inside the constructor.
+- A test that instantiated the client polluted the process for the rest of
+  the worker's lifetime (handlers cannot be safely deregistered without
+  ownership tracking across all clients in the process).
+
+### Fixed
+
+- **New `registerProcessHandlers?: boolean` option on `TestRailConfig`,
+  defaulting to `false`.** No process listeners are installed unless the
+  caller explicitly opts in. Library consumers now get an inert client that
+  leaves `exit`/`SIGINT`/`SIGTERM` to the host.
+- **The bundled CLI (`testrail` binary) opts in** by passing
+  `registerProcessHandlers: true`, preserving the established CLI behavior
+  (`destroy()` on Ctrl-C, conventional 130/143 exit codes) for users of the
+  shipped command.
+- **Existing behavior is unchanged once the flag is set to `true`** — the
+  handler implementation, the `activeClients` registry it iterates, and the
+  exit codes it emits are all preserved.
+
+### Migration
+
+- **CLI users:** no action required. The `testrail` binary opts in on your
+  behalf and behaves identically to previous releases.
+- **Library users who relied on the implicit handlers** (rare — the behavior
+  was undocumented): add `registerProcessHandlers: true` to your
+  `TestRailConfig` to keep the prior shutdown contract. The recommended path
+  is to call `client.destroy()` explicitly from your own shutdown hook
+  instead; that has always been the supported lifecycle API.
+- **Library users embedding the client in a server/daemon:** no action
+  required. The opt-out you've been working around is now the default; your
+  signal handling and exit codes are no longer overridden.
+
+### Unchanged
+
+- `destroy()` semantics, the `activeClients` registry, the cache cleanup
+  timer, and the credential-zeroing behavior are all identical to 3.4.0.
+- The handler-install path itself is bit-identical when the flag is `true`;
+  this release adds a single guard in the constructor.
+
 ## [3.4.0] — 2026-05-18 — Block HTTP redirects to close SSRF guard bypass
 
 Closes [BACKLOG #4](BACKLOG.md). Before this release, the SSRF guard

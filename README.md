@@ -398,17 +398,39 @@ const project2 = await client.getProject(1);
 client.clearCache();
 ```
 
-The client performs periodic cleanup of expired cache entries automatically. Resources are automatically cleaned up when the Node.js process exits, but you can manually clean up if needed:
+The client performs periodic cleanup of expired cache entries automatically. Callers are responsible for releasing resources when an instance is no longer needed:
 
 ```typescript
-// Manual cleanup (usually not needed)
+// Releases the cache cleanup timer, clears the cache, zeroes the
+// in-memory credential, and removes the instance from the active-clients
+// registry. Safe to call multiple times.
 client.destroy();
-
-// The client automatically registers process handlers for cleanup:
-// process.on('exit', cleanupAllClients);
-// process.on('SIGINT', ...);
-// process.on('SIGTERM', ...);
 ```
+
+#### Process signal handlers (opt-in)
+
+By default the client does **not** register any Node.js process listeners
+(`exit`, `SIGINT`, `SIGTERM`) — library consumers (Express, NestJS, daemons,
+Electron, anything that already owns the process lifecycle) keep full control
+of their own signal handling and exit code. Standalone scripts and CLIs that
+do want the client to install handlers can opt in:
+
+```typescript
+const client = new TestRailClient({
+    baseUrl: 'https://example.testrail.io',
+    email: 'user@example.com',
+    apiKey: 'key',
+    // Installs process listeners that call destroy() on every active client
+    // on `exit`, and additionally terminate the process with the conventional
+    // exit codes 130 (SIGINT) / 143 (SIGTERM). Default: false.
+    registerProcessHandlers: true,
+});
+```
+
+The bundled `testrail` CLI opts in automatically — there is no behavioral
+change for shell users. Once installed for the process, the handlers persist
+for its lifetime; this is intentional, since safely deregistering them would
+require ownership tracking across every client in the process.
 
 ### Rate Limiting
 

@@ -38,6 +38,20 @@ export interface TestRailConfig {
      * Only enable when TestRail is hosted on a private network. Default: false.
      */
     allowPrivateHosts?: boolean;
+    /**
+     * Register Node.js process listeners (`exit`, `SIGINT`, `SIGTERM`) that
+     * call {@link TestRailClient.destroy} on every active client and, for
+     * SIGINT/SIGTERM, terminate the process with the conventional 130/143
+     * exit codes. Default: **false**.
+     *
+     * Set this to `true` only in entry-point processes (CLIs, standalone
+     * scripts) that own the process lifecycle. Library consumers — Express
+     * servers, daemons, hosts that already manage shutdown — should leave it
+     * `false` (the default) so the client does not hijack their own signal
+     * handling and does not call `process.exit()` on their behalf. Explicit
+     * `destroy()` from the caller is always sufficient for cleanup.
+     */
+    registerProcessHandlers?: boolean;
 }
 
 export interface Case {

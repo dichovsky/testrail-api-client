@@ -29,7 +29,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 - [ ] 🟡 🐛 SEC #5: TOCTOU symlink-clobber on install target (`cli/install-skill.ts`)
 - [ ] 🟡 🐛 SEC #7: TOCTOU symlink-follow on attachment upload (`cli/file-input.ts`)
-- [ ] 🟡 🐛 SEC #8: Library constructor hijacks host SIGINT/SIGTERM via `process.exit()`
 - [ ] 🟡 🐛 SEC #12: Unbounded response body reads can OOM client
 - [ ] 🟢 🐛 SEC #14: Mutable cached references let callers poison future reads
 - [ ] 🟢 🐛 SEC #15: IPv6 SSRF allowlist gaps (`fec0::/10`, `2002::/16`, `64:ff9b::/96`)
