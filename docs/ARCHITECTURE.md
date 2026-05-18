@@ -42,21 +42,21 @@ Two access paths exist for every endpoint: flat (`client.getProject(id)`) and na
 
 ## 2. Core — `src/client-core.ts`
 
-`TestRailClientCore` (`client-core.ts:180`) owns every cross-cutting concern. It is not exported from the public barrel; consumers see only its subclass, `TestRailClient`.
+`TestRailClientCore` (in `client-core.ts`) owns every cross-cutting concern. It is not exported from the public barrel; consumers see only its subclass, `TestRailClient`.
 
 ### 2.1 Public surface (consumed by modules)
 
-| Method                                                                        | Purpose                                                 |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `request<T>()` (`:617`)                                                       | JSON pipeline (GET / POST / PUT / DELETE)               |
-| `requestText()` (`:773`)                                                      | Plain-text endpoint (currently only `get_bdd`)          |
-| `requestMultipart<T>()` (`:868`)                                              | Attachment uploads — never retried                      |
-| `requestBinary()` (`:956`)                                                    | Attachment downloads                                    |
-| `requestParsed<T>()` (`:1073`)                                                | `request` + Zod parse, separate cache namespace         |
-| `parse<T>()` (`:1040`)                                                        | Standalone Zod parse with `handleZodError` wrapping     |
-| `validateId()` / `validateEntryId()` / `validatePaginationParams()` (`:444+`) | Pre-flight integer guards                               |
-| `buildEndpoint()` (`:483`)                                                    | TestRail-specific URL composer (`&` not `?` for params) |
-| `clearCache()` (`:538`) / `destroy()` (`:583`)                                | Cache / lifecycle                                       |
+| Method                                                              | Purpose                                                 |
+| ------------------------------------------------------------------- | ------------------------------------------------------- |
+| `request<T>()`                                                      | JSON pipeline (GET / POST / PUT / DELETE)               |
+| `requestText()`                                                     | Plain-text endpoint (currently only `get_bdd`)          |
+| `requestMultipart<T>()`                                             | Attachment uploads — never retried                      |
+| `requestBinary()`                                                   | Attachment downloads                                    |
+| `requestParsed<T>()`                                                | `request` + Zod parse, separate cache namespace         |
+| `parse<T>()`                                                        | Standalone Zod parse with `handleZodError` wrapping     |
+| `validateId()` / `validateEntryId()` / `validatePaginationParams()` | Pre-flight integer guards                               |
+| `buildEndpoint()`                                                   | TestRail-specific URL composer (`&` not `?` for params) |
+| `clearCache()` / `destroy()`                                        | Cache / lifecycle                                       |
 
 These are declared `public` (not `protected`) because modules consume them by composition, not inheritance — see §3.
 
@@ -65,13 +65,13 @@ These are declared `public` (not `protected`) because modules consume them by co
 For a single call, the operations run in this fixed order:
 
 1. **Destroyed guard** — throws plain `Error` if `destroy()` was called.
-2. **DNS revalidation** — fresh `dns.lookup` of the configured hostname, fail-closed. Re-run per request to defeat DNS rebinding (`:1024`).
+2. **DNS revalidation** — fresh `dns.lookup` of the configured hostname, fail-closed. Re-run per request to defeat DNS rebinding.
 3. **Cache lookup** — GET only, key `GET:{endpoint}`. LRU touch on hit (delete + re-insert at end of `Map`).
 4. **Rate-limit check** — sliding window over `rateLimiter.requests: number[]`; throws synthetic `TestRailApiError(429, …)` _before_ fetch when full.
 5. **URL + headers** — `{baseUrl}/index.php?/api/v2/{endpoint}`, Basic auth header, User-Agent.
 6. **`AbortController` + `setTimeout`** — per-call timeout via abort signal.
 7. **`fetch` with `redirect: 'manual'`** — all four fetch sites use manual redirect handling.
-8. **`assertNotRedirect`** (`:398`) — any 3xx → `TestRailApiError` with the blocked `Location` embedded in `response`. Never retried, thrown before any cache write, so the LRU cannot be poisoned with a redirected payload.
+8. **`assertNotRedirect`** — any 3xx → `TestRailApiError` with the blocked `Location` embedded in `response`. Never retried, thrown before any cache write, so the LRU cannot be poisoned with a redirected payload.
 9. **Error branch** — non-2xx: read body, decide retry (see §2.4), throw `TestRailApiError(status, statusText, errorText)`. Raw body lands in the structured `response` field only — never in `message` — because callers commonly log `.message` and bodies may contain stack traces or secrets.
 10. **Cache invalidation on writes** — any non-GET calls `clearCache()` _before_ parsing the body, so empty 204-style responses still invalidate.
 11. **Body parse** — `response.text()` → empty-body shortcut → `JSON.parse`.
@@ -82,7 +82,7 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 ### 2.3 LRU cache
 
 - Insertion-ordered `Map<string, { data, expiry }>`.
-- Two key namespaces: `GET:{endpoint}` for `request<T>()` and `PARSED:GET:{endpoint}` for `requestParsed<T>()`. Separation prevents (a) returning a raw cached value to a Zod-validated caller and (b) returning a Zod-stripped value to a raw caller (`:1074`).
+- Two key namespaces: `GET:{endpoint}` for `request<T>()` and `PARSED:GET:{endpoint}` for `requestParsed<T>()`. Separation prevents (a) returning a raw cached value to a Zod-validated caller and (b) returning a Zod-stripped value to a raw caller.
 - Touch on hit (LRU semantics on a plain `Map`).
 - Eviction at `maxCacheSize`: oldest key dropped.
 - Background `setInterval` cleanup; `unref?.()` so the timer does not hold the event loop open.
@@ -97,7 +97,7 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 | Network `TypeError`    | retry | **surface immediately** |
 | `AbortError` (timeout) | never | never                   |
 
-Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly _not_ safe — server state is ambiguous (`:740`).
+Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly _not_ safe — server state is ambiguous.
 
 `requestMultipart` (uploads) never retries — uploads are non-idempotent and bandwidth-expensive. `requestBinary` retries 5xx / 429 / network errors for its single GET method.
 
@@ -105,14 +105,14 @@ Backoff: `min(BASE_RETRY_DELAY_MS × 2^n, MAX_RETRY_DELAY_MS)` — currently `mi
 
 ### 2.5 SSRF guard — two layers
 
-1. **Synchronous** in `validateConfig` (`:273`): regex against `PRIVATE_HOST_PATTERNS` — loopback, RFC1918, link-local, IPv6 ULA/link-local, `0.0.0.0/8`.
-2. **Per-request DNS pin** via `awaitDnsValidation` → `validatePublicHost` (`:98`): fresh `dns.lookup({ all: true })` before every request; each address checked with `isPrivateOrLoopbackIP` (handles IPv4-mapped IPv6 `::ffff:…`). Lookup errors are fail-closed.
+1. **Synchronous** in `validateConfig`: regex against `PRIVATE_HOST_PATTERNS` — loopback, RFC1918, link-local, IPv6 ULA/link-local, `0.0.0.0/8`.
+2. **Per-request DNS pin** via `awaitDnsValidation` → `validatePublicHost`: fresh `dns.lookup({ all: true })` before every request; each address checked with `isPrivateOrLoopbackIP` (handles IPv4-mapped IPv6 `::ffff:…`). Lookup errors are fail-closed.
 
 Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), and redirect blocking (§2.2 step 8) closes the loophole where a `Location` header pointing at a private/metadata IP would bypass both DNS and config validation.
 
 ### 2.6 Lifecycle
 
-- Module-level `activeClients: Set<TestRailClientCore>` (`:147`). Constructor adds `this`.
+- Module-level `activeClients: Set<TestRailClientCore>`. Constructor adds `this`.
 - Process signal handlers (`exit`, `SIGINT`, `SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8). When opted in, they are registered lazily — once per process — behind a `processHandlersRegistered` guard. SIGINT exits 130, SIGTERM exits 143. Library consumers (servers, daemons, embedders) leave the flag off so the host owns the signal chain and the exit code; the bundled CLI opts in. Once installed for a process, handlers persist for its lifetime — safely deregistering would require ownership tracking across every client in the process.
 - `destroy()` is idempotent: sets `isDestroyed`, stops the cleanup timer, clears the cache, zeroes `auth`, removes `this` from `activeClients`. Subsequent `request*` calls throw a plain `Error` (not `TestRailApiError`) — calling a destroyed client is a programmer error, not a network failure.
 
@@ -157,11 +157,11 @@ This is **composition by dependency injection on top of inheritance**: the facad
 
 ### 3.2 Facade — `src/client.ts`
 
-`TestRailClient` (`client.ts:114`):
+`TestRailClient`:
 
 1. `extends TestRailClientCore` — inherits the whole HTTP pipeline.
-2. Declares each module as `public readonly` field (`:116-133`).
-3. Constructs them in the body: `super(args); this.projects = new ProjectModule(this); …` (`:135`).
+2. Declares each module as a `public readonly` field.
+3. Constructs them in the body: `super(args); this.projects = new ProjectModule(this); …`.
 4. Exposes hand-written wrappers for every endpoint, each forwarding to the module:
 
 ```ts
@@ -187,7 +187,7 @@ The wrappers exist so callers do not have to remember which module owns which en
 
 Convention: **payloads → `schemas.ts`; responses → `types.ts`**, even though Zod can infer response shapes too. There is intentional duplication on response shapes: `client.ts` imports response types from `./types.js` while payload types come from `./schemas.js`. The split keeps Zod usage focused on the validation boundary (writes in, parsed responses out) rather than letting it own every type in the codebase.
 
-`schemas.ts:3` defines `zObject = z.object(shape).passthrough()` — every payload schema accepts unknown keys, so TestRail's `custom_*` fields and forward-compatible additions flow through without breaking validation.
+`schemas.ts` defines `zObject = z.object(shape).passthrough()` — every payload schema accepts unknown keys, so TestRail's `custom_*` fields and forward-compatible additions flow through without breaking validation.
 
 ---
 
@@ -238,11 +238,11 @@ package.json:bin
 
 ### 6.2 Dispatch — `src/cli/dispatch.ts`
 
-`HANDLERS: Record<'resource:action', Handler>` is a flat object literal, 60 entries (`dispatch.ts:63`). `RESOURCES` is derived from the keys via an IIFE bucketing on `:`. `dispatch(resource, action)` returns a tagged union (`{ ok: true, handler } | { ok: false, error }`) with three distinct error messages: unknown resource, unknown action, no handler registered.
+`HANDLERS: Record<'resource:action', Handler>` is a flat object literal. `RESOURCES` is derived from the keys via an IIFE bucketing on `:`. `dispatch(resource, action)` returns a tagged union (`{ ok: true, handler } | { ok: false, error }`) with three distinct error messages: unknown resource, unknown action, no handler registered.
 
 ### 6.3 Metadata — `src/cli/metadata.ts`
 
-`ACTIONS: readonly ActionSpec[]` (`metadata.ts:81`) is a flat, declarative array parallel to `HANDLERS`. Each `ActionSpec` carries:
+`ACTIONS: readonly ActionSpec[]` is a flat, declarative array parallel to `HANDLERS`. Each `ActionSpec` carries:
 
 - `resource`, `action`, `summary`.
 - `pathParams: readonly PathParam[]` — `{ name, description }` tuples.
