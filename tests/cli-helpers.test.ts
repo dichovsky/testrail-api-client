@@ -6,12 +6,19 @@
  * symbol/function values in renderTable, parseId boundary conditions, and
  * resolveAuth precedence between flags and env.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
 import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
+import { CLI_OPTIONS, KNOWN_FLAGS } from '../src/cli/flags.js';
+import { sanitizeForTerminal } from '../src/cli/sanitize.js';
+import { readBoundedStdin } from '../src/cli/stdin.js';
+import { MAX_STDIN_BYTES } from '../src/constants.js';
+import { openSync, closeSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('valueToString', () => {
     it('returns empty string for null', () => {
@@ -98,6 +105,65 @@ describe('renderTable', () => {
         const out = renderTable([{ id: 1, name: 'a' }, 42]);
         expect(out).toContain('id | name');
         expect(out.split('\n')).toHaveLength(4);
+    });
+
+    // CTF #18: TestRail-controlled cell values must be sanitized before
+    // landing in the table output. A malicious title containing `\x1b[31m`
+    // would otherwise recolour the user's terminal; OSC 0 would spoof the
+    // window title; OSC 7/9 can chain into command-injection on terminals
+    // that honour it (e.g. iTerm2 dynamic actions).
+    it('strips ANSI escapes from cell values (CTF #18)', () => {
+        const out = renderTable([{ id: 1, title: 'safe \x1b[31mRED\x1b[0m text' }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).toContain('safe [31mRED[0m text');
+    });
+
+    it('strips BEL + OSC 0 window-title spoofs from cell values', () => {
+        const out = renderTable([{ id: 1, title: '\x1b]0;Pwned!\x07legit title' }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+        expect(out).toContain(']0;Pwned!legit title');
+    });
+
+    it('strips control chars from column keys too (defense-in-depth)', () => {
+        // TestRail field names today are safe (alphanumeric), but the API
+        // contract isn't a security boundary — pin the behaviour.
+        const out = renderTable([{ 'safe\x1bkey': 'v' }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).toContain('safekey');
+    });
+
+    it('strips control chars from stringified object cell values', () => {
+        // Nested objects render via JSON.stringify; the result is sanitized
+        // post-stringify so embedded controls in string values don't survive.
+        const out = renderTable([{ id: 1, meta: { name: 'a\x1b]0;evil\x07b' } }]);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+    });
+
+    // Regression for Copilot PR #70 review comment: when the input is a
+    // top-level primitive array (string / number / boolean), the renderer
+    // takes the early `rows.map(...)` branch — pre-fix, this used `String`
+    // directly and bypassed valueToString's sanitization, emitting raw
+    // ESC bytes under --format table for primitive-array data.
+    it('strips control chars from primitive-array cell values (top-level string array)', () => {
+        const out = renderTable(['safe', '\x1b[31mRED\x1b[0m', 'after\x07bell']);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+        // Sanitized fragments still surface.
+        expect(out).toContain('safe');
+        expect(out).toContain('[31mRED[0m');
+        expect(out).toContain('afterbell');
+    });
+
+    it('mixed primitive array (string + number + boolean) sanitizes string entries only', () => {
+        const out = renderTable(['a\x1b[1mb', 42, true, '\x07c']);
+        expect(out).not.toContain('\x1b');
+        expect(out).not.toContain('\x07');
+        expect(out).toContain('a[1mb');
+        expect(out).toContain('42');
+        expect(out).toContain('true');
+        expect(out).toContain('c');
     });
 });
 
@@ -381,6 +447,19 @@ describe('metadata vs dispatch consistency', () => {
     });
 
     /**
+     * Pin the exact set of destructive actions so any future addition of
+     * an irreversible operation (e.g., `plan close`) must consciously
+     * extend this list, ensuring the `--yes` gate isn't forgotten. CTF
+     * audit finding #6 caught `run close` missing from this set — locked
+     * in here to prevent regression.
+     */
+    it('destructive action set is exactly {attachment:delete, case:delete-bulk, run:close}', () => {
+        const got = new Set(ACTIONS.filter((s) => s.destructive === true).map((s) => `${s.resource}:${s.action}`));
+        const want = new Set(['attachment:delete', 'case:delete-bulk', 'run:close']);
+        expect(got).toEqual(want);
+    });
+
+    /**
      * The CLI in src/cli/index.ts gates stdin suppression on
      * `ActionSpec.fileInput === true` (PR #59 review feedback): suppressing
      * stdin purely on `--file` presence would also kill piped JSON bodies
@@ -446,5 +525,176 @@ describe('metadata vs dispatch consistency', () => {
     it('getActionSpec returns undefined for unknown entries', () => {
         expect(getActionSpec('webhook', 'list')).toBeUndefined();
         expect(getActionSpec('case', 'delete')).toBeUndefined();
+    });
+});
+
+// ── KNOWN_FLAGS inventory (CTF #10 drift guard) ──────────────────────────────
+//
+// parseArgs in src/cli/index.ts is invoked with strict:false (defensive
+// future-Node tolerance). A post-parse loop rejects any flag not in
+// KNOWN_FLAGS — without that gate, typos like `--dryrun` are silently
+// accepted as free-form keys, executing what the user intended as a
+// preview. The drift risk is that someone adds a flag to CLI_OPTIONS but
+// forgets to keep KNOWN_FLAGS in sync (or vice-versa). Locking the
+// invariant here ensures the gate keeps matching the parser declaration.
+
+describe('KNOWN_FLAGS inventory', () => {
+    it('contains every documented CLI flag (none missing, none extra)', () => {
+        const expected = new Set([
+            'base-url',
+            'email',
+            'api-key-stdin',
+            'format',
+            'quiet',
+            'help',
+            'version',
+            'project-id',
+            'suite-id',
+            'run-id',
+            'case-id',
+            'limit',
+            'offset',
+            'data',
+            'data-file',
+            'dry-run',
+            'global',
+            'force',
+            'print-path',
+            'file',
+            'filename',
+            'out',
+            'yes',
+            'soft',
+        ]);
+        expect(KNOWN_FLAGS).toEqual(expected);
+    });
+
+    it('equals Object.keys(CLI_OPTIONS) — the parser declaration is the only source of truth', () => {
+        expect(KNOWN_FLAGS).toEqual(new Set(Object.keys(CLI_OPTIONS)));
+    });
+});
+
+// ── sanitizeForTerminal (CTF #16 + #18) ──────────────────────────────────────
+//
+// Strict denylist: strip all C0 (U+0000–U+001F), DEL (U+007F), and C1
+// (U+0080–U+009F) bytes. Used at every stdout/stderr boundary that
+// reflects untrusted strings (TestRail field values, server error text,
+// user argv echoed in validation errors). Defends against ANSI/OSC
+// injection — color codes, cursor moves, window-title spoofing, and
+// (on some terminals) command-injection via OSC 7/9/iTerm2 escapes.
+
+describe('sanitizeForTerminal', () => {
+    it('strips ESC (0x1B), the most common ANSI introducer', () => {
+        expect(sanitizeForTerminal('hello\x1b[31mRED\x1b[0m')).toBe('hello[31mRED[0m');
+    });
+
+    it('strips BEL (0x07), used to terminate OSC escapes', () => {
+        expect(sanitizeForTerminal('safe\x07bell')).toBe('safebell');
+    });
+
+    it('strips CR, LF, TAB, and the rest of the C0 control band', () => {
+        expect(sanitizeForTerminal('a\rb\nc\td')).toBe('abcd');
+        expect(sanitizeForTerminal('\x00\x01\x02\x1f')).toBe('');
+    });
+
+    it('strips DEL (0x7F)', () => {
+        expect(sanitizeForTerminal('before\x7Fafter')).toBe('beforeafter');
+    });
+
+    it('strips C1 controls (0x80-0x9F), including the 8-bit OSC introducer (0x9D)', () => {
+        expect(sanitizeForTerminal('a\x80b\x9Dc\x9Fd')).toBe('abcd');
+    });
+
+    it('preserves printable ASCII, space, and Unicode', () => {
+        expect(sanitizeForTerminal('Hello, world! 123 ()[]{}<>')).toBe('Hello, world! 123 ()[]{}<>');
+        expect(sanitizeForTerminal('日本語 中文 한국어 العربية')).toBe('日本語 中文 한국어 العربية');
+        expect(sanitizeForTerminal('emoji: 🔥💀✅')).toBe('emoji: 🔥💀✅');
+    });
+
+    it('defeats the OSC 0 window-title spoof (ESC ] 0 ; title BEL)', () => {
+        const evil = '\x1b]0;Pwned!\x07legitimate text';
+        expect(sanitizeForTerminal(evil)).toBe(']0;Pwned!legitimate text');
+        // Critical: no surviving ESC, no surviving BEL.
+        expect(sanitizeForTerminal(evil)).not.toContain('\x1b');
+        expect(sanitizeForTerminal(evil)).not.toContain('\x07');
+    });
+
+    it('returns empty string for input that is entirely control chars', () => {
+        expect(sanitizeForTerminal('\x1b\x07\r\n\t\x00')).toBe('');
+    });
+});
+
+// ── readBoundedStdin (CTF #24) ───────────────────────────────────────────────
+//
+// Read fd 0 (or any fd) into a UTF-8 string with a hard byte cap. Replaces
+// the unbounded `readFileSync(0, 'utf-8')` that OOM-kills the process when
+// piped a multi-GB payload. Tested against a real fd backed by a tmpfile
+// rather than mocked fs — covers the chunked-read loop end-to-end.
+
+describe('readBoundedStdin', () => {
+    let tmpDir: string;
+
+    function withFd<T>(contents: Buffer | string, fn: (fd: number) => T): T {
+        const path = join(tmpDir, 'stdin-fixture');
+        writeFileSync(path, contents);
+        const fd = openSync(path, 'r');
+        try {
+            return fn(fd);
+        } finally {
+            closeSync(fd);
+        }
+    }
+
+    beforeAll(() => {
+        tmpDir = mkdtempSync(join(tmpdir(), 'testrail-stdin-'));
+    });
+
+    afterAll(() => {
+        rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('reads a small payload (well under the cap) in full', () => {
+        const result = withFd('{"hello":"world"}', (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result).toBe('{"hello":"world"}');
+    });
+
+    it('reads a payload that spans multiple 64KiB chunks', () => {
+        // 200 KiB — guarantees the chunked-read loop iterates more than once.
+        const payload = 'A'.repeat(200 * 1024);
+        const result = withFd(payload, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result.length).toBe(200 * 1024);
+        expect(result).toBe(payload);
+    });
+
+    it('rejects a payload that exceeds the cap', () => {
+        const oversized = 'B'.repeat(MAX_STDIN_BYTES + 1);
+        expect(() => withFd(oversized, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd))).toThrow(
+            /Input exceeds maximum 1048576 bytes/,
+        );
+    });
+
+    it('rejects on the first chunk that pushes total past the cap (no overflow buffering)', () => {
+        // With a small synthetic cap and a payload that exceeds it by exactly
+        // one byte, the throw must happen — we never see the bytes past the
+        // cap returned as data.
+        const cap = 1000;
+        const payload = 'C'.repeat(cap + 50);
+        expect(() => withFd(payload, (fd) => readBoundedStdin(cap, fd))).toThrow(/Input exceeds maximum 1000 bytes/);
+    });
+
+    it('returns empty string for an empty fd (EOF on first read)', () => {
+        const result = withFd('', (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result).toBe('');
+    });
+
+    it('preserves UTF-8 multi-byte sequences across chunk boundaries', () => {
+        // A payload long enough to span multiple chunks, containing
+        // multi-byte UTF-8 sequences. Buffer.concat + toString('utf-8')
+        // joins the byte chunks before decoding, so multi-byte chars
+        // split across chunk boundaries decode correctly.
+        const unit = '日本語🔥 ';
+        const payload = unit.repeat(20000); // ~280 KiB
+        const result = withFd(payload, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
+        expect(result).toBe(payload);
     });
 });

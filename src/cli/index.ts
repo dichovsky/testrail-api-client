@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
 import { TestRailClient } from '../client.js';
+import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
 import { createOutput } from './output.js';
 import { dispatch } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
+import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
+import { sanitizeForTerminal } from './sanitize.js';
+import { readBoundedStdin } from './stdin.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -42,7 +45,7 @@ Write actions (body via --data | --data-file | stdin):
   case   copy-to-section <section_id>  --data '{"case_ids":[1,2]}'
   case   move-to-section <section_id>  --data '{"case_ids":[1,2],"suite_id":3}'
   run    add <project_id>           --data '{"name":"..."}'
-  run    close <run_id>             (no body)
+  run    close <run_id>             --yes  (no body; irreversible)
   result add <run_id> <case_id>     --data '{"status_id":1}'
   result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
   result add-bulk-by-test <run_id>  --data '{"results":[{"test_id":1,"status_id":1}]}'
@@ -84,12 +87,16 @@ Meta:
                                     ./.claude/skills/testrail-cli (default)
                                     or ~/.claude/skills/testrail-cli (--global)
 
-Auth (env var or flag):
+Auth (env var preferred — argv is visible to other processes):
   TESTRAIL_BASE_URL / --base-url <url>
   TESTRAIL_EMAIL    / --email <email>
-  TESTRAIL_API_KEY  / --api-key <key>
+  TESTRAIL_API_KEY  (recommended) | echo "$KEY" | testrail ... --api-key-stdin
+                    NOTE: --api-key (argv) was removed in v3.0 — see CHANGELOG.
 
 Options:
+  --api-key-stdin       Read API key from stdin (single line; mutually
+                        exclusive with stdin-piped JSON body). Use the
+                        TESTRAIL_API_KEY env var when possible.
   --data <json>         Inline JSON body for write actions
   --data-file <path>    Read JSON body from file
   --dry-run             Validate payload but don't call the API
@@ -99,7 +106,7 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (e.g. attachment delete, case delete-bulk)
+  --yes                 Required to execute destructive actions (attachment delete, case delete-bulk, run close)
   --soft                case delete-bulk: server-side preview (TestRail returns counts without deleting); distinct from --dry-run which makes NO API call
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
@@ -110,9 +117,9 @@ For body-bearing write actions (all except 'run close'), exactly one body source
 is required (--data | --data-file | stdin). Stdin is auto-detected when input
 is piped (process.stdin.isTTY === false). Attachment upload actions take a
 binary file via --file <path> and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete, case delete-bulk) require --yes; pass
---dry-run together with --yes to preview without making the API call
-(dry-run wins).
+Destructive actions (attachment delete, case delete-bulk, run close) require
+--yes; pass --dry-run together with --yes to preview without making the API
+call (dry-run wins). 'run close' is irreversible — TestRail offers no reopen.
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -130,32 +137,7 @@ async function main(): Promise<number> {
     try {
         const parsed = parseArgs({
             args: process.argv.slice(2),
-            options: {
-                'base-url': { type: 'string' },
-                email: { type: 'string' },
-                'api-key': { type: 'string' },
-                format: { type: 'string', default: 'json' },
-                quiet: { type: 'boolean', default: false },
-                help: { type: 'boolean', default: false },
-                version: { type: 'boolean', default: false },
-                'project-id': { type: 'string' },
-                'suite-id': { type: 'string' },
-                'run-id': { type: 'string' },
-                'case-id': { type: 'string' },
-                limit: { type: 'string' },
-                offset: { type: 'string' },
-                data: { type: 'string' },
-                'data-file': { type: 'string' },
-                'dry-run': { type: 'boolean', default: false },
-                global: { type: 'boolean', default: false },
-                force: { type: 'boolean', default: false },
-                'print-path': { type: 'boolean', default: false },
-                file: { type: 'string' },
-                filename: { type: 'string' },
-                out: { type: 'string' },
-                yes: { type: 'boolean', default: false },
-                soft: { type: 'boolean', default: false },
-            },
+            options: CLI_OPTIONS,
             allowPositionals: true,
             strict: false,
         });
@@ -165,15 +147,37 @@ async function main(): Promise<number> {
            tolerant; this catch funnels any future-Node-version edge cases
            through the controlled exit path rather than crashing the module. */
     } catch (e: unknown) {
-        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+        // Pre-parse failure: `values` is unavailable, so honor --quiet via
+        // a raw-argv lookup. parseArgs failures are rare under strict:false
+        // but the rule "no stderr writes under --quiet" still applies.
+        if (!process.argv.includes('--quiet')) {
+            process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
+        }
         return 1;
     }
     /* v8 ignore stop */
 
+    // Derive --quiet / --format up-front so the unknown-flag gate and the
+    // --api-key-stdin gate (both below) can route their errors through the
+    // quiet-aware `err()` helper instead of bypassing it with direct
+    // process.stderr.write calls.
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];
     const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
     const { out, err } = createOutput({ quiet, format });
+
+    // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
+    // typos like `--dryrun` that parseArgs({strict: false}) would silently
+    // accept, bypassing the gate the user intended. See CTF audit #10.
+    for (const key of Object.keys(values)) {
+        if (!KNOWN_FLAGS.has(key)) {
+            // CTF #16: err() sanitizes the user-controlled flag name before
+            // reflecting it. An argv like `--\x1b]0;evil\x07` would
+            // otherwise execute the OSC. err() also honors --quiet.
+            err(`unknown flag '--${key}'. Run --help for the full list.`);
+            return 1;
+        }
+    }
 
     if (values['version'] === true) {
         process.stdout.write(`testrail-cli v${VERSION}\n`);
@@ -204,7 +208,10 @@ async function main(): Promise<number> {
     const pathParams: readonly string[] = rest;
 
     if (resource === undefined || resource === '' || action === undefined || action === '') {
-        process.stderr.write('Usage: testrail <resource> <action> [args] [options]\nRun with --help for details.\n');
+        // err() is the standard quiet-aware path; usage hint is structurally
+        // an error message (missing required args), so prefix-format matches
+        // every other 'Error: …' write.
+        err('Usage: testrail <resource> <action> [args] [options]. Run with --help for details.');
         return 1;
     }
 
@@ -214,11 +221,41 @@ async function main(): Promise<number> {
         return 1;
     }
 
+    // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
+    // visible via /proc/<pid>/cmdline, shell history, CI step logs, and
+    // crash dumps. Acceptable channels: TESTRAIL_API_KEY env var, or pipe
+    // the key on stdin with --api-key-stdin. The stdin path consumes
+    // stdin BEFORE the body resolver wires its own stdin thunk — they
+    // can't both own fd 0, so the body must come from --data or
+    // --data-file when --api-key-stdin is used.
+    const apiKeyStdin = values['api-key-stdin'] === true;
+    let apiKeyFromStdin: string | undefined;
+    if (apiKeyStdin) {
+        if (process.stdin.isTTY !== false) {
+            err('--api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).');
+            return 1;
+        }
+        try {
+            // Trim trailing newline / whitespace so `echo $KEY | …` works
+            // without the user having to strip the \n themselves. The
+            // 1 MiB cap (CTF #24) is orders of magnitude beyond any sane
+            // API key; if it's exceeded the user piped the wrong thing.
+            apiKeyFromStdin = readBoundedStdin(MAX_STDIN_BYTES).trim();
+        } catch (e: unknown) {
+            err(`cannot read --api-key-stdin: ${e instanceof Error ? e.message : String(e)}`);
+            return 1;
+        }
+        if (apiKeyFromStdin === '') {
+            err('--api-key-stdin received an empty stdin input.');
+            return 1;
+        }
+    }
+
     const auth = resolveAuth(
         {
             baseUrl: values['base-url'] as string | undefined,
             email: values['email'] as string | undefined,
-            apiKey: values['api-key'] as string | undefined,
+            apiKey: apiKeyFromStdin,
         },
         {
             ...(process.env['TESTRAIL_BASE_URL'] !== undefined && {
@@ -265,8 +302,12 @@ async function main(): Promise<number> {
         // actions, no-body writes (`run close`), and write actions that
         // received --data or --data-file never invoke this. File-input
         // actions (e.g. `attachment add-to-case`) suppress stdin entirely
-        // since their payload is the binary file, not JSON.
-        ...(process.stdin.isTTY === false && !isFileInputAction && { readStdin: () => readFileSync(0, 'utf-8') }),
+        // since their payload is the binary file, not JSON. CTF #11:
+        // --api-key-stdin already consumed stdin for the credential, so
+        // the body must use --data or --data-file.
+        ...(process.stdin.isTTY === false &&
+            !isFileInputAction &&
+            !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
 
     const dryRun = values['dry-run'] === true;
@@ -279,6 +320,7 @@ async function main(): Promise<number> {
         await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
         return 0;
     } catch (e: unknown) {
+        // err() already sanitizes; passing the raw message is safe.
         err(e instanceof Error ? e.message : String(e));
         return 1;
     } finally {
@@ -290,7 +332,7 @@ async function main(): Promise<number> {
 main().then(
     (code) => process.exit(code),
     (e: unknown) => {
-        process.stderr.write(`Error: ${e instanceof Error ? e.message : String(e)}\n`);
+        process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
         process.exit(1);
     },
 );

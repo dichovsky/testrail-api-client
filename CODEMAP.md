@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "2.1.0"
+    "version": "3.0.0"
   },
-  "sourceHash": "0d47c51cf1ec9cb558924750f12d3bac53d76705b4a1ca413d74f8a07d637848",
+  "sourceHash": "749f9d8b82d4436ccf7cdeb6d5f924234a6eae22b10610559f3dbd07c3001462",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1283,7 +1283,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 17,
           "exported": true,
-          "signature": "export const MISSING_AUTH_MESSAGE = 'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.'"
+          "signature": "export const MISSING_AUTH_MESSAGE = 'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY (or pass --base-url / --email; the API key must come from the env var or --api-key-stdin — ar…"
         },
         {
           "name": "resolveAuth",
@@ -1464,6 +1464,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 32,
           "exported": true,
           "signature": "export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputResolution"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/flags.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "CLI_OPTIONS",
+          "kind": "const",
+          "line": 20,
+          "exported": true,
+          "signature": "export const CLI_OPTIONS = { 'base-url': { type: 'string' as const }, email: { type: 'string' as const }, 'api-key-stdin': { type: 'boolean' as const, default: false }, format: { type: 'string' as con…"
+        },
+        {
+          "name": "KNOWN_FLAGS",
+          "kind": "const",
+          "line": 51,
+          "exported": true,
+          "signature": "export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(CLI_OPTIONS))"
         }
       ]
     },
@@ -1998,7 +2019,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleRunClose",
           "kind": "function",
-          "line": 23,
+          "line": 28,
           "exported": true,
           "signature": "export async function handleRunClose(ctx: HandlerContext): Promise<void>"
         }
@@ -2205,13 +2226,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/index.ts",
       "imports": [
         "../client.js",
+        "../constants.js",
         "./auth.js",
         "./dispatch.js",
+        "./flags.js",
         "./handler-context.js",
         "./install-skill.js",
         "./metadata.js",
         "./output.js",
-        "node:fs",
+        "./sanitize.js",
+        "./stdin.js",
         "node:module",
         "node:util"
       ],
@@ -2220,28 +2244,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 15,
+          "line": 18,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 16,
+          "line": 19,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 20,
+          "line": 23,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 127,
+          "line": 134,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2250,6 +2274,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/install-skill.ts",
       "imports": [
+        "./sanitize.js",
         "node:fs",
         "node:os",
         "node:path",
@@ -2260,21 +2285,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "InstallSkillOptions",
           "kind": "interface",
-          "line": 21,
+          "line": 22,
           "exported": true,
           "signature": "export interface InstallSkillOptions { global: boolean; force: boolean; printPath: boolean; quiet: boolean; sourceOverride?: string; cwdOverride?: string; homeOverride?: string; }"
         },
         {
           "name": "getBundledSkillPath",
           "kind": "function",
-          "line": 40,
+          "line": 41,
           "exported": true,
           "signature": "export function getBundledSkillPath(metaUrl: string): string"
         },
         {
           "name": "runInstallSkill",
           "kind": "function",
-          "line": 44,
+          "line": 45,
           "exported": true,
           "signature": "export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number"
         }
@@ -2312,7 +2337,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 551,
+          "line": 552,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
@@ -2320,55 +2345,57 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "path": "src/cli/output.ts",
-      "imports": [],
+      "imports": [
+        "./sanitize.js"
+      ],
       "reExports": [],
       "symbols": [
         {
           "name": "OutputOptions",
           "kind": "interface",
-          "line": 1,
+          "line": 3,
           "exported": true,
           "signature": "export interface OutputOptions { quiet: boolean; format: 'json' | 'table'; }"
         },
         {
           "name": "Output",
           "kind": "interface",
-          "line": 6,
+          "line": 8,
           "exported": true,
           "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; }"
         },
         {
           "name": "valueToString",
           "kind": "function",
-          "line": 11,
+          "line": 13,
           "exported": true,
           "signature": "export function valueToString(v: unknown): string"
         },
         {
           "name": "getField",
           "kind": "function",
-          "line": 27,
+          "line": 35,
           "exported": false,
           "signature": "function getField(row: unknown, key: string): unknown"
         },
         {
           "name": "renderTable",
           "kind": "function",
-          "line": 32,
+          "line": 40,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 68,
+          "line": 89,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 83,
+          "line": 104,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -2408,6 +2435,36 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 47,
           "exported": true,
           "signature": "export function safeWriteText(path: string, text: string, force: boolean): void"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/sanitize.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "sanitizeForTerminal",
+          "kind": "function",
+          "line": 29,
+          "exported": true,
+          "signature": "export function sanitizeForTerminal(s: string): string"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/stdin.ts",
+      "imports": [
+        "node:fs"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "readBoundedStdin",
+          "kind": "function",
+          "line": 39,
+          "exported": true,
+          "signature": "export function readBoundedStdin(maxBytes: number, fd = 0): string"
         }
       ]
     },
@@ -3477,6 +3534,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 15,
           "exported": true,
           "signature": "export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000"
+        },
+        {
+          "name": "MAX_STDIN_BYTES",
+          "kind": "const",
+          "line": 29,
+          "exported": true,
+          "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         }
       ]
     },

@@ -24,6 +24,35 @@ vi.mock('node:dns/promises', () => ({
     lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
 }));
 
+// Stub readBoundedStdin so tests can simulate piped-stdin input for the
+// --api-key-stdin happy path without spawning a real subprocess. Default
+// behaviour: throw, so any test that accidentally trips the bounded
+// reader without setting up the stub fails loudly instead of returning
+// the test process's actual stdin contents. vi.hoisted is required
+// because vi.mock factories cannot capture file-scope variables (they're
+// lifted above all imports).
+const stubbedStdin = vi.hoisted(() => ({
+    value: null as string | null,
+}));
+vi.mock('../src/cli/stdin.js', () => ({
+    readBoundedStdin: (): string => {
+        if (stubbedStdin.value === null) {
+            throw new Error('readBoundedStdin not stubbed for this test');
+        }
+        return stubbedStdin.value;
+    },
+}));
+
+async function withStubbedStdin<T>(value: string, fn: () => Promise<T>): Promise<T> {
+    const orig = stubbedStdin.value;
+    stubbedStdin.value = value;
+    try {
+        return await fn();
+    } finally {
+        stubbedStdin.value = orig;
+    }
+}
+
 // ── Shared mock data ──────────────────────────────────────────────────────────
 
 const MOCK_PROJECT = { id: 1, name: 'Demo', suite_mode: 1, url: 'https://example.testrail.io/projects/view/1' };
@@ -250,24 +279,164 @@ describe('CLI', () => {
             expect(stderr).toContain('Missing auth');
         });
 
-        it('should accept credentials from --base-url / --email / --api-key flags', async () => {
+        it('should accept --base-url / --email flags with the API key from env', async () => {
+            // CTF #11: --api-key (argv) was removed in v3.0. The remaining
+            // non-env channel is --api-key-stdin (covered by the stdin test
+            // below). The URL/email flags still work because they don't
+            // carry secrets.
             const resp = jsonResponse(MOCK_PROJECT);
             const { exitCodes } = await runCli(
-                [
-                    '--base-url',
-                    'https://example.testrail.io',
-                    '--email',
-                    'test@example.com',
-                    '--api-key',
-                    'test-api-key',
-                    'project',
-                    'get',
-                    '1',
-                ],
+                ['--base-url', 'https://example.testrail.io', '--email', 'test@example.com', 'project', 'get', '1'],
                 [resp],
-                {}, // No env vars — credentials come from flags
+                { TESTRAIL_API_KEY: 'test-api-key' },
             );
             expect(exitCodes).toContain(0);
+        });
+
+        it('--api-key-stdin reads the key from stdin and authenticates without TESTRAIL_API_KEY env (CTF #11 happy path)', async () => {
+            // Simulate piped stdin: set isTTY=false so the gate doesn't
+            // reject, and stub readBoundedStdin to return the test key
+            // (trailing newline simulates `echo $KEY |` behaviour;
+            // index.ts .trim()s it).
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes } = await withStubbedStdin('sk-from-stdin-test\n', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [jsonResponse(MOCK_PROJECT)],
+                        {}, // No env vars — credential comes from stubbed stdin
+                    ),
+                );
+                expect(exitCodes).toContain(0);
+                // Verify the API call carried the stdin-supplied key in the
+                // Authorization header (base64(email:apiKey)).
+                const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+                const headers = init?.headers as Record<string, string>;
+                const expectedAuth = `Basic ${Buffer.from('test@example.com:sk-from-stdin-test').toString('base64')}`;
+                expect(headers?.['Authorization']).toBe(expectedAuth);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin rejects an empty stdin payload with exit 1', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes, stderr } = await withStubbedStdin('   \n', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [],
+                        {},
+                    ),
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/--api-key-stdin received an empty stdin input/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin error paths honor --quiet (suppress stderr while still exiting 1)', async () => {
+            // CTF #11 + Copilot review: error paths in main() that wrote
+            // directly to stderr bypassed --quiet. Verify the empty-stdin
+            // rejection (the cheapest error path to trigger) honours
+            // --quiet now that it routes through err().
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes, stderr } = await withStubbedStdin('', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            '--quiet',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [],
+                        {},
+                    ),
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toBe('');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin requires piped stdin (rejects when stdin is a TTY)', async () => {
+            // runCli runs in-process; vitest workers typically have
+            // process.stdin.isTTY === undefined (treated as TTY for the
+            // purposes of CTF #11's gate). The gate must reject because
+            // there's no way to read a credential from a terminal-attached
+            // stdin without prompting (and the CLI is non-interactive).
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { exitCodes, stderr } = await runCli(
+                    [
+                        '--base-url',
+                        'https://example.testrail.io',
+                        '--email',
+                        'test@example.com',
+                        '--api-key-stdin',
+                        'project',
+                        'get',
+                        '1',
+                    ],
+                    [],
+                    {},
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/--api-key-stdin requires the API key to be piped/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('rejects --api-key (argv) as an unknown flag — removed in v3.0 (CTF #11)', async () => {
+            const { exitCodes, stderr } = await runCli([
+                '--base-url',
+                'https://example.testrail.io',
+                '--email',
+                'test@example.com',
+                '--api-key',
+                'sk-secret-12345',
+                'project',
+                'get',
+                '1',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--api-key'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+            // Defense-in-depth: stderr must not echo the secret it received.
+            expect(stderr).not.toContain('sk-secret-12345');
         });
     });
 
@@ -525,9 +694,29 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
-        it('run unknown action should exit 1', async () => {
-            const { exitCodes } = await runCli(['run', 'close', '1']);
+        it('run close without --yes rejects (destructive: irreversible)', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'close', '1']);
             expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('run close with --yes POSTs to close_run/{run_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'close', '42', '--yes'],
+                [jsonResponse({ ...MOCK_RUN, id: 42, is_completed: true })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('close_run/42');
+        });
+
+        it('run close with --dry-run skips the API call even with --yes; preview marks destructive', async () => {
+            const { exitCodes, stdout } = await runCli(['run', 'close', '42', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
         });
     });
 
@@ -773,6 +962,149 @@ describe('CLI', () => {
             const { stderr, exitCodes } = await runCli(['webhook', 'list']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain("Unknown resource 'webhook'");
+        });
+    });
+
+    // ── stderr sanitization (CTF #16) ────────────────────────────────────────
+    //
+    // Error messages reflected from TestRail (server response bodies,
+    // validation errors carrying user input) and from argv echoed back in
+    // CLI rejection messages must be sanitized before reaching the user's
+    // terminal. Otherwise an attacker who controls a TestRail field value
+    // (or a typo'd flag name) can inject ANSI/OSC escapes — recoloring,
+    // cursor movement, window-title spoofing, or command injection on
+    // terminals that honour OSC 7/9.
+    describe('stderr sanitization', () => {
+        it('strips ESC + BEL from --data-file error messages reflecting the user-supplied path', async () => {
+            // body.ts reflects --data-file <path> verbatim in the error
+            // message when readFileSync fails. Argv carrying an OSC 0
+            // window-title-spoof payload reaches err() through that path.
+            const { exitCodes, stderr } = await runCli([
+                'project',
+                'add',
+                '--data-file',
+                '/tmp/nonexistent-\x1b]0;evil\x07-path',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).not.toContain('\x1b');
+            expect(stderr).not.toContain('\x07');
+            // The sanitized fragment 'evil' (with controls stripped)
+            // should still surface for debuggability.
+            expect(stderr).toContain('evil');
+            expect(stderr).toMatch(/Cannot read --data-file/);
+        });
+
+        it('strips control chars from the flag name in unknown-flag errors', async () => {
+            // Argv-injected ESC in the flag name itself. Without the
+            // sanitizer at the unknown-flag write site, the OSC would fire
+            // when the validation error is printed.
+            const { exitCodes, stderr } = await runCli(['--ev\x1bil-flag', 'project', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).not.toContain('\x1b');
+            expect(stderr).toMatch(/unknown flag/);
+        });
+
+        it('strips control chars from a validation error carrying user input', async () => {
+            // parseId reflects the raw `--project-id` value in the error
+            // message; the err() boundary sanitizes before write.
+            const { exitCodes, stderr } = await runCli(['project', 'get', 'ab\x07c']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).not.toContain('\x07');
+            expect(stderr).toMatch(/must be a positive integer/);
+        });
+
+        // CTF #18: --format table renders TestRail-controlled field values
+        // verbatim. Without sanitization, a malicious title (or any string
+        // cell) injected into the response payload would execute terminal
+        // escape sequences on the user's stdout. The renderer's
+        // valueToString boundary now scrubs every cell.
+        it('--format table strips ANSI escapes from TestRail-returned cell values', async () => {
+            const evilProject = {
+                ...MOCK_PROJECT,
+                name: 'innocent \x1b]0;Pwned!\x07 name',
+                announcement: 'a\x1b[31mred\x1b[0m b',
+            };
+            const { exitCodes, stdout } = await runCli(
+                ['project', 'get', '1', '--format', 'table'],
+                [jsonResponse(evilProject)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).not.toContain('\x1b');
+            expect(stdout).not.toContain('\x07');
+            // Sanitized text still surfaces so users can see the field value.
+            expect(stdout).toContain('Pwned');
+            expect(stdout).toContain('red');
+        });
+    });
+
+    // ── unknown flag rejection (CTF #10) ─────────────────────────────────────
+    //
+    // parseArgs is invoked with strict:false for defensive future-Node
+    // tolerance, but a post-parse loop in main() rejects any flag not in
+    // KNOWN_FLAGS. Without this gate, `--dryrun` (missing hyphen) is
+    // silently accepted as a free-form key while `values['dry-run']`
+    // stays undefined, executing what the user intended as a preview.
+    describe('unknown flag rejection', () => {
+        it('case delete-bulk: --dryrun typo is rejected, no API call made', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'case',
+                'delete-bulk',
+                '7',
+                '--project-id',
+                '1',
+                '--yes',
+                '--dryrun',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--dryrun'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('attachment delete: --dryrun typo is rejected, no API call made', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'delete', '1', '--yes', '--dryrun']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--dryrun'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('positive control: --dry-run (correct spelling) is accepted', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'case',
+                'delete-bulk',
+                '7',
+                '--project-id',
+                '1',
+                '--yes',
+                '--dry-run',
+                '--data',
+                '{"case_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('unknown flag emits exit 1 even on a read action that would otherwise succeed', async () => {
+            // Don't queue a fetch response — the validation gate must reject
+            // before any API call, so an unconsumed mockResolvedValueOnce
+            // would leak into the next test's queue (vi.clearAllMocks() only
+            // clears call history, not the .mockResolvedValueOnce stack).
+            const { exitCodes, stderr } = await runCli(['project', 'list', '--limmit', '10']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown flag '--limmit'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('unknown flag rejection honors --quiet (suppress stderr while still exiting 1)', async () => {
+            // Copilot review: the strict-flag gate wrote directly to stderr,
+            // bypassing the --quiet contract. Verify it now routes through
+            // err() which suppresses output when quiet is set.
+            const { exitCodes, stderr } = await runCli(['--quiet', 'project', 'list', '--limmit', '10']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toBe('');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 
@@ -1100,9 +1432,9 @@ describe('CLI', () => {
     });
 
     describe('run close', () => {
-        it('POSTs without a body', async () => {
+        it('POSTs without a body when --yes is passed', async () => {
             const { exitCodes } = await runCli(
-                ['run', 'close', '10'],
+                ['run', 'close', '10', '--yes'],
                 [jsonResponse({ ...MOCK_RUN, is_completed: true })],
             );
             expect(exitCodes).toContain(0);

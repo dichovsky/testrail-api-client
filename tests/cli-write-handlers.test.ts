@@ -563,30 +563,53 @@ describe('handleRunAdd', () => {
 // ── run close ─────────────────────────────────────────────────────────────
 
 describe('handleRunClose', () => {
-    it('calls client.closeRun with the parsed run_id (no body needed)', async () => {
+    it('calls client.closeRun with the parsed run_id (no body needed) when --yes is passed', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['10'] });
+        const { ctx, out } = buildCtx(client, { pathParams: ['10'], confirmDestructive: true });
         await handleRunClose(ctx);
         expect(client.closeRun).toHaveBeenCalledWith(10);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ is_completed: true }));
     });
 
-    it('rejects non-positive run_id', async () => {
+    it('rejects non-positive run_id before checking --yes', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['0'] });
         await expect(handleRunClose(ctx)).rejects.toThrow(/run_id/);
     });
 
-    it('dry-run does not call the client', async () => {
+    it('rejects without --yes (destructive: closing a run is irreversible)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['10'] });
+        await expect(handleRunClose(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.closeRun).not.toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and marks preview destructive', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['10'], dryRun: true });
         await handleRunClose(ctx);
         expect(client.closeRun).not.toHaveBeenCalled();
-        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'run close', runId: 10 }));
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'run close', runId: 10, destructive: true }),
+        );
+    });
+
+    it('dry-run wins over --yes: no API call, preview still marks destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['10'], dryRun: true, confirmDestructive: true });
+        await handleRunClose(ctx);
+        expect(client.closeRun).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'run close', runId: 10, destructive: true }),
+        );
     });
 
     it('ignores any body provided for run close (no body required)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['10'], dataFlag: '{"ignored":true}' });
+        const { ctx } = buildCtx(client, {
+            pathParams: ['10'],
+            dataFlag: '{"ignored":true}',
+            confirmDestructive: true,
+        });
         await handleRunClose(ctx);
         expect(client.closeRun).toHaveBeenCalledWith(10);
     });

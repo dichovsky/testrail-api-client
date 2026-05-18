@@ -19,12 +19,20 @@ export async function handleRunAdd(ctx: HandlerContext): Promise<void> {
  * single `run_id` path param. POST has no payload, so the body-source
  * resolver is not consulted; any `--data` / `--data-file` / stdin supplied
  * for this action is silently ignored.
+ *
+ * Destructive: closing a run is irreversible (TestRail offers no `open_run`
+ * endpoint). Gated by `--yes`; if `--dry-run` is also passed, dry-run wins
+ * (no API call) and emits a preview with `destructive: true` so callers can
+ * spot it in audit output. Mirrors `handleAttachmentDelete` / `handleCaseDeleteBulk`.
  */
 export async function handleRunClose(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
     if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'run close', runId });
+        ctx.out({ dryRun: true, action: 'run close', runId, destructive: true });
         return;
+    }
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
     }
     ctx.out(await ctx.client.closeRun(runId));
 }

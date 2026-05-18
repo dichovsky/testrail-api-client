@@ -15,7 +15,7 @@ export interface AuthEnv {
 export type AuthResolution = { ok: true; config: TestRailConfig } | { ok: false; error: string };
 
 export const MISSING_AUTH_MESSAGE =
-    'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY or use --base-url, --email, --api-key flags.';
+    'Missing auth. Set TESTRAIL_BASE_URL, TESTRAIL_EMAIL, TESTRAIL_API_KEY (or pass --base-url / --email; the API key must come from the env var or --api-key-stdin — argv was removed in v3.0).';
 
 export function resolveAuth(flags: AuthFlags, env: AuthEnv): AuthResolution {
     const baseUrl = flags.baseUrl ?? env.TESTRAIL_BASE_URL;

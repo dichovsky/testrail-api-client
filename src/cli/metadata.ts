@@ -254,9 +254,10 @@ export const ACTIONS: readonly ActionSpec[] = [
     {
         resource: 'run',
         action: 'close',
-        summary: 'Close a test run (no body)',
+        summary: 'Close a test run permanently — irreversible (no body; requires --yes)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         isWrite: true,
+        destructive: true,
     },
     {
         resource: 'result',
