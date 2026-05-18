@@ -19,7 +19,7 @@ export class PlanModule {
 
     async getPlan(planId: number): Promise<Plan> {
         this.client.validateId(planId, 'planId');
-        return this.client.parse<Plan>(PlanSchema, await this.client.request<unknown>('GET', `get_plan/${planId}`));
+        return this.client.requestParsed<Plan>('GET', `get_plan/${planId}`, PlanSchema);
     }
 
     async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
@@ -34,31 +34,30 @@ export class PlanModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ plans?: Plan[] }>(z.object({ plans: z.array(PlanSchema).optional() }), raw).plans ?? []
+            (
+                await this.client.requestParsed<{ plans?: Plan[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ plans: z.array(PlanSchema).optional() }),
+                )
+            ).plans ?? []
         );
     }
 
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Plan>(
-            PlanSchema,
-            await this.client.request<unknown>('POST', `add_plan/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Plan>('POST', `add_plan/${projectId}`, PlanSchema, payload);
     }
 
     async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
         this.client.validateId(planId, 'planId');
-        return this.client.parse<Plan>(
-            PlanSchema,
-            await this.client.request<unknown>('POST', `update_plan/${planId}`, payload),
-        );
+        return this.client.requestParsed<Plan>('POST', `update_plan/${planId}`, PlanSchema, payload);
     }
 
     async closePlan(planId: number): Promise<Plan> {
         this.client.validateId(planId, 'planId');
-        return this.client.parse<Plan>(PlanSchema, await this.client.request<unknown>('POST', `close_plan/${planId}`));
+        return this.client.requestParsed<Plan>('POST', `close_plan/${planId}`, PlanSchema);
     }
 
     async deletePlan(planId: number): Promise<void> {
@@ -68,18 +67,17 @@ export class PlanModule {
 
     async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
         this.client.validateId(planId, 'planId');
-        return this.client.parse<PlanEntry>(
-            PlanEntrySchema,
-            await this.client.request<unknown>('POST', `add_plan_entry/${planId}`, payload),
-        );
+        return this.client.requestParsed<PlanEntry>('POST', `add_plan_entry/${planId}`, PlanEntrySchema, payload);
     }
 
     async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
         this.client.validateId(planId, 'planId');
         this.client.validateEntryId(entryId);
-        return this.client.parse<PlanEntry>(
+        return this.client.requestParsed<PlanEntry>(
+            'POST',
+            `update_plan_entry/${planId}/${entryId}`,
             PlanEntrySchema,
-            await this.client.request<unknown>('POST', `update_plan_entry/${planId}/${entryId}`, payload),
+            payload,
         );
     }
 
@@ -92,18 +90,12 @@ export class PlanModule {
     async addRunToPlanEntry(planId: number, entryId: string, payload: AddRunToPlanEntryPayload): Promise<Run> {
         this.client.validateId(planId, 'planId');
         this.client.validateEntryId(entryId);
-        return this.client.parse<Run>(
-            RunSchema,
-            await this.client.request<unknown>('POST', `add_run_to_plan_entry/${planId}/${entryId}`, payload),
-        );
+        return this.client.requestParsed<Run>('POST', `add_run_to_plan_entry/${planId}/${entryId}`, RunSchema, payload);
     }
 
     async updateRunInPlanEntry(runId: number, payload: UpdateRunInPlanEntryPayload): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.parse<Run>(
-            RunSchema,
-            await this.client.request<unknown>('POST', `update_run_in_plan_entry/${runId}`, payload),
-        );
+        return this.client.requestParsed<Run>('POST', `update_run_in_plan_entry/${runId}`, RunSchema, payload);
     }
 
     async deleteRunFromPlanEntry(runId: number): Promise<void> {

@@ -9,10 +9,7 @@ export class MilestoneModule {
 
     async getMilestone(milestoneId: number): Promise<Milestone> {
         this.client.validateId(milestoneId, 'milestoneId');
-        return this.client.parse<Milestone>(
-            MilestoneSchema,
-            await this.client.request<unknown>('GET', `get_milestone/${milestoneId}`),
-        );
+        return this.client.requestParsed<Milestone>('GET', `get_milestone/${milestoneId}`, MilestoneSchema);
     }
 
     async getMilestones(projectId: number, options?: GetMilestonesOptions): Promise<Milestone[]> {
@@ -23,28 +20,29 @@ export class MilestoneModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ milestones?: Milestone[] }>(
-                z.object({ milestones: z.array(MilestoneSchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ milestones?: Milestone[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ milestones: z.array(MilestoneSchema).optional() }),
+                )
             ).milestones ?? []
         );
     }
 
     async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Milestone>(
-            MilestoneSchema,
-            await this.client.request<unknown>('POST', `add_milestone/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Milestone>('POST', `add_milestone/${projectId}`, MilestoneSchema, payload);
     }
 
     async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
         this.client.validateId(milestoneId, 'milestoneId');
-        return this.client.parse<Milestone>(
+        return this.client.requestParsed<Milestone>(
+            'POST',
+            `update_milestone/${milestoneId}`,
             MilestoneSchema,
-            await this.client.request<unknown>('POST', `update_milestone/${milestoneId}`, payload),
+            payload,
         );
     }
 

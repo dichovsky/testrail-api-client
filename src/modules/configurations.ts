@@ -15,17 +15,20 @@ export class ConfigurationModule {
 
     async getConfigurations(projectId: number): Promise<ConfigurationGroup[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<ConfigurationGroup[]>(
+        return this.client.requestParsed<ConfigurationGroup[]>(
+            'GET',
+            `get_configs/${projectId}`,
             z.array(ConfigurationGroupSchema),
-            await this.client.request<unknown>('GET', `get_configs/${projectId}`),
         );
     }
 
     async addConfigurationGroup(projectId: number, payload: AddConfigurationGroupPayload): Promise<ConfigurationGroup> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<ConfigurationGroup>(
+        return this.client.requestParsed<ConfigurationGroup>(
+            'POST',
+            `add_config_group/${projectId}`,
             ConfigurationGroupSchema,
-            await this.client.request<unknown>('POST', `add_config_group/${projectId}`, payload),
+            payload,
         );
     }
 
@@ -34,9 +37,11 @@ export class ConfigurationModule {
         payload: UpdateConfigurationGroupPayload,
     ): Promise<ConfigurationGroup> {
         this.client.validateId(configGroupId, 'configGroupId');
-        return this.client.parse<ConfigurationGroup>(
+        return this.client.requestParsed<ConfigurationGroup>(
+            'POST',
+            `update_config_group/${configGroupId}`,
             ConfigurationGroupSchema,
-            await this.client.request<unknown>('POST', `update_config_group/${configGroupId}`, payload),
+            payload,
         );
     }
 
@@ -47,17 +52,21 @@ export class ConfigurationModule {
 
     async addConfiguration(configGroupId: number, payload: AddConfigurationPayload): Promise<Configuration> {
         this.client.validateId(configGroupId, 'configGroupId');
-        return this.client.parse<Configuration>(
+        return this.client.requestParsed<Configuration>(
+            'POST',
+            `add_config/${configGroupId}`,
             ConfigurationSchema,
-            await this.client.request<unknown>('POST', `add_config/${configGroupId}`, payload),
+            payload,
         );
     }
 
     async updateConfiguration(configId: number, payload: UpdateConfigurationPayload): Promise<Configuration> {
         this.client.validateId(configId, 'configId');
-        return this.client.parse<Configuration>(
+        return this.client.requestParsed<Configuration>(
+            'POST',
+            `update_config/${configId}`,
             ConfigurationSchema,
-            await this.client.request<unknown>('POST', `update_config/${configId}`, payload),
+            payload,
         );
     }
 

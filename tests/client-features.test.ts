@@ -426,6 +426,176 @@ describe('TestRailClient - Enhanced Features', () => {
                 'Cannot use TestRailClient after destroy() has been called',
             );
         });
+
+        // Regression tests for BACKLOG #9: schema-invalid GET responses must
+        // not be cached. Before the fix, request() cached the raw JSON before
+        // the module validated it with Zod — a malformed response would
+        // therefore persist for the full TTL and re-throw the same
+        // TestRailValidationError on every subsequent call.
+        describe('Schema-invalid response cache poisoning (BACKLOG #9)', () => {
+            it('does not cache a GET response that fails schema validation', async () => {
+                const invalidProject = { id: 'not-a-number', name: 42 };
+                const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(invalidProject),
+                });
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+
+                // First call: schema validation throws; nothing should be cached.
+                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+
+                // Second call: cache MUST be empty, so this re-fetches and
+                // resolves with the valid response. Pre-fix behavior was to
+                // hit the poisoned cache entry and re-throw indefinitely.
+                const result = await client.getProject(1);
+                expect(result).toEqual(validProject);
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+            });
+
+            it('caches a GET response only after successful schema validation', async () => {
+                const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+
+                const first = await client.getProject(1);
+                const second = await client.getProject(1);
+
+                expect(first).toEqual(validProject);
+                expect(second).toEqual(validProject);
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+            });
+
+            it('does not corrupt the cache when a POST response fails validation', async () => {
+                const invalidProject = { id: 'not-a-number' };
+                const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+
+                // Prime the cache with a valid GET.
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+                await client.getProject(1);
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+
+                // POST returns a schema-invalid body — request() clears the
+                // cache (unconditional for non-GET) and then requestParsed
+                // throws on validation.
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(invalidProject),
+                });
+                await expect(client.addProject({ name: 'New' })).rejects.toThrow(TestRailValidationError);
+
+                // Subsequent GET re-fetches because the POST invalidated the
+                // earlier cache entry.
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+                const result = await client.getProject(1);
+                expect(result).toEqual(validProject);
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+            });
+
+            it('caches each endpoint independently after validation', async () => {
+                const validProject1 = { id: 1, name: 'P1', suite_mode: 1, url: 'test1' };
+                const invalidProject2 = { id: 'oops' };
+                const validProject2 = { id: 2, name: 'P2', suite_mode: 1, url: 'test2' };
+
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject1),
+                });
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(invalidProject2),
+                });
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject2),
+                });
+
+                // Project 1 caches normally.
+                expect(await client.getProject(1)).toEqual(validProject1);
+                // Project 2 fails validation — its slot must NOT be cached.
+                await expect(client.getProject(2)).rejects.toThrow(TestRailValidationError);
+                // Project 2 retried fresh — succeeds — and DOES cache.
+                expect(await client.getProject(2)).toEqual(validProject2);
+
+                // Sanity: project 1 still cached (no fourth fetch).
+                expect(await client.getProject(1)).toEqual(validProject1);
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+            });
+
+            it('still caches GET responses when callers invoke request() directly without a schema', async () => {
+                // Back-compat: external callers that use the lower-level
+                // request<T>() (no schema) still rely on its built-in GET cache.
+                // requestParsed() bypasses request()'s internal cache write by
+                // passing skipCache=true, so we exercise the legacy path here.
+                const raw = { id: 42, custom_payload: 'anything' };
+
+                mockFetch.mockResolvedValue({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(raw),
+                });
+
+                const first = await client.request<typeof raw>('GET', 'get_custom/42');
+                const second = await client.request<typeof raw>('GET', 'get_custom/42');
+
+                expect(first).toEqual(raw);
+                expect(second).toEqual(raw);
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+            });
+
+            it('re-throws TestRailValidationError on every repeated GET when the upstream is permanently malformed', async () => {
+                const malformed = { id: 'oops', name: null };
+
+                mockFetch.mockResolvedValue({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(malformed),
+                });
+
+                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+
+                // Three calls = three fetches. Pre-fix, the second and third
+                // would have hit a poisoned cache entry and never reached
+                // fetch. The new behavior surfaces the upstream problem
+                // explicitly on each call.
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+            });
+        });
     });
 
     describe('Retry Logic', () => {

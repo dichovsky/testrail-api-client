@@ -32,7 +32,7 @@ export class CaseModule {
 
     async getCase(caseId: number): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
-        return this.client.parse<Case>(CaseSchema, await this.client.request<unknown>('GET', `get_case/${caseId}`));
+        return this.client.requestParsed<Case>('GET', `get_case/${caseId}`, CaseSchema);
     }
 
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
@@ -72,26 +72,25 @@ export class CaseModule {
             limit,
             offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ cases?: Case[] }>(z.object({ cases: z.array(CaseSchema).optional() }), raw).cases ?? []
+            (
+                await this.client.requestParsed<{ cases?: Case[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ cases: z.array(CaseSchema).optional() }),
+                )
+            ).cases ?? []
         );
     }
 
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.parse<Case>(
-            CaseSchema,
-            await this.client.request<unknown>('POST', `add_case/${sectionId}`, payload),
-        );
+        return this.client.requestParsed<Case>('POST', `add_case/${sectionId}`, CaseSchema, payload);
     }
 
     async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
-        return this.client.parse<Case>(
-            CaseSchema,
-            await this.client.request<unknown>('POST', `update_case/${caseId}`, payload),
-        );
+        return this.client.requestParsed<Case>('POST', `update_case/${caseId}`, CaseSchema, payload);
     }
 
     /**
@@ -133,8 +132,7 @@ export class CaseModule {
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
         this.client.validateId(suiteId, 'suiteId');
-        const raw = await this.client.request<unknown>('POST', `update_cases/${suiteId}`, payload);
-        return this.client.parse<Case[]>(z.array(CaseSchema), raw);
+        return this.client.requestParsed<Case[]>('POST', `update_cases/${suiteId}`, z.array(CaseSchema), payload);
     }
 
     /**
@@ -186,8 +184,12 @@ export class CaseModule {
      */
     async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<Case[]> {
         this.client.validateId(sectionId, 'sectionId');
-        const raw = await this.client.request<unknown>('POST', `copy_cases_to_section/${sectionId}`, payload);
-        return this.client.parse<Case[]>(z.array(CaseSchema), raw);
+        return this.client.requestParsed<Case[]>(
+            'POST',
+            `copy_cases_to_section/${sectionId}`,
+            z.array(CaseSchema),
+            payload,
+        );
     }
 
     /**
@@ -208,11 +210,13 @@ export class CaseModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ history?: HistoryEntry[] }>(
-                z.object({ history: z.array(HistoryEntrySchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ history?: HistoryEntry[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ history: z.array(HistoryEntrySchema).optional() }),
+                )
             ).history ?? []
         );
     }

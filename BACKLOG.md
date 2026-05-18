@@ -69,7 +69,7 @@ Conventions:
 | open | 5 | medium | `cli/install-skill.ts` | TOCTOU symlink-clobber on install target |
 | open | 7 | medium | `cli/file-input.ts` | TOCTOU symlink-follow on attachment upload |
 | open | 8 | medium | `client-core.ts` | Library constructor hijacks host SIGINT/SIGTERM via `process.exit()` |
-| open | 9 | medium | `client-core.ts` | Schema-invalid response can poison GET cache for full TTL |
+| shipped | 9 | medium | `client-core.ts` | Schema-invalid response can poison GET cache for full TTL — fixed in 3.2.0 via new `requestParsed<T>` that validates before caching |
 | open | 12 | medium | `client-core.ts` | Unbounded response body reads can OOM client |
 | open | 13 | medium | `client-core.ts` | POST retries can duplicate writes on retryable failure |
 | open | 14 | low-medium | `client-core.ts` | Mutable cached references let callers poison future reads |

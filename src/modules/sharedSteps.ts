@@ -15,33 +15,30 @@ export class SharedStepModule {
 
     async getSharedStep(sharedStepId: number): Promise<SharedStep> {
         this.client.validateId(sharedStepId, 'sharedStepId');
-        return this.client.parse<SharedStep>(
-            SharedStepSchema,
-            await this.client.request<unknown>('GET', `get_shared_step/${sharedStepId}`),
-        );
+        return this.client.requestParsed<SharedStep>('GET', `get_shared_step/${sharedStepId}`, SharedStepSchema);
     }
 
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<SharedStep[]>(
+        return this.client.requestParsed<SharedStep[]>(
+            'GET',
+            `get_shared_steps/${projectId}`,
             SharedStepSchema.array(),
-            await this.client.request<unknown>('GET', `get_shared_steps/${projectId}`),
         );
     }
 
     async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<SharedStep>(
-            SharedStepSchema,
-            await this.client.request<unknown>('POST', `add_shared_step/${projectId}`, payload),
-        );
+        return this.client.requestParsed<SharedStep>('POST', `add_shared_step/${projectId}`, SharedStepSchema, payload);
     }
 
     async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
         this.client.validateId(sharedStepId, 'sharedStepId');
-        return this.client.parse<SharedStep>(
+        return this.client.requestParsed<SharedStep>(
+            'POST',
+            `update_shared_step/${sharedStepId}`,
             SharedStepSchema,
-            await this.client.request<unknown>('POST', `update_shared_step/${sharedStepId}`, payload),
+            payload,
         );
     }
 
@@ -57,11 +54,13 @@ export class SharedStepModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ history?: HistoryEntry[] }>(
-                z.object({ history: z.array(HistoryEntrySchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ history?: HistoryEntry[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ history: z.array(HistoryEntrySchema).optional() }),
+                )
             ).history ?? []
         );
     }

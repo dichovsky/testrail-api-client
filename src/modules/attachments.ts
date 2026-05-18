@@ -8,44 +8,52 @@ export class AttachmentModule {
 
     async getAttachmentsForCase(caseId: number): Promise<Attachment[]> {
         this.client.validateId(caseId, 'caseId');
-        const raw = await this.client.request<unknown>('GET', `get_attachments_for_case/${caseId}`);
         return (
-            this.client.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ attachments?: Attachment[] }>(
+                    'GET',
+                    `get_attachments_for_case/${caseId}`,
+                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                )
             ).attachments ?? []
         );
     }
 
     async getAttachmentsForRun(runId: number): Promise<Attachment[]> {
         this.client.validateId(runId, 'runId');
-        const raw = await this.client.request<unknown>('GET', `get_attachments_for_run/${runId}`);
         return (
-            this.client.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ attachments?: Attachment[] }>(
+                    'GET',
+                    `get_attachments_for_run/${runId}`,
+                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                )
             ).attachments ?? []
         );
     }
 
     async getAttachmentsForTest(testId: number): Promise<Attachment[]> {
         this.client.validateId(testId, 'testId');
-        const raw = await this.client.request<unknown>('GET', `get_attachments_for_test/${testId}`);
         return (
-            this.client.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ attachments?: Attachment[] }>(
+                    'GET',
+                    `get_attachments_for_test/${testId}`,
+                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                )
             ).attachments ?? []
         );
     }
 
     async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
         this.client.validateId(planId, 'planId');
-        const raw = await this.client.request<unknown>('GET', `get_attachments_for_plan/${planId}`);
         return (
-            this.client.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ attachments?: Attachment[] }>(
+                    'GET',
+                    `get_attachments_for_plan/${planId}`,
+                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                )
             ).attachments ?? []
         );
     }
@@ -53,11 +61,13 @@ export class AttachmentModule {
     async getAttachmentsForPlanEntry(planId: number, entryId: number): Promise<Attachment[]> {
         this.client.validateId(planId, 'planId');
         this.client.validateId(entryId, 'entryId');
-        const raw = await this.client.request<unknown>('GET', `get_attachments_for_plan_entry/${planId}/${entryId}`);
         return (
-            this.client.parse<{ attachments?: Attachment[] }>(
-                z.object({ attachments: z.array(AttachmentSchema).optional() }),
-                raw,
+            (
+                await this.client.requestParsed<{ attachments?: Attachment[] }>(
+                    'GET',
+                    `get_attachments_for_plan_entry/${planId}/${entryId}`,
+                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                )
             ).attachments ?? []
         );
     }

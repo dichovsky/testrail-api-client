@@ -14,7 +14,7 @@ export class ProjectModule {
      */
     async getProject(projectId: number): Promise<Project> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse(ProjectSchema, await this.client.request<unknown>('GET', `get_project/${projectId}`));
+        return this.client.requestParsed<Project>('GET', `get_project/${projectId}`, ProjectSchema);
     }
 
     /**
@@ -25,10 +25,14 @@ export class ProjectModule {
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
         this.client.validatePaginationParams(limit, offset);
         const endpoint = this.client.buildEndpoint('get_projects', { limit, offset });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ projects?: Project[] }>(z.object({ projects: z.array(ProjectSchema).optional() }), raw)
-                .projects ?? []
+            (
+                await this.client.requestParsed<{ projects?: Project[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ projects: z.array(ProjectSchema).optional() }),
+                )
+            ).projects ?? []
         );
     }
 
@@ -37,10 +41,7 @@ export class ProjectModule {
      * @throws {TestRailApiError} When the API request fails
      */
     async addProject(payload: AddProjectPayload): Promise<Project> {
-        return this.client.parse<Project>(
-            ProjectSchema,
-            await this.client.request<unknown>('POST', 'add_project', payload),
-        );
+        return this.client.requestParsed<Project>('POST', 'add_project', ProjectSchema, payload);
     }
 
     /**
@@ -50,10 +51,7 @@ export class ProjectModule {
      */
     async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Project>(
-            ProjectSchema,
-            await this.client.request<unknown>('POST', `update_project/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Project>('POST', `update_project/${projectId}`, ProjectSchema, payload);
     }
 
     /**

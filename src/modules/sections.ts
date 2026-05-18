@@ -9,10 +9,7 @@ export class SectionModule {
 
     async getSection(sectionId: number): Promise<Section> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.parse<Section>(
-            SectionSchema,
-            await this.client.request<unknown>('GET', `get_section/${sectionId}`),
-        );
+        return this.client.requestParsed<Section>('GET', `get_section/${sectionId}`, SectionSchema);
     }
 
     async getSections(
@@ -26,27 +23,25 @@ export class SectionModule {
         }
         this.client.validatePaginationParams(limit, offset);
         const endpoint = this.client.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ sections?: Section[] }>(z.object({ sections: z.array(SectionSchema).optional() }), raw)
-                .sections ?? []
+            (
+                await this.client.requestParsed<{ sections?: Section[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ sections: z.array(SectionSchema).optional() }),
+                )
+            ).sections ?? []
         );
     }
 
     async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Section>(
-            SectionSchema,
-            await this.client.request<unknown>('POST', `add_section/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Section>('POST', `add_section/${projectId}`, SectionSchema, payload);
     }
 
     async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.parse<Section>(
-            SectionSchema,
-            await this.client.request<unknown>('POST', `update_section/${sectionId}`, payload),
-        );
+        return this.client.requestParsed<Section>('POST', `update_section/${sectionId}`, SectionSchema, payload);
     }
 
     /**
