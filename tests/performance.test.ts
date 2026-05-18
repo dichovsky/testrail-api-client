@@ -54,9 +54,9 @@ describe('TestRailClient Performance & Memory', () => {
         await client.getProject(3);
 
         expect(cache.size).toBe(2);
-        expect(cache.has('GET:get_project/1')).toBe(false);
-        expect(cache.has('GET:get_project/2')).toBe(true);
-        expect(cache.has('GET:get_project/3')).toBe(true);
+        expect(cache.has('PARSED:GET:get_project/1')).toBe(false);
+        expect(cache.has('PARSED:GET:get_project/2')).toBe(true);
+        expect(cache.has('PARSED:GET:get_project/3')).toBe(true);
     });
 
     it('should implement LRU eviction behavior', async () => {
@@ -86,9 +86,9 @@ describe('TestRailClient Performance & Memory', () => {
         await client.getProject(3);
 
         expect(cache.size).toBe(2);
-        expect(cache.has('GET:get_project/1')).toBe(true); // Recently accessed
-        expect(cache.has('GET:get_project/2')).toBe(false); // Evicted
-        expect(cache.has('GET:get_project/3')).toBe(true); // New
+        expect(cache.has('PARSED:GET:get_project/1')).toBe(true); // Recently accessed
+        expect(cache.has('PARSED:GET:get_project/2')).toBe(false); // Evicted
+        expect(cache.has('PARSED:GET:get_project/3')).toBe(true); // New
     });
 
     it('should allow disabling cache size limit with 0', () => {

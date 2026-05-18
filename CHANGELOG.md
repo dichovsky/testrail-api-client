@@ -29,7 +29,10 @@ masked transient upstream bugs as permanent client failures.
   against a Zod schema, and writes the GET cache only after validation
   succeeds. Used internally by every domain module that returns a typed
   response. Prefer this over the legacy `parse(schema, await request(...))`
-  pattern in new code.
+  pattern in new code. Validated responses live in a separate cache
+  namespace (`PARSED:GET:${endpoint}`) so they cannot collide with raw
+  entries written by direct `request()` callers — neither side can poison
+  the other, even when both target the same endpoint.
 
 ### Changed
 

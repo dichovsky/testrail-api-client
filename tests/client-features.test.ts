@@ -553,6 +553,67 @@ describe('TestRailClient - Enhanced Features', () => {
                 expect(mockFetch).toHaveBeenCalledTimes(3);
             });
 
+            it('does not let raw request() cache entries poison requestParsed() (namespace isolation)', async () => {
+                // Direct callers of the public, low-level request<T>() write
+                // into the raw cache namespace. If requestParsed() shared that
+                // namespace, the raw (potentially schema-invalid) value would
+                // be returned without validation, re-introducing #9.
+                const malformedRaw = { id: 'not-a-number', name: 99 };
+                const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+
+                // Step 1: poison the raw cache via direct request<unknown>().
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(malformedRaw),
+                });
+                const rawValue = await client.request<unknown>('GET', 'get_project/1');
+                expect(rawValue).toEqual(malformedRaw);
+
+                // Step 2: getProject() goes through requestParsed(). It MUST
+                // see a separate cache namespace, miss, refetch, and validate.
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+                const parsed = await client.getProject(1);
+                expect(parsed).toEqual(validProject);
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+            });
+
+            it('does not leak Zod-transformed values into the raw request() cache', async () => {
+                // Zod schemas may strip or transform fields (e.g. unknown keys
+                // dropped on a non-passthrough schema). If requestParsed()
+                // wrote into the raw cache, a later request<unknown>() caller
+                // would receive the transformed view instead of the raw JSON
+                // body, breaking the documented low-level contract.
+                const rawBody = { id: 1, name: 'P1', suite_mode: 1, url: 'u', extra_field_kept_as_raw: 'present' };
+
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(rawBody),
+                });
+                // Prime the validated namespace.
+                await client.getProject(1);
+
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(rawBody),
+                });
+                // The raw caller MUST refetch (separate namespace) and see
+                // the full raw body, untouched by validation.
+                const raw = await client.request<typeof rawBody>('GET', 'get_project/1');
+                expect(raw).toEqual(rawBody);
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+            });
+
             it('still caches GET responses when callers invoke request() directly without a schema', async () => {
                 // Back-compat: external callers that use the lower-level
                 // request<T>() (no schema) still rely on its built-in GET cache.

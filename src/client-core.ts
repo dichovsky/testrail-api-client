@@ -995,10 +995,18 @@ export class TestRailClientCore {
      * @throws {Error} When called after `destroy()`
      */
     public async requestParsed<T>(method: string, endpoint: string, schema: ZodType, data?: unknown): Promise<T> {
-        // GET cache check happens here (not in request()) so we can defer the
-        // cache write until after schema validation succeeds.
-        if (method === 'GET') {
-            const cacheKey = `${method}:${endpoint}`;
+        // Validated responses live in their own cache namespace so they cannot
+        // collide with raw entries written by direct `request<T>('GET', ...)`
+        // callers. Without the split, two failure modes would re-emerge:
+        //   (1) a raw response cached by `request()` could be returned here
+        //       unvalidated, re-introducing the original cache-poisoning bug;
+        //   (2) a Zod-stripped/transformed value written here could surface to
+        //       a later `request()` caller that expects the raw JSON body.
+        // `clearCache()` (called by every POST) wipes both namespaces, so
+        // mutation invalidation still works correctly.
+        const cacheKey = method === 'GET' ? `PARSED:${method}:${endpoint}` : undefined;
+
+        if (cacheKey !== undefined) {
             const cachedData = this.getCachedData<T>(cacheKey);
             if (cachedData !== undefined) {
                 return cachedData;
@@ -1012,8 +1020,7 @@ export class TestRailClientCore {
         const raw = await this.request<unknown>(method, endpoint, data, 0, true);
         const validated = this.parse<T>(schema, raw);
 
-        if (method === 'GET') {
-            const cacheKey = `${method}:${endpoint}`;
+        if (cacheKey !== undefined) {
             this.setCachedData(cacheKey, validated);
         }
 
