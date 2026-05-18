@@ -5,6 +5,45 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] — 2026-05-18 — Stop retrying non-idempotent writes on 5xx and network errors
+
+Closes [BACKLOG #13](BACKLOG.md). Before this release, every retryable failure
+(`5xx`, `429`, network error) triggered a transparent retry up to `maxRetries`,
+regardless of HTTP method. For mutating requests this masked a data-integrity
+hazard: when a TestRail POST returned `502`/`503` or the connection reset
+mid-flight, the server may already have processed the write. The retry then
+produced a duplicate record — duplicate runs, duplicate cases, duplicate
+results — with no warning to the caller.
+
+### Fixed
+
+- **`request<T>()` and `requestText()` no longer retry non-`GET` methods on
+  `5xx` responses or network errors.** A `503` returned for `add_case`,
+  `update_run`, `delete_milestone`, etc. now surfaces immediately to the caller
+  as a `TestRailApiError`, preventing silent duplicate writes. Likewise, a
+  `fetch` `TypeError` (e.g. `ECONNRESET`) during a mutating request throws
+  rather than retrying, because the request bytes may already have reached
+  the server.
+
+### Unchanged
+
+- `429` (rate limit) still retries for **all methods**, including writes.
+  TestRail's rate limiter rejects requests before they execute, so a retry
+  on a 429-blocked write cannot duplicate state. `Retry-After` handling is
+  unchanged.
+- `GET` retry behavior is unchanged: `5xx`, `429`, and network errors all
+  retry up to `maxRetries`.
+- `requestUpload()` (attachment POST) already opted out of retry entirely
+  prior to this change.
+
+### Migration
+
+No code changes required. Calling code that previously succeeded after a
+transient `5xx` retry on a write will now see the original error surface.
+The recommended fix is application-level idempotency (check whether the
+resource already exists before retrying) — masking the failure inside the
+client was unsafe.
+
 ## [3.2.0] — 2026-05-18 — Fix schema-invalid responses poisoning the GET cache
 
 Closes [BACKLOG #9](BACKLOG.archive.md). Before this release, the GET cache

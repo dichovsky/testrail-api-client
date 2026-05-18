@@ -49,7 +49,7 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 **Rate limiter:** Sliding window on `rateLimiter.requests[]`. Throws `TestRailApiError` on limit exceeded. Default: 100 req/60s.
 
-**Retry:** `min(1000 × 2^n, 10000)` ms backoff. Retries on: 5xx, 429, network errors. No retry on: 4xx, AbortError (timeout).
+**Retry:** `min(1000 × 2^n, 10000)` ms backoff. **GET** retries on: 5xx, 429, network errors. **POST/PUT/DELETE** retries only on 429 (rate-limited writes are rejected before execution); 5xx and network errors surface immediately to prevent duplicate writes. No retry on: 4xx, AbortError (timeout). `requestUpload` never retries.
 
 **Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, removes from set. Process signal handlers (exit/SIGINT/SIGTERM) call `destroy()` on all active instances.
 

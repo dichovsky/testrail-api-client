@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "3.2.0"
+    "version": "3.3.0"
   },
-  "sourceHash": "437bbca332155e4624bf52f49f783132674754f22f7aa694bb5a401ba6bace08",
+  "sourceHash": "c3da07f5801235b10505d38be44e11942c241bea9511ed2a6d5a1733085b6005",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2772,37 +2772,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "request",
               "kind": "method",
-              "line": 577
+              "line": 584
             },
             {
               "name": "requestText",
               "kind": "method",
-              "line": 715
+              "line": 734
             },
             {
               "name": "requestMultipart",
               "kind": "method",
-              "line": 800
+              "line": 825
             },
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 884
+              "line": 909
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 955
+              "line": 980
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 964
+              "line": 989
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 997
+              "line": 1022
             }
           ]
         }

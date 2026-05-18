@@ -920,6 +920,92 @@ describe('TestRailClient - Enhanced Features', () => {
             expect(mockFetch).toHaveBeenCalledTimes(2);
             expect(vi.mocked(sleep)).toHaveBeenCalledWith(1000);
         });
+
+        // ── Non-idempotent retry contract (B013) ──────────────────────────────
+        //
+        // POST/PUT/DELETE must NOT retry on 5xx or network errors because the
+        // server may have already processed the write — retrying would create
+        // duplicate records. POST MUST still retry on 429 because TestRail's
+        // rate limiter rejects the request before it executes.
+
+        it('should NOT retry POST on 5xx (write may have been processed)', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                status: 503,
+                statusText: 'Service Unavailable',
+                text: async () => 'Server Error',
+                headers: { get: () => null },
+            });
+
+            await expect(client.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('should NOT retry POST on 500', async () => {
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                status: 500,
+                statusText: 'Internal Server Error',
+                text: async () => 'Server Error',
+                headers: { get: () => null },
+            });
+
+            await expect(client.updateProject(1, { name: 'p' })).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('should NOT retry POST on network error (mid-flight write ambiguous)', async () => {
+            mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+
+            await expect(client.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('should retry POST on 429 (rate-limited writes are rejected before execution)', async () => {
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    headers: { get: () => null },
+                    text: async () => 'Rate limited',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'test' }),
+                });
+
+            const result = await client.addProject({ name: 'p' });
+            expect(result.id).toBe(1);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('should honor Retry-After on POST 429', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '2' : null) },
+                    text: async () => 'Rate limited',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'test' }),
+                });
+
+            await client.addProject({ name: 'p' });
+            expect(mockSleep).toHaveBeenCalledWith(2000);
+        });
     });
 
     describe('Error Handling', () => {
@@ -1407,6 +1493,74 @@ describe('TestRailClient - Enhanced Features', () => {
             await expect(destroyedClient.getBdd(1)).rejects.toThrow(
                 'Cannot use TestRailClient after destroy() has been called',
             );
+        });
+
+        // ── Non-idempotent retry contract for requestText (B013) ──────────────
+        // Mirrors the request<T>() contract: POST does not retry on 5xx or
+        // network errors; 429 still retries.
+
+        it('should NOT retry POST on 5xx via requestText', async () => {
+            const freshClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 2,
+                enableCache: false,
+            });
+            mockFetch.mockResolvedValue({
+                ok: false,
+                status: 503,
+                statusText: 'Service Unavailable',
+                text: async () => 'server error',
+                headers: { get: () => null },
+            });
+
+            await expect(freshClient.requestText('POST', 'noop_endpoint', { x: 1 })).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('should NOT retry POST on network error via requestText', async () => {
+            const freshClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 2,
+                enableCache: false,
+            });
+            mockFetch.mockRejectedValue(new Error('ECONNRESET'));
+
+            await expect(freshClient.requestText('POST', 'noop_endpoint', { x: 1 })).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('should retry POST on 429 via requestText', async () => {
+            const freshClient = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 2,
+                enableCache: false,
+            });
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    text: async () => 'rate limited',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '1' : null) },
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => 'ack',
+                    headers: { get: () => null },
+                });
+
+            const result = await freshClient.requestText('POST', 'noop_endpoint', { x: 1 });
+            expect(result).toBe('ack');
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            expect(sleep).toHaveBeenCalledWith(1000);
         });
 
         it('should JSON-stringify the body when requestText is called with data', async () => {
