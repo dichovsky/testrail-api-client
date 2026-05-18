@@ -349,10 +349,25 @@ export class TestRailClientCore {
     }
 
     /**
-     * Parses the Retry-After header value to milliseconds
+     * Parses the `Retry-After` response header into milliseconds.
      *
-     * @param response - The HTTP response containing the Retry-After header
-     * @returns The delay in milliseconds, or null if header is absent or invalid
+     * Honored on every retryable status (429 and any 5xx the caller is willing
+     * to retry). The header is valid per RFC 7231 §7.1.3 on 503 and 429; in
+     * practice TestRail and front proxies (nginx, Cloudflare) emit it on 502,
+     * 503, and 504 during overload or maintenance windows. Treating all
+     * retryable 5xx symmetrically keeps the retry-eligibility matrix in one
+     * place.
+     *
+     * Accepts either a delta-seconds integer or an HTTP-date. Server-supplied
+     * values are capped at {@link MAX_RETRY_DELAY_MS} so a malicious or
+     * misconfigured upstream cannot freeze the client indefinitely. A value of
+     * `0`, a past date, or an unparseable string returns `null` so the caller
+     * falls back to exponential backoff — this prevents a hot retry loop when
+     * the server hint is meaningless.
+     *
+     * @param response - The HTTP response carrying the header
+     * @returns Delay in milliseconds, or `null` if the header is absent, zero,
+     *          in the past, or otherwise unparseable
      */
     private parseRetryAfterMs(response: Response): number | null {
         const retryAfter = response.headers.get('Retry-After');
@@ -680,12 +695,17 @@ export class TestRailClientCore {
                 //   5xx (server error) — retried only for GET. A 5xx on POST/PUT/DELETE
                 //     leaves write state ambiguous (server may have processed the request
                 //     before the failure), so retrying could create duplicate records.
-                //     Non-GET callers see the 5xx surfaced immediately.
+                //     Non-GET callers see the 5xx surfaced immediately. Retry-After is
+                //     honored on GET 5xx too (BACKLOG SEC #25): TestRail / nginx /
+                //     Cloudflare commonly emit it on 502/503/504 during maintenance, and
+                //     respecting the hint avoids hammering an upstream that already told
+                //     us how long to wait. parseRetryAfterMs falls back to null on zero,
+                //     past dates, or invalid values, so the caller never spins.
                 const isIdempotent = method === 'GET';
                 const status = response.status;
                 const shouldRetry = (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
                 if (shouldRetry) {
-                    const retryAfterMs = status === 429 ? this.parseRetryAfterMs(response) : null;
+                    const retryAfterMs = this.parseRetryAfterMs(response);
                     const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                     await sleep(delay);
                     return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
@@ -812,11 +832,12 @@ export class TestRailClientCore {
 
                 // Mirrors the retry contract documented on request<T>():
                 // 429 retries for all methods; 5xx retries only for GET.
+                // Retry-After is honored on both (BACKLOG SEC #25).
                 const isIdempotent = method === 'GET';
                 const status = response.status;
                 const shouldRetry = (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
                 if (shouldRetry) {
-                    const retryAfterMs = status === 429 ? this.parseRetryAfterMs(response) : null;
+                    const retryAfterMs = this.parseRetryAfterMs(response);
                     const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                     await sleep(delay);
                     return this.requestText(method, endpoint, data, retryCount + 1);
@@ -987,9 +1008,13 @@ export class TestRailClientCore {
                 const errorText = await response.text().catch(() => 'Unknown error');
 
                 // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-                // For 429, respect Retry-After header if present; otherwise use exponential backoff.
+                // requestBinary is always GET (attachment download) and therefore
+                // idempotent — retrying any 5xx is safe.
+                // Retry-After is honored on both classes (BACKLOG SEC #25); it falls
+                // back to exponential backoff when absent, zero, in the past, or
+                // unparseable (see parseRetryAfterMs).
                 if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+                    const retryAfterMs = this.parseRetryAfterMs(response);
                     const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                     await sleep(delay);
                     return this.requestBinary(endpoint, retryCount + 1);

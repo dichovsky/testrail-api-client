@@ -26,4 +26,4 @@ tests/fixtures/codemap/**
 # whitespace). These files are planning/history docs, not API contracts —
 # drift protection is low-value vs. the reflow damage.
 BACKLOG.md
-BACKLOG.archive.md
+BACKLOG-ARCHIVE.md

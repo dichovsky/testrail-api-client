@@ -40,7 +40,6 @@ Archive file: [`BACKLOG.archive.md`](BACKLOG.archive.md) (dot form; preserves lo
 - [ ] 🟢 🐛 SEC #22: Prototype-chain property access crashes dispatch
 - [ ] 🟢 🐛 SEC #23: Identical GETs stampede into parallel upstream calls
 - [ ] 🟢 🐛 SEC #24: stdin wall-clock deadline still missing (size cap shipped)
-- [ ] 🟢 🐛 SEC #25: `Retry-After` ignored on 503 / other retryable 5xx
 - [ ] 🟢 🐛 SEC #26: `allowInsecure: true` lacks runtime warning / audit trail
 - [ ] 🟢 🐛 SEC #27: `parseId` accepts hex / binary / scientific forms
 - [ ] 🟢 🐛 SEC #28: throwing `destroy()` aborts cleanup of later clients
