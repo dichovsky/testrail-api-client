@@ -51,6 +51,8 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 **Retry:** `min(1000 × 2^n, 10000)` ms backoff. **GET** retries on: 5xx, 429, network errors. **POST/PUT/DELETE** retries only on 429 (rate-limited writes are rejected before execution); 5xx and network errors surface immediately to prevent duplicate writes. No retry on: 4xx, AbortError (timeout). `requestUpload` never retries.
 
+**Redirects (3xx):** All four fetch sites set `redirect: 'manual'` and pipe the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed `validateBaseUrl` + DNS pinning.
+
 **Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, removes from set. Process signal handlers (exit/SIGINT/SIGTERM) call `destroy()` on all active instances.
 
 **ID validation:** All numeric IDs checked as positive integers via `protected validateId(id, name)` before any API call.

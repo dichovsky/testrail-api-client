@@ -5,6 +5,51 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] — 2026-05-18 — Block HTTP redirects to close SSRF guard bypass
+
+Closes [BACKLOG #4](BACKLOG.md). Before this release, the SSRF guard
+(`validateBaseUrl` + DNS pin) validated only the **initial** request host.
+`fetch` follows redirects by default, so a TestRail server (or any reverse
+proxy in front of it) that returned a `301`/`302`/`303`/`307`/`308` with a
+`Location` pointing at a private IP — `127.0.0.1`, `169.254.169.254`
+(cloud metadata), `10.0.0.0/8`, link-local, etc. — would silently make the
+client issue a request to the protected host, leaking credentials and
+returning the attacker-controlled body to the caller. The guard was bypassed
+without ever surfacing an error.
+
+### Fixed
+
+- **All four fetch sites (`request<T>`, `requestText`, `requestMultipart`,
+  `requestBinary`) now set `redirect: 'manual'`** so the runtime never
+  follows a `Location` header automatically.
+- **3xx responses are rejected as `TestRailApiError`** via a new private
+  `assertNotRedirect()` helper. The error preserves the original `status`
+  and `statusText`; the `response` field embeds the `Location` value
+  (when present) so callers can diagnose a misconfigured `baseUrl` or
+  reverse proxy without losing the redirect target.
+- **3xx never retries.** A redirect is not transient: retrying would either
+  loop or amplify the SSRF surface if `redirect: 'manual'` were ever
+  removed. Affects all four fetch sites uniformly.
+- **3xx never poisons the GET cache.** The redirect rejection fires before
+  any cache write, so a single redirected request cannot serve a bad value
+  for the full TTL.
+
+### Unchanged
+
+- `GET` retry behavior for `5xx`/`429`/network errors is unchanged.
+- The existing SSRF allow-list (`allowPrivateHosts`) and the DNS-pin behavior
+  are unchanged — this release closes the redirect-shaped hole next to them.
+- The TestRail JSON API itself does not return `3xx` for `/index.php?/api/v2/...`
+  endpoints, so no real call site loses functionality.
+
+### Migration
+
+No code changes required for callers hitting standard TestRail instances.
+If your deployment fronts TestRail with a redirecting reverse proxy
+(e.g. a `301` from an old hostname to a new one), update `baseUrl` to the
+final URL. The error body now includes the blocked `Location` value, making
+this trivial to diagnose.
+
 ## [3.3.0] — 2026-05-18 — Stop retrying non-idempotent writes on 5xx and network errors
 
 Closes [BACKLOG #13](BACKLOG.md). Before this release, every retryable failure
