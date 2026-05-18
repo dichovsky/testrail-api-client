@@ -1006,6 +1006,190 @@ describe('TestRailClient - Enhanced Features', () => {
             await client.addProject({ name: 'p' });
             expect(mockSleep).toHaveBeenCalledWith(2000);
         });
+
+        // ── Retry-After honored on retryable 5xx (BACKLOG SEC #25) ────────────
+        //
+        // Before SEC #25 the Retry-After header was honored only on 429.
+        // TestRail and front proxies (nginx, Cloudflare) commonly emit it on
+        // 502/503/504 during maintenance. Honoring it on GET 5xx (retry is
+        // already gated to idempotent methods) prevents the client from
+        // hammering an upstream that explicitly told it how long to wait,
+        // while keeping the safety cap (`MAX_RETRY_DELAY_MS`) and the
+        // null-falls-back-to-backoff guard for zero / past / invalid values.
+
+        it('should honor Retry-After (seconds) on GET 503', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '7' : null) },
+                    text: async () => 'maintenance',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                });
+
+            await client.getProject(1);
+            expect(mockSleep).toHaveBeenCalledWith(7000);
+        });
+
+        it('should honor Retry-After (HTTP-date) on GET 502', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            const now = new Date('2026-01-01T00:00:00.000Z');
+            vi.useFakeTimers();
+            vi.setSystemTime(now);
+
+            try {
+                const retryAfterDate = new Date(now.getTime() + 4000).toUTCString();
+
+                mockFetch
+                    .mockResolvedValueOnce({
+                        ok: false,
+                        status: 502,
+                        statusText: 'Bad Gateway',
+                        headers: { get: (h: string) => (h === 'Retry-After' ? retryAfterDate : null) },
+                        text: async () => 'upstream down',
+                    })
+                    .mockResolvedValueOnce({
+                        ok: true,
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { get: () => null },
+                        text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                    });
+
+                await client.getProject(1);
+                expect(mockSleep).toHaveBeenCalledWith(4000);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('should cap excessively large Retry-After seconds on GET 504 to MAX_RETRY_DELAY_MS', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 504,
+                    statusText: 'Gateway Timeout',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '999999' : null) },
+                    text: async () => 'timeout',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                });
+
+            await client.getProject(1);
+            expect(mockSleep).toHaveBeenCalledWith(10000);
+        });
+
+        it('should fall back to exponential backoff on GET 503 when Retry-After is absent', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: { get: () => null },
+                    text: async () => 'maintenance',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                });
+
+            await client.getProject(1);
+            // First retry (retryCount=0): 1000 * 2^0 = 1000ms
+            expect(mockSleep).toHaveBeenCalledWith(1000);
+        });
+
+        it('should fall back to backoff on GET 503 when Retry-After is "0" (guards hot loop)', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    // A literal "0" must NOT cause a zero-sleep hot loop.
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '0' : null) },
+                    text: async () => 'maintenance',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                });
+
+            await client.getProject(1);
+            // parseRetryAfterMs returns null for "0" → exponential backoff (1000 ms)
+            expect(mockSleep).toHaveBeenCalledWith(1000);
+        });
+
+        it('should fall back to backoff on GET 503 when Retry-After is unparseable', async () => {
+            const mockSleep = vi.mocked(sleep);
+            mockSleep.mockClear();
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? 'nonsense' : null) },
+                    text: async () => 'maintenance',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
+                });
+
+            await client.getProject(1);
+            expect(mockSleep).toHaveBeenCalledWith(1000);
+        });
+
+        it('should NOT retry POST 503 even if Retry-After is present (write idempotency)', async () => {
+            // Reasserts the B013 contract: a 5xx on a non-idempotent method
+            // surfaces immediately. Retry-After on POST 5xx is intentionally
+            // ignored — a server may have processed the write before failing,
+            // and retrying would risk a duplicate.
+            mockFetch.mockResolvedValueOnce({
+                ok: false,
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: { get: (h: string) => (h === 'Retry-After' ? '1' : null) },
+                text: async () => 'maintenance',
+            });
+
+            await expect(client.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('Error Handling', () => {
@@ -1166,6 +1350,28 @@ describe('TestRailClient - Enhanced Features', () => {
             const result = await client.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(sleep).toHaveBeenCalledWith(1000); // 1 second from Retry-After
+        });
+
+        it('should retry requestBinary on 503 using Retry-After header (BACKLOG SEC #25)', async () => {
+            const buffer = new ArrayBuffer(4);
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    text: async () => 'maintenance',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '2' : null) },
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    arrayBuffer: async () => buffer,
+                });
+
+            const result = await client.getAttachment(1);
+            expect(result).toBeInstanceOf(ArrayBuffer);
+            expect(sleep).toHaveBeenCalledWith(2000);
         });
 
         it('should throw TestRailApiError after exhausting retries on 5xx', async () => {
@@ -1436,6 +1642,28 @@ describe('TestRailClient - Enhanced Features', () => {
             const result = await client.getBdd(1);
             expect(result).toBe('Feature: ok\n');
             expect(sleep).toHaveBeenCalledWith(1000);
+        });
+
+        it('should retry on GET 503 honoring Retry-After header (BACKLOG SEC #25)', async () => {
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                    text: async () => 'maintenance',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? '2' : null) },
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => 'Feature: ok\n',
+                    headers: { get: () => null },
+                });
+
+            const result = await client.getBdd(1);
+            expect(result).toBe('Feature: ok\n');
+            expect(sleep).toHaveBeenCalledWith(2000);
         });
 
         it('should throw TestRailApiError after exhausting retries on 5xx', async () => {
