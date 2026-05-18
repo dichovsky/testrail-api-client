@@ -740,7 +740,17 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
         }
 
-        it('passes redirect: "manual" to every fetch call so undici does not auto-follow', async () => {
+        // Helper for the per-fetch-site redirect-option assertions below.
+        // Without these, removing `redirect: 'manual'` from any of the four
+        // fetch sites would still leave the rejection tests green (the mocked
+        // 3xx Response is returned regardless of the option), even though
+        // real fetch would silently auto-follow into the SSRF target.
+        function lastFetchInit(): RequestInit | undefined {
+            const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+            return calls.at(-1)?.[1] as RequestInit | undefined;
+        }
+
+        it('passes redirect: "manual" from request<T> (covers GET / POST JSON paths)', async () => {
             const client = makeClient();
             global.fetch = vi.fn().mockResolvedValue(
                 makeOkJsonResponse({
@@ -754,9 +764,53 @@ describe('TestRailClient - Coverage Improvement', () => {
             await client.getProject(1);
 
             expect(global.fetch).toHaveBeenCalledTimes(1);
-            const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
-            const init = calls[0]?.[1] as RequestInit | undefined;
-            expect(init?.redirect).toBe('manual');
+            expect(lastFetchInit()?.redirect).toBe('manual');
+            client.destroy();
+        });
+
+        it('passes redirect: "manual" from requestText (covers get_bdd path)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: vi.fn().mockResolvedValue('Feature: demo'),
+                headers: new globalThis.Headers({ 'Content-Type': 'text/plain' }),
+            });
+
+            await client.getBdd(1);
+
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(lastFetchInit()?.redirect).toBe('manual');
+            client.destroy();
+        });
+
+        it('passes redirect: "manual" from requestMultipart (covers attachment upload path)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(makeOkJsonResponse({ attachment_id: 'abc123' }));
+
+            const blob = new globalThis.Blob([new Uint8Array([1, 2, 3])]);
+            await client.addAttachmentToCase(1, blob, 'a.bin');
+
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(lastFetchInit()?.redirect).toBe('manual');
+            client.destroy();
+        });
+
+        it('passes redirect: "manual" from requestBinary (covers attachment download path)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(4)),
+                headers: new globalThis.Headers({ 'Content-Type': 'application/octet-stream' }),
+            });
+
+            await client.getAttachment(1);
+
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            expect(lastFetchInit()?.redirect).toBe('manual');
             client.destroy();
         });
 
