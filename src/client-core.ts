@@ -379,6 +379,39 @@ export class TestRailClientCore {
         return null; // Invalid format
     }
 
+    /**
+     * BACKLOG #4: Surfaces 3xx redirect responses as `TestRailApiError`.
+     *
+     * The SSRF guard (`validateBaseUrl` + DNS pin in `awaitDnsValidation`)
+     * validates only the *initial* request host. If the upstream answers with
+     * a 3xx pointing at a private/metadata IP and the runtime auto-follows,
+     * the network request reaches the protected host before we ever inspect
+     * a response — bypassing the guard entirely. We disable auto-follow at
+     * every fetch site (`redirect: 'manual'`) and reject the resulting 3xx
+     * here so callers see a deterministic, no-retry error. The TestRail API
+     * itself never returns 3xx for `/index.php?/api/v2/...`, so a redirect
+     * in practice means a misconfigured reverse proxy, a wrong `baseUrl`, or
+     * an attacker probing the SSRF surface.
+     *
+     * @throws {TestRailApiError} When `response.status` is in [300, 400).
+     */
+    private assertNotRedirect(response: Response): void {
+        const status = response.status;
+        // Defensive: only act on a valid 3xx integer. A non-numeric or
+        // out-of-range status means either a non-redirect response or a
+        // malformed mock — neither should false-positive throw here.
+        if (typeof status !== 'number' || status < 300 || status >= 400) {
+            return;
+        }
+
+        const location = response.headers.get('location');
+        const body =
+            location !== null && location !== ''
+                ? `Redirect blocked: Location <${location}>. TestRail API endpoints do not redirect; check baseUrl or your reverse proxy.`
+                : `Redirect blocked: response status ${status}. TestRail API endpoints do not redirect; check baseUrl or your reverse proxy.`;
+        throw new TestRailApiError(status, response.statusText, body);
+    }
+
     /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
     private checkRateLimit(): void {
         const now = Date.now();
@@ -621,6 +654,10 @@ export class TestRailClientCore {
             method,
             headers,
             signal: controller.signal,
+            // BACKLOG #4: never follow redirects automatically. The SSRF guard
+            // validates the *initial* hostname only; a 3xx Location pointing at
+            // a private/metadata IP would otherwise bypass it.
+            redirect: 'manual',
         };
 
         if (data !== undefined) {
@@ -630,6 +667,8 @@ export class TestRailClientCore {
         try {
             const response: Response = await fetch(url, options);
             clearTimeout(timeoutId);
+
+            this.assertNotRedirect(response);
 
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');
@@ -754,6 +793,8 @@ export class TestRailClientCore {
             method,
             headers,
             signal: controller.signal,
+            // BACKLOG #4: never follow redirects automatically (see request<T>).
+            redirect: 'manual',
         };
 
         if (data !== undefined) {
@@ -763,6 +804,8 @@ export class TestRailClientCore {
         try {
             const response: Response = await fetch(url, options);
             clearTimeout(timeoutId);
+
+            this.assertNotRedirect(response);
 
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');
@@ -860,9 +903,13 @@ export class TestRailClientCore {
                 },
                 body: formData,
                 signal: controller.signal,
+                // BACKLOG #4: never follow redirects automatically (see request<T>).
+                redirect: 'manual',
             });
 
             clearTimeout(timeoutId);
+
+            this.assertNotRedirect(response);
 
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');
@@ -928,9 +975,13 @@ export class TestRailClientCore {
                     'User-Agent': USER_AGENT,
                 },
                 signal: controller.signal,
+                // BACKLOG #4: never follow redirects automatically (see request<T>).
+                redirect: 'manual',
             });
 
             clearTimeout(timeoutId);
+
+            this.assertNotRedirect(response);
 
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');

@@ -65,7 +65,7 @@ Conventions:
 
 | Status | ID | Severity | Area | Problem |
 | --- | --- | --- | --- | --- |
-| open | 4 | high | `client-core.ts` | HTTP redirect bypass of SSRF guard |
+| shipped | 4 | high | `client-core.ts` | HTTP redirect bypass of SSRF guard — fixed in 3.4.0; all four fetch sites set `redirect: 'manual'` and 3xx surfaces as `TestRailApiError` via `assertNotRedirect()` |
 | open | 5 | medium | `cli/install-skill.ts` | TOCTOU symlink-clobber on install target |
 | open | 7 | medium | `cli/file-input.ts` | TOCTOU symlink-follow on attachment upload |
 | open | 8 | medium | `client-core.ts` | Library constructor hijacks host SIGINT/SIGTERM via `process.exit()` |

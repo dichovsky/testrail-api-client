@@ -700,4 +700,192 @@ describe('TestRailClient - Coverage Improvement', () => {
             client.destroy();
         });
     });
+
+    // BACKLOG #4: Block HTTP redirects to prevent SSRF guard bypass.
+    // The SSRF guard (validateBaseUrl + DNS pin) validates the *initial* URL
+    // only. If fetch follows a 3xx Location pointing at a private/metadata IP,
+    // the network request reaches the protected host before our code ever sees
+    // a response. The fix sets `redirect: 'manual'` and surfaces 3xx as
+    // TestRailApiError so the redirect never executes.
+    describe('redirect blocking (BACKLOG #4)', () => {
+        const REDIRECT_TARGET = 'http://169.254.169.254/latest/meta-data/';
+
+        function makeRedirectResponse(status: number, location: string): Response {
+            return {
+                ok: false,
+                status,
+                statusText: 'Redirect',
+                text: vi.fn().mockResolvedValue(''),
+                arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(0)),
+                headers: new globalThis.Headers({ Location: location }),
+            } as unknown as Response;
+        }
+
+        function makeOkJsonResponse(payload: unknown): Response {
+            return {
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: vi.fn().mockResolvedValue(JSON.stringify(payload)),
+                headers: new globalThis.Headers({ 'Content-Type': 'application/json' }),
+            } as unknown as Response;
+        }
+
+        function makeClient(): TestRailClient {
+            return new TestRailClient({
+                baseUrl: 'https://example.testrail.net',
+                email: 'test@example.com',
+                apiKey: 'test-key',
+                maxRetries: 3,
+            });
+        }
+
+        it('passes redirect: "manual" to every fetch call so undici does not auto-follow', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(
+                makeOkJsonResponse({
+                    id: 1,
+                    name: 'Demo',
+                    suite_mode: 1,
+                    url: 'https://example.testrail.net/index.php?/projects/overview/1',
+                }),
+            );
+
+            await client.getProject(1);
+
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+            const init = calls[0]?.[1] as RequestInit | undefined;
+            expect(init?.redirect).toBe('manual');
+            client.destroy();
+        });
+
+        it('rejects 302 GET via request<T> with a redirect-blocked error containing the Location', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(302, REDIRECT_TARGET));
+
+            await expect(client.getProject(1)).rejects.toMatchObject({
+                name: 'TestRailApiError',
+                status: 302,
+                response: expect.stringContaining('Redirect blocked'),
+            });
+            await expect(client.getProject(1)).rejects.toMatchObject({
+                response: expect.stringContaining(REDIRECT_TARGET),
+            });
+            client.destroy();
+        });
+
+        it('rejects 301 POST via request<T> without retrying (mirrors B013 no-retry-on-write policy)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(301, REDIRECT_TARGET));
+
+            await expect(client.addProject({ name: 'demo' })).rejects.toMatchObject({
+                name: 'TestRailApiError',
+                status: 301,
+            });
+            // Single attempt: 3xx is not transient — retries would not help and would
+            // also be an SSRF amplifier if redirect: 'manual' were ever removed.
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            client.destroy();
+        });
+
+        it('rejects 307 from requestText (covers get_bdd code path)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(307, REDIRECT_TARGET));
+
+            await expect(client.getBdd(1)).rejects.toMatchObject({
+                name: 'TestRailApiError',
+                status: 307,
+                response: expect.stringContaining('Redirect blocked'),
+            });
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            client.destroy();
+        });
+
+        it('rejects 308 from requestMultipart (covers attachment upload path)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(308, REDIRECT_TARGET));
+
+            const blob = new globalThis.Blob([new Uint8Array([1, 2, 3])]);
+            await expect(client.addAttachmentToCase(1, blob, 'a.bin')).rejects.toMatchObject({
+                name: 'TestRailApiError',
+                status: 308,
+                response: expect.stringContaining('Redirect blocked'),
+            });
+            // requestMultipart never retries — single attempt expected.
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            client.destroy();
+        });
+
+        it('rejects 303 from requestBinary (covers attachment download path)', async () => {
+            const client = makeClient();
+            global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(303, REDIRECT_TARGET));
+
+            await expect(client.getAttachment(1)).rejects.toMatchObject({
+                name: 'TestRailApiError',
+                status: 303,
+                response: expect.stringContaining('Redirect blocked'),
+            });
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+            client.destroy();
+        });
+
+        it.each([301, 302, 303, 307, 308])(
+            'rejects %i across the full redirect-status matrix on GET',
+            async (status) => {
+                const client = makeClient();
+                global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(status, REDIRECT_TARGET));
+
+                await expect(client.getProject(1)).rejects.toMatchObject({
+                    name: 'TestRailApiError',
+                    status,
+                });
+                client.destroy();
+            },
+        );
+
+        it('does not poison the GET cache when a 302 response is rejected', async () => {
+            const client = makeClient();
+            const fetchMock = vi
+                .fn()
+                .mockResolvedValueOnce(makeRedirectResponse(302, REDIRECT_TARGET))
+                .mockResolvedValueOnce(
+                    makeOkJsonResponse({
+                        id: 1,
+                        name: 'Real Project',
+                        suite_mode: 1,
+                        url: 'https://example.testrail.net/index.php?/projects/overview/1',
+                    }),
+                );
+            global.fetch = fetchMock;
+
+            await expect(client.getProject(1)).rejects.toMatchObject({ status: 302 });
+            // If the rejected redirect leaked into cache, the second call would
+            // resolve to the cached redirect value (or skip fetch entirely). It
+            // must reach the network again.
+            const project = await client.getProject(1);
+            expect(project).toMatchObject({ id: 1, name: 'Real Project' });
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            client.destroy();
+        });
+
+        it('falls back to a status-only error message when Location header is missing', async () => {
+            const client = makeClient();
+            const response = {
+                ok: false,
+                status: 302,
+                statusText: 'Redirect',
+                text: vi.fn().mockResolvedValue(''),
+                headers: new globalThis.Headers(), // no Location
+            } as unknown as Response;
+            global.fetch = vi.fn().mockResolvedValue(response);
+
+            await expect(client.getProject(1)).rejects.toMatchObject({
+                name: 'TestRailApiError',
+                status: 302,
+                response: expect.stringContaining('Redirect blocked'),
+            });
+            client.destroy();
+        });
+    });
 });

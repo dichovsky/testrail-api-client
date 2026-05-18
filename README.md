@@ -434,6 +434,7 @@ The client implements several security best practices to protect your data:
 
 - **HTTPS Required**: The client issues a console warning if initialized with an HTTP `baseUrl`. Basic authentication sends credentials in Base64 format, which is not secure over unencrypted HTTP connections. Always use HTTPS in production.
 - **Strict Parameter Validation**: All API methods validate that ID parameters are positive integers. This prevents parameter manipulation and ensures that invalid data is caught before making a network request.
+- **Redirects Blocked**: HTTP redirects (`3xx` with `Location` header) are never followed. Every fetch site sets `redirect: 'manual'`, and a redirect response surfaces as `TestRailApiError` with the blocked `Location` embedded in the error body. This closes the SSRF guard hole where a `Location` pointing at a private/metadata IP (for example, `169.254.169.254`) could have bypassed the initial-host validation. If a legitimate reverse-proxy redirect appears, update `baseUrl` to the final URL.
 
 ## Development
 
