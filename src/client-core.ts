@@ -566,6 +566,13 @@ export class TestRailClientCore {
     /**
      * Makes an HTTP request to the TestRail API with caching, rate limiting, and retry logic.
      *
+     * Retry contract:
+     *   - 429 (rate limit) retries for all methods (rejected before write executes).
+     *   - 5xx retries only for GET. Non-GET 5xx surfaces immediately to prevent
+     *     duplicate writes when the server may have already processed the request.
+     *   - Network errors (fetch TypeError) retry only for GET. AbortError (timeout)
+     *     never retries.
+     *
      * @param method - HTTP method (GET, POST)
      * @param endpoint - API endpoint path (without base URL prefix)
      * @param data - Optional request body
@@ -627,10 +634,19 @@ export class TestRailClientCore {
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');
 
-                // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-                // For 429, respect the Retry-After header if present; otherwise use exponential backoff.
-                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+                // Retry strategy:
+                //   429 (rate limit) — retried for ALL methods. TestRail's rate limiter
+                //     rejects the request before it executes, so a retry on a mutating
+                //     call cannot duplicate writes. Respect Retry-After when present.
+                //   5xx (server error) — retried only for GET. A 5xx on POST/PUT/DELETE
+                //     leaves write state ambiguous (server may have processed the request
+                //     before the failure), so retrying could create duplicate records.
+                //     Non-GET callers see the 5xx surfaced immediately.
+                const isIdempotent = method === 'GET';
+                const status = response.status;
+                const shouldRetry = (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
+                if (shouldRetry) {
+                    const retryAfterMs = status === 429 ? this.parseRetryAfterMs(response) : null;
                     const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                     await sleep(delay);
                     return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
@@ -682,8 +698,11 @@ export class TestRailClientCore {
                 throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
             }
 
-            // Retry on network errors up to the maximum number of retries
-            if (retryCount < this.maxRetries) {
+            // Retry network errors only for GET. A TypeError from fetch can fire
+            // mid-flight (e.g. ECONNRESET after the request bytes are on the wire),
+            // so retrying a POST/PUT/DELETE risks duplicating a write the server
+            // already processed. GET is idempotent and safe to retry.
+            if (method === 'GET' && retryCount < this.maxRetries) {
                 await sleep(this.getRetryDelay(retryCount));
                 return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
             }
@@ -748,8 +767,13 @@ export class TestRailClientCore {
             if (!response.ok) {
                 const errorText = await response.text().catch(() => 'Unknown error');
 
-                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    const retryAfterMs = response.status === 429 ? this.parseRetryAfterMs(response) : null;
+                // Mirrors the retry contract documented on request<T>():
+                // 429 retries for all methods; 5xx retries only for GET.
+                const isIdempotent = method === 'GET';
+                const status = response.status;
+                const shouldRetry = (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
+                if (shouldRetry) {
+                    const retryAfterMs = status === 429 ? this.parseRetryAfterMs(response) : null;
                     const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                     await sleep(delay);
                     return this.requestText(method, endpoint, data, retryCount + 1);
@@ -777,7 +801,8 @@ export class TestRailClientCore {
                 throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
             }
 
-            if (retryCount < this.maxRetries) {
+            // Network errors retry only for GET — see request<T>() for rationale.
+            if (method === 'GET' && retryCount < this.maxRetries) {
                 await sleep(this.getRetryDelay(retryCount));
                 return this.requestText(method, endpoint, data, retryCount + 1);
             }

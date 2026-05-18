@@ -71,7 +71,7 @@ Conventions:
 | open | 8 | medium | `client-core.ts` | Library constructor hijacks host SIGINT/SIGTERM via `process.exit()` |
 | shipped | 9 | medium | `client-core.ts` | Schema-invalid response can poison GET cache for full TTL — fixed in 3.2.0 via new `requestParsed<T>` that validates before caching |
 | open | 12 | medium | `client-core.ts` | Unbounded response body reads can OOM client |
-| open | 13 | medium | `client-core.ts` | POST retries can duplicate writes on retryable failure |
+| shipped | 13 | medium | `client-core.ts` | POST retries can duplicate writes on retryable failure — fixed in 3.3.0; non-GET methods no longer retry on 5xx or network errors, only on 429 |
 | open | 14 | low-medium | `client-core.ts` | Mutable cached references let callers poison future reads |
 | open | 15 | low-medium | `client-core.ts` | IPv6 SSRF allowlist gaps (`fec0::/10`, `2002::/16`, `64:ff9b::/96`) |
 | open | 17 | medium | `cli/body.ts` | `--data-file` follows symlinks with no size cap |
