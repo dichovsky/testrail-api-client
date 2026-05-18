@@ -66,3 +66,30 @@ export async function handleSectionMove(ctx: HandlerContext): Promise<void> {
     await ctx.client.moveSection(sectionId, body.payload);
     ctx.out({ sectionId, moved: true });
 }
+
+/**
+ * Destructive: deletes a section (recursively removes all subsections and
+ * cases). Gated by `--yes`; `--dry-run` wins for preview-without-API.
+ * `--soft` invokes TestRail's server-side preview (`soft=1`).
+ */
+export async function handleSectionDelete(ctx: HandlerContext): Promise<void> {
+    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
+    const soft = ctx.args.soft === true;
+
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'section delete', sectionId, soft, destructive: true });
+        return;
+    }
+
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+
+    if (soft) {
+        const preview = await ctx.client.deleteSection(sectionId, { soft: true });
+        ctx.out({ sectionId, soft: true, deleted: false, preview });
+        return;
+    }
+    await ctx.client.deleteSection(sectionId, { soft: false });
+    ctx.out({ sectionId, soft: false, deleted: true });
+}

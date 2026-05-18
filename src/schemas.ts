@@ -589,6 +589,24 @@ export const DeleteCasesPayloadSchema = zObject({
 
 export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>;
 
+// Shared shape returned by `delete_*?soft=1` endpoints (case / run / section /
+// suite / cases). TestRail emits a subset of these counters depending on the
+// target — e.g. `delete_case&soft=1` returns `{ affected_tests }`, while
+// `delete_suite&soft=1` returns counts of sections, cases, runs, plans, and
+// tests. Every numeric field stays optional and `.passthrough()` keeps
+// unknown counters or future fields from being elided.
+export const SoftDeletePreviewSchema = zObject({
+    affected_tests: z.number().optional(),
+    affected_cases: z.number().optional(),
+    affected_sections: z.number().optional(),
+    affected_runs: z.number().optional(),
+    affected_milestones: z.number().optional(),
+    affected_plans: z.number().optional(),
+    affected_suites: z.number().optional(),
+});
+
+export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>;
+
 // Identical shape to DeleteCasesPayloadSchema but intentionally a separate
 // schema — a future TestRail change to either endpoint (e.g. delete adds a
 // `force` flag) must not silently spread to the other.

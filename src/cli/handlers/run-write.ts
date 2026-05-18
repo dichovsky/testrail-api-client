@@ -36,3 +36,32 @@ export async function handleRunClose(ctx: HandlerContext): Promise<void> {
     }
     ctx.out(await ctx.client.closeRun(runId));
 }
+
+/**
+ * Destructive: deletes a run and all associated results. Gated by `--yes`;
+ * `--dry-run` wins for preview-without-API. `--soft` invokes TestRail's
+ * server-side preview (`soft=1`) — the API call still happens but nothing
+ * is deleted; counts of affected entities are returned. Distinct from
+ * `--dry-run` which short-circuits before any API call.
+ */
+export async function handleRunDelete(ctx: HandlerContext): Promise<void> {
+    const runId = parseId(ctx.args.pathParams[0], 'run_id');
+    const soft = ctx.args.soft === true;
+
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'run delete', runId, soft, destructive: true });
+        return;
+    }
+
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+
+    if (soft) {
+        const preview = await ctx.client.deleteRun(runId, { soft: true });
+        ctx.out({ runId, soft: true, deleted: false, preview });
+        return;
+    }
+    await ctx.client.deleteRun(runId, { soft: false });
+    ctx.out({ runId, soft: false, deleted: true });
+}

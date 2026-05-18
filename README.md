@@ -270,6 +270,11 @@ const updatedCase = await client.updateCase(caseId, {
 
 // Delete a test case
 await client.deleteCase(caseId);
+
+// Soft-preview delete: hits the API but doesn't delete; returns affected counts
+const preview = await client.deleteCase(caseId, { soft: true });
+// preview = { affected_tests?: number, ... } — passthrough preserves unknown counters
+// Same `{ soft: true }` overload exists on deleteRun / deleteSection / deleteSuite / deleteCases.
 ```
 
 ### Test Plans

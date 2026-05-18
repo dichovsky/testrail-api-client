@@ -5,6 +5,75 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] — 2026-05-18 — Destructive single-entity delete CLI surface
+
+Closes the remaining destructive-delete gap in the CLI surface. The
+programmatic API gains optional `{ soft?: boolean }` overloads on four
+delete methods; all changes are additive — no breaking changes.
+
+### Added
+
+#### Six new destructive CLI actions
+
+```sh
+testrail case      delete <case_id>      [--soft] --yes
+testrail run       delete <run_id>       [--soft] --yes
+testrail suite     delete <suite_id>     [--soft] --yes
+testrail section   delete <section_id>   [--soft] --yes
+testrail milestone delete <milestone_id>         --yes   # --soft NOT supported
+testrail project   delete <project_id>           --yes   # --soft NOT supported; highest blast radius
+```
+
+Each follows the destructive-ops convention locked in by `attachment
+delete` / `case delete-bulk` / `run close`: `--yes` gates execution;
+`--dry-run` wins over `--yes` (preview with no API call); the skill
+generator surfaces `destructive: true` so agents see the gate up front.
+
+`--soft` invokes TestRail's `?soft=1` server-side preview — the API
+call still happens but nothing is deleted; TestRail returns counts of
+affected entities (`affected_tests`, `affected_cases`, `affected_sections`,
+`affected_runs`, `affected_plans`, …). Distinct from `--dry-run` which
+short-circuits before any API call. `milestone delete` and `project
+delete` reject `--soft` explicitly — TestRail's endpoints don't accept
+it, and silently dropping the flag would mask a destructive intent
+mismatch.
+
+#### Programmatic API
+
+`deleteCase`, `deleteRun`, `deleteSection`, `deleteSuite` gain
+`{ soft?: boolean }` overloads mirroring the existing `deleteCases`
+precedent. The hard-delete signature is unchanged. The soft-mode return
+type is the new shared `SoftDeletePreview` (Zod-derived, `.passthrough()`).
+
+```ts
+// Hard delete (unchanged)
+await client.deleteCase(42);
+
+// Soft preview (new)
+const preview = await client.deleteCase(42, { soft: true });
+// preview: { affected_tests?, affected_cases?, ... } — all optional, passthrough preserves unknown counters
+```
+
+#### New public exports
+
+- `SoftDeletePreview` — type (re-exported from package root)
+- `SoftDeletePreviewSchema` — Zod schema (re-exported)
+- `SoftDeleteOptions` — `{ soft?: boolean }` interface (in `types.js`)
+
+### Changed
+
+`DeleteCasesOptions` and `DeleteCasesPreview` (in `src/modules/cases.ts`)
+are now `@deprecated` type aliases for `SoftDeleteOptions` and
+`SoftDeletePreview` respectively. Existing imports continue to work —
+the alias preserves source compatibility.
+
+### Fixed
+
+- CODEMAP.md size sanity bound raised from 200 KB to 256 KB
+  (`tests/generate-codemap.test.ts`). Legitimate growth from the new
+  public API surface pushed the file to ~201 KB; bumping to 256 KB
+  gives headroom for the next several releases.
+
 ## [3.0.0] — 2026-05-18 — CLI safety cluster
 
 Hardens the `testrail` CLI surface against several CTF-audit findings.

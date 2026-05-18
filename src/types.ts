@@ -277,6 +277,23 @@ export interface HistoryEntry {
 // schemas (source of truth for runtime validation + inferred TS types).
 
 /**
+ * Options for delete endpoints that support TestRail's `soft=1` server-side
+ * preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`,
+ * `delete_suite`). `delete_milestone` and `delete_project` do not accept
+ * `soft`; passing this option to those endpoints would be a no-op
+ * server-side, so the CLI rejects it instead to keep destructive intent
+ * unambiguous.
+ *
+ * Distinct from a client-side `--dry-run` which short-circuits before any
+ * API call; `soft=1` *does* hit the API and TestRail returns counts of
+ * affected entities (see {@link SoftDeletePreview} in `./schemas.ts`).
+ */
+export interface SoftDeleteOptions {
+    /** When true, request a server-side preview instead of a hard delete. */
+    soft?: boolean;
+}
+
+/**
  * Filter options for `getCases()`.
  * All date filters accept Unix timestamps (seconds since epoch).
  */

@@ -1,7 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Suite } from '../types.js';
-import { SuiteSchema } from '../schemas.js';
-import type { AddSuitePayload, UpdateSuitePayload } from '../schemas.js';
+import type { Suite, SoftDeleteOptions } from '../types.js';
+import { SuiteSchema, SoftDeletePreviewSchema } from '../schemas.js';
+import type { AddSuitePayload, SoftDeletePreview, UpdateSuitePayload } from '../schemas.js';
 import { z } from 'zod';
 
 export class SuiteModule {
@@ -57,12 +57,24 @@ export class SuiteModule {
     }
 
     /**
-     * Delete a suite.
+     * Delete a suite and everything inside it (sections, cases, runs, plans).
+     * Pass `{ soft: true }` for TestRail's server-side preview (`soft=1`) —
+     * the API call still happens but nothing is deleted; TestRail returns
+     * counts of affected entities. TestRail 6.5+ for soft-mode.
+     *
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async deleteSuite(suiteId: number): Promise<void> {
+    async deleteSuite(suiteId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteSuite(suiteId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    async deleteSuite(suiteId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(suiteId, 'suiteId');
-        await this.client.request<void>('POST', `delete_suite/${suiteId}`);
+        const endpoint = this.client.buildEndpoint(`delete_suite/${suiteId}`, {
+            ...(options?.soft === true && { soft: 1 }),
+        });
+        const raw = await this.client.request<unknown>('POST', endpoint);
+        if (options?.soft === true) {
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+        }
     }
 }

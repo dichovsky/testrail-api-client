@@ -82,11 +82,13 @@ on stderr. Never echo or log the API key.
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
 | case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
+| case | delete | `<case_id>` | — (no body, requires `--yes`) | Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting) |
 | case | delete-bulk | `<suite_id>` | `DeleteCasesPayloadSchema` | Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion) |
 | case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
 | case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
 | run | close | `<run_id>` | — (no body, requires `--yes`) | Close a test run permanently — irreversible (no body; requires --yes) |
+| run | delete | `<run_id>` | — (no body, requires `--yes`) | Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
 | result | add-bulk-by-test | `<run_id>` | `AddResultsPayloadSchema` | Record multiple results for tests (by test_id) in one API call |
@@ -96,12 +98,16 @@ on stderr. Never echo or log the API key.
 | section | add | `<project_id>` | `AddSectionPayloadSchema` | Create a new section in a project (suite_id required for multi-suite-mode projects) |
 | section | update | `<section_id>` | `UpdateSectionPayloadSchema` | Update an existing section (partial fields) |
 | section | move | `<section_id>` | `MoveSectionPayloadSchema` | Move a section to a new parent and/or position (TestRail 6.5.2+) |
+| section | delete | `<section_id>` | — (no body, requires `--yes`) | Delete a section (recursively removes subsections and cases; requires --yes; --soft for server-side preview) |
 | project | add | — | `AddProjectPayloadSchema` | Create a new project (no path params, payload-only) |
 | project | update | `<project_id>` | `UpdateProjectPayloadSchema` | Update an existing project (partial fields) |
+| project | delete | `<project_id>` | — (no body, requires `--yes`) | Delete a project and everything inside it (highest blast radius; requires --yes; --soft NOT supported by TestRail) |
 | suite | add | `<project_id>` | `AddSuitePayloadSchema` | Create a new test suite in a project |
 | suite | update | `<suite_id>` | `UpdateSuitePayloadSchema` | Update an existing test suite (partial fields) |
+| suite | delete | `<suite_id>` | — (no body, requires `--yes`) | Delete a suite and everything inside it (sections, cases, runs, plans; requires --yes; --soft for server-side preview) |
 | milestone | add | `<project_id>` | `AddMilestonePayloadSchema` | Create a new milestone in a project |
 | milestone | update | `<milestone_id>` | `UpdateMilestonePayloadSchema` | Update an existing milestone (partial fields, including is_completed/is_started toggles) |
+| milestone | delete | `<milestone_id>` | — (no body, requires `--yes`) | Delete a milestone (requires --yes; --soft NOT supported by TestRail) |
 | shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
 | shared-step | list | — | — | List shared steps in a project |
 | shared-step | history | `<shared_update_id>` | — | List revision history for a shared step (paginated) |

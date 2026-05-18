@@ -33,9 +33,9 @@ once via the TestRail UI.
 Deliberately omitted from v2.1 to keep agents away from irrecoverable actions
 without explicit human review. Programmatic API still exposes them.
 
-- [ ] **`case delete`** — `deleteCase`. **Effort:** S. **Trigger:** explicit user demand; consider gating behind `--yes` or a confirmation env var.
-- [ ] **`run delete`** — `deleteRun`. **Effort:** S. **Trigger:** same.
-- [ ] **`suite delete` / `section delete` / `milestone delete` / `project delete`** — corresponding client methods. **Effort:** S each. **Trigger:** same.
+- [x] **`case delete`** — Shipped with the "Destructive single-entity delete CLI surface" PR. `case delete <case_id> [--soft] --yes`. Reuses the locked-in destructive precedent (`--yes` gates; `--dry-run` wins for preview). `--soft` adds TestRail's `?soft=1` server-side preview (returns `affected_*` counts without deleting); programmatic API gained `deleteCase(id, { soft: true })` overload returning the new shared `SoftDeletePreview` (mirrors the existing `deleteCases` precedent).
+- [x] **`run delete`** — Shipped with the same PR. `run delete <run_id> [--soft] --yes`. Programmatic API gained `deleteRun(id, { soft: true })` overload.
+- [x] **`suite delete` / `section delete` / `milestone delete` / `project delete`** — Shipped with the same PR. `[--soft]` accepted on `suite delete` and `section delete` (TestRail supports `?soft=1` there); `milestone delete` and `project delete` reject `--soft` explicitly because TestRail's endpoints don't accept it and silently dropping would mask destructive intent. `project delete` carries the highest blast radius of the cluster; protected by the same `--yes` gate as the others (TestRail offers no further server-side confirmation hook).
 - [ ] **`result delete`** — N/A (TestRail API doesn't support deleting individual results). Will not implement.
 
 ## CLI write surface — bulk operations

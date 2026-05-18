@@ -21,6 +21,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
     handleCaseAdd,
+    handleCaseDelete,
     handleCaseUpdate,
     handleCaseUpdateBulk,
     handleCaseDeleteBulk,
@@ -28,13 +29,22 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { handleRunAdd, handleRunClose } from '../src/cli/handlers/run-write.js';
+import { handleRunAdd, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
-import { handleSectionAdd, handleSectionMove, handleSectionUpdate } from '../src/cli/handlers/section-write.js';
-import { handleProjectAdd, handleProjectUpdate } from '../src/cli/handlers/project-write.js';
-import { handleSuiteAdd, handleSuiteUpdate } from '../src/cli/handlers/suite-write.js';
-import { handleMilestoneAdd, handleMilestoneUpdate } from '../src/cli/handlers/milestone-write.js';
+import {
+    handleSectionAdd,
+    handleSectionDelete,
+    handleSectionMove,
+    handleSectionUpdate,
+} from '../src/cli/handlers/section-write.js';
+import { handleProjectAdd, handleProjectDelete, handleProjectUpdate } from '../src/cli/handlers/project-write.js';
+import { handleSuiteAdd, handleSuiteDelete, handleSuiteUpdate } from '../src/cli/handlers/suite-write.js';
+import {
+    handleMilestoneAdd,
+    handleMilestoneDelete,
+    handleMilestoneUpdate,
+} from '../src/cli/handlers/milestone-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
@@ -42,6 +52,7 @@ interface MockedClient {
     addCase: ReturnType<typeof vi.fn>;
     updateCase: ReturnType<typeof vi.fn>;
     updateCases: ReturnType<typeof vi.fn>;
+    deleteCase: ReturnType<typeof vi.fn>;
     deleteCases: ReturnType<typeof vi.fn>;
     copyCasesToSection: ReturnType<typeof vi.fn>;
     moveCasesToSection: ReturnType<typeof vi.fn>;
@@ -49,6 +60,7 @@ interface MockedClient {
     moveSection: ReturnType<typeof vi.fn>;
     addRun: ReturnType<typeof vi.fn>;
     closeRun: ReturnType<typeof vi.fn>;
+    deleteRun: ReturnType<typeof vi.fn>;
     addResultForCase: ReturnType<typeof vi.fn>;
     addResultsForCases: ReturnType<typeof vi.fn>;
     addResults: ReturnType<typeof vi.fn>;
@@ -57,12 +69,16 @@ interface MockedClient {
     addPlanEntry: ReturnType<typeof vi.fn>;
     addProject: ReturnType<typeof vi.fn>;
     updateProject: ReturnType<typeof vi.fn>;
+    deleteProject: ReturnType<typeof vi.fn>;
     addSuite: ReturnType<typeof vi.fn>;
     updateSuite: ReturnType<typeof vi.fn>;
+    deleteSuite: ReturnType<typeof vi.fn>;
     addSection: ReturnType<typeof vi.fn>;
     updateSection: ReturnType<typeof vi.fn>;
+    deleteSection: ReturnType<typeof vi.fn>;
     addMilestone: ReturnType<typeof vi.fn>;
     updateMilestone: ReturnType<typeof vi.fn>;
+    deleteMilestone: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -70,6 +86,7 @@ function buildClient(): MockedClient {
         addCase: vi.fn().mockResolvedValue({ id: 1, title: 'created' }),
         updateCase: vi.fn().mockResolvedValue({ id: 1, title: 'updated' }),
         updateCases: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
+        deleteCase: vi.fn().mockResolvedValue(undefined),
         deleteCases: vi.fn().mockResolvedValue(undefined),
         copyCasesToSection: vi.fn().mockResolvedValue([{ id: 11 }, { id: 12 }]),
         moveCasesToSection: vi.fn().mockResolvedValue(undefined),
@@ -77,6 +94,7 @@ function buildClient(): MockedClient {
         moveSection: vi.fn().mockResolvedValue(undefined),
         addRun: vi.fn().mockResolvedValue({ id: 10, name: 'r' }),
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
+        deleteRun: vi.fn().mockResolvedValue(undefined),
         addResultForCase: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
         addResultsForCases: vi.fn().mockResolvedValue([{ id: 100 }, { id: 101 }]),
         addResults: vi.fn().mockResolvedValue([{ id: 200 }, { id: 201 }]),
@@ -85,12 +103,16 @@ function buildClient(): MockedClient {
         addPlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'e' }),
         addProject: vi.fn().mockResolvedValue({ id: 7, name: 'New', suite_mode: 1, url: 'u' }),
         updateProject: vi.fn().mockResolvedValue({ id: 7, name: 'Renamed', suite_mode: 1, url: 'u' }),
+        deleteProject: vi.fn().mockResolvedValue(undefined),
         addSuite: vi.fn().mockResolvedValue({ id: 22, name: 'S', project_id: 7, url: 'u' }),
         updateSuite: vi.fn().mockResolvedValue({ id: 22, name: 'S2', project_id: 7, url: 'u' }),
+        deleteSuite: vi.fn().mockResolvedValue(undefined),
         addSection: vi.fn().mockResolvedValue({ id: 33, name: 'Sec', suite_id: 22, display_order: 1, depth: 0 }),
         updateSection: vi.fn().mockResolvedValue({ id: 33, name: 'Sec2', suite_id: 22, display_order: 1, depth: 0 }),
+        deleteSection: vi.fn().mockResolvedValue(undefined),
         addMilestone: vi.fn().mockResolvedValue({ id: 44, name: 'M', is_completed: false, project_id: 7, url: 'u' }),
         updateMilestone: vi.fn().mockResolvedValue({ id: 44, name: 'M', is_completed: true, project_id: 7, url: 'u' }),
+        deleteMilestone: vi.fn().mockResolvedValue(undefined),
     };
 }
 
@@ -1155,5 +1177,283 @@ describe('handleMilestoneUpdate', () => {
     it('rejects when milestone_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{}' });
         await expect(handleMilestoneUpdate(ctx)).rejects.toThrow(/milestone_id/);
+    });
+});
+
+// ── Destructive single-entity deletes ─────────────────────────────────────
+//
+// Six handlers mirroring the locked-in `--yes`/`--dry-run` pattern from
+// `attachment delete`, `case delete-bulk`, and `run close`. Four of them
+// (case/run/section/suite) additionally accept `--soft` for TestRail's
+// server-side preview; milestone/project reject `--soft` explicitly.
+
+describe('handleCaseDelete', () => {
+    it('hard-delete: calls client.deleteCase({soft:false}) with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true });
+        await handleCaseDelete(ctx);
+        expect(client.deleteCase).toHaveBeenCalledWith(42, { soft: false });
+        expect(out).toHaveBeenCalledWith({ caseId: 42, soft: false, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'] });
+        await expect(handleCaseDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteCase).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --yes (no API call, preview emits destructive:true)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true, dryRun: true });
+        await handleCaseDelete(ctx);
+        expect(client.deleteCase).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'case delete',
+                caseId: 42,
+                soft: false,
+                destructive: true,
+            }),
+        );
+    });
+
+    it('soft preview: calls deleteCase({soft:true}) and emits preview block', async () => {
+        const client = buildClient();
+        client.deleteCase.mockResolvedValueOnce({ affected_tests: 5 });
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true, soft: true });
+        await handleCaseDelete(ctx);
+        expect(client.deleteCase).toHaveBeenCalledWith(42, { soft: true });
+        expect(out).toHaveBeenCalledWith({ caseId: 42, soft: true, deleted: false, preview: { affected_tests: 5 } });
+    });
+
+    it('dry-run with --soft emits soft:true preview without API call', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['42'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await handleCaseDelete(ctx);
+        expect(client.deleteCase).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'case delete', soft: true, destructive: true }),
+        );
+    });
+
+    it('rejects when case_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
+        await expect(handleCaseDelete(ctx)).rejects.toThrow(/case_id/);
+    });
+});
+
+describe('handleRunDelete', () => {
+    it('hard-delete: calls client.deleteRun({soft:false}) with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['17'], confirmDestructive: true });
+        await handleRunDelete(ctx);
+        expect(client.deleteRun).toHaveBeenCalledWith(17, { soft: false });
+        expect(out).toHaveBeenCalledWith({ runId: 17, soft: false, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['17'] });
+        await expect(handleRunDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteRun).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['17'], confirmDestructive: true, dryRun: true });
+        await handleRunDelete(ctx);
+        expect(client.deleteRun).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'run delete', runId: 17, destructive: true }),
+        );
+    });
+
+    it('soft preview', async () => {
+        const client = buildClient();
+        client.deleteRun.mockResolvedValueOnce({ affected_tests: 12 });
+        const { ctx, out } = buildCtx(client, { pathParams: ['17'], confirmDestructive: true, soft: true });
+        await handleRunDelete(ctx);
+        expect(client.deleteRun).toHaveBeenCalledWith(17, { soft: true });
+        expect(out).toHaveBeenCalledWith({ runId: 17, soft: true, deleted: false, preview: { affected_tests: 12 } });
+    });
+
+    it('rejects when run_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], confirmDestructive: true });
+        await expect(handleRunDelete(ctx)).rejects.toThrow(/run_id/);
+    });
+});
+
+describe('handleSuiteDelete', () => {
+    it('hard-delete: calls client.deleteSuite({soft:false}) with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['5'], confirmDestructive: true });
+        await handleSuiteDelete(ctx);
+        expect(client.deleteSuite).toHaveBeenCalledWith(5, { soft: false });
+        expect(out).toHaveBeenCalledWith({ suiteId: 5, soft: false, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['5'] });
+        await expect(handleSuiteDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('dry-run wins over --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['5'], confirmDestructive: true, dryRun: true });
+        await handleSuiteDelete(ctx);
+        expect(client.deleteSuite).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'suite delete', suiteId: 5, destructive: true }),
+        );
+    });
+
+    it('soft preview', async () => {
+        const client = buildClient();
+        client.deleteSuite.mockResolvedValueOnce({ affected_sections: 8, affected_cases: 99 });
+        const { ctx, out } = buildCtx(client, { pathParams: ['5'], confirmDestructive: true, soft: true });
+        await handleSuiteDelete(ctx);
+        expect(client.deleteSuite).toHaveBeenCalledWith(5, { soft: true });
+        expect(out).toHaveBeenCalledWith({
+            suiteId: 5,
+            soft: true,
+            deleted: false,
+            preview: { affected_sections: 8, affected_cases: 99 },
+        });
+    });
+
+    it('rejects when suite_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], confirmDestructive: true });
+        await expect(handleSuiteDelete(ctx)).rejects.toThrow(/suite_id/);
+    });
+});
+
+describe('handleSectionDelete', () => {
+    it('hard-delete: calls client.deleteSection({soft:false}) with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['9'], confirmDestructive: true });
+        await handleSectionDelete(ctx);
+        expect(client.deleteSection).toHaveBeenCalledWith(9, { soft: false });
+        expect(out).toHaveBeenCalledWith({ sectionId: 9, soft: false, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['9'] });
+        await expect(handleSectionDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('dry-run wins over --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['9'], confirmDestructive: true, dryRun: true });
+        await handleSectionDelete(ctx);
+        expect(client.deleteSection).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'section delete', sectionId: 9, destructive: true }),
+        );
+    });
+
+    it('soft preview', async () => {
+        const client = buildClient();
+        client.deleteSection.mockResolvedValueOnce({ affected_cases: 3 });
+        const { ctx, out } = buildCtx(client, { pathParams: ['9'], confirmDestructive: true, soft: true });
+        await handleSectionDelete(ctx);
+        expect(client.deleteSection).toHaveBeenCalledWith(9, { soft: true });
+        expect(out).toHaveBeenCalledWith({
+            sectionId: 9,
+            soft: true,
+            deleted: false,
+            preview: { affected_cases: 3 },
+        });
+    });
+
+    it('rejects when section_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['x'], confirmDestructive: true });
+        await expect(handleSectionDelete(ctx)).rejects.toThrow(/section_id/);
+    });
+});
+
+describe('handleMilestoneDelete', () => {
+    it('hard-delete: calls client.deleteMilestone with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['3'], confirmDestructive: true });
+        await handleMilestoneDelete(ctx);
+        expect(client.deleteMilestone).toHaveBeenCalledWith(3);
+        expect(out).toHaveBeenCalledWith({ milestoneId: 3, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['3'] });
+        await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('dry-run wins over --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['3'], confirmDestructive: true, dryRun: true });
+        await handleMilestoneDelete(ctx);
+        expect(client.deleteMilestone).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'milestone delete', milestoneId: 3, destructive: true }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_milestone)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['3'], confirmDestructive: true, soft: true });
+        await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/milestone delete does not support --soft/);
+    });
+
+    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['3'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/milestone delete does not support --soft/);
+    });
+
+    it('rejects when milestone_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], confirmDestructive: true });
+        await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/milestone_id/);
+    });
+});
+
+describe('handleProjectDelete', () => {
+    it('hard-delete: calls client.deleteProject with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['1'], confirmDestructive: true });
+        await handleProjectDelete(ctx);
+        expect(client.deleteProject).toHaveBeenCalledWith(1);
+        expect(out).toHaveBeenCalledWith({ projectId: 1, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1'] });
+        await expect(handleProjectDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('dry-run wins over --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['1'], confirmDestructive: true, dryRun: true });
+        await handleProjectDelete(ctx);
+        expect(client.deleteProject).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'project delete', projectId: 1, destructive: true }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_project)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1'], confirmDestructive: true, soft: true });
+        await expect(handleProjectDelete(ctx)).rejects.toThrow(/project delete does not support --soft/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
+        await expect(handleProjectDelete(ctx)).rejects.toThrow(/project_id/);
     });
 });

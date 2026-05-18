@@ -359,10 +359,10 @@ describe('dispatch', () => {
     });
 
     it('returns Unknown action error for valid resource but invalid action', () => {
-        const result = dispatch('project', 'delete');
+        const result = dispatch('project', 'nope');
         expect(result.ok).toBe(false);
         if (!result.ok) {
-            expect(result.error).toBe("Unknown action 'delete' for project. Use: get, list, add, update");
+            expect(result.error).toMatch(/^Unknown action 'nope' for project\./);
         }
     });
 
@@ -403,15 +403,26 @@ describe('metadata vs dispatch consistency', () => {
     });
 
     it('write actions in metadata carry a body schema except no-body or file-input writes', () => {
+        // No-body destructive writes: `run close`, `attachment delete`, plus
+        // the six single-entity deletes shipped together with the destructive
+        // cluster (`case delete`, `run delete`, `suite delete`, `section
+        // delete`, `milestone delete`, `project delete`). All take a single
+        // path-param id and POST with no body — gated by `--yes`.
+        const NO_BODY_WRITES = new Set([
+            'run:close',
+            'attachment:delete',
+            'case:delete',
+            'run:delete',
+            'suite:delete',
+            'section:delete',
+            'milestone:delete',
+            'project:delete',
+        ]);
         for (const spec of ACTIONS) {
             if (!spec.isWrite) continue;
-            // No-body POSTs: `run close`, `attachment delete`.
-            if (spec.resource === 'run' && spec.action === 'close') {
-                expect(spec.bodySchema, 'run close should have no body schema').toBeUndefined();
-                continue;
-            }
-            if (spec.resource === 'attachment' && spec.action === 'delete') {
-                expect(spec.bodySchema, 'attachment delete should have no body schema').toBeUndefined();
+            const key = `${spec.resource}:${spec.action}`;
+            if (NO_BODY_WRITES.has(key)) {
+                expect(spec.bodySchema, `${key} should have no body schema`).toBeUndefined();
                 continue;
             }
             // File-input writes (attachment upload): payload is binary via --file,
@@ -453,9 +464,19 @@ describe('metadata vs dispatch consistency', () => {
      * audit finding #6 caught `run close` missing from this set — locked
      * in here to prevent regression.
      */
-    it('destructive action set is exactly {attachment:delete, case:delete-bulk, run:close}', () => {
+    it('destructive action set includes attachment:delete, case:delete, case:delete-bulk, run:close, run:delete, suite:delete, section:delete, milestone:delete, project:delete', () => {
         const got = new Set(ACTIONS.filter((s) => s.destructive === true).map((s) => `${s.resource}:${s.action}`));
-        const want = new Set(['attachment:delete', 'case:delete-bulk', 'run:close']);
+        const want = new Set([
+            'attachment:delete',
+            'case:delete',
+            'case:delete-bulk',
+            'run:close',
+            'run:delete',
+            'suite:delete',
+            'section:delete',
+            'milestone:delete',
+            'project:delete',
+        ]);
         expect(got).toEqual(want);
     });
 
@@ -524,7 +545,7 @@ describe('metadata vs dispatch consistency', () => {
 
     it('getActionSpec returns undefined for unknown entries', () => {
         expect(getActionSpec('webhook', 'list')).toBeUndefined();
-        expect(getActionSpec('case', 'delete')).toBeUndefined();
+        expect(getActionSpec('case', 'unknown-action')).toBeUndefined();
     });
 });
 

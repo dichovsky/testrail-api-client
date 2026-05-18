@@ -3268,4 +3268,116 @@ describe('TestRailClient', () => {
             await expect(client.addBdd(0, blob, 'x.feature')).rejects.toThrow('caseId must be a positive integer');
         });
     });
+
+    /**
+     * Soft-delete mode for the 4 single-entity endpoints that support it
+     * (`delete_case`, `delete_run`, `delete_section`, `delete_suite`).
+     * Mirrors the existing `deleteCases({soft:true})` coverage:
+     *   - URL gains `soft=1` only when options.soft === true
+     *   - response is parsed through SoftDeletePreviewSchema (passthrough on
+     *     unknown counters)
+     *   - default (hard) call shape unchanged
+     */
+    describe('Single-entity soft-delete mode', () => {
+        it('deleteCase: hard delete omits soft=', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await client.deleteCase(42);
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('delete_case/42');
+            expect(url).not.toContain('soft=');
+        });
+
+        it('deleteCase: soft=true adds soft=1 and returns parsed preview', async () => {
+            const preview = { affected_tests: 7 };
+            mockFetch.mockResolvedValueOnce(mockOk(preview));
+            const result = await client.deleteCase(42, { soft: true });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('delete_case/42');
+            expect(url).toContain('soft=1');
+            expect(result).toEqual(preview);
+        });
+
+        it('deleteCase: passthrough preserves unknown counters', async () => {
+            const preview = { affected_tests: 1, some_new_counter: 99 };
+            mockFetch.mockResolvedValueOnce(mockOk(preview));
+            const result = await client.deleteCase(42, { soft: true });
+            expect(result).toEqual(preview);
+        });
+
+        it('deleteCase: rejects non-positive id under soft mode too', async () => {
+            await expect(client.deleteCase(-1, { soft: true })).rejects.toThrow('caseId must be a positive integer');
+        });
+
+        it('deleteRun: hard delete omits soft=', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await client.deleteRun(17);
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('delete_run/17');
+            expect(url).not.toContain('soft=');
+        });
+
+        it('deleteRun: soft=true adds soft=1 and returns parsed preview', async () => {
+            const preview = { affected_tests: 12 };
+            mockFetch.mockResolvedValueOnce(mockOk(preview));
+            const result = await client.deleteRun(17, { soft: true });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('delete_run/17');
+            expect(url).toContain('soft=1');
+            expect(result).toEqual(preview);
+        });
+
+        it('deleteRun: rejects non-positive id under soft mode too', async () => {
+            await expect(client.deleteRun(0, { soft: true })).rejects.toThrow('runId must be a positive integer');
+        });
+
+        it('deleteSection: hard delete omits soft=', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await client.deleteSection(9);
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('delete_section/9');
+            expect(url).not.toContain('soft=');
+        });
+
+        it('deleteSection: soft=true returns parsed preview with affected counts', async () => {
+            const preview = { affected_cases: 3, affected_tests: 5 };
+            mockFetch.mockResolvedValueOnce(mockOk(preview));
+            const result = await client.deleteSection(9, { soft: true });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('soft=1');
+            expect(result).toEqual(preview);
+        });
+
+        it('deleteSection: rejects non-positive id under soft mode too', async () => {
+            await expect(client.deleteSection(-2, { soft: true })).rejects.toThrow(
+                'sectionId must be a positive integer',
+            );
+        });
+
+        it('deleteSuite: hard delete omits soft=', async () => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await client.deleteSuite(5);
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('delete_suite/5');
+            expect(url).not.toContain('soft=');
+        });
+
+        it('deleteSuite: soft=true returns parsed preview with multi-entity counts', async () => {
+            const preview = {
+                affected_sections: 8,
+                affected_cases: 99,
+                affected_runs: 4,
+                affected_plans: 2,
+                affected_tests: 200,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(preview));
+            const result = await client.deleteSuite(5, { soft: true });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('soft=1');
+            expect(result).toEqual(preview);
+        });
+
+        it('deleteSuite: rejects non-positive id under soft mode too', async () => {
+            await expect(client.deleteSuite(0, { soft: true })).rejects.toThrow('suiteId must be a positive integer');
+        });
+    });
 });
