@@ -2,7 +2,7 @@
 
 > **Agent Rules:** Keep descriptions brief. When a task is completed, REMOVE it from here and APPEND it to BACKLOG-ARCHIVE.md.
 
-Archive file: [`BACKLOG.archive.md`](BACKLOG.archive.md) (dot form; preserves long-form writeups and shipped-item history).
+Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form writeups and shipped-item history.
 
 ## 🖥️ CLI / Skill
 
