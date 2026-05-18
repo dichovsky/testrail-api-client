@@ -38,6 +38,7 @@ export {
     UpdateCasePayloadSchema,
     UpdateCasesPayloadSchema,
     DeleteCasesPayloadSchema,
+    SoftDeletePreviewSchema,
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
     AddCaseFieldPayloadSchema,
@@ -71,6 +72,7 @@ export type {
     UpdateCasePayload,
     UpdateCasesPayload,
     DeleteCasesPayload,
+    SoftDeletePreview,
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
     AddCaseFieldPayload,
@@ -156,4 +158,5 @@ export type {
     HistoryEntry,
     HistoryChange,
     CaseStatus,
+    SoftDeleteOptions,
 } from './types.js';

@@ -29,3 +29,31 @@ export async function handleProjectUpdate(ctx: HandlerContext): Promise<void> {
     }
     ctx.out(await ctx.client.updateProject(projectId, body.payload));
 }
+
+/**
+ * Destructive: deletes a project and everything inside it. Highest blast
+ * radius in the destructive surface; the standard `--yes` gate is the only
+ * confirmation TestRail itself supports. `--dry-run` wins for preview-
+ * without-API. TestRail's `delete_project` does NOT support the `soft=1`
+ * server-side preview, so `--soft` is rejected here rather than silently
+ * dropped — keeping destructive intent unambiguous.
+ */
+export async function handleProjectDelete(ctx: HandlerContext): Promise<void> {
+    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
+
+    if (ctx.args.soft === true) {
+        throw new Error('project delete does not support --soft.');
+    }
+
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'project delete', projectId, destructive: true });
+        return;
+    }
+
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+
+    await ctx.client.deleteProject(projectId);
+    ctx.out({ projectId, deleted: true });
+}

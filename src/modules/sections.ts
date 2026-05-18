@@ -1,7 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Section } from '../types.js';
-import type { AddSectionPayload, MoveSectionPayload, UpdateSectionPayload } from '../schemas.js';
-import { SectionSchema } from '../schemas.js';
+import type { Section, SoftDeleteOptions } from '../types.js';
+import type { AddSectionPayload, MoveSectionPayload, SoftDeletePreview, UpdateSectionPayload } from '../schemas.js';
+import { SectionSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { z } from 'zod';
 
 export class SectionModule {
@@ -49,9 +49,25 @@ export class SectionModule {
         );
     }
 
-    async deleteSection(sectionId: number): Promise<void> {
+    /**
+     * Delete a section (recursively removes all subsections and cases). Pass
+     * `{ soft: true }` for TestRail's server-side preview (`soft=1`) — the
+     * API call still happens but nothing is deleted; TestRail returns counts
+     * of affected sections, cases, and tests. TestRail 6.5+ for soft-mode.
+     */
+    async deleteSection(sectionId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteSection(sectionId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteSection(sectionId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteSection(sectionId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(sectionId, 'sectionId');
-        await this.client.request<void>('POST', `delete_section/${sectionId}`);
+        const endpoint = this.client.buildEndpoint(`delete_section/${sectionId}`, {
+            ...(options?.soft === true && { soft: 1 }),
+        });
+        const raw = await this.client.request<unknown>('POST', endpoint);
+        if (options?.soft === true) {
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+        }
     }
 
     /**

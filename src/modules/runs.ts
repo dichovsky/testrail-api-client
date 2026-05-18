@@ -1,7 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Run, GetRunsOptions } from '../types.js';
-import type { AddRunPayload, UpdateRunPayload } from '../schemas.js';
-import { RunSchema } from '../schemas.js';
+import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
+import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
+import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { z } from 'zod';
 
 export class RunModule {
@@ -63,8 +63,25 @@ export class RunModule {
         return this.client.parse<Run>(RunSchema, await this.client.request<unknown>('POST', `close_run/${runId}`));
     }
 
-    async deleteRun(runId: number): Promise<void> {
+    /**
+     * Delete a test run and all associated test results. Pass
+     * `{ soft: true }` for TestRail's server-side preview (`soft=1`) —
+     * the API call still happens but nothing is deleted; TestRail returns
+     * counts of affected entities. TestRail 6.5+ for soft-mode.
+     */
+    async deleteRun(runId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteRun(runId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: accepts a `SoftDeleteOptions` variable with a
+    // boolean `soft` computed at runtime; returns the union.
+    async deleteRun(runId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteRun(runId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(runId, 'runId');
-        await this.client.request<void>('POST', `delete_run/${runId}`);
+        const endpoint = this.client.buildEndpoint(`delete_run/${runId}`, {
+            ...(options?.soft === true && { soft: 1 }),
+        });
+        const raw = await this.client.request<unknown>('POST', endpoint);
+        if (options?.soft === true) {
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+        }
     }
 }

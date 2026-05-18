@@ -41,11 +41,13 @@ Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
   case   update <case_id>           --data '{"title":"..."}'
   case   update-bulk <suite_id>     --data '{"case_ids":[1,2],"priority_id":3}'
+  case   delete <case_id>           [--soft] --yes  (no body; destructive)
   case   delete-bulk <suite_id>     --project-id <id> [--soft] --data '{"case_ids":[1,2]}' --yes
   case   copy-to-section <section_id>  --data '{"case_ids":[1,2]}'
   case   move-to-section <section_id>  --data '{"case_ids":[1,2],"suite_id":3}'
   run    add <project_id>           --data '{"name":"..."}'
   run    close <run_id>             --yes  (no body; irreversible)
+  run    delete <run_id>            [--soft] --yes  (no body; destructive)
   result add <run_id> <case_id>     --data '{"status_id":1}'
   result add-bulk <run_id>          --data '{"results":[{"case_id":1,"status_id":1}]}'
   result add-bulk-by-test <run_id>  --data '{"results":[{"test_id":1,"status_id":1}]}'
@@ -55,13 +57,17 @@ Write actions (body via --data | --data-file | stdin):
   section add <project_id>          --data '{"name":"...","suite_id":1}'
   section update <section_id>       --data '{"name":"..."}'
   section move <section_id>         --data '{"parent_id":null,"after_id":42}'
+  section delete <section_id>       [--soft] --yes  (no body; destructive)
   case-field add                    --data '{"type":"String","name":"foo","label":"Foo","configs":[{"context":{"is_global":true,"project_ids":[]},"options":{"is_required":false,"default_value":""}}]}' (admin-only)
   project add                       --data '{"name":"...","suite_mode":1}'
   project update <project_id>       --data '{"name":"..."}'
+  project delete <project_id>       --yes  (no body; --soft NOT supported by TestRail; highest blast radius)
   suite add <project_id>            --data '{"name":"..."}'
   suite update <suite_id>           --data '{"name":"..."}'
+  suite delete <suite_id>           [--soft] --yes  (no body; destructive)
   milestone add <project_id>        --data '{"name":"..."}'
   milestone update <milestone_id>   --data '{"is_completed":true}'
+  milestone delete <milestone_id>   --yes  (no body; --soft NOT supported by TestRail)
 
 Attachment actions (binary file I/O):
   attachment list-for-case <case_id>
@@ -106,20 +112,28 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete-bulk, run close)
-  --soft                case delete-bulk: server-side preview (TestRail returns counts without deleting); distinct from --dry-run which makes NO API call
+  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete)
+  --soft                Server-side preview for soft-capable deletes (case delete, case delete-bulk, run delete, section delete, suite delete) — TestRail returns counts without deleting; distinct from --dry-run which makes NO API call. Rejected on milestone delete / project delete (TestRail does not support --soft on those endpoints).
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
   --version             Print version
 
-For body-bearing write actions (all except 'run close'), exactly one body source
-is required (--data | --data-file | stdin). Stdin is auto-detected when input
-is piped (process.stdin.isTTY === false). Attachment upload actions take a
-binary file via --file <path> and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete, case delete-bulk, run close) require
---yes; pass --dry-run together with --yes to preview without making the API
-call (dry-run wins). 'run close' is irreversible — TestRail offers no reopen.
+For body-bearing write actions, exactly one body source is required
+(--data | --data-file | stdin). Stdin is auto-detected when input is piped
+(process.stdin.isTTY === false). The following write actions take NO body
+(any --data / --data-file / stdin is ignored): run close, attachment delete,
+case delete, run delete, suite delete, section delete, milestone delete,
+project delete — they accept only a positional id (and optional --soft on the
+soft-capable deletes). Attachment upload actions take a binary file via
+--file <path> and do not accept --data/--data-file/stdin.
+Destructive actions (attachment delete, case delete, case delete-bulk, run close,
+run delete, section delete, suite delete, milestone delete, project delete)
+require --yes; pass --dry-run together with --yes to preview without making the
+API call (dry-run wins). 'run close' is irreversible — TestRail offers no
+reopen. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+pass --soft for a server-side preview that returns affected-entity counts
+without deleting; this still hits the API and remains gated by --yes.
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────

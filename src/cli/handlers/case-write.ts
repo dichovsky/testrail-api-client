@@ -129,3 +129,31 @@ export async function handleCaseMoveToSection(ctx: HandlerContext): Promise<void
     await ctx.client.moveCasesToSection(sectionId, body.payload);
     ctx.out({ sectionId, moved: true });
 }
+
+/**
+ * Destructive: deletes a single case. Gated by `--yes`; `--dry-run` wins
+ * for preview-without-API. `--soft` invokes TestRail's server-side preview
+ * (`soft=1`) — distinct from `--dry-run` which short-circuits before any
+ * API call.
+ */
+export async function handleCaseDelete(ctx: HandlerContext): Promise<void> {
+    const caseId = parseId(ctx.args.pathParams[0], 'case_id');
+    const soft = ctx.args.soft === true;
+
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'case delete', caseId, soft, destructive: true });
+        return;
+    }
+
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+
+    if (soft) {
+        const preview = await ctx.client.deleteCase(caseId, { soft: true });
+        ctx.out({ caseId, soft: true, deleted: false, preview });
+        return;
+    }
+    await ctx.client.deleteCase(caseId, { soft: false });
+    ctx.out({ caseId, soft: false, deleted: true });
+}

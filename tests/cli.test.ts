@@ -479,7 +479,7 @@ describe('CLI', () => {
         });
 
         it('project unknown action should exit 1', async () => {
-            const { stderr, exitCodes } = await runCli(['project', 'delete', '1']);
+            const { stderr, exitCodes } = await runCli(['project', 'nope', '1']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
         });
@@ -1741,6 +1741,147 @@ describe('CLI', () => {
             const { exitCodes, stderr } = await runCli(['bdd', 'add', '1']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('--file');
+        });
+    });
+
+    // ── Destructive single-entity deletes (subprocess smoke) ──────────────────
+    //
+    // One subprocess case per action verifies the locked-in --yes gate and
+    // that the URL ends up at the expected endpoint. Soft-mode + dry-run
+    // semantics are covered exhaustively by tests/cli-write-handlers.test.ts
+    // — these subprocess cases lock the wiring between argv → dispatch →
+    // handler → client (the layer the handler tests can't reach).
+
+    describe('case delete (destructive)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['case', 'delete', '42']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_case/{id}', async () => {
+            const { exitCodes } = await runCli(['case', 'delete', '42', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_case/42');
+            expect(url).not.toContain('soft=');
+        });
+
+        it('with --soft --yes adds soft=1 to the URL', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['case', 'delete', '42', '--soft', '--yes'],
+                [jsonResponse({ affected_tests: 3 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('soft=1');
+            expect(stdout).toContain('"preview"');
+        });
+    });
+
+    describe('run delete (destructive)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'delete', '17']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_run/{id}', async () => {
+            const { exitCodes } = await runCli(['run', 'delete', '17', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_run/17');
+            expect(url).not.toContain('soft=');
+        });
+
+        it('with --soft --yes adds soft=1', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'delete', '17', '--soft', '--yes'],
+                [jsonResponse({ affected_tests: 5 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('soft=1');
+        });
+    });
+
+    describe('suite delete (destructive)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['suite', 'delete', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_suite/{id}', async () => {
+            const { exitCodes } = await runCli(['suite', 'delete', '5', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_suite/5');
+        });
+    });
+
+    describe('section delete (destructive)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['section', 'delete', '9']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_section/{id}', async () => {
+            const { exitCodes } = await runCli(['section', 'delete', '9', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_section/9');
+        });
+    });
+
+    describe('milestone delete (destructive; --soft NOT supported)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['milestone', 'delete', '3']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_milestone/{id}', async () => {
+            const { exitCodes } = await runCli(['milestone', 'delete', '3', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_milestone/3');
+        });
+
+        it('rejects --soft (TestRail does not support soft on delete_milestone)', async () => {
+            const { exitCodes, stderr } = await runCli(['milestone', 'delete', '3', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/milestone delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('project delete (destructive; highest blast radius; --soft NOT supported)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'delete', '1']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_project/{id}', async () => {
+            const { exitCodes } = await runCli(['project', 'delete', '1', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_project/1');
+        });
+
+        it('rejects --soft (TestRail does not support soft on delete_project)', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'delete', '1', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/project delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 });

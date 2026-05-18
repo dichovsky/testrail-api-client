@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Case, GetCasesOptions, HistoryEntry } from '../types.js';
+import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
 import type {
     AddCasePayload,
     UpdateCasePayload,
@@ -7,8 +7,9 @@ import type {
     DeleteCasesPayload,
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
+    SoftDeletePreview,
 } from '../schemas.js';
-import { CaseSchema, HistoryEntrySchema } from '../schemas.js';
+import { CaseSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { z } from 'zod';
 
 export interface GetHistoryForCaseOptions {
@@ -18,18 +19,13 @@ export interface GetHistoryForCaseOptions {
     offset?: number;
 }
 
-export interface DeleteCasesOptions {
-    /** When true, TestRail returns the count of affected tests without
-     *  actually deleting (server-side preview). Distinct from a client-side
-     *  `--dry-run`: `soft=1` does hit the API. */
-    soft?: boolean;
-}
+/** @deprecated Use {@link SoftDeleteOptions} from `../types.js` — kept as an
+ *  alias for back-compat. */
+export type DeleteCasesOptions = SoftDeleteOptions;
 
-export interface DeleteCasesPreview {
-    /** Number of tests affected by a soft-delete preview (`soft=1`). */
-    affected_tests?: number;
-    [key: string]: unknown;
-}
+/** @deprecated Use {@link SoftDeletePreview} (re-exported from the package
+ *  root) — kept as an alias for back-compat. */
+export type DeleteCasesPreview = SoftDeletePreview;
 
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -98,9 +94,30 @@ export class CaseModule {
         );
     }
 
-    async deleteCase(caseId: number): Promise<void> {
+    /**
+     * Delete a single case. Pass `{ soft: true }` to invoke TestRail's
+     * server-side preview (`soft=1`) — the API call still happens but
+     * nothing is deleted and TestRail returns counts of affected entities.
+     * Distinct from a client-side `--dry-run` which short-circuits before
+     * any request. TestRail 6.5+ for soft-mode.
+     */
+    async deleteCase(caseId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteCase(caseId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload for callers passing a `SoftDeleteOptions` variable
+    // where `soft` is computed at runtime (boolean). The literal-true /
+    // literal-false overloads above give precise return types when the
+    // flag is statically known; this third public overload accepts the
+    // dynamic case and returns the union, matching the implementation.
+    async deleteCase(caseId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteCase(caseId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(caseId, 'caseId');
-        await this.client.request<void>('POST', `delete_case/${caseId}`);
+        const endpoint = this.client.buildEndpoint(`delete_case/${caseId}`, {
+            ...(options?.soft === true && { soft: 1 }),
+        });
+        const raw = await this.client.request<unknown>('POST', endpoint);
+        if (options?.soft === true) {
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+        }
     }
 
     /**
@@ -130,20 +147,27 @@ export class CaseModule {
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options: DeleteCasesOptions & { soft: true },
-    ): Promise<DeleteCasesPreview>;
+        options: SoftDeleteOptions & { soft: true },
+    ): Promise<SoftDeletePreview>;
     async deleteCases(
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options?: DeleteCasesOptions & { soft?: false },
+        options?: SoftDeleteOptions & { soft?: false },
     ): Promise<void>;
+    // General overload for dynamic `soft` (see deleteCase above).
     async deleteCases(
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options?: DeleteCasesOptions,
-    ): Promise<void | DeleteCasesPreview> {
+        options: SoftDeleteOptions,
+    ): Promise<void | SoftDeletePreview>;
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
+        options?: SoftDeleteOptions,
+    ): Promise<void | SoftDeletePreview> {
         this.client.validateId(suiteId, 'suiteId');
         this.client.validateId(projectId, 'projectId');
         const endpoint = this.client.buildEndpoint(`delete_cases/${suiteId}`, {
@@ -152,10 +176,7 @@ export class CaseModule {
         });
         const raw = await this.client.request<unknown>('POST', endpoint, payload);
         if (options?.soft === true) {
-            return this.client.parse<DeleteCasesPreview>(
-                z.object({ affected_tests: z.number().optional() }).passthrough(),
-                raw,
-            );
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
         }
     }
 

@@ -219,6 +219,15 @@ export const ACTIONS: readonly ActionSpec[] = [
     },
     {
         resource: 'case',
+        action: 'delete',
+        summary:
+            'Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting)',
+        pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        isWrite: true,
+        destructive: true,
+    },
+    {
+        resource: 'case',
         action: 'delete-bulk',
         summary:
             'Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion)',
@@ -255,6 +264,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         resource: 'run',
         action: 'close',
         summary: 'Close a test run permanently — irreversible (no body; requires --yes)',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        isWrite: true,
+        destructive: true,
+    },
+    {
+        resource: 'run',
+        action: 'delete',
+        summary:
+            'Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         isWrite: true,
         destructive: true,
@@ -334,6 +352,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         bodySchema: MoveSectionPayloadSchema,
         isWrite: true,
     },
+    {
+        resource: 'section',
+        action: 'delete',
+        summary:
+            'Delete a section (recursively removes subsections and cases; requires --yes; --soft for server-side preview)',
+        pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        isWrite: true,
+        destructive: true,
+    },
     // ── Structural-setup write actions ────────────────────────────────────
     // `project`, `suite`, and `milestone` add/update. Programmatic methods
     // already exist; these expose them via the CLI for agent provisioning
@@ -356,6 +383,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: true,
     },
     {
+        resource: 'project',
+        action: 'delete',
+        summary:
+            'Delete a project and everything inside it (highest blast radius; requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        isWrite: true,
+        destructive: true,
+    },
+    {
         resource: 'suite',
         action: 'add',
         summary: 'Create a new test suite in a project',
@@ -372,6 +408,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: true,
     },
     {
+        resource: 'suite',
+        action: 'delete',
+        summary:
+            'Delete a suite and everything inside it (sections, cases, runs, plans; requires --yes; --soft for server-side preview)',
+        pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        isWrite: true,
+        destructive: true,
+    },
+    {
         resource: 'milestone',
         action: 'add',
         summary: 'Create a new milestone in a project',
@@ -386,6 +431,14 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
         bodySchema: UpdateMilestonePayloadSchema,
         isWrite: true,
+    },
+    {
+        resource: 'milestone',
+        action: 'delete',
+        summary: 'Delete a milestone (requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
+        isWrite: true,
+        destructive: true,
     },
     // ── Shared-step read actions ──────────────────────────────────────────
     {

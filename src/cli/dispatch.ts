@@ -6,12 +6,13 @@ import {
     handleCaseAdd,
     handleCaseUpdate,
     handleCaseUpdateBulk,
+    handleCaseDelete,
     handleCaseDeleteBulk,
     handleCaseCopyToSection,
     handleCaseMoveToSection,
 } from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
-import { handleRunAdd, handleRunClose } from './handlers/run-write.js';
+import { handleRunAdd, handleRunClose, handleRunDelete } from './handlers/run-write.js';
 import { handleResultList } from './handlers/result.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
@@ -38,10 +39,15 @@ import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } fr
 import { handleCaseStatusList } from './handlers/case-status.js';
 import { handleBddGet, handleBddAdd } from './handlers/bdd.js';
 import { handleCaseFieldAdd } from './handlers/case-field-write.js';
-import { handleSectionAdd, handleSectionMove, handleSectionUpdate } from './handlers/section-write.js';
-import { handleProjectAdd, handleProjectUpdate } from './handlers/project-write.js';
-import { handleSuiteAdd, handleSuiteUpdate } from './handlers/suite-write.js';
-import { handleMilestoneAdd, handleMilestoneUpdate } from './handlers/milestone-write.js';
+import {
+    handleSectionAdd,
+    handleSectionDelete,
+    handleSectionMove,
+    handleSectionUpdate,
+} from './handlers/section-write.js';
+import { handleProjectAdd, handleProjectDelete, handleProjectUpdate } from './handlers/project-write.js';
+import { handleSuiteAdd, handleSuiteDelete, handleSuiteUpdate } from './handlers/suite-write.js';
+import { handleMilestoneAdd, handleMilestoneDelete, handleMilestoneUpdate } from './handlers/milestone-write.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -59,16 +65,19 @@ const HANDLERS: Record<string, Handler> = {
     'project:list': handleProjectList,
     'project:add': handleProjectAdd,
     'project:update': handleProjectUpdate,
+    'project:delete': handleProjectDelete,
     'suite:get': handleSuiteGet,
     'suite:list': handleSuiteList,
     'suite:add': handleSuiteAdd,
     'suite:update': handleSuiteUpdate,
+    'suite:delete': handleSuiteDelete,
     'case:get': handleCaseGet,
     'case:list': handleCaseList,
     'case:history': handleCaseHistory,
     'case:add': handleCaseAdd,
     'case:update': handleCaseUpdate,
     'case:update-bulk': handleCaseUpdateBulk,
+    'case:delete': handleCaseDelete,
     'case:delete-bulk': handleCaseDeleteBulk,
     'case:copy-to-section': handleCaseCopyToSection,
     'case:move-to-section': handleCaseMoveToSection,
@@ -76,6 +85,7 @@ const HANDLERS: Record<string, Handler> = {
     'run:list': handleRunList,
     'run:add': handleRunAdd,
     'run:close': handleRunClose,
+    'run:delete': handleRunDelete,
     'result:list': handleResultList,
     'result:add': handleResultAdd,
     'result:add-bulk': handleResultAddBulk,
@@ -84,6 +94,7 @@ const HANDLERS: Record<string, Handler> = {
     'milestone:list': handleMilestoneList,
     'milestone:add': handleMilestoneAdd,
     'milestone:update': handleMilestoneUpdate,
+    'milestone:delete': handleMilestoneDelete,
     'user:get': handleUserGet,
     'user:list': handleUserList,
     'plan:get': handlePlanGet,
@@ -112,6 +123,7 @@ const HANDLERS: Record<string, Handler> = {
     'case-field:add': handleCaseFieldAdd,
     'section:add': handleSectionAdd,
     'section:update': handleSectionUpdate,
+    'section:delete': handleSectionDelete,
     'section:move': handleSectionMove,
 };
 

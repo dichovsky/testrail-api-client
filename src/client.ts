@@ -48,12 +48,14 @@ import type {
     ReportResult,
     HistoryEntry,
     CaseStatus,
+    SoftDeleteOptions,
 } from './types.js';
 import type {
     AddCasePayload,
     UpdateCasePayload,
     UpdateCasesPayload,
     DeleteCasesPayload,
+    SoftDeletePreview,
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
     AddCaseFieldPayload,
@@ -78,7 +80,7 @@ import type {
     AddMilestonePayload,
     UpdateMilestonePayload,
 } from './schemas.js';
-import type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
+import type { GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
@@ -237,12 +239,20 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Delete a suite.
+     * Delete a suite and everything inside it (sections, cases, runs, plans).
+     * Pass `{ soft: true }` for TestRail's server-side preview (`soft=1`).
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async deleteSuite(suiteId: number): Promise<void> {
-        return this.suites.deleteSuite(suiteId);
+    async deleteSuite(suiteId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteSuite(suiteId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteSuite(suiteId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteSuite(suiteId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
+        if (options?.soft === true) {
+            return this.suites.deleteSuite(suiteId, { ...options, soft: true });
+        }
+        return this.suites.deleteSuite(suiteId, options as SoftDeleteOptions & { soft?: false });
     }
 
     // ── Sections ──────────────────────────────────────────────────────────────
@@ -290,12 +300,20 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Delete a section.
+     * Delete a section (recursively removes all subsections and cases).
+     * Pass `{ soft: true }` for TestRail's server-side preview (`soft=1`).
      * @throws {TestRailValidationError} When sectionId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async deleteSection(sectionId: number): Promise<void> {
-        return this.sections.deleteSection(sectionId);
+    async deleteSection(sectionId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteSection(sectionId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteSection(sectionId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteSection(sectionId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
+        if (options?.soft === true) {
+            return this.sections.deleteSection(sectionId, { ...options, soft: true });
+        }
+        return this.sections.deleteSection(sectionId, options as SoftDeleteOptions & { soft?: false });
     }
 
     /**
@@ -361,12 +379,21 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Delete a case.
+     * Delete a case. Pass `{ soft: true }` for TestRail's server-side
+     * preview (`soft=1`) — the API call still happens but nothing is
+     * deleted; TestRail returns counts of affected entities.
      * @throws {TestRailValidationError} When caseId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async deleteCase(caseId: number): Promise<void> {
-        return this.cases.deleteCase(caseId);
+    async deleteCase(caseId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteCase(caseId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteCase(caseId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteCase(caseId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
+        if (options?.soft === true) {
+            return this.cases.deleteCase(caseId, { ...options, soft: true });
+        }
+        return this.cases.deleteCase(caseId, options as SoftDeleteOptions & { soft?: false });
     }
 
     /**
@@ -389,27 +416,34 @@ export class TestRailClient extends TestRailClientCore {
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options: DeleteCasesOptions & { soft: true },
-    ): Promise<DeleteCasesPreview>;
+        options: SoftDeleteOptions & { soft: true },
+    ): Promise<SoftDeletePreview>;
     async deleteCases(
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options?: DeleteCasesOptions & { soft?: false },
+        options?: SoftDeleteOptions & { soft?: false },
     ): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
     async deleteCases(
         suiteId: number,
         projectId: number,
         payload: DeleteCasesPayload,
-        options?: DeleteCasesOptions,
-    ): Promise<void | DeleteCasesPreview> {
+        options: SoftDeleteOptions,
+    ): Promise<void | SoftDeletePreview>;
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
+        options?: SoftDeleteOptions,
+    ): Promise<void | SoftDeletePreview> {
         // Branch by `soft` so both module overloads resolve cleanly. The public
         // overloads above already gave callers a precise return type — this
         // delegate just routes to the matching module overload at runtime.
         if (options?.soft === true) {
             return this.cases.deleteCases(suiteId, projectId, payload, { ...options, soft: true });
         }
-        return this.cases.deleteCases(suiteId, projectId, payload, options as DeleteCasesOptions & { soft?: false });
+        return this.cases.deleteCases(suiteId, projectId, payload, options as SoftDeleteOptions & { soft?: false });
     }
 
     /**
@@ -603,12 +637,20 @@ export class TestRailClient extends TestRailClientCore {
     }
 
     /**
-     * Delete a run.
+     * Delete a run and all associated test results. Pass `{ soft: true }`
+     * for TestRail's server-side preview (`soft=1`).
      * @throws {TestRailValidationError} When runId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async deleteRun(runId: number): Promise<void> {
-        return this.runs.deleteRun(runId);
+    async deleteRun(runId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
+    async deleteRun(runId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteRun(runId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
+    async deleteRun(runId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
+        if (options?.soft === true) {
+            return this.runs.deleteRun(runId, { ...options, soft: true });
+        }
+        return this.runs.deleteRun(runId, options as SoftDeleteOptions & { soft?: false });
     }
 
     // ── Tests ─────────────────────────────────────────────────────────────────
