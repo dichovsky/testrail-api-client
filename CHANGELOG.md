@@ -170,7 +170,7 @@ host's normal file-read semantics, unaffected by this cap).
 - New modules: `src/cli/flags.ts` (single source of truth for the
   `parseArgs` options table + derived `KNOWN_FLAGS`), `src/cli/sanitize.ts`
   (control-char stripper), `src/cli/stdin.ts` (`readBoundedStdin` helper).
-- `BACKLOG.md` security findings #6, #10, #11, #16, #18, #24 marked
+- `BACKLOG.archive.md` security findings #6, #10, #11, #16, #18, #24 marked
   `[SHIPPED]`.
 - Coverage: 97.23% global / 100% on new modules.
 
@@ -185,4 +185,4 @@ host's normal file-read semantics, unaffected by this cap).
 
 ## [2.2.0] — earlier
 
-See `BACKLOG.md` Decision Log section.
+See `BACKLOG.archive.md` Decision Log section.
