@@ -490,11 +490,12 @@ describe('TestRailClient - Coverage Improvement', () => {
             expect(true).toBe(true);
         });
 
-        it('should invoke cleanupAllClients when process emits exit', () => {
+        it('should invoke cleanupAllClients when process emits exit (opt-in)', () => {
             const client = new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
                 email: 'test@example.com',
                 apiKey: 'test-key',
+                registerProcessHandlers: true,
             });
 
             // Emit exit — synchronously calls cleanupAllClients which destroys all active clients
@@ -504,13 +505,14 @@ describe('TestRailClient - Coverage Improvement', () => {
             expect(() => client.destroy()).not.toThrow();
         });
 
-        it('should invoke cleanupAllClients on SIGINT and exit with code 130', () => {
+        it('should invoke cleanupAllClients on SIGINT and exit with code 130 (opt-in)', () => {
             const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
             const client = new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
                 email: 'test@example.com',
                 apiKey: 'test-key',
+                registerProcessHandlers: true,
             });
 
             process.emit('SIGINT');
@@ -521,13 +523,14 @@ describe('TestRailClient - Coverage Improvement', () => {
             exitSpy.mockRestore();
         });
 
-        it('should invoke cleanupAllClients on SIGTERM and exit with code 143', () => {
+        it('should invoke cleanupAllClients on SIGTERM and exit with code 143 (opt-in)', () => {
             const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
             const client = new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
                 email: 'test@example.com',
                 apiKey: 'test-key',
+                registerProcessHandlers: true,
             });
 
             process.emit('SIGTERM');
@@ -536,6 +539,97 @@ describe('TestRailClient - Coverage Improvement', () => {
             expect(() => client.destroy()).not.toThrow();
 
             exitSpy.mockRestore();
+        });
+    });
+
+    // SEC #8 — Library constructions must NOT hijack the host's signal handling
+    // or the process exit code. Process listeners (`exit`, `SIGINT`, `SIGTERM`)
+    // are registered only when the caller explicitly opts in via
+    // `registerProcessHandlers: true`.
+    describe('Process handler opt-in (SEC #8)', () => {
+        const baseConfig = {
+            baseUrl: 'https://example.testrail.net',
+            email: 'test@example.com',
+            apiKey: 'test-key',
+        };
+        const HANDLED_EVENTS = ['exit', 'SIGINT', 'SIGTERM'] as const;
+
+        it('does NOT register process listeners by default', () => {
+            const onSpy = vi.spyOn(process, 'on');
+            const client = new TestRailClient(baseConfig);
+
+            try {
+                const registered = onSpy.mock.calls
+                    .map(([event]) => event)
+                    .filter((event) => HANDLED_EVENTS.includes(event as (typeof HANDLED_EVENTS)[number]));
+                expect(registered).toEqual([]);
+            } finally {
+                client.destroy();
+                onSpy.mockRestore();
+            }
+        });
+
+        it('does NOT register process listeners when flag is explicitly false', () => {
+            const onSpy = vi.spyOn(process, 'on');
+            const client = new TestRailClient({ ...baseConfig, registerProcessHandlers: false });
+
+            try {
+                const registered = onSpy.mock.calls
+                    .map(([event]) => event)
+                    .filter((event) => HANDLED_EVENTS.includes(event as (typeof HANDLED_EVENTS)[number]));
+                expect(registered).toEqual([]);
+            } finally {
+                client.destroy();
+                onSpy.mockRestore();
+            }
+        });
+
+        it('registers exit, SIGINT, and SIGTERM listeners on first opt-in construction', async () => {
+            // The handler-registration guard (`processHandlersRegistered`) is
+            // a module-level flag that latches on first install. Reset the
+            // module registry so we re-exercise the install path even if a
+            // previous test in this process already triggered it.
+            vi.resetModules();
+            const { TestRailClient: FreshClient } = (await import('../src/client.js')) as {
+                TestRailClient: typeof TestRailClient;
+            };
+
+            const onSpy = vi.spyOn(process, 'on');
+            const client = new FreshClient({ ...baseConfig, registerProcessHandlers: true });
+
+            try {
+                const registered = new Set(onSpy.mock.calls.map(([event]) => event));
+                for (const event of HANDLED_EVENTS) {
+                    expect(registered.has(event)).toBe(true);
+                }
+            } finally {
+                client.destroy();
+                onSpy.mockRestore();
+            }
+        });
+
+        it('registers process listeners exactly once across multiple opt-in clients', () => {
+            // First opt-in client may or may not register handlers depending on
+            // prior tests in the same process (handlers persist for the
+            // process lifetime by design). What matters is that constructing
+            // additional opt-in clients never duplicates the registration.
+            const first = new TestRailClient({ ...baseConfig, registerProcessHandlers: true });
+
+            const onSpy = vi.spyOn(process, 'on');
+            const second = new TestRailClient({ ...baseConfig, registerProcessHandlers: true });
+            const third = new TestRailClient({ ...baseConfig, registerProcessHandlers: true });
+
+            try {
+                const registered = onSpy.mock.calls
+                    .map(([event]) => event)
+                    .filter((event) => HANDLED_EVENTS.includes(event as (typeof HANDLED_EVENTS)[number]));
+                expect(registered).toEqual([]);
+            } finally {
+                first.destroy();
+                second.destroy();
+                third.destroy();
+                onSpy.mockRestore();
+            }
         });
     });
 

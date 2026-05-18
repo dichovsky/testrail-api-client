@@ -330,7 +330,10 @@ async function main(): Promise<number> {
 
     let client: TestRailClient | undefined;
     try {
-        client = new TestRailClient(auth.config);
+        // The CLI is a standalone entry-point process: opt in to the
+        // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
+        // conventional 130/143 exit codes. Library consumers leave this off.
+        client = new TestRailClient({ ...auth.config, registerProcessHandlers: true });
         await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
         return 0;
     } catch (e: unknown) {

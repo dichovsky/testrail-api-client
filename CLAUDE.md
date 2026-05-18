@@ -53,7 +53,7 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 **Redirects (3xx):** All four fetch sites set `redirect: 'manual'` and pipe the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed `validateBaseUrl` + DNS pinning.
 
-**Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, removes from set. Process signal handlers (exit/SIGINT/SIGTERM) call `destroy()` on all active instances.
+**Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, zeros credential, removes from set. Process signal handlers (`exit`/`SIGINT`/`SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8 — library consumers must not have their signal chain hijacked). When opted in, handlers call `destroy()` on every active instance; SIGINT/SIGTERM additionally `process.exit(130/143)`. The CLI (`src/cli/index.ts`) opts in; library callers should leave the flag off and call `destroy()` from their own shutdown hook. Once installed for a process, handlers persist for its lifetime (no safe deregistration without per-client ownership tracking).
 
 **ID validation:** All numeric IDs checked as positive integers via `protected validateId(id, name)` before any API call.
 

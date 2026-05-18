@@ -231,7 +231,16 @@ export class TestRailClientCore {
 
         // Register this instance for automatic cleanup
         activeClients.add(this);
-        registerProcessHandlers();
+        // Process-wide signal handlers are opt-in (default: false). Library
+        // consumers (web servers, daemons, embedders) must keep ownership of
+        // SIGINT/SIGTERM and the process exit code; CLIs/standalone scripts
+        // that own the process lifecycle set this to `true`. Once a handler
+        // set is installed it stays installed for the lifetime of the process
+        // (`process.on` listeners cannot be safely removed without tracking
+        // ownership across all clients).
+        if (config.registerProcessHandlers === true) {
+            registerProcessHandlers();
+        }
 
         // Start periodic cache cleanup if enabled
         if (this.enableCache && this.cacheCleanupInterval > 0) {
@@ -593,7 +602,11 @@ export class TestRailClientCore {
      * Releases all resources held by this client instance.
      * Stops the cache cleanup timer, clears the cache, and removes this instance
      * from the active-clients registry. Safe to call multiple times (idempotent).
-     * Also called automatically on `exit`, `SIGINT`, and `SIGTERM`.
+     *
+     * When any client in the process is constructed with
+     * `registerProcessHandlers: true` (default `false`), this method is also
+     * invoked automatically on `exit`, `SIGINT`, and `SIGTERM` for every
+     * active client; otherwise the caller is responsible for invoking it.
      */
     public destroy(): void {
         if (this.isDestroyed) {

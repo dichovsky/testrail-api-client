@@ -46,17 +46,17 @@ Two access paths exist for every endpoint: flat (`client.getProject(id)`) and na
 
 ### 2.1 Public surface (consumed by modules)
 
-| Method | Purpose |
-| --- | --- |
-| `request<T>()` (`:617`) | JSON pipeline (GET / POST / PUT / DELETE) |
-| `requestText()` (`:773`) | Plain-text endpoint (currently only `get_bdd`) |
-| `requestMultipart<T>()` (`:868`) | Attachment uploads — never retried |
-| `requestBinary()` (`:956`) | Attachment downloads |
-| `requestParsed<T>()` (`:1073`) | `request` + Zod parse, separate cache namespace |
-| `parse<T>()` (`:1040`) | Standalone Zod parse with `handleZodError` wrapping |
-| `validateId()` / `validateEntryId()` / `validatePaginationParams()` (`:444+`) | Pre-flight integer guards |
-| `buildEndpoint()` (`:483`) | TestRail-specific URL composer (`&` not `?` for params) |
-| `clearCache()` (`:538`) / `destroy()` (`:583`) | Cache / lifecycle |
+| Method                                                                        | Purpose                                                 |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `request<T>()` (`:617`)                                                       | JSON pipeline (GET / POST / PUT / DELETE)               |
+| `requestText()` (`:773`)                                                      | Plain-text endpoint (currently only `get_bdd`)          |
+| `requestMultipart<T>()` (`:868`)                                              | Attachment uploads — never retried                      |
+| `requestBinary()` (`:956`)                                                    | Attachment downloads                                    |
+| `requestParsed<T>()` (`:1073`)                                                | `request` + Zod parse, separate cache namespace         |
+| `parse<T>()` (`:1040`)                                                        | Standalone Zod parse with `handleZodError` wrapping     |
+| `validateId()` / `validateEntryId()` / `validatePaginationParams()` (`:444+`) | Pre-flight integer guards                               |
+| `buildEndpoint()` (`:483`)                                                    | TestRail-specific URL composer (`&` not `?` for params) |
+| `clearCache()` (`:538`) / `destroy()` (`:583`)                                | Cache / lifecycle                                       |
 
 These are declared `public` (not `protected`) because modules consume them by composition, not inheritance — see §3.
 
@@ -67,13 +67,13 @@ For a single call, the operations run in this fixed order:
 1. **Destroyed guard** — throws plain `Error` if `destroy()` was called.
 2. **DNS revalidation** — fresh `dns.lookup` of the configured hostname, fail-closed. Re-run per request to defeat DNS rebinding (`:1024`).
 3. **Cache lookup** — GET only, key `GET:{endpoint}`. LRU touch on hit (delete + re-insert at end of `Map`).
-4. **Rate-limit check** — sliding window over `rateLimiter.requests: number[]`; throws synthetic `TestRailApiError(429, …)` *before* fetch when full.
+4. **Rate-limit check** — sliding window over `rateLimiter.requests: number[]`; throws synthetic `TestRailApiError(429, …)` _before_ fetch when full.
 5. **URL + headers** — `{baseUrl}/index.php?/api/v2/{endpoint}`, Basic auth header, User-Agent.
 6. **`AbortController` + `setTimeout`** — per-call timeout via abort signal.
 7. **`fetch` with `redirect: 'manual'`** — all four fetch sites use manual redirect handling.
 8. **`assertNotRedirect`** (`:398`) — any 3xx → `TestRailApiError` with the blocked `Location` embedded in `response`. Never retried, thrown before any cache write, so the LRU cannot be poisoned with a redirected payload.
 9. **Error branch** — non-2xx: read body, decide retry (see §2.4), throw `TestRailApiError(status, statusText, errorText)`. Raw body lands in the structured `response` field only — never in `message` — because callers commonly log `.message` and bodies may contain stack traces or secrets.
-10. **Cache invalidation on writes** — any non-GET calls `clearCache()` *before* parsing the body, so empty 204-style responses still invalidate.
+10. **Cache invalidation on writes** — any non-GET calls `clearCache()` _before_ parsing the body, so empty 204-style responses still invalidate.
 11. **Body parse** — `response.text()` → empty-body shortcut → `JSON.parse`.
 12. **Cache write** — GET only, with TTL.
 
@@ -90,14 +90,14 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 
 ### 2.4 Retry policy (the GET / write asymmetry)
 
-| Failure | GET | POST / PUT / DELETE |
-| --- | --- | --- |
-| 429 (rate limit) | retry | retry |
-| 5xx | retry | **surface immediately** |
-| Network `TypeError` | retry | **surface immediately** |
-| `AbortError` (timeout) | never | never |
+| Failure                | GET   | POST / PUT / DELETE     |
+| ---------------------- | ----- | ----------------------- |
+| 429 (rate limit)       | retry | retry                   |
+| 5xx                    | retry | **surface immediately** |
+| Network `TypeError`    | retry | **surface immediately** |
+| `AbortError` (timeout) | never | never                   |
 
-Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly *not* safe — server state is ambiguous (`:740`).
+Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly _not_ safe — server state is ambiguous (`:740`).
 
 `requestMultipart` (uploads) never retries — uploads are non-idempotent and bandwidth-expensive. `requestBinary` retries 5xx / 429 / network errors for its single GET method.
 
@@ -113,7 +113,7 @@ Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), an
 ### 2.6 Lifecycle
 
 - Module-level `activeClients: Set<TestRailClientCore>` (`:147`). Constructor adds `this`.
-- Process signal handlers (`exit`, `SIGINT`, `SIGTERM`) registered lazily, once per process, behind a `processHandlersRegistered` guard. SIGINT exits 130, SIGTERM exits 143.
+- Process signal handlers (`exit`, `SIGINT`, `SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8). When opted in, they are registered lazily — once per process — behind a `processHandlersRegistered` guard. SIGINT exits 130, SIGTERM exits 143. Library consumers (servers, daemons, embedders) leave the flag off so the host owns the signal chain and the exit code; the bundled CLI opts in. Once installed for a process, handlers persist for its lifetime — safely deregistering would require ownership tracking across every client in the process.
 - `destroy()` is idempotent: sets `isDestroyed`, stops the cleanup timer, clears the cache, zeroes `auth`, removes `this` from `activeClients`. Subsequent `request*` calls throw a plain `Error` (not `TestRailApiError`) — calling a destroyed client is a programmer error, not a network failure.
 
 ---
@@ -122,26 +122,26 @@ Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), an
 
 Eighteen stateless namespaces, one per TestRail resource:
 
-| Module | Domain |
-| --- | --- |
-| `projects.ts` | Projects |
-| `suites.ts` | Test suites |
-| `sections.ts` | Sections (+ move) |
-| `cases.ts` | Cases (CRUD, bulk update / copy / move, soft-delete, history) |
-| `plans.ts` | Plans + plan entries + runs within entries |
-| `runs.ts` | Runs (CRUD, close, soft-delete) |
-| `tests.ts` | Tests inside runs (read-only) |
-| `results.ts` | Results (per-test, per-case, batch) |
-| `milestones.ts` | Milestones |
-| `users.ts` | Users + groups |
-| `metadata.ts` | Statuses, priorities, case/result fields, case types, templates |
-| `configurations.ts` | Configuration groups + configurations |
-| `attachments.ts` | Upload / list / download / delete (binary I/O) |
-| `bdd.ts` | BDD scenarios (text response — uses `requestText`) |
-| `sharedSteps.ts` | Shared steps (+ history) |
-| `variables.ts` | Project variables |
-| `datasets.ts` | Datasets |
-| `reports.ts` | Reports (list + trigger) |
+| Module              | Domain                                                          |
+| ------------------- | --------------------------------------------------------------- |
+| `projects.ts`       | Projects                                                        |
+| `suites.ts`         | Test suites                                                     |
+| `sections.ts`       | Sections (+ move)                                               |
+| `cases.ts`          | Cases (CRUD, bulk update / copy / move, soft-delete, history)   |
+| `plans.ts`          | Plans + plan entries + runs within entries                      |
+| `runs.ts`           | Runs (CRUD, close, soft-delete)                                 |
+| `tests.ts`          | Tests inside runs (read-only)                                   |
+| `results.ts`        | Results (per-test, per-case, batch)                             |
+| `milestones.ts`     | Milestones                                                      |
+| `users.ts`          | Users + groups                                                  |
+| `metadata.ts`       | Statuses, priorities, case/result fields, case types, templates |
+| `configurations.ts` | Configuration groups + configurations                           |
+| `attachments.ts`    | Upload / list / download / delete (binary I/O)                  |
+| `bdd.ts`            | BDD scenarios (text response — uses `requestText`)              |
+| `sharedSteps.ts`    | Shared steps (+ history)                                        |
+| `variables.ts`      | Project variables                                               |
+| `datasets.ts`       | Datasets                                                        |
+| `reports.ts`        | Reports (list + trigger)                                        |
 
 ### 3.1 Composition pattern
 
@@ -176,14 +176,14 @@ The wrappers exist so callers do not have to remember which module owns which en
 
 ## 4. Type system — `schemas.ts` + `types.ts`
 
-| Concern | Lives in | Source of truth? |
-| --- | --- | --- |
-| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …) | `schemas.ts` (Zod) | yes |
-| Parsed response shapes (when validated via `requestParsed`) | `schemas.ts` (Zod) | yes |
-| Hand-written response interfaces (`Case`, `Run`, `Project`, …) | `types.ts` | yes (consumed by `client.ts`) |
-| `TestRailConfig`, `RateLimiterConfig` | `types.ts` | yes |
-| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …) | `types.ts` | yes |
-| Payloads not yet migrated to Zod (`AddUserPayload`, `AddVariablePayload`, …) | `types.ts` | yes |
+| Concern                                                                      | Lives in           | Source of truth?              |
+| ---------------------------------------------------------------------------- | ------------------ | ----------------------------- |
+| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                     | `schemas.ts` (Zod) | yes                           |
+| Parsed response shapes (when validated via `requestParsed`)                  | `schemas.ts` (Zod) | yes                           |
+| Hand-written response interfaces (`Case`, `Run`, `Project`, …)               | `types.ts`         | yes (consumed by `client.ts`) |
+| `TestRailConfig`, `RateLimiterConfig`                                        | `types.ts`         | yes                           |
+| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                 | `types.ts`         | yes                           |
+| Payloads not yet migrated to Zod (`AddUserPayload`, `AddVariablePayload`, …) | `types.ts`         | yes                           |
 
 Convention: **payloads → `schemas.ts`; responses → `types.ts`**, even though Zod can infer response shapes too. There is intentional duplication on response shapes: `client.ts` imports response types from `./types.js` while payload types come from `./schemas.js`. The split keeps Zod usage focused on the validation boundary (writes in, parsed responses out) rather than letting it own every type in the codebase.
 
@@ -194,6 +194,7 @@ Convention: **payloads → `schemas.ts`; responses → `types.ts`**, even though
 ## 5. Public barrel — `src/index.ts`
 
 Exported:
+
 - `TestRailClient` (the facade) — and only the facade.
 - Errors: `TestRailApiError`, `TestRailValidationError`, `handleZodError`.
 - Every Zod schema **value** (so consumers can re-validate).
@@ -202,6 +203,7 @@ Exported:
 - Three module-local option types: `DeleteCasesOptions`, `DeleteCasesPreview`, `GetHistoryForCaseOptions`, `GetSharedStepHistoryOptions`.
 
 Deliberately not exported:
+
 - `TestRailClientCore` — internal base class.
 - Individual `XxxModule` classes — accessed via `client.projects`, `client.runs`, …
 - `constants.ts`, `utils.ts` — implementation detail.
@@ -250,6 +252,7 @@ package.json:bin
 - `isWrite: boolean`, `destructive?: boolean` — affects dry-run applicability and `--yes` gating.
 
 Consumers:
+
 1. The skill generator (`scripts/generate-skill.js`) renders the command table and payload-schema section in `skill/SKILL.md`.
 2. Drift tests assert metadata ↔ dispatch correspondence in both directions.
 3. `getActionSpec(resource, action)` is called by `index.ts` to decide whether to suppress the stdin body thunk for file-input actions.
@@ -263,17 +266,20 @@ Every handler matches `Handler = (ctx: HandlerContext) => Promise<void>`. `Handl
 Three shapes:
 
 **Read handler** (e.g. `handlers/project.ts`):
+
 1. `parseId(ctx.args.pathParams[N], 'name')` — throws `IdParseError` on non-positive integers.
 2. Optional `optInt(ctx.args.limit)` for pagination.
 3. `ctx.out(await ctx.client.method(...))`.
 
 **Write handler** (e.g. `handlers/case-write.ts`):
+
 1. `parseId` for path params.
 2. `resolveBody(ctx.bodyInput, SchemaName)` — picks exactly one of `--data` / `--data-file` / stdin, JSON-parses, Zod-validates.
-3. If `ctx.dryRun`: emit `{ dryRun: true, action, ...ids, payload, source }` and return *before* any client call.
+3. If `ctx.dryRun`: emit `{ dryRun: true, action, ...ids, payload, source }` and return _before_ any client call.
 4. Otherwise call the client and `ctx.out(result)`.
 
 **Destructive handler** (e.g. `attachment-write.ts`, `project-write.ts`):
+
 1. `parseId` + incompatible-flag rejection (e.g. `project delete` refuses `--soft`).
 2. `if (dryRun)` preview branch — runs first, regardless of other flags.
 3. `if (!confirmDestructive)` → throw `Destructive action; pass --yes to confirm.`.
@@ -283,39 +289,39 @@ Attachment uploads share a `setupUpload()` helper that calls `resolveFile()` wit
 
 ### 6.5 Cross-cutting CLI infrastructure
 
-| File | Role |
-| --- | --- |
-| `auth.ts` | `resolveAuth(flags, env)` — flag overrides env; returns tagged union. |
-| `output.ts` | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
-| `flags.ts` | `CLI_OPTIONS` (parseArgs table) + `KNOWN_FLAGS` (Set). Single source of truth — tests lock it against drift. |
-| `ids.ts` | `parseId` / `optInt` with consistent error shapes. |
-| `body.ts` | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates. |
-| `stdin.ts` | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads. |
-| `file-input.ts` | `resolveFile` — stats `--file`, rejects non-regular files, reads bytes only when `read: true`. |
-| `file-output.ts` | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection. |
-| `sanitize.ts` | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection. |
-| `safe-write.ts` | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window. |
-| `handler-context.ts` | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk. |
-| `install-skill.ts` | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely. |
+| File                 | Role                                                                                                                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.ts`            | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                    |
+| `output.ts`          | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
+| `flags.ts`           | `CLI_OPTIONS` (parseArgs table) + `KNOWN_FLAGS` (Set). Single source of truth — tests lock it against drift.                                                                             |
+| `ids.ts`             | `parseId` / `optInt` with consistent error shapes.                                                                                                                                       |
+| `body.ts`            | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                           |
+| `stdin.ts`           | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                          |
+| `file-input.ts`      | `resolveFile` — stats `--file`, rejects non-regular files, reads bytes only when `read: true`.                                                                                           |
+| `file-output.ts`     | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                       |
+| `sanitize.ts`        | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                 |
+| `safe-write.ts`      | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                          |
+| `handler-context.ts` | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                          |
+| `install-skill.ts`   | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                     |
 
 ### 6.6 `--dry-run`, `--yes`, `--soft` semantics
 
-- **`--dry-run` is client-side.** Every write / destructive handler checks `if (ctx.dryRun)` *before* the `--yes` gate and *before* any client call. No HTTP request leaves the process. File-input handlers pass `read: !ctx.dryRun` so even disk reads are skipped on dry-run.
+- **`--dry-run` is client-side.** Every write / destructive handler checks `if (ctx.dryRun)` _before_ the `--yes` gate and _before_ any client call. No HTTP request leaves the process. File-input handlers pass `read: !ctx.dryRun` so even disk reads are skipped on dry-run.
 - **`--yes` gates destructive ops.** Every handler whose metadata sets `destructive: true` throws `Destructive action; pass --yes to confirm.` when `!ctx.confirmDestructive`.
-- **`--soft` is server-side.** Only on `case delete`, `case delete-bulk`, `run delete`, `section delete`, `suite delete`. The handler *does* hit the API — TestRail returns affected-entity counts without performing the deletion (`soft=1` query param). Explicitly rejected on `project delete`.
+- **`--soft` is server-side.** Only on `case delete`, `case delete-bulk`, `run delete`, `section delete`, `suite delete`. The handler _does_ hit the API — TestRail returns affected-entity counts without performing the deletion (`soft=1` query param). Explicitly rejected on `project delete`.
 - **Dry-run wins.** The `if (ctx.dryRun)` branch returns before either `--yes` or `--soft` matter. Dry-run output for soft-capable deletes still records `soft` in the preview JSON for audit, but makes zero network calls.
 
 ---
 
 ## 7. Errors
 
-| Class | Thrown for | Carries |
-| --- | --- | --- |
-| `TestRailApiError` | HTTP non-2xx, network error, rate limit, timeout (408), invalid JSON, blocked redirect | `status`, `statusText`, `response` |
-| `TestRailValidationError` | Bad config (baseUrl / email / apiKey), invalid ID, invalid params, Zod failure via `handleZodError` | — |
-| `Error` (plain) | Call after `destroy()` | — |
+| Class                     | Thrown for                                                                                          | Carries                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `TestRailApiError`        | HTTP non-2xx, network error, rate limit, timeout (408), invalid JSON, blocked redirect              | `status`, `statusText`, `response` |
+| `TestRailValidationError` | Bad config (baseUrl / email / apiKey), invalid ID, invalid params, Zod failure via `handleZodError` | —                                  |
+| `Error` (plain)           | Call after `destroy()`                                                                              | —                                  |
 
-The split is intentional: `TestRailApiError` represents anything the *server* (or network) said; `TestRailValidationError` represents anything the *caller* got wrong. Plain `Error` for destroyed-client signals a programmer mistake, not a recoverable condition.
+The split is intentional: `TestRailApiError` represents anything the _server_ (or network) said; `TestRailValidationError` represents anything the _caller_ got wrong. Plain `Error` for destroyed-client signals a programmer mistake, not a recoverable condition.
 
 ---
 
@@ -323,18 +329,18 @@ The split is intentional: `TestRailApiError` represents anything the *server* (o
 
 Vitest + V8 coverage. 538 cases, 98%+ coverage. Highlights:
 
-| File | Covers |
-| --- | --- |
-| `client-endpoints.test.ts` | All API methods, CRUD paths |
-| `client-features.test.ts` | Cache, rate limiter, retry, lifecycle |
-| `client-edge-cases.test.ts` | Signal handlers, error paths, redirect blocking, SSRF guard |
-| `cli.test.ts` | CLI as subprocess — dispatch, auth, rendering, exit codes |
-| `cli-helpers.test.ts` | Pure helpers: `parseId`, `optInt`, `resolveAuth`, `renderTable`, `safeJsonStringify`, `sanitizeForTerminal`, dispatch |
-| `cli-write-handlers.test.ts` | Write-handler unit shape: happy / dry-run / body-reject / path-param-reject |
-| `cli-attachment-handlers.test.ts` | Binary I/O paths + `--yes` gating + dry-run-wins-over-soft |
-| `payload-schemas.test.ts` | Zod write-payload schemas: parse / reject / `custom_*` passthrough |
-| `exports.test.ts` | Public API stability, inheritance contract |
-| `performance.test.ts` | Concurrent request throughput |
+| File                              | Covers                                                                                                                |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `client-endpoints.test.ts`        | All API methods, CRUD paths                                                                                           |
+| `client-features.test.ts`         | Cache, rate limiter, retry, lifecycle                                                                                 |
+| `client-edge-cases.test.ts`       | Signal handlers, error paths, redirect blocking, SSRF guard                                                           |
+| `cli.test.ts`                     | CLI as subprocess — dispatch, auth, rendering, exit codes                                                             |
+| `cli-helpers.test.ts`             | Pure helpers: `parseId`, `optInt`, `resolveAuth`, `renderTable`, `safeJsonStringify`, `sanitizeForTerminal`, dispatch |
+| `cli-write-handlers.test.ts`      | Write-handler unit shape: happy / dry-run / body-reject / path-param-reject                                           |
+| `cli-attachment-handlers.test.ts` | Binary I/O paths + `--yes` gating + dry-run-wins-over-soft                                                            |
+| `payload-schemas.test.ts`         | Zod write-payload schemas: parse / reject / `custom_*` passthrough                                                    |
+| `exports.test.ts`                 | Public API stability, inheritance contract                                                                            |
+| `performance.test.ts`             | Concurrent request throughput                                                                                         |
 
 Subprocess-based CLI tests are deliberate — they verify the real entrypoint, argv parsing, exit codes, and stdout/stderr framing end-to-end, not a mocked surface.
 
@@ -342,10 +348,10 @@ Subprocess-based CLI tests are deliberate — they verify the real entrypoint, a
 
 ## 9. Generated artifacts
 
-| Artifact | Generator | Drift guard |
-| --- | --- | --- |
-| `CODEMAP.md` | `scripts/generate-codemap.js` (TS Compiler API; deterministic JSON-in-Markdown) | `npm run codemap:check` (pretest + CI) |
-| `skill/SKILL.md` | `scripts/generate-skill.js` (consumes `ACTIONS` from `src/cli/metadata.ts`) | `npm run skill:check` (git diff exit code) |
+| Artifact         | Generator                                                                       | Drift guard                                |
+| ---------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
+| `CODEMAP.md`     | `scripts/generate-codemap.js` (TS Compiler API; deterministic JSON-in-Markdown) | `npm run codemap:check` (pretest + CI)     |
+| `skill/SKILL.md` | `scripts/generate-skill.js` (consumes `ACTIONS` from `src/cli/metadata.ts`)     | `npm run skill:check` (git diff exit code) |
 
 Both are committed. Both are verified in `pretest` / `prepublishOnly`. Drift fails the build.
 
