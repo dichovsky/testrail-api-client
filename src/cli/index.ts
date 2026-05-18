@@ -147,30 +147,37 @@ async function main(): Promise<number> {
            tolerant; this catch funnels any future-Node-version edge cases
            through the controlled exit path rather than crashing the module. */
     } catch (e: unknown) {
-        process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
+        // Pre-parse failure: `values` is unavailable, so honor --quiet via
+        // a raw-argv lookup. parseArgs failures are rare under strict:false
+        // but the rule "no stderr writes under --quiet" still applies.
+        if (!process.argv.includes('--quiet')) {
+            process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
+        }
         return 1;
     }
     /* v8 ignore stop */
+
+    // Derive --quiet / --format up-front so the unknown-flag gate and the
+    // --api-key-stdin gate (both below) can route their errors through the
+    // quiet-aware `err()` helper instead of bypassing it with direct
+    // process.stderr.write calls.
+    const quiet = values['quiet'] === true;
+    const formatRaw = values['format'];
+    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
+    const { out, err } = createOutput({ quiet, format });
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
     // accept, bypassing the gate the user intended. See CTF audit #10.
     for (const key of Object.keys(values)) {
         if (!KNOWN_FLAGS.has(key)) {
-            // CTF #16: sanitize the user-controlled flag name before
-            // reflecting it back to the terminal. An argv like
-            // `--\x1b]0;evil\x07` would otherwise execute the OSC.
-            process.stderr.write(
-                `Error: unknown flag '--${sanitizeForTerminal(key)}'. Run --help for the full list.\n`,
-            );
+            // CTF #16: err() sanitizes the user-controlled flag name before
+            // reflecting it. An argv like `--\x1b]0;evil\x07` would
+            // otherwise execute the OSC. err() also honors --quiet.
+            err(`unknown flag '--${key}'. Run --help for the full list.`);
             return 1;
         }
     }
-
-    const quiet = values['quiet'] === true;
-    const formatRaw = values['format'];
-    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
-    const { out, err } = createOutput({ quiet, format });
 
     if (values['version'] === true) {
         process.stdout.write(`testrail-cli v${VERSION}\n`);
@@ -201,7 +208,10 @@ async function main(): Promise<number> {
     const pathParams: readonly string[] = rest;
 
     if (resource === undefined || resource === '' || action === undefined || action === '') {
-        process.stderr.write('Usage: testrail <resource> <action> [args] [options]\nRun with --help for details.\n');
+        // err() is the standard quiet-aware path; usage hint is structurally
+        // an error message (missing required args), so prefix-format matches
+        // every other 'Error: …' write.
+        err('Usage: testrail <resource> <action> [args] [options]. Run with --help for details.');
         return 1;
     }
 
@@ -222,9 +232,7 @@ async function main(): Promise<number> {
     let apiKeyFromStdin: string | undefined;
     if (apiKeyStdin) {
         if (process.stdin.isTTY !== false) {
-            process.stderr.write(
-                'Error: --api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).\n',
-            );
+            err('--api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).');
             return 1;
         }
         try {
@@ -234,13 +242,11 @@ async function main(): Promise<number> {
             // API key; if it's exceeded the user piped the wrong thing.
             apiKeyFromStdin = readBoundedStdin(MAX_STDIN_BYTES).trim();
         } catch (e: unknown) {
-            process.stderr.write(
-                `Error: cannot read --api-key-stdin: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`,
-            );
+            err(`cannot read --api-key-stdin: ${e instanceof Error ? e.message : String(e)}`);
             return 1;
         }
         if (apiKeyFromStdin === '') {
-            process.stderr.write('Error: --api-key-stdin received an empty stdin input.\n');
+            err('--api-key-stdin received an empty stdin input.');
             return 1;
         }
     }

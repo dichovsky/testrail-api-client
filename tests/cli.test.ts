@@ -24,6 +24,35 @@ vi.mock('node:dns/promises', () => ({
     lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
 }));
 
+// Stub readBoundedStdin so tests can simulate piped-stdin input for the
+// --api-key-stdin happy path without spawning a real subprocess. Default
+// behaviour: throw, so any test that accidentally trips the bounded
+// reader without setting up the stub fails loudly instead of returning
+// the test process's actual stdin contents. vi.hoisted is required
+// because vi.mock factories cannot capture file-scope variables (they're
+// lifted above all imports).
+const stubbedStdin = vi.hoisted(() => ({
+    value: null as string | null,
+}));
+vi.mock('../src/cli/stdin.js', () => ({
+    readBoundedStdin: (): string => {
+        if (stubbedStdin.value === null) {
+            throw new Error('readBoundedStdin not stubbed for this test');
+        }
+        return stubbedStdin.value;
+    },
+}));
+
+async function withStubbedStdin<T>(value: string, fn: () => Promise<T>): Promise<T> {
+    const orig = stubbedStdin.value;
+    stubbedStdin.value = value;
+    try {
+        return await fn();
+    } finally {
+        stubbedStdin.value = orig;
+    }
+}
+
 // ── Shared mock data ──────────────────────────────────────────────────────────
 
 const MOCK_PROJECT = { id: 1, name: 'Demo', suite_mode: 1, url: 'https://example.testrail.io/projects/view/1' };
@@ -262,6 +291,102 @@ describe('CLI', () => {
                 { TESTRAIL_API_KEY: 'test-api-key' },
             );
             expect(exitCodes).toContain(0);
+        });
+
+        it('--api-key-stdin reads the key from stdin and authenticates without TESTRAIL_API_KEY env (CTF #11 happy path)', async () => {
+            // Simulate piped stdin: set isTTY=false so the gate doesn't
+            // reject, and stub readBoundedStdin to return the test key
+            // (trailing newline simulates `echo $KEY |` behaviour;
+            // index.ts .trim()s it).
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes } = await withStubbedStdin('sk-from-stdin-test\n', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [jsonResponse(MOCK_PROJECT)],
+                        {}, // No env vars — credential comes from stubbed stdin
+                    ),
+                );
+                expect(exitCodes).toContain(0);
+                // Verify the API call carried the stdin-supplied key in the
+                // Authorization header (base64(email:apiKey)).
+                const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+                const headers = init?.headers as Record<string, string>;
+                const expectedAuth = `Basic ${Buffer.from('test@example.com:sk-from-stdin-test').toString('base64')}`;
+                expect(headers?.['Authorization']).toBe(expectedAuth);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin rejects an empty stdin payload with exit 1', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes, stderr } = await withStubbedStdin('   \n', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [],
+                        {},
+                    ),
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/--api-key-stdin received an empty stdin input/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin error paths honor --quiet (suppress stderr while still exiting 1)', async () => {
+            // CTF #11 + Copilot review: error paths in main() that wrote
+            // directly to stderr bypassed --quiet. Verify the empty-stdin
+            // rejection (the cheapest error path to trigger) honours
+            // --quiet now that it routes through err().
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes, stderr } = await withStubbedStdin('', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            '--quiet',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [],
+                        {},
+                    ),
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toBe('');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('--api-key-stdin requires piped stdin (rejects when stdin is a TTY)', async () => {
@@ -969,6 +1094,16 @@ describe('CLI', () => {
             const { exitCodes, stderr } = await runCli(['project', 'list', '--limmit', '10']);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/unknown flag '--limmit'/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('unknown flag rejection honors --quiet (suppress stderr while still exiting 1)', async () => {
+            // Copilot review: the strict-flag gate wrote directly to stderr,
+            // bypassing the --quiet contract. Verify it now routes through
+            // err() which suppresses output when quiet is set.
+            const { exitCodes, stderr } = await runCli(['--quiet', 'project', 'list', '--limmit', '10']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toBe('');
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });
