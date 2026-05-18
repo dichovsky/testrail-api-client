@@ -45,6 +45,16 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 🐛 SEC #28: throwing `destroy()` aborts cleanup of later clients
 - [ ] 🟡 🐛 SEC #29: `validateEntryId` accepts any non-empty string
 
+## 🏗️ Architecture
+
+- [ ] 🟡 ♻️ ARCH #1: Extract `HttpPipeline` seam — collapse `request<T>`/`requestText`/`requestMultipart`/`requestBinary` (`client-core.ts`) into one pipeline + four response-parser adapters; concentrate retry-eligibility matrix
+- [ ] 🟢 ♻️ ARCH #2: Write-handler factory — collapse 22 `cli/handlers/*-write.ts` files into declarative specs over a `createWriteHandler({pathParams, schema, clientMethod, destructive?})` factory
+- [ ] 🟡 ♻️ ARCH #3: Promote `ACTIONS` (`cli/metadata.ts`) to single source of truth — generate `dispatch.ts` HANDLERS and `cli/index.ts` HELP text from it; eliminate triplicated action metadata
+- [ ] 🟡 ♻️ ARCH #4: `Endpoint` registry — colocate method/URL/payload-schema/response-schema per endpoint; generate `modules/*.ts` methods and CLI handlers as adapters (depends on #2 + #3)
+- [ ] 🟢 ♻️ ARCH #5: Revisit `modules/*.ts` thin wrappers (`validateId` + `requestParsed`) — collapses naturally once #4 lands; standalone value low
+- [ ] 🟢 ♻️ ARCH #6: Extract pure helpers (`validateId`/`validateEntryId`/`validatePaginationParams`/`buildEndpoint` at `client-core.ts:444-493`) into standalone modules — they don't read `this`; today every caller needs a `TestRailClientCore` reference; would also let `cli/ids.ts:parseId` reuse the rule instead of duplicating it
+- [ ] 🟡 ♻️ ARCH #7: Eliminate hand-written 1517-line facade (`client.ts`) — 160+ wrapper methods forwarding to modules; either deprecate flat surface in favor of namespaced (`client.projects.getProject`) or generate the facade from module signatures at build time; contradicts ARCHITECTURE.md §3.2 — reopen because JSDoc/types are no longer the load-bearing reason (modules carry the same)
+
 ## 🧪 QA / Verification
 
 - [ ] 🟡 🧪 QA: snapshot test for recipe code blocks
