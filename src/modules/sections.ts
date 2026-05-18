@@ -57,6 +57,8 @@ export class SectionModule {
      */
     async deleteSection(sectionId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteSection(sectionId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteSection(sectionId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteSection(sectionId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(sectionId, 'sectionId');
         const endpoint = this.client.buildEndpoint(`delete_section/${sectionId}`, {

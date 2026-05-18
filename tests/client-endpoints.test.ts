@@ -3379,5 +3379,36 @@ describe('TestRailClient', () => {
         it('deleteSuite: rejects non-positive id under soft mode too', async () => {
             await expect(client.deleteSuite(0, { soft: true })).rejects.toThrow('suiteId must be a positive integer');
         });
+
+        /**
+         * Regression for the PR-71 review: callers building a
+         * `SoftDeleteOptions` value with a dynamically-computed `soft`
+         * (boolean, not a literal) must type-check against every delete
+         * overload. The literal-true / literal-false overloads still give
+         * precise return types when `soft` is statically known; the
+         * general boolean overload returns the union for the dynamic case.
+         */
+        it('accepts a dynamic SoftDeleteOptions variable (boolean soft) on every delete overload', async () => {
+            const dyn: import('../src/types.js').SoftDeleteOptions = { soft: Math.random() > 2 }; // always false
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            // Each call below must type-check despite the boolean (non-literal) `soft`.
+            const a = await client.deleteCase(1, dyn);
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            const b = await client.deleteRun(1, dyn);
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            const c = await client.deleteSection(1, dyn);
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            const d = await client.deleteSuite(1, dyn);
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            const e = await client.deleteCases(1, 1, { case_ids: [1] }, dyn);
+            // All return the union — under dyn={soft:false} the runtime
+            // value is undefined; under {soft:true} it would be a
+            // SoftDeletePreview. The point is the call site compiles.
+            expect(a).toBeUndefined();
+            expect(b).toBeUndefined();
+            expect(c).toBeUndefined();
+            expect(d).toBeUndefined();
+            expect(e).toBeUndefined();
+        });
     });
 });

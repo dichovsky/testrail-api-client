@@ -103,6 +103,12 @@ export class CaseModule {
      */
     async deleteCase(caseId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteCase(caseId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload for callers passing a `SoftDeleteOptions` variable
+    // where `soft` is computed at runtime (boolean). The literal-true /
+    // literal-false overloads above give precise return types when the
+    // flag is statically known; this third public overload accepts the
+    // dynamic case and returns the union, matching the implementation.
+    async deleteCase(caseId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteCase(caseId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(caseId, 'caseId');
         const endpoint = this.client.buildEndpoint(`delete_case/${caseId}`, {
@@ -149,6 +155,13 @@ export class CaseModule {
         payload: DeleteCasesPayload,
         options?: SoftDeleteOptions & { soft?: false },
     ): Promise<void>;
+    // General overload for dynamic `soft` (see deleteCase above).
+    async deleteCases(
+        suiteId: number,
+        projectId: number,
+        payload: DeleteCasesPayload,
+        options: SoftDeleteOptions,
+    ): Promise<void | SoftDeletePreview>;
     async deleteCases(
         suiteId: number,
         projectId: number,

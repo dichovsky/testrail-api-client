@@ -71,6 +71,9 @@ export class RunModule {
      */
     async deleteRun(runId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteRun(runId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: accepts a `SoftDeleteOptions` variable with a
+    // boolean `soft` computed at runtime; returns the union.
+    async deleteRun(runId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteRun(runId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(runId, 'runId');
         const endpoint = this.client.buildEndpoint(`delete_run/${runId}`, {

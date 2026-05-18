@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.1.0"
   },
-  "sourceHash": "c96a7ba43fdfcc08d2daf453545e423549c2b6ebf80765ecf17397079178d1ed",
+  "sourceHash": "5d02fa52b95208e7de019be1a465873e215efe0ee9b6dcb964b901317b9cbfe5",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -898,6 +898,15 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "file": "src/schemas.ts",
       "line": 471,
       "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().optional(), case_ids: z.array(z.number()).optional(), created_on: z.number().optional(), created_by:…"
+    },
+    {
+      "name": "SoftDeleteOptions",
+      "kind": "interface",
+      "file": "src/types.ts",
+      "line": 291,
+      "signature": "export interface SoftDeleteOptions { soft?: boolean; }",
+      "jsdoc": "Options for delete endpoints that support TestRail's `soft=1` server-side preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`, `delete_suite`). `delete_milestone` and `delete_project` do not accept `soft`; passing this option to those endpoints would be a no-op server-side, so the CLI rejects it instead to keep destructive intent unambiguous.",
+      "typeOnly": true
     },
     {
       "name": "SoftDeletePreview",
@@ -2324,7 +2333,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 144,
+          "line": 148,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2983,37 +2992,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 249
+              "line": 250
+            },
+            {
+              "name": "deleteSuite",
+              "kind": "method",
+              "line": 251
             },
             {
               "name": "getSection",
               "kind": "method",
-              "line": 263
+              "line": 265
             },
             {
               "name": "getSections",
               "kind": "method",
-              "line": 275
+              "line": 277
             },
             {
               "name": "addSection",
               "kind": "method",
-              "line": 287
+              "line": 289
             },
             {
               "name": "updateSection",
               "kind": "method",
-              "line": 296
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 306
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 307
+              "line": 298
             },
             {
               "name": "deleteSection",
@@ -3021,54 +3025,69 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 308
             },
             {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 309
+            },
+            {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 311
+            },
+            {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 312
+            },
+            {
               "name": "moveSection",
               "kind": "method",
-              "line": 323
+              "line": 327
             },
             {
               "name": "getCase",
               "kind": "method",
-              "line": 334
+              "line": 338
             },
             {
               "name": "getCases",
               "kind": "method",
-              "line": 355
+              "line": 359
             },
             {
               "name": "addCase",
               "kind": "method",
-              "line": 364
+              "line": 368
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 373
+              "line": 377
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 384
+              "line": 388
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 385
+              "line": 389
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 386
+              "line": 391
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 392
             },
             {
               "name": "updateCases",
               "kind": "method",
-              "line": 398
-            },
-            {
-              "name": "deleteCases",
-              "kind": "method",
-              "line": 409
+              "line": 404
             },
             {
               "name": "deleteCases",
@@ -3081,479 +3100,494 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 421
             },
             {
+              "name": "deleteCases",
+              "kind": "method",
+              "line": 428
+            },
+            {
+              "name": "deleteCases",
+              "kind": "method",
+              "line": 434
+            },
+            {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 441
+              "line": 454
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 450
+              "line": 463
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 459
+              "line": 472
             },
             {
               "name": "getPlan",
               "kind": "method",
-              "line": 470
+              "line": 483
             },
             {
               "name": "getPlans",
               "kind": "method",
-              "line": 482
+              "line": 495
             },
             {
               "name": "addPlan",
               "kind": "method",
-              "line": 491
+              "line": 504
             },
             {
               "name": "updatePlan",
               "kind": "method",
-              "line": 500
+              "line": 513
             },
             {
               "name": "closePlan",
               "kind": "method",
-              "line": 509
+              "line": 522
             },
             {
               "name": "deletePlan",
               "kind": "method",
-              "line": 518
+              "line": 531
             },
             {
               "name": "addPlanEntry",
               "kind": "method",
-              "line": 527
+              "line": 540
             },
             {
               "name": "updatePlanEntry",
               "kind": "method",
-              "line": 536
+              "line": 549
             },
             {
               "name": "deletePlanEntry",
               "kind": "method",
-              "line": 545
+              "line": 558
             },
             {
               "name": "addRunToPlanEntry",
               "kind": "method",
-              "line": 554
+              "line": 567
             },
             {
               "name": "updateRunInPlanEntry",
               "kind": "method",
-              "line": 563
+              "line": 576
             },
             {
               "name": "deleteRunFromPlanEntry",
               "kind": "method",
-              "line": 572
+              "line": 585
             },
             {
               "name": "getRun",
               "kind": "method",
-              "line": 583
+              "line": 596
             },
             {
               "name": "getRuns",
               "kind": "method",
-              "line": 595
+              "line": 608
             },
             {
               "name": "addRun",
               "kind": "method",
-              "line": 604
+              "line": 617
             },
             {
               "name": "updateRun",
               "kind": "method",
-              "line": 613
+              "line": 626
             },
             {
               "name": "closeRun",
               "kind": "method",
-              "line": 622
+              "line": 635
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 632
+              "line": 645
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 633
+              "line": 646
             },
             {
               "name": "deleteRun",
-              "kind": "method",
-              "line": 634
-            },
-            {
-              "name": "getTest",
               "kind": "method",
               "line": 648
             },
             {
+              "name": "deleteRun",
+              "kind": "method",
+              "line": 649
+            },
+            {
+              "name": "getTest",
+              "kind": "method",
+              "line": 663
+            },
+            {
               "name": "getTests",
               "kind": "method",
-              "line": 659
+              "line": 674
             },
             {
               "name": "getResults",
               "kind": "method",
-              "line": 673
+              "line": 688
             },
             {
               "name": "getResultsForCase",
               "kind": "method",
-              "line": 686
+              "line": 701
             },
             {
               "name": "getResultsForRun",
               "kind": "method",
-              "line": 698
+              "line": 713
             },
             {
               "name": "addResult",
               "kind": "method",
-              "line": 707
+              "line": 722
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 716
+              "line": 731
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 725
+              "line": 740
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 734
+              "line": 749
             },
             {
               "name": "getMilestone",
               "kind": "method",
-              "line": 745
+              "line": 760
             },
             {
               "name": "getMilestones",
               "kind": "method",
-              "line": 757
+              "line": 772
             },
             {
               "name": "addMilestone",
               "kind": "method",
-              "line": 769
+              "line": 784
             },
             {
               "name": "updateMilestone",
               "kind": "method",
-              "line": 781
+              "line": 796
             },
             {
               "name": "deleteMilestone",
               "kind": "method",
-              "line": 792
+              "line": 807
             },
             {
               "name": "getUser",
               "kind": "method",
-              "line": 805
+              "line": 820
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 816
+              "line": 831
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 829
+              "line": 844
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 837
+              "line": 852
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 847
+              "line": 862
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 859
+              "line": 874
             },
             {
               "name": "getStatuses",
               "kind": "method",
-              "line": 869
+              "line": 884
             },
             {
               "name": "getCaseStatuses",
               "kind": "method",
-              "line": 878
+              "line": 893
             },
             {
               "name": "getPriorities",
               "kind": "method",
-              "line": 888
+              "line": 903
             },
             {
               "name": "getResultFields",
               "kind": "method",
-              "line": 898
+              "line": 913
             },
             {
               "name": "getCaseFields",
               "kind": "method",
-              "line": 908
+              "line": 923
             },
             {
               "name": "addCaseField",
               "kind": "method",
-              "line": 928
+              "line": 943
             },
             {
               "name": "getCaseTypes",
               "kind": "method",
-              "line": 936
+              "line": 951
             },
             {
               "name": "getTemplates",
               "kind": "method",
-              "line": 949
+              "line": 964
             },
             {
               "name": "getConfigurations",
               "kind": "method",
-              "line": 962
+              "line": 977
             },
             {
               "name": "addConfigurationGroup",
               "kind": "method",
-              "line": 974
+              "line": 989
             },
             {
               "name": "updateConfigurationGroup",
               "kind": "method",
-              "line": 986
+              "line": 1001
             },
             {
               "name": "deleteConfigurationGroup",
               "kind": "method",
-              "line": 1000
+              "line": 1015
             },
             {
               "name": "addConfiguration",
               "kind": "method",
-              "line": 1012
+              "line": 1027
             },
             {
               "name": "updateConfiguration",
               "kind": "method",
-              "line": 1024
+              "line": 1039
             },
             {
               "name": "deleteConfiguration",
               "kind": "method",
-              "line": 1035
+              "line": 1050
             },
             {
               "name": "getRoles",
               "kind": "method",
-              "line": 1045
+              "line": 1060
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 1058
+              "line": 1073
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 1066
+              "line": 1081
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 1076
+              "line": 1091
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 1088
+              "line": 1103
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 1099
+              "line": 1114
             },
             {
               "name": "getAttachmentsForCase",
               "kind": "method",
-              "line": 1112
+              "line": 1127
             },
             {
               "name": "getAttachmentsForRun",
               "kind": "method",
-              "line": 1123
+              "line": 1138
             },
             {
               "name": "getAttachmentsForTest",
               "kind": "method",
-              "line": 1134
+              "line": 1149
             },
             {
               "name": "getAttachmentsForPlan",
               "kind": "method",
-              "line": 1145
+              "line": 1160
             },
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 1157
+              "line": 1172
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 1168
+              "line": 1183
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 1181
+              "line": 1196
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 1198
+              "line": 1213
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 1215
+              "line": 1230
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 1232
+              "line": 1247
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 1250
+              "line": 1265
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 1266
+              "line": 1281
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 1283
+              "line": 1298
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 1296
+              "line": 1311
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 1313
+              "line": 1328
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 1324
+              "line": 1339
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 1336
+              "line": 1351
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 1348
+              "line": 1363
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 1359
+              "line": 1374
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 1368
+              "line": 1383
             },
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 1381
+              "line": 1396
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 1393
+              "line": 1408
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 1405
+              "line": 1420
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 1416
+              "line": 1431
             },
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 1429
+              "line": 1444
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 1440
+              "line": 1455
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 1452
+              "line": 1467
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 1464
+              "line": 1479
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 1475
+              "line": 1490
             },
             {
               "name": "getReports",
               "kind": "method",
-              "line": 1488
+              "line": 1503
             },
             {
               "name": "runReport",
               "kind": "method",
-              "line": 1499
+              "line": 1514
             }
           ]
         }
@@ -3897,17 +3931,17 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 106
+              "line": 111
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 112
             },
             {
               "name": "updateCases",
               "kind": "method",
-              "line": 128
-            },
-            {
-              "name": "deleteCases",
-              "kind": "method",
-              "line": 140
+              "line": 134
             },
             {
               "name": "deleteCases",
@@ -3920,19 +3954,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 152
             },
             {
+              "name": "deleteCases",
+              "kind": "method",
+              "line": 159
+            },
+            {
+              "name": "deleteCases",
+              "kind": "method",
+              "line": 165
+            },
+            {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 174
+              "line": 187
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 186
+              "line": 199
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 191
+              "line": 204
             }
           ]
         }
@@ -4466,7 +4510,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 74
+              "line": 76
+            },
+            {
+              "name": "deleteRun",
+              "kind": "method",
+              "line": 77
             }
           ]
         }
@@ -4527,12 +4576,17 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 60
+              "line": 61
+            },
+            {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 62
             },
             {
               "name": "moveSection",
               "kind": "method",
-              "line": 83
+              "line": 85
             }
           ]
         }
@@ -4656,7 +4710,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 70
+              "line": 71
+            },
+            {
+              "name": "deleteSuite",
+              "kind": "method",
+              "line": 72
             }
           ]
         }

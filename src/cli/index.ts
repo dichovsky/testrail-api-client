@@ -119,10 +119,14 @@ Options:
   --help                Show this help
   --version             Print version
 
-For body-bearing write actions (all except 'run close'), exactly one body source
-is required (--data | --data-file | stdin). Stdin is auto-detected when input
-is piped (process.stdin.isTTY === false). Attachment upload actions take a
-binary file via --file <path> and do not accept --data/--data-file/stdin.
+For body-bearing write actions, exactly one body source is required
+(--data | --data-file | stdin). Stdin is auto-detected when input is piped
+(process.stdin.isTTY === false). The following write actions take NO body
+(any --data / --data-file / stdin is ignored): run close, attachment delete,
+case delete, run delete, suite delete, section delete, milestone delete,
+project delete — they accept only a positional id (and optional --soft on the
+soft-capable deletes). Attachment upload actions take a binary file via
+--file <path> and do not accept --data/--data-file/stdin.
 Destructive actions (attachment delete, case delete, case delete-bulk, run close,
 run delete, section delete, suite delete, milestone delete, project delete)
 require --yes; pass --dry-run together with --yes to preview without making the

@@ -67,6 +67,8 @@ export class SuiteModule {
      */
     async deleteSuite(suiteId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteSuite(suiteId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
+    // General overload: dynamic boolean `soft` → union return.
+    async deleteSuite(suiteId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteSuite(suiteId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
         this.client.validateId(suiteId, 'suiteId');
         const endpoint = this.client.buildEndpoint(`delete_suite/${suiteId}`, {

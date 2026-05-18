@@ -158,4 +158,5 @@ export type {
     HistoryEntry,
     HistoryChange,
     CaseStatus,
+    SoftDeleteOptions,
 } from './types.js';
