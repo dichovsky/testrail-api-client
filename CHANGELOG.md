@@ -5,6 +5,50 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] — 2026-05-18 — Fix schema-invalid responses poisoning the GET cache
+
+Closes [BACKLOG #9](BACKLOG.archive.md). Before this release, the GET cache
+recorded the raw JSON-parsed response **before** the module validated it with
+Zod. When TestRail returned a schema-invalid body, the bad data persisted for
+the full TTL — every subsequent identical GET returned the same poisoned
+value and re-threw the same `TestRailValidationError`, with no way to recover
+short of calling `clearCache()` or waiting out the TTL. The failure mode
+masked transient upstream bugs as permanent client failures.
+
+### Fixed
+
+- **GET cache no longer stores schema-invalid responses.** Validation now
+  happens before the cache write, so a malformed payload triggers a single
+  `TestRailValidationError` and the next call re-fetches fresh. Previously
+  malformed responses stuck for `cacheTtl` ms (5 minutes by default).
+
+### Added
+
+- `TestRailClientCore.requestParsed<T>(method, endpoint, schema, data?)` —
+  new public method that performs the request, validates the response
+  against a Zod schema, and writes the GET cache only after validation
+  succeeds. Used internally by every domain module that returns a typed
+  response. Prefer this over the legacy `parse(schema, await request(...))`
+  pattern in new code. Validated responses live in a separate cache
+  namespace (`PARSED:GET:${endpoint}`) so they cannot collide with raw
+  entries written by direct `request()` callers — neither side can poison
+  the other, even when both target the same endpoint.
+
+### Changed
+
+- All 17 domain modules now use `requestParsed` for typed responses.
+  `request()` and `parse()` remain public and back-compatible — external
+  callers that invoke them directly retain the previous semantics, including
+  the legacy GET cache-write inside `request()`.
+
+### Migration
+
+No action required. The behavior change is strictly opt-out of a buggy
+caching path: every existing caller benefits automatically. Custom code that
+imports `request()` + `parse()` from `TestRailClientCore` directly continues
+to work; switch to `requestParsed` to opt into the cache-poisoning fix on
+your own endpoints.
+
 ## [3.1.0] — 2026-05-18 — Destructive single-entity delete CLI surface
 
 Closes the remaining destructive-delete gap in the CLI surface. The

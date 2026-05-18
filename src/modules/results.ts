@@ -19,10 +19,14 @@ export class ResultModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw)
-                .results ?? []
+            (
+                await this.client.requestParsed<{ results?: Result[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ results: z.array(ResultSchema).optional() }),
+                )
+            ).results ?? []
         );
     }
 
@@ -38,10 +42,14 @@ export class ResultModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw)
-                .results ?? []
+            (
+                await this.client.requestParsed<{ results?: Result[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ results: z.array(ResultSchema).optional() }),
+                )
+            ).results ?? []
         );
     }
 
@@ -56,43 +64,45 @@ export class ResultModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ results?: Result[] }>(z.object({ results: z.array(ResultSchema).optional() }), raw)
-                .results ?? []
+            (
+                await this.client.requestParsed<{ results?: Result[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ results: z.array(ResultSchema).optional() }),
+                )
+            ).results ?? []
         );
     }
 
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
         this.client.validateId(testId, 'testId');
-        return this.client.parse<Result>(
-            ResultSchema,
-            await this.client.request<unknown>('POST', `add_result/${testId}`, payload),
-        );
+        return this.client.requestParsed<Result>('POST', `add_result/${testId}`, ResultSchema, payload);
     }
 
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
         this.client.validateId(runId, 'runId');
         this.client.validateId(caseId, 'caseId');
-        return this.client.parse<Result>(
+        return this.client.requestParsed<Result>(
+            'POST',
+            `add_result_for_case/${runId}/${caseId}`,
             ResultSchema,
-            await this.client.request<unknown>('POST', `add_result_for_case/${runId}/${caseId}`, payload),
+            payload,
         );
     }
 
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
-        return this.client.parse<Result[]>(
+        return this.client.requestParsed<Result[]>(
+            'POST',
+            `add_results_for_cases/${runId}`,
             z.array(ResultSchema),
-            await this.client.request<unknown>('POST', `add_results_for_cases/${runId}`, payload),
+            payload,
         );
     }
 
     async addResults(runId: number, payload: AddResultsPayload): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
-        return this.client.parse<Result[]>(
-            z.array(ResultSchema),
-            await this.client.request<unknown>('POST', `add_results/${runId}`, payload),
-        );
+        return this.client.requestParsed<Result[]>('POST', `add_results/${runId}`, z.array(ResultSchema), payload);
     }
 }

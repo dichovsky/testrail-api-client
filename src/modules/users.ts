@@ -11,7 +11,7 @@ export class UsersModule {
 
     async getUser(userId: number): Promise<User> {
         this.client.validateId(userId, 'userId');
-        return this.client.parse<User>(UserSchema, await this.client.request<unknown>('GET', `get_user/${userId}`));
+        return this.client.requestParsed<User>('GET', `get_user/${userId}`, UserSchema);
     }
 
     async getUserByEmail(email: string): Promise<User> {
@@ -20,7 +20,7 @@ export class UsersModule {
         }
 
         const endpoint = this.client.buildEndpoint('get_user_by_email', { email });
-        return this.client.parse<User>(UserSchema, await this.client.request<unknown>('GET', endpoint));
+        return this.client.requestParsed<User>('GET', endpoint, UserSchema);
     }
 
     async getUsers(limit?: number, offset?: number, projectId?: number): Promise<User[]> {
@@ -33,51 +33,47 @@ export class UsersModule {
             limit,
             offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
 
         return (
-            this.client.parse<{ users?: User[] }>(z.object({ users: z.array(UserSchema).optional() }), raw).users ?? []
+            (
+                await this.client.requestParsed<{ users?: User[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ users: z.array(UserSchema).optional() }),
+                )
+            ).users ?? []
         );
     }
 
     async getCurrentUser(): Promise<User> {
-        return this.client.parse<User>(UserSchema, await this.client.request<unknown>('GET', 'get_current_user'));
+        return this.client.requestParsed<User>('GET', 'get_current_user', UserSchema);
     }
 
     async addUser(payload: AddUserPayload): Promise<User> {
-        return this.client.parse<User>(UserSchema, await this.client.request<unknown>('POST', 'add_user', payload));
+        return this.client.requestParsed<User>('POST', 'add_user', UserSchema, payload);
     }
 
     async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
         this.client.validateId(userId, 'userId');
-        return this.client.parse<User>(
-            UserSchema,
-            await this.client.request<unknown>('POST', `update_user/${userId}`, payload),
-        );
+        return this.client.requestParsed<User>('POST', `update_user/${userId}`, UserSchema, payload);
     }
 
     async getGroup(groupId: number): Promise<Group> {
         this.client.validateId(groupId, 'groupId');
-        return this.client.parse<Group>(GroupSchema, await this.client.request<unknown>('GET', `get_group/${groupId}`));
+        return this.client.requestParsed<Group>('GET', `get_group/${groupId}`, GroupSchema);
     }
 
     async getGroups(): Promise<Group[]> {
-        return this.client.parse<Group[]>(
-            z.array(GroupSchema),
-            await this.client.request<unknown>('GET', 'get_groups'),
-        );
+        return this.client.requestParsed<Group[]>('GET', 'get_groups', z.array(GroupSchema));
     }
 
     async addGroup(payload: AddGroupPayload): Promise<Group> {
-        return this.client.parse<Group>(GroupSchema, await this.client.request<unknown>('POST', 'add_group', payload));
+        return this.client.requestParsed<Group>('POST', 'add_group', GroupSchema, payload);
     }
 
     async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
         this.client.validateId(groupId, 'groupId');
-        return this.client.parse<Group>(
-            GroupSchema,
-            await this.client.request<unknown>('POST', `update_group/${groupId}`, payload),
-        );
+        return this.client.requestParsed<Group>('POST', `update_group/${groupId}`, GroupSchema, payload);
     }
 
     async deleteGroup(groupId: number): Promise<void> {

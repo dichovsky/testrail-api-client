@@ -9,7 +9,7 @@ export class RunModule {
 
     async getRun(runId: number): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.parse<Run>(RunSchema, await this.client.request<unknown>('GET', `get_run/${runId}`));
+        return this.client.requestParsed<Run>('GET', `get_run/${runId}`, RunSchema);
     }
 
     async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
@@ -38,29 +38,30 @@ export class RunModule {
             limit,
             offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
-        return this.client.parse<{ runs?: Run[] }>(z.object({ runs: z.array(RunSchema).optional() }), raw).runs ?? [];
+        return (
+            (
+                await this.client.requestParsed<{ runs?: Run[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ runs: z.array(RunSchema).optional() }),
+                )
+            ).runs ?? []
+        );
     }
 
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Run>(
-            RunSchema,
-            await this.client.request<unknown>('POST', `add_run/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Run>('POST', `add_run/${projectId}`, RunSchema, payload);
     }
 
     async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.parse<Run>(
-            RunSchema,
-            await this.client.request<unknown>('POST', `update_run/${runId}`, payload),
-        );
+        return this.client.requestParsed<Run>('POST', `update_run/${runId}`, RunSchema, payload);
     }
 
     async closeRun(runId: number): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.parse<Run>(RunSchema, await this.client.request<unknown>('POST', `close_run/${runId}`));
+        return this.client.requestParsed<Run>('POST', `close_run/${runId}`, RunSchema);
     }
 
     /**

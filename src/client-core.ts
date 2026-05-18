@@ -971,4 +971,59 @@ export class TestRailClientCore {
             throw err;
         }
     }
+
+    /**
+     * Performs a request and validates the response against a Zod schema in a
+     * single step. For GET requests, the validated result is cached only after
+     * successful validation — schema-invalid responses are never written to the
+     * cache, eliminating the cache-poisoning failure mode where a malformed
+     * response would persist for the full TTL and re-throw on every subsequent
+     * call to the same endpoint.
+     *
+     * Mirrors the retry / rate-limit / timeout / DNS-validation pipeline of
+     * {@link request}. POST responses are validated but not cached; POSTs still
+     * clear the cache (handled inside {@link request}).
+     *
+     * Prefer this over `parse(schema, await request<unknown>(...))` in new code.
+     *
+     * @param method - HTTP method (GET, POST)
+     * @param endpoint - API endpoint path (without base URL prefix)
+     * @param schema - Zod schema to validate the response against
+     * @param data - Optional request body
+     * @throws {TestRailApiError} When the API request fails
+     * @throws {TestRailValidationError} When the response does not conform to schema
+     * @throws {Error} When called after `destroy()`
+     */
+    public async requestParsed<T>(method: string, endpoint: string, schema: ZodType, data?: unknown): Promise<T> {
+        // Validated responses live in their own cache namespace so they cannot
+        // collide with raw entries written by direct `request<T>('GET', ...)`
+        // callers. Without the split, two failure modes would re-emerge:
+        //   (1) a raw response cached by `request()` could be returned here
+        //       unvalidated, re-introducing the original cache-poisoning bug;
+        //   (2) a Zod-stripped/transformed value written here could surface to
+        //       a later `request()` caller that expects the raw JSON body.
+        // `clearCache()` (called by every POST) wipes both namespaces, so
+        // mutation invalidation still works correctly.
+        const cacheKey = method === 'GET' ? `PARSED:${method}:${endpoint}` : undefined;
+
+        if (cacheKey !== undefined) {
+            const cachedData = this.getCachedData<T>(cacheKey);
+            if (cachedData !== undefined) {
+                return cachedData;
+            }
+        }
+
+        // Use skipCache=true to bypass request()'s own cache write — we only
+        // want to cache after validation has succeeded. POST's cache-clear
+        // still fires inside request() because clearCache() is unconditional
+        // for non-GET methods regardless of skipCache.
+        const raw = await this.request<unknown>(method, endpoint, data, 0, true);
+        const validated = this.parse<T>(schema, raw);
+
+        if (cacheKey !== undefined) {
+            this.setCachedData(cacheKey, validated);
+        }
+
+        return validated;
+    }
 }

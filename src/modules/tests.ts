@@ -9,7 +9,7 @@ export class TestModule {
 
     async getTest(testId: number): Promise<Test> {
         this.client.validateId(testId, 'testId');
-        return this.client.parse<Test>(TestSchema, await this.client.request<unknown>('GET', `get_test/${testId}`));
+        return this.client.requestParsed<Test>('GET', `get_test/${testId}`, TestSchema);
     }
 
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
@@ -20,9 +20,14 @@ export class TestModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<unknown>('GET', endpoint);
         return (
-            this.client.parse<{ tests?: Test[] }>(z.object({ tests: z.array(TestSchema).optional() }), raw).tests ?? []
+            (
+                await this.client.requestParsed<{ tests?: Test[] }>(
+                    'GET',
+                    endpoint,
+                    z.object({ tests: z.array(TestSchema).optional() }),
+                )
+            ).tests ?? []
         );
     }
 }

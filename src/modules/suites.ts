@@ -14,7 +14,7 @@ export class SuiteModule {
      */
     async getSuite(suiteId: number): Promise<Suite> {
         this.client.validateId(suiteId, 'suiteId');
-        return this.client.parse<Suite>(SuiteSchema, await this.client.request<unknown>('GET', `get_suite/${suiteId}`));
+        return this.client.requestParsed<Suite>('GET', `get_suite/${suiteId}`, SuiteSchema);
     }
 
     /**
@@ -24,10 +24,7 @@ export class SuiteModule {
      */
     async getSuites(projectId: number): Promise<Suite[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Suite[]>(
-            z.array(SuiteSchema),
-            await this.client.request<unknown>('GET', `get_suites/${projectId}`),
-        );
+        return this.client.requestParsed<Suite[]>('GET', `get_suites/${projectId}`, z.array(SuiteSchema));
     }
 
     /**
@@ -37,10 +34,7 @@ export class SuiteModule {
      */
     async addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Suite>(
-            SuiteSchema,
-            await this.client.request<unknown>('POST', `add_suite/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Suite>('POST', `add_suite/${projectId}`, SuiteSchema, payload);
     }
 
     /**
@@ -50,10 +44,7 @@ export class SuiteModule {
      */
     async updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite> {
         this.client.validateId(suiteId, 'suiteId');
-        return this.client.parse<Suite>(
-            SuiteSchema,
-            await this.client.request<unknown>('POST', `update_suite/${suiteId}`, payload),
-        );
+        return this.client.requestParsed<Suite>('POST', `update_suite/${suiteId}`, SuiteSchema, payload);
     }
 
     /**

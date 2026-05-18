@@ -7,26 +7,17 @@ export class VariableModule {
 
     async getVariables(projectId: number): Promise<Variable[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Variable[]>(
-            VariableSchema.array(),
-            await this.client.request<unknown>('GET', `get_variables/${projectId}`),
-        );
+        return this.client.requestParsed<Variable[]>('GET', `get_variables/${projectId}`, VariableSchema.array());
     }
 
     async addVariable(projectId: number, payload: AddVariablePayload): Promise<Variable> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.parse<Variable>(
-            VariableSchema,
-            await this.client.request<unknown>('POST', `add_variable/${projectId}`, payload),
-        );
+        return this.client.requestParsed<Variable>('POST', `add_variable/${projectId}`, VariableSchema, payload);
     }
 
     async updateVariable(variableId: number, payload: UpdateVariablePayload): Promise<Variable> {
         this.client.validateId(variableId, 'variableId');
-        return this.client.parse<Variable>(
-            VariableSchema,
-            await this.client.request<unknown>('POST', `update_variable/${variableId}`, payload),
-        );
+        return this.client.requestParsed<Variable>('POST', `update_variable/${variableId}`, VariableSchema, payload);
     }
 
     async deleteVariable(variableId: number): Promise<void> {
