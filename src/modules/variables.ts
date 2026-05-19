@@ -1,6 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Variable, AddVariablePayload, UpdateVariablePayload } from '../types.js';
 import { VariableSchema } from '../schemas.js';
+import type { Variable, AddVariablePayload, UpdateVariablePayload } from '../schemas.js';
 
 export class VariableModule {
     constructor(private readonly client: TestRailClientCore) {}

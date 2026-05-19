@@ -490,6 +490,7 @@ describe('metadata vs dispatch consistency', () => {
             'plan:delete',
             'plan:delete-entry',
             'plan:delete-run-from-entry',
+            'variable:delete',
         ]);
         for (const spec of ACTIONS) {
             if (!spec.isWrite) continue;
@@ -537,7 +538,7 @@ describe('metadata vs dispatch consistency', () => {
      * audit finding #6 caught `run close` missing from this set — locked
      * in here to prevent regression.
      */
-    it('destructive action set includes attachment:delete, case:delete, case:delete-bulk, run:close, run:delete, suite:delete, section:delete, milestone:delete, project:delete, plan:close, plan:delete, plan:delete-entry, plan:delete-run-from-entry', () => {
+    it('destructive action set includes attachment:delete, case:delete, case:delete-bulk, run:close, run:delete, suite:delete, section:delete, milestone:delete, project:delete, plan:close, plan:delete, plan:delete-entry, plan:delete-run-from-entry, variable:delete', () => {
         const got = new Set(ACTIONS.filter((s) => s.destructive === true).map((s) => `${s.resource}:${s.action}`));
         const want = new Set([
             'attachment:delete',
@@ -553,6 +554,7 @@ describe('metadata vs dispatch consistency', () => {
             'plan:delete',
             'plan:delete-entry',
             'plan:delete-run-from-entry',
+            'variable:delete',
         ]);
         expect(got).toEqual(want);
     });

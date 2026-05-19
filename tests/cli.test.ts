@@ -146,6 +146,7 @@ const MOCK_SHARED_STEP = {
     updated_by: 1,
     updated_on: 0,
 };
+const MOCK_VARIABLE = { id: 1, name: 'env' };
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -2547,6 +2548,176 @@ describe('CLI', () => {
         });
     });
 
+    // ── variable list/add/update ──────────────────────────────────────────────
+
+    describe('variable list/add/update', () => {
+        it('variable list <project_id> GETs get_variables/{project_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['variable', 'list', '1'], [jsonResponse([MOCK_VARIABLE])]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_variables/1');
+            const parsed = JSON.parse(stdout.trim()) as (typeof MOCK_VARIABLE)[];
+            expect(parsed[0]).toMatchObject({ id: 1, name: 'env' });
+        });
+
+        it('variable list supports --format table', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['variable', 'list', '1', '--format', 'table'],
+                [jsonResponse([MOCK_VARIABLE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('env');
+        });
+
+        it('variable list rejects non-positive project_id', async () => {
+            const { exitCodes } = await runCli(['variable', 'list', '0']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable list rejects scientific notation project_id', async () => {
+            const { exitCodes } = await runCli(['variable', 'list', '1e2']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable list rejects hex project_id', async () => {
+            const { exitCodes } = await runCli(['variable', 'list', '0x1']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable list missing project_id exits 1', async () => {
+            const { exitCodes } = await runCli(['variable', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable list 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'list', '1'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable list 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['variable', 'list', '1'], [jsonResponse({ error: 'forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable list 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['variable', 'list', '1'], [jsonResponse({ error: 'not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable list network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['variable', 'list', '1'], [], AUTH_ENV, new Error('network down'));
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable add POSTs to add_variable/{project_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'add', '1', '--data', '{"name":"env"}'],
+                [jsonResponse(MOCK_VARIABLE)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_variable/1');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('env');
+        });
+
+        it('variable add --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'variable',
+                'add',
+                '1',
+                '--data',
+                '{"name":"env"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable add rejects payload missing name', async () => {
+            const { exitCodes, stderr } = await runCli(['variable', 'add', '1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable add rejects non-string name (no coercion)', async () => {
+            const { exitCodes, stderr } = await runCli(['variable', 'add', '1', '--data', '{"name":42}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('variable add 400 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'add', '1', '--data', '{"name":"env"}'],
+                [jsonResponse({ error: 'bad request' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update POSTs to update_variable/{variable_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'update', '7', '--data', '{"name":"region"}'],
+                [jsonResponse({ id: 7, name: 'region' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_variable/7');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('region');
+        });
+
+        it('variable update --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'variable',
+                'update',
+                '7',
+                '--data',
+                '{"name":"region"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('variable update rejects non-numeric variable_id', async () => {
+            const { exitCodes, stderr } = await runCli(['variable', 'update', 'abc', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('variable_id');
+        });
+
+        it('variable update rejects scientific notation variable_id', async () => {
+            const { exitCodes } = await runCli(['variable', 'update', '1e2', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update rejects hex variable_id', async () => {
+            const { exitCodes } = await runCli(['variable', 'update', '0x1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update missing --data exits 1', async () => {
+            const { exitCodes } = await runCli(['variable', 'update', '7']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable unknown action exits 1', async () => {
+            const { exitCodes } = await runCli(['variable', 'get', '1']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
     describe('run add', () => {
         it('POSTs the payload and returns the created run', async () => {
             const { exitCodes } = await runCli(
@@ -3821,6 +3992,43 @@ describe('CLI', () => {
             const { exitCodes, stderr } = await runCli(['milestone', 'delete', '3', '--soft', '--yes']);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/milestone delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('variable delete (destructive; --soft NOT supported)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['variable', 'delete', '7']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_variable/{id}', async () => {
+            const { exitCodes } = await runCli(['variable', 'delete', '7', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_variable/7');
+        });
+
+        it('dry-run wins over --yes (no API call)', async () => {
+            const { exitCodes, stdout } = await runCli(['variable', 'delete', '7', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"destructive": true');
+        });
+
+        it('rejects --soft (TestRail does not support soft on delete_variable)', async () => {
+            const { exitCodes, stderr } = await runCli(['variable', 'delete', '7', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/variable delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects non-positive variable_id', async () => {
+            const { exitCodes } = await runCli(['variable', 'delete', '0', '--yes']);
+            expect(exitCodes).toContain(1);
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });

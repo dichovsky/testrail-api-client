@@ -147,6 +147,10 @@ on stderr. Never echo or log the API key.
 | attachment | delete | `<attachment_id>` | — (no body, requires `--yes`) | Delete an attachment by ID (requires --yes) |
 | bdd | get | `<case_id>` | `--out <path>` (text) | Download a case's BDD (Gherkin .feature) content to --out <path> |
 | bdd | add | `<case_id>` | `--file <path>` | Upload a .feature file as the BDD content for a case |
+| variable | list | `<project_id>` | — | List variables in a project |
+| variable | add | `<project_id>` | `AddVariablePayloadSchema` | Create a new variable in a project |
+| variable | update | `<variable_id>` | `UpdateVariablePayloadSchema` | Update an existing variable (rename) |
+| variable | delete | `<variable_id>` | — (no body, requires `--yes`) | Delete a variable (requires --yes; --soft NOT supported by TestRail) |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -503,6 +507,22 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "include_all": "boolean?",
     "template_ids": "number[]?",
     "configs": "object[] (required)"
+}
+```
+
+### `AddVariablePayloadSchema` (used by `variable add`)
+
+```jsonc
+{
+    "name": "string (required)"
+}
+```
+
+### `UpdateVariablePayloadSchema` (used by `variable update`)
+
+```jsonc
+{
+    "name": "string?"
 }
 ```
 <!-- /GENERATED:payload-schemas -->

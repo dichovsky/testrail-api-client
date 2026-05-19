@@ -56,6 +56,7 @@ import {
     handleMilestoneDelete,
     handleMilestoneUpdate,
 } from '../src/cli/handlers/milestone-write.js';
+import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../src/cli/handlers/variable-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
@@ -98,6 +99,9 @@ interface MockedClient {
     addMilestone: ReturnType<typeof vi.fn>;
     updateMilestone: ReturnType<typeof vi.fn>;
     deleteMilestone: ReturnType<typeof vi.fn>;
+    addVariable: ReturnType<typeof vi.fn>;
+    updateVariable: ReturnType<typeof vi.fn>;
+    deleteVariable: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -140,6 +144,9 @@ function buildClient(): MockedClient {
         addMilestone: vi.fn().mockResolvedValue({ id: 44, name: 'M', is_completed: false, project_id: 7, url: 'u' }),
         updateMilestone: vi.fn().mockResolvedValue({ id: 44, name: 'M', is_completed: true, project_id: 7, url: 'u' }),
         deleteMilestone: vi.fn().mockResolvedValue(undefined),
+        addVariable: vi.fn().mockResolvedValue({ id: 55, name: 'env' }),
+        updateVariable: vi.fn().mockResolvedValue({ id: 55, name: 'region' }),
+        deleteVariable: vi.fn().mockResolvedValue(undefined),
     };
 }
 
@@ -2119,5 +2126,135 @@ describe('handleProjectDelete', () => {
     it('rejects when project_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
         await expect(handleProjectDelete(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+// ── variable add ──────────────────────────────────────────────────────────
+
+describe('handleVariableAdd', () => {
+    it('calls client.addVariable with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"env"}' });
+        await handleVariableAdd(ctx);
+        expect(client.addVariable).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'env' }));
+        expect(out).toHaveBeenCalledWith({ id: 55, name: 'env' });
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"env"}', dryRun: true });
+        await handleVariableAdd(ctx);
+        expect(client.addVariable).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'variable add', projectId: 7 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleVariableAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{}' });
+        await expect(handleVariableAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"name":42}' });
+        await expect(handleVariableAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"name":"env"}' });
+        await expect(handleVariableAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+// ── variable update ───────────────────────────────────────────────────────
+
+describe('handleVariableUpdate', () => {
+    it('calls client.updateVariable with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], dataFlag: '{"name":"region"}' });
+        await handleVariableUpdate(ctx);
+        expect(client.updateVariable).toHaveBeenCalledWith(55, expect.objectContaining({ name: 'region' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body (name optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'], dataFlag: '{}' });
+        await handleVariableUpdate(ctx);
+        expect(client.updateVariable).toHaveBeenCalledWith(55, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleVariableUpdate(ctx);
+        expect(client.updateVariable).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'variable update', variableId: 55 }),
+        );
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], dataFlag: '{"name":1}' });
+        await expect(handleVariableUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when variable_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{}' });
+        await expect(handleVariableUpdate(ctx)).rejects.toThrow(/variable_id/);
+    });
+});
+
+// ── variable delete (destructive; --soft NOT supported) ───────────────────
+
+describe('handleVariableDelete', () => {
+    it('hard-delete: calls client.deleteVariable with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], confirmDestructive: true });
+        await handleVariableDelete(ctx);
+        expect(client.deleteVariable).toHaveBeenCalledWith(55);
+        expect(out).toHaveBeenCalledWith({ variableId: 55, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'] });
+        await expect(handleVariableDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteVariable).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --yes (no API call, preview emits destructive:true)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], confirmDestructive: true, dryRun: true });
+        await handleVariableDelete(ctx);
+        expect(client.deleteVariable).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'variable delete', variableId: 55, destructive: true }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_variable)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], confirmDestructive: true, soft: true });
+        await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable delete does not support --soft/);
+    });
+
+    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['55'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable delete does not support --soft/);
+    });
+
+    it('rejects when variable_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
+        await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable_id/);
     });
 });

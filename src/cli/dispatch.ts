@@ -66,6 +66,8 @@ import {
 import { handleProjectAdd, handleProjectDelete, handleProjectUpdate } from './handlers/project-write.js';
 import { handleSuiteAdd, handleSuiteDelete, handleSuiteUpdate } from './handlers/suite-write.js';
 import { handleMilestoneAdd, handleMilestoneDelete, handleMilestoneUpdate } from './handlers/milestone-write.js';
+import { handleVariableList } from './handlers/variable.js';
+import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from './handlers/variable-write.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -163,6 +165,10 @@ const HANDLERS: Record<string, Handler> = {
     'section:move': handleSectionMove,
     'report:list': handleReportList,
     'report:run': handleReportRun,
+    'variable:list': handleVariableList,
+    'variable:add': handleVariableAdd,
+    'variable:update': handleVariableUpdate,
+    'variable:delete': handleVariableDelete,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {

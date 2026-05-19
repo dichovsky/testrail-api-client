@@ -491,6 +491,18 @@ export const VariableSchema = zObject({
 
 export type Variable = z.infer<typeof VariableSchema>;
 
+export const AddVariablePayloadSchema = zObject({
+    name: z.string(),
+});
+
+export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>;
+
+export const UpdateVariablePayloadSchema = zObject({
+    name: z.string().optional(),
+});
+
+export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>;
+
 export const DatasetSchema = zObject({
     id: z.number(),
     name: z.string(),

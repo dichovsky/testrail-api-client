@@ -41,6 +41,7 @@ Read actions:
   shared-step  get <id> | list --project-id <id>
   shared-step  history <shared_step_id> [--limit N] [--offset N]
   report   list <project_id> | run <report_template_id>
+  variable     list <project_id>
 
 Metadata actions:
   case-field   list                       (no positional args)
@@ -88,6 +89,9 @@ Write actions (body via --data | --data-file | stdin):
   milestone add <project_id>        --data '{"name":"..."}'
   milestone update <milestone_id>   --data '{"is_completed":true}'
   milestone delete <milestone_id>   --yes  (no body; --soft NOT supported by TestRail)
+  variable add <project_id>         --data '{"name":"..."}'
+  variable update <variable_id>     --data '{"name":"..."}'
+  variable delete <variable_id>     --yes  (no body; --soft NOT supported by TestRail)
 
 Attachment actions (binary file I/O):
   attachment list-for-case <case_id>
@@ -134,7 +138,7 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry)
+  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete)
   --soft                Server-side preview for soft-capable deletes:
                           case delete, case delete-bulk, run delete,
                           section delete, suite delete.
@@ -143,7 +147,7 @@ Options:
                         Rejected (TestRail has no --soft support) on:
                           milestone delete, project delete,
                           plan close, plan delete, plan delete-entry,
-                          plan delete-run-from-entry.
+                          plan delete-run-from-entry, variable delete.
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
@@ -155,14 +159,15 @@ For body-bearing write actions, exactly one body source is required
 (any --data / --data-file / stdin is ignored): run close, attachment delete,
 case delete, run delete, suite delete, section delete, milestone delete,
 project delete, plan close, plan delete, plan delete-entry,
-plan delete-run-from-entry — they accept only positional id(s) (one for most
+plan delete-run-from-entry, variable delete — they accept only positional id(s) (one for most
 actions; plan delete-entry and attachment add-to-plan-entry take two:
 <plan_id> <entry_id>) and the optional --soft flag on the soft-capable
 deletes. Attachment upload actions take a binary file via --file <path>
 and do not accept --data/--data-file/stdin.
 Destructive actions (attachment delete, case delete, case delete-bulk, run close,
 run delete, section delete, suite delete, milestone delete, project delete,
-plan close, plan delete, plan delete-entry, plan delete-run-from-entry)
+plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
+variable delete)
 require --yes; pass --dry-run together with --yes to preview without making the
 API call (dry-run wins). 'run close' and 'plan close' are irreversible —
 TestRail offers no reopen for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
