@@ -491,6 +491,7 @@ describe('metadata vs dispatch consistency', () => {
             'plan:delete-entry',
             'plan:delete-run-from-entry',
             'variable:delete',
+            'group:delete',
             'shared-step:delete',
             'configuration:delete',
             'configuration-group:delete',
@@ -541,7 +542,7 @@ describe('metadata vs dispatch consistency', () => {
      * audit finding #6 caught `run close` missing from this set — locked
      * in here to prevent regression.
      */
-    it('destructive action set includes attachment:delete, case:delete, case:delete-bulk, run:close, run:delete, suite:delete, section:delete, milestone:delete, project:delete, plan:close, plan:delete, plan:delete-entry, plan:delete-run-from-entry, variable:delete, shared-step:delete, configuration:delete, configuration-group:delete', () => {
+    it('destructive action set includes attachment:delete, case:delete, case:delete-bulk, run:close, run:delete, suite:delete, section:delete, milestone:delete, project:delete, plan:close, plan:delete, plan:delete-entry, plan:delete-run-from-entry, variable:delete, group:delete, shared-step:delete, configuration:delete, configuration-group:delete', () => {
         const got = new Set(ACTIONS.filter((s) => s.destructive === true).map((s) => `${s.resource}:${s.action}`));
         const want = new Set([
             'attachment:delete',
@@ -558,6 +559,7 @@ describe('metadata vs dispatch consistency', () => {
             'plan:delete-entry',
             'plan:delete-run-from-entry',
             'variable:delete',
+            'group:delete',
             'shared-step:delete',
             'configuration:delete',
             'configuration-group:delete',
@@ -610,8 +612,9 @@ describe('metadata vs dispatch consistency', () => {
         // These intentionally have `pathParams: []`.
         // `project:add` joins the payload-only set: it creates an instance-wide
         // project (no parent ID exists in the URL because the project itself is
-        // the top-level entity).
-        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add', 'project:add']);
+        // the top-level entity). `group:add` (TestRail 7.5+) also creates an
+        // instance-wide entity — user groups are global, not project-scoped.
+        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add', 'project:add', 'group:add']);
         // Flag-driven / zero-arg reads: the endpoint takes no path param.
         // `user:get-by-email` is driven by the shared `--email` flag (also
         // consumed by resolveAuth for the credential); `user:get-current`

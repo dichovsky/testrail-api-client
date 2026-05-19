@@ -72,6 +72,8 @@ import { handleSuiteAdd, handleSuiteDelete, handleSuiteUpdate } from './handlers
 import { handleMilestoneAdd, handleMilestoneDelete, handleMilestoneUpdate } from './handlers/milestone-write.js';
 import { handleVariableList } from './handlers/variable.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from './handlers/variable-write.js';
+import { handleGroupGet, handleGroupList } from './handlers/group.js';
+import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from './handlers/group-write.js';
 import { handleConfigurationList } from './handlers/configuration.js';
 import {
     handleConfigurationGroupAdd,
@@ -190,6 +192,11 @@ const HANDLERS: Record<string, Handler> = {
     'variable:add': handleVariableAdd,
     'variable:update': handleVariableUpdate,
     'variable:delete': handleVariableDelete,
+    'group:get': handleGroupGet,
+    'group:list': handleGroupList,
+    'group:add': handleGroupAdd,
+    'group:update': handleGroupUpdate,
+    'group:delete': handleGroupDelete,
     'configuration:list': handleConfigurationList,
     'configuration:add': handleConfigurationAdd,
     'configuration:update': handleConfigurationUpdate,

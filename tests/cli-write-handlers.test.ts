@@ -57,6 +57,7 @@ import {
     handleMilestoneUpdate,
 } from '../src/cli/handlers/milestone-write.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../src/cli/handlers/variable-write.js';
+import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from '../src/cli/handlers/group-write.js';
 import {
     handleSharedStepAdd,
     handleSharedStepUpdate,
@@ -115,6 +116,9 @@ interface MockedClient {
     addVariable: ReturnType<typeof vi.fn>;
     updateVariable: ReturnType<typeof vi.fn>;
     deleteVariable: ReturnType<typeof vi.fn>;
+    addGroup: ReturnType<typeof vi.fn>;
+    updateGroup: ReturnType<typeof vi.fn>;
+    deleteGroup: ReturnType<typeof vi.fn>;
     addSharedStep: ReturnType<typeof vi.fn>;
     updateSharedStep: ReturnType<typeof vi.fn>;
     deleteSharedStep: ReturnType<typeof vi.fn>;
@@ -169,6 +173,9 @@ function buildClient(): MockedClient {
         addVariable: vi.fn().mockResolvedValue({ id: 55, name: 'env' }),
         updateVariable: vi.fn().mockResolvedValue({ id: 55, name: 'region' }),
         deleteVariable: vi.fn().mockResolvedValue(undefined),
+        addGroup: vi.fn().mockResolvedValue({ id: 77, name: 'QA Group', user_ids: [1, 2] }),
+        updateGroup: vi.fn().mockResolvedValue({ id: 77, name: 'QA Group Renamed', user_ids: [1, 2] }),
+        deleteGroup: vi.fn().mockResolvedValue(undefined),
         addSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps', project_id: 1 }),
         updateSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps (v2)', project_id: 1 }),
         deleteSharedStep: vi.fn().mockResolvedValue(undefined),
@@ -2830,5 +2837,180 @@ describe('handleConfigurationDelete', () => {
     it('rejects when config_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['1.5'], confirmDestructive: true });
         await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/config_id/);
+    });
+});
+
+// ── group add (no path param) ─────────────────────────────────────────────
+
+describe('handleGroupAdd', () => {
+    it('calls client.addGroup with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"name":"QA","user_ids":[1,2]}' });
+        await handleGroupAdd(ctx);
+        expect(client.addGroup).toHaveBeenCalledWith(expect.objectContaining({ name: 'QA', user_ids: [1, 2] }));
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 77, name: 'QA Group' }));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"name":"QA"}', dryRun: true });
+        await handleGroupAdd(ctx);
+        expect(client.addGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'group add',
+                payload: expect.objectContaining({ name: 'QA' }) as unknown,
+                source: 'data',
+            }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), {});
+        await expect(handleGroupAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{}' });
+        await expect(handleGroupAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":42}' });
+        await expect(handleGroupAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with non-array user_ids', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":"QA","user_ids":"nope"}' });
+        await expect(handleGroupAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects extra positional args (no path param expected)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"QA"}' });
+        await expect(handleGroupAdd(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.addGroup).not.toHaveBeenCalled();
+    });
+
+    it('passes custom_* fields through unchanged (zObject passthrough)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            dataFlag: '{"name":"QA","custom_owner":"u","custom_priority":3}',
+        });
+        await handleGroupAdd(ctx);
+        expect(client.addGroup).toHaveBeenCalledWith(
+            expect.objectContaining({ name: 'QA', custom_owner: 'u', custom_priority: 3 }),
+        );
+    });
+});
+
+// ── group update ──────────────────────────────────────────────────────────
+
+describe('handleGroupUpdate', () => {
+    it('calls client.updateGroup with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"Renamed"}' });
+        await handleGroupUpdate(ctx);
+        expect(client.updateGroup).toHaveBeenCalledWith(77, expect.objectContaining({ name: 'Renamed' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body (all fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'], dataFlag: '{}' });
+        await handleGroupUpdate(ctx);
+        expect(client.updateGroup).toHaveBeenCalledWith(77, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleGroupUpdate(ctx);
+        expect(client.updateGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'group update', groupId: 77 }),
+        );
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], dataFlag: '{"name":1}' });
+        await expect(handleGroupUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when group_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{}' });
+        await expect(handleGroupUpdate(ctx)).rejects.toThrow(/group_id/);
+    });
+
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(
+        'rejects non-positive-integer group_id (%s) before touching body',
+        async (raw) => {
+            const client = buildClient();
+            const { ctx } = buildCtx(client, { pathParams: [raw], dataFlag: '{"name":"x"}' });
+            await expect(handleGroupUpdate(ctx)).rejects.toThrow(/group_id/);
+            expect(client.updateGroup).not.toHaveBeenCalled();
+        },
+    );
+});
+
+// ── group delete (destructive; --soft NOT supported) ──────────────────────
+// Uses the canonical milestone/project ordering: `parseId → --soft reject
+// → --dry-run → --yes`. Per ARCH #9 the codebase has two patterns shipped;
+// this PR pins the canonical path deliberately. The behaviour difference
+// vs the newer "dry-run first" order: `--soft` reject fires even with
+// `--dry-run --yes --soft`, surfacing intent unambiguously instead of
+// short-circuiting to a no-op preview.
+
+describe('handleGroupDelete', () => {
+    it('hard-delete: calls client.deleteGroup with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], confirmDestructive: true });
+        await handleGroupDelete(ctx);
+        expect(client.deleteGroup).toHaveBeenCalledWith(77);
+        expect(out).toHaveBeenCalledWith({ groupId: 77, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'] });
+        await expect(handleGroupDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteGroup).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --yes (no API call, preview emits destructive:true)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], confirmDestructive: true, dryRun: true });
+        await handleGroupDelete(ctx);
+        expect(client.deleteGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'group delete', groupId: 77, destructive: true }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_group)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], confirmDestructive: true, soft: true });
+        await expect(handleGroupDelete(ctx)).rejects.toThrow(/group delete does not support --soft/);
+    });
+
+    it('rejects --soft even in dry-run mode (canonical order: --soft check precedes dry-run)', async () => {
+        // Canonical milestone/project pattern: `parseId → --soft reject → --dry-run → --yes`.
+        // The --soft rejection fires before the dry-run branch, so even
+        // `--dry-run --yes --soft` surfaces the intent mismatch instead of
+        // silently emitting a preview. Contrasts with the newer "dry-run
+        // first" order used by `variable delete` / `shared-step delete` /
+        // `plan delete*`; harmonization is tracked as ARCH #9.
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['77'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await expect(handleGroupDelete(ctx)).rejects.toThrow(/group delete does not support --soft/);
+    });
+
+    it('rejects when group_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
+        await expect(handleGroupDelete(ctx)).rejects.toThrow(/group_id/);
     });
 });

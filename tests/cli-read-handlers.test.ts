@@ -30,6 +30,7 @@ import { handleRoleList } from '../src/cli/handlers/role.js';
 import { handlePriorityList } from '../src/cli/handlers/priority.js';
 import { handleCaseTypeList } from '../src/cli/handlers/case-type.js';
 import { handleVariableList } from '../src/cli/handlers/variable.js';
+import { handleGroupGet, handleGroupList } from '../src/cli/handlers/group.js';
 import { handleConfigurationList } from '../src/cli/handlers/configuration.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
@@ -50,6 +51,8 @@ interface MockedClient {
     getStatuses: ReturnType<typeof vi.fn>;
     getTemplates: ReturnType<typeof vi.fn>;
     getVariables: ReturnType<typeof vi.fn>;
+    getGroup: ReturnType<typeof vi.fn>;
+    getGroups: ReturnType<typeof vi.fn>;
     getConfigurations: ReturnType<typeof vi.fn>;
     getRoles: ReturnType<typeof vi.fn>;
     getPriorities: ReturnType<typeof vi.fn>;
@@ -132,6 +135,11 @@ function buildClient(): MockedClient {
         getVariables: vi.fn().mockResolvedValue([
             { id: 1, name: 'env' },
             { id: 2, name: 'region' },
+        ]),
+        getGroup: vi.fn().mockResolvedValue({ id: 7, name: 'QA Group', user_ids: [1, 2] }),
+        getGroups: vi.fn().mockResolvedValue([
+            { id: 7, name: 'QA Group', user_ids: [1, 2] },
+            { id: 8, name: 'Devs', user_ids: [3] },
         ]),
         getConfigurations: vi.fn().mockResolvedValue([
             {
@@ -1008,5 +1016,77 @@ describe('handleUserGetCurrent', () => {
         await expect(handleUserGetCurrent(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetCurrent(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getCurrentUser).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleGroupGet ────────────────────────────────────────────────────────
+//
+// Single-id read handler (TestRail 7.5+ `GET get_group/{group_id}`). Shares
+// the same positive-integer gate as every other `*get*` handler; the gate
+// rejects 0/-1/floats/hex/scientific-notation/empty before any network
+// call. Mirrors `handleSectionGet` / `handleTestGet`.
+
+describe('handleGroupGet', () => {
+    it('calls client.getGroup with the parsed id and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
+        await handleGroupGet(ctx);
+        expect(client.getGroup).toHaveBeenCalledTimes(1);
+        expect(client.getGroup).toHaveBeenCalledWith(7);
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 7, name: 'QA Group' }));
+    });
+
+    it.each([
+        ['missing id', undefined],
+        ['empty id', ''],
+        ['non-integer id', 'abc'],
+        ['zero', '0'],
+        ['negative', '-1'],
+        ['float', '1.5'],
+        ['scientific notation', '1e2'],
+        ['hex', '0x1'],
+    ])('rejects %s before any client call', async (_label, raw) => {
+        const client = buildClient();
+        const pathParams = raw === undefined ? [] : [raw];
+        const { ctx } = buildCtx(client, { pathParams });
+        await expect(handleGroupGet(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getGroup).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleGroupList ───────────────────────────────────────────────────────
+//
+// `group list` takes no positional args (the endpoint `GET get_groups` is
+// instance-level). Extra positionals reject fail-fast with `IdParseError`
+// for parity with `status list` / `case-field list` — silently ignoring
+// `testrail group list 5` would hide a real typo from the user.
+
+describe('handleGroupList', () => {
+    it('calls client.getGroups with no args and emits the full list', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleGroupList(ctx);
+        expect(client.getGroups).toHaveBeenCalledTimes(1);
+        expect(client.getGroups).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 7, name: 'QA Group' }),
+            expect.objectContaining({ id: 8, name: 'Devs' }),
+        ]);
+    });
+
+    it('rejects a single extra positional arg before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleGroupList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleGroupList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getGroups).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleGroupList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleGroupList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getGroups).not.toHaveBeenCalled();
     });
 });

@@ -63,6 +63,33 @@ export const GroupSchema = zObject({
 
 export type Group = z.infer<typeof GroupSchema>;
 
+/**
+ * Group write-payload schemas (TestRail 7.5+). Mirror the
+ * variable/shared-step/milestone payload-migration precedent: each schema is
+ * declared once here as the source of truth for both the runtime validator
+ * (CLI `--data` resolver) and the inferred TypeScript types consumed by the
+ * programmatic client. `.passthrough()` (via `zObject`) preserves any future
+ * `custom_*`-style fields TestRail may add to either endpoint.
+ *
+ * `UpdateGroupPayloadSchema` allows an empty body — mirrors
+ * `UpdateVariablePayloadSchema` / `UpdateSectionPayloadSchema`. TestRail
+ * itself accepts `{}` on update and returns the unchanged group; we do NOT
+ * enforce "at least one field set" client-side.
+ */
+export const AddGroupPayloadSchema = zObject({
+    name: z.string(),
+    user_ids: z.array(z.number()).optional(),
+});
+
+export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>;
+
+export const UpdateGroupPayloadSchema = zObject({
+    name: z.string().optional(),
+    user_ids: z.array(z.number()).optional(),
+});
+
+export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>;
+
 // ── Project & Suite Schemas ────────────────────────────────────────────────────
 
 export const ProjectSchema = zObject({

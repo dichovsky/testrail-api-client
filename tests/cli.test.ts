@@ -147,6 +147,7 @@ const MOCK_SHARED_STEP = {
     updated_on: 0,
 };
 const MOCK_VARIABLE = { id: 1, name: 'env' };
+const MOCK_GROUP = { id: 7, name: 'QA Group', user_ids: [1, 2] };
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -3457,6 +3458,302 @@ describe('CLI', () => {
 
         it('variable unknown action exits 1', async () => {
             const { exitCodes } = await runCli(['variable', 'get', '1']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    // ── group get/list/add/update/delete (TestRail 7.5+) ──────────────────────
+
+    describe('group get/list/add/update/delete', () => {
+        it('group get <id> GETs get_group/{group_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['group', 'get', '7'], [jsonResponse(MOCK_GROUP)]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_group/7');
+            const parsed = JSON.parse(stdout) as typeof MOCK_GROUP;
+            expect(parsed.id).toBe(7);
+            expect(parsed.name).toBe('QA Group');
+        });
+
+        it('group get supports --format table', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['group', 'get', '7', '--format', 'table'],
+                [jsonResponse(MOCK_GROUP)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('QA Group');
+        });
+
+        it('group get rejects non-positive group_id', async () => {
+            const { exitCodes } = await runCli(['group', 'get', '0']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group get rejects scientific notation group_id', async () => {
+            const { exitCodes } = await runCli(['group', 'get', '1e2']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group get rejects hex group_id', async () => {
+            const { exitCodes } = await runCli(['group', 'get', '0x1']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group get missing group_id exits 1', async () => {
+            const { exitCodes } = await runCli(['group', 'get']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group get 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['group', 'get', '7'], [jsonResponse({ error: 'unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group get 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['group', 'get', '7'], [jsonResponse({ error: 'not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group get network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['group', 'get', '7'], [], AUTH_ENV, new Error('network down'));
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group list GETs get_groups (no path/query params)', async () => {
+            const { exitCodes, stdout } = await runCli(['group', 'list'], [jsonResponse([MOCK_GROUP])]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_groups');
+            // No `/<id>` suffix on the path.
+            expect(url).not.toMatch(/get_groups\/\d/);
+            const parsed = JSON.parse(stdout) as (typeof MOCK_GROUP)[];
+            expect(parsed[0]).toMatchObject({ id: 7, name: 'QA Group' });
+        });
+
+        it('group list supports --format table', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['group', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_GROUP])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('QA Group');
+        });
+
+        it('group list rejects extra positional args', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group list 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['group', 'list'], [jsonResponse({ error: 'forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group list network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['group', 'list'], [], AUTH_ENV, new Error('network down'));
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group add POSTs to add_group (no path param)', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'add', '--data', '{"name":"QA","user_ids":[1,2]}'],
+                [jsonResponse(MOCK_GROUP)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_group');
+            expect(url).not.toMatch(/add_group\/\d/);
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('QA');
+            expect(body['user_ids']).toEqual([1, 2]);
+        });
+
+        it('group add --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli(['group', 'add', '--data', '{"name":"QA"}', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"action": "group add"');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group add rejects extra positional args', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'add', '5', '--data', '{"name":"QA"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group add rejects payload missing name', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'add', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group add rejects non-string name (no coercion)', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'add', '--data', '{"name":42}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('group add 400 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'add', '--data', '{"name":"QA"}'],
+                [jsonResponse({ error: 'bad request' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group add 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'add', '--data', '{"name":"QA"}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group add 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'add', '--data', '{"name":"QA"}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group add network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'add', '--data', '{"name":"QA"}'],
+                [],
+                AUTH_ENV,
+                new Error('network down'),
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group update POSTs to update_group/{group_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'update', '7', '--data', '{"name":"Renamed"}'],
+                [jsonResponse({ ...MOCK_GROUP, name: 'Renamed' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_group/7');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('Renamed');
+        });
+
+        it('group update --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'group',
+                'update',
+                '7',
+                '--data',
+                '{"name":"Renamed"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group update accepts empty body', async () => {
+            const { exitCodes } = await runCli(['group', 'update', '7', '--data', '{}'], [jsonResponse(MOCK_GROUP)]);
+            expect(exitCodes).toContain(0);
+        });
+
+        it('group update rejects non-numeric group_id', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'update', 'abc', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('group_id');
+        });
+
+        it('group update rejects scientific notation group_id', async () => {
+            const { exitCodes } = await runCli(['group', 'update', '1e2', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group update rejects hex group_id', async () => {
+            const { exitCodes } = await runCli(['group', 'update', '0x1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group update missing --data exits 1', async () => {
+            const { exitCodes } = await runCli(['group', 'update', '7']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group update 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'update', '7', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group delete --yes POSTs to delete_group/{group_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['group', 'delete', '7', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_group/7');
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('group delete without --yes exits 1 (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'delete', '7']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--yes');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group delete --dry-run wins over --yes (no API call, preview emits destructive:true)', async () => {
+            const { exitCodes, stdout } = await runCli(['group', 'delete', '7', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"destructive": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group delete --soft is rejected (TestRail does not support soft on delete_group)', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'delete', '7', '--yes', '--soft']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--soft');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('group delete rejects non-numeric group_id', async () => {
+            const { exitCodes, stderr } = await runCli(['group', 'delete', 'abc', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('group_id');
+        });
+
+        it('group delete 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'delete', '7', '--yes'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group delete network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['group', 'delete', '7', '--yes'],
+                [],
+                AUTH_ENV,
+                new Error('network down'),
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('group unknown action exits 1', async () => {
+            const { exitCodes } = await runCli(['group', 'foo']);
             expect(exitCodes).toContain(1);
         });
     });
