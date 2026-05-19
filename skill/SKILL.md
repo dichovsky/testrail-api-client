@@ -135,6 +135,9 @@ on stderr. Never echo or log the API key.
 | result-field | list | — | — | List all custom result fields defined on the TestRail instance |
 | status | list | — | — | List all result statuses defined on the TestRail instance |
 | template | list | `<project_id>` | — | List case templates available in a project |
+| role | list | — | — | List all user roles defined on the TestRail instance |
+| priority | list | — | — | List all case priorities defined on the TestRail instance |
+| case-type | list | — | — | List all case types defined on the TestRail instance |
 | case-field | add | — | `AddCaseFieldPayloadSchema` | Create a custom case field (admin-only); no path params, payload-only |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
 | attachment | list-for-run | `<run_id>` | — | List attachments on a test run |

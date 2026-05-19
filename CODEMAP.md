@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "a2341c650bfe027ed2483be14b4c88bb410f74732c8f4454384c222687389a8e",
+  "sourceHash": "a8806e516db6c160ff1db6415d7014fd3bfecbc4b588fd05302d8dc521405cfd",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1451,6 +1451,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/case-field-write.js",
         "./handlers/case-field.js",
         "./handlers/case-status.js",
+        "./handlers/case-type.js",
         "./handlers/case-write.js",
         "./handlers/case.js",
         "./handlers/configuration-write.js",
@@ -1459,12 +1460,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/milestone.js",
         "./handlers/plan-write.js",
         "./handlers/plan.js",
+        "./handlers/priority.js",
         "./handlers/project-write.js",
         "./handlers/project.js",
         "./handlers/report.js",
         "./handlers/result-field.js",
         "./handlers/result-write.js",
         "./handlers/result.js",
+        "./handlers/role.js",
         "./handlers/run-write.js",
         "./handlers/run.js",
         "./handlers/section-write.js",
@@ -1485,35 +1488,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 93,
+          "line": 96,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 194,
+          "line": 200,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 209,
+          "line": 215,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 216,
+          "line": 222,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 220,
+          "line": 226,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1853,6 +1856,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/case-type.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleCaseTypeList",
+          "kind": "function",
+          "line": 12,
+          "exported": true,
+          "signature": "export async function handleCaseTypeList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/case-write.ts",
       "imports": [
         "../../schemas.js",
@@ -2179,6 +2199,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/priority.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handlePriorityList",
+          "kind": "function",
+          "line": 12,
+          "exported": true,
+          "signature": "export async function handlePriorityList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/project-write.ts",
       "imports": [
         "../../schemas.js",
@@ -2345,6 +2382,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 45,
           "exported": true,
           "signature": "export async function handleResultListForCase(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/role.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleRoleList",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export async function handleRoleList(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2842,7 +2896,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 203,
+          "line": 206,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2914,7 +2968,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 1020,
+          "line": 1050,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

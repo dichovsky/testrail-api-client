@@ -52,9 +52,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 ⚠️ CLI: `dataset delete` (POST `delete_dataset/{dataset_id}`)
 - [ ] 🟢 📦 CLI: `user get-by-email` (GET `get_user_by_email`)
 - [ ] 🟢 📦 CLI: `user get-current` (GET `get_current_user`)
-- [ ] 🟢 📦 CLI: `role list` (GET `get_roles`)
-- [ ] 🟢 📦 CLI: `priority list` (GET `get_priorities`)
-- [ ] 🟢 📦 CLI: `case-type list` (GET `get_case_types`)
 - [ ] 🟢 📦 SKILL recipe: Data-driven runs via Variables + Datasets
 
 ## 🔒 Security

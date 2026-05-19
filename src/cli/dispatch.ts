@@ -58,6 +58,9 @@ import { handleCaseFieldList } from './handlers/case-field.js';
 import { handleResultFieldList } from './handlers/result-field.js';
 import { handleStatusList } from './handlers/status.js';
 import { handleTemplateList } from './handlers/template.js';
+import { handleRoleList } from './handlers/role.js';
+import { handlePriorityList } from './handlers/priority.js';
+import { handleCaseTypeList } from './handlers/case-type.js';
 import {
     handleSectionAdd,
     handleSectionDelete,
@@ -170,6 +173,9 @@ const HANDLERS: Record<string, Handler> = {
     'result-field:list': handleResultFieldList,
     'status:list': handleStatusList,
     'template:list': handleTemplateList,
+    'role:list': handleRoleList,
+    'priority:list': handlePriorityList,
+    'case-type:list': handleCaseTypeList,
     'section:get': handleSectionGet,
     'section:list': handleSectionList,
     'section:add': handleSectionAdd,
