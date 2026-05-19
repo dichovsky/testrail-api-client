@@ -26,7 +26,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Plans](#plans) | 12 | 12 | 12 | 9 |
 | [Priorities](#priorities) | 1 | 1 | 0 | 0 |
 | [Projects](#projects) | 5 | 5 | 5 | 2 |
-| [Reports](#reports) | 2 | 2 | 0 | 0 |
+| [Reports](#reports) | 2 | 2 | 2 | 0 |
 | [Result Fields](#result-fields) | 1 | 1 | 0 | 0 |
 | [Results](#results) | 7 | 7 | 6 | 5 |
 | [Roles](#roles) | 1 | 1 | 0 | 0 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **78** | **30** |
+| **Total** | **116** | **116** | **80** | **30** |
 
 ## Attachments
 
@@ -198,8 +198,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_reports/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getReports`](../src/modules/reports.ts#L9) | — | — |
-| [`GET run_report/{report_template_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`runReport`](../src/modules/reports.ts#L15) | — | — |
+| [`GET get_reports/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getReports`](../src/modules/reports.ts#L9) | `report list` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET run_report/{report_template_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`runReport`](../src/modules/reports.ts#L15) | `report run` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Result Fields
 

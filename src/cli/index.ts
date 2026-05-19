@@ -41,6 +41,7 @@ Read actions:
   shared-step  get <id> | list --project-id <id>
   shared-step  history <shared_step_id> [--limit N] [--offset N]
   case-status  list
+  report   list <project_id> | run <report_template_id>
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'

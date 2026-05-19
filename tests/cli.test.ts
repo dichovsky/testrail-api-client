@@ -1562,6 +1562,165 @@ describe('CLI', () => {
         });
     });
 
+    // ── report ───────────────────────────────────────────────────────────────
+
+    describe('report', () => {
+        const MOCK_REPORT = {
+            id: 11,
+            name: 'Coverage',
+            description: 'Coverage by case status',
+            is_shared: true,
+        };
+        const MOCK_REPORT_RESULT = {
+            report_url: 'https://example.testrail.io/reports/view/11',
+            user_report_url: 'https://example.testrail.io/reports/user/11',
+        };
+
+        it('report list <project_id> should exit 0 and call get_reports/{project_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['report', 'list', '3'], [jsonResponse([MOCK_REPORT])]);
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as (typeof MOCK_REPORT)[];
+            expect(Array.isArray(parsed)).toBe(true);
+            expect(parsed[0]?.id).toBe(11);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_reports/3');
+        });
+
+        it('report list with --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['report', 'list', '3', '--format', 'table'],
+                [jsonResponse([MOCK_REPORT])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Coverage');
+            expect(stdout).toContain('id');
+        });
+
+        it('report list --format json emits parseable JSON array', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['report', 'list', '3', '--format', 'json'],
+                [jsonResponse([MOCK_REPORT])],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as unknown;
+            expect(Array.isArray(parsed)).toBe(true);
+            expect((parsed as (typeof MOCK_REPORT)[])[0]?.id).toBe(11);
+        });
+
+        it('report list with missing project_id should exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['report', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/project id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(
+            'report list rejects non-positive-integer project_id "%s"',
+            async (bad) => {
+                const { exitCodes } = await runCli(['report', 'list', bad]);
+                expect(exitCodes).toContain(1);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it('report list propagates 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['report', 'list', '999'],
+                [jsonResponse({ error: 'Project not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('report list propagates 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['report', 'list', '3'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('report list propagates 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['report', 'list', '3'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('report list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['report', 'list', '3'], [], AUTH_ENV, new TypeError('fetch failed'));
+            expect(exitCodes).toContain(1);
+        }, 15_000);
+
+        it('report run <report_template_id> should exit 0 and call run_report/{report_template_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['report', 'run', '11'], [jsonResponse(MOCK_REPORT_RESULT)]);
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_REPORT_RESULT;
+            expect(parsed.report_url).toBe(MOCK_REPORT_RESULT.report_url);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('run_report/11');
+        });
+
+        it('report run with --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['report', 'run', '11', '--format', 'table'],
+                [jsonResponse(MOCK_REPORT_RESULT)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('report_url');
+        });
+
+        it('report run --format json emits parseable JSON object', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['report', 'run', '11', '--format', 'json'],
+                [jsonResponse(MOCK_REPORT_RESULT)],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as typeof MOCK_REPORT_RESULT;
+            expect(parsed.report_url).toBe(MOCK_REPORT_RESULT.report_url);
+            expect(parsed.user_report_url).toBe(MOCK_REPORT_RESULT.user_report_url);
+        });
+
+        it('report run with missing report_template_id should exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['report', 'run']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/report template id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(
+            'report run rejects non-positive-integer report_template_id "%s"',
+            async (bad) => {
+                const { exitCodes } = await runCli(['report', 'run', bad]);
+                expect(exitCodes).toContain(1);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it('report run propagates 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['report', 'run', '999'],
+                [jsonResponse({ error: 'Report not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('report run propagates 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['report', 'run', '11'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('report run propagates 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['report', 'run', '11'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('report run surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['report', 'run', '11'], [], AUTH_ENV, new TypeError('fetch failed'));
+            expect(exitCodes).toContain(1);
+        }, 15_000);
+
+        it('report unknown action should exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(['report', 'nope']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/Unknown action/);
+        });
+    });
+
     // ── case-field ────────────────────────────────────────────────────────────
 
     describe('case-field', () => {

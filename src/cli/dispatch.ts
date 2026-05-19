@@ -48,6 +48,7 @@ import {
     handleAttachmentDelete,
 } from './handlers/attachment-write.js';
 import { handleSectionGet, handleSectionList } from './handlers/section.js';
+import { handleReportList, handleReportRun } from './handlers/report.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
 import { handleCaseStatusList } from './handlers/case-status.js';
 import { handleBddGet, handleBddAdd } from './handlers/bdd.js';
@@ -152,6 +153,8 @@ const HANDLERS: Record<string, Handler> = {
     'section:update': handleSectionUpdate,
     'section:delete': handleSectionDelete,
     'section:move': handleSectionMove,
+    'report:list': handleReportList,
+    'report:run': handleReportRun,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {
