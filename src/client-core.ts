@@ -1,4 +1,4 @@
-import type { TestRailConfig, CacheEntry } from './types.js';
+import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
@@ -10,13 +10,13 @@ import { ZodError, type ZodType } from 'zod';
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
  * descriptor. The Blob / Uint8Array / File variants are detected by
  * `instanceof`, so the path variant is recognized by the presence of a
- * `path` string and the absence of a `BlobPart`-typed `size` getter.
+ * `path` string on a non-Blob, non-Uint8Array object.
  *
  * Defined at module scope so the (constant) shape check has no per-call
- * allocation cost and so unit tests can import it if a future regression
- * requires explicit coverage.
+ * allocation cost. It's indirectly covered through `requestMultipart`
+ * tests that exercise both path-descriptor and in-memory inputs.
  */
-function isFilePathInput(value: unknown): value is { path: string; type?: string } {
+function isFilePathInput(value: unknown): value is UploadFilePathInput {
     return (
         typeof value === 'object' &&
         value !== null &&
@@ -1029,7 +1029,7 @@ export class TestRailClientCore {
      */
     public async requestMultipart<T>(
         endpoint: string,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<T> {
         if (this.isDestroyed) {

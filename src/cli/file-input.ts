@@ -48,8 +48,8 @@ export interface ResolveFileOptions {
  * eliminates the previous TOCTOU window in which a file could vanish
  * between the CLI's `readFileSync` and the HTTP send.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function resolveFile(input: FileInput, _opts: ResolveFileOptions): FileResolution {
+    void _opts;
     if (input.fileFlag === undefined || input.fileFlag === '') {
         return { ok: false, error: '--file <path> required for upload actions.' };
     }

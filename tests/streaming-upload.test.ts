@@ -136,8 +136,22 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         const bigPath = join(tmp, 'big.bin');
         const ws = createWriteStream(bigPath);
         const chunk = Buffer.alloc(1024 * 1024, 0x42); // 1 MB
-        for (let i = 0; i < 50; i++) ws.write(chunk);
-        await new Promise<void>((resolve) => ws.end(() => resolve()));
+        await new Promise<void>((resolve, reject) => {
+            let written = 0;
+            const writeChunk = (): void => {
+                while (written < 50) {
+                    const canContinue = ws.write(chunk);
+                    written++;
+                    if (!canContinue) {
+                        ws.once('drain', writeChunk);
+                        return;
+                    }
+                }
+                ws.end(() => resolve());
+            };
+            ws.once('error', reject);
+            writeChunk();
+        });
 
         const client = buildClient();
         mockOk();

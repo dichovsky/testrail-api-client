@@ -33,6 +33,7 @@ import type {
     HistoryEntry,
     CaseStatus,
     SoftDeleteOptions,
+    UploadFileInput,
 } from './types.js';
 import type {
     AddCasePayload,
@@ -1195,7 +1196,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToCase(
         caseId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         return this.attachments.addAttachmentToCase(caseId, file, filename);
@@ -1212,7 +1213,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToResult(
         resultId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         return this.attachments.addAttachmentToResult(resultId, file, filename);
@@ -1229,7 +1230,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToRun(
         runId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         return this.attachments.addAttachmentToRun(runId, file, filename);
@@ -1246,7 +1247,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addAttachmentToPlan(
         planId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         return this.attachments.addAttachmentToPlan(planId, file, filename);
@@ -1265,7 +1266,7 @@ export class TestRailClient extends TestRailClientCore {
     async addAttachmentToPlanEntry(
         planId: number,
         entryId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         return this.attachments.addAttachmentToPlanEntry(planId, entryId, file, filename);
@@ -1310,7 +1311,7 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addBdd(
         caseId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Case> {
         return this.bdd.addBdd(caseId, file, filename);

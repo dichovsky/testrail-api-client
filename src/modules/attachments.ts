@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Attachment } from '../types.js';
+import type { Attachment, UploadFileInput } from '../types.js';
 import { z } from 'zod';
 import { AttachmentSchema } from '../schemas.js';
 
@@ -86,7 +86,7 @@ export class AttachmentModule {
     /** @testrail POST add_attachment_to_case/{case_id} */
     async addAttachmentToCase(
         caseId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         this.client.validateId(caseId, 'caseId');
@@ -96,7 +96,7 @@ export class AttachmentModule {
     /** @testrail POST add_attachment_to_result/{result_id} */
     async addAttachmentToResult(
         resultId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         this.client.validateId(resultId, 'resultId');
@@ -106,7 +106,7 @@ export class AttachmentModule {
     /** @testrail POST add_attachment_to_run/{run_id} */
     async addAttachmentToRun(
         runId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         this.client.validateId(runId, 'runId');
@@ -116,7 +116,7 @@ export class AttachmentModule {
     /** @testrail POST add_attachment_to_plan/{plan_id} */
     async addAttachmentToPlan(
         planId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         this.client.validateId(planId, 'planId');
@@ -127,7 +127,7 @@ export class AttachmentModule {
     async addAttachmentToPlanEntry(
         planId: number,
         entryId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
+        file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         this.client.validateId(planId, 'planId');
