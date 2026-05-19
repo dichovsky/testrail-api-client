@@ -43,6 +43,8 @@ import {
     UpdateSectionPayloadSchema,
     AddMilestonePayloadSchema,
     UpdateMilestonePayloadSchema,
+    AddVariablePayloadSchema,
+    UpdateVariablePayloadSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -1015,6 +1017,44 @@ describe('UpdateMilestonePayloadSchema', () => {
 
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateMilestonePayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('x');
+    });
+});
+
+describe('AddVariablePayloadSchema', () => {
+    it('parses a minimal valid payload', () => {
+        expect(AddVariablePayloadSchema.parse({ name: 'env' }).name).toBe('env');
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddVariablePayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => AddVariablePayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddVariablePayloadSchema.parse({ name: 'env', custom_owner: 'u' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('u');
+    });
+});
+
+describe('UpdateVariablePayloadSchema', () => {
+    it('parses an empty body (name is optional)', () => {
+        expect(UpdateVariablePayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a payload with name', () => {
+        expect(UpdateVariablePayloadSchema.parse({ name: 'region' }).name).toBe('region');
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => UpdateVariablePayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateVariablePayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
         expect(parsed['custom_owner']).toBe('x');
     });
 });

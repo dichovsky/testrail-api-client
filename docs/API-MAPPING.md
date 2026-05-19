@@ -38,8 +38,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
-| [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **84** | **30** |
+| [Variables](#variables) | 4 | 4 | 4 | 0 |
+| **Total** | **116** | **116** | **88** | **30** |
 
 ## Attachments
 
@@ -327,8 +327,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_variables/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getVariables`](../src/modules/variables.ts#L9) | — | — |
-| [`POST add_variable/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addVariable`](../src/modules/variables.ts#L15) | — | — |
-| [`POST delete_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteVariable`](../src/modules/variables.ts#L27) | — | — |
-| [`POST update_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateVariable`](../src/modules/variables.ts#L21) | — | — |
+| [`GET get_variables/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getVariables`](../src/modules/variables.ts#L9) | `variable list` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_variable/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addVariable`](../src/modules/variables.ts#L15) | `variable add` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST delete_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteVariable`](../src/modules/variables.ts#L27) | `variable delete` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST update_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateVariable`](../src/modules/variables.ts#L21) | `variable update` | [command-table](../skill/SKILL.md#command-surface) |
 

@@ -46,10 +46,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟡 📦 CLI: `configuration add` (POST `add_config/{config_group_id}`)
 - [ ] 🟡 📦 CLI: `configuration update` (POST `update_config/{config_id}`)
 - [ ] 🟡 📦 ⚠️ CLI: `configuration delete` (POST `delete_config/{config_id}`)
-- [ ] 🟡 📦 CLI: `variable list` (GET `get_variables/{project_id}`)
-- [ ] 🟡 📦 CLI: `variable add` (POST `add_variable/{project_id}`)
-- [ ] 🟡 📦 CLI: `variable update` (POST `update_variable/{variable_id}`)
-- [ ] 🟡 📦 ⚠️ CLI: `variable delete` (POST `delete_variable/{variable_id}`)
 - [ ] 🟡 📦 SKILL recipe: Configuration groups & configs hierarchy management
 
 #### 🟢 P2 — admin & low-traffic endpoints

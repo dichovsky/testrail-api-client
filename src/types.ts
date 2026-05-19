@@ -734,26 +734,9 @@ export interface UpdateSharedStepPayload {
 }
 
 // ── Variables (TASK-029) ──────────────────────────────────────────────────────
-
-/** A variable used in data-driven testing */
-export interface Variable {
-    /** Unique variable ID */
-    id: number;
-    /** Variable name */
-    name: string;
-}
-
-/** Payload for creating a variable via POST /add_variable/{project_id} */
-export interface AddVariablePayload {
-    /** Variable name */
-    name: string;
-}
-
-/** Payload for updating a variable via POST /update_variable/{variable_id} */
-export interface UpdateVariablePayload {
-    /** New variable name */
-    name?: string;
-}
+// `Variable`, `AddVariablePayload`, and `UpdateVariablePayload` now live in
+// `./schemas.ts` as Zod schemas (source of truth for runtime validation +
+// inferred TS types).
 
 // ── Datasets (TASK-030) ───────────────────────────────────────────────────────
 

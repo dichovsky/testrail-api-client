@@ -25,6 +25,7 @@ import { handleCaseStatusList } from '../src/cli/handlers/case-status.js';
 import { handleResultFieldList } from '../src/cli/handlers/result-field.js';
 import { handleStatusList } from '../src/cli/handlers/status.js';
 import { handleTemplateList } from '../src/cli/handlers/template.js';
+import { handleVariableList } from '../src/cli/handlers/variable.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -43,6 +44,7 @@ interface MockedClient {
     getResultFields: ReturnType<typeof vi.fn>;
     getStatuses: ReturnType<typeof vi.fn>;
     getTemplates: ReturnType<typeof vi.fn>;
+    getVariables: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -116,6 +118,10 @@ function buildClient(): MockedClient {
             },
         ]),
         getTemplates: vi.fn().mockResolvedValue([{ id: 1, name: 'Test Case (Text)', is_default: true }]),
+        getVariables: vi.fn().mockResolvedValue([
+            { id: 1, name: 'env' },
+            { id: 2, name: 'region' },
+        ]),
     };
 }
 
@@ -695,5 +701,35 @@ describe('handleTemplateList', () => {
         const { ctx } = buildCtx(client, { pathParams: [raw] });
         await expect(handleTemplateList(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.getTemplates).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleVariableList ────────────────────────────────────────────────────
+
+describe('handleVariableList', () => {
+    it('calls client.getVariables with the parsed project id and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
+        await handleVariableList(ctx);
+        expect(client.getVariables).toHaveBeenCalledTimes(1);
+        expect(client.getVariables).toHaveBeenCalledWith(3);
+        expect(out).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: 1, name: 'env' })]));
+    });
+
+    it.each([
+        ['missing project_id', undefined],
+        ['empty project_id', ''],
+        ['non-integer project_id', 'abc'],
+        ['zero', '0'],
+        ['negative', '-1'],
+        ['float', '1.5'],
+        ['scientific notation', '1e2'],
+        ['hex', '0x1'],
+    ])('rejects %s before any client call', async (_label, raw) => {
+        const client = buildClient();
+        const pathParams = raw === undefined ? [] : [raw];
+        const { ctx } = buildCtx(client, { pathParams });
+        await expect(handleVariableList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getVariables).not.toHaveBeenCalled();
     });
 });

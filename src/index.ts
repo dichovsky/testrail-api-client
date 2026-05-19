@@ -66,6 +66,8 @@ export {
     UpdateSectionPayloadSchema,
     AddMilestonePayloadSchema,
     UpdateMilestonePayloadSchema,
+    AddVariablePayloadSchema,
+    UpdateVariablePayloadSchema,
 } from './schemas.js';
 export type {
     AddCasePayload,
@@ -100,6 +102,9 @@ export type {
     UpdateSectionPayload,
     AddMilestonePayload,
     UpdateMilestonePayload,
+    Variable,
+    AddVariablePayload,
+    UpdateVariablePayload,
 } from './schemas.js';
 export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
@@ -147,9 +152,6 @@ export type {
     SharedStep,
     AddSharedStepPayload,
     UpdateSharedStepPayload,
-    Variable,
-    AddVariablePayload,
-    UpdateVariablePayload,
     Dataset,
     AddDatasetPayload,
     UpdateDatasetPayload,

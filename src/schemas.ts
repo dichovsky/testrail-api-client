@@ -491,6 +491,26 @@ export const VariableSchema = zObject({
 
 export type Variable = z.infer<typeof VariableSchema>;
 
+export const AddVariablePayloadSchema = zObject({
+    name: z.string(),
+});
+
+export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>;
+
+/**
+ * `update_variable` accepts an empty body as a no-op: every field is
+ * optional. We intentionally do NOT enforce "at least one field set"
+ * client-side — TestRail itself accepts `{}` and returns the unchanged
+ * variable. Mirrors the `UpdateSectionPayloadSchema` precedent below,
+ * where empty-body updates are also passed through. `custom_*` extras
+ * flow through `zObject()`'s passthrough.
+ */
+export const UpdateVariablePayloadSchema = zObject({
+    name: z.string().optional(),
+});
+
+export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>;
+
 export const DatasetSchema = zObject({
     id: z.number(),
     name: z.string(),

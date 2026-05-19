@@ -27,6 +27,8 @@ import {
     UpdateSectionPayloadSchema,
     AddMilestonePayloadSchema,
     UpdateMilestonePayloadSchema,
+    AddVariablePayloadSchema,
+    UpdateVariablePayloadSchema,
 } from '../schemas.js';
 
 /**
@@ -869,6 +871,42 @@ export const ACTIONS: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_bdd/{case_id}',
         fileInput: true,
         isWrite: true,
+    },
+    // ── Variable actions (data-driven testing) ────────────────────────────
+    {
+        resource: 'variable',
+        action: 'list',
+        summary: 'List variables in a project',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'GET get_variables/{project_id}',
+        isWrite: false,
+    },
+    {
+        resource: 'variable',
+        action: 'add',
+        summary: 'Create a new variable in a project',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_variable/{project_id}',
+        bodySchema: AddVariablePayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'variable',
+        action: 'update',
+        summary: 'Update an existing variable (rename)',
+        pathParams: [{ name: 'variable_id', description: 'TestRail variable ID' }],
+        apiEndpoint: 'POST update_variable/{variable_id}',
+        bodySchema: UpdateVariablePayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'variable',
+        action: 'delete',
+        summary: 'Delete a variable (requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'variable_id', description: 'TestRail variable ID' }],
+        apiEndpoint: 'POST delete_variable/{variable_id}',
+        isWrite: true,
+        destructive: true,
     },
 ];
 
