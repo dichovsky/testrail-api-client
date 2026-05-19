@@ -4465,4 +4465,163 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });
+
+    // ── Configuration hierarchy ──────────────────────────────────────────
+    describe('configuration list', () => {
+        const MOCK_CONFIG_TREE = [
+            {
+                id: 55,
+                name: 'Browsers',
+                project_id: 1,
+                configs: [
+                    { id: 66, name: 'Chrome', group_id: 55 },
+                    { id: 67, name: 'Firefox', group_id: 55 },
+                ],
+            },
+        ];
+
+        it('GETs get_configs/{project_id} and returns the tree', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['configuration', 'list', '1'],
+                [jsonResponse(MOCK_CONFIG_TREE)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_configs/1');
+            expect(stdout).toContain('Browsers');
+            expect(stdout).toContain('Chrome');
+        });
+
+        it('exits 1 when project_id is non-numeric', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration', 'list', 'abc']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/project_id/);
+        });
+    });
+
+    describe('configuration-group add/update', () => {
+        const MOCK_GROUP = { id: 55, name: 'Browsers', project_id: 1, configs: [] };
+
+        it('configuration-group add POSTs to add_config_group/{project_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['configuration-group', 'add', '1', '--data', '{"name":"Browsers"}'],
+                [jsonResponse(MOCK_GROUP)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_config_group/1');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('Browsers');
+        });
+
+        it('configuration-group update POSTs to update_config_group/{id}', async () => {
+            const { exitCodes } = await runCli(
+                ['configuration-group', 'update', '55', '--data', '{"name":"Desktop"}'],
+                [jsonResponse({ ...MOCK_GROUP, name: 'Desktop' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_config_group/55');
+        });
+
+        it('configuration-group add exits 1 with missing body', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration-group', 'add', '1']);
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('configuration-group delete (destructive; --soft NOT supported)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration-group', 'delete', '55']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_config_group/{id}', async () => {
+            const { exitCodes } = await runCli(['configuration-group', 'delete', '55', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_config_group/55');
+        });
+
+        it('--dry-run wins over --yes (no API call; preview marked destructive)', async () => {
+            const { exitCodes, stdout } = await runCli(['configuration-group', 'delete', '55', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"destructive": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects --soft (TestRail does not support soft on delete_config_group)', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration-group', 'delete', '55', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/configuration-group delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('configuration add/update', () => {
+        const MOCK_CONFIG = { id: 66, name: 'Chrome', group_id: 55 };
+
+        it('configuration add POSTs to add_config/{config_group_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['configuration', 'add', '55', '--data', '{"name":"Chrome"}'],
+                [jsonResponse(MOCK_CONFIG)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_config/55');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('Chrome');
+        });
+
+        it('configuration update POSTs to update_config/{id}', async () => {
+            const { exitCodes } = await runCli(
+                ['configuration', 'update', '66', '--data', '{"name":"Chrome (stable)"}'],
+                [jsonResponse({ ...MOCK_CONFIG, name: 'Chrome (stable)' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_config/66');
+        });
+
+        it('configuration add exits 1 with malformed body', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration', 'add', '55', '--data', '{"name":42}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+    });
+
+    describe('configuration delete (destructive; --soft NOT supported)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration', 'delete', '66']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_config/{id}', async () => {
+            const { exitCodes } = await runCli(['configuration', 'delete', '66', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_config/66');
+        });
+
+        it('--dry-run wins over --yes (no API call; preview marked destructive)', async () => {
+            const { exitCodes, stdout } = await runCli(['configuration', 'delete', '66', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"destructive": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects --soft (TestRail does not support soft on delete_config)', async () => {
+            const { exitCodes, stderr } = await runCli(['configuration', 'delete', '66', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/configuration delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
 });

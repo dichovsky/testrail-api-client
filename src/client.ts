@@ -24,10 +24,6 @@ import type {
     Template,
     ConfigurationGroup,
     Configuration,
-    AddConfigurationGroupPayload,
-    UpdateConfigurationGroupPayload,
-    AddConfigurationPayload,
-    UpdateConfigurationPayload,
     AddUserPayload,
     UpdateUserPayload,
     Role,
@@ -79,6 +75,10 @@ import type {
     SharedStep,
     AddSharedStepPayload,
     UpdateSharedStepPayload,
+    AddConfigurationGroupPayload,
+    UpdateConfigurationGroupPayload,
+    AddConfigurationPayload,
+    UpdateConfigurationPayload,
 } from './schemas.js';
 import type { GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';

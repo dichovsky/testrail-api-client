@@ -47,6 +47,10 @@ import {
     UpdateVariablePayloadSchema,
     AddSharedStepPayloadSchema,
     UpdateSharedStepPayloadSchema,
+    AddConfigurationGroupPayloadSchema,
+    UpdateConfigurationGroupPayloadSchema,
+    AddConfigurationPayloadSchema,
+    UpdateConfigurationPayloadSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -1118,5 +1122,87 @@ describe('UpdateSharedStepPayloadSchema', () => {
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateSharedStepPayloadSchema.parse({ custom_owner: 'qa' }) as Record<string, unknown>;
         expect(parsed['custom_owner']).toBe('qa');
+    });
+});
+
+describe('AddConfigurationGroupPayloadSchema', () => {
+    it('parses a minimal valid payload', () => {
+        expect(AddConfigurationGroupPayloadSchema.parse({ name: 'Browsers' }).name).toBe('Browsers');
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddConfigurationGroupPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => AddConfigurationGroupPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddConfigurationGroupPayloadSchema.parse({
+            name: 'Browsers',
+            custom_owner: 'qa',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('qa');
+    });
+});
+
+describe('UpdateConfigurationGroupPayloadSchema', () => {
+    it('parses an empty body', () => {
+        expect(UpdateConfigurationGroupPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a rename payload', () => {
+        expect(UpdateConfigurationGroupPayloadSchema.parse({ name: 'Desktop Browsers' }).name).toBe('Desktop Browsers');
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => UpdateConfigurationGroupPayloadSchema.parse({ name: 0 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateConfigurationGroupPayloadSchema.parse({ custom_owner: 'qa' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('qa');
+    });
+});
+
+describe('AddConfigurationPayloadSchema', () => {
+    it('parses a minimal valid payload', () => {
+        expect(AddConfigurationPayloadSchema.parse({ name: 'Chrome' }).name).toBe('Chrome');
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddConfigurationPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => AddConfigurationPayloadSchema.parse({ name: ['Chrome'] })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddConfigurationPayloadSchema.parse({
+            name: 'Chrome',
+            custom_version: '120',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_version']).toBe('120');
+    });
+});
+
+describe('UpdateConfigurationPayloadSchema', () => {
+    it('parses an empty body', () => {
+        expect(UpdateConfigurationPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a rename payload', () => {
+        expect(UpdateConfigurationPayloadSchema.parse({ name: 'Chrome (stable)' }).name).toBe('Chrome (stable)');
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => UpdateConfigurationPayloadSchema.parse({ name: true })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateConfigurationPayloadSchema.parse({ custom_version: '120' }) as Record<string, unknown>;
+        expect(parsed['custom_version']).toBe('120');
     });
 });

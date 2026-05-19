@@ -36,14 +36,7 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🟡 P1 — common metadata & admin
 
-- [ ] 🟡 📦 CLI: `configuration list` (GET `get_configs/{project_id}`)
-- [ ] 🟡 📦 CLI: `configuration-group add` (POST `add_config_group/{project_id}`)
-- [ ] 🟡 📦 CLI: `configuration-group update` (POST `update_config_group/{config_group_id}`)
-- [ ] 🟡 📦 ⚠️ CLI: `configuration-group delete` (POST `delete_config_group/{config_group_id}`)
-- [ ] 🟡 📦 CLI: `configuration add` (POST `add_config/{config_group_id}`)
-- [ ] 🟡 📦 CLI: `configuration update` (POST `update_config/{config_id}`)
-- [ ] 🟡 📦 ⚠️ CLI: `configuration delete` (POST `delete_config/{config_id}`)
-- [ ] 🟡 📦 SKILL recipe: Configuration groups & configs hierarchy management
+(all P1 items shipped — see BACKLOG-ARCHIVE.md)
 
 #### 🟢 P2 — admin & low-traffic endpoints
 

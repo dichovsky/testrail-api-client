@@ -70,6 +70,10 @@ export {
     UpdateVariablePayloadSchema,
     AddSharedStepPayloadSchema,
     UpdateSharedStepPayloadSchema,
+    AddConfigurationGroupPayloadSchema,
+    UpdateConfigurationGroupPayloadSchema,
+    AddConfigurationPayloadSchema,
+    UpdateConfigurationPayloadSchema,
 } from './schemas.js';
 export type {
     AddCasePayload,
@@ -110,6 +114,10 @@ export type {
     SharedStep,
     AddSharedStepPayload,
     UpdateSharedStepPayload,
+    AddConfigurationGroupPayload,
+    UpdateConfigurationGroupPayload,
+    AddConfigurationPayload,
+    UpdateConfigurationPayload,
 } from './schemas.js';
 export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
@@ -143,10 +151,6 @@ export type {
     Template,
     ConfigurationGroup,
     Configuration,
-    AddConfigurationGroupPayload,
-    UpdateConfigurationGroupPayload,
-    AddConfigurationPayload,
-    UpdateConfigurationPayload,
     AddUserPayload,
     UpdateUserPayload,
     Role,

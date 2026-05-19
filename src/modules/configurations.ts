@@ -1,13 +1,13 @@
 import { TestRailClientCore } from '../client-core.js';
-import type {
-    ConfigurationGroup,
-    Configuration,
-    AddConfigurationGroupPayload,
-    UpdateConfigurationGroupPayload,
-    AddConfigurationPayload,
-    UpdateConfigurationPayload,
-} from '../types.js';
-import { ConfigurationGroupSchema, ConfigurationSchema } from '../schemas.js';
+import type { ConfigurationGroup, Configuration } from '../types.js';
+import {
+    ConfigurationGroupSchema,
+    ConfigurationSchema,
+    type AddConfigurationGroupPayload,
+    type UpdateConfigurationGroupPayload,
+    type AddConfigurationPayload,
+    type UpdateConfigurationPayload,
+} from '../schemas.js';
 import { z } from 'zod';
 
 export class ConfigurationModule {
