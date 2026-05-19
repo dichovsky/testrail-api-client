@@ -1160,9 +1160,13 @@ export class TestRailClientCore {
                 maxBytes: this.maxBinaryResponseBytes,
                 deadlineMs: this.bodyTimeout,
             });
-            // readBodyWithLimits allocates new Uint8Array(total) — bytes.buffer is
-            // already an exact-length, freshly allocated stand-alone ArrayBuffer.
-            return bytes.buffer as ArrayBuffer;
+            // readBodyWithLimits returns a subarray view of a growable buffer
+            // that may have spare capacity.  Return an ArrayBuffer that contains
+            // exactly the downloaded bytes — slice only when needed to avoid an
+            // unnecessary copy when the buffer happens to be exact-sized.
+            return bytes.byteLength === bytes.buffer.byteLength
+                ? (bytes.buffer as ArrayBuffer)
+                : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
         } catch (error) {
             clearTimeout(timeoutId);
 

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "cfdb7754216220bbdaf5e14cb7f00d709ca8354746ab2723363a34df8d551bca",
+  "sourceHash": "70d96e6307a3d5971138b3c5db4ea2138ef883b69b0d4c5455044cdc28493fe2",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1292,14 +1292,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "readBodyAsText",
           "kind": "function",
-          "line": 122,
+          "line": 146,
           "exported": true,
           "signature": "export async function readBodyAsText(response: Response, limits: BodyLimits): Promise<string>"
         },
         {
           "name": "readBodyViaFallback",
           "kind": "function",
-          "line": 135,
+          "line": 159,
           "exported": false,
           "signature": "async function readBodyViaFallback(response: Response, maxBytes: number): Promise<Uint8Array>"
         }
@@ -2850,17 +2850,17 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1195
+              "line": 1199
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1204
+              "line": 1208
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1237
+              "line": 1241
             }
           ]
         }

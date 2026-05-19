@@ -52,7 +52,13 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     }
 
     const reader = body.getReader();
-    const chunks: Uint8Array[] = [];
+    // Single growable buffer: chunks are written directly into it, so there is
+    // never a separate chunk array in memory alongside the assembled output.
+    // The buffer doubles in capacity on demand, capped at maxBytes so it never
+    // allocates more than the caller-configured ceiling.  Peak memory stays at
+    // ≤ maxBytes (one buffer), compared to ≤ 2×maxBytes with the previous
+    // chunk-array + final-copy approach.
+    let buf = new Uint8Array(Math.min(4096, maxBytes));
     let total = 0;
     let timedOut = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -87,8 +93,8 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
             if (value === undefined) {
                 continue;
             }
-            total += value.byteLength;
-            if (total > maxBytes) {
+            const newTotal = total + value.byteLength;
+            if (newTotal > maxBytes) {
                 // Best-effort cancel; reader.cancel() resolves once the
                 // underlying source releases its resources. Swallow rejection.
                 // eslint-disable-next-line no-await-in-loop -- single cancel before throwing out of the loop
@@ -99,21 +105,39 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
                     `response body exceeded ${maxBytes} bytes before the stream closed`,
                 );
             }
-            chunks.push(value);
+            // Grow the buffer if the incoming chunk does not fit.  Double the
+            // capacity each time (capped at maxBytes) to amortise allocations.
+            // After the copy the previous buffer is GC-eligible.
+            if (newTotal > buf.byteLength) {
+                let newCap = buf.byteLength;
+                while (newCap < newTotal) {
+                    newCap = Math.min(newCap * 2, maxBytes);
+                }
+                const grown = new Uint8Array(newCap);
+                grown.set(buf.subarray(0, total));
+                buf = grown;
+            }
+            buf.set(value, total);
+            total = newTotal;
         }
     } finally {
         if (timeoutId !== undefined) {
             clearTimeout(timeoutId);
         }
+        // Release the reader lock so the underlying stream is not held open
+        // longer than necessary after the read completes or is aborted.
+        try {
+            reader.releaseLock();
+        } catch {
+            // Stream may already be in a terminal state (e.g. cancel() in
+            // flight); ignore — we cannot recover here.
+        }
     }
 
-    const out = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-        out.set(chunk, offset);
-        offset += chunk.byteLength;
-    }
-    return out;
+    // Return a view of exactly the filled bytes.  When the buffer was grown to
+    // its exact final size no extra allocation is needed; otherwise a subarray
+    // view avoids copying while still exposing only the valid content.
+    return buf.subarray(0, total);
 }
 
 /**
