@@ -284,7 +284,7 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         // pin both halves so a future rewrite cannot accidentally
         // imply the cases get deleted.
         expect(section).toContain('Delete does NOT cascade');
-        expect(section).toContain('not** deleted');
+        expect(section).toContain('**not** deleted');
         expect(section).toContain('lose the reference');
     });
 
