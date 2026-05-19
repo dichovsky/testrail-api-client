@@ -3,9 +3,10 @@
  *
  * The pure helpers (schema validation, path normalization, CLI heuristic,
  * cell renderers, document assembly) are exercised here. The full integration
- * (script invocation + AST crawl + filesystem) is covered by the
- * `npm run mapping` smoke run in CI; once Phase 2 lands, `mapping:check` will
- * gate drift between source and generated output.
+ * (script invocation + AST crawl + filesystem write/check) is exercised in CI
+ * by the `Run API mapping drift check` step (`.github/workflows/ci.yml`),
+ * which runs `npm run mapping:check` and fails the build if the committed
+ * `docs/API-MAPPING.md` is out of date.
  */
 import { describe, expect, it } from 'vitest';
 // scripts/ is outside the tsconfig include for src/; the .mjs has no .d.ts.
