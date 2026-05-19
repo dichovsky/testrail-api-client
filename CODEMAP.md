@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "3.5.0"
+    "version": "4.0.0"
   },
-  "sourceHash": "492bea4b3bdadb6622eea583b6bb152263e535bb275f91dcd57085d5ea9de80b",
+  "sourceHash": "2a7d2fa43e6f310bea3480941ad6fd1bcd32c40763321842f3c835500078c39c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1534,42 +1534,71 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/test.js",
         "./handlers/user.js",
         "./handlers/variable-write.js",
-        "./handlers/variable.js"
+        "./handlers/variable.js",
+        "./metadata.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 102,
+          "line": 103,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 220,
+          "line": 221,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 235,
+          "line": 236,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 242,
+          "line": 243,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
+          "name": "DESTRUCTIVE_ENV_VAR",
+          "kind": "const",
+          "line": 259,
+          "exported": true,
+          "signature": "export const DESTRUCTIVE_ENV_VAR = 'TESTRAIL_ALLOW_DESTRUCTIVE'"
+        },
+        {
+          "name": "DESTRUCTIVE_ENV_ALLOW_VALUE",
+          "kind": "const",
+          "line": 265,
+          "exported": true,
+          "signature": "export const DESTRUCTIVE_ENV_ALLOW_VALUE = '1'"
+        },
+        {
+          "name": "EnvGateResult",
+          "kind": "type",
+          "line": 267,
+          "exported": true,
+          "signature": "export type EnvGateResult = { ok: true } | { ok: false; error: string }"
+        },
+        {
+          "name": "checkDestructiveEnvGate",
+          "kind": "function",
+          "line": 291,
+          "exported": true,
+          "signature": "export function checkDestructiveEnvGate( spec: ActionSpec | undefined, env: Readonly<Record<string, string | undefined>>, dryRun: boolean, ): EnvGateResult"
+        },
+        {
           "name": "dispatch",
           "kind": "function",
-          "line": 246,
+          "line": 316,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -3181,7 +3210,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 227,
+          "line": 240,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }

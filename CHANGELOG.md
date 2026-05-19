@@ -136,6 +136,90 @@ not introduce a parallel hazard but does not fix the existing one.
   `run watch`); attachment list actions now honor the existing `--limit` /
   `--offset` flags.
 
+## [4.0.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
+
+Closes [BACKLOG CLI: destructive env-var gate](BACKLOG-ARCHIVE.md). Adds a
+**second gate** for destructive CLI actions (`*:delete`, `run close`,
+`plan close`): a `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable that
+must be set **in addition to** the existing `--yes` flag. The check runs in
+the dispatcher (`src/cli/dispatch.ts`) before the handler is invoked — so
+even a future destructive handler added without an `if (!confirmDestructive)`
+check cannot escape the env-var gate (defense-in-depth).
+
+### Changed
+
+- **BREAKING — Destructive CLI actions now require `TESTRAIL_ALLOW_DESTRUCTIVE=1`
+  in addition to `--yes`.** Existing CI users must set this environment
+  variable before any destructive command. The env var must be **exactly**
+  the string `'1'` (not `'true'` / `'yes'` / `'on'` / `'1 '` with whitespace).
+- **New exit code `2`** for "destructive action blocked by missing env var".
+  Distinct from the generic exit code `1` (used for argv / auth / validation
+  / HTTP failures) so CI can branch on "needs `TESTRAIL_ALLOW_DESTRUCTIVE`"
+  vs everything else.
+- `--dry-run` continues to bypass both gates (preview is non-destructive by
+  definition; no API call leaves the process). Use `--dry-run` for safe CI
+  preview without setting up the gates.
+
+### Migration
+
+**For CI users running destructive `testrail` commands:**
+
+Add the env var to your CI step (export it once; it applies to every
+subsequent destructive command in that step):
+
+```bash
+# Before (3.5.x):
+testrail run delete 5 --yes
+
+# After (4.0.0+):
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail run delete 5 --yes
+```
+
+Or as a one-liner:
+
+```bash
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
+```
+
+**Affected actions** (all currently destructive resources): `case delete`,
+`case delete-bulk`, `run delete`, `run close`, `section delete`,
+`suite delete`, `milestone delete`, `project delete`, `plan close`,
+`plan delete`, `plan delete-entry`, `plan delete-run-from-entry`,
+`variable delete`, `group delete`, `dataset delete`, `shared-step delete`,
+`configuration delete`, `configuration-group delete`, `attachment delete`.
+
+**For agents / scripts using `--dry-run`:** No action required. `--dry-run`
+bypasses the env-var gate (and the `--yes` gate) so CI preview workflows
+continue to work without configuration.
+
+**For programmatic library users (`TestRailClient.deleteRun(…)` etc.):** No
+action required. The gate only applies to the CLI dispatcher — the
+programmatic API surface is unchanged.
+
+### Why two gates?
+
+The env var is a **process-wide, audit-friendly switch** (visible in
+`printenv`, CI step logs, crash dumps). The `--yes` flag is **per-invocation
+explicit intent**. Together they make accidental destructive operations
+meaningfully harder:
+
+- A script run with a stale env still needs `--yes`.
+- A typo with `--yes` still needs the env var.
+- A handler added without `--yes` validation still can't escape the dispatcher.
+
+The strict `'1'` comparison (no `'true'` / `'yes'` aliasing) keeps the
+audit trail unambiguous: in CI logs you can tell `unset` from `set-to-wrong-value`
+from `set-to-allow` at a glance.
+
+### Unchanged
+
+- Per-handler `--yes` semantics and exit-1 behavior on missing `--yes`.
+- `--dry-run` wins-over-`--yes` precedence (preview without API call).
+- `--soft` server-side preview semantics on soft-capable deletes.
+- Programmatic library API (`TestRailClient.deleteRun(…)`, etc.) — no env
+  var required for direct client calls.
+
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
 Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**
