@@ -47,7 +47,10 @@ Read actions:
 Metadata actions:
   case-field   list                       (no positional args)
   case-status  list                       (no positional args)
+  case-type    list                       (no positional args)
+  priority     list                       (no positional args)
   result-field list                       (no positional args)
+  role         list                       (no positional args)
   status       list                       (no positional args)
   template     list <project_id>
 

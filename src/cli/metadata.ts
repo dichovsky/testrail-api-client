@@ -723,14 +723,16 @@ export const ACTIONS: readonly ActionSpec[] = [
         apiEndpoint: 'GET get_case_statuses',
         isWrite: false,
     },
-    // ── Metadata read actions ─────────────────────────────────────────────
-    // Instance-level metadata getters: case fields, result fields, statuses,
-    // and per-project templates. Four of the five take no path params
-    // (`case-field list`, `case-status list`, `result-field list`,
-    // `status list`); the handlers reject extra positional args fail-fast
-    // with `IdParseError` so a typo like `testrail status list 5` surfaces
-    // as an error instead of silently ignoring the `5`. `template list`
-    // takes a single `project_id`.
+    // ── Metadata + reference-data read actions ────────────────────────────
+    // Instance-level metadata and reference-data getters: case fields,
+    // result fields, statuses, templates, roles, priorities, case types.
+    // Seven of the eight take no path params (`case-field list`,
+    // `case-status list`, `result-field list`, `status list`, `role list`,
+    // `priority list`, `case-type list`); their handlers reject extra
+    // positional args fail-fast with `IdParseError` so a typo like
+    // `testrail status list 5` or `testrail role list 5` surfaces as an
+    // error instead of silently ignoring the `5`. `template list` takes a
+    // single `project_id`.
     {
         resource: 'case-field',
         action: 'list',
@@ -761,6 +763,30 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary: 'List case templates available in a project',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_templates/{project_id}',
+        isWrite: false,
+    },
+    {
+        resource: 'role',
+        action: 'list',
+        summary: 'List all user roles defined on the TestRail instance',
+        pathParams: [],
+        apiEndpoint: 'GET get_roles',
+        isWrite: false,
+    },
+    {
+        resource: 'priority',
+        action: 'list',
+        summary: 'List all case priorities defined on the TestRail instance',
+        pathParams: [],
+        apiEndpoint: 'GET get_priorities',
+        isWrite: false,
+    },
+    {
+        resource: 'case-type',
+        action: 'list',
+        summary: 'List all case types defined on the TestRail instance',
+        pathParams: [],
+        apiEndpoint: 'GET get_case_types',
         isWrite: false,
     },
     // ── Case-field write action ───────────────────────────────────────────

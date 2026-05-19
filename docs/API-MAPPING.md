@@ -17,19 +17,19 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Attachments](#attachments) | 12 | 12 | 12 | 5 |
 | [BDD](#bdd) | 2 | 2 | 2 | 0 |
 | [Case Fields](#case-fields) | 2 | 2 | 2 | 0 |
-| [Case Types](#case-types) | 1 | 1 | 0 | 0 |
+| [Case Types](#case-types) | 1 | 1 | 1 | 0 |
 | [Cases](#cases) | 10 | 10 | 10 | 4 |
 | [Configurations](#configurations) | 7 | 7 | 7 | 5 |
 | [Datasets](#datasets) | 5 | 5 | 0 | 0 |
 | [Groups](#groups) | 5 | 5 | 0 | 0 |
 | [Milestones](#milestones) | 5 | 5 | 5 | 0 |
 | [Plans](#plans) | 12 | 12 | 12 | 9 |
-| [Priorities](#priorities) | 1 | 1 | 0 | 0 |
+| [Priorities](#priorities) | 1 | 1 | 1 | 0 |
 | [Projects](#projects) | 5 | 5 | 5 | 2 |
 | [Reports](#reports) | 2 | 2 | 2 | 0 |
 | [Result Fields](#result-fields) | 1 | 1 | 1 | 0 |
 | [Results](#results) | 7 | 7 | 6 | 5 |
-| [Roles](#roles) | 1 | 1 | 0 | 0 |
+| [Roles](#roles) | 1 | 1 | 1 | 0 |
 | [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
 | [Shared Steps](#shared-steps) | 6 | 6 | 6 | 4 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **116** | **116** | **98** | **39** |
+| **Total** | **116** | **116** | **101** | **39** |
 
 ## Attachments
 
@@ -84,7 +84,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_types`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTypes`](../src/modules/metadata.ts#L64) | — | — |
+| [`GET get_case_types`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTypes`](../src/modules/metadata.ts#L64) | `case-type list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Cases
 
@@ -178,7 +178,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_priorities`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getPriorities`](../src/modules/metadata.ts#L30) | — | — |
+| [`GET get_priorities`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getPriorities`](../src/modules/metadata.ts#L30) | `priority list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Projects
 
@@ -229,7 +229,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_roles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRoles`](../src/modules/metadata.ts#L75) | — | — |
+| [`GET get_roles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRoles`](../src/modules/metadata.ts#L75) | `role list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Runs
 

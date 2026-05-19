@@ -25,6 +25,9 @@ import { handleCaseStatusList } from '../src/cli/handlers/case-status.js';
 import { handleResultFieldList } from '../src/cli/handlers/result-field.js';
 import { handleStatusList } from '../src/cli/handlers/status.js';
 import { handleTemplateList } from '../src/cli/handlers/template.js';
+import { handleRoleList } from '../src/cli/handlers/role.js';
+import { handlePriorityList } from '../src/cli/handlers/priority.js';
+import { handleCaseTypeList } from '../src/cli/handlers/case-type.js';
 import { handleVariableList } from '../src/cli/handlers/variable.js';
 import { handleConfigurationList } from '../src/cli/handlers/configuration.js';
 import { IdParseError } from '../src/cli/ids.js';
@@ -47,6 +50,9 @@ interface MockedClient {
     getTemplates: ReturnType<typeof vi.fn>;
     getVariables: ReturnType<typeof vi.fn>;
     getConfigurations: ReturnType<typeof vi.fn>;
+    getRoles: ReturnType<typeof vi.fn>;
+    getPriorities: ReturnType<typeof vi.fn>;
+    getCaseTypes: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -134,6 +140,18 @@ function buildClient(): MockedClient {
                     { id: 67, name: 'Firefox', group_id: 55 },
                 ],
             },
+        ]),
+        getRoles: vi.fn().mockResolvedValue([
+            { id: 1, name: 'Lead', is_default: true },
+            { id: 2, name: 'Tester', is_default: false },
+        ]),
+        getPriorities: vi.fn().mockResolvedValue([
+            { id: 1, name: 'Low', short_name: 'Low', is_default: false, priority: 1 },
+            { id: 4, name: 'Must Test', short_name: 'Must', is_default: true, priority: 4 },
+        ]),
+        getCaseTypes: vi.fn().mockResolvedValue([
+            { id: 1, name: 'Automated', is_default: false },
+            { id: 7, name: 'Functional', is_default: true },
         ]),
     };
 }
@@ -683,6 +701,108 @@ describe('handleStatusList', () => {
         await expect(handleStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleStatusList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getStatuses).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleRoleList ────────────────────────────────────────────────────────
+//
+// `role list`, `priority list`, and `case-type list` share the same
+// zero-arg shape as the other metadata read handlers (`case-field list`,
+// `case-status list`, `result-field list`, `status list`). Extra positional
+// args reject with `IdParseError` so a typo like `role list 5` surfaces
+// instead of silently ignoring the `5`.
+
+describe('handleRoleList', () => {
+    it('calls client.getRoles with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleRoleList(ctx);
+        expect(client.getRoles).toHaveBeenCalledTimes(1);
+        expect(client.getRoles).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 1, name: 'Lead' }),
+            expect.objectContaining({ id: 2, name: 'Tester' }),
+        ]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleRoleList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleRoleList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getRoles).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleRoleList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleRoleList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getRoles).not.toHaveBeenCalled();
+    });
+});
+
+// ── handlePriorityList ────────────────────────────────────────────────────
+
+describe('handlePriorityList', () => {
+    it('calls client.getPriorities with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handlePriorityList(ctx);
+        expect(client.getPriorities).toHaveBeenCalledTimes(1);
+        expect(client.getPriorities).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 1, short_name: 'Low' }),
+            expect.objectContaining({ id: 4, is_default: true }),
+        ]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handlePriorityList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handlePriorityList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getPriorities).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handlePriorityList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handlePriorityList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getPriorities).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleCaseTypeList ────────────────────────────────────────────────────
+
+describe('handleCaseTypeList', () => {
+    it('calls client.getCaseTypes with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleCaseTypeList(ctx);
+        expect(client.getCaseTypes).toHaveBeenCalledTimes(1);
+        expect(client.getCaseTypes).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 1, name: 'Automated' }),
+            expect.objectContaining({ id: 7, is_default: true }),
+        ]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleCaseTypeList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleCaseTypeList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseTypes).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleCaseTypeList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleCaseTypeList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseTypes).not.toHaveBeenCalled();
     });
 });
 

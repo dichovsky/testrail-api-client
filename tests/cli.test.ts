@@ -2175,6 +2175,15 @@ describe('CLI', () => {
             is_final: true,
         };
         const MOCK_TEMPLATE = { id: 1, name: 'Test Case (Text)', is_default: true };
+        const MOCK_ROLE = { id: 1, name: 'Lead', is_default: true };
+        const MOCK_PRIORITY = {
+            id: 4,
+            name: 'Must Test',
+            short_name: 'Must',
+            is_default: true,
+            priority: 4,
+        };
+        const MOCK_CASE_TYPE = { id: 7, name: 'Functional', is_default: true };
 
         // ── case-field list ───────────────────────────────────────────────
 
@@ -2345,6 +2354,165 @@ describe('CLI', () => {
 
         it('status list surfaces network error as exit 1', async () => {
             const { exitCodes } = await runCli(['status', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── role list ─────────────────────────────────────────────────────
+
+        it('role list exits 0 and calls get_roles', async () => {
+            const { exitCodes } = await runCli(['role', 'list'], [jsonResponse([MOCK_ROLE])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_roles'), expect.anything());
+        });
+
+        it('role list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['role', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_ROLE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Lead');
+        });
+
+        it('role list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['role', 'list', '--format', 'json'],
+                [jsonResponse([MOCK_ROLE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"name": "Lead"');
+        });
+
+        it('role list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['role', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('role list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['role', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('role list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['role', 'list'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('role list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['role', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('role list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['role', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── priority list ─────────────────────────────────────────────────
+
+        it('priority list exits 0 and calls get_priorities', async () => {
+            const { exitCodes } = await runCli(['priority', 'list'], [jsonResponse([MOCK_PRIORITY])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_priorities'), expect.anything());
+        });
+
+        it('priority list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['priority', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_PRIORITY])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Must Test');
+        });
+
+        it('priority list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['priority', 'list', '--format', 'json'],
+                [jsonResponse([MOCK_PRIORITY])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"short_name": "Must"');
+        });
+
+        it('priority list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['priority', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('priority list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['priority', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('priority list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['priority', 'list'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('priority list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['priority', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('priority list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['priority', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── case-type list ────────────────────────────────────────────────
+
+        it('case-type list exits 0 and calls get_case_types', async () => {
+            const { exitCodes } = await runCli(['case-type', 'list'], [jsonResponse([MOCK_CASE_TYPE])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_types'), expect.anything());
+        });
+
+        it('case-type list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case-type', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_CASE_TYPE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Functional');
+        });
+
+        it('case-type list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case-type', 'list', '--format', 'json'],
+                [jsonResponse([MOCK_CASE_TYPE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"name": "Functional"');
+        });
+
+        it('case-type list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['case-type', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('case-type list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-type', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('case-type list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-type', 'list'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('case-type list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-type', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('case-type list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-type', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
             expect(exitCodes).toContain(1);
         });
 
