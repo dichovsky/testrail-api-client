@@ -222,3 +222,96 @@ describe('skill/SKILL.md — Configuration groups & configs hierarchy recipe', (
         expect(section).toContain('does NOT support `soft=1`');
     });
 });
+
+describe('skill/SKILL.md — Shared step propagation + history audit recipe', () => {
+    const md = readFileSync(SKILL_PATH, 'utf-8');
+
+    // gate C2 already enforces that the tags resolve to ActionSpec entries,
+    // but it does NOT enforce that all four tags stay grouped under the
+    // same heading. Splitting them across separate recipes would change
+    // binding semantics without gate C2 noticing. Pin the grouping
+    // explicitly (mirrors the Plan entries lifecycle and Configuration
+    // hierarchy recipe patterns).
+    it('groups all four shared-step recipe-for tags under the same heading', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        expect(section).toContain('<!-- recipe-for: shared-step:add -->');
+        expect(section).toContain('<!-- recipe-for: shared-step:update -->');
+        expect(section).toContain('<!-- recipe-for: shared-step:delete -->');
+        expect(section).toContain('<!-- recipe-for: shared-step:history -->');
+    });
+
+    it('pins the propagation-is-server-side narration (load-bearing insight)', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        // The headline takeaway: a single update fan-outs to every case
+        // that references the step. If a rewrite weakens this language,
+        // future agents lose the blast-radius warning.
+        expect(section).toContain('every case that references it');
+        expect(section).toContain('Propagation is immediate and server-side');
+    });
+
+    it('pins the lifecycle commands in walkthrough order', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        // Order: add (project-scoped) → reference from case → history
+        // (pre-mutation audit) → update → history (post-mutation verify)
+        // → delete (--dry-run preview, then --yes commit). A reorder
+        // would change the "audit-before-mutate" cascade the recipe is
+        // teaching.
+        expect(section).toContain('testrail shared-step add 5 --data');
+        expect(section).toContain('testrail case add "$SECTION_ID" --data');
+        expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --limit 50');
+        expect(section).toContain('testrail shared-step update "$SHARED_STEP_ID" --data');
+        expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --limit 1');
+        expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --yes --dry-run');
+        expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --yes');
+    });
+
+    it('pins the case-side shared_step_id reference shape', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        // The reference contract — a step entry with `shared_step_id`
+        // inside a case's `custom_steps_separated` — is the only way
+        // the propagation graph gets built. Pin both the JSON key and
+        // the prose claim so a future rewrite that drops the example
+        // surfaces as a diff.
+        expect(section).toContain('custom_steps_separated');
+        expect(section).toContain('shared_step_id');
+        expect(section).toContain('{\\"shared_step_id\\": $SHARED_STEP_ID}');
+    });
+
+    it('warns that delete does NOT cascade to referencing test cases', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        // The cascade-semantics clarification (cases lose the reference
+        // but the case row survives) is the critical safety note —
+        // pin both halves so a future rewrite cannot accidentally
+        // imply the cases get deleted.
+        expect(section).toContain('Delete does NOT cascade');
+        expect(section).toContain('**not** deleted');
+        expect(section).toContain('lose the reference');
+    });
+
+    it('warns that delete is destructive with --yes gate and no --soft preview', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        // Mirrors milestone/plan delete safety pattern. Pin the three
+        // load-bearing claims: --yes gates, no upstream --soft,
+        // --dry-run wins over --yes.
+        expect(section).toContain('gated by `--yes`');
+        expect(section).toContain('no `--soft` server-side preview');
+        expect(section).toContain('`--dry-run` wins');
+        expect(section).toContain('over `--yes`');
+    });
+
+    it('recommends history audit before any update or delete', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        expect(section).toContain('Audit BEFORE you mutate');
+        expect(section).toContain('Audit before every mutation');
+        expect(section).toContain('blast radius');
+    });
+
+    it('documents that there is no bulk reference lookup upstream', () => {
+        const section = extractSection(md, 'Shared step propagation + history audit');
+        // Important "TestRail does not give you this" gotcha so agents
+        // do not waste budget hunting for an endpoint that does not
+        // exist. The jq-walk workaround is the only way.
+        expect(section).toContain('No bulk reference lookup upstream');
+        expect(section).toContain('case list');
+    });
+});
