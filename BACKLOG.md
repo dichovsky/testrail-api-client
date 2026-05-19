@@ -13,12 +13,7 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 CLI: binary stdout download
 - [ ] 🟡 ♻️ CLI: streaming upload for large files
 - [ ] 🟢 📦 CLI: destructive env-var gate (`TESTRAIL_ALLOW_DESTRUCTIVE=1`)
-- [ ] 🟡 📦 SKILL: programmatic TS API recipes
-- [ ] 🟢 📦 SKILL: `.cursor/rules/testrail.mdc`
-- [ ] 🟢 📦 SKILL: Continue rules
-- [ ] 🟢 📦 SKILL: generic `AGENTS.md`
 - [ ] 🔴 📦 SKILL: localization (non-English)
-- [ ] 🟢 📦 SKILL: `testrail uninstall-skill`
 - [ ] 🟡 📦 SKILL: multi-version skill management
 - [ ] 🟡 📦 SKILL: Claude Code marketplace publish
 

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "28b984811387d5107810586b855815e812120390df4d596db5a614c0fe69973b",
+  "sourceHash": "492bea4b3bdadb6622eea583b6bb152263e535bb275f91dcd57085d5ea9de80b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2666,7 +2666,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleRunWatch",
           "kind": "function",
-          "line": 126,
+          "line": 127,
           "exported": true,
           "signature": "export async function handleRunWatch(ctx: HandlerContext): Promise<void>"
         }
@@ -3151,6 +3151,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./output.js",
         "./sanitize.js",
         "./stdin.js",
+        "./uninstall-skill.js",
         "node:module",
         "node:util"
       ],
@@ -3159,28 +3160,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 18,
+          "line": 19,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 19,
+          "line": 20,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 23,
+          "line": 24,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 220,
+          "line": 227,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -3380,6 +3381,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 39,
           "exported": true,
           "signature": "export function readBoundedStdin(maxBytes: number, fd = 0): string"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/uninstall-skill.ts",
+      "imports": [
+        "./sanitize.js",
+        "node:fs",
+        "node:os",
+        "node:path"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "UninstallSkillOptions",
+          "kind": "interface",
+          "line": 42,
+          "exported": true,
+          "signature": "export interface UninstallSkillOptions { global: boolean; quiet: boolean; cwdOverride?: string; homeOverride?: string; }"
+        },
+        {
+          "name": "getInstallTarget",
+          "kind": "function",
+          "line": 56,
+          "exported": true,
+          "signature": "export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string"
+        },
+        {
+          "name": "runUninstallSkill",
+          "kind": "function",
+          "line": 61,
+          "exported": true,
+          "signature": "export function runUninstallSkill(opts: UninstallSkillOptions): number"
         }
       ]
     },

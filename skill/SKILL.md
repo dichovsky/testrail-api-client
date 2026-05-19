@@ -1529,6 +1529,7 @@ Notes:
   project context (`variable list <project_id>` /
   `dataset list <project_id>`).
 
+
 ### 30. Bulk-author cases under a section in one API call
 
 <!-- recipe-for: case:add-bulk -->
@@ -1631,6 +1632,315 @@ snapshot to **stderr**, and exits with code 130 (POSIX convention).
 Subsequent transient `getRun` failures (network blip, 5xx) surface on
 stderr but do not abort the watcher — only an unrecoverable rejection
 (e.g. auth lost mid-watch) propagates and triggers exit 1.
+
+## Programmatic TypeScript API
+
+The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
+writing TypeScript or JavaScript that needs typed responses, retry /
+rate-limit / cache reuse across many calls, or precise error handling,
+import the client directly instead of shelling out.
+
+```bash
+npm install @dichovsky/testrail-api-client
+```
+
+```typescript
+import {
+    TestRailClient,
+    TestRailApiError,
+    TestRailValidationError,
+} from '@dichovsky/testrail-api-client';
+
+const client = new TestRailClient({
+    baseUrl: process.env.TESTRAIL_BASE_URL!,
+    email: process.env.TESTRAIL_EMAIL!,
+    apiKey: process.env.TESTRAIL_API_KEY!,
+});
+
+try {
+    const project = await client.getProject(1);
+    console.log(project.name);
+} catch (e) {
+    if (e instanceof TestRailApiError) {
+        // HTTP/network errors carry .status / .statusText / .response.
+        console.error(`HTTP ${e.status}: ${e.statusText}`);
+    } else if (e instanceof TestRailValidationError) {
+        // Bad config or invalid args (caught before any network call).
+        console.error(`Invalid input: ${e.message}`);
+    }
+    throw e;
+} finally {
+    // Stops the cache cleanup timer, clears the cache, and zeroes the
+    // credential. Library callers MUST do this in their shutdown hook
+    // (the CLI does it automatically via `registerProcessHandlers: true`).
+    client.destroy();
+}
+```
+
+Each snippet below is self-contained and uses only published types — copy,
+paste, and adjust the IDs. All methods return `Promise<T>`; all errors
+inherit from `Error` (`TestRailApiError` for HTTP/network, `TestRailValidationError`
+for bad input).
+
+### Projects
+
+```typescript
+// List projects (paginated by TestRail; the client returns the full page).
+const projects = await client.getProjects();
+
+// Fetch one.
+const project = await client.getProject(1);
+
+// Create (Zod-validated against AddProjectPayloadSchema).
+const created = await client.addProject({ name: 'CI', suite_mode: 1 });
+
+// Update (partial fields).
+await client.updateProject(created.id, { name: 'CI (renamed)' });
+
+// Delete — destructive; the client method runs immediately, so wrap it
+// behind your own --yes equivalent.
+await client.deleteProject(created.id);
+```
+
+### Suites & sections
+
+```typescript
+const suites = await client.getSuites(1); // by project_id
+const suite = await client.addSuite(1, { name: 'Smoke' });
+
+const sections = await client.getSections(1, { suite_id: suite.id });
+const section = await client.addSection(1, {
+    suite_id: suite.id,
+    name: 'Login',
+});
+```
+
+### Cases
+
+```typescript
+const cases = await client.getCases(1, { suite_id: 5 });
+const c = await client.getCase(42);
+
+const created = await client.addCase(section.id, {
+    title: 'Login page accepts SSO redirect',
+    type_id: 1,
+    priority_id: 3,
+});
+
+// Bulk update many cases in a suite to the same field values.
+await client.updateCases(suite.id, {
+    case_ids: [1, 2, 3],
+    priority_id: 4,
+});
+
+// Edit history (TestRail 7.5+; paginated).
+const history = await client.getHistoryForCase(42, { limit: 100 });
+```
+
+### Runs
+
+```typescript
+const run = await client.addRun(1, {
+    name: `CI build ${process.env.CI_BUILD_NUMBER}`,
+    include_all: false,
+    case_ids: [42, 43, 44],
+});
+
+const runs = await client.getRuns(1, { limit: 25 });
+await client.updateRun(run.id, { milestone_id: 7 });
+
+// Close is irreversible — TestRail has no open_run.
+await client.closeRun(run.id);
+```
+
+### Results
+
+```typescript
+// One result at a time.
+const r1 = await client.addResultForCase(run.id, 42, {
+    status_id: 1,
+    comment: 'passed',
+});
+
+// Bulk by case_id.
+await client.addResultsForCases(run.id, {
+    results: [
+        { case_id: 42, status_id: 1 },
+        { case_id: 43, status_id: 5, comment: 'failed: timeout' },
+    ],
+});
+
+// Bulk by test_id (already-known test instances inside the run).
+await client.addResults(run.id, {
+    results: [{ test_id: 1001, status_id: 1 }],
+});
+
+// Read.
+const results = await client.getResultsForRun(run.id, { limit: 100 });
+const forCase = await client.getResultsForCase(run.id, 42);
+```
+
+### Milestones
+
+```typescript
+const m = await client.addMilestone(1, {
+    name: 'v2.0',
+    description: 'Q2 release',
+});
+await client.updateMilestone(m.id, { is_completed: true });
+const milestones = await client.getMilestones(1);
+```
+
+### Attachments
+
+```typescript
+import { readFileSync } from 'node:fs';
+
+// Upload — pass a Buffer (or a Blob) plus a filename.
+const buf = readFileSync('./screenshot.png');
+const ack = await client.addAttachmentToCase(42, buf, 'screenshot.png');
+console.log(ack.attachment_id);
+
+// Download — returns a Buffer; the caller writes to disk.
+const blob = await client.getAttachment(ack.attachment_id);
+// blob is Uint8Array | ArrayBuffer | Buffer depending on Node version;
+// see CODEMAP.md for the exact return type on your Node target.
+
+// Listings come from the case/run/test/plan/plan-entry the attachment is on.
+const list = await client.getAttachmentsForCase(42);
+
+// Destructive — no built-in --yes gate; guard yourself.
+await client.deleteAttachment(ack.attachment_id);
+```
+
+### Plans
+
+```typescript
+const plan = await client.addPlan(1, {
+    name: 'Release smoke',
+    entries: [{ suite_id: 5, include_all: true }],
+});
+
+// Add a config-specific run to an existing plan entry. Entry IDs are
+// UUID-style strings (NOT integers) — use the value from plan.entries[].id.
+await client.addRunToPlanEntry(plan.id, plan.entries[0].id, {
+    config_ids: [101, 102],
+});
+
+await client.updatePlanEntry(plan.id, plan.entries[0].id, {
+    name: 'Smoke (config matrix)',
+});
+
+// Close + delete are irreversible / destructive — guard with your own
+// confirmation step.
+await client.closePlan(plan.id);
+```
+
+### Users
+
+```typescript
+const me = await client.getCurrentUser(); // TestRail 6.6+
+const byEmail = await client.getUserByEmail('alice@example.com');
+const user = await client.getUser(7);
+const users = await client.getUsers({ limit: 100 });
+```
+
+### Datasets & variables (data-driven testing)
+
+```typescript
+// Variables live on the project; datasets reference them by name.
+const v = await client.addVariable(1, { name: 'env' });
+const d = await client.addDataset(1, { name: 'Staging matrix' });
+
+const datasets = await client.getDatasets(1);
+await client.updateDataset(d.id, { name: 'Production matrix' });
+```
+
+### Groups (TestRail 7.5+)
+
+```typescript
+// Instance-scoped — no project_id path param.
+const group = await client.addGroup({ name: 'QA', user_ids: [1, 2, 3] });
+const groups = await client.getGroups();
+await client.updateGroup(group.id, { name: 'QA (renamed)' });
+```
+
+### Shared steps (TestRail 7.0+)
+
+```typescript
+const step = await client.addSharedStep(1, {
+    title: 'Login as admin',
+    custom_steps_separated: [
+        { content: 'Open /login', expected: '200 OK' },
+        { content: 'Submit creds', expected: 'Redirect to /dashboard' },
+    ],
+});
+
+// Cases reference shared steps via the `custom_steps_separated[].shared_step_id`
+// field. Revising a shared step propagates to every referencing case on
+// the next read.
+await client.updateSharedStep(step.id, { title: 'Login as admin (v2)' });
+```
+
+### Configuration matrix (project → config_groups → configs)
+
+```typescript
+// Tree fetch — one call returns groups with nested configs.
+const groups = await client.getConfigs(1);
+
+// Create a group (e.g. "Browsers") then a leaf config (e.g. "Chrome").
+const browsers = await client.addConfigGroup(1, { name: 'Browsers' });
+const chrome = await client.addConfig(browsers.id, { name: 'Chrome' });
+
+// Wire into a plan entry's config matrix:
+//   plan_entry.config_ids = [chrome.id, ...]
+```
+
+### Configuration & client tuning
+
+```typescript
+// Override defaults from src/constants.ts. All values are optional.
+const tuned = new TestRailClient({
+    baseUrl: process.env.TESTRAIL_BASE_URL!,
+    email: process.env.TESTRAIL_EMAIL!,
+    apiKey: process.env.TESTRAIL_API_KEY!,
+    timeout: 60_000, // header timeout (ms)
+    bodyTimeout: 60_000, // body-read wall-clock deadline (ms)
+    maxRetries: 5,
+    rateLimiter: { maxRequests: 200, windowMs: 60_000 },
+    maxJsonResponseBytes: 20 * 1024 * 1024, // 20 MiB cap
+    // Library callers should leave this off and call destroy() from their
+    // own shutdown hook. The CLI opts in.
+    registerProcessHandlers: false,
+});
+```
+
+### Error narrowing pattern
+
+```typescript
+async function safelyDeleteCase(id: number) {
+    try {
+        await client.deleteCase(id);
+        return { ok: true as const };
+    } catch (e) {
+        if (e instanceof TestRailApiError) {
+            // HTTP layer: 4xx/5xx, network, rate limit, timeout, body cap,
+            // 3xx blocked redirects.
+            return { ok: false as const, kind: 'api', status: e.status, msg: e.statusText };
+        }
+        if (e instanceof TestRailValidationError) {
+            // Pre-flight: bad ID, missing config, schema rejection.
+            return { ok: false as const, kind: 'validation', msg: e.message };
+        }
+        throw e; // unexpected — re-throw
+    }
+}
+```
+
+See `CODEMAP.md` for the exhaustive list of methods (every public symbol
+indexed with `file:line` links). See `docs/API-MAPPING.md` for the
+endpoint ↔ method ↔ CLI command coverage matrix.
+
 
 ## Destructive actions
 
