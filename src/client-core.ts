@@ -764,10 +764,19 @@ export class TestRailClientCore {
             if (!response.ok) {
                 // Error bodies inherit the same cap so an attacker cannot OOM
                 // the client by responding 4xx/5xx with a 10 GiB payload.
-                // Fall back to 'Unknown error' if the body read itself fails
-                // (cap exceeded / decode error) — the structured status is
-                // already what callers need.
-                const errorText = await readBodyAsText(response, jsonLimits).catch(() => 'Unknown error');
+                // If the body read itself hits a limit (cap or timeout), surface
+                // that TestRailApiError immediately — no retry, since repeating
+                // the request would compound the wait by (maxRetries+1)×bodyTimeout.
+                // Only generic decode errors fall back to 'Unknown error'.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, jsonLimits);
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
 
                 // Retry strategy:
                 //   429 (rate limit) — retried for ALL methods. TestRail's rate limiter
@@ -912,7 +921,17 @@ export class TestRailClientCore {
             const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
 
             if (!response.ok) {
-                const errorText = await readBodyAsText(response, jsonLimits).catch(() => 'Unknown error');
+                // Body-limit errors (cap / timeout) surface immediately — see
+                // the same pattern in request<T>() for the full rationale.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, jsonLimits);
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
 
                 // Mirrors the retry contract documented on request<T>():
                 // 429 retries for all methods; 5xx retries only for GET.
@@ -1020,7 +1039,17 @@ export class TestRailClientCore {
             const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
 
             if (!response.ok) {
-                const errorText = await readBodyAsText(response, jsonLimits).catch(() => 'Unknown error');
+                // Body-limit errors (cap / timeout) surface immediately — see
+                // the same pattern in request<T>() for the full rationale.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, jsonLimits);
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
                 throw new TestRailApiError(response.status, response.statusText, errorText);
             }
 
@@ -1095,10 +1124,20 @@ export class TestRailClientCore {
             if (!response.ok) {
                 // Error bodies on the binary endpoint are still JSON/text — use the
                 // JSON cap so a server cannot OOM us with a giant error payload.
-                const errorText = await readBodyAsText(response, {
-                    maxBytes: this.maxJsonResponseBytes,
-                    deadlineMs: this.bodyTimeout,
-                }).catch(() => 'Unknown error');
+                // Body-limit errors (cap / timeout) surface immediately — see
+                // the same pattern in request<T>() for the full rationale.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, {
+                        maxBytes: this.maxJsonResponseBytes,
+                        deadlineMs: this.bodyTimeout,
+                    });
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
 
                 // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
                 // requestBinary is always GET (attachment download) and therefore
@@ -1121,12 +1160,9 @@ export class TestRailClientCore {
                 maxBytes: this.maxBinaryResponseBytes,
                 deadlineMs: this.bodyTimeout,
             });
-            // Return a stand-alone ArrayBuffer copy so callers receive a clean
-            // buffer (matches the legacy `response.arrayBuffer()` shape and
-            // avoids returning the Uint8Array's shared underlying buffer).
-            const ab = new ArrayBuffer(bytes.byteLength);
-            new Uint8Array(ab).set(bytes);
-            return ab;
+            // readBodyWithLimits allocates new Uint8Array(total) — bytes.buffer is
+            // already an exact-length, freshly allocated stand-alone ArrayBuffer.
+            return bytes.buffer as ArrayBuffer;
         } catch (error) {
             clearTimeout(timeoutId);
 

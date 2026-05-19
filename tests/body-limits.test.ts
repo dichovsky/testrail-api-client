@@ -301,18 +301,52 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         client.destroy();
     });
 
-    it('error path: oversized error body collapses to "Unknown error" without OOM (request)', async () => {
+    it('error path: oversized error body surfaces as TestRailApiError(0, "Response body too large")', async () => {
         // Server returns 500 with a 4 KiB error payload — the cap fires on the
-        // body read, the fallback substitutes "Unknown error", and the user
-        // still sees a 500 error rather than a memory blow-up.
+        // body read and surfaces immediately as a limit error. The HTTP 500 is
+        // not swallowed into an 'Unknown error' because that would allow the
+        // retry logic to re-run the body read up to (maxRetries+1) more times.
         const huge = new globalThis.TextEncoder().encode('e'.repeat(4096));
         mockFetch.mockResolvedValueOnce(streamingResponse([huge], { status: 500, statusText: 'Server Error' }));
         const client = new TestRailClient({ ...baseConfig, maxJsonResponseBytes: 256 });
         await expect(client.getProject(1)).rejects.toMatchObject({
-            status: 500,
-            statusText: 'Server Error',
-            response: 'Unknown error',
+            status: 0,
+            statusText: 'Response body too large',
         });
+        client.destroy();
+    });
+
+    it('error path: body-read cap on a retriable error response does not retry', async () => {
+        // GET + 5xx normally retries, but when the error-body read itself hits
+        // the cap the TestRailApiError is re-thrown before the retry branch,
+        // so fetch is called exactly once.
+        const huge = new globalThis.TextEncoder().encode('e'.repeat(4096));
+        mockFetch.mockResolvedValue(streamingResponse([huge], { status: 503, statusText: 'Service Unavailable' }));
+        const client = new TestRailClient({ ...baseConfig, maxRetries: 3, maxJsonResponseBytes: 256 });
+        await expect(client.getProject(1)).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Response body too large',
+        });
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        client.destroy();
+    });
+
+    it('error path: body-read timeout on a retriable error response does not retry', async () => {
+        // A never-closing 503 response — the body deadline fires before the
+        // response body arrives, the TestRailApiError is re-thrown before the
+        // retry branch, so fetch is called exactly once.
+        mockFetch.mockResolvedValue(neverClosingResponse(new Uint8Array([1]), 503));
+        const client = new TestRailClient({
+            ...baseConfig,
+            maxRetries: 3,
+            bodyTimeout: 20,
+            timeout: 60_000,
+        });
+        await expect(client.getProject(1)).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Body read timeout',
+        });
+        expect(mockFetch).toHaveBeenCalledTimes(1);
         client.destroy();
     });
 
