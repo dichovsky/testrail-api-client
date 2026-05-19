@@ -50,8 +50,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 CLI: `dataset add` (POST `add_dataset/{project_id}`)
 - [ ] 🟢 📦 CLI: `dataset update` (POST `update_dataset/{dataset_id}`)
 - [ ] 🟢 📦 ⚠️ CLI: `dataset delete` (POST `delete_dataset/{dataset_id}`)
-- [ ] 🟢 📦 CLI: `user get-by-email` (GET `get_user_by_email`)
-- [ ] 🟢 📦 CLI: `user get-current` (GET `get_current_user`)
 - [ ] 🟢 📦 SKILL recipe: Data-driven runs via Variables + Datasets
 
 ## 🔒 Security

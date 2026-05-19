@@ -251,6 +251,22 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: false,
     },
     {
+        resource: 'user',
+        action: 'get-by-email',
+        summary: 'Look up a single user by email address (--email <addr>; no positional args)',
+        pathParams: [],
+        apiEndpoint: 'GET get_user_by_email',
+        isWrite: false,
+    },
+    {
+        resource: 'user',
+        action: 'get-current',
+        summary: 'Fetch the user identified by the auth credential (TestRail 6.6+; no positional args)',
+        pathParams: [],
+        apiEndpoint: 'GET get_current_user',
+        isWrite: false,
+    },
+    {
         resource: 'plan',
         action: 'get',
         summary: 'Fetch a single test plan by ID',

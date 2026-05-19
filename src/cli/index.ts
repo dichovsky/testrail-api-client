@@ -36,6 +36,8 @@ Read actions:
   test     list <run_id> [--status-id 1,5] [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
+  user     get-by-email --email <email>
+  user     get-current                    (no positional args)
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
   section  get <id> | list <id> [--suite-id <id>] [--limit N] [--offset N]
   shared-step  get <id> | list --project-id <id>
@@ -357,6 +359,11 @@ async function main(): Promise<number> {
         ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
         ...(values['out'] !== undefined && { out: values['out'] as string }),
         ...(values['soft'] === true && { soft: true }),
+        // `--email` is consumed twice by design: once by resolveAuth() above
+        // for the HTTP Basic credential, and once here for `user get-by-email`'s
+        // query payload. Read handlers ignore this when irrelevant; the user
+        // get-by-email handler enforces non-empty before issuing the call.
+        ...(values['email'] !== undefined && { email: values['email'] as string }),
     };
 
     // Suppress stdin only when the dispatched action's ActionSpec marks it

@@ -81,6 +81,8 @@ on stderr. Never echo or log the API key.
 | milestone | list | — | — | List milestones in a project (paginated) |
 | user | get | `<user_id>` | — | Fetch a single user by ID |
 | user | list | — | — | List users (paginated) |
+| user | get-by-email | — | — | Look up a single user by email address (--email <addr>; no positional args) |
+| user | get-current | — | — | Fetch the user identified by the auth credential (TestRail 6.6+; no positional args) |
 | plan | get | `<plan_id>` | — | Fetch a single test plan by ID |
 | plan | list | — | — | List plans in a project (paginated) |
 | section | get | `<section_id>` | — | Fetch a single section by ID |

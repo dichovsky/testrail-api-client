@@ -34,6 +34,13 @@ export interface HandlerArgs {
      *  server-side preview (TestRail returns affected counts without
      *  deleting). Distinct from `--dry-run` (client-side, no API call). */
     soft?: boolean;
+    /** Email address for lookup actions (`user get-by-email --email <addr>`).
+     *  Reuses the same `--email` flag that supplies the auth credential — the
+     *  flag is consumed twice by design: once by `resolveAuth()` for the HTTP
+     *  Basic credential, and once here for the query payload. The handler
+     *  requires this to be a non-empty string; TestRail enforces the format
+     *  server-side via `EMAIL_REGEX` in `src/modules/users.ts`. */
+    email?: string;
 }
 
 /**
