@@ -36,7 +36,7 @@ Read actions:
   test     list <run_id> [--status-id 1,5] [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
-  user     get-by-email --email <email>
+  user     get-by-email --email <email>   (no positional args)
   user     get-current                    (no positional args)
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
   section  get <id> | list <id> [--suite-id <id>] [--limit N] [--offset N]

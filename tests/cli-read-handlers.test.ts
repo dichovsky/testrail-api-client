@@ -926,9 +926,9 @@ describe('handleConfigurationList', () => {
 // surfaces as an error rather than silently ignoring the `foo`.
 
 describe('handleUserGetByEmail', () => {
-    it('calls client.getUserByEmail with the --email value and emits the result', async () => {
+    it('calls client.getUserByEmail with the trimmed --email value and emits the result', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { email: 'alice@example.com' });
+        const { ctx, out } = buildCtx(client, { email: '  alice@example.com  ' });
         await handleUserGetByEmail(ctx);
         expect(client.getUserByEmail).toHaveBeenCalledTimes(1);
         expect(client.getUserByEmail).toHaveBeenCalledWith('alice@example.com');

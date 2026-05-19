@@ -253,7 +253,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     {
         resource: 'user',
         action: 'get-by-email',
-        summary: 'Look up a single user by email address (--email <addr>; no positional args)',
+        summary: 'Look up a single user by email address',
         pathParams: [],
         apiEndpoint: 'GET get_user_by_email',
         isWrite: false,

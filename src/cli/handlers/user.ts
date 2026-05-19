@@ -35,7 +35,7 @@ export async function handleUserGetByEmail(ctx: HandlerContext): Promise<void> {
     if (email === undefined || email.trim() === '') {
         throw new IdParseError('user get-by-email requires --email <addr> (non-empty).');
     }
-    ctx.out(await ctx.client.getUserByEmail(email));
+    ctx.out(await ctx.client.getUserByEmail(email.trim()));
 }
 
 /**
