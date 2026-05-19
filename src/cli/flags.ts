@@ -35,6 +35,7 @@ export const CLI_OPTIONS = {
     'case-id': { type: 'string' as const },
     limit: { type: 'string' as const },
     offset: { type: 'string' as const },
+    'status-id': { type: 'string' as const },
     data: { type: 'string' as const },
     'data-file': { type: 'string' as const },
     'dry-run': { type: 'boolean' as const, default: false },

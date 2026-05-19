@@ -29,8 +29,14 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🔴 P0 — daily-use endpoints
 
+<<<<<<< HEAD
 - [ ] 🔴 📦 CLI: `test get` (GET `get_test/{test_id}`)
 - [ ] 🔴 📦 CLI: `test list` (GET `get_tests/{run_id}`)
+=======
+- [ ] 🔴 📦 CLI: `section get` (GET `get_section/{section_id}`)
+- [ ] 🔴 📦 CLI: `section list` (GET `get_sections/{project_id}`)
+- [ ] 🔴 📦 CLI: `run update` (POST `update_run/{run_id}`)
+>>>>>>> 25485c0 (feat: add CLI test get/list commands)
 - [ ] 🔴 📦 CLI: `result list-for-test` (GET `get_results/{test_id}`)
 - [ ] 🔴 📦 CLI: `result list-for-case` (GET `get_results_for_case/{run_id}/{case_id}`)
 <!-- `get_results_for_run/{run_id}` is already covered by the existing `result list` CLI command.

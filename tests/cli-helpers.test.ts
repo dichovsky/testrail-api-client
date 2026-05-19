@@ -423,7 +423,7 @@ describe('dispatch', () => {
         expect(result.ok).toBe(false);
         if (!result.ok) {
             expect(result.error).toContain("Unknown resource 'webhook'");
-            expect(result.error).toContain('project, suite, case, run, result, milestone, user');
+            expect(result.error).toContain('project, suite, case, run, test, result, milestone, user');
         }
     });
 
@@ -644,6 +644,7 @@ describe('KNOWN_FLAGS inventory', () => {
             'case-id',
             'limit',
             'offset',
+            'status-id',
             'data',
             'data-file',
             'dry-run',
