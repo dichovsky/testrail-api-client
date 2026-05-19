@@ -1212,4 +1212,21 @@ describe('renderCsv — Unicode and special chars', () => {
         const out = renderCsv({ id: 1, sym: Symbol('s'), fn: (): number => 1 });
         expect(out).toBe('id,sym,fn\r\n1,,');
     });
+
+    // CSV is intentionally NOT routed through sanitizeForTerminal (unlike
+    // renderTable which is built for direct human terminal display). CSV is
+    // a structured pipeline format — consumers (Excel, python-csv, awk -F,)
+    // re-parse the bytes before display, and RFC 4180 §2.6 explicitly
+    // permits embedded line breaks inside quoted fields. Sanitising would
+    // corrupt legitimate multi-line content (TestRail descriptions, BDD
+    // step definitions, multi-line custom fields). Matches the same
+    // raw-bytes precedent as the JSON path.
+    it('preserves raw control bytes in CSV cells (CSV is a pipeline format, not a terminal display)', () => {
+        const out = renderCsv({ id: 1, title: '\x1b[31mRED\x1b[0m' });
+        // The ESC bytes survive because CSV is meant for tooling
+        // (jq-equivalents for CSV), not direct cat-ing. Embedded newlines
+        // are also preserved per RFC 4180 §2.6 — covered above by
+        // "wraps cells containing newlines in double quotes".
+        expect(out).toContain('\x1b');
+    });
 });

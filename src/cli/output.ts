@@ -392,6 +392,16 @@ function csvCellFromValue(v: unknown): string {
     // safeJsonStringify("null") rationale — nothing meaningful to emit in a
     // tabular cell).
     return '';
+    // Note: CSV cells are intentionally NOT routed through sanitizeForTerminal
+    // (unlike the renderTable path which is built for direct human terminal
+    // display). CSV is a structured pipeline format — consumers (Excel,
+    // python-csv, awk -F,) re-parse the bytes before display. CTF #18-style
+    // ANSI injection on the terminal is the user's risk when they choose to
+    // `cat data.csv` directly, matching the established precedent for the
+    // JSON path. Legitimate CSV use cases include embedded newlines and tabs
+    // (RFC 4180 §2.6: "Fields containing line breaks (CRLF), double quotes,
+    // and commas should be enclosed in double-quotes."), which the
+    // C0-stripping sanitiser would corrupt.
 }
 
 /**
