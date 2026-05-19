@@ -13,10 +13,14 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- importing a .mjs script module not covered by tsc
 import * as renderer from '../scripts/mapping-renderer.mjs';
 
+type Recipe = { number: number; title: string; anchor: string };
+type RecipeMap = Map<string, Recipe>;
+
 const {
     EndpointsArraySchema,
     EndpointSchema,
     normalizePathForMatch,
+    parseSkillRecipes,
     parseTestrailTag,
     renderClientCell,
     renderCliCell,
@@ -25,6 +29,7 @@ const {
     renderResourceSection,
     renderSkillCell,
     renderSummaryTable,
+    slugifyHeading,
 } = renderer as {
     EndpointsArraySchema: {
         safeParse: (input: unknown) => { success: boolean; error?: { issues: { message: string }[] }; data?: unknown };
@@ -32,17 +37,26 @@ const {
     };
     EndpointSchema: { parse: (input: unknown) => unknown };
     normalizePathForMatch: (raw: string) => string;
+    parseSkillRecipes: (skillSource: string) => RecipeMap;
     parseTestrailTag: (text: string) => { method: string; path: string } | null;
     renderClientCell: (
         match: { moduleFile: string; methodName: string; line: number } | null,
         rootPrefix: string,
     ) => string;
     renderCliCell: (cliKey: string | null) => string;
-    renderDocument: (grouped: { resource: string; rows: unknown[] }[], rootPrefix: string) => string;
+    renderDocument: (
+        grouped: { resource: string; rows: unknown[] }[],
+        rootPrefix: string,
+        recipes?: RecipeMap,
+    ) => string;
     renderEndpointCell: (ep: { method: string; path: string; docUrl?: string }) => string;
-    renderResourceSection: (resource: string, rows: unknown[], rootPrefix: string) => string;
-    renderSkillCell: (cliKey: string | null) => string;
-    renderSummaryTable: (grouped: { resource: string; rows: { match: unknown; cliKey: unknown }[] }[]) => string;
+    renderResourceSection: (resource: string, rows: unknown[], rootPrefix: string, recipes?: RecipeMap) => string;
+    renderSkillCell: (cliKey: string | null, recipes?: RecipeMap) => string;
+    renderSummaryTable: (
+        grouped: { resource: string; rows: { match: unknown; cliKey: unknown }[] }[],
+        recipes?: RecipeMap,
+    ) => string;
+    slugifyHeading: (heading: string) => string;
 };
 
 describe('EndpointSchema', () => {
@@ -202,9 +216,124 @@ describe('cell renderers', () => {
         expect(renderCliCell(null)).toBe('—');
     });
 
-    it('renders skill cell as ../skill-relative command-table link when CLI is bound, em-dash otherwise', () => {
+    it('renders skill cell as command-table fallback when CLI is bound but no recipe tag exists', () => {
         expect(renderSkillCell('case:get')).toBe('[command-table](../skill/SKILL.md#command-surface)');
+        expect(renderSkillCell('case:get', new Map())).toBe('[command-table](../skill/SKILL.md#command-surface)');
         expect(renderSkillCell(null)).toBe('—');
+    });
+
+    it('renders skill cell as a recipe link when the CLI key has a recipe-for tag', () => {
+        const recipes: RecipeMap = new Map([
+            ['case:get', { number: 5, title: 'Fetch a case', anchor: '5-fetch-a-case' }],
+        ]);
+        expect(renderSkillCell('case:get', recipes)).toBe('[recipe #5](../skill/SKILL.md#5-fetch-a-case)');
+    });
+
+    it('renders skill cell as em-dash when no CLI binding, regardless of recipes map', () => {
+        const recipes: RecipeMap = new Map([['case:get', { number: 1, title: 'x', anchor: 'x' }]]);
+        expect(renderSkillCell(null, recipes)).toBe('—');
+    });
+});
+
+describe('slugifyHeading', () => {
+    it('lowercases, strips punctuation, and hyphenates spaces (GitHub-compatible)', () => {
+        expect(slugifyHeading('1. Smoke-test auth & connectivity')).toBe('1-smoke-test-auth--connectivity');
+    });
+
+    it('preserves existing hyphens and digits', () => {
+        expect(slugifyHeading('22. Create a plan with nested entries (matrix testing in one call)')).toBe(
+            '22-create-a-plan-with-nested-entries-matrix-testing-in-one-call',
+        );
+    });
+
+    it('handles simple headings', () => {
+        expect(slugifyHeading('Fetch a project')).toBe('fetch-a-project');
+    });
+});
+
+describe('parseSkillRecipes', () => {
+    it('returns an empty map when no recipe-for tags are present', () => {
+        const src = `## Recipes\n\n### 1. Just a heading\n\nNo tag.\n`;
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.size).toBe(0);
+    });
+
+    it('maps a single resource:action to the immediately-preceding numbered recipe', () => {
+        const src = [
+            '## Recipes',
+            '',
+            '### 1. Fetch a case',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+            '```bash',
+            'testrail case get 5',
+            '```',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        const r = recipes.get('case:get');
+        expect(r).toBeDefined();
+        expect(r?.number).toBe(1);
+        expect(r?.title).toBe('Fetch a case');
+        expect(r?.anchor).toBe('1-fetch-a-case');
+    });
+
+    it('handles multi-action recipe-for tags (comma-separated, one recipe per action)', () => {
+        const src = [
+            '### 15. Attach a screenshot to a result',
+            '',
+            '<!-- recipe-for: result:add, attachment:add-to-result -->',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.get('result:add')?.number).toBe(15);
+        expect(recipes.get('attachment:add-to-result')?.number).toBe(15);
+    });
+
+    it('keeps the first recipe for a given key when duplicates exist (matches generator behavior)', () => {
+        const src = [
+            '### 5. First',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+            '### 8. Second',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.get('case:get')?.number).toBe(5);
+    });
+
+    it('skips tags inside GENERATED regions', () => {
+        const src = [
+            '### 1. Real recipe',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+            '<!-- GENERATED:command-table -->',
+            '### 99. Fake heading inside generated block',
+            '',
+            '<!-- recipe-for: should:not-be-picked-up -->',
+            '<!-- /GENERATED:command-table -->',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.get('case:get')?.number).toBe(1);
+        expect(recipes.has('should:not-be-picked-up')).toBe(false);
+    });
+
+    it('ignores standalone recipe-for tags that have no preceding numbered heading', () => {
+        const src = [
+            '# Top of file',
+            '',
+            '<!-- recipe-for: orphan:action -->',
+            '',
+            '## Some unnumbered section',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.has('orphan:action')).toBe(false);
     });
 });
 
@@ -239,8 +368,12 @@ describe('aggregate renderers', () => {
         },
     ];
 
-    it('summary totals correctly count endpoints/client/CLI/skill', () => {
-        const out = renderSummaryTable(grouped);
+    it('summary totals: skill column counts only rows with a recipe-for tag (not CLI fallback rows)', () => {
+        // Without a recipes map, skill column is 0 (Phase 3: only curated recipes count).
+        expect(renderSummaryTable(grouped)).toContain('| **Total** | **2** | **1** | **1** | **0** |');
+        // With a recipe for case:get, skill column rises to 1.
+        const recipes: RecipeMap = new Map([['case:get', { number: 1, title: 'Get a case', anchor: '1-get-a-case' }]]);
+        const out = renderSummaryTable(grouped, recipes);
         expect(out).toContain('| [Cases](#cases) | 2 | 1 | 1 | 1 |');
         expect(out).toContain('| **Total** | **2** | **1** | **1** | **1** |');
     });

@@ -45,7 +45,13 @@ import ts from 'typescript';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore -- sibling .mjs helper module, not part of the TS build
-import { EndpointsArraySchema, normalizePathForMatch, parseTestrailTag, renderDocument } from './mapping-renderer.mjs';
+import {
+    EndpointsArraySchema,
+    normalizePathForMatch,
+    parseSkillRecipes,
+    parseTestrailTag,
+    renderDocument,
+} from './mapping-renderer.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -56,6 +62,7 @@ const OUTPUT_PATH = join(ROOT, 'docs', 'API-MAPPING.md');
 const ENDPOINTS_JSON_PATH = join(ROOT, 'docs', 'testrail-endpoints.json');
 const MODULES_DIR = join(ROOT, 'src', 'modules');
 const METADATA_PATH = join(ROOT, 'src', 'cli', 'metadata.ts');
+const SKILL_PATH = join(ROOT, 'skill', 'SKILL.md');
 
 // ── AST helpers ──────────────────────────────────────────────────────────────
 
@@ -181,9 +188,10 @@ function loadCliActions() {
  * Both gates produce error lists; the generator exits non-zero if either is
  * non-empty.
  */
-function validateGates(callSites, actions, endpoints) {
+function validateGates(callSites, actions, endpoints, recipes) {
     const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
     const tagKeys = new Set(callSites.map((c) => `${c.method} ${normalizePathForMatch(c.path)}`));
+    const actionKeys = new Set(actions.map((a) => `${a.resource}:${a.action}`));
 
     const errors = [];
 
@@ -211,6 +219,17 @@ function validateGates(callSites, actions, endpoints) {
         if (!tagKeys.has(key)) {
             errors.push(
                 `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` claims apiEndpoint "${a.apiEndpoint}" but no method in src/modules/*.ts has a matching @testrail tag`,
+            );
+        }
+    }
+
+    // Gate C2: every `recipe-for:` tag in SKILL.md must reference an existing
+    // ACTIONS entry. Catches typos and stale recipe tags when an action is
+    // renamed or removed.
+    for (const [key, recipe] of recipes) {
+        if (!actionKeys.has(key)) {
+            errors.push(
+                `[gate C2] skill/SKILL.md recipe #${recipe.number} ("${recipe.title}") has \`recipe-for: ${key}\` but no such resource:action exists in ACTIONS`,
             );
         }
     }
@@ -246,8 +265,12 @@ async function main() {
     // 3. Load CLI actions
     const actions = loadCliActions();
 
+    // 3b. Parse SKILL.md for `recipe-for:` tags
+    const skillSource = readFileSync(SKILL_PATH, 'utf8');
+    const recipes = parseSkillRecipes(skillSource);
+
     // 4. Run drift gates
-    const errors = validateGates(callSites, actions, endpoints);
+    const errors = validateGates(callSites, actions, endpoints, recipes);
     if (errors.length > 0) {
         console.error('docs/API-MAPPING.md generator failed cross-validation:');
         for (const e of errors) console.error(`  · ${e}`);
@@ -296,7 +319,7 @@ async function main() {
         }));
 
     // 8. Render + write/check
-    const out = renderDocument(grouped, ROOT + '/');
+    const out = renderDocument(grouped, ROOT + '/', recipes);
     if (CHECK_MODE) {
         const committed = existsSync(OUTPUT_PATH) ? readFileSync(OUTPUT_PATH, 'utf8') : '';
         if (committed !== out) {
@@ -307,8 +330,9 @@ async function main() {
         return;
     }
     writeFileSync(OUTPUT_PATH, out);
+    const skillBound = rows.filter((r) => r.cliKey && recipes.has(r.cliKey)).length;
     console.log(
-        `Wrote docs/API-MAPPING.md (${grouped.length} resources, ${rows.length} endpoints, ${rows.filter((r) => r.match).length} client-bound, ${rows.filter((r) => r.cliKey).length} CLI-bound).`,
+        `Wrote docs/API-MAPPING.md (${grouped.length} resources, ${rows.length} endpoints, ${rows.filter((r) => r.match).length} client-bound, ${rows.filter((r) => r.cliKey).length} CLI-bound, ${skillBound} skill-recipe-bound).`,
     );
 }
 

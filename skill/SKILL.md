@@ -473,6 +473,8 @@ testrail run get 5 | node -e 'const d=JSON.parse(require("fs").readFileSync(0));
 
 ### 1. Smoke-test auth & connectivity
 
+<!-- recipe-for: user:list -->
+
 ```bash
 testrail user list --limit 1 --quiet && echo "auth OK" || echo "auth FAILED"
 ```
@@ -481,11 +483,15 @@ Exit code 0 = creds resolve and TestRail responds; 1 = anything broken.
 
 ### 2. Fetch a project
 
+<!-- recipe-for: project:get -->
+
 ```bash
 testrail project get 5
 ```
 
 ### 3. List projects with pagination
+
+<!-- recipe-for: project:list -->
 
 ```bash
 testrail project list --limit 25 --offset 0
@@ -493,11 +499,15 @@ testrail project list --limit 25 --offset 0
 
 ### 4. List suites under a project
 
+<!-- recipe-for: suite:list -->
+
 ```bash
 testrail suite list --project-id 5
 ```
 
 ### 5. List cases in a specific suite
+
+<!-- recipe-for: case:list -->
 
 ```bash
 testrail case list --project-id 5 --suite-id 12
@@ -511,11 +521,15 @@ testrail case list --project-id 5 | jq '.[].id'
 
 ### 7. Count pass/fail for a run
 
+<!-- recipe-for: run:get -->
+
 ```bash
 testrail run get 42 | jq '{passed: .passed_count, failed: .failed_count}'
 ```
 
 ### 8. Page through a large result list
+
+<!-- recipe-for: result:list -->
 
 ```bash
 offset=0
@@ -530,6 +544,8 @@ done
 
 ### 9. Author a new test case
 
+<!-- recipe-for: case:add -->
+
 ```bash
 testrail case add 12 --data '{
     "title": "Login page accepts SSO redirect",
@@ -541,11 +557,15 @@ testrail case add 12 --data '{
 
 ### 10. Update a test case (partial fields)
 
+<!-- recipe-for: case:update -->
+
 ```bash
 testrail case update 87 --data '{"title": "Renamed", "priority_id": 4}'
 ```
 
 ### 11. Create a CI test run
+
+<!-- recipe-for: run:add -->
 
 ```bash
 RUN=$(testrail run add 5 --data '{
@@ -557,6 +577,8 @@ RUN_ID=$(echo "$RUN" | jq '.id')
 ```
 
 ### 12. Publish bulk results from a CI run
+
+<!-- recipe-for: result:add-bulk -->
 
 ```bash
 testrail result add-bulk "$RUN_ID" --data-file /tmp/results.json
@@ -575,6 +597,8 @@ Where `/tmp/results.json` has shape:
 
 ### 13. Close a run when CI finishes
 
+<!-- recipe-for: run:close -->
+
 ```bash
 testrail run close "$RUN_ID" --yes
 ```
@@ -586,6 +610,8 @@ committing.
 
 ### 14. Validate a payload before sending (`--dry-run`)
 
+<!-- recipe-for: result:add -->
+
 ```bash
 testrail result add 100 42 --data '{"status_id":1,"comment":"sanity check"}' --dry-run
 ```
@@ -593,6 +619,8 @@ testrail result add 100 42 --data '{"status_id":1,"comment":"sanity check"}' --d
 Prints the parsed payload + a `"dryRun": true` marker; no API call made.
 
 ### 15. Attach a Playwright screenshot to a test result
+
+<!-- recipe-for: result:add, attachment:add-to-result -->
 
 ```bash
 RESULT=$(testrail result add "$RUN_ID" 42 --data '{"status_id":5,"comment":"failed"}')
@@ -605,6 +633,8 @@ Output is `{ "attachment_id": <id> }`. Filename uploaded is `screenshot.png`
 
 ### 16. Attach a repro file to a test case
 
+<!-- recipe-for: attachment:add-to-case -->
+
 ```bash
 testrail attachment add-to-case 42 --file ./repro.zip --filename "bug-1234-repro.zip"
 ```
@@ -613,6 +643,8 @@ testrail attachment add-to-case 42 --file ./repro.zip --filename "bug-1234-repro
 meaningful name in the TestRail UI even when the local file is generic.
 
 ### 17. Download the latest attachment on a case to inspect locally
+
+<!-- recipe-for: attachment:list-for-case, attachment:get -->
 
 ```bash
 LATEST_ID=$(testrail attachment list-for-case 42 | jq 'max_by(.attachment_id).attachment_id')
@@ -623,6 +655,8 @@ testrail attachment get "$LATEST_ID" --out ./fetched.bin
 to overwrite. JSON ack on stdout includes `attachmentId`, `out`, and `size`.
 
 ### 18. Audit then delete attachments on a deprecated case
+
+<!-- recipe-for: attachment:list-for-case, attachment:delete -->
 
 ```bash
 # 1. List + audit
@@ -645,11 +679,15 @@ done
 
 ### 19. Fetch a single test plan
 
+<!-- recipe-for: plan:get -->
+
 ```bash
 testrail plan get 50
 ```
 
 ### 20. List active plans for a project
+
+<!-- recipe-for: plan:list -->
 
 ```bash
 # `plan list` is paginated; --limit / --offset are the only filters exposed.
@@ -658,6 +696,8 @@ testrail plan list --project-id 1 --limit 25
 ```
 
 ### 21. Create an empty test plan
+
+<!-- recipe-for: plan:add -->
 
 ```bash
 testrail plan add 1 --data '{
@@ -668,6 +708,8 @@ testrail plan add 1 --data '{
 ```
 
 ### 22. Create a plan with nested entries (matrix testing in one call)
+
+<!-- recipe-for: plan:add, plan:update -->
 
 ```bash
 # Each entry is a suite to run. `config_ids` slot the entry into a TestRail
@@ -693,6 +735,8 @@ testrail plan update 50 --data '{"name":"Release 1.0 — final"}'
 ```
 
 ### 23. Add an entry to an existing plan
+
+<!-- recipe-for: plan:add-entry -->
 
 ```bash
 # Use this for plans that grow over a release cycle. Returns the new entry

@@ -75,6 +75,73 @@ export function parseTestrailTag(text) {
     return { method: match[1], path: match[2] };
 }
 
+// ── Skill recipe parsing (Phase 3) ────────────────────────────────────────────
+
+/**
+ * GitHub-flavored heading anchor: lowercase, strip everything that isn't
+ * alphanumeric / space / hyphen, then replace spaces with hyphens. Matches
+ * GitHub's behavior for `### 1. Smoke-test auth & connectivity` → `#1-smoke-test-auth--connectivity`.
+ *
+ * @param {string} heading raw text after `### ` markdown prefix
+ * @returns {string}
+ */
+export function slugifyHeading(heading) {
+    return heading
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s/g, '-');
+}
+
+/**
+ * Walk a SKILL.md body looking for `### N. Title` recipe headings followed by
+ * `<!-- recipe-for: resource:action[, ...] -->` HTML comments. Returns a map
+ * keyed by `resource:action` → `{ number, title, anchor }`. When a recipe
+ * tag lists multiple actions, every listed action maps to the same recipe.
+ *
+ * Skips the GENERATED sections (anything between `<!-- GENERATED:` markers)
+ * so generator-rendered tables can't poison the parse.
+ *
+ * @param {string} skillSource full SKILL.md content
+ * @returns {Map<string, { number: number, title: string, anchor: string }>}
+ */
+export function parseSkillRecipes(skillSource) {
+    const recipes = new Map();
+    const lines = skillSource.split('\n');
+    let inGenerated = false;
+    let currentRecipe = null;
+    for (const raw of lines) {
+        if (raw.startsWith('<!-- GENERATED:')) {
+            inGenerated = true;
+            continue;
+        }
+        if (raw.startsWith('<!-- /GENERATED:')) {
+            inGenerated = false;
+            continue;
+        }
+        if (inGenerated) continue;
+
+        const headingMatch = raw.match(/^###\s+(\d+)\.\s+(.+?)\s*$/);
+        if (headingMatch) {
+            const number = Number.parseInt(headingMatch[1], 10);
+            const title = headingMatch[2];
+            currentRecipe = { number, title, anchor: slugifyHeading(`${number}. ${title}`) };
+            continue;
+        }
+
+        const tagMatch = raw.match(/^<!--\s*recipe-for:\s*(.+?)\s*-->\s*$/);
+        if (tagMatch && currentRecipe) {
+            const keys = tagMatch[1]
+                .split(',')
+                .map((k) => k.trim())
+                .filter(Boolean);
+            for (const key of keys) {
+                if (!recipes.has(key)) recipes.set(key, currentRecipe);
+            }
+        }
+    }
+    return recipes;
+}
+
 // ── Cell renderers ───────────────────────────────────────────────────────────
 //
 // `docs/API-MAPPING.md` lives one directory below the repo root, so all links
@@ -103,14 +170,23 @@ export function renderCliCell(cliKey) {
     return `\`${cliKey.replace(':', ' ')}\``;
 }
 
-export function renderSkillCell(cliKey) {
+/**
+ * If the CLI action has a numbered recipe (via `recipe-for:` tag in SKILL.md),
+ * link directly to that recipe. Otherwise fall back to the generated command-
+ * table anchor. Returns em-dash when the row has no CLI binding at all.
+ */
+export function renderSkillCell(cliKey, recipes) {
     if (!cliKey) return '—';
+    const recipe = recipes && recipes.get ? recipes.get(cliKey) : null;
+    if (recipe) {
+        return `[recipe #${recipe.number}](${LINK_PREFIX}skill/SKILL.md#${recipe.anchor})`;
+    }
     return `[command-table](${SKILL_COMMAND_TABLE_ANCHOR})`;
 }
 
 // ── Aggregate renderers ───────────────────────────────────────────────────────
 
-export function renderSummaryTable(grouped) {
+export function renderSummaryTable(grouped, recipes) {
     const lines = [
         '| Resource | TestRail endpoints | Client methods | CLI commands | Skill exposure |',
         '| --- | ---: | ---: | ---: | ---: |',
@@ -120,7 +196,8 @@ export function renderSummaryTable(grouped) {
         const ep = rows.length;
         const client = rows.filter((r) => r.match).length;
         const cli = rows.filter((r) => r.cliKey).length;
-        const skill = cli;
+        // Skill count: rows whose cliKey has a recipe-for: tag in SKILL.md.
+        const skill = recipes ? rows.filter((r) => r.cliKey && recipes.has(r.cliKey)).length : 0;
         totals.ep += ep;
         totals.client += client;
         totals.cli += cli;
@@ -132,19 +209,19 @@ export function renderSummaryTable(grouped) {
     return lines.join('\n');
 }
 
-export function renderResourceSection(resource, rows, rootPrefix) {
+export function renderResourceSection(resource, rows, rootPrefix, recipes) {
     const slug = resource.toLowerCase().replace(/\s+/g, '-');
     const header = [`## ${resource}`, '', '<a id="' + slug + '"></a>', ''];
     const table = ['| Endpoint | Client method | CLI command | Skill recipe |', '| --- | --- | --- | --- |'];
     for (const row of rows) {
         table.push(
-            `| ${renderEndpointCell(row.endpoint)} | ${renderClientCell(row.match, rootPrefix)} | ${renderCliCell(row.cliKey)} | ${renderSkillCell(row.cliKey)} |`,
+            `| ${renderEndpointCell(row.endpoint)} | ${renderClientCell(row.match, rootPrefix)} | ${renderCliCell(row.cliKey)} | ${renderSkillCell(row.cliKey, recipes)} |`,
         );
     }
     return [...header, ...table, ''].join('\n');
 }
 
-export function renderDocument(grouped, rootPrefix) {
+export function renderDocument(grouped, rootPrefix, recipes) {
     const lines = [
         '<!-- Generated by scripts/generate-mapping.js. Do not edit by hand. -->',
         '',
@@ -156,15 +233,15 @@ export function renderDocument(grouped, rootPrefix) {
         '',
         '**Drift gates.** The generator validates three things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI).',
         '',
-        '**Skill coverage** in Phase 2 still links every CLI-bound row to the auto-generated command-table in `skill/SKILL.md`. Phase 3 promotes individual numbered recipes via `recipe-for:` HTML comments.',
+        '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary table\'s "Skill exposure" column counts only the curated-recipe rows; the command-table itself covers every CLI-bound row.',
         '',
         '## Summary',
         '',
-        renderSummaryTable(grouped),
+        renderSummaryTable(grouped, recipes),
         '',
     ];
     for (const { resource, rows } of grouped) {
-        lines.push(renderResourceSection(resource, rows, rootPrefix));
+        lines.push(renderResourceSection(resource, rows, rootPrefix, recipes));
     }
     return lines.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
 }
