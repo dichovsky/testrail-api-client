@@ -546,6 +546,81 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
         });
+
+        // ── --format yaml / csv (end-to-end subprocess) ───────────────────
+        //
+        // Both formats are exercised through unit tests on the renderers
+        // directly (tests/cli-helpers.test.ts); these subprocess tests pin
+        // the end-to-end wiring: createOutput dispatches on the validated
+        // format string, stdout receives exactly one trailing newline, and
+        // the unknown-format path exits 1 with a clear error.
+
+        it('project list with --format yaml renders a YAML document', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'list', '--format', 'yaml'],
+                [jsonResponse({ projects: [MOCK_PROJECT] })],
+            );
+            expect(exitCodes).toContain(0);
+            // Block-sequence shape: each project starts with `- id:`.
+            expect(stdout).toContain('- id: 1');
+            expect(stdout).toContain('name: Demo');
+            expect(stdout).toContain('suite_mode: 1');
+            // URL is a plain string that does not need quoting (no `: `,
+            // no embedded `#`, no reserved leader).
+            expect(stdout).toContain('url: https://example.testrail.io/projects/view/1');
+            // Exactly one trailing newline at the stdout boundary, matching
+            // the JSON / table writers' contract.
+            expect(stdout.endsWith('\n')).toBe(true);
+            expect(stdout.endsWith('\n\n')).toBe(false);
+        });
+
+        it('project get with --format yaml renders a single mapping (not a sequence)', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'yaml'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            // Single-object response: starts with `id:`, not `- id:`.
+            expect(stdout.startsWith('id: 1\n')).toBe(true);
+            expect(stdout).not.toContain('- id:');
+        });
+
+        it('project list with --format csv renders RFC 4180 CSV with sorted headers and CRLF rows', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'list', '--format', 'csv'],
+                [jsonResponse({ projects: [MOCK_PROJECT] })],
+            );
+            expect(exitCodes).toContain(0);
+            // Strip the single trailing newline the writer adds.
+            const body = stdout.endsWith('\n') ? stdout.slice(0, -1) : stdout;
+            const lines = body.split('\r\n');
+            expect(lines).toHaveLength(2); // header + 1 row
+            // Headers sorted: id, name, suite_mode, url (alphabetical).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+            // Cell content: id=1, name=Demo, suite_mode=1, url unquoted.
+            expect(lines[1]).toBe('1,Demo,1,https://example.testrail.io/projects/view/1');
+        });
+
+        it('project get with --format csv renders a 1-row CSV preserving insertion order', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'csv'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            const body = stdout.endsWith('\n') ? stdout.slice(0, -1) : stdout;
+            const lines = body.split('\r\n');
+            expect(lines).toHaveLength(2);
+            // Single-object path preserves insertion order (not sorted).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+        });
+
+        it('--format with an unknown value exits 1 before any API call', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--format', 'xml']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown --format 'xml'/);
+            expect(stderr).toContain('json, table, yaml, csv');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     // ── suite ─────────────────────────────────────────────────────────────────
