@@ -45,6 +45,7 @@ Read actions:
   report   list <project_id> | run <report_template_id>
   variable     list <project_id>
   group        get <group_id> | list                       (TestRail 7.5+; list takes no positional args)
+  dataset      get <dataset_id> | list <project_id>
   configuration  list <project_id>
 
 Metadata actions:
@@ -102,6 +103,9 @@ Write actions (body via --data | --data-file | stdin):
   group  add                        --data '{"name":"...","user_ids":[1,2]}'  (no path param; TestRail 7.5+)
   group  update <group_id>          --data '{"name":"..."}'                   (TestRail 7.5+)
   group  delete <group_id>          --yes  (no body; --soft NOT supported by TestRail; TestRail 7.5+)
+  dataset add <project_id>          --data '{"name":"..."}'
+  dataset update <dataset_id>       --data '{"name":"..."}'
+  dataset delete <dataset_id>       --yes  (no body; --soft NOT supported by TestRail)
   shared-step add <project_id>        --data '{"title":"..."}'  (TestRail 7.0+)
   shared-step update <shared_step_id> --data '{"title":"..."}'  (TestRail 7.0+)
   shared-step delete <shared_step_id> --yes  (no body; --soft NOT supported by TestRail; TestRail 7.0+)
@@ -159,7 +163,7 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, shared-step delete, configuration delete, configuration-group delete)
+  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete, configuration delete, configuration-group delete)
   --soft                Server-side preview for soft-capable deletes:
                           case delete, case delete-bulk, run delete,
                           section delete, suite delete.
@@ -169,7 +173,7 @@ Options:
                           milestone delete, project delete,
                           plan close, plan delete, plan delete-entry,
                           plan delete-run-from-entry, variable delete,
-                          group delete, shared-step delete,
+                          group delete, dataset delete, shared-step delete,
                           configuration delete, configuration-group delete.
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
@@ -182,7 +186,7 @@ For body-bearing write actions, exactly one body source is required
 (any --data / --data-file / stdin is ignored): run close, attachment delete,
 case delete, run delete, suite delete, section delete, milestone delete,
 project delete, plan close, plan delete, plan delete-entry,
-plan delete-run-from-entry, variable delete, group delete, shared-step delete,
+plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete,
 configuration delete, configuration-group delete — they accept only positional id(s) (one for most
 actions; plan delete-entry and attachment add-to-plan-entry take two:
 <plan_id> <entry_id>) and the optional --soft flag on the soft-capable
@@ -191,7 +195,7 @@ and do not accept --data/--data-file/stdin.
 Destructive actions (attachment delete, case delete, case delete-bulk, run close,
 run delete, section delete, suite delete, milestone delete, project delete,
 plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
-variable delete, group delete, shared-step delete,
+variable delete, group delete, dataset delete, shared-step delete,
 configuration delete, configuration-group delete)
 require --yes; pass --dry-run together with --yes to preview without making the
 API call (dry-run wins). 'run close' and 'plan close' are irreversible —

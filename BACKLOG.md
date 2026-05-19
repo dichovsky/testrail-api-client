@@ -40,12 +40,7 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🟢 P2 — admin & low-traffic endpoints
 
-- [ ] 🟢 📦 CLI: `dataset get` (GET `get_dataset/{dataset_id}`)
-- [ ] 🟢 📦 CLI: `dataset list` (GET `get_datasets/{project_id}`)
-- [ ] 🟢 📦 CLI: `dataset add` (POST `add_dataset/{project_id}`)
-- [ ] 🟢 📦 CLI: `dataset update` (POST `update_dataset/{dataset_id}`)
-- [ ] 🟢 📦 ⚠️ CLI: `dataset delete` (POST `delete_dataset/{dataset_id}`)
-- [ ] 🟢 📦 SKILL recipe: Data-driven runs via Variables + Datasets
+(all P2 items shipped — see BACKLOG-ARCHIVE.md)
 
 ## 🔒 Security
 

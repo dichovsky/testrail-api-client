@@ -31,6 +31,7 @@ import { handlePriorityList } from '../src/cli/handlers/priority.js';
 import { handleCaseTypeList } from '../src/cli/handlers/case-type.js';
 import { handleVariableList } from '../src/cli/handlers/variable.js';
 import { handleGroupGet, handleGroupList } from '../src/cli/handlers/group.js';
+import { handleDatasetGet, handleDatasetList } from '../src/cli/handlers/dataset.js';
 import { handleConfigurationList } from '../src/cli/handlers/configuration.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
@@ -53,6 +54,8 @@ interface MockedClient {
     getVariables: ReturnType<typeof vi.fn>;
     getGroup: ReturnType<typeof vi.fn>;
     getGroups: ReturnType<typeof vi.fn>;
+    getDataset: ReturnType<typeof vi.fn>;
+    getDatasets: ReturnType<typeof vi.fn>;
     getConfigurations: ReturnType<typeof vi.fn>;
     getRoles: ReturnType<typeof vi.fn>;
     getPriorities: ReturnType<typeof vi.fn>;
@@ -140,6 +143,11 @@ function buildClient(): MockedClient {
         getGroups: vi.fn().mockResolvedValue([
             { id: 7, name: 'QA Group', user_ids: [1, 2] },
             { id: 8, name: 'Devs', user_ids: [3] },
+        ]),
+        getDataset: vi.fn().mockResolvedValue({ id: 77, name: 'Staging matrix', project_id: 7 }),
+        getDatasets: vi.fn().mockResolvedValue([
+            { id: 77, name: 'Staging matrix', project_id: 7 },
+            { id: 78, name: 'Production matrix', project_id: 7 },
         ]),
         getConfigurations: vi.fn().mockResolvedValue([
             {
@@ -1088,5 +1096,61 @@ describe('handleGroupList', () => {
         await expect(handleGroupList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleGroupList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getGroups).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleDatasetGet ──────────────────────────────────────────────────────
+
+describe('handleDatasetGet', () => {
+    it('calls client.getDataset with the parsed dataset id and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'] });
+        await handleDatasetGet(ctx);
+        expect(client.getDataset).toHaveBeenCalledTimes(1);
+        expect(client.getDataset).toHaveBeenCalledWith(77);
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 77, name: 'Staging matrix' }));
+    });
+
+    it.each(INVALID_IDS.map((id) => [id]))('rejects invalid dataset_id %p before any client call', async (raw) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [raw] });
+        await expect(handleDatasetGet(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getDataset).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing dataset_id (no positional arg)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [] });
+        await expect(handleDatasetGet(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getDataset).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleDatasetList ─────────────────────────────────────────────────────
+
+describe('handleDatasetList', () => {
+    it('calls client.getDatasets with the parsed project id and emits the list', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
+        await handleDatasetList(ctx);
+        expect(client.getDatasets).toHaveBeenCalledTimes(1);
+        expect(client.getDatasets).toHaveBeenCalledWith(7);
+        expect(out).toHaveBeenCalledWith(
+            expect.arrayContaining([expect.objectContaining({ id: 77, name: 'Staging matrix' })]),
+        );
+    });
+
+    it.each(INVALID_IDS.map((id) => [id]))('rejects invalid project_id %p before any client call', async (raw) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [raw] });
+        await expect(handleDatasetList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getDatasets).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing project_id (no positional arg)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [] });
+        await expect(handleDatasetList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getDatasets).not.toHaveBeenCalled();
     });
 });

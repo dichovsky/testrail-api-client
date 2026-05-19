@@ -148,6 +148,7 @@ const MOCK_SHARED_STEP = {
 };
 const MOCK_VARIABLE = { id: 1, name: 'env' };
 const MOCK_GROUP = { id: 7, name: 'QA Group', user_ids: [1, 2] };
+const MOCK_DATASET = { id: 77, name: 'Staging matrix', project_id: 1 };
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -3464,6 +3465,7 @@ describe('CLI', () => {
 
     // ── group get/list/add/update/delete (TestRail 7.5+) ──────────────────────
 
+
     describe('group get/list/add/update/delete', () => {
         it('group get <id> GETs get_group/{group_id}', async () => {
             const { exitCodes, stdout } = await runCli(['group', 'get', '7'], [jsonResponse(MOCK_GROUP)]);
@@ -3757,6 +3759,298 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
         });
     });
+
+
+    // ── dataset get/list/add/update ────────────────────────────────────────
+
+    describe('dataset get/list/add/update', () => {
+        it('dataset get <dataset_id> GETs get_dataset/{dataset_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['dataset', 'get', '77'], [jsonResponse(MOCK_DATASET)]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_dataset/77');
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_DATASET;
+            expect(parsed).toMatchObject({ id: 77, name: 'Staging matrix' });
+        });
+
+        it('dataset get rejects non-positive dataset_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'get', '0']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset get rejects scientific notation dataset_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'get', '1e2']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset get rejects hex dataset_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'get', '0x1']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset get missing dataset_id exits 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'get']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset get 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'get', '77'], [jsonResponse({ error: 'not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset get network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'get', '77'], [], AUTH_ENV, new Error('network down'));
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset list <project_id> GETs get_datasets/{project_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['dataset', 'list', '1'], [jsonResponse([MOCK_DATASET])]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_datasets/1');
+            const parsed = JSON.parse(stdout.trim()) as (typeof MOCK_DATASET)[];
+            expect(parsed[0]).toMatchObject({ id: 77, name: 'Staging matrix' });
+        });
+
+        it('dataset list supports --format table', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['dataset', 'list', '1', '--format', 'table'],
+                [jsonResponse([MOCK_DATASET])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Staging matrix');
+        });
+
+        it('dataset list rejects non-positive project_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list', '0']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset list rejects scientific notation project_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list', '1e2']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset list rejects hex project_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list', '0x1']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset list missing project_id exits 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset list 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'list', '1'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset list 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list', '1'], [jsonResponse({ error: 'forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset list 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list', '1'], [jsonResponse({ error: 'not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset list network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'list', '1'], [], AUTH_ENV, new Error('network down'));
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset add POSTs to add_dataset/{project_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'add', '1', '--data', '{"name":"Staging matrix"}'],
+                [jsonResponse(MOCK_DATASET)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_dataset/1');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('Staging matrix');
+        });
+
+        it('dataset add --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'dataset',
+                'add',
+                '1',
+                '--data',
+                '{"name":"matrix"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset add rejects payload missing name', async () => {
+            const { exitCodes, stderr } = await runCli(['dataset', 'add', '1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset add rejects non-string name (no coercion)', async () => {
+            const { exitCodes, stderr } = await runCli(['dataset', 'add', '1', '--data', '{"name":42}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('dataset add 400 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'add', '1', '--data', '{"name":"matrix"}'],
+                [jsonResponse({ error: 'bad request' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset add 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'add', '1', '--data', '{"name":"matrix"}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset add 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'add', '1', '--data', '{"name":"matrix"}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset add 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'add', '1', '--data', '{"name":"matrix"}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset add network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'add', '1', '--data', '{"name":"matrix"}'],
+                [],
+                AUTH_ENV,
+                new Error('network down'),
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update POSTs to update_dataset/{dataset_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'update', '77', '--data', '{"name":"Production matrix"}'],
+                [jsonResponse({ id: 77, name: 'Production matrix', project_id: 1 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_dataset/77');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('Production matrix');
+        });
+
+        it('dataset update --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'dataset',
+                'update',
+                '77',
+                '--data',
+                '{"name":"x"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dataset update rejects non-numeric dataset_id', async () => {
+            const { exitCodes, stderr } = await runCli(['dataset', 'update', 'abc', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('dataset_id');
+        });
+
+        it('dataset update rejects scientific notation dataset_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'update', '1e2', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update rejects hex dataset_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'update', '0x1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update missing --data exits 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'update', '77']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update supports --format table', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['dataset', 'update', '77', '--data', '{"name":"Production matrix"}', '--format', 'table'],
+                [jsonResponse({ id: 77, name: 'Production matrix', project_id: 1 })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Production matrix');
+        });
+
+        it('dataset update 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'update', '77', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'update', '77', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'update', '77', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset update network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['dataset', 'update', '77', '--data', '{"name":"x"}'],
+                [],
+                AUTH_ENV,
+                new Error('network down'),
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('dataset unknown action exits 1', async () => {
+            const { exitCodes } = await runCli(['dataset', 'frobnicate', '1']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
 
     describe('run add', () => {
         it('POSTs the payload and returns the created run', async () => {
@@ -5068,6 +5362,51 @@ describe('CLI', () => {
 
         it('rejects non-positive variable_id', async () => {
             const { exitCodes } = await runCli(['variable', 'delete', '0', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('dataset delete (destructive; --soft NOT supported)', () => {
+        it('rejects without --yes', async () => {
+            const { exitCodes, stderr } = await runCli(['dataset', 'delete', '77']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('with --yes POSTs to delete_dataset/{id}', async () => {
+            const { exitCodes } = await runCli(['dataset', 'delete', '77', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_dataset/77');
+        });
+
+        it('dry-run wins over --yes (no API call)', async () => {
+            const { exitCodes, stdout } = await runCli(['dataset', 'delete', '77', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"destructive": true');
+        });
+
+        it('rejects --soft (TestRail does not support soft on delete_dataset)', async () => {
+            const { exitCodes, stderr } = await runCli(['dataset', 'delete', '77', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/dataset delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('dry-run wins over --soft (preview emitted, no API call, no --soft rejection)', async () => {
+            const { exitCodes, stdout } = await runCli(['dataset', 'delete', '77', '--soft', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"destructive": true');
+        });
+
+        it('rejects non-positive dataset_id', async () => {
+            const { exitCodes } = await runCli(['dataset', 'delete', '0', '--yes']);
             expect(exitCodes).toContain(1);
             expect(mockFetch).not.toHaveBeenCalled();
         });

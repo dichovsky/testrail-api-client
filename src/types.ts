@@ -668,32 +668,9 @@ export interface Attachment {
 // inferred TS types).
 
 // ── Datasets (TASK-030) ───────────────────────────────────────────────────────
-
-/** A dataset for data-driven testing */
-export interface Dataset {
-    /** Unique dataset ID */
-    id: number;
-    /** Dataset name */
-    name: string;
-    /** ID of the project this dataset belongs to */
-    project_id?: number;
-    /** Unix timestamp when created */
-    created_on?: number;
-    /** ID of the user who created it */
-    created_by?: number;
-}
-
-/** Payload for creating a dataset via POST /add_dataset/{project_id} */
-export interface AddDatasetPayload {
-    /** Dataset name */
-    name: string;
-}
-
-/** Payload for updating a dataset via POST /update_dataset/{dataset_id} */
-export interface UpdateDatasetPayload {
-    /** New dataset name */
-    name?: string;
-}
+// `Dataset`, `AddDatasetPayload`, and `UpdateDatasetPayload` now live in
+// `./schemas.ts` as Zod schemas (source of truth for runtime validation +
+// inferred TS types). Mirrors the Variables migration precedent (P1).
 
 // ── Reports (TASK-031) ────────────────────────────────────────────────────────
 

@@ -548,6 +548,24 @@ export const DatasetSchema = zObject({
 
 export type Dataset = z.infer<typeof DatasetSchema>;
 
+export const AddDatasetPayloadSchema = zObject({
+    name: z.string(),
+});
+
+export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>;
+
+/**
+ * `update_dataset` accepts a partial body (rename-only at the moment).
+ * Mirrors the `UpdateVariablePayloadSchema` precedent — empty `{}` body
+ * is intentionally allowed and forwarded to TestRail, which treats it
+ * as a no-op. `custom_*` extras flow through `zObject()`'s passthrough.
+ */
+export const UpdateDatasetPayloadSchema = zObject({
+    name: z.string().optional(),
+});
+
+export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>;
+
 // ── Report Schemas ────────────────────────────────────────────────────────────
 
 export const ReportSchema = zObject({

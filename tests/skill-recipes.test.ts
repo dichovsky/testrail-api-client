@@ -315,3 +315,70 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         expect(section).toContain('case list');
     });
 });
+
+describe('skill/SKILL.md — Data-driven runs via Variables + Datasets recipe', () => {
+    const md = readFileSync(SKILL_PATH, 'utf-8');
+
+    // gate C2 already enforces that the tags resolve to ActionSpec entries,
+    // but it does NOT enforce that all three dataset write tags stay
+    // grouped under the same heading. Splitting them across separate
+    // recipes would change binding semantics without gate C2 noticing.
+    // Pin the grouping explicitly (mirrors the Configuration groups
+    // recipe pattern).
+    it('groups all three dataset recipe-for tags under the same heading', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        expect(section).toContain('<!-- recipe-for: dataset:add -->');
+        expect(section).toContain('<!-- recipe-for: dataset:update -->');
+        expect(section).toContain('<!-- recipe-for: dataset:delete -->');
+    });
+
+    it('pins the variable + dataset narration (both are project-scoped)', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        // The skill explains BOTH halves of TestRail's data-driven model;
+        // dropping the Variables half would render the recipe incomplete.
+        expect(section).toContain('Variables');
+        expect(section).toContain('Datasets');
+        expect(section).toContain('${var_name}');
+    });
+
+    it('pins the lifecycle commands in walkthrough order', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        // Order: variable add → dataset add → list → get → update → delete.
+        // A reorder would change the setup-then-teardown narrative.
+        expect(section).toContain('testrail variable add 5');
+        expect(section).toContain('testrail dataset add 5');
+        expect(section).toContain('testrail dataset list 5');
+        expect(section).toContain('testrail dataset get "$DATASET_ID"');
+        expect(section).toContain('testrail dataset update "$DATASET_ID"');
+        expect(section).toContain('testrail dataset delete "$DATASET_ID" --yes');
+        expect(section).toContain('testrail variable delete "$ENV_ID" --yes');
+    });
+
+    it('pins the example payload JSONC block with custom_* passthrough', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        // The minimal payload + a custom_* extra documents the
+        // .passthrough() contract; dropping the example weakens the skill.
+        expect(section).toContain('"name": "Staging matrix"');
+        expect(section).toContain('"custom_owner": "qa-team"');
+    });
+
+    it('warns that the CLI scope is metadata-only (web UI for row population)', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        expect(section).toContain('metadata-only');
+        expect(section).toContain('web UI');
+    });
+
+    it('warns that delete is destructive with no --soft preview', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        expect(section).toContain('destructive');
+        expect(section).toContain('does not support soft preview');
+    });
+
+    it('documents the per-row execution semantics and plan-entry binding', () => {
+        const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        // The "dataset binds to plan entries, not to runs" caveat is the
+        // load-bearing integration detail; pin it.
+        expect(section).toContain('plan entries');
+        expect(section).toContain('Per-row execution');
+    });
+});
