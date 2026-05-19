@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "05087af5ffdd412e65e925b890462518eb65926b3059c52afbe872adab0a82f4",
+  "sourceHash": "7fc89e6ec1e52dce8dfac8a02c52282897769aefce77431c25030ee47f40e86c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1407,6 +1407,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/plan.js",
         "./handlers/project-write.js",
         "./handlers/project.js",
+        "./handlers/report.js",
         "./handlers/result-field.js",
         "./handlers/result-write.js",
         "./handlers/result.js",
@@ -1427,35 +1428,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 80,
+          "line": 81,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 165,
+          "line": 168,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 180,
+          "line": 183,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 187,
+          "line": 190,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 191,
+          "line": 194,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1763,14 +1764,15 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/handlers/case-field.ts",
       "imports": [
-        "../handler-context.js"
+        "../handler-context.js",
+        "../ids.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleCaseFieldList",
           "kind": "function",
-          "line": 10,
+          "line": 13,
           "exported": true,
           "signature": "export async function handleCaseFieldList(ctx: HandlerContext): Promise<void>"
         }
@@ -1779,14 +1781,15 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/handlers/case-status.ts",
       "imports": [
-        "../handler-context.js"
+        "../handler-context.js",
+        "../ids.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleCaseStatusList",
           "kind": "function",
-          "line": 3,
+          "line": 13,
           "exported": true,
           "signature": "export async function handleCaseStatusList(ctx: HandlerContext): Promise<void>"
         }
@@ -2105,16 +2108,41 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/report.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleReportList",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleReportList(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleReportRun",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleReportRun(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/result-field.ts",
       "imports": [
-        "../handler-context.js"
+        "../handler-context.js",
+        "../ids.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleResultFieldList",
           "kind": "function",
-          "line": 8,
+          "line": 10,
           "exported": true,
           "signature": "export async function handleResultFieldList(ctx: HandlerContext): Promise<void>"
         }
@@ -2354,14 +2382,15 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/handlers/status.ts",
       "imports": [
-        "../handler-context.js"
+        "../handler-context.js",
+        "../ids.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleStatusList",
           "kind": "function",
-          "line": 9,
+          "line": 11,
           "exported": true,
           "signature": "export async function handleStatusList(ctx: HandlerContext): Promise<void>"
         }
@@ -2602,7 +2631,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 181,
+          "line": 182,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2674,7 +2703,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 858,
+          "line": 876,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

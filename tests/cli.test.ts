@@ -1560,6 +1560,18 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['case-status', 'get', '1']);
             expect(exitCodes).toContain(1);
         });
+
+        // Retroactive tightening — `case-status list` used to silently
+        // ignore extra positional args (two-tier behaviour vs the other
+        // no-arg metadata handlers). It now rejects fail-fast like
+        // case-field / result-field / status, before any fetch leaves
+        // the process.
+        it('case-status list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['case-status', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     // ── report ───────────────────────────────────────────────────────────────
@@ -1922,6 +1934,19 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
         });
 
+        it('result-field list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['result-field', 'list'],
+                [jsonResponse({ error: 'Unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('result-field list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['result-field', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
         it('result-field list surfaces network error as exit 1', async () => {
             const { exitCodes } = await runCli(['result-field', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
             expect(exitCodes).toContain(1);
@@ -1971,6 +1996,16 @@ describe('CLI', () => {
 
         it('status list surfaces 401 as exit 1', async () => {
             const { exitCodes } = await runCli(['status', 'list'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('status list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('status list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
             expect(exitCodes).toContain(1);
         });
 
@@ -2035,6 +2070,14 @@ describe('CLI', () => {
 
         it('template list surfaces 403 as exit 1', async () => {
             const { exitCodes } = await runCli(['template', 'list', '3'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('template list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['template', 'list', '3'],
+                [jsonResponse({ error: 'Unauthorized' }, 401)],
+            );
             expect(exitCodes).toContain(1);
         });
 

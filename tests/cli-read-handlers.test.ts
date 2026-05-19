@@ -21,6 +21,7 @@ import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
 import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleReportList, handleReportRun } from '../src/cli/handlers/report.js';
 import { handleCaseFieldList } from '../src/cli/handlers/case-field.js';
+import { handleCaseStatusList } from '../src/cli/handlers/case-status.js';
 import { handleResultFieldList } from '../src/cli/handlers/result-field.js';
 import { handleStatusList } from '../src/cli/handlers/status.js';
 import { handleTemplateList } from '../src/cli/handlers/template.js';
@@ -38,6 +39,7 @@ interface MockedClient {
     getReports: ReturnType<typeof vi.fn>;
     runReport: ReturnType<typeof vi.fn>;
     getCaseFields: ReturnType<typeof vi.fn>;
+    getCaseStatuses: ReturnType<typeof vi.fn>;
     getResultFields: ReturnType<typeof vi.fn>;
     getStatuses: ReturnType<typeof vi.fn>;
     getTemplates: ReturnType<typeof vi.fn>;
@@ -101,6 +103,16 @@ function buildClient(): MockedClient {
                 color_medium: 1,
                 color_bright: 1,
                 is_system: true,
+            },
+        ]),
+        getCaseStatuses: vi.fn().mockResolvedValue([
+            {
+                case_status_id: 1,
+                name: 'Approved',
+                abbreviation: 'APP',
+                is_default: true,
+                is_approved: true,
+                is_untested: false,
             },
         ]),
         getTemplates: vi.fn().mockResolvedValue([{ id: 1, name: 'Test Case (Text)', is_default: true }]),
@@ -547,12 +559,15 @@ describe('handleReportRun', () => {
 
 // ── handleCaseFieldList ───────────────────────────────────────────────────
 //
-// `case-field list`, `result-field list`, and `status list` share the same
-// zero-arg shape: the endpoint takes no path/query params and the handler
-// rejects extra positional args fail-fast (a typo like `status list 5`
-// must surface as an error, not a silent ignore of the `5`). The three
-// suites below pin that contract; the inverse precedent — `case-status
-// list` silently ignoring extras — is intentionally NOT followed here.
+// `case-field list`, `case-status list`, `result-field list`, and
+// `status list` share the same zero-arg shape: the endpoint takes no
+// path/query params and the handler rejects extra positional args
+// fail-fast (a typo like `status list 5` must surface as an error, not
+// a silent ignore of the `5`). All four reject with `IdParseError` for
+// parity with the rest of the CLI's arg-parse failures, so `main()` exits
+// 1 through the same code path. `case-status list` was retroactively
+// tightened to match — the previous two-tier behaviour where it silently
+// ignored extras is no longer present.
 
 describe('handleCaseFieldList', () => {
     it('calls client.getCaseFields with no args and emits the result', async () => {
@@ -567,6 +582,7 @@ describe('handleCaseFieldList', () => {
     it('rejects extra positional args before any client call', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleCaseFieldList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseFieldList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getCaseFields).not.toHaveBeenCalled();
     });
@@ -574,8 +590,38 @@ describe('handleCaseFieldList', () => {
     it('rejects multiple extra positional args', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleCaseFieldList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseFieldList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getCaseFields).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleCaseStatusList ──────────────────────────────────────────────────
+
+describe('handleCaseStatusList', () => {
+    it('calls client.getCaseStatuses with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleCaseStatusList(ctx);
+        expect(client.getCaseStatuses).toHaveBeenCalledTimes(1);
+        expect(client.getCaseStatuses).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([expect.objectContaining({ case_status_id: 1, name: 'Approved' })]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleCaseStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleCaseStatusList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseStatuses).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleCaseStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleCaseStatusList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseStatuses).not.toHaveBeenCalled();
     });
 });
 
@@ -594,6 +640,7 @@ describe('handleResultFieldList', () => {
     it('rejects extra positional args before any client call', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['7'] });
+        await expect(handleResultFieldList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleResultFieldList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getResultFields).not.toHaveBeenCalled();
     });
@@ -614,6 +661,7 @@ describe('handleStatusList', () => {
     it('rejects extra positional args before any client call', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['1'] });
+        await expect(handleStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleStatusList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getStatuses).not.toHaveBeenCalled();
     });

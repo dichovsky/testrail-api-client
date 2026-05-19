@@ -40,11 +40,11 @@ Read actions:
   section  get <id> | list <id> [--suite-id <id>] [--limit N] [--offset N]
   shared-step  get <id> | list --project-id <id>
   shared-step  history <shared_step_id> [--limit N] [--offset N]
-  case-status  list
   report   list <project_id> | run <report_template_id>
 
 Metadata actions:
   case-field   list                       (no positional args)
+  case-status  list                       (no positional args)
   result-field list                       (no positional args)
   status       list                       (no positional args)
   template     list <project_id>

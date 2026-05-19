@@ -688,11 +688,12 @@ export const ACTIONS: readonly ActionSpec[] = [
     },
     // ── Metadata read actions ─────────────────────────────────────────────
     // Instance-level metadata getters: case fields, result fields, statuses,
-    // and per-project templates. Three of the four take no path params
-    // (`case-field list`, `result-field list`, `status list`); the handlers
-    // reject extra positional args fail-fast so a typo like
-    // `testrail status list 5` surfaces as an error instead of silently
-    // ignoring the `5`. `template list` takes a single `project_id`.
+    // and per-project templates. Four of the five take no path params
+    // (`case-field list`, `case-status list`, `result-field list`,
+    // `status list`); the handlers reject extra positional args fail-fast
+    // with `IdParseError` so a typo like `testrail status list 5` surfaces
+    // as an error instead of silently ignoring the `5`. `template list`
+    // takes a single `project_id`.
     {
         resource: 'case-field',
         action: 'list',
