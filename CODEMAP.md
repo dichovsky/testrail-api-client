@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "87d92a2f3e783896d06af04997df62ce59ee5221c1961355d5ee04f98bd9f29d",
+  "sourceHash": "f4c2644d14506a56cd3ad0def89c1ee07e7bbb0bf426a20d0a275036b7651eae",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -82,7 +82,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddDatasetPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 758,
+      "line": 724,
       "signature": "export interface AddDatasetPayload { name: string; }",
       "jsdoc": "Payload for creating a dataset via POST /add_dataset/{project_id}",
       "typeOnly": true
@@ -278,12 +278,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "name": "AddSharedStepPayload",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 721,
-      "signature": "export interface AddSharedStepPayload { title: string; custom_steps_separated?: Record<string, unknown>[]; }",
-      "jsdoc": "Payload for creating a shared step via POST /add_shared_step/{project_id} (TestRail 7.0+)",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 965,
+      "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>",
       "typeOnly": true
+    },
+    {
+      "name": "AddSharedStepPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 960,
+      "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
     },
     {
       "name": "AddSuitePayload",
@@ -469,7 +475,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Dataset",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 744,
+      "line": 710,
       "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }",
       "jsdoc": "A dataset for data-driven testing",
       "typeOnly": true
@@ -570,7 +576,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetSharedStepHistoryOptions",
       "kind": "interface",
       "file": "src/modules/sharedSteps.ts",
-      "line": 6,
+      "line": 7,
       "signature": "export interface GetSharedStepHistoryOptions { limit?: number; offset?: number; }",
       "typeOnly": true
     },
@@ -770,7 +776,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Report",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 772,
+      "line": 738,
       "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}",
       "typeOnly": true
@@ -779,7 +785,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ReportResult",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 784,
+      "line": 750,
       "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}",
       "typeOnly": true
@@ -891,11 +897,10 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "name": "SharedStep",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 699,
-      "signature": "export interface SharedStep { id: number; title: string; project_id?: number; case_ids?: number[]; created_on?: number; created_by?: number; updated_on?: number; updated_by?: number; custom_steps_sepa…",
-      "jsdoc": "A shared step set returned by GET /get_shared_step (TestRail 7.0+)",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 483,
+      "signature": "export type SharedStep = z.infer<typeof SharedStepSchema>",
       "typeOnly": true
     },
     {
@@ -1080,7 +1085,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateDatasetPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 764,
+      "line": 730,
       "signature": "export interface UpdateDatasetPayload { name?: string; }",
       "jsdoc": "Payload for updating a dataset via POST /update_dataset/{dataset_id}",
       "typeOnly": true
@@ -1201,12 +1206,19 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "name": "UpdateSharedStepPayload",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 729,
-      "signature": "export interface UpdateSharedStepPayload { title?: string; custom_steps_separated?: Record<string, unknown>[]; }",
-      "jsdoc": "Payload for updating a shared step via POST /update_shared_step/{shared_step_id} (TestRail 7.0+)",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 981,
+      "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>",
       "typeOnly": true
+    },
+    {
+      "name": "UpdateSharedStepPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 976,
+      "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
+      "jsdoc": "Update payload for `update_shared_step`. Every field is optional — TestRail accepts an empty object (`{}`) as a no-op update, so the CLI's `shared-step update <id> --data '{}'` is intentionally a valid call. This mirrors `UpdateMilestonePayloadSchema` and `UpdateCasePayloadSchema`: empty bodies are accepted at the schema layer; rejecting them is the API's responsibility, not the client's. Callers that want to enforce \"non-empty update\" must do so above this schema."
     },
     {
       "name": "UpdateSuitePayload",
@@ -1427,6 +1439,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/run.js",
         "./handlers/section-write.js",
         "./handlers/section.js",
+        "./handlers/shared-step-write.js",
         "./handlers/shared-step.js",
         "./handlers/status.js",
         "./handlers/suite-write.js",
@@ -1442,35 +1455,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 83,
+          "line": 84,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 174,
+          "line": 178,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 189,
+          "line": 193,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 196,
+          "line": 200,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 200,
+          "line": 204,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -2363,6 +2376,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/shared-step-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleSharedStepAdd",
+          "kind": "function",
+          "line": 6,
+          "exported": true,
+          "signature": "export async function handleSharedStepAdd(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleSharedStepUpdate",
+          "kind": "function",
+          "line": 23,
+          "exported": true,
+          "signature": "export async function handleSharedStepUpdate(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleSharedStepDelete",
+          "kind": "function",
+          "line": 56,
+          "exported": true,
+          "signature": "export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/shared-step.ts",
       "imports": [
         "../handler-context.js",
@@ -2695,7 +2741,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 187,
+          "line": 190,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2746,28 +2792,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 55,
+          "line": 57,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 60,
+          "line": 62,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 98,
+          "line": 100,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 914,
+          "line": 945,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
@@ -5021,51 +5067,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetSharedStepHistoryOptions",
           "kind": "interface",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export interface GetSharedStepHistoryOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "SharedStepModule",
           "kind": "class",
-          "line": 13,
+          "line": 14,
           "exported": true,
           "signature": "export class SharedStepModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 14
+              "line": 15
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 17
+              "line": 18
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 23
+              "line": 24
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 33
+              "line": 34
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 39
+              "line": 40
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 50
+              "line": 51
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 56
+              "line": 57
             }
           ]
         }
@@ -6272,6 +6318,34 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 950,
           "exported": true,
           "signature": "export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>"
+        },
+        {
+          "name": "AddSharedStepPayloadSchema",
+          "kind": "const",
+          "line": 960,
+          "exported": true,
+          "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
+        },
+        {
+          "name": "AddSharedStepPayload",
+          "kind": "type",
+          "line": 965,
+          "exported": true,
+          "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>"
+        },
+        {
+          "name": "UpdateSharedStepPayloadSchema",
+          "kind": "const",
+          "line": 976,
+          "exported": true,
+          "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
+        },
+        {
+          "name": "UpdateSharedStepPayload",
+          "kind": "type",
+          "line": 981,
+          "exported": true,
+          "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
         }
       ]
     },
@@ -6596,58 +6670,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }"
         },
         {
-          "name": "SharedStep",
-          "kind": "interface",
-          "line": 699,
-          "exported": true,
-          "signature": "export interface SharedStep { id: number; title: string; project_id?: number; case_ids?: number[]; created_on?: number; created_by?: number; updated_on?: number; updated_by?: number; custom_steps_sepa…"
-        },
-        {
-          "name": "AddSharedStepPayload",
-          "kind": "interface",
-          "line": 721,
-          "exported": true,
-          "signature": "export interface AddSharedStepPayload { title: string; custom_steps_separated?: Record<string, unknown>[]; }"
-        },
-        {
-          "name": "UpdateSharedStepPayload",
-          "kind": "interface",
-          "line": 729,
-          "exported": true,
-          "signature": "export interface UpdateSharedStepPayload { title?: string; custom_steps_separated?: Record<string, unknown>[]; }"
-        },
-        {
           "name": "Dataset",
           "kind": "interface",
-          "line": 744,
+          "line": 710,
           "exported": true,
           "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }"
         },
         {
           "name": "AddDatasetPayload",
           "kind": "interface",
-          "line": 758,
+          "line": 724,
           "exported": true,
           "signature": "export interface AddDatasetPayload { name: string; }"
         },
         {
           "name": "UpdateDatasetPayload",
           "kind": "interface",
-          "line": 764,
+          "line": 730,
           "exported": true,
           "signature": "export interface UpdateDatasetPayload { name?: string; }"
         },
         {
           "name": "Report",
           "kind": "interface",
-          "line": 772,
+          "line": 738,
           "exported": true,
           "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }"
         },
         {
           "name": "ReportResult",
           "kind": "interface",
-          "line": 784,
+          "line": 750,
           "exported": true,
           "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }"
         }

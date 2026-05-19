@@ -35,9 +35,6 @@ import type {
     AddGroupPayload,
     UpdateGroupPayload,
     Attachment,
-    SharedStep,
-    AddSharedStepPayload,
-    UpdateSharedStepPayload,
     Dataset,
     AddDatasetPayload,
     UpdateDatasetPayload,
@@ -79,6 +76,9 @@ import type {
     Variable,
     AddVariablePayload,
     UpdateVariablePayload,
+    SharedStep,
+    AddSharedStepPayload,
+    UpdateSharedStepPayload,
 } from './schemas.js';
 import type { GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';

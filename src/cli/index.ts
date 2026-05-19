@@ -92,6 +92,9 @@ Write actions (body via --data | --data-file | stdin):
   variable add <project_id>         --data '{"name":"..."}'
   variable update <variable_id>     --data '{"name":"..."}'
   variable delete <variable_id>     --yes  (no body; --soft NOT supported by TestRail)
+  shared-step add <project_id>        --data '{"title":"..."}'  (TestRail 7.0+)
+  shared-step update <shared_step_id> --data '{"title":"..."}'  (TestRail 7.0+)
+  shared-step delete <shared_step_id> --yes  (no body; --soft NOT supported by TestRail; TestRail 7.0+)
 
 Attachment actions (binary file I/O):
   attachment list-for-case <case_id>

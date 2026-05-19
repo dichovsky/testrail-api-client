@@ -29,6 +29,8 @@ import {
     UpdateMilestonePayloadSchema,
     AddVariablePayloadSchema,
     UpdateVariablePayloadSchema,
+    AddSharedStepPayloadSchema,
+    UpdateSharedStepPayloadSchema,
 } from '../schemas.js';
 
 /**
@@ -678,6 +680,35 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'report_template_id', description: 'TestRail report template ID' }],
         apiEndpoint: 'GET run_report/{report_template_id}',
         isWrite: false,
+    },
+    // ── Shared-step write actions (TestRail 7.0+) ─────────────────────────
+    {
+        resource: 'shared-step',
+        action: 'add',
+        summary: 'Create a new shared step set in a project (TestRail 7.0+)',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_shared_step/{project_id}',
+        bodySchema: AddSharedStepPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'shared-step',
+        action: 'update',
+        summary: 'Update an existing shared step set (partial fields; TestRail 7.0+)',
+        pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
+        apiEndpoint: 'POST update_shared_step/{shared_step_id}',
+        bodySchema: UpdateSharedStepPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'shared-step',
+        action: 'delete',
+        summary:
+            'Delete a shared step set — referencing cases keep their content but lose the step-set link (requires --yes; --soft NOT supported by TestRail; TestRail 7.0+)',
+        pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
+        apiEndpoint: 'POST delete_shared_step/{shared_step_id}',
+        isWrite: true,
+        destructive: true,
     },
     // ── Case-status read action ───────────────────────────────────────────
     {

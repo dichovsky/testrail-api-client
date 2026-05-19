@@ -36,9 +36,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🟡 P1 — common metadata & admin
 
-- [ ] 🟡 📦 CLI: `shared-step add` (POST `add_shared_step/{project_id}`)
-- [ ] 🟡 📦 CLI: `shared-step update` (POST `update_shared_step/{shared_step_id}`)
-- [ ] 🟡 📦 ⚠️ CLI: `shared-step delete` (POST `delete_shared_step/{shared_step_id}`)
 - [ ] 🟡 📦 CLI: `configuration list` (GET `get_configs/{project_id}`)
 - [ ] 🟡 📦 CLI: `configuration-group add` (POST `add_config_group/{project_id}`)
 - [ ] 🟡 📦 CLI: `configuration-group update` (POST `update_config_group/{config_group_id}`)

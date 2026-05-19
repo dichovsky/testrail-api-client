@@ -35,6 +35,8 @@ const SCHEMA_NAMES = new Map([
     ['milestone:update', 'UpdateMilestonePayloadSchema'],
     ['variable:add', 'AddVariablePayloadSchema'],
     ['variable:update', 'UpdateVariablePayloadSchema'],
+    ['shared-step:add', 'AddSharedStepPayloadSchema'],
+    ['shared-step:update', 'UpdateSharedStepPayloadSchema'],
 ]);
 
 export function schemaNameFor(spec) {

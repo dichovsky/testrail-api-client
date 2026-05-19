@@ -948,3 +948,34 @@ export const UpdateMilestonePayloadSchema = zObject({
 });
 
 export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>;
+
+// ── Shared-step write payloads (TestRail 7.0+) ────────────────────────────────
+// `custom_steps_separated` is intentionally typed as `z.array(z.record(z.string(), z.unknown()))`
+// rather than a structured step schema — the step shape varies by TestRail
+// template configuration (separated, additional info, expected result, etc.)
+// and there's no project-time visibility into which keys are present. The
+// `.passthrough()` from `zObject` also lets future `custom_*` keys survive
+// round-trip (matches the AddCase / AddRun precedent).
+
+export const AddSharedStepPayloadSchema = zObject({
+    title: z.string(),
+    custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>;
+
+/**
+ * Update payload for `update_shared_step`. Every field is optional — TestRail
+ * accepts an empty object (`{}`) as a no-op update, so the CLI's
+ * `shared-step update <id> --data '{}'` is intentionally a valid call. This
+ * mirrors `UpdateMilestonePayloadSchema` and `UpdateCasePayloadSchema`: empty
+ * bodies are accepted at the schema layer; rejecting them is the API's
+ * responsibility, not the client's. Callers that want to enforce
+ * "non-empty update" must do so above this schema.
+ */
+export const UpdateSharedStepPayloadSchema = zObject({
+    title: z.string().optional(),
+    custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>;

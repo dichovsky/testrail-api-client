@@ -127,6 +127,9 @@ on stderr. Never echo or log the API key.
 | shared-step | history | `<shared_step_id>` | — | List revision history for a shared step (paginated) |
 | report | list | `<project_id>` | — | List report templates configured for a project |
 | report | run | `<report_template_id>` | — | Execute a report template and return the generated report URLs |
+| shared-step | add | `<project_id>` | `AddSharedStepPayloadSchema` | Create a new shared step set in a project (TestRail 7.0+) |
+| shared-step | update | `<shared_step_id>` | `UpdateSharedStepPayloadSchema` | Update an existing shared step set (partial fields; TestRail 7.0+) |
+| shared-step | delete | `<shared_step_id>` | — (no body, requires `--yes`) | Delete a shared step set — referencing cases keep their content but lose the step-set link (requires --yes; --soft NOT supported by TestRail; TestRail 7.0+) |
 | case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
 | case-field | list | — | — | List all custom case fields defined on the TestRail instance |
 | result-field | list | — | — | List all custom result fields defined on the TestRail instance |
@@ -493,6 +496,24 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "refs": "string?",
     "is_completed": "boolean?",
     "is_started": "boolean?"
+}
+```
+
+### `AddSharedStepPayloadSchema` (used by `shared-step add`)
+
+```jsonc
+{
+    "title": "string (required)",
+    "custom_steps_separated": "Record<string, unknown>[]?"
+}
+```
+
+### `UpdateSharedStepPayloadSchema` (used by `shared-step update`)
+
+```jsonc
+{
+    "title": "string?",
+    "custom_steps_separated": "Record<string, unknown>[]?"
 }
 ```
 

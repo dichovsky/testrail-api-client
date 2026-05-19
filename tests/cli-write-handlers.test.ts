@@ -57,6 +57,11 @@ import {
     handleMilestoneUpdate,
 } from '../src/cli/handlers/milestone-write.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../src/cli/handlers/variable-write.js';
+import {
+    handleSharedStepAdd,
+    handleSharedStepUpdate,
+    handleSharedStepDelete,
+} from '../src/cli/handlers/shared-step-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
@@ -102,6 +107,9 @@ interface MockedClient {
     addVariable: ReturnType<typeof vi.fn>;
     updateVariable: ReturnType<typeof vi.fn>;
     deleteVariable: ReturnType<typeof vi.fn>;
+    addSharedStep: ReturnType<typeof vi.fn>;
+    updateSharedStep: ReturnType<typeof vi.fn>;
+    deleteSharedStep: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -147,6 +155,9 @@ function buildClient(): MockedClient {
         addVariable: vi.fn().mockResolvedValue({ id: 55, name: 'env' }),
         updateVariable: vi.fn().mockResolvedValue({ id: 55, name: 'region' }),
         deleteVariable: vi.fn().mockResolvedValue(undefined),
+        addSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps', project_id: 1 }),
+        updateSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps (v2)', project_id: 1 }),
+        deleteSharedStep: vi.fn().mockResolvedValue(undefined),
     };
 }
 
@@ -2184,6 +2195,68 @@ describe('handleVariableAdd', () => {
     });
 });
 
+// ── shared-step add ───────────────────────────────────────────────────────
+
+describe('handleSharedStepAdd', () => {
+    it('calls client.addSharedStep with parsed payload and outputs result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['1'], dataFlag: '{"title":"Login Steps"}' });
+        await handleSharedStepAdd(ctx);
+        expect(client.addSharedStep).toHaveBeenCalledWith(1, expect.objectContaining({ title: 'Login Steps' }));
+        expect(out).toHaveBeenCalledWith({ id: 55, title: 'Login Steps', project_id: 1 });
+    });
+
+    it('dry-run does not call the client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['1'],
+            dataFlag: '{"title":"x"}',
+            dryRun: true,
+        });
+        await handleSharedStepAdd(ctx);
+        expect(client.addSharedStep).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'shared-step add', projectId: 1 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1'] });
+        await expect(handleSharedStepAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body that fails Zod validation (non-string title)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1'], dataFlag: '{"title":42}' });
+        await expect(handleSharedStepAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body missing required title', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1'], dataFlag: '{}' });
+        await expect(handleSharedStepAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"title":"x"}' });
+        await expect(handleSharedStepAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+
+    it('passes custom_steps_separated array through', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['1'],
+            dataFlag: '{"title":"x","custom_steps_separated":[{"content":"step 1"}]}',
+        });
+        await handleSharedStepAdd(ctx);
+        expect(client.addSharedStep).toHaveBeenCalledWith(
+            1,
+            expect.objectContaining({
+                title: 'x',
+                custom_steps_separated: [{ content: 'step 1' }],
+            }),
+        );
+    });
+});
+
 // ── variable update ───────────────────────────────────────────────────────
 
 describe('handleVariableUpdate', () => {
@@ -2274,5 +2347,155 @@ describe('handleVariableDelete', () => {
     it('rejects when variable_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
         await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable_id/);
+    });
+});
+
+// ── shared-step update ────────────────────────────────────────────────────
+
+describe('handleSharedStepUpdate', () => {
+    it('calls client.updateSharedStep with parsed payload and outputs result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dataFlag: '{"title":"Login Steps (v2)"}',
+        });
+        await handleSharedStepUpdate(ctx);
+        expect(client.updateSharedStep).toHaveBeenCalledWith(
+            55,
+            expect.objectContaining({ title: 'Login Steps (v2)' }),
+        );
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty update body ({} is valid for UpdateSharedStepPayload)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'], dataFlag: '{}' });
+        await handleSharedStepUpdate(ctx);
+        expect(client.updateSharedStep).toHaveBeenCalledWith(55, expect.any(Object));
+    });
+
+    it('dry-run does not call the client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dataFlag: '{"title":"x"}',
+            dryRun: true,
+        });
+        await handleSharedStepUpdate(ctx);
+        expect(client.updateSharedStep).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'shared-step update', sharedStepId: 55 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'] });
+        await expect(handleSharedStepUpdate(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body that fails Zod validation (non-string title)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], dataFlag: '{"title":42}' });
+        await expect(handleSharedStepUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when shared_step_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{"title":"x"}' });
+        await expect(handleSharedStepUpdate(ctx)).rejects.toThrow(/shared_step_id/);
+    });
+
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+        'rejects non-positive-integer shared_step_id (%s) before touching body',
+        async (raw) => {
+            const client = buildClient();
+            const { ctx } = buildCtx(client, { pathParams: [raw], dataFlag: '{"title":"x"}' });
+            await expect(handleSharedStepUpdate(ctx)).rejects.toThrow(/shared_step_id/);
+            expect(client.updateSharedStep).not.toHaveBeenCalled();
+        },
+    );
+});
+
+// ── shared-step delete (destructive; no --soft) ──────────────────────────
+// TestRail does NOT support `?soft=1` on `delete_shared_step`. The handler
+// therefore has no `--soft` branch; only --yes and --dry-run gates.
+
+describe('handleSharedStepDelete', () => {
+    it('calls client.deleteSharedStep with the parsed shared_step_id when --yes is passed', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], confirmDestructive: true });
+        await handleSharedStepDelete(ctx);
+        expect(client.deleteSharedStep).toHaveBeenCalledWith(55);
+        expect(out).toHaveBeenCalledWith({ sharedStepId: 55, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'] });
+        await expect(handleSharedStepDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteSharedStep).not.toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and marks preview destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], dryRun: true });
+        await handleSharedStepDelete(ctx);
+        expect(client.deleteSharedStep).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'shared-step delete',
+                sharedStepId: 55,
+                destructive: true,
+            }),
+        );
+    });
+
+    it('dry-run wins over --yes: no API call', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], dryRun: true, confirmDestructive: true });
+        await handleSharedStepDelete(ctx);
+        expect(client.deleteSharedStep).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'shared-step delete',
+                sharedStepId: 55,
+                destructive: true,
+            }),
+        );
+    });
+
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+        'rejects non-positive-integer shared_step_id (%s) before checking --yes',
+        async (raw) => {
+            const { ctx } = buildCtx(buildClient(), { pathParams: [raw] });
+            await expect(handleSharedStepDelete(ctx)).rejects.toThrow(/shared_step_id/);
+        },
+    );
+
+    it('rejects --soft (TestRail does not support soft on delete_shared_step)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'], soft: true, confirmDestructive: true });
+        await expect(handleSharedStepDelete(ctx)).rejects.toThrow(/shared-step delete does not support --soft/);
+        expect(client.deleteSharedStep).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --soft: emits preview without API call (no --soft rejection)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dryRun: true,
+            soft: true,
+            confirmDestructive: true,
+        });
+        await handleSharedStepDelete(ctx);
+        expect(client.deleteSharedStep).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'shared-step delete',
+                sharedStepId: 55,
+                destructive: true,
+            }),
+        );
     });
 });
