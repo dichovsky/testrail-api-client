@@ -1,4 +1,5 @@
 import type { Handler } from './handler-context.js';
+import type { ActionSpec } from './metadata.js';
 import { handleProjectGet, handleProjectList } from './handlers/project.js';
 import { handleSuiteGet, handleSuiteList } from './handlers/suite.js';
 import { handleCaseGet, handleCaseList, handleCaseHistory } from './handlers/case.js';
@@ -237,6 +238,75 @@ export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error
  */
 export function getRegisteredActions(): readonly string[] {
     return Object.keys(HANDLERS);
+}
+
+/**
+ * Environment-variable name for the destructive-ops gate.
+ *
+ * Set to exactly `'1'` (no other value is accepted) to unlock destructive
+ * actions. Required in addition to the per-invocation `--yes` flag — both
+ * must be satisfied for a destructive call to reach the API.
+ *
+ * The strict `'1'` comparison is deliberate: accepting `'true'` / `'yes'` /
+ * `'on'` would surface as an audit-trail ambiguity (which value did CI
+ * actually set?). One canonical token keeps `set | unset | wrong-value`
+ * unambiguous in `printenv` output and CI definitions.
+ */
+export const DESTRUCTIVE_ENV_VAR = 'TESTRAIL_ALLOW_DESTRUCTIVE';
+
+/**
+ * Strict token accepted for `TESTRAIL_ALLOW_DESTRUCTIVE`. Any other value
+ * (including `'true'`, `'yes'`, `'on'`, `'1 '` with whitespace) is rejected.
+ */
+export const DESTRUCTIVE_ENV_ALLOW_VALUE = '1';
+
+export type EnvGateResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Defense-in-depth gate for destructive CLI actions.
+ *
+ * Runs in the dispatcher (not in individual handlers) so a handler added
+ * without an `if (!confirmDestructive)` check still cannot escape this
+ * gate. The check fires only when:
+ *   - The resolved `ActionSpec` has `destructive: true`, AND
+ *   - `--dry-run` is NOT set (preview is non-destructive by definition).
+ *
+ * The env var must be exactly the string `'1'`. This complements the
+ * existing `--yes` flag — both gates must clear before a destructive call
+ * reaches the API. Dry-run bypasses this guard so CI users can still
+ * `--dry-run --yes` a destructive command without setting the env var
+ * (preview hits no API).
+ *
+ * Returns `{ ok: true }` when the gate clears (action non-destructive, or
+ * dry-run, or env var correctly set). Returns `{ ok: false, error }` with
+ * a directive message otherwise. The caller (CLI entry point) maps the
+ * error to exit code 2 (distinct from the generic exit code 1 for other
+ * argv / auth / handler failures) so CI can distinguish "destructive
+ * action blocked by missing env var" from "wrong flag / bad JSON / 4xx".
+ */
+export function checkDestructiveEnvGate(
+    spec: ActionSpec | undefined,
+    env: Readonly<Record<string, string | undefined>>,
+    dryRun: boolean,
+): EnvGateResult {
+    if (spec?.destructive !== true) {
+        return { ok: true };
+    }
+    if (dryRun) {
+        return { ok: true };
+    }
+    if (env[DESTRUCTIVE_ENV_VAR] === DESTRUCTIVE_ENV_ALLOW_VALUE) {
+        return { ok: true };
+    }
+    return {
+        ok: false,
+        error:
+            `Destructive action '${spec.resource} ${spec.action}' requires ` +
+            `${DESTRUCTIVE_ENV_VAR}=${DESTRUCTIVE_ENV_ALLOW_VALUE} environment variable. ` +
+            `This is in addition to the --yes flag. ` +
+            `Set the env var (export ${DESTRUCTIVE_ENV_VAR}=${DESTRUCTIVE_ENV_ALLOW_VALUE}) ` +
+            `to unlock destructive operations, or pass --dry-run to preview without an API call.`,
+    };
 }
 
 export function dispatch(resource: string, action: string): DispatchResult {

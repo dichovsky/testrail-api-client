@@ -282,6 +282,8 @@ Three shapes:
 
 **Destructive handler** (e.g. `attachment-write.ts`, `project-write.ts`):
 
+Before the handler is invoked, the dispatcher (`src/cli/index.ts` → `checkDestructiveEnvGate`) verifies `TESTRAIL_ALLOW_DESTRUCTIVE=1` (skipped under `--dry-run`); failure exits with code 2 and the handler is never reached. The handler itself then does:
+
 1. `parseId` + incompatible-flag rejection (e.g. `project delete` refuses `--soft`).
 2. `if (dryRun)` preview branch — runs first, regardless of other flags.
 3. `if (!confirmDestructive)` → throw `Destructive action; pass --yes to confirm.`.
@@ -306,12 +308,18 @@ Attachment uploads share a `setupUpload()` helper that calls `resolveFile()` wit
 | `handler-context.ts` | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                          |
 | `install-skill.ts`   | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                     |
 
-### 6.6 `--dry-run`, `--yes`, `--soft` semantics
+### 6.6 `--dry-run`, `--yes`, `--soft`, `TESTRAIL_ALLOW_DESTRUCTIVE` semantics
 
-- **`--dry-run` is client-side.** Every write / destructive handler checks `if (ctx.dryRun)` _before_ the `--yes` gate and _before_ any client call. No HTTP request leaves the process. File-input handlers pass `read: !ctx.dryRun` so even disk reads are skipped on dry-run.
-- **`--yes` gates destructive ops.** Every handler whose metadata sets `destructive: true` throws `Destructive action; pass --yes to confirm.` when `!ctx.confirmDestructive`.
-- **`--soft` is server-side.** Only on `case delete`, `case delete-bulk`, `run delete`, `section delete`, `suite delete`. The handler _does_ hit the API — TestRail returns affected-entity counts without performing the deletion (`soft=1` query param). Explicitly rejected on `project delete`.
-- **Dry-run wins.** The `if (ctx.dryRun)` branch returns before either `--yes` or `--soft` matter. Dry-run output for soft-capable deletes still records `soft` in the preview JSON for audit, but makes zero network calls.
+Destructive CLI actions clear a **two-gate model** before reaching the API:
+
+1. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env var** — process-wide, dispatch-level gate (`src/cli/dispatch.ts:checkDestructiveEnvGate`). Strict equality to the literal string `'1'`; no aliasing for `'true'` / `'yes'` / `'on'`. Failure exits with code **2** (distinct from the generic exit code 1). Runs **before** auth resolution and handler invocation, so a regression in any single handler cannot bypass it (defense-in-depth).
+2. **`--yes` flag** — per-invocation, handler-level gate. Every handler whose metadata sets `destructive: true` throws `Destructive action; pass --yes to confirm.` when `!ctx.confirmDestructive`. Failure exits with code 1.
+
+Both gates must clear. The env var is process-wide audit-friendly (visible in `printenv`); `--yes` is per-invocation explicit intent. Together they raise the bar for accidental destructive operations without making programmatic / library usage harder (the gate only applies to the CLI dispatcher).
+
+- **`--dry-run` is client-side.** Every write / destructive handler checks `if (ctx.dryRun)` _before_ the `--yes` gate and _before_ any client call. No HTTP request leaves the process. File-input handlers pass `read: !ctx.dryRun` so even disk reads are skipped on dry-run. **`--dry-run` bypasses the env-var gate too** — preview is non-destructive by definition, so CI agents can safely preview destructive commands without unlocking the env var.
+- **`--soft` is server-side.** Only on `case delete`, `case delete-bulk`, `run delete`, `section delete`, `suite delete`. The handler _does_ hit the API — TestRail returns affected-entity counts without performing the deletion (`soft=1` query param). Still gated by both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`. Explicitly rejected on `project delete` / `milestone delete` / `plan delete*` / `variable delete` / `group delete` / `dataset delete` / `shared-step delete` / `configuration delete` / `configuration-group delete`.
+- **Dry-run wins.** The `if (ctx.dryRun)` branch returns before `--yes` / `--soft` / env-var matter. Dry-run output for soft-capable deletes still records `soft` in the preview JSON for audit, but makes zero network calls.
 
 ---
 
