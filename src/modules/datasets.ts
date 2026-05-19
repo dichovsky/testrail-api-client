@@ -1,6 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Dataset, AddDatasetPayload, UpdateDatasetPayload } from '../types.js';
 import { DatasetSchema } from '../schemas.js';
+import type { Dataset, AddDatasetPayload, UpdateDatasetPayload } from '../schemas.js';
 
 export class DatasetModule {
     constructor(private readonly client: TestRailClientCore) {}

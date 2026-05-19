@@ -58,6 +58,7 @@ import {
 } from '../src/cli/handlers/milestone-write.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../src/cli/handlers/variable-write.js';
 import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from '../src/cli/handlers/group-write.js';
+import { handleDatasetAdd, handleDatasetDelete, handleDatasetUpdate } from '../src/cli/handlers/dataset-write.js';
 import {
     handleSharedStepAdd,
     handleSharedStepUpdate,
@@ -119,6 +120,9 @@ interface MockedClient {
     addGroup: ReturnType<typeof vi.fn>;
     updateGroup: ReturnType<typeof vi.fn>;
     deleteGroup: ReturnType<typeof vi.fn>;
+    addDataset: ReturnType<typeof vi.fn>;
+    updateDataset: ReturnType<typeof vi.fn>;
+    deleteDataset: ReturnType<typeof vi.fn>;
     addSharedStep: ReturnType<typeof vi.fn>;
     updateSharedStep: ReturnType<typeof vi.fn>;
     deleteSharedStep: ReturnType<typeof vi.fn>;
@@ -176,6 +180,9 @@ function buildClient(): MockedClient {
         addGroup: vi.fn().mockResolvedValue({ id: 77, name: 'QA Group', user_ids: [1, 2] }),
         updateGroup: vi.fn().mockResolvedValue({ id: 77, name: 'QA Group Renamed', user_ids: [1, 2] }),
         deleteGroup: vi.fn().mockResolvedValue(undefined),
+        addDataset: vi.fn().mockResolvedValue({ id: 77, name: 'Staging matrix', project_id: 7 }),
+        updateDataset: vi.fn().mockResolvedValue({ id: 77, name: 'Production matrix', project_id: 7 }),
+        deleteDataset: vi.fn().mockResolvedValue(undefined),
         addSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps', project_id: 1 }),
         updateSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps (v2)', project_id: 1 }),
         deleteSharedStep: vi.fn().mockResolvedValue(undefined),
@@ -3018,4 +3025,197 @@ describe('handleGroupDelete', () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
         await expect(handleGroupDelete(ctx)).rejects.toThrow(/group_id/);
     });
+});
+
+// ── dataset add ───────────────────────────────────────────────────────────
+
+describe('handleDatasetAdd', () => {
+    it('calls client.addDataset with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"Staging matrix"}' });
+        await handleDatasetAdd(ctx);
+        expect(client.addDataset).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'Staging matrix' }));
+        expect(out).toHaveBeenCalledWith({ id: 77, name: 'Staging matrix', project_id: 7 });
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"name":"Staging matrix"}',
+            dryRun: true,
+        });
+        await handleDatasetAdd(ctx);
+        expect(client.addDataset).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'dataset add', projectId: 7 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleDatasetAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required name', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{}' });
+        await expect(handleDatasetAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"name":42}' });
+        await expect(handleDatasetAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"name":"x"}' });
+        await expect(handleDatasetAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+
+    it('passes custom_* fields through unchanged (zObject passthrough)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"name":"matrix","custom_owner":"qa","custom_priority":2}',
+        });
+        await handleDatasetAdd(ctx);
+        expect(client.addDataset).toHaveBeenCalledWith(
+            7,
+            expect.objectContaining({ name: 'matrix', custom_owner: 'qa', custom_priority: 2 }),
+        );
+    });
+});
+
+// ── dataset update ────────────────────────────────────────────────────────
+
+describe('handleDatasetUpdate', () => {
+    it('calls client.updateDataset with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"Production matrix"}' });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).toHaveBeenCalledWith(77, expect.objectContaining({ name: 'Production matrix' }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts an empty body (name optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'], dataFlag: '{}' });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).toHaveBeenCalledWith(77, expect.any(Object));
+    });
+
+    it('with no --data defaults the payload to {} and forwards it to the client', async () => {
+        // UpdateDatasetPayloadSchema makes every field optional, so the
+        // handler synthesizes `{}` rather than rejecting with the generic
+        // "Body required" message. Empty `bodyInput` (no dataFlag,
+        // dataFileFlag, or readStdin thunk) is the no-body marker.
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'] });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).toHaveBeenCalledWith(77, {});
+    });
+
+    it('dry-run with no --data emits source=default and the empty payload', async () => {
+        // Pins the BodySource label introduced for this synthesized-empty
+        // case — dry-run output stays self-describing so the agent can tell
+        // apart "explicit {}" (source: data) from "no --data, defaulted"
+        // (source: default).
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dryRun: true });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'dataset update',
+                datasetId: 77,
+                payload: {},
+                source: 'default',
+            }),
+        );
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'dataset update', datasetId: 77 }),
+        );
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], dataFlag: '{"name":1}' });
+        await expect(handleDatasetUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when dataset_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{}' });
+        await expect(handleDatasetUpdate(ctx)).rejects.toThrow(/dataset_id/);
+    });
+});
+
+// ── dataset delete (destructive; --soft NOT supported) ────────────────────
+
+describe('handleDatasetDelete', () => {
+    it('hard-delete: calls client.deleteDataset with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], confirmDestructive: true });
+        await handleDatasetDelete(ctx);
+        expect(client.deleteDataset).toHaveBeenCalledWith(77);
+        expect(out).toHaveBeenCalledWith({ datasetId: 77, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'] });
+        await expect(handleDatasetDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteDataset).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --yes (no API call, preview emits destructive:true)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], confirmDestructive: true, dryRun: true });
+        await handleDatasetDelete(ctx);
+        expect(client.deleteDataset).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'dataset delete', datasetId: 77, destructive: true }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_dataset)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], confirmDestructive: true, soft: true });
+        await expect(handleDatasetDelete(ctx)).rejects.toThrow(/dataset delete does not support --soft/);
+    });
+
+    it('dry-run wins over --soft (preview emitted, --soft never reached)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['77'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await handleDatasetDelete(ctx);
+        expect(client.deleteDataset).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'dataset delete', datasetId: 77, destructive: true }),
+        );
+    });
+
+    // Full INVALID_IDS sweep mirrors the cli-read-handlers convention
+    // (`INVALID_IDS = ['0', '-1', '1.5', 'abc', '', '1e2', '0x1']`). Pre-fix
+    // coverage hit only `'0'` and `''` — extending to the canonical 7
+    // values pins parseId's reject contract for every shape an agent might
+    // pipe in (scientific notation, hex, fractional, negative).
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(
+        'rejects non-positive-integer dataset_id (%s) before --yes or --soft is consulted',
+        async (raw) => {
+            const client = buildClient();
+            const { ctx } = buildCtx(client, { pathParams: [raw], confirmDestructive: true });
+            await expect(handleDatasetDelete(ctx)).rejects.toThrow(/dataset_id/);
+            expect(client.deleteDataset).not.toHaveBeenCalled();
+        },
+    );
 });

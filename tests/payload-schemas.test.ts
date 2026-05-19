@@ -47,6 +47,8 @@ import {
     UpdateVariablePayloadSchema,
     AddGroupPayloadSchema,
     UpdateGroupPayloadSchema,
+    AddDatasetPayloadSchema,
+    UpdateDatasetPayloadSchema,
     AddSharedStepPayloadSchema,
     UpdateSharedStepPayloadSchema,
     AddConfigurationGroupPayloadSchema,
@@ -1123,6 +1125,47 @@ describe('UpdateGroupPayloadSchema', () => {
 
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateGroupPayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('x');
+    });
+});
+
+describe('AddDatasetPayloadSchema', () => {
+    it('parses a minimal valid payload', () => {
+        expect(AddDatasetPayloadSchema.parse({ name: 'Staging matrix' }).name).toBe('Staging matrix');
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddDatasetPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => AddDatasetPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddDatasetPayloadSchema.parse({
+            name: 'matrix',
+            custom_owner: 'qa',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('qa');
+    });
+});
+
+describe('UpdateDatasetPayloadSchema', () => {
+    it('parses an empty body (name is optional)', () => {
+        expect(UpdateDatasetPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a payload with name', () => {
+        expect(UpdateDatasetPayloadSchema.parse({ name: 'Production matrix' }).name).toBe('Production matrix');
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => UpdateDatasetPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateDatasetPayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
         expect(parsed['custom_owner']).toBe('x');
     });
 });

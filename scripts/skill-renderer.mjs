@@ -37,6 +37,8 @@ const SCHEMA_NAMES = new Map([
     ['variable:update', 'UpdateVariablePayloadSchema'],
     ['group:add', 'AddGroupPayloadSchema'],
     ['group:update', 'UpdateGroupPayloadSchema'],
+    ['dataset:add', 'AddDatasetPayloadSchema'],
+    ['dataset:update', 'UpdateDatasetPayloadSchema'],
     ['shared-step:add', 'AddSharedStepPayloadSchema'],
     ['shared-step:update', 'UpdateSharedStepPayloadSchema'],
     ['configuration-group:add', 'AddConfigurationGroupPayloadSchema'],

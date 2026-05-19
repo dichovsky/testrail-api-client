@@ -20,7 +20,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Case Types](#case-types) | 1 | 1 | 1 | 0 |
 | [Cases](#cases) | 10 | 10 | 10 | 4 |
 | [Configurations](#configurations) | 7 | 7 | 7 | 5 |
-| [Datasets](#datasets) | 5 | 5 | 0 | 0 |
+| [Datasets](#datasets) | 5 | 5 | 5 | 5 |
 | [Groups](#groups) | 5 | 5 | 5 | 0 |
 | [Milestones](#milestones) | 5 | 5 | 5 | 0 |
 | [Plans](#plans) | 12 | 12 | 12 | 9 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 4 | 1 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **116** | **116** | **108** | **39** |
+| **Total** | **116** | **116** | **113** | **44** |
 
 ## Attachments
 
@@ -123,11 +123,11 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDataset`](../src/modules/datasets.ts#L9) | — | — |
-| [`GET get_datasets/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDatasets`](../src/modules/datasets.ts#L15) | — | — |
-| [`POST add_dataset/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addDataset`](../src/modules/datasets.ts#L21) | — | — |
-| [`POST delete_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteDataset`](../src/modules/datasets.ts#L33) | — | — |
-| [`POST update_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateDataset`](../src/modules/datasets.ts#L27) | — | — |
+| [`GET get_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDataset`](../src/modules/datasets.ts#L9) | `dataset get` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`GET get_datasets/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDatasets`](../src/modules/datasets.ts#L15) | `dataset list` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`POST add_dataset/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addDataset`](../src/modules/datasets.ts#L21) | `dataset add` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`POST delete_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteDataset`](../src/modules/datasets.ts#L33) | `dataset delete` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`POST update_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateDataset`](../src/modules/datasets.ts#L27) | `dataset update` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
 
 ## Groups
 

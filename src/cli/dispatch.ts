@@ -74,6 +74,8 @@ import { handleVariableList } from './handlers/variable.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from './handlers/variable-write.js';
 import { handleGroupGet, handleGroupList } from './handlers/group.js';
 import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from './handlers/group-write.js';
+import { handleDatasetGet, handleDatasetList } from './handlers/dataset.js';
+import { handleDatasetAdd, handleDatasetDelete, handleDatasetUpdate } from './handlers/dataset-write.js';
 import { handleConfigurationList } from './handlers/configuration.js';
 import {
     handleConfigurationGroupAdd,
@@ -197,6 +199,11 @@ const HANDLERS: Record<string, Handler> = {
     'group:add': handleGroupAdd,
     'group:update': handleGroupUpdate,
     'group:delete': handleGroupDelete,
+    'dataset:get': handleDatasetGet,
+    'dataset:list': handleDatasetList,
+    'dataset:add': handleDatasetAdd,
+    'dataset:update': handleDatasetUpdate,
+    'dataset:delete': handleDatasetDelete,
     'configuration:list': handleConfigurationList,
     'configuration:add': handleConfigurationAdd,
     'configuration:update': handleConfigurationUpdate,

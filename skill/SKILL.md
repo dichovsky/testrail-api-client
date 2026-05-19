@@ -164,6 +164,11 @@ on stderr. Never echo or log the API key.
 | group | add | — | `AddGroupPayloadSchema` | Create a new user group (no path params, payload-only; TestRail 7.5+) |
 | group | update | `<group_id>` | `UpdateGroupPayloadSchema` | Update an existing user group (partial fields; TestRail 7.5+) |
 | group | delete | `<group_id>` | — (no body, requires `--yes`) | Delete a user group (requires --yes; --soft NOT supported by TestRail; TestRail 7.5+) |
+| dataset | get | `<dataset_id>` | — | Fetch a single dataset by ID |
+| dataset | list | `<project_id>` | — | List datasets in a project |
+| dataset | add | `<project_id>` | `AddDatasetPayloadSchema` | Create a new dataset in a project |
+| dataset | update | `<dataset_id>` | `UpdateDatasetPayloadSchema` | Update an existing dataset (rename) |
+| dataset | delete | `<dataset_id>` | — (no body, requires `--yes`) | Delete a dataset (requires --yes; --soft NOT supported by TestRail) |
 | configuration | list | `<project_id>` | — | List configuration groups (with nested configs) for a project |
 | configuration-group | add | `<project_id>` | `AddConfigurationGroupPayloadSchema` | Create a new configuration group in a project (e.g. "Browsers") |
 | configuration-group | update | `<config_group_id>` | `UpdateConfigurationGroupPayloadSchema` | Update a configuration group (rename) |
@@ -579,6 +584,22 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 {
     "name": "string?",
     "user_ids": "number[]?"
+}
+```
+
+### `AddDatasetPayloadSchema` (used by `dataset add`)
+
+```jsonc
+{
+    "name": "string (required)"
+}
+```
+
+### `UpdateDatasetPayloadSchema` (used by `dataset update`)
+
+```jsonc
+{
+    "name": "string?"
 }
 ```
 
@@ -1379,13 +1400,119 @@ Notes:
   over `--yes` so `--yes --dry-run` always short-circuits without
   hitting the API.
 
+
+### 29. Data-driven runs via Variables + Datasets
+
+<!-- recipe-for: dataset:get -->
+<!-- recipe-for: dataset:list -->
+<!-- recipe-for: dataset:add -->
+<!-- recipe-for: dataset:update -->
+<!-- recipe-for: dataset:delete -->
+
+TestRail's data-driven testing pairs two project-scoped resources:
+
+- **Variables** — named placeholders referenced inside case steps using
+  `${var_name}` syntax (e.g. `${env}`, `${region}`). Manage with
+  `variable add | update | delete` and list with `variable list`.
+- **Datasets** — named collections of variable-value rows bound to a
+  run via a plan entry. Each row drives one execution of every case
+  in the run, substituting `${var_name}` with that row's value.
+
+Together they let one test case run N times against N environments
+without duplicating the case definition. Workflow:
+
+```bash
+# 1. Define the variables at project level (one-time setup).
+#    The variable IDs returned here are referenced by the dataset rows.
+ENV=$(testrail variable add 5 --data '{"name":"env"}')
+REGION=$(testrail variable add 5 --data '{"name":"region"}')
+ENV_ID=$(echo "$ENV" | jq '.id')
+REGION_ID=$(echo "$REGION" | jq '.id')
+
+# 2. Create a dataset shell in the same project. The CLI surface only
+#    exposes `name` on add/update — actual row population (variable_id
+#    + value matrices) happens through the TestRail web UI today;
+#    the public API surface for row CRUD is not yet stable.
+DATASET=$(testrail dataset add 5 --data '{"name":"Staging matrix"}')
+DATASET_ID=$(echo "$DATASET" | jq '.id')
+
+# 3. Reference variables in case steps with ${name} placeholders.
+#    Example case step content:
+#      "Navigate to ${env}.example.com and select region ${region}."
+#    The web UI populates the dataset rows; each row becomes one
+#    execution when the run is triggered against this dataset.
+
+# 4. Inspect the dataset definitions in a project (id + name only).
+testrail dataset list 5
+
+# 5. Fetch a single dataset by ID to confirm the shell exists before
+#    binding it to a plan entry in TestRail's UI.
+testrail dataset get "$DATASET_ID"
+
+# 6. Rename the dataset (e.g. after promoting from staging to prod).
+testrail dataset update "$DATASET_ID" --data '{"name":"Production matrix"}'
+
+# 7. Tear down — variables and datasets are independently deletable.
+#    Both deletes are destructive (no --soft, --yes required).
+testrail dataset delete "$DATASET_ID" --yes
+testrail variable delete "$REGION_ID" --yes
+testrail variable delete "$ENV_ID" --yes
+```
+
+Example payload — minimal `dataset add` body (the only required field
+is `name`; `custom_*` extras pass through `.passthrough()` unchanged):
+
+```jsonc
+{
+    "name": "Staging matrix",
+    "custom_owner": "qa-team"
+}
+```
+
+Notes:
+
+- **CLI scope is metadata-only.** `dataset add | update` accept `name`
+  only; the per-row variable values that drive substitution are managed
+  through TestRail's web UI for now (the upstream row-CRUD endpoints
+  are not part of the documented public API surface). Use this CLI to
+  provision dataset shells and rename them; switch to the web UI for
+  the actual data matrix population.
+- **Variable references use `${name}` syntax inside case steps.** The
+  literal `${env}` in a step's `content`, `expected`, or `additional_info`
+  field is substituted at run-execution time with the value from the
+  current dataset row. Misspelled placeholders render verbatim — there
+  is no validation hop between case definition and run execution.
+- **Datasets bind to plan entries, not to runs directly.** Trigger a
+  data-driven run by creating a plan with an entry that references the
+  dataset (the binding lives in the plan entry's `config_ids[]` /
+  dataset selection — see recipe 22 for plan-entry config matrices and
+  recipe 23 for `plan add-entry`).
+- **Per-row execution semantics.** Each dataset row creates one test
+  execution per case in the run, with all `${var_name}` placeholders
+  substituted. Results are recorded per-row, so `result list-for-case`
+  returns N entries (one per row) rather than one.
+- **Destructive lifecycle.** `dataset delete` follows the locked-in
+  destructive pattern: `--yes` required, `--dry-run` wins for
+  preview-without-API, and `--soft` is rejected (TestRail's
+  `delete_dataset` does not support soft preview — mirrors
+  `variable delete` / `milestone delete` / `project delete`). Deleting
+  a dataset that's bound to an active plan entry invalidates that
+  entry's data-driven configuration; existing historical results
+  survive but new runs lose the substitution matrix.
+- **Project-scoped IDs.** Both variables and datasets are addressed by
+  global IDs but scoped to a project. The same `name` in a different
+  project is a different ID; always pair list/mutate calls with the
+  project context (`variable list <project_id>` /
+  `dataset list <project_id>`).
+
 ## Destructive actions
 
 Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
 `run close`, `run delete`, `section delete`, `suite delete`, `milestone delete`,
 `project delete`, `plan close`, `plan delete`, `plan delete-entry`,
-`plan delete-run-from-entry`, `configuration delete`,
-`configuration-group delete`, `shared-step delete`) require `--yes` to execute. Without `--yes`,
+`plan delete-run-from-entry`, `variable delete`, `dataset delete`,
+`shared-step delete`, `configuration delete`,
+`configuration-group delete`) require `--yes` to execute. Without `--yes`,
 the CLI exits 1 with `Destructive action; pass --yes to confirm.` This is
 the only gate — there is no interactive prompt (by design; this skill
 targets agents, not humans).
