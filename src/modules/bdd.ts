@@ -34,7 +34,7 @@ export class BddModule {
      */
     async addBdd(
         caseId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File,
+        file: globalThis.Blob | Uint8Array | globalThis.File | { path: string; type?: string },
         filename: string,
     ): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
