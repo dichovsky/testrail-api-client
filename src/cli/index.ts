@@ -63,6 +63,10 @@ Write actions (body via --data | --data-file | stdin):
   plan   add-run-to-entry <plan_id> <entry_id>  --data '{"config_ids":[1,2]}'
   plan   update-entry <plan_id> <entry_id>      --data '{"name":"..."}'
   plan   update-run-in-entry <run_id>           --data '{"description":"..."}'
+  plan   close <plan_id>            --yes  (no body; irreversible)
+  plan   delete <plan_id>           --yes  (no body; --soft NOT supported by TestRail)
+  plan   delete-entry <plan_id> <entry_id>   --yes  (no body; entry_id is a UUID string; --soft NOT supported)
+  plan   delete-run-from-entry <run_id>       --yes  (no body; --soft NOT supported)
   section add <project_id>          --data '{"name":"...","suite_id":1}'
   section update <section_id>       --data '{"name":"..."}'
   section move <section_id>         --data '{"parent_id":null,"after_id":42}'
@@ -123,8 +127,8 @@ Options:
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete)
-  --soft                Server-side preview for soft-capable deletes (case delete, case delete-bulk, run delete, section delete, suite delete) — TestRail returns counts without deleting; distinct from --dry-run which makes NO API call. Rejected on milestone delete / project delete (TestRail does not support --soft on those endpoints).
+  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry)
+  --soft                Server-side preview for soft-capable deletes (case delete, case delete-bulk, run delete, section delete, suite delete) — TestRail returns counts without deleting; distinct from --dry-run which makes NO API call. Rejected on milestone delete / project delete / plan delete / plan delete-entry / plan delete-run-from-entry (TestRail does not support --soft on those endpoints).
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
@@ -135,14 +139,16 @@ For body-bearing write actions, exactly one body source is required
 (process.stdin.isTTY === false). The following write actions take NO body
 (any --data / --data-file / stdin is ignored): run close, attachment delete,
 case delete, run delete, suite delete, section delete, milestone delete,
-project delete — they accept only a positional id (and optional --soft on the
-soft-capable deletes). Attachment upload actions take a binary file via
---file <path> and do not accept --data/--data-file/stdin.
+project delete, plan close, plan delete, plan delete-entry,
+plan delete-run-from-entry — they accept only a positional id (and optional
+--soft on the soft-capable deletes). Attachment upload actions take a binary
+file via --file <path> and do not accept --data/--data-file/stdin.
 Destructive actions (attachment delete, case delete, case delete-bulk, run close,
-run delete, section delete, suite delete, milestone delete, project delete)
+run delete, section delete, suite delete, milestone delete, project delete,
+plan close, plan delete, plan delete-entry, plan delete-run-from-entry)
 require --yes; pass --dry-run together with --yes to preview without making the
-API call (dry-run wins). 'run close' is irreversible — TestRail offers no
-reopen. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+API call (dry-run wins). 'run close' and 'plan close' are irreversible —
+TestRail offers no reopen for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
 pass --soft for a server-side preview that returns affected-entity counts
 without deleting; this still hits the API and remains gated by --yes.
 `.trim();

@@ -38,6 +38,10 @@ import {
     handlePlanAddRunToEntry,
     handlePlanUpdateEntry,
     handlePlanUpdateRunInEntry,
+    handlePlanClose,
+    handlePlanDelete,
+    handlePlanDeleteEntry,
+    handlePlanDeleteRunFromEntry,
 } from '../src/cli/handlers/plan-write.js';
 import {
     handleSectionAdd,
@@ -78,6 +82,10 @@ interface MockedClient {
     addRunToPlanEntry: ReturnType<typeof vi.fn>;
     updatePlanEntry: ReturnType<typeof vi.fn>;
     updateRunInPlanEntry: ReturnType<typeof vi.fn>;
+    closePlan: ReturnType<typeof vi.fn>;
+    deletePlan: ReturnType<typeof vi.fn>;
+    deletePlanEntry: ReturnType<typeof vi.fn>;
+    deleteRunFromPlanEntry: ReturnType<typeof vi.fn>;
     addProject: ReturnType<typeof vi.fn>;
     updateProject: ReturnType<typeof vi.fn>;
     deleteProject: ReturnType<typeof vi.fn>;
@@ -116,6 +124,10 @@ function buildClient(): MockedClient {
         addRunToPlanEntry: vi.fn().mockResolvedValue({ id: 77, suite_id: 1, name: 'r-in-entry' }),
         updatePlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'updated' }),
         updateRunInPlanEntry: vi.fn().mockResolvedValue({ id: 77, suite_id: 1, name: 'updated-run' }),
+        closePlan: vi.fn().mockResolvedValue({ id: 50, name: 'p', is_completed: true }),
+        deletePlan: vi.fn().mockResolvedValue(undefined),
+        deletePlanEntry: vi.fn().mockResolvedValue(undefined),
+        deleteRunFromPlanEntry: vi.fn().mockResolvedValue(undefined),
         addProject: vi.fn().mockResolvedValue({ id: 7, name: 'New', suite_mode: 1, url: 'u' }),
         updateProject: vi.fn().mockResolvedValue({ id: 7, name: 'Renamed', suite_mode: 1, url: 'u' }),
         deleteProject: vi.fn().mockResolvedValue(undefined),
@@ -1259,6 +1271,254 @@ describe('plan-entry handlers — numeric ID boundary inputs', () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: [raw, 'abc-def-uuid'], dataFlag: '{}' });
         await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/plan_id/);
     });
+});
+// ── plan close ───────────────────────────────────────────────────────────
+// `plan close` is destructive (irreversible — TestRail has no `open_plan`).
+// Mirrors the `run close` precedent: --yes gates; --dry-run wins over --yes;
+// no body is ever consulted; non-positive plan_id rejects before --yes check.
+
+describe('handlePlanClose', () => {
+    it('calls client.closePlan with the parsed plan_id when --yes is passed', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50'], confirmDestructive: true });
+        await handlePlanClose(ctx);
+        expect(client.closePlan).toHaveBeenCalledWith(50);
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ is_completed: true }));
+    });
+
+    it('rejects without --yes (destructive: irreversible)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50'] });
+        await expect(handlePlanClose(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.closePlan).not.toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and marks preview destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50'], dryRun: true });
+        await handlePlanClose(ctx);
+        expect(client.closePlan).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'plan close', planId: 50, destructive: true }),
+        );
+    });
+
+    it('dry-run wins over --yes: no API call, preview still marks destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50'], dryRun: true, confirmDestructive: true });
+        await handlePlanClose(ctx);
+        expect(client.closePlan).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'plan close', planId: 50, destructive: true }),
+        );
+    });
+
+    it('ignores any body provided for plan close (no body required)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50'],
+            dataFlag: '{"ignored":true}',
+            confirmDestructive: true,
+        });
+        await handlePlanClose(ctx);
+        expect(client.closePlan).toHaveBeenCalledWith(50);
+    });
+
+    // Note: "1e2" (→ 100) and "0x1" (→ 1) are coerced to valid positive
+    // integers by Number() and pass parseId. The CLI's parseId boundary is
+    // limited to non-integers, non-positives, and empty strings.
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+        'rejects non-positive-integer plan_id (%s) before checking --yes',
+        async (raw) => {
+            const { ctx } = buildCtx(buildClient(), { pathParams: [raw] });
+            await expect(handlePlanClose(ctx)).rejects.toThrow(/plan_id/);
+        },
+    );
+});
+
+// ── plan delete ──────────────────────────────────────────────────────────
+// TestRail does NOT support `?soft=1` on `delete_plan`. The handler therefore
+// has no `--soft` branch; only --yes and --dry-run gates.
+
+describe('handlePlanDelete', () => {
+    it('calls client.deletePlan with the parsed plan_id when --yes is passed', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50'], confirmDestructive: true });
+        await handlePlanDelete(ctx);
+        expect(client.deletePlan).toHaveBeenCalledWith(50);
+        expect(out).toHaveBeenCalledWith({ planId: 50, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50'] });
+        await expect(handlePlanDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deletePlan).not.toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and marks preview destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50'], dryRun: true });
+        await handlePlanDelete(ctx);
+        expect(client.deletePlan).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'plan delete', planId: 50, destructive: true }),
+        );
+    });
+
+    it('dry-run wins over --yes: no API call', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50'], dryRun: true, confirmDestructive: true });
+        await handlePlanDelete(ctx);
+        expect(client.deletePlan).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'plan delete', planId: 50, destructive: true }),
+        );
+    });
+
+    // Note: "1e2" (→ 100) and "0x1" (→ 1) are coerced to valid positive
+    // integers by Number() and pass parseId. The CLI's parseId boundary is
+    // limited to non-integers, non-positives, and empty strings.
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+        'rejects non-positive-integer plan_id (%s) before checking --yes',
+        async (raw) => {
+            const { ctx } = buildCtx(buildClient(), { pathParams: [raw] });
+            await expect(handlePlanDelete(ctx)).rejects.toThrow(/plan_id/);
+        },
+    );
+});
+
+// ── plan delete-entry ────────────────────────────────────────────────────
+// entry_id is a UUID-style STRING, not a number — validated with the
+// non-empty-string rule (mirrors `validateEntryId` on the client core).
+
+describe('handlePlanDeleteEntry', () => {
+    it('calls client.deletePlanEntry with parsed plan_id and entry_id', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            confirmDestructive: true,
+        });
+        await handlePlanDeleteEntry(ctx);
+        expect(client.deletePlanEntry).toHaveBeenCalledWith(50, 'abc-def-uuid');
+        expect(out).toHaveBeenCalledWith({ planId: 50, entryId: 'abc-def-uuid', deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50', 'abc-uuid'] });
+        await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deletePlanEntry).not.toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and marks preview destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['50', 'abc-uuid'], dryRun: true });
+        await handlePlanDeleteEntry(ctx);
+        expect(client.deletePlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'plan delete-entry',
+                planId: 50,
+                entryId: 'abc-uuid',
+                destructive: true,
+            }),
+        );
+    });
+
+    it('dry-run wins over --yes: no API call', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'abc-uuid'],
+            dryRun: true,
+            confirmDestructive: true,
+        });
+        await handlePlanDeleteEntry(ctx);
+        expect(client.deletePlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'plan delete-entry', destructive: true }),
+        );
+    });
+
+    // Note: "1e2" (→ 100) and "0x1" (→ 1) are coerced to valid positive
+    // integers by Number() and pass parseId. The CLI's parseId boundary is
+    // limited to non-integers, non-positives, and empty strings.
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])('rejects non-positive-integer plan_id (%s)', async (raw) => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [raw, 'abc-uuid'] });
+        await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/plan_id/);
+    });
+
+    it('rejects missing entry_id (undefined positional)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50'], confirmDestructive: true });
+        await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+
+    it('rejects empty-string entry_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', ''], confirmDestructive: true });
+        await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+
+    it('rejects whitespace-only entry_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', '   '], confirmDestructive: true });
+        await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+});
+
+// ── plan delete-run-from-entry ───────────────────────────────────────────
+// Takes only run_id (numeric). Entry/plan lookup is server-side.
+
+describe('handlePlanDeleteRunFromEntry', () => {
+    it('calls client.deleteRunFromPlanEntry with the parsed run_id when --yes is passed', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true });
+        await handlePlanDeleteRunFromEntry(ctx);
+        expect(client.deleteRunFromPlanEntry).toHaveBeenCalledWith(42);
+        expect(out).toHaveBeenCalledWith({ runId: 42, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'] });
+        await expect(handlePlanDeleteRunFromEntry(ctx)).rejects.toThrow(/--yes to confirm/);
+        expect(client.deleteRunFromPlanEntry).not.toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and marks preview destructive', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], dryRun: true });
+        await handlePlanDeleteRunFromEntry(ctx);
+        expect(client.deleteRunFromPlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'plan delete-run-from-entry',
+                runId: 42,
+                destructive: true,
+            }),
+        );
+    });
+
+    it('dry-run wins over --yes: no API call', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], dryRun: true, confirmDestructive: true });
+        await handlePlanDeleteRunFromEntry(ctx);
+        expect(client.deleteRunFromPlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'plan delete-run-from-entry', destructive: true }),
+        );
+    });
+
+    // Note: "1e2" (→ 100) and "0x1" (→ 1) are coerced to valid positive
+    // integers by Number() and pass parseId. The CLI's parseId boundary is
+    // limited to non-integers, non-positives, and empty strings.
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+        'rejects non-positive-integer run_id (%s) before checking --yes',
+        async (raw) => {
+            const { ctx } = buildCtx(buildClient(), { pathParams: [raw] });
+            await expect(handlePlanDeleteRunFromEntry(ctx)).rejects.toThrow(/run_id/);
+        },
+    );
 });
 
 // ── project add ──────────────────────────────────────────────────────────

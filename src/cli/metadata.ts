@@ -469,6 +469,48 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: true,
     },
     {
+        resource: 'plan',
+        action: 'close',
+        summary: 'Close a test plan permanently — irreversible (no body; requires --yes)',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'POST close_plan/{plan_id}',
+        isWrite: true,
+        destructive: true,
+    },
+    {
+        resource: 'plan',
+        action: 'delete',
+        summary:
+            'Delete a test plan and all of its entries and runs (requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'POST delete_plan/{plan_id}',
+        isWrite: true,
+        destructive: true,
+    },
+    {
+        resource: 'plan',
+        action: 'delete-entry',
+        summary:
+            'Delete a single plan entry and its runs (requires --yes; --soft NOT supported by TestRail). entry_id is a UUID-style string.',
+        pathParams: [
+            { name: 'plan_id', description: 'TestRail plan ID' },
+            { name: 'entry_id', description: 'TestRail plan entry ID (UUID-style string)' },
+        ],
+        apiEndpoint: 'POST delete_plan_entry/{plan_id}/{entry_id}',
+        isWrite: true,
+        destructive: true,
+    },
+    {
+        resource: 'plan',
+        action: 'delete-run-from-entry',
+        summary:
+            'Delete a single run from its plan entry, leaving sibling runs intact (requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST delete_run_from_plan_entry/{run_id}',
+        isWrite: true,
+        destructive: true,
+    },
+    {
         resource: 'section',
         action: 'add',
         summary: 'Create a new section in a project (suite_id required for multi-suite-mode projects)',
