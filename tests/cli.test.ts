@@ -1623,6 +1623,24 @@ describe('CLI', () => {
             expect(stderr).toMatch(/fetch failed/);
         });
 
+        it('shared-step add surfaces 401 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Auth failed' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/401/);
+        });
+
+        it('shared-step add surfaces 403 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/403/);
+        });
+
         // ID boundaries: parseId boundary is non-integers, non-positives, empty.
         // "1e2" (→ 100) and "0x1" (→ 1) coerce to valid positive ints and pass.
         it.each([['0'], ['1.5'], ['abc'], ['']])(
@@ -1701,6 +1719,44 @@ describe('CLI', () => {
             expect(stderr).toMatch(/401/);
         });
 
+        it('shared-step update --format table renders the result', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{"title":"Login (v2)"}', '--format', 'table'],
+                [jsonResponse({ ...MOCK_SHARED_STEP, id: 55, title: 'Login (v2)' })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Login (v2)');
+        });
+
+        it('shared-step update surfaces 400 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Bad request' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/400/);
+        });
+
+        it('shared-step update surfaces 404 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'update', '9999', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/404/);
+        });
+
+        it('shared-step update maps a network error to exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{"title":"x"}'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed/);
+        });
+
         it.each([['0'], ['1.5'], ['abc'], ['']])(
             'shared-step update rejects non-positive-integer shared_step_id (%s)',
             async (raw) => {
@@ -1762,6 +1818,35 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/404/);
+        });
+
+        it('shared-step delete surfaces 401 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'delete', '55', '--yes'],
+                [jsonResponse({ error: 'Auth failed' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/401/);
+        });
+
+        it('shared-step delete surfaces 403 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'delete', '55', '--yes'],
+                [jsonResponse({ error: 'Forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/403/);
+        });
+
+        it('shared-step delete maps a network error to exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'delete', '55', '--yes'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed/);
         });
 
         it('shared-step delete rejects --soft (TestRail does not support soft on delete_shared_step)', async () => {

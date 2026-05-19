@@ -2402,6 +2402,16 @@ describe('handleSharedStepUpdate', () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{"title":"x"}' });
         await expect(handleSharedStepUpdate(ctx)).rejects.toThrow(/shared_step_id/);
     });
+
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+        'rejects non-positive-integer shared_step_id (%s) before touching body',
+        async (raw) => {
+            const client = buildClient();
+            const { ctx } = buildCtx(client, { pathParams: [raw], dataFlag: '{"title":"x"}' });
+            await expect(handleSharedStepUpdate(ctx)).rejects.toThrow(/shared_step_id/);
+            expect(client.updateSharedStep).not.toHaveBeenCalled();
+        },
+    );
 });
 
 // ── shared-step delete (destructive; no --soft) ──────────────────────────
@@ -2467,5 +2477,25 @@ describe('handleSharedStepDelete', () => {
         const { ctx } = buildCtx(client, { pathParams: ['55'], soft: true, confirmDestructive: true });
         await expect(handleSharedStepDelete(ctx)).rejects.toThrow(/shared-step delete does not support --soft/);
         expect(client.deleteSharedStep).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins over --soft: emits preview without API call (no --soft rejection)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dryRun: true,
+            soft: true,
+            confirmDestructive: true,
+        });
+        await handleSharedStepDelete(ctx);
+        expect(client.deleteSharedStep).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'shared-step delete',
+                sharedStepId: 55,
+                destructive: true,
+            }),
+        );
     });
 });
