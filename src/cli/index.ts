@@ -128,7 +128,15 @@ Options:
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
   --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry)
-  --soft                Server-side preview for soft-capable deletes (case delete, case delete-bulk, run delete, section delete, suite delete) — TestRail returns counts without deleting; distinct from --dry-run which makes NO API call. Rejected on milestone delete / project delete / plan delete / plan delete-entry / plan delete-run-from-entry (TestRail does not support --soft on those endpoints).
+  --soft                Server-side preview for soft-capable deletes:
+                          case delete, case delete-bulk, run delete,
+                          section delete, suite delete.
+                        TestRail returns counts without deleting; distinct
+                        from --dry-run which makes NO API call.
+                        Rejected (TestRail has no --soft support) on:
+                          milestone delete, project delete,
+                          plan close, plan delete, plan delete-entry,
+                          plan delete-run-from-entry.
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help

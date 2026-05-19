@@ -111,6 +111,9 @@ export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<v
  */
 export async function handlePlanClose(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan close does not support --soft.');
+    }
     if (ctx.dryRun) {
         ctx.out({ dryRun: true, action: 'plan close', planId, destructive: true });
         return;
@@ -130,6 +133,9 @@ export async function handlePlanClose(ctx: HandlerContext): Promise<void> {
  */
 export async function handlePlanDelete(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan delete does not support --soft.');
+    }
     if (ctx.dryRun) {
         ctx.out({ dryRun: true, action: 'plan delete', planId, destructive: true });
         return;
@@ -151,6 +157,9 @@ export async function handlePlanDelete(ctx: HandlerContext): Promise<void> {
 export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
     const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan delete-entry does not support --soft.');
+    }
     if (ctx.dryRun) {
         ctx.out({ dryRun: true, action: 'plan delete-entry', planId, entryId, destructive: true });
         return;
@@ -170,6 +179,9 @@ export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void> 
  */
 export async function handlePlanDeleteRunFromEntry(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan delete-run-from-entry does not support --soft.');
+    }
     if (ctx.dryRun) {
         ctx.out({ dryRun: true, action: 'plan delete-run-from-entry', runId, destructive: true });
         return;

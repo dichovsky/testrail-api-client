@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "8320ab43cc82b86b86b98483d64d2ffb42c512cab4fd52bca3821ec402f046cc",
+  "sourceHash": "c1b54532cb63d579eb26454fb37e14fce02e237fca26126531037b9c7fdca95c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1932,56 +1932,56 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "parseEntryId",
           "kind": "function",
-          "line": 14,
+          "line": 23,
           "exported": false,
           "signature": "function parseEntryId(raw: string | undefined, name: string): string"
         },
         {
           "name": "handlePlanAdd",
           "kind": "function",
-          "line": 21,
+          "line": 30,
           "exported": true,
           "signature": "export async function handlePlanAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanUpdate",
           "kind": "function",
-          "line": 32,
+          "line": 41,
           "exported": true,
           "signature": "export async function handlePlanUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanAddEntry",
           "kind": "function",
-          "line": 43,
+          "line": 52,
           "exported": true,
           "signature": "export async function handlePlanAddEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanClose",
           "kind": "function",
-          "line": 65,
+          "line": 74,
           "exported": true,
           "signature": "export async function handlePlanClose(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanDelete",
           "kind": "function",
-          "line": 84,
+          "line": 96,
           "exported": true,
           "signature": "export async function handlePlanDelete(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanDeleteEntry",
           "kind": "function",
-          "line": 104,
+          "line": 119,
           "exported": true,
           "signature": "export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanDeleteRunFromEntry",
           "kind": "function",
-          "line": 124,
+          "line": 142,
           "exported": true,
           "signature": "export async function handlePlanDeleteRunFromEntry(ctx: HandlerContext): Promise<void>"
         }
@@ -2405,7 +2405,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 154,
+          "line": 162,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }

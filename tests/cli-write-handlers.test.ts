@@ -1334,6 +1334,13 @@ describe('handlePlanClose', () => {
             await expect(handlePlanClose(ctx)).rejects.toThrow(/plan_id/);
         },
     );
+
+    it('rejects --soft (TestRail does not support soft on close_plan)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50'], soft: true, confirmDestructive: true });
+        await expect(handlePlanClose(ctx)).rejects.toThrow(/plan close does not support --soft/);
+        expect(client.closePlan).not.toHaveBeenCalled();
+    });
 });
 
 // ── plan delete ──────────────────────────────────────────────────────────
@@ -1386,6 +1393,13 @@ describe('handlePlanDelete', () => {
             await expect(handlePlanDelete(ctx)).rejects.toThrow(/plan_id/);
         },
     );
+
+    it('rejects --soft (TestRail does not support soft on delete_plan)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50'], soft: true, confirmDestructive: true });
+        await expect(handlePlanDelete(ctx)).rejects.toThrow(/plan delete does not support --soft/);
+        expect(client.deletePlan).not.toHaveBeenCalled();
+    });
 });
 
 // ── plan delete-entry ────────────────────────────────────────────────────
@@ -1463,6 +1477,28 @@ describe('handlePlanDeleteEntry', () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['50', '   '], confirmDestructive: true });
         await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/entry_id/);
     });
+
+    it('trims whitespace from entry_id before calling the client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', '  abc-uuid  '],
+            confirmDestructive: true,
+        });
+        await handlePlanDeleteEntry(ctx);
+        expect(client.deletePlanEntry).toHaveBeenCalledWith(50, 'abc-uuid');
+        expect(out).toHaveBeenCalledWith({ planId: 50, entryId: 'abc-uuid', deleted: true });
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_plan_entry)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50', 'abc-uuid'],
+            soft: true,
+            confirmDestructive: true,
+        });
+        await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/plan delete-entry does not support --soft/);
+        expect(client.deletePlanEntry).not.toHaveBeenCalled();
+    });
 });
 
 // ── plan delete-run-from-entry ───────────────────────────────────────────
@@ -1519,6 +1555,15 @@ describe('handlePlanDeleteRunFromEntry', () => {
             await expect(handlePlanDeleteRunFromEntry(ctx)).rejects.toThrow(/run_id/);
         },
     );
+
+    it('rejects --soft (TestRail does not support soft on delete_run_from_plan_entry)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], soft: true, confirmDestructive: true });
+        await expect(handlePlanDeleteRunFromEntry(ctx)).rejects.toThrow(
+            /plan delete-run-from-entry does not support --soft/,
+        );
+        expect(client.deleteRunFromPlanEntry).not.toHaveBeenCalled();
+    });
 });
 
 // ── project add ──────────────────────────────────────────────────────────

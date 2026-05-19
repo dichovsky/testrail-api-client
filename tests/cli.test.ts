@@ -2902,6 +2902,141 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
             expect(stdout).toContain('plan close');
         });
+
+        // ── --format json emits JSON-parseable stdout for each destructive op ─
+        // `plan close --format table` already exists; these mirror it for the
+        // other three destructive ops so every --format json path is exercised
+        // end-to-end (not just at the unit-handler level).
+
+        it('plan delete --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'delete', '50', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { planId: number; deleted: boolean };
+            expect(parsed).toEqual({ planId: 50, deleted: true });
+        });
+
+        it('plan delete-entry --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'delete-entry', '50', 'abc-def-uuid', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { planId: number; entryId: string; deleted: boolean };
+            expect(parsed).toEqual({ planId: 50, entryId: 'abc-def-uuid', deleted: true });
+        });
+
+        it('plan delete-run-from-entry --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'delete-run-from-entry', '42', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { runId: number; deleted: boolean };
+            expect(parsed).toEqual({ runId: 42, deleted: true });
+        });
+
+        // ── network-error mapping for plan delete-run-from-entry ──────────
+        // `plan close` / `plan delete` / `plan delete-entry` already have 401/403/404
+        // mock-status paths above; mirror them here for delete-run-from-entry
+        // and exercise the fetch-rejection path (network/TLS failure) which
+        // surfaces as exit 1. Uses `mockRejectedValueOnce` queued BEFORE
+        // runCli — runCli's own setup only adds `mockResolvedValue` (default)
+        // and `mockResolvedValueOnce` entries; the queued *Once mocks fire
+        // in queue order, so the rejection arrives on the first fetch.
+        it('plan delete-run-from-entry maps a network error to exit 1', async () => {
+            mockFetch.mockRejectedValueOnce(new TypeError('fetch failed'));
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', '42', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed/);
+        });
+
+        // ── whitespace-only entry_id is rejected before any API call ──────
+        it('plan delete-entry rejects whitespace-only entry_id', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '50', '   ', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/entry_id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // ── ID boundary subprocess tests (mirror plan delete-entry coverage) ─
+        // `plan delete-entry` already exercises non-positive-integer plan_id at
+        // the subprocess level (line 1638 above). These extend that coverage to
+        // the other three destructive ops so the parseId boundary is enforced
+        // by the actual CLI binary, not just the unit handlers.
+        // NOTE: '-1' is omitted from the it.each set because parseArgs
+        // (strict: false) interprets `--1` / `-1` as a flag, not a
+        // positional — so the negative-int branch is exercised at the
+        // unit level (cli-write-handlers.test.ts) but not here. The
+        // remaining four values cover the other parseId boundary cases.
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'plan close rejects non-positive-integer plan_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['plan', 'close', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/plan_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'plan delete rejects non-positive-integer plan_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['plan', 'delete', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/plan_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'plan delete-run-from-entry rejects non-positive-integer run_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/run_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        // ── --soft rejection: TestRail has no soft preview for any plan op ─
+        // Mirrors `milestone delete` / `project delete` --soft rejection tests.
+        it('plan close rejects --soft (TestRail does not support soft on close_plan)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'close', '50', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan close does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete rejects --soft (TestRail does not support soft on delete_plan)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete', '50', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-entry rejects --soft (TestRail does not support soft on delete_plan_entry)', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'plan',
+                'delete-entry',
+                '50',
+                'abc-def-uuid',
+                '--soft',
+                '--yes',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan delete-entry does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-run-from-entry rejects --soft (TestRail does not support soft on delete_run_from_plan_entry)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', '42', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan delete-run-from-entry does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     describe('result add-bulk', () => {
