@@ -159,6 +159,11 @@ on stderr. Never echo or log the API key.
 | variable | add | `<project_id>` | `AddVariablePayloadSchema` | Create a new variable in a project |
 | variable | update | `<variable_id>` | `UpdateVariablePayloadSchema` | Update an existing variable (rename) |
 | variable | delete | `<variable_id>` | — (no body, requires `--yes`) | Delete a variable (requires --yes; --soft NOT supported by TestRail) |
+| group | get | `<group_id>` | — | Fetch a single user group by ID (TestRail 7.5+) |
+| group | list | — | — | List all user groups on the instance (TestRail 7.5+; no path params) |
+| group | add | — | `AddGroupPayloadSchema` | Create a new user group (no path params, payload-only; TestRail 7.5+) |
+| group | update | `<group_id>` | `UpdateGroupPayloadSchema` | Update an existing user group (partial fields; TestRail 7.5+) |
+| group | delete | `<group_id>` | — (no body, requires `--yes`) | Delete a user group (requires --yes; --soft NOT supported by TestRail; TestRail 7.5+) |
 | configuration | list | `<project_id>` | — | List configuration groups (with nested configs) for a project |
 | configuration-group | add | `<project_id>` | `AddConfigurationGroupPayloadSchema` | Create a new configuration group in a project (e.g. "Browsers") |
 | configuration-group | update | `<config_group_id>` | `UpdateConfigurationGroupPayloadSchema` | Update a configuration group (rename) |
@@ -556,6 +561,24 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 ```jsonc
 {
     "name": "string?"
+}
+```
+
+### `AddGroupPayloadSchema` (used by `group add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "user_ids": "number[]?"
+}
+```
+
+### `UpdateGroupPayloadSchema` (used by `group update`)
+
+```jsonc
+{
+    "name": "string?",
+    "user_ids": "number[]?"
 }
 ```
 

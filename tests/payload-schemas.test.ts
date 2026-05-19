@@ -45,6 +45,8 @@ import {
     UpdateMilestonePayloadSchema,
     AddVariablePayloadSchema,
     UpdateVariablePayloadSchema,
+    AddGroupPayloadSchema,
+    UpdateGroupPayloadSchema,
     AddSharedStepPayloadSchema,
     UpdateSharedStepPayloadSchema,
     AddConfigurationGroupPayloadSchema,
@@ -1061,6 +1063,66 @@ describe('UpdateVariablePayloadSchema', () => {
 
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateVariablePayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('x');
+    });
+});
+
+describe('AddGroupPayloadSchema', () => {
+    it('parses a minimal valid payload (name only)', () => {
+        expect(AddGroupPayloadSchema.parse({ name: 'QA' }).name).toBe('QA');
+    });
+
+    it('parses a payload with user_ids', () => {
+        const parsed = AddGroupPayloadSchema.parse({ name: 'QA', user_ids: [1, 2, 3] });
+        expect(parsed.user_ids).toEqual([1, 2, 3]);
+    });
+
+    it('rejects missing name', () => {
+        expect(() => AddGroupPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => AddGroupPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('rejects non-array user_ids', () => {
+        expect(() => AddGroupPayloadSchema.parse({ name: 'QA', user_ids: 'nope' })).toThrow();
+    });
+
+    it('rejects non-number user_ids entries', () => {
+        expect(() => AddGroupPayloadSchema.parse({ name: 'QA', user_ids: ['1', 2] })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddGroupPayloadSchema.parse({ name: 'QA', custom_owner: 'u' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('u');
+    });
+});
+
+describe('UpdateGroupPayloadSchema', () => {
+    it('parses an empty body (all fields optional)', () => {
+        expect(UpdateGroupPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a payload with name only', () => {
+        expect(UpdateGroupPayloadSchema.parse({ name: 'QA renamed' }).name).toBe('QA renamed');
+    });
+
+    it('parses a payload with user_ids only', () => {
+        const parsed = UpdateGroupPayloadSchema.parse({ user_ids: [5, 6] });
+        expect(parsed.user_ids).toEqual([5, 6]);
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => UpdateGroupPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('rejects non-number user_ids entries', () => {
+        expect(() => UpdateGroupPayloadSchema.parse({ user_ids: [true] })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateGroupPayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
         expect(parsed['custom_owner']).toBe('x');
     });
 });

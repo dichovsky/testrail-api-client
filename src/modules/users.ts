@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { TestRailValidationError } from '../errors.js';
 import { UserSchema, GroupSchema } from '../schemas.js';
+import type { AddGroupPayload, Group, UpdateGroupPayload } from '../schemas.js';
 import { TestRailClientCore } from '../client-core.js';
-import type { AddGroupPayload, AddUserPayload, Group, UpdateGroupPayload, UpdateUserPayload, User } from '../types.js';
+import type { AddUserPayload, UpdateUserPayload, User } from '../types.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

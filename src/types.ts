@@ -631,32 +631,10 @@ export interface Role {
 }
 
 // ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────────
-
-/** A user group returned by GET /get_group and GET /get_groups (TestRail 7.5+) */
-export interface Group {
-    /** Unique group ID */
-    id: number;
-    /** Display name of the group */
-    name: string;
-    /** IDs of users belonging to this group */
-    user_ids?: number[];
-}
-
-/** Payload for creating a new group via POST /add_group (TestRail 7.5+) */
-export interface AddGroupPayload {
-    /** Name of the new group */
-    name: string;
-    /** IDs of users to add to the group */
-    user_ids?: number[];
-}
-
-/** Payload for updating an existing group via POST /update_group/{group_id} (TestRail 7.5+) */
-export interface UpdateGroupPayload {
-    /** New name for the group */
-    name?: string;
-    /** IDs of users to set as the group members (replaces existing membership) */
-    user_ids?: number[];
-}
+// `Group`, `AddGroupPayload`, and `UpdateGroupPayload` now live in
+// `./schemas.ts` as Zod schemas (source of truth for runtime validation +
+// inferred TS types). Mirrors the variable/shared-step/milestone payload
+// migration precedent.
 
 // ── Attachments (TASK-027) ────────────────────────────────────────────────────
 

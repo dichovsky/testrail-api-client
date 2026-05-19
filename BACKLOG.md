@@ -40,11 +40,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🟢 P2 — admin & low-traffic endpoints
 
-- [ ] 🟢 📦 CLI: `group get` (GET `get_group/{group_id}`)
-- [ ] 🟢 📦 CLI: `group list` (GET `get_groups`)
-- [ ] 🟢 📦 CLI: `group add` (POST `add_group`)
-- [ ] 🟢 📦 CLI: `group update` (POST `update_group/{group_id}`)
-- [ ] 🟢 📦 ⚠️ CLI: `group delete` (POST `delete_group/{group_id}`)
 - [ ] 🟢 📦 CLI: `dataset get` (GET `get_dataset/{dataset_id}`)
 - [ ] 🟢 📦 CLI: `dataset list` (GET `get_datasets/{project_id}`)
 - [ ] 🟢 📦 CLI: `dataset add` (POST `add_dataset/{project_id}`)
