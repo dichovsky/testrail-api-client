@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "a4f071909c6c8dd2aed73b0dd8da3afed0dc2d6255ad851b7fe94f8ebcb6e296",
+  "sourceHash": "205c0792ffe2c240f4bde1f03a1112497037643bb7170b5697e7673f2f0ca034",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1495,28 +1495,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 200,
+          "line": 202,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 215,
+          "line": 217,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 222,
+          "line": 224,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 226,
+          "line": 228,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1635,21 +1635,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "BodyInput",
           "kind": "interface",
-          "line": 51,
+          "line": 58,
           "exported": true,
           "signature": "export interface BodyInput { dataFlag?: string; dataFileFlag?: string; readStdin?: () => string; }"
         },
         {
           "name": "HandlerContext",
           "kind": "interface",
-          "line": 57,
+          "line": 64,
           "exported": true,
           "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: (data: unknown) => void; }"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 71,
+          "line": 78,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
         }
@@ -2737,6 +2737,20 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 9,
           "exported": true,
           "signature": "export async function handleUserList(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleUserGetByEmail",
+          "kind": "function",
+          "line": 30,
+          "exported": true,
+          "signature": "export async function handleUserGetByEmail(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleUserGetCurrent",
+          "kind": "function",
+          "line": 49,
+          "exported": true,
+          "signature": "export async function handleUserGetCurrent(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2896,7 +2910,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 206,
+          "line": 208,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2968,7 +2982,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 1046,
+          "line": 1062,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

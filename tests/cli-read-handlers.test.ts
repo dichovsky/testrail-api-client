@@ -24,6 +24,7 @@ import { handleCaseFieldList } from '../src/cli/handlers/case-field.js';
 import { handleCaseStatusList } from '../src/cli/handlers/case-status.js';
 import { handleResultFieldList } from '../src/cli/handlers/result-field.js';
 import { handleStatusList } from '../src/cli/handlers/status.js';
+import { handleUserGetByEmail, handleUserGetCurrent } from '../src/cli/handlers/user.js';
 import { handleTemplateList } from '../src/cli/handlers/template.js';
 import { handleRoleList } from '../src/cli/handlers/role.js';
 import { handlePriorityList } from '../src/cli/handlers/priority.js';
@@ -53,6 +54,8 @@ interface MockedClient {
     getRoles: ReturnType<typeof vi.fn>;
     getPriorities: ReturnType<typeof vi.fn>;
     getCaseTypes: ReturnType<typeof vi.fn>;
+    getUserByEmail: ReturnType<typeof vi.fn>;
+    getCurrentUser: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -153,6 +156,10 @@ function buildClient(): MockedClient {
             { id: 1, name: 'Automated', is_default: false },
             { id: 7, name: 'Functional', is_default: true },
         ]),
+        getUserByEmail: vi
+            .fn()
+            .mockResolvedValue({ id: 42, name: 'Alice', email: 'alice@example.com', is_active: true }),
+        getCurrentUser: vi.fn().mockResolvedValue({ id: 1, name: 'Me', email: 'me@example.com', is_active: true }),
     };
 }
 
@@ -163,6 +170,7 @@ interface CtxOverrides {
     offset?: string;
     statusId?: string;
     defectsFilter?: string;
+    email?: string;
 }
 
 function buildCtx(
@@ -179,6 +187,7 @@ function buildCtx(
             ...(overrides.offset !== undefined && { offset: overrides.offset }),
             ...(overrides.statusId !== undefined && { statusId: overrides.statusId }),
             ...(overrides.defectsFilter !== undefined && { defectsFilter: overrides.defectsFilter }),
+            ...(overrides.email !== undefined && { email: overrides.email }),
         },
         bodyInput: {},
         dryRun: false,
@@ -901,5 +910,103 @@ describe('handleConfigurationList', () => {
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleConfigurationList(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.getConfigurations).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleUserGetByEmail ──────────────────────────────────────────────────
+//
+// `user get-by-email --email <addr>` — zero positional args, reads the
+// lookup email from the shared `--email` flag (also consumed by
+// resolveAuth() for the HTTP Basic credential). Handler enforces only
+// non-empty (post-trim); TestRail's `EMAIL_REGEX` in src/modules/users.ts
+// rejects malformed addresses before any network call, so format
+// validation isn't duplicated at the CLI boundary. Extra positional args
+// are rejected fail-fast with `IdParseError` — mirrors the `status list`
+// pattern so a typo like `user get-by-email foo --email bar@x.com`
+// surfaces as an error rather than silently ignoring the `foo`.
+
+describe('handleUserGetByEmail', () => {
+    it('calls client.getUserByEmail with the trimmed --email value and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { email: '  alice@example.com  ' });
+        await handleUserGetByEmail(ctx);
+        expect(client.getUserByEmail).toHaveBeenCalledTimes(1);
+        expect(client.getUserByEmail).toHaveBeenCalledWith('alice@example.com');
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 42, email: 'alice@example.com' }));
+    });
+
+    it('rejects missing --email flag with IdParseError (no client call)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client);
+        await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--email/);
+        expect(client.getUserByEmail).not.toHaveBeenCalled();
+    });
+
+    it('rejects empty --email value', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { email: '' });
+        await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--email/);
+        expect(client.getUserByEmail).not.toHaveBeenCalled();
+    });
+
+    it('rejects whitespace-only --email value', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { email: '   ' });
+        await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getUserByEmail).not.toHaveBeenCalled();
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'], email: 'alice@example.com' });
+        await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getUserByEmail).not.toHaveBeenCalled();
+    });
+
+    it('passes the email through verbatim (no client-side format validation)', async () => {
+        // The CLI handler intentionally does not validate format — TestRail's
+        // module-level EMAIL_REGEX does. This locks the no-double-validation
+        // contract: even an obviously-invalid string is forwarded to the client
+        // method, which is where the rejection happens.
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { email: 'not-an-email' });
+        await handleUserGetByEmail(ctx);
+        expect(client.getUserByEmail).toHaveBeenCalledWith('not-an-email');
+    });
+});
+
+// ── handleUserGetCurrent ──────────────────────────────────────────────────
+//
+// `user get-current` — zero positional args, returns the user identified
+// by the auth credential (TestRail 6.6+). Extras rejected fail-fast with
+// `IdParseError`, mirroring the `status list` / `case-field list` pattern.
+
+describe('handleUserGetCurrent', () => {
+    it('calls client.getCurrentUser with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleUserGetCurrent(ctx);
+        expect(client.getCurrentUser).toHaveBeenCalledTimes(1);
+        expect(client.getCurrentUser).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 1, name: 'Me' }));
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleUserGetCurrent(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleUserGetCurrent(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCurrentUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleUserGetCurrent(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleUserGetCurrent(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCurrentUser).not.toHaveBeenCalled();
     });
 });

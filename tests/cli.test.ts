@@ -1475,6 +1475,171 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['user', 'create']);
             expect(exitCodes).toContain(1);
         });
+
+        // ── user get-by-email ─────────────────────────────────────────────
+        // `--email` is consumed twice: by resolveAuth() for the HTTP Basic
+        // credential, and by the handler for the lookup query. resolveAuth()
+        // prefers the `--email` flag over `TESTRAIL_EMAIL`, so when the flag
+        // is set it also becomes the authenticated identity — which is fine
+        // for these tests because the API key still comes from env. The
+        // handler enforces non-empty client-side; client-side EMAIL_REGEX
+        // (src/modules/users.ts) rejects malformed addresses before any
+        // network call.
+
+        it('user get-by-email exits 0 and calls get_user_by_email with the email query param', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_user_by_email');
+            // TestRail appends query params with `&` (the endpoint sits
+            // behind `index.php?/api/v2/`), so the email lands as
+            // `&email=alice%40example.com`.
+            expect(url).toContain('email=alice%40example.com');
+        });
+
+        it('user get-by-email --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'alice@example.com', '--format', 'json'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"name": "Alice"');
+        });
+
+        it('user get-by-email --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'alice@example.com', '--format', 'table'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Alice');
+        });
+
+        it('user get-by-email exits 1 when --email is missing (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['user', 'get-by-email']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--email');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('user get-by-email rejects an empty --email value (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['user', 'get-by-email', '--email', '']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--email');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('user get-by-email rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'user',
+                'get-by-email',
+                'extra',
+                '--email',
+                'alice@example.com',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('user get-by-email surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'missing@example.com'],
+                [jsonResponse({ error: 'No user with the supplied email was found.' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('user get-by-email surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                [jsonResponse({ error: 'Authentication failed' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('user get-by-email surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                [jsonResponse({ error: 'Forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('user get-by-email surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                [],
+                AUTH_ENV,
+                new Error('ECONNREFUSED'),
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── user get-current ──────────────────────────────────────────────
+        // Zero positional args; extras rejected fail-fast with IdParseError
+        // (mirrors `status list` / other zero-arg metadata reads). Returns
+        // the user identified by the auth credential (TestRail 6.6+).
+
+        it('user get-current exits 0 and calls get_current_user', async () => {
+            const { exitCodes } = await runCli(['user', 'get-current'], [jsonResponse(MOCK_USER)]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_current_user'), expect.anything());
+        });
+
+        it('user get-current --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['user', 'get-current', '--format', 'json'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"name": "Alice"');
+        });
+
+        it('user get-current --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['user', 'get-current', '--format', 'table'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Alice');
+        });
+
+        it('user get-current rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['user', 'get-current', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('user get-current surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-current'],
+                [jsonResponse({ error: 'Authentication failed' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('user get-current surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['user', 'get-current'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('user get-current surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'get-current'],
+                [jsonResponse({ error: 'Endpoint not available' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('user get-current surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['user', 'get-current'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
     });
 
     // ── shared-step ───────────────────────────────────────────────────────────

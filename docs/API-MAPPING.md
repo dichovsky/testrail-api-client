@@ -37,9 +37,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
 | [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
-| [Users](#users) | 6 | 6 | 2 | 1 |
+| [Users](#users) | 6 | 6 | 4 | 1 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **116** | **116** | **101** | **39** |
+| **Total** | **116** | **116** | **103** | **39** |
 
 ## Attachments
 
@@ -314,9 +314,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L52) | — | — |
+| [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L52) | `user get-current` | [command-table](../skill/SKILL.md#command-surface) |
 | [`GET get_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUser`](../src/modules/users.ts#L13) | `user get` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L19) | — | — |
+| [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L19) | `user get-by-email` | [command-table](../skill/SKILL.md#command-surface) |
 | [`GET get_users`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUsers`](../src/modules/users.ts#L29) | `user list` | [recipe #1](../skill/SKILL.md#1-smoke-test-auth--connectivity) |
 | [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L57) | — | — |
 | [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L62) | — | — |

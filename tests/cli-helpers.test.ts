@@ -612,9 +612,17 @@ describe('metadata vs dispatch consistency', () => {
         // project (no parent ID exists in the URL because the project itself is
         // the top-level entity).
         const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add', 'project:add']);
+        // Flag-driven / zero-arg reads: the endpoint takes no path param.
+        // `user:get-by-email` is driven by the shared `--email` flag (also
+        // consumed by resolveAuth for the credential); `user:get-current`
+        // returns the auth-identified user (no input needed beyond the
+        // credential itself). Both intentionally declare `pathParams: []`
+        // and reject extra positional args fail-fast in the handler.
+        const FLAG_OR_ZERO_ARG_READS = new Set<string>(['user:get-by-email', 'user:get-current']);
         for (const spec of ACTIONS) {
             if (spec.action === 'list') continue;
             if (PAYLOAD_ONLY_WRITES.has(`${spec.resource}:${spec.action}`)) continue;
+            if (FLAG_OR_ZERO_ARG_READS.has(`${spec.resource}:${spec.action}`)) continue;
             expect(
                 spec.pathParams.length,
                 `${spec.resource}:${spec.action} should declare path params`,

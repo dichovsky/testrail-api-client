@@ -36,6 +36,8 @@ Read actions:
   test     list <run_id> [--status-id 1,5] [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
+  user     get-by-email --email <email>   (no positional args)
+  user     get-current                    (no positional args)
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
   section  get <id> | list <id> [--suite-id <id>] [--limit N] [--offset N]
   shared-step  get <id> | list --project-id <id>
@@ -357,6 +359,18 @@ async function main(): Promise<number> {
         ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
         ...(values['out'] !== undefined && { out: values['out'] as string }),
         ...(values['soft'] === true && { soft: true }),
+        // `--email` is consumed twice by design: once by resolveAuth() above
+        // for the HTTP Basic credential (where the flag takes priority over
+        // TESTRAIL_EMAIL), and once here for `user get-by-email`'s query
+        // payload. Note: passing `--email alice@…` will authenticate AS that
+        // email, which is the intended behavior when a script supplies the
+        // matching API key. Callers who need to look up a third party while
+        // authenticating as a different identity should set TESTRAIL_EMAIL
+        // for auth and omit `--email` in favor of a different lookup path
+        // (e.g. `user get <id>`). Read handlers ignore this when irrelevant;
+        // the user get-by-email handler enforces non-empty before issuing
+        // the call.
+        ...(values['email'] !== undefined && { email: values['email'] as string }),
     };
 
     // Suppress stdin only when the dispatched action's ActionSpec marks it
