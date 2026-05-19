@@ -36,10 +36,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Statuses](#statuses) | 2 | 2 | 1 | 0 |
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
 | [Templates](#templates) | 1 | 1 | 0 | 0 |
-| [Tests](#tests) | 2 | 2 | 0 | 0 |
+| [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **70** | **23** |
+| **Total** | **116** | **116** | **72** | **23** |
 
 ## Attachments
 
@@ -305,8 +305,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTest`](../src/modules/tests.ts#L11) | — | — |
-| [`GET get_tests/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTests`](../src/modules/tests.ts#L17) | — | — |
+| [`GET get_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTest`](../src/modules/tests.ts#L11) | `test get` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_tests/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTests`](../src/modules/tests.ts#L17) | `test list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Users
 

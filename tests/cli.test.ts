@@ -24,6 +24,16 @@ vi.mock('node:dns/promises', () => ({
     lookup: vi.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
 }));
 
+// Mock sleep so GET retry backoff (1s + 2s + 4s default) doesn't blow up test
+// runtime for network-error subprocess tests. Keeps all other behavior intact.
+vi.mock('../src/utils.js', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../src/utils.js')>();
+    return {
+        ...actual,
+        sleep: vi.fn().mockResolvedValue(undefined),
+    };
+});
+
 // Stub readBoundedStdin so tests can simulate piped-stdin input for the
 // --api-key-stdin happy path without spawning a real subprocess. Default
 // behaviour: throw, so any test that accidentally trips the bounded
@@ -1050,6 +1060,65 @@ describe('CLI', () => {
             const { exitCodes, stdout } = await runCli(['test', 'list', '5'], [jsonResponse({})]);
             expect(exitCodes).toContain(0);
             expect(stdout.trim()).toBe('[]');
+        });
+
+        it('test get with explicit --format json emits parseable JSON', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['test', 'get', '100', '--format', 'json'],
+                [jsonResponse(MOCK_TEST)],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_TEST;
+            expect(parsed).toEqual(MOCK_TEST);
+        });
+
+        it('test list with explicit --format json emits parseable JSON array', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['test', 'list', '5', '--format', 'json'],
+                [jsonResponse({ tests: [MOCK_TEST] })],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as (typeof MOCK_TEST)[];
+            expect(Array.isArray(parsed)).toBe(true);
+            expect(parsed).toHaveLength(1);
+            expect(parsed[0]).toEqual(MOCK_TEST);
+        });
+
+        it('test get surfaces a network error (TypeError: fetch failed) as exit 1', async () => {
+            // GET retries 3× on network errors — every attempt must reject.
+            const { exitCodes, stderr } = await runCli(
+                ['test', 'get', '100'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed|Network error|TestRail API error/);
+        });
+
+        it('test list surfaces a network error (TypeError: fetch failed) as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['test', 'list', '5'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed|Network error|TestRail API error/);
+        });
+
+        it('test list rejects --status-id 0 at the subprocess level', async () => {
+            const { exitCodes, stderr } = await runCli(['test', 'list', '5', '--status-id', '0']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--status-id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('test list rejects empty --status-id "" at the subprocess level', async () => {
+            const { exitCodes, stderr } = await runCli(['test', 'list', '5', '--status-id', '']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--status-id/);
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('test unknown action should exit 1', async () => {

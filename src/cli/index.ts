@@ -115,10 +115,10 @@ Options:
   --dry-run             Validate payload but don't call the API
   --format json|table   Output format (default: json)
   --quiet               Suppress output; use exit code 0/1
+  --status-id <ids>     Comma-separated TestRail status IDs (test list filter; e.g. 1,5)
   --file <path>         Binary file to upload (attachment add-to-* actions)
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
-  --status-id <ids>     Comma-separated TestRail status IDs (test list filter; e.g. 1,5)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
   --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete)
   --soft                Server-side preview for soft-capable deletes (case delete, case delete-bulk, run delete, section delete, suite delete) — TestRail returns counts without deleting; distinct from --dry-run which makes NO API call. Rejected on milestone delete / project delete (TestRail does not support --soft on those endpoints).
