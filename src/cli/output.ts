@@ -8,6 +8,11 @@ export interface OutputOptions {
 export interface Output {
     out: (data: unknown) => void;
     err: (message: string) => void;
+    /** Quiet-aware raw stderr writer (no 'Error:' prefix). Used when a
+     *  handler needs to emit a JSON ack to stderr so stdout stays pure
+     *  binary (e.g., `attachment get --out -`). Bytes are written
+     *  verbatim — the caller already controls sanitization. */
+    errRaw: (chunk: string) => void;
 }
 
 export function valueToString(v: unknown): string {
@@ -117,5 +122,11 @@ export function createOutput(opts: OutputOptions): Output {
         // escapes into the user's terminal.
         if (!opts.quiet) process.stderr.write(`Error: ${sanitizeForTerminal(message)}\n`);
     };
-    return { out, err };
+    const errRaw = (chunk: string): void => {
+        // No 'Error:' prefix and no sanitization — caller already produced
+        // the exact bytes to emit (e.g. a JSON ack from safeJsonStringify).
+        // Still gated on --quiet so structured JSON acks remain suppressible.
+        if (!opts.quiet) process.stderr.write(chunk);
+    };
+    return { out, err, errRaw };
 }

@@ -11,8 +11,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 CLI: `--format yaml`
 - [ ] 🟢 📦 CLI: `--format csv`
 - [ ] 🟡 📦 CLI: `run watch <run_id>`
-- [ ] 🟢 📦 CLI: binary stdin upload
-- [ ] 🟢 📦 CLI: binary stdout download
 - [ ] 🟡 📦 CLI: pagination on `attachment list-for-*`
 - [ ] 🟡 ♻️ CLI: streaming upload for large files
 - [ ] 🟢 📦 CLI: destructive env-var gate (`TESTRAIL_ALLOW_DESTRUCTIVE=1`)

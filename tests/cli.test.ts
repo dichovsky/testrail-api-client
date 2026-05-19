@@ -5150,6 +5150,115 @@ describe('CLI', () => {
             expect(stdout).toContain('"destructive": true');
             expect(mockFetch).not.toHaveBeenCalled();
         });
+
+        // ── PR3a: --file - (stdin binary upload) ─────────────────────────
+
+        it('add-to-case --file - uploads bytes piped from stdin', async () => {
+            const ORIG_STDIN = process.stdin;
+            const stream = (await import('node:stream')).Readable.from(Buffer.from([1, 2, 3, 4]));
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            try {
+                const { exitCodes, stdout } = await runCli(
+                    ['attachment', 'add-to-case', '42', '--file', '-', '--filename', 'piped.bin'],
+                    [jsonResponse({ attachment_id: 999 })],
+                );
+                expect(exitCodes).toContain(0);
+                expect(stdout).toContain('999');
+            } finally {
+                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+            }
+        });
+
+        it('add-to-case --file - --dry-run does not consume stdin', async () => {
+            const ORIG_STDIN = process.stdin;
+            let chunksRead = 0;
+            const { Readable } = await import('node:stream');
+            const stream = new Readable({
+                read() {
+                    chunksRead += 1;
+                    this.push(Buffer.from('x'));
+                    this.push(null);
+                },
+            });
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            try {
+                const { exitCodes, stdout } = await runCli([
+                    'attachment',
+                    'add-to-case',
+                    '42',
+                    '--file',
+                    '-',
+                    '--dry-run',
+                ]);
+                expect(exitCodes).toContain(0);
+                expect(stdout).toContain('"source": "stdin"');
+                expect(chunksRead).toBe(0);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+            }
+        });
+
+        it('add-to-case --file - rejected when stdin is a TTY', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { exitCodes, stderr } = await runCli(['attachment', 'add-to-case', '42', '--file', '-']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/stdin to be piped/);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('add-to-case --file - rejects --data combination at index.ts gate', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'attachment',
+                'add-to-case',
+                '42',
+                '--file',
+                '-',
+                '--data',
+                '{}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/cannot be combined with --data/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('--file - rejected on non-upload actions', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--file', '-']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/only valid for attachment upload actions/);
+        });
+
+        // ── PR3a: --out - (stdout binary download) ───────────────────────
+
+        it('get --out - streams binary to stdout and JSON ack to stderr', async () => {
+            // runCli stringifies chunks via `String(chunk)` which renders a
+            // Uint8Array as its comma-joined byte list (e.g. "171,205,239").
+            // Assert against that representation — the byte order is what
+            // matters, not the encoding round-trip.
+            const { exitCodes, stdout, stderr } = await runCli(
+                ['attachment', 'get', '42', '--out', '-'],
+                [binaryResponse(new Uint8Array([0xab, 0xcd, 0xef]))],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('171,205,239');
+            // JSON ack rerouted to stderr.
+            expect(stderr).toContain('"attachmentId": 42');
+            expect(stderr).toContain('"out": "<stdout>"');
+            expect(stderr).toContain('"size": 3');
+        });
+
+        it('--out - --format table is rejected at index.ts gate', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'get', '42', '--out', '-', '--format', 'table']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--format table is meaningless/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     describe('bdd', () => {

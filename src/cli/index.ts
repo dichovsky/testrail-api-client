@@ -11,6 +11,8 @@ import { runInstallSkill } from './install-skill.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
+import { STDIN_SENTINEL } from './file-input.js';
+import { STDOUT_SENTINEL } from './file-output.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -124,17 +126,30 @@ Attachment actions (binary file I/O):
   attachment list-for-test <test_id>
   attachment list-for-plan <plan_id>
   attachment list-for-plan-entry <plan_id> <entry_id>
-  attachment get <attachment_id>           --out <path> [--force]
-  attachment add-to-case <case_id>         --file <path> [--filename <name>]
-  attachment add-to-result <result_id>     --file <path> [--filename <name>]
-  attachment add-to-run <run_id>           --file <path> [--filename <name>]
-  attachment add-to-plan <plan_id>         --file <path> [--filename <name>]
-  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path> [--filename <name>]
+  attachment get <attachment_id>           --out <path|-> [--force]
+  attachment add-to-case <case_id>         --file <path|-> [--filename <name>]
+  attachment add-to-result <result_id>     --file <path|-> [--filename <name>]
+  attachment add-to-run <run_id>           --file <path|-> [--filename <name>]
+  attachment add-to-plan <plan_id>         --file <path|-> [--filename <name>]
+  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path|-> [--filename <name>]
   attachment delete <attachment_id>        --yes
 
 BDD actions (Gherkin .feature text I/O):
-  bdd get <case_id>                        --out <path> [--force]
-  bdd add <case_id>                        --file <path> [--filename <name>]
+  bdd get <case_id>                        --out <path|-> [--force]
+  bdd add <case_id>                        --file <path|-> [--filename <name>]
+
+Binary stdio (Unix-convention '-' sentinel):
+  --file -    Read binary upload payload from stdin (must be piped; not a TTY).
+              Capped at 100 MiB with a 30s wall-clock deadline so a stalled
+              producer cannot hold the pipe open. Cannot be combined with
+              --data, --data-file, or --api-key-stdin (each owns stdin).
+              Pass --filename to label the upload (default: 'stdin').
+              Example: curl -s https://… | testrail attachment add-to-case 42 --file - --filename crash.png
+  --out -     Stream the downloaded payload to stdout as raw bytes; the JSON
+              ack is routed to stderr so stdout stays pure binary. Rejects
+              --format table (binary is binary). Emits a TTY warning to
+              stderr if stdout is a terminal — use 'xxd' or '> file' instead.
+              Example: testrail attachment get 17 --out - | hexdump -C
 
 Meta:
   install-skill [--global] [--force] [--print-path]
@@ -246,7 +261,7 @@ async function main(): Promise<number> {
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];
     const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
-    const { out, err } = createOutput({ quiet, format });
+    const { out, err, errRaw } = createOutput({ quiet, format });
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
@@ -390,6 +405,44 @@ async function main(): Promise<number> {
     const actionSpec = getActionSpec(resource, action);
     const isFileInputAction = actionSpec?.fileInput === true;
 
+    // PR3a: `--file -` (binary stdin upload) and `--out -` (binary stdout
+    // download) mutual-exclusion + safety gates. Enforced here, before
+    // dispatch, so handlers receive a guaranteed-consistent ctx:
+    //   1. `--file -` requires a file-input action — for non-upload actions
+    //      the dash would be parsed as a filesystem path and stat would
+    //      fail with a confusing 'ENOENT' error.
+    //   2. `--file -` cannot coexist with `--data` / `--data-file` — a
+    //      single handler cannot consume both a JSON body and a binary
+    //      stdin payload; the conflicting flags would silently pick one
+    //      (today: stdin) and surprise the caller.
+    //   3. `--file -` is incompatible with `--api-key-stdin` — both want to
+    //      own fd 0. Catch the conflict here rather than letting the upload
+    //      reader read a credential.
+    //   4. `--out -` with `--format table` is rejected — table is a
+    //      text-format hint that has no meaning for raw binary output.
+    const fileFlagIsStdin = values['file'] === STDIN_SENTINEL;
+    const outFlagIsStdout = values['out'] === STDOUT_SENTINEL;
+
+    if (fileFlagIsStdin) {
+        if (!isFileInputAction) {
+            err("--file '-' is only valid for attachment upload actions and 'bdd add'.");
+            return 1;
+        }
+        if (values['data'] !== undefined || values['data-file'] !== undefined) {
+            err("--file '-' cannot be combined with --data or --data-file (stdin has one source).");
+            return 1;
+        }
+        if (apiKeyStdin) {
+            err("--file '-' cannot be combined with --api-key-stdin (stdin has one consumer).");
+            return 1;
+        }
+    }
+
+    if (outFlagIsStdout && formatRaw === 'table') {
+        err("--out '-' streams raw binary; --format table is meaningless and was rejected.");
+        return 1;
+    }
+
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
         ...(values['data-file'] !== undefined && { dataFileFlag: values['data-file'] as string }),
@@ -416,7 +469,7 @@ async function main(): Promise<number> {
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
         client = new TestRailClient({ ...auth.config, registerProcessHandlers: true });
-        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
+        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out, err, errRaw });
         return 0;
     } catch (e: unknown) {
         // err() already sanitizes; passing the raw message is safe.
