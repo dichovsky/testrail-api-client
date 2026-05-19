@@ -500,25 +500,10 @@ export interface ConfigurationGroup {
     configs: Configuration[];
 }
 
-export interface AddConfigurationGroupPayload {
-    /** Name of the new configuration group */
-    name: string;
-}
-
-export interface UpdateConfigurationGroupPayload {
-    /** New name for the configuration group */
-    name?: string;
-}
-
-export interface AddConfigurationPayload {
-    /** Name of the new configuration */
-    name: string;
-}
-
-export interface UpdateConfigurationPayload {
-    /** New name for the configuration */
-    name?: string;
-}
+// AddConfigurationGroupPayload, UpdateConfigurationGroupPayload,
+// AddConfigurationPayload, and UpdateConfigurationPayload now live in
+// `./schemas.ts` as Zod schemas (source of truth for runtime validation +
+// inferred TS types).
 
 export interface CacheEntry<T> {
     data: T;

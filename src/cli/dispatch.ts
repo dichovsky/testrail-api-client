@@ -69,6 +69,15 @@ import { handleSuiteAdd, handleSuiteDelete, handleSuiteUpdate } from './handlers
 import { handleMilestoneAdd, handleMilestoneDelete, handleMilestoneUpdate } from './handlers/milestone-write.js';
 import { handleVariableList } from './handlers/variable.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from './handlers/variable-write.js';
+import { handleConfigurationList } from './handlers/configuration.js';
+import {
+    handleConfigurationGroupAdd,
+    handleConfigurationGroupUpdate,
+    handleConfigurationGroupDelete,
+    handleConfigurationAdd,
+    handleConfigurationUpdate,
+    handleConfigurationDelete,
+} from './handlers/configuration-write.js';
 
 /**
  * Single source of truth: every supported resource:action mapped to its handler.
@@ -173,6 +182,13 @@ const HANDLERS: Record<string, Handler> = {
     'variable:add': handleVariableAdd,
     'variable:update': handleVariableUpdate,
     'variable:delete': handleVariableDelete,
+    'configuration:list': handleConfigurationList,
+    'configuration:add': handleConfigurationAdd,
+    'configuration:update': handleConfigurationUpdate,
+    'configuration:delete': handleConfigurationDelete,
+    'configuration-group:add': handleConfigurationGroupAdd,
+    'configuration-group:update': handleConfigurationGroupUpdate,
+    'configuration-group:delete': handleConfigurationGroupDelete,
 };
 
 const RESOURCES: Record<string, readonly string[]> = (() => {

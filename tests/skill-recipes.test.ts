@@ -175,3 +175,50 @@ describe('skill/SKILL.md — Bulk case delete recipe', () => {
         expect(section).toContain('rehearsal');
     });
 });
+
+describe('skill/SKILL.md — Configuration groups & configs hierarchy recipe', () => {
+    const md = readFileSync(SKILL_PATH, 'utf-8');
+
+    // gate C2 already enforces that the tags resolve to ActionSpec entries,
+    // but it does NOT enforce that all five tags stay grouped under the
+    // same heading. Splitting them across separate recipes would change
+    // binding semantics without gate C2 noticing. Pin the grouping
+    // explicitly (mirrors the Plan entries lifecycle recipe pattern).
+    it('groups all five configuration recipe-for tags under the same heading', () => {
+        const section = extractSection(md, 'Configuration groups & configs hierarchy');
+        expect(section).toContain('<!-- recipe-for: configuration:list -->');
+        expect(section).toContain('<!-- recipe-for: configuration-group:add -->');
+        expect(section).toContain('<!-- recipe-for: configuration-group:delete -->');
+        expect(section).toContain('<!-- recipe-for: configuration:add -->');
+        expect(section).toContain('<!-- recipe-for: configuration:delete -->');
+    });
+
+    it('pins the two-level hierarchy narration (project → groups → configs)', () => {
+        const section = extractSection(md, 'Configuration groups & configs hierarchy');
+        // The ASCII tree is the load-bearing diagram; pinning the parent
+        // and the leaf node names surfaces any reorder of the explanation.
+        expect(section).toContain('config_group');
+        expect(section).toContain('config (leaf)');
+    });
+
+    it('pins the lifecycle commands in walkthrough order', () => {
+        const section = extractSection(md, 'Configuration groups & configs hierarchy');
+        // Order: create group → add configs → list → update config →
+        // update group → delete config → delete group. A reorder would
+        // change the "parent-after-child" cascade semantics the recipe
+        // is teaching.
+        expect(section).toContain('testrail configuration-group add 5');
+        expect(section).toContain('testrail configuration add "$GROUP_ID"');
+        expect(section).toContain('testrail configuration list 5');
+        expect(section).toContain('testrail configuration update "$CHROME_ID"');
+        expect(section).toContain('testrail configuration-group update "$GROUP_ID"');
+        expect(section).toContain('testrail configuration delete "$FIREFOX_ID" --yes');
+        expect(section).toContain('testrail configuration-group delete "$GROUP_ID" --yes');
+    });
+
+    it('warns that both deletes are destructive with no --soft preview', () => {
+        const section = extractSection(md, 'Configuration groups & configs hierarchy');
+        expect(section).toContain('destructive');
+        expect(section).toContain('does NOT support `soft=1`');
+    });
+});

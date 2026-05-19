@@ -19,7 +19,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Case Fields](#case-fields) | 2 | 2 | 2 | 0 |
 | [Case Types](#case-types) | 1 | 1 | 0 | 0 |
 | [Cases](#cases) | 10 | 10 | 10 | 4 |
-| [Configurations](#configurations) | 7 | 7 | 0 | 0 |
+| [Configurations](#configurations) | 7 | 7 | 7 | 5 |
 | [Datasets](#datasets) | 5 | 5 | 0 | 0 |
 | [Groups](#groups) | 5 | 5 | 0 | 0 |
 | [Milestones](#milestones) | 5 | 5 | 5 | 0 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **116** | **116** | **91** | **30** |
+| **Total** | **116** | **116** | **98** | **35** |
 
 ## Attachments
 
@@ -109,13 +109,13 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_configs/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getConfigurations`](../src/modules/configurations.ts#L17) | — | — |
-| [`POST add_config/{config_group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addConfiguration`](../src/modules/configurations.ts#L58) | — | — |
-| [`POST add_config_group/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addConfigurationGroup`](../src/modules/configurations.ts#L27) | — | — |
-| [`POST delete_config/{config_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteConfiguration`](../src/modules/configurations.ts#L80) | — | — |
-| [`POST delete_config_group/{config_group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteConfigurationGroup`](../src/modules/configurations.ts#L52) | — | — |
-| [`POST update_config/{config_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateConfiguration`](../src/modules/configurations.ts#L69) | — | — |
-| [`POST update_config_group/{config_group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateConfigurationGroup`](../src/modules/configurations.ts#L38) | — | — |
+| [`GET get_configs/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getConfigurations`](../src/modules/configurations.ts#L17) | `configuration list` | [recipe #27](../skill/SKILL.md#27-configuration-groups--configs-hierarchy-management) |
+| [`POST add_config/{config_group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addConfiguration`](../src/modules/configurations.ts#L58) | `configuration add` | [recipe #27](../skill/SKILL.md#27-configuration-groups--configs-hierarchy-management) |
+| [`POST add_config_group/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addConfigurationGroup`](../src/modules/configurations.ts#L27) | `configuration-group add` | [recipe #27](../skill/SKILL.md#27-configuration-groups--configs-hierarchy-management) |
+| [`POST delete_config/{config_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteConfiguration`](../src/modules/configurations.ts#L80) | `configuration delete` | [recipe #27](../skill/SKILL.md#27-configuration-groups--configs-hierarchy-management) |
+| [`POST delete_config_group/{config_group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteConfigurationGroup`](../src/modules/configurations.ts#L52) | `configuration-group delete` | [recipe #27](../skill/SKILL.md#27-configuration-groups--configs-hierarchy-management) |
+| [`POST update_config/{config_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateConfiguration`](../src/modules/configurations.ts#L69) | `configuration update` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST update_config_group/{config_group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateConfigurationGroup`](../src/modules/configurations.ts#L38) | `configuration-group update` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Datasets
 

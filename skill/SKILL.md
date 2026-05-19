@@ -154,6 +154,13 @@ on stderr. Never echo or log the API key.
 | variable | add | `<project_id>` | `AddVariablePayloadSchema` | Create a new variable in a project |
 | variable | update | `<variable_id>` | `UpdateVariablePayloadSchema` | Update an existing variable (rename) |
 | variable | delete | `<variable_id>` | — (no body, requires `--yes`) | Delete a variable (requires --yes; --soft NOT supported by TestRail) |
+| configuration | list | `<project_id>` | — | List configuration groups (with nested configs) for a project |
+| configuration-group | add | `<project_id>` | `AddConfigurationGroupPayloadSchema` | Create a new configuration group in a project (e.g. "Browsers") |
+| configuration-group | update | `<config_group_id>` | `UpdateConfigurationGroupPayloadSchema` | Update a configuration group (rename) |
+| configuration-group | delete | `<config_group_id>` | — (no body, requires `--yes`) | Delete a configuration group and every config in it (requires --yes; --soft NOT supported by TestRail) |
+| configuration | add | `<config_group_id>` | `AddConfigurationPayloadSchema` | Create a new configuration (leaf) inside a configuration group (e.g. "Chrome") |
+| configuration | update | `<config_id>` | `UpdateConfigurationPayloadSchema` | Update a single configuration (rename) |
+| configuration | delete | `<config_id>` | — (no body, requires `--yes`) | Delete a single configuration (requires --yes; --soft NOT supported by TestRail) |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -540,6 +547,38 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 ```
 
 ### `UpdateVariablePayloadSchema` (used by `variable update`)
+
+```jsonc
+{
+    "name": "string?"
+}
+```
+
+### `AddConfigurationGroupPayloadSchema` (used by `configuration-group add`)
+
+```jsonc
+{
+    "name": "string (required)"
+}
+```
+
+### `UpdateConfigurationGroupPayloadSchema` (used by `configuration-group update`)
+
+```jsonc
+{
+    "name": "string?"
+}
+```
+
+### `AddConfigurationPayloadSchema` (used by `configuration add`)
+
+```jsonc
+{
+    "name": "string (required)"
+}
+```
+
+### `UpdateConfigurationPayloadSchema` (used by `configuration update`)
 
 ```jsonc
 {
@@ -1113,12 +1152,95 @@ pipeline that touches bulk delete, and never invoke the no-`--soft`
 form without a recent backup or a versioned definition of the cases
 being removed.
 
+### 27. Configuration groups & configs hierarchy management
+
+<!-- recipe-for: configuration:list -->
+<!-- recipe-for: configuration-group:add -->
+<!-- recipe-for: configuration-group:delete -->
+<!-- recipe-for: configuration:add -->
+<!-- recipe-for: configuration:delete -->
+
+TestRail models the test-environment matrix as a two-level tree:
+
+```
+project
+└── config_group        (e.g. "Browsers", "Operating Systems")
+    └── config (leaf)   (e.g. "Chrome", "Firefox", "Safari")
+```
+
+Plan entries reference individual `config_id` values to spin up
+per-environment runs (see recipe 22 — "Plan entries with config matrices").
+The CLI surfaces both layers via two resources:
+
+- `configuration-group <action>` — operates on the group (parent).
+- `configuration <action>` — operates on the leaf config OR lists the
+  whole tree (`configuration list <project_id>` returns every group with
+  its nested `configs[]` in one call; there is no separate
+  list-configs-in-group endpoint upstream).
+
+End-to-end walkthrough — create a matrix, list it, mutate it, then
+tear it down in parent-after-child order:
+
+```bash
+# 1. Create a group at the project level.
+GROUP=$(testrail configuration-group add 5 --data '{"name":"Browsers"}')
+GROUP_ID=$(echo "$GROUP" | jq '.id')
+
+# 2. Add leaf configs to the group. Each is independently addressable
+#    by its own config_id and can be referenced from plan entries.
+CHROME=$(testrail configuration add "$GROUP_ID" --data '{"name":"Chrome"}')
+FIREFOX=$(testrail configuration add "$GROUP_ID" --data '{"name":"Firefox"}')
+CHROME_ID=$(echo "$CHROME" | jq '.id')
+FIREFOX_ID=$(echo "$FIREFOX" | jq '.id')
+
+# 3. List the whole tree (one API call returns all groups + all configs).
+testrail configuration list 5 | jq '.[] | {id, name, configs: [.configs[].name]}'
+
+# 4. Rename a leaf config (e.g. clarify a version).
+testrail configuration update "$CHROME_ID" --data '{"name":"Chrome (stable)"}'
+
+# 5. Rename the group itself (configs underneath keep their IDs).
+testrail configuration-group update "$GROUP_ID" --data '{"name":"Desktop Browsers"}'
+
+# 6. Delete cascade — parent-after-child is the safe ordering.
+#    a) Remove individual configs first. Any plan entry that referenced
+#       this config loses it from its config selection; sibling configs
+#       in the group are unaffected.
+testrail configuration delete "$FIREFOX_ID" --yes
+
+#    b) Then drop the whole group (TestRail cascades the remaining
+#       configs server-side). Doing this first works but skips the
+#       per-config audit trail.
+testrail configuration-group delete "$GROUP_ID" --yes
+```
+
+Notes:
+
+- `configuration-group delete` and `configuration delete` are both
+  destructive: gated by `--yes`, no `--soft` server-side preview
+  upstream (TestRail does NOT support `soft=1` on either endpoint).
+  Use `--dry-run` (client-side, no API call) to validate the target
+  before committing — `--yes --dry-run` emits a preview marked
+  `"destructive": true`.
+- Deleting a group cascades to every config in it. If you only need
+  to retire a subset, delete the individual configs first
+  (`configuration delete <config_id>`) and leave the group standing.
+- Cascade caveat: deleting a config invalidates that selection on any
+  plan entry referencing it. Existing runs/results in those entries
+  survive (TestRail keeps historical results even when their config is
+  removed), but new runs added to those plan entries will no longer
+  offer the deleted config in their `config_ids[]` shortlist.
+- Configurations are project-scoped; the same group/config name in a
+  different project is a different ID. Always pair list/mutate calls
+  with the project context.
+
 ## Destructive actions
 
 Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
 `run close`, `run delete`, `section delete`, `suite delete`, `milestone delete`,
 `project delete`, `plan close`, `plan delete`, `plan delete-entry`,
-`plan delete-run-from-entry`) require `--yes` to execute. Without `--yes`,
+`plan delete-run-from-entry`, `configuration delete`,
+`configuration-group delete`) require `--yes` to execute. Without `--yes`,
 the CLI exits 1 with `Destructive action; pass --yes to confirm.` This is
 the only gate — there is no interactive prompt (by design; this skill
 targets agents, not humans).

@@ -26,6 +26,7 @@ import { handleResultFieldList } from '../src/cli/handlers/result-field.js';
 import { handleStatusList } from '../src/cli/handlers/status.js';
 import { handleTemplateList } from '../src/cli/handlers/template.js';
 import { handleVariableList } from '../src/cli/handlers/variable.js';
+import { handleConfigurationList } from '../src/cli/handlers/configuration.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -45,6 +46,7 @@ interface MockedClient {
     getStatuses: ReturnType<typeof vi.fn>;
     getTemplates: ReturnType<typeof vi.fn>;
     getVariables: ReturnType<typeof vi.fn>;
+    getConfigurations: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -121,6 +123,17 @@ function buildClient(): MockedClient {
         getVariables: vi.fn().mockResolvedValue([
             { id: 1, name: 'env' },
             { id: 2, name: 'region' },
+        ]),
+        getConfigurations: vi.fn().mockResolvedValue([
+            {
+                id: 55,
+                name: 'Browsers',
+                project_id: 7,
+                configs: [
+                    { id: 66, name: 'Chrome', group_id: 55 },
+                    { id: 67, name: 'Firefox', group_id: 55 },
+                ],
+            },
         ]),
     };
 }
@@ -731,5 +744,42 @@ describe('handleVariableList', () => {
         const { ctx } = buildCtx(client, { pathParams });
         await expect(handleVariableList(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.getVariables).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleConfigurationList ───────────────────────────────────────────────
+
+describe('handleConfigurationList', () => {
+    it('calls client.getConfigurations with the parsed project id and emits the full tree', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
+        await handleConfigurationList(ctx);
+        expect(client.getConfigurations).toHaveBeenCalledTimes(1);
+        expect(client.getConfigurations).toHaveBeenCalledWith(7);
+        // The full ConfigurationGroup[] tree (with nested configs[]) must be
+        // emitted verbatim — there's no client-side filtering.
+        expect(out).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 55,
+                    name: 'Browsers',
+                    configs: expect.arrayContaining([expect.objectContaining({ name: 'Chrome' })]) as unknown,
+                }),
+            ]),
+        );
+    });
+
+    it.each(INVALID_IDS.map((id) => [id]))('rejects invalid project_id %p before any client call', async (raw) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [raw] });
+        await expect(handleConfigurationList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getConfigurations).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing project_id (no positional arg)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [] });
+        await expect(handleConfigurationList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getConfigurations).not.toHaveBeenCalled();
     });
 });

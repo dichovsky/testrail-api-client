@@ -31,6 +31,10 @@ import {
     UpdateVariablePayloadSchema,
     AddSharedStepPayloadSchema,
     UpdateSharedStepPayloadSchema,
+    AddConfigurationGroupPayloadSchema,
+    UpdateConfigurationGroupPayloadSchema,
+    AddConfigurationPayloadSchema,
+    UpdateConfigurationPayloadSchema,
 } from '../schemas.js';
 
 /**
@@ -936,6 +940,77 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary: 'Delete a variable (requires --yes; --soft NOT supported by TestRail)',
         pathParams: [{ name: 'variable_id', description: 'TestRail variable ID' }],
         apiEndpoint: 'POST delete_variable/{variable_id}',
+        isWrite: true,
+        destructive: true,
+    },
+    // ── Configuration hierarchy (groups + leaf configs) ───────────────────
+    // TestRail models test-environment matrices as a two-level tree:
+    //   project → config_groups[] (e.g. "Browsers") → configs[] (e.g. "Chrome").
+    // `get_configs/{project_id}` returns the entire tree in one call; there
+    // is no separate "list configs in a group" endpoint upstream. Group and
+    // config CRUD are split into two CLI resources because the path-param
+    // contract is asymmetric (`<project_id>` for group add, `<config_group_id>`
+    // for config add, `<config_id>` for config update/delete).
+    {
+        resource: 'configuration',
+        action: 'list',
+        summary: 'List configuration groups (with nested configs) for a project',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'GET get_configs/{project_id}',
+        isWrite: false,
+    },
+    {
+        resource: 'configuration-group',
+        action: 'add',
+        summary: 'Create a new configuration group in a project (e.g. "Browsers")',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_config_group/{project_id}',
+        bodySchema: AddConfigurationGroupPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'configuration-group',
+        action: 'update',
+        summary: 'Update a configuration group (rename)',
+        pathParams: [{ name: 'config_group_id', description: 'TestRail config group ID' }],
+        apiEndpoint: 'POST update_config_group/{config_group_id}',
+        bodySchema: UpdateConfigurationGroupPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'configuration-group',
+        action: 'delete',
+        summary:
+            'Delete a configuration group and every config in it (requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'config_group_id', description: 'TestRail config group ID' }],
+        apiEndpoint: 'POST delete_config_group/{config_group_id}',
+        isWrite: true,
+        destructive: true,
+    },
+    {
+        resource: 'configuration',
+        action: 'add',
+        summary: 'Create a new configuration (leaf) inside a configuration group (e.g. "Chrome")',
+        pathParams: [{ name: 'config_group_id', description: 'TestRail config group ID' }],
+        apiEndpoint: 'POST add_config/{config_group_id}',
+        bodySchema: AddConfigurationPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'configuration',
+        action: 'update',
+        summary: 'Update a single configuration (rename)',
+        pathParams: [{ name: 'config_id', description: 'TestRail config ID' }],
+        apiEndpoint: 'POST update_config/{config_id}',
+        bodySchema: UpdateConfigurationPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'configuration',
+        action: 'delete',
+        summary: 'Delete a single configuration (requires --yes; --soft NOT supported by TestRail)',
+        pathParams: [{ name: 'config_id', description: 'TestRail config ID' }],
+        apiEndpoint: 'POST delete_config/{config_id}',
         isWrite: true,
         destructive: true,
     },

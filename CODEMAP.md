@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "f4c2644d14506a56cd3ad0def89c1ee07e7bbb0bf426a20d0a275036b7651eae",
+  "sourceHash": "a2341c650bfe027ed2483be14b4c88bb410f74732c8f4454384c222687389a8e",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -64,25 +64,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "name": "AddConfigurationGroupPayload",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 503,
-      "signature": "export interface AddConfigurationGroupPayload { name: string; }",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 995,
+      "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
     {
+      "name": "AddConfigurationGroupPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 991,
+      "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
+    },
+    {
       "name": "AddConfigurationPayload",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 513,
-      "signature": "export interface AddConfigurationPayload { name: string; }",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 1007,
+      "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>",
       "typeOnly": true
+    },
+    {
+      "name": "AddConfigurationPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 1003,
+      "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "AddDatasetPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 724,
+      "line": 709,
       "signature": "export interface AddDatasetPayload { name: string; }",
       "jsdoc": "Payload for creating a dataset via POST /add_dataset/{project_id}",
       "typeOnly": true
@@ -91,7 +105,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddGroupPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 661,
+      "line": 646,
       "signature": "export interface AddGroupPayload { name: string; user_ids?: number[]; }",
       "jsdoc": "Payload for creating a new group via POST /add_group (TestRail 7.5+)",
       "typeOnly": true
@@ -310,7 +324,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddUserPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 609,
+      "line": 594,
       "signature": "export interface AddUserPayload { email: string; name: string; is_active?: boolean; role_id?: number; password?: string; }",
       "jsdoc": "Payload for creating a new user via POST /add_user (TestRail 7.3+)",
       "typeOnly": true
@@ -334,7 +348,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Attachment",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 679,
+      "line": 664,
       "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }",
       "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints",
       "typeOnly": true
@@ -475,7 +489,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Dataset",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 710,
+      "line": 695,
       "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }",
       "jsdoc": "A dataset for data-driven testing",
       "typeOnly": true
@@ -541,7 +555,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetMilestonesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 597,
+      "line": 582,
       "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }",
       "jsdoc": "Filter options for `getMilestones()`.",
       "typeOnly": true
@@ -550,7 +564,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetPlansOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 540,
+      "line": 525,
       "signature": "export interface GetPlansOptions { created_after?: number; created_before?: number; created_by?: number[]; is_completed?: 0 | 1; milestone_id?: number[]; limit?: number; offset?: number; }",
       "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -559,7 +573,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetResultsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 573,
+      "line": 558,
       "signature": "export interface GetResultsOptions { created_after?: number; created_before?: number; created_by?: number[]; status_id?: number[]; defects_filter?: string; limit?: number; offset?: number; }",
       "jsdoc": "Filter options for `getResults()`, `getResultsForCase()`, and `getResultsForRun()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -584,7 +598,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetTestsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 560,
+      "line": 545,
       "signature": "export interface GetTestsOptions { status_id?: number[]; limit?: number; offset?: number; }",
       "jsdoc": "Filter options for `getTests()`.",
       "typeOnly": true
@@ -593,7 +607,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Group",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 651,
+      "line": 636,
       "signature": "export interface Group { id: number; name: string; user_ids?: number[]; }",
       "jsdoc": "A user group returned by GET /get_group and GET /get_groups (TestRail 7.5+)",
       "typeOnly": true
@@ -768,7 +782,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "RateLimiterConfig",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 528,
+      "line": 513,
       "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }",
       "typeOnly": true
     },
@@ -776,7 +790,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Report",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 738,
+      "line": 723,
       "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}",
       "typeOnly": true
@@ -785,7 +799,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ReportResult",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 750,
+      "line": 735,
       "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}",
       "typeOnly": true
@@ -853,7 +867,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Role",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 639,
+      "line": 624,
       "signature": "export interface Role { id: number; name: string; is_default: boolean; }",
       "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
       "typeOnly": true
@@ -1067,25 +1081,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "name": "UpdateConfigurationGroupPayload",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 508,
-      "signature": "export interface UpdateConfigurationGroupPayload { name?: string; }",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 1001,
+      "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
     {
+      "name": "UpdateConfigurationGroupPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 997,
+      "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
+    },
+    {
       "name": "UpdateConfigurationPayload",
-      "kind": "interface",
-      "file": "src/types.ts",
-      "line": 518,
-      "signature": "export interface UpdateConfigurationPayload { name?: string; }",
+      "kind": "type",
+      "file": "src/schemas.ts",
+      "line": 1013,
+      "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>",
       "typeOnly": true
+    },
+    {
+      "name": "UpdateConfigurationPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas.ts",
+      "line": 1009,
+      "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
       "name": "UpdateDatasetPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 730,
+      "line": 715,
       "signature": "export interface UpdateDatasetPayload { name?: string; }",
       "jsdoc": "Payload for updating a dataset via POST /update_dataset/{dataset_id}",
       "typeOnly": true
@@ -1094,7 +1122,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateGroupPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 669,
+      "line": 654,
       "signature": "export interface UpdateGroupPayload { name?: string; user_ids?: number[]; }",
       "jsdoc": "Payload for updating an existing group via POST /update_group/{group_id} (TestRail 7.5+)",
       "typeOnly": true
@@ -1239,7 +1267,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateUserPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 623,
+      "line": 608,
       "signature": "export interface UpdateUserPayload { email?: string; name?: string; is_active?: boolean; role_id?: number; password?: string; }",
       "jsdoc": "Payload for updating an existing user via POST /update_user/{user_id} (TestRail 7.3+)",
       "typeOnly": true
@@ -1425,6 +1453,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/case-status.js",
         "./handlers/case-write.js",
         "./handlers/case.js",
+        "./handlers/configuration-write.js",
+        "./handlers/configuration.js",
         "./handlers/milestone-write.js",
         "./handlers/milestone.js",
         "./handlers/plan-write.js",
@@ -1455,35 +1485,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 84,
+          "line": 93,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 178,
+          "line": 194,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 193,
+          "line": 209,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 200,
+          "line": 216,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 204,
+          "line": 220,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1911,6 +1941,77 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 15,
           "exported": true,
           "signature": "export async function handleCaseHistory(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/configuration-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleConfigurationGroupAdd",
+          "kind": "function",
+          "line": 19,
+          "exported": true,
+          "signature": "export async function handleConfigurationGroupAdd(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleConfigurationGroupUpdate",
+          "kind": "function",
+          "line": 36,
+          "exported": true,
+          "signature": "export async function handleConfigurationGroupUpdate(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleConfigurationGroupDelete",
+          "kind": "function",
+          "line": 64,
+          "exported": true,
+          "signature": "export async function handleConfigurationGroupDelete(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleConfigurationAdd",
+          "kind": "function",
+          "line": 86,
+          "exported": true,
+          "signature": "export async function handleConfigurationAdd(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleConfigurationUpdate",
+          "kind": "function",
+          "line": 103,
+          "exported": true,
+          "signature": "export async function handleConfigurationUpdate(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleConfigurationDelete",
+          "kind": "function",
+          "line": 127,
+          "exported": true,
+          "signature": "export async function handleConfigurationDelete(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/configuration.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleConfigurationList",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export async function handleConfigurationList(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2741,7 +2842,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 190,
+          "line": 203,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2792,28 +2893,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 57,
+          "line": 61,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 62,
+          "line": 66,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 100,
+          "line": 104,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 945,
+          "line": 1020,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
@@ -6346,6 +6447,62 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 981,
           "exported": true,
           "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
+        },
+        {
+          "name": "AddConfigurationGroupPayloadSchema",
+          "kind": "const",
+          "line": 991,
+          "exported": true,
+          "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
+        },
+        {
+          "name": "AddConfigurationGroupPayload",
+          "kind": "type",
+          "line": 995,
+          "exported": true,
+          "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>"
+        },
+        {
+          "name": "UpdateConfigurationGroupPayloadSchema",
+          "kind": "const",
+          "line": 997,
+          "exported": true,
+          "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
+        },
+        {
+          "name": "UpdateConfigurationGroupPayload",
+          "kind": "type",
+          "line": 1001,
+          "exported": true,
+          "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>"
+        },
+        {
+          "name": "AddConfigurationPayloadSchema",
+          "kind": "const",
+          "line": 1003,
+          "exported": true,
+          "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
+        },
+        {
+          "name": "AddConfigurationPayload",
+          "kind": "type",
+          "line": 1007,
+          "exported": true,
+          "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>"
+        },
+        {
+          "name": "UpdateConfigurationPayloadSchema",
+          "kind": "const",
+          "line": 1009,
+          "exported": true,
+          "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
+        },
+        {
+          "name": "UpdateConfigurationPayload",
+          "kind": "type",
+          "line": 1013,
+          "exported": true,
+          "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>"
         }
       ]
     },
@@ -6551,156 +6708,128 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export interface ConfigurationGroup { id: number; name: string; project_id: number; configs: Configuration[]; }"
         },
         {
-          "name": "AddConfigurationGroupPayload",
-          "kind": "interface",
-          "line": 503,
-          "exported": true,
-          "signature": "export interface AddConfigurationGroupPayload { name: string; }"
-        },
-        {
-          "name": "UpdateConfigurationGroupPayload",
-          "kind": "interface",
-          "line": 508,
-          "exported": true,
-          "signature": "export interface UpdateConfigurationGroupPayload { name?: string; }"
-        },
-        {
-          "name": "AddConfigurationPayload",
-          "kind": "interface",
-          "line": 513,
-          "exported": true,
-          "signature": "export interface AddConfigurationPayload { name: string; }"
-        },
-        {
-          "name": "UpdateConfigurationPayload",
-          "kind": "interface",
-          "line": 518,
-          "exported": true,
-          "signature": "export interface UpdateConfigurationPayload { name?: string; }"
-        },
-        {
           "name": "CacheEntry",
           "kind": "interface",
-          "line": 523,
+          "line": 508,
           "exported": true,
           "signature": "export interface CacheEntry<T> { data: T; expiry: number; }"
         },
         {
           "name": "RateLimiterConfig",
           "kind": "interface",
-          "line": 528,
+          "line": 513,
           "exported": true,
           "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }"
         },
         {
           "name": "GetPlansOptions",
           "kind": "interface",
-          "line": 540,
+          "line": 525,
           "exported": true,
           "signature": "export interface GetPlansOptions { created_after?: number; created_before?: number; created_by?: number[]; is_completed?: 0 | 1; milestone_id?: number[]; limit?: number; offset?: number; }"
         },
         {
           "name": "GetTestsOptions",
           "kind": "interface",
-          "line": 560,
+          "line": 545,
           "exported": true,
           "signature": "export interface GetTestsOptions { status_id?: number[]; limit?: number; offset?: number; }"
         },
         {
           "name": "GetResultsOptions",
           "kind": "interface",
-          "line": 573,
+          "line": 558,
           "exported": true,
           "signature": "export interface GetResultsOptions { created_after?: number; created_before?: number; created_by?: number[]; status_id?: number[]; defects_filter?: string; limit?: number; offset?: number; }"
         },
         {
           "name": "GetMilestonesOptions",
           "kind": "interface",
-          "line": 597,
+          "line": 582,
           "exported": true,
           "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }"
         },
         {
           "name": "AddUserPayload",
           "kind": "interface",
-          "line": 609,
+          "line": 594,
           "exported": true,
           "signature": "export interface AddUserPayload { email: string; name: string; is_active?: boolean; role_id?: number; password?: string; }"
         },
         {
           "name": "UpdateUserPayload",
           "kind": "interface",
-          "line": 623,
+          "line": 608,
           "exported": true,
           "signature": "export interface UpdateUserPayload { email?: string; name?: string; is_active?: boolean; role_id?: number; password?: string; }"
         },
         {
           "name": "Role",
           "kind": "interface",
-          "line": 639,
+          "line": 624,
           "exported": true,
           "signature": "export interface Role { id: number; name: string; is_default: boolean; }"
         },
         {
           "name": "Group",
           "kind": "interface",
-          "line": 651,
+          "line": 636,
           "exported": true,
           "signature": "export interface Group { id: number; name: string; user_ids?: number[]; }"
         },
         {
           "name": "AddGroupPayload",
           "kind": "interface",
-          "line": 661,
+          "line": 646,
           "exported": true,
           "signature": "export interface AddGroupPayload { name: string; user_ids?: number[]; }"
         },
         {
           "name": "UpdateGroupPayload",
           "kind": "interface",
-          "line": 669,
+          "line": 654,
           "exported": true,
           "signature": "export interface UpdateGroupPayload { name?: string; user_ids?: number[]; }"
         },
         {
           "name": "Attachment",
           "kind": "interface",
-          "line": 679,
+          "line": 664,
           "exported": true,
           "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }"
         },
         {
           "name": "Dataset",
           "kind": "interface",
-          "line": 710,
+          "line": 695,
           "exported": true,
           "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }"
         },
         {
           "name": "AddDatasetPayload",
           "kind": "interface",
-          "line": 724,
+          "line": 709,
           "exported": true,
           "signature": "export interface AddDatasetPayload { name: string; }"
         },
         {
           "name": "UpdateDatasetPayload",
           "kind": "interface",
-          "line": 730,
+          "line": 715,
           "exported": true,
           "signature": "export interface UpdateDatasetPayload { name?: string; }"
         },
         {
           "name": "Report",
           "kind": "interface",
-          "line": 738,
+          "line": 723,
           "exported": true,
           "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }"
         },
         {
           "name": "ReportResult",
           "kind": "interface",
-          "line": 750,
+          "line": 735,
           "exported": true,
           "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }"
         }

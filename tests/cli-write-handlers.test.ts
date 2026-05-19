@@ -62,6 +62,14 @@ import {
     handleSharedStepUpdate,
     handleSharedStepDelete,
 } from '../src/cli/handlers/shared-step-write.js';
+import {
+    handleConfigurationGroupAdd,
+    handleConfigurationGroupUpdate,
+    handleConfigurationGroupDelete,
+    handleConfigurationAdd,
+    handleConfigurationUpdate,
+    handleConfigurationDelete,
+} from '../src/cli/handlers/configuration-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
@@ -110,6 +118,12 @@ interface MockedClient {
     addSharedStep: ReturnType<typeof vi.fn>;
     updateSharedStep: ReturnType<typeof vi.fn>;
     deleteSharedStep: ReturnType<typeof vi.fn>;
+    addConfigurationGroup: ReturnType<typeof vi.fn>;
+    updateConfigurationGroup: ReturnType<typeof vi.fn>;
+    deleteConfigurationGroup: ReturnType<typeof vi.fn>;
+    addConfiguration: ReturnType<typeof vi.fn>;
+    updateConfiguration: ReturnType<typeof vi.fn>;
+    deleteConfiguration: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -158,6 +172,14 @@ function buildClient(): MockedClient {
         addSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps', project_id: 1 }),
         updateSharedStep: vi.fn().mockResolvedValue({ id: 55, title: 'Login Steps (v2)', project_id: 1 }),
         deleteSharedStep: vi.fn().mockResolvedValue(undefined),
+        addConfigurationGroup: vi.fn().mockResolvedValue({ id: 55, name: 'Browsers', project_id: 7, configs: [] }),
+        updateConfigurationGroup: vi
+            .fn()
+            .mockResolvedValue({ id: 55, name: 'Desktop Browsers', project_id: 7, configs: [] }),
+        deleteConfigurationGroup: vi.fn().mockResolvedValue(undefined),
+        addConfiguration: vi.fn().mockResolvedValue({ id: 66, name: 'Chrome', group_id: 55 }),
+        updateConfiguration: vi.fn().mockResolvedValue({ id: 66, name: 'Chrome (stable)', group_id: 55 }),
+        deleteConfiguration: vi.fn().mockResolvedValue(undefined),
     };
 }
 
@@ -2497,5 +2519,316 @@ describe('handleSharedStepDelete', () => {
                 destructive: true,
             }),
         );
+    });
+});
+
+// ── configuration-group add/update/delete ─────────────────────────────────
+
+describe('handleConfigurationGroupAdd', () => {
+    it('calls client.addConfigurationGroup with parsed payload and emits result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"Browsers"}' });
+        await handleConfigurationGroupAdd(ctx);
+        expect(client.addConfigurationGroup).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'Browsers' }));
+        expect(out).toHaveBeenCalledWith({ id: 55, name: 'Browsers', project_id: 7, configs: [] });
+    });
+
+    it('dry-run does not call client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"name":"Browsers"}',
+            dryRun: true,
+        });
+        await handleConfigurationGroupAdd(ctx);
+        expect(client.addConfigurationGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'configuration-group add', projectId: 7 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleConfigurationGroupAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body without name (Zod failure)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{}' });
+        await expect(handleConfigurationGroupAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"name":42}' });
+        await expect(handleConfigurationGroupAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when project_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"name":"x"}' });
+        await expect(handleConfigurationGroupAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+
+    it('rejects when project_id is exponential-notation 1e2 (tightened parseId)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1e2'], dataFlag: '{"name":"x"}' });
+        await expect(handleConfigurationGroupAdd(ctx)).rejects.toThrow(/project_id/);
+    });
+});
+
+describe('handleConfigurationGroupUpdate', () => {
+    it('calls client.updateConfigurationGroup with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dataFlag: '{"name":"Desktop Browsers"}',
+        });
+        await handleConfigurationGroupUpdate(ctx);
+        expect(client.updateConfigurationGroup).toHaveBeenCalledWith(
+            55,
+            expect.objectContaining({ name: 'Desktop Browsers' }),
+        );
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts empty update body ({} is valid)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'], dataFlag: '{}' });
+        await handleConfigurationGroupUpdate(ctx);
+        expect(client.updateConfigurationGroup).toHaveBeenCalledWith(55, expect.any(Object));
+    });
+
+    it('dry-run does not call client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dataFlag: '{"name":"x"}',
+            dryRun: true,
+        });
+        await handleConfigurationGroupUpdate(ctx);
+        expect(client.updateConfigurationGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'configuration-group update', configGroupId: 55 }),
+        );
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], dataFlag: '{"name":true}' });
+        await expect(handleConfigurationGroupUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when config_group_id is zero', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{}' });
+        await expect(handleConfigurationGroupUpdate(ctx)).rejects.toThrow(/config_group_id/);
+    });
+});
+
+describe('handleConfigurationGroupDelete', () => {
+    it('hard-delete: calls client.deleteConfigurationGroup with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], confirmDestructive: true });
+        await handleConfigurationGroupDelete(ctx);
+        expect(client.deleteConfigurationGroup).toHaveBeenCalledWith(55);
+        expect(out).toHaveBeenCalledWith({ configGroupId: 55, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'] });
+        await expect(handleConfigurationGroupDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('dry-run wins over --yes (no API call; preview marked destructive)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            confirmDestructive: true,
+            dryRun: true,
+        });
+        await handleConfigurationGroupDelete(ctx);
+        expect(client.deleteConfigurationGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'configuration-group delete',
+                configGroupId: 55,
+                destructive: true,
+            }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_config_group)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['55'],
+            confirmDestructive: true,
+            soft: true,
+        });
+        await expect(handleConfigurationGroupDelete(ctx)).rejects.toThrow(
+            /configuration-group delete does not support --soft/,
+        );
+    });
+
+    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['55'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await expect(handleConfigurationGroupDelete(ctx)).rejects.toThrow(
+            /configuration-group delete does not support --soft/,
+        );
+    });
+
+    it('rejects when config_group_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], confirmDestructive: true });
+        await expect(handleConfigurationGroupDelete(ctx)).rejects.toThrow(/config_group_id/);
+    });
+});
+
+// ── configuration add/update/delete ──────────────────────────────────────
+
+describe('handleConfigurationAdd', () => {
+    it('calls client.addConfiguration with parsed payload and emits result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['55'], dataFlag: '{"name":"Chrome"}' });
+        await handleConfigurationAdd(ctx);
+        expect(client.addConfiguration).toHaveBeenCalledWith(55, expect.objectContaining({ name: 'Chrome' }));
+        expect(out).toHaveBeenCalledWith({ id: 66, name: 'Chrome', group_id: 55 });
+    });
+
+    it('dry-run does not call client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            dataFlag: '{"name":"Chrome"}',
+            dryRun: true,
+        });
+        await handleConfigurationAdd(ctx);
+        expect(client.addConfiguration).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'configuration add', configGroupId: 55 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'] });
+        await expect(handleConfigurationAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body without name (Zod failure)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], dataFlag: '{}' });
+        await expect(handleConfigurationAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], dataFlag: '{"name":42}' });
+        await expect(handleConfigurationAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when config_group_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"name":"x"}' });
+        await expect(handleConfigurationAdd(ctx)).rejects.toThrow(/config_group_id/);
+    });
+});
+
+describe('handleConfigurationUpdate', () => {
+    it('calls client.updateConfiguration with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['66'],
+            dataFlag: '{"name":"Chrome (stable)"}',
+        });
+        await handleConfigurationUpdate(ctx);
+        expect(client.updateConfiguration).toHaveBeenCalledWith(
+            66,
+            expect.objectContaining({ name: 'Chrome (stable)' }),
+        );
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('accepts empty update body ({} is valid)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['66'], dataFlag: '{}' });
+        await handleConfigurationUpdate(ctx);
+        expect(client.updateConfiguration).toHaveBeenCalledWith(66, expect.any(Object));
+    });
+
+    it('dry-run does not call client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['66'],
+            dataFlag: '{"name":"x"}',
+            dryRun: true,
+        });
+        await handleConfigurationUpdate(ctx);
+        expect(client.updateConfiguration).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'configuration update', configId: 66 }),
+        );
+    });
+
+    it('rejects body with non-string name (no coercion)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['66'], dataFlag: '{"name":[]}' });
+        await expect(handleConfigurationUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when config_id is zero', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{}' });
+        await expect(handleConfigurationUpdate(ctx)).rejects.toThrow(/config_id/);
+    });
+});
+
+describe('handleConfigurationDelete', () => {
+    it('hard-delete: calls client.deleteConfiguration with --yes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['66'], confirmDestructive: true });
+        await handleConfigurationDelete(ctx);
+        expect(client.deleteConfiguration).toHaveBeenCalledWith(66);
+        expect(out).toHaveBeenCalledWith({ configId: 66, deleted: true });
+    });
+
+    it('rejects without --yes', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['66'] });
+        await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/--yes to confirm/);
+    });
+
+    it('dry-run wins over --yes (no API call; preview marked destructive)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['66'],
+            confirmDestructive: true,
+            dryRun: true,
+        });
+        await handleConfigurationDelete(ctx);
+        expect(client.deleteConfiguration).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'configuration delete',
+                configId: 66,
+                destructive: true,
+            }),
+        );
+    });
+
+    it('rejects --soft (TestRail does not support soft on delete_config)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['66'],
+            confirmDestructive: true,
+            soft: true,
+        });
+        await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/configuration delete does not support --soft/);
+    });
+
+    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['66'],
+            confirmDestructive: true,
+            dryRun: true,
+            soft: true,
+        });
+        await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/configuration delete does not support --soft/);
+    });
+
+    it('rejects when config_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['1.5'], confirmDestructive: true });
+        await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/config_id/);
     });
 });
