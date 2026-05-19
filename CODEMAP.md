@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "387bf80ed8adc07a2a2626438844183d4c49ac5e2aeb44efe6941aa805b352c5",
+  "sourceHash": "4b71469ae7846cddeeb2e523e07a5691212ac937ab644711cc2f541a46838a7b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1422,35 +1422,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 64,
+          "line": 71,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 133,
+          "line": 143,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 148,
+          "line": 158,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 155,
+          "line": 165,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 159,
+          "line": 169,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1933,23 +1933,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handlePlanAdd",
           "kind": "function",
-          "line": 6,
+          "line": 13,
           "exported": true,
           "signature": "export async function handlePlanAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanUpdate",
           "kind": "function",
-          "line": 17,
+          "line": 24,
           "exported": true,
           "signature": "export async function handlePlanUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanAddEntry",
           "kind": "function",
-          "line": 28,
+          "line": 35,
           "exported": true,
           "signature": "export async function handlePlanAddEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanAddRunToEntry",
+          "kind": "function",
+          "line": 46,
+          "exported": true,
+          "signature": "export async function handlePlanAddRunToEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanUpdateEntry",
+          "kind": "function",
+          "line": 65,
+          "exported": true,
+          "signature": "export async function handlePlanUpdateEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanUpdateRunInEntry",
+          "kind": "function",
+          "line": 84,
+          "exported": true,
+          "signature": "export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2358,9 +2379,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export function parseId(raw: string | undefined, name: string): number"
         },
         {
+          "name": "parseEntryId",
+          "kind": "function",
+          "line": 45,
+          "exported": true,
+          "signature": "export function parseEntryId(raw: string | undefined, name: string): string"
+        },
+        {
           "name": "optInt",
           "kind": "function",
-          "line": 38,
+          "line": 52,
           "exported": true,
           "signature": "export function optInt(raw: string | undefined): number | undefined"
         }
@@ -2409,7 +2437,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 149,
+          "line": 152,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2460,28 +2488,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 49,
+          "line": 52,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 54,
+          "line": 57,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 92,
+          "line": 95,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 696,
+          "line": 732,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

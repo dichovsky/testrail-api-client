@@ -1946,6 +1946,166 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('entry_id');
         });
+
+        // ── Format-coverage symmetry ──────────────────────────────────────
+
+        it('plan add-run-to-entry --format json emits parseable JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}', '--format', 'json'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim());
+            expect(parsed).toMatchObject({ id: 1 });
+        });
+
+        it('plan update-entry --format table renders the result as a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"renamed"}', '--format', 'table'],
+                [jsonResponse(MOCK_PLAN_ENTRY)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-entry --format json emits parseable JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}', '--format', 'json'],
+                [jsonResponse(MOCK_PLAN_ENTRY)],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim());
+            expect(parsed).toBeTruthy();
+        });
+
+        it('plan update-run-in-entry --format table renders the result as a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'update-run-in-entry', '77', '--data', '{}', '--format', 'table'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Run 1');
+        });
+
+        // ── Error-path symmetry (401, 403, 404, network) ──────────────────
+
+        it('plan update-entry surfaces 401 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-entry surfaces 403 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-entry surfaces 404 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-entry surfaces network error as exit 1', async () => {
+            mockFetch.mockReset();
+            mockFetch.mockRejectedValue(new TypeError('fetch failed: ECONNREFUSED'));
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'update-entry',
+                '50',
+                'abc-def-uuid',
+                '--data',
+                '{"name":"x"}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan add-run-to-entry surfaces 401 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan add-run-to-entry surfaces 403 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan add-run-to-entry surfaces network error as exit 1', async () => {
+            mockFetch.mockReset();
+            mockFetch.mockRejectedValue(new TypeError('fetch failed: ECONNREFUSED'));
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'add-run-to-entry',
+                '50',
+                'abc-def-uuid',
+                '--data',
+                '{"config_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-run-in-entry surfaces 401 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'update-run-in-entry', '77', '--data', '{}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-run-in-entry surfaces 403 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'update-run-in-entry', '77', '--data', '{}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-run-in-entry surfaces 404 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'update-run-in-entry', '77', '--data', '{}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-run-in-entry surfaces network error as exit 1', async () => {
+            mockFetch.mockReset();
+            mockFetch.mockRejectedValue(new TypeError('fetch failed: ECONNREFUSED'));
+            const { stderr, exitCodes } = await runCli(['plan', 'update-run-in-entry', '77', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        // ── Whitespace-only entry_id (subprocess) ─────────────────────────
+
+        it('plan update-entry exits 1 when entry_id is whitespace-only', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'update-entry', '50', '   ', '--data', '{"name":"x"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('entry_id');
+        });
     });
 
     describe('result add-bulk', () => {
