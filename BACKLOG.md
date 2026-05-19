@@ -30,10 +30,7 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 #### 🔴 P0 — daily-use endpoints
 
 <!-- `get_results_for_run/{run_id}` is already covered by the existing `result list` CLI command.
-     `add_result_for_case/{run_id}/{case_id}` is already covered by the existing `result add` CLI command.
-     `get_results/{test_id}` and `get_results_for_case/{run_id}/{case_id}` are now covered by
-     `result list-for-test` and `result list-for-case` (shipped — see BACKLOG-ARCHIVE.md).
-     See docs/API-MAPPING.md (Results section) for the binding. -->
+     `add_result_for_case/{run_id}/{case_id}` is already covered by the existing `result add` CLI command. -->
 
 - [ ] 🔴 📦 ⚠️ CLI: `plan close` (POST `close_plan/{plan_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan delete` (POST `delete_plan/{plan_id}`)

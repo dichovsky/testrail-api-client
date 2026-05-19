@@ -1369,6 +1369,25 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
         });
 
+        it('result list-for-case renders --format table without throwing', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['result', 'list-for-case', '100', '87', '--format', 'table'],
+                [
+                    jsonResponse({
+                        results: [
+                            { id: 7, test_id: 99, status_id: 1, created_by: 1, created_on: 0 },
+                            { id: 8, test_id: 99, status_id: 5, created_by: 1, created_on: 0 },
+                        ],
+                    }),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            // Table renderer emits column headers; presence of `id` and `status_id`
+            // suffices as a smoke check.
+            expect(stdout).toContain('id');
+            expect(stdout).toContain('status_id');
+        });
+
         it('result list-for-case --format json emits parseable JSON array', async () => {
             const { exitCodes, stdout } = await runCli(
                 ['result', 'list-for-case', '100', '87', '--format', 'json'],
@@ -1390,6 +1409,13 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(errMatch);
+        });
+
+        it('result list-for-case surfaces network error as exit 1', async () => {
+            mockFetch.mockReset();
+            mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+            const { exitCodes } = await runCli(['result', 'list-for-case', '100', '87']);
+            expect(exitCodes).toContain(1);
         });
     });
 

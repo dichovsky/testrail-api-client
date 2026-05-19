@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "a750df48ec9cf1bf9aa2fdc81e8dbbe6147aa5e0878bf46ae537f8e4f2549b98",
+  "sourceHash": "017fbd717b80fe47321d8c5d69e9d3d4378ffb7c0389ee874dc14268176e8d39",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -82,7 +82,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddDatasetPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 773,
+      "line": 775,
       "signature": "export interface AddDatasetPayload { name: string; }",
       "jsdoc": "Payload for creating a dataset via POST /add_dataset/{project_id}",
       "typeOnly": true
@@ -91,7 +91,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddGroupPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 659,
+      "line": 661,
       "signature": "export interface AddGroupPayload { name: string; user_ids?: number[]; }",
       "jsdoc": "Payload for creating a new group via POST /add_group (TestRail 7.5+)",
       "typeOnly": true
@@ -280,7 +280,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddSharedStepPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 719,
+      "line": 721,
       "signature": "export interface AddSharedStepPayload { title: string; custom_steps_separated?: Record<string, unknown>[]; }",
       "jsdoc": "Payload for creating a shared step via POST /add_shared_step/{project_id} (TestRail 7.0+)",
       "typeOnly": true
@@ -304,7 +304,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddUserPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 607,
+      "line": 609,
       "signature": "export interface AddUserPayload { email: string; name: string; is_active?: boolean; role_id?: number; password?: string; }",
       "jsdoc": "Payload for creating a new user via POST /add_user (TestRail 7.3+)",
       "typeOnly": true
@@ -313,7 +313,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddVariablePayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 745,
+      "line": 747,
       "signature": "export interface AddVariablePayload { name: string; }",
       "jsdoc": "Payload for creating a variable via POST /add_variable/{project_id}",
       "typeOnly": true
@@ -322,7 +322,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Attachment",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 677,
+      "line": 679,
       "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }",
       "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints",
       "typeOnly": true
@@ -463,7 +463,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Dataset",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 759,
+      "line": 761,
       "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }",
       "jsdoc": "A dataset for data-driven testing",
       "typeOnly": true
@@ -529,7 +529,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetMilestonesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 595,
+      "line": 597,
       "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }",
       "jsdoc": "Filter options for `getMilestones()`.",
       "typeOnly": true
@@ -581,7 +581,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Group",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 649,
+      "line": 651,
       "signature": "export interface Group { id: number; name: string; user_ids?: number[]; }",
       "jsdoc": "A user group returned by GET /get_group and GET /get_groups (TestRail 7.5+)",
       "typeOnly": true
@@ -764,7 +764,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Report",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 787,
+      "line": 789,
       "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}",
       "typeOnly": true
@@ -773,7 +773,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ReportResult",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 799,
+      "line": 801,
       "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}",
       "typeOnly": true
@@ -841,7 +841,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Role",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 637,
+      "line": 639,
       "signature": "export interface Role { id: number; name: string; is_default: boolean; }",
       "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
       "typeOnly": true
@@ -887,7 +887,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "SharedStep",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 697,
+      "line": 699,
       "signature": "export interface SharedStep { id: number; title: string; project_id?: number; case_ids?: number[]; created_on?: number; created_by?: number; updated_on?: number; updated_by?: number; custom_steps_sepa…",
       "jsdoc": "A shared step set returned by GET /get_shared_step (TestRail 7.0+)",
       "typeOnly": true
@@ -1074,7 +1074,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateDatasetPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 779,
+      "line": 781,
       "signature": "export interface UpdateDatasetPayload { name?: string; }",
       "jsdoc": "Payload for updating a dataset via POST /update_dataset/{dataset_id}",
       "typeOnly": true
@@ -1083,7 +1083,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateGroupPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 667,
+      "line": 669,
       "signature": "export interface UpdateGroupPayload { name?: string; user_ids?: number[]; }",
       "jsdoc": "Payload for updating an existing group via POST /update_group/{group_id} (TestRail 7.5+)",
       "typeOnly": true
@@ -1197,7 +1197,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateSharedStepPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 727,
+      "line": 729,
       "signature": "export interface UpdateSharedStepPayload { title?: string; custom_steps_separated?: Record<string, unknown>[]; }",
       "jsdoc": "Payload for updating a shared step via POST /update_shared_step/{shared_step_id} (TestRail 7.0+)",
       "typeOnly": true
@@ -1221,7 +1221,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateUserPayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 621,
+      "line": 623,
       "signature": "export interface UpdateUserPayload { email?: string; name?: string; is_active?: boolean; role_id?: number; password?: string; }",
       "jsdoc": "Payload for updating an existing user via POST /update_user/{user_id} (TestRail 7.3+)",
       "typeOnly": true
@@ -1230,7 +1230,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateVariablePayload",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 751,
+      "line": 753,
       "signature": "export interface UpdateVariablePayload { name?: string; }",
       "jsdoc": "Payload for updating a variable via POST /update_variable/{variable_id}",
       "typeOnly": true
@@ -1254,7 +1254,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Variable",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 737,
+      "line": 739,
       "signature": "export interface Variable { id: number; name: string; }",
       "jsdoc": "A variable used in data-driven testing",
       "typeOnly": true
@@ -4556,22 +4556,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addResult",
               "kind": "method",
-              "line": 85
+              "line": 84
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 91
+              "line": 90
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 103
+              "line": 102
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 114
+              "line": 113
             }
           ]
         }
@@ -6226,133 +6226,133 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetMilestonesOptions",
           "kind": "interface",
-          "line": 595,
+          "line": 597,
           "exported": true,
           "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }"
         },
         {
           "name": "AddUserPayload",
           "kind": "interface",
-          "line": 607,
+          "line": 609,
           "exported": true,
           "signature": "export interface AddUserPayload { email: string; name: string; is_active?: boolean; role_id?: number; password?: string; }"
         },
         {
           "name": "UpdateUserPayload",
           "kind": "interface",
-          "line": 621,
+          "line": 623,
           "exported": true,
           "signature": "export interface UpdateUserPayload { email?: string; name?: string; is_active?: boolean; role_id?: number; password?: string; }"
         },
         {
           "name": "Role",
           "kind": "interface",
-          "line": 637,
+          "line": 639,
           "exported": true,
           "signature": "export interface Role { id: number; name: string; is_default: boolean; }"
         },
         {
           "name": "Group",
           "kind": "interface",
-          "line": 649,
+          "line": 651,
           "exported": true,
           "signature": "export interface Group { id: number; name: string; user_ids?: number[]; }"
         },
         {
           "name": "AddGroupPayload",
           "kind": "interface",
-          "line": 659,
+          "line": 661,
           "exported": true,
           "signature": "export interface AddGroupPayload { name: string; user_ids?: number[]; }"
         },
         {
           "name": "UpdateGroupPayload",
           "kind": "interface",
-          "line": 667,
+          "line": 669,
           "exported": true,
           "signature": "export interface UpdateGroupPayload { name?: string; user_ids?: number[]; }"
         },
         {
           "name": "Attachment",
           "kind": "interface",
-          "line": 677,
+          "line": 679,
           "exported": true,
           "signature": "export interface Attachment { attachment_id: number; name: string; filename?: string; size?: number; created_on?: number; created_by?: number; entity_id?: number; }"
         },
         {
           "name": "SharedStep",
           "kind": "interface",
-          "line": 697,
+          "line": 699,
           "exported": true,
           "signature": "export interface SharedStep { id: number; title: string; project_id?: number; case_ids?: number[]; created_on?: number; created_by?: number; updated_on?: number; updated_by?: number; custom_steps_sepa…"
         },
         {
           "name": "AddSharedStepPayload",
           "kind": "interface",
-          "line": 719,
+          "line": 721,
           "exported": true,
           "signature": "export interface AddSharedStepPayload { title: string; custom_steps_separated?: Record<string, unknown>[]; }"
         },
         {
           "name": "UpdateSharedStepPayload",
           "kind": "interface",
-          "line": 727,
+          "line": 729,
           "exported": true,
           "signature": "export interface UpdateSharedStepPayload { title?: string; custom_steps_separated?: Record<string, unknown>[]; }"
         },
         {
           "name": "Variable",
           "kind": "interface",
-          "line": 737,
+          "line": 739,
           "exported": true,
           "signature": "export interface Variable { id: number; name: string; }"
         },
         {
           "name": "AddVariablePayload",
           "kind": "interface",
-          "line": 745,
+          "line": 747,
           "exported": true,
           "signature": "export interface AddVariablePayload { name: string; }"
         },
         {
           "name": "UpdateVariablePayload",
           "kind": "interface",
-          "line": 751,
+          "line": 753,
           "exported": true,
           "signature": "export interface UpdateVariablePayload { name?: string; }"
         },
         {
           "name": "Dataset",
           "kind": "interface",
-          "line": 759,
+          "line": 761,
           "exported": true,
           "signature": "export interface Dataset { id: number; name: string; project_id?: number; created_on?: number; created_by?: number; }"
         },
         {
           "name": "AddDatasetPayload",
           "kind": "interface",
-          "line": 773,
+          "line": 775,
           "exported": true,
           "signature": "export interface AddDatasetPayload { name: string; }"
         },
         {
           "name": "UpdateDatasetPayload",
           "kind": "interface",
-          "line": 779,
+          "line": 781,
           "exported": true,
           "signature": "export interface UpdateDatasetPayload { name?: string; }"
         },
         {
           "name": "Report",
           "kind": "interface",
-          "line": 787,
+          "line": 789,
           "exported": true,
           "signature": "export interface Report { id: number; name: string; description?: string; is_shared?: boolean; }"
         },
         {
           "name": "ReportResult",
           "kind": "interface",
-          "line": 799,
+          "line": 801,
           "exported": true,
           "signature": "export interface ReportResult { report_url: string; user_report_url?: string; }"
         }

@@ -84,8 +84,9 @@ function buildCtx(
 
 // IDs that must be rejected by parseId() — the read handlers MUST refuse
 // these before any client call leaves the process. "1e2" / "0x1" trip the
-// positive-integer regex gate because they would otherwise round-trip
-// through Number() cleanly.
+// positive-integer regex gate (POSITIVE_INT_RE in src/cli/ids.ts) before
+// Number() is called; they would otherwise round-trip through Number()
+// cleanly.
 const INVALID_IDS: readonly string[] = ['0', '-1', '1.5', 'abc', '', '1e2', '0x1'];
 
 // ── handleSectionGet ──────────────────────────────────────────────────────
