@@ -17,7 +17,11 @@ import {
     DEFAULT_MAX_CACHE_SIZE,
     DEFAULT_RATE_LIMIT_MAX_REQUESTS,
     DEFAULT_RATE_LIMIT_WINDOW_MS,
+    DEFAULT_MAX_JSON_RESPONSE_BYTES,
+    DEFAULT_MAX_BINARY_RESPONSE_BYTES,
+    MAX_RESPONSE_BYTES_LIMIT,
 } from './constants.js';
+import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
 
 // Reject loopback, link-local, and private-range hosts to prevent SSRF.
 // All requests carry a full Authorization header, making the client a credentialed
@@ -194,6 +198,13 @@ export class TestRailClientCore {
     private isDestroyed = false;
     private readonly hostname: string;
     private readonly allowPrivateHosts: boolean;
+    private readonly maxJsonResponseBytes: number;
+    private readonly maxBinaryResponseBytes: number;
+    /**
+     * Body-read deadline in milliseconds. `0` means no deadline (only the
+     * byte cap protects). Resolved from `config.bodyTimeout ?? config.timeout`.
+     */
+    private readonly bodyTimeout: number;
 
     constructor(config: TestRailConfig) {
         this.validateConfig(config);
@@ -222,6 +233,12 @@ export class TestRailClientCore {
             windowMs: config.rateLimiter?.windowMs ?? DEFAULT_RATE_LIMIT_WINDOW_MS,
             requests: [],
         };
+        this.maxJsonResponseBytes = config.maxJsonResponseBytes ?? DEFAULT_MAX_JSON_RESPONSE_BYTES;
+        this.maxBinaryResponseBytes = config.maxBinaryResponseBytes ?? DEFAULT_MAX_BINARY_RESPONSE_BYTES;
+        // `bodyTimeout: 0` is honored as "no deadline" (only the byte cap
+        // protects). `undefined` falls back to the request `timeout` so the
+        // body read is always bounded unless callers explicitly opt out.
+        this.bodyTimeout = config.bodyTimeout ?? this.timeout;
 
         // DNS host validation runs fresh before every request (see awaitDnsValidation).
         // Resolving once at construction would let a DNS-rebinding attacker pin a
@@ -326,6 +343,47 @@ export class TestRailClientCore {
                 config.maxCacheSize < 0
             ) {
                 throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
+            }
+        }
+
+        // Validate response-body caps (SEC #12). Must be positive integers
+        // within MAX_RESPONSE_BYTES_LIMIT so a caller cannot disable the
+        // guard by passing Number.MAX_SAFE_INTEGER or a negative value that
+        // would silently wrap around to "never trip".
+        if (config.maxJsonResponseBytes !== undefined) {
+            if (
+                typeof config.maxJsonResponseBytes !== 'number' ||
+                !Number.isInteger(config.maxJsonResponseBytes) ||
+                config.maxJsonResponseBytes <= 0 ||
+                config.maxJsonResponseBytes > MAX_RESPONSE_BYTES_LIMIT
+            ) {
+                throw new TestRailValidationError(
+                    `maxJsonResponseBytes must be a positive integer not exceeding ${MAX_RESPONSE_BYTES_LIMIT} bytes`,
+                );
+            }
+        }
+        if (config.maxBinaryResponseBytes !== undefined) {
+            if (
+                typeof config.maxBinaryResponseBytes !== 'number' ||
+                !Number.isInteger(config.maxBinaryResponseBytes) ||
+                config.maxBinaryResponseBytes <= 0 ||
+                config.maxBinaryResponseBytes > MAX_RESPONSE_BYTES_LIMIT
+            ) {
+                throw new TestRailValidationError(
+                    `maxBinaryResponseBytes must be a positive integer not exceeding ${MAX_RESPONSE_BYTES_LIMIT} bytes`,
+                );
+            }
+        }
+        // Validate body deadline (SEC #21). `0` is allowed (= no deadline);
+        // negative or fractional values are rejected.
+        if (config.bodyTimeout !== undefined) {
+            if (
+                typeof config.bodyTimeout !== 'number' ||
+                !Number.isInteger(config.bodyTimeout) ||
+                config.bodyTimeout < 0 ||
+                config.bodyTimeout > MAX_TIMEOUT_MS
+            ) {
+                throw new TestRailValidationError('bodyTimeout must be a non-negative integer not exceeding 5 minutes');
             }
         }
 
@@ -694,12 +752,31 @@ export class TestRailClientCore {
 
         try {
             const response: Response = await fetch(url, options);
+            // Headers received — header timeout has done its job. The body
+            // read is bounded independently by readBodyWithLimits, so clearing
+            // here does not re-open the slowloris-on-body window (SEC #21).
             clearTimeout(timeoutId);
 
             this.assertNotRedirect(response);
 
+            const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+
             if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
+                // Error bodies inherit the same cap so an attacker cannot OOM
+                // the client by responding 4xx/5xx with a 10 GiB payload.
+                // If the body read itself hits a limit (cap or timeout), surface
+                // that TestRailApiError immediately — no retry, since repeating
+                // the request would compound the wait by (maxRetries+1)×bodyTimeout.
+                // Only generic decode errors fall back to 'Unknown error'.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, jsonLimits);
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
 
                 // Retry strategy:
                 //   429 (rate limit) — retried for ALL methods. TestRail's rate limiter
@@ -738,7 +815,7 @@ export class TestRailClientCore {
                 this.clearCache();
             }
 
-            const responseText = await response.text();
+            const responseText = await readBodyAsText(response, jsonLimits);
             if (!responseText) {
                 return {} as T;
             }
@@ -836,12 +913,25 @@ export class TestRailClientCore {
 
         try {
             const response: Response = await fetch(url, options);
+            // Body read is bounded by readBodyWithLimits (SEC #21).
             clearTimeout(timeoutId);
 
             this.assertNotRedirect(response);
 
+            const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+
             if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
+                // Body-limit errors (cap / timeout) surface immediately — see
+                // the same pattern in request<T>() for the full rationale.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, jsonLimits);
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
 
                 // Mirrors the retry contract documented on request<T>():
                 // 429 retries for all methods; 5xx retries only for GET.
@@ -865,7 +955,7 @@ export class TestRailClientCore {
                 this.clearCache();
             }
 
-            return response.text();
+            return readBodyAsText(response, jsonLimits);
         } catch (error) {
             clearTimeout(timeoutId);
 
@@ -941,19 +1031,32 @@ export class TestRailClientCore {
                 redirect: 'manual',
             });
 
+            // Body read is bounded by readBodyWithLimits (SEC #21).
             clearTimeout(timeoutId);
 
             this.assertNotRedirect(response);
 
+            const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+
             if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
+                // Body-limit errors (cap / timeout) surface immediately — see
+                // the same pattern in request<T>() for the full rationale.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, jsonLimits);
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
                 throw new TestRailApiError(response.status, response.statusText, errorText);
             }
 
             // Invalidate cache after upload
             this.clearCache();
 
-            const responseText = await response.text();
+            const responseText = await readBodyAsText(response, jsonLimits);
             if (!responseText) {
                 return {} as T;
             }
@@ -1013,12 +1116,28 @@ export class TestRailClientCore {
                 redirect: 'manual',
             });
 
+            // Body read is bounded by readBodyWithLimits (SEC #21).
             clearTimeout(timeoutId);
 
             this.assertNotRedirect(response);
 
             if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
+                // Error bodies on the binary endpoint are still JSON/text — use the
+                // JSON cap so a server cannot OOM us with a giant error payload.
+                // Body-limit errors (cap / timeout) surface immediately — see
+                // the same pattern in request<T>() for the full rationale.
+                let errorText: string;
+                try {
+                    errorText = await readBodyAsText(response, {
+                        maxBytes: this.maxJsonResponseBytes,
+                        deadlineMs: this.bodyTimeout,
+                    });
+                } catch (bodyErr) {
+                    if (bodyErr instanceof TestRailApiError) {
+                        throw bodyErr;
+                    }
+                    errorText = 'Unknown error';
+                }
 
                 // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
                 // requestBinary is always GET (attachment download) and therefore
@@ -1036,7 +1155,18 @@ export class TestRailClientCore {
                 throw new TestRailApiError(response.status, response.statusText, errorText);
             }
 
-            return response.arrayBuffer();
+            // Binary success body: use the larger binary cap.
+            const bytes = await readBodyWithLimits(response, {
+                maxBytes: this.maxBinaryResponseBytes,
+                deadlineMs: this.bodyTimeout,
+            });
+            // readBodyWithLimits returns a subarray view of a growable buffer
+            // that may have spare capacity.  Return an ArrayBuffer that contains
+            // exactly the downloaded bytes — slice only when needed to avoid an
+            // unnecessary copy when the buffer happens to be exact-sized.
+            return bytes.byteLength === bytes.buffer.byteLength
+                ? (bytes.buffer as ArrayBuffer)
+                : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
         } catch (error) {
             clearTimeout(timeoutId);
 

@@ -110,7 +110,7 @@ on stderr. Never echo or log the API key.
 | milestone | delete | `<milestone_id>` | — (no body, requires `--yes`) | Delete a milestone (requires --yes; --soft NOT supported by TestRail) |
 | shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
 | shared-step | list | — | — | List shared steps in a project |
-| shared-step | history | `<shared_update_id>` | — | List revision history for a shared step (paginated) |
+| shared-step | history | `<shared_step_id>` | — | List revision history for a shared step (paginated) |
 | case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
 | case-field | add | — | `AddCaseFieldPayloadSchema` | Create a custom case field (admin-only); no path params, payload-only |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
