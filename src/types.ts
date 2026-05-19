@@ -39,6 +39,34 @@ export interface TestRailConfig {
      */
     allowPrivateHosts?: boolean;
     /**
+     * Maximum bytes accepted from a JSON, text, or multipart-error response
+     * body before the read is aborted with a `TestRailApiError` (SEC #12).
+     * Default: 10 MiB. Hard ceiling: 1 GiB.
+     *
+     * Override only when bulk-export endpoints (large `get_cases`,
+     * `get_results`) legitimately exceed the default. Lower values are also
+     * permitted — useful in memory-constrained containers.
+     */
+    maxJsonResponseBytes?: number;
+    /**
+     * Maximum bytes accepted from a binary response body (`requestBinary`,
+     * used for attachment downloads). Default: 100 MiB. Hard ceiling: 1 GiB.
+     *
+     * Larger attachments need an explicit override and still risk OOM since
+     * the whole buffer is materialised in memory.
+     */
+    maxBinaryResponseBytes?: number;
+    /**
+     * Wall-clock deadline applied to the response-body read, in milliseconds
+     * (SEC #21). When `undefined` (default), the request `timeout` is reused.
+     * Set to `0` to disable the deadline (only the byte cap protects, not
+     * recommended).
+     *
+     * Independent of `timeout`, which still applies to the
+     * connect/send/response-headers phase.
+     */
+    bodyTimeout?: number;
+    /**
      * Register Node.js process listeners (`exit`, `SIGINT`, `SIGTERM`) that
      * call {@link TestRailClient.destroy} on every active client and, for
      * SIGINT/SIGTERM, terminate the process with the conventional 130/143

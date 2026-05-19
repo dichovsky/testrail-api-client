@@ -23,7 +23,8 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `src/types.ts`                                          | Response interfaces + payload types that aren't Zod-derived (e.g., `GetCasesOptions`, `GetPlansOptions`, `AddSuitePayload`)                       |
 | `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for `AddCasePayload`, `AddRunPayload`, `AddPlanPayload`, etc. via `z.infer` |
 | `src/errors.ts`                                         | `TestRailApiError`, `TestRailValidationError`, `handleZodError`                                                                                   |
-| `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits)                                                                                              |
+| `src/body-reader.ts`                                    | Streaming response-body reader with byte cap (SEC #12) + wall-clock deadline (SEC #21); shared by all four fetch sites                            |
+| `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits, response-body caps)                                                                          |
 | `src/utils.ts`                                          | `base64Encode`, `sleep`                                                                                                                           |
 | `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                                  |
 | `src/cli/index.ts`                                      | CLI entry: arg parse, dispatch, auth, handler invocation (wrapped in `async main()`)                                                              |
@@ -53,6 +54,8 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 **Redirects (3xx):** All four fetch sites set `redirect: 'manual'` and pipe the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed `validateBaseUrl` + DNS pinning.
 
+**Response-body limits (SEC #12 + SEC #21):** Every fetch site reads the body through `readBodyWithLimits()` (`src/body-reader.ts`). Two caps apply: a **byte ceiling** (`maxJsonResponseBytes`, default 10 MiB — also used for text bodies and error payloads; `maxBinaryResponseBytes`, default 100 MiB — `requestBinary` success path only) and a **wall-clock deadline** (`bodyTimeout`, default = `timeout`). Exceeding either surfaces as `TestRailApiError(0, 'Response body too large' | 'Body read timeout', …)` with no retry. The header `timeout` is cleared after fetch returns; the body deadline is independent so a server that sends headers fast then dribbles bytes can no longer hold a socket open indefinitely. Config validator caps both byte limits at `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) so a caller cannot disable the guard with `Number.MAX_SAFE_INTEGER`. A non-streaming fallback exists for Response-like objects without `body.getReader()` (test mocks); it enforces the byte cap post-read but loses the slowloris protection.
+
 **Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, zeros credential, removes from set. Process signal handlers (`exit`/`SIGINT`/`SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8 — library consumers must not have their signal chain hijacked). When opted in, handlers call `destroy()` on every active instance; SIGINT/SIGTERM additionally `process.exit(130/143)`. The CLI (`src/cli/index.ts`) opts in; library callers should leave the flag off and call `destroy()` from their own shutdown hook. Once installed for a process, handlers persist for its lifetime (no safe deregistration without per-client ownership tracking).
 
 **ID validation:** All numeric IDs checked as positive integers via `protected validateId(id, name)` before any API call.
@@ -67,11 +70,11 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 ## Constants (`src/constants.ts`)
 
-`BASE_RETRY_DELAY_MS=1000` · `MAX_RETRY_DELAY_MS=10000` · `MAX_TIMEOUT_MS=300000` · `DEFAULT_TIMEOUT_MS=30000` · `DEFAULT_MAX_RETRIES=3` · `DEFAULT_CACHE_TTL_MS=300000` · `DEFAULT_CACHE_CLEANUP_INTERVAL_MS=60000` · `DEFAULT_MAX_CACHE_SIZE=1000` · `DEFAULT_RATE_LIMIT_MAX_REQUESTS=100` · `DEFAULT_RATE_LIMIT_WINDOW_MS=60000`
+`BASE_RETRY_DELAY_MS=1000` · `MAX_RETRY_DELAY_MS=10000` · `MAX_TIMEOUT_MS=300000` · `DEFAULT_TIMEOUT_MS=30000` · `DEFAULT_MAX_RETRIES=3` · `DEFAULT_CACHE_TTL_MS=300000` · `DEFAULT_CACHE_CLEANUP_INTERVAL_MS=60000` · `DEFAULT_MAX_CACHE_SIZE=1000` · `DEFAULT_RATE_LIMIT_MAX_REQUESTS=100` · `DEFAULT_RATE_LIMIT_WINDOW_MS=60000` · `DEFAULT_MAX_JSON_RESPONSE_BYTES=10485760` (10 MiB) · `DEFAULT_MAX_BINARY_RESPONSE_BYTES=104857600` (100 MiB) · `MAX_RESPONSE_BYTES_LIMIT=1073741824` (1 GiB ceiling)
 
 ## Tests
 
-538 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
+1213 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
 
 | File                              | Covers                                                                                                                                 |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -86,6 +89,7 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 | `tests/exports.test.ts`           | Public API exports, inheritance                                                                                                        |
 | `tests/performance.test.ts`       | Concurrent requests, throughput                                                                                                        |
 | `tests/utils.test.ts`             | `base64Encode`, `sleep`                                                                                                                |
+| `tests/body-limits.test.ts`       | Response-body byte cap + wall-clock deadline (SEC #12 / SEC #21) across all four fetch sites                                           |
 
 ## Common Tasks
 
