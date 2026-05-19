@@ -53,10 +53,10 @@ export class SharedStepModule {
     }
 
     /** @testrail GET get_shared_step_history/{shared_step_id} */
-    async getSharedStepHistory(sharedUpdateId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
-        this.client.validateId(sharedUpdateId, 'sharedUpdateId');
+    async getSharedStepHistory(sharedStepId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
+        this.client.validateId(sharedStepId, 'sharedStepId');
         this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_shared_step_history/${sharedUpdateId}`, {
+        const endpoint = this.client.buildEndpoint(`get_shared_step_history/${sharedStepId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });

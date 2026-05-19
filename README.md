@@ -288,7 +288,9 @@ await client.addResultsForCases(run.id, {
 ### Attachments
 
 ```typescript
-const attachment = await client.addAttachmentToResult(resultId, fs.readFileSync('./screenshot.png'), 'screenshot.png');
+import { readFileSync } from 'node:fs';
+
+const attachment = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
 const blob = await client.getAttachment(attachment.attachment_id);
 ```
 

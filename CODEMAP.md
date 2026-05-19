@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "cb3bc26a22293ffff0fb77332a85f722942e7d377b06bb12b574139cf402a2e4",
+  "sourceHash": "5836086b68a974d80b2f301a4907327c30863833c97585575247fe27bcbfb0aa",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
