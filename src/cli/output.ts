@@ -269,23 +269,23 @@ function renderYamlNode(v: unknown, depth: number): string {
         if (v.length === 0) return '[]';
         const lines: string[] = [];
         for (const item of v) {
+            // Empty-container short-circuits first so the recursive descent
+            // is avoided for `[]` / `{}` elements — purely a perf and
+            // readability win; the inline-flow form is what we'd emit anyway.
+            if (Array.isArray(item) && item.length === 0) {
+                lines.push(`${indent}- []`);
+                continue;
+            }
+            if (isPlainObject(item) && Object.keys(item).length === 0) {
+                lines.push(`${indent}- {}`);
+                continue;
+            }
             if (Array.isArray(item) || isPlainObject(item)) {
-                const nested = renderYamlNode(item, depth + 1);
                 // Sequence-of-sequence / sequence-of-mapping: emit the `- `
                 // marker on its own line indent, then the nested block on
-                // the next indent level.
-                if (Array.isArray(item) && item.length === 0) {
-                    lines.push(`${indent}- []`);
-                    continue;
-                }
-                if (isPlainObject(item) && Object.keys(item).length === 0) {
-                    lines.push(`${indent}- {}`);
-                    continue;
-                }
-                // Inline first key/element on the `- ` line for compactness
-                // when the nested structure has at least one entry. We
-                // reuse renderYamlNode for the deeper indent so nested
-                // arrays/objects keep recursing.
+                // the next indent level. Inline the first key/element on
+                // the `- ` line for compactness; deeper nesting recurses.
+                const nested = renderYamlNode(item, depth + 1);
                 const nestedLines = nested.split('\n');
                 const [firstNested, ...rest] = nestedLines;
                 // firstNested starts with whitespace at depth+1; we
