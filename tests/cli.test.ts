@@ -1596,6 +1596,17 @@ describe('CLI', () => {
             expect(stdout).toContain('id');
         });
 
+        it('report list --format json emits parseable JSON array', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['report', 'list', '3', '--format', 'json'],
+                [jsonResponse([MOCK_REPORT])],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as unknown;
+            expect(Array.isArray(parsed)).toBe(true);
+            expect((parsed as (typeof MOCK_REPORT)[])[0]?.id).toBe(11);
+        });
+
         it('report list with missing project_id should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['report', 'list']);
             expect(exitCodes).toContain(1);
@@ -1651,6 +1662,17 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('report_url');
+        });
+
+        it('report run --format json emits parseable JSON object', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['report', 'run', '11', '--format', 'json'],
+                [jsonResponse(MOCK_REPORT_RESULT)],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as typeof MOCK_REPORT_RESULT;
+            expect(parsed.report_url).toBe(MOCK_REPORT_RESULT.report_url);
+            expect(parsed.user_report_url).toBe(MOCK_REPORT_RESULT.user_report_url);
         });
 
         it('report run with missing report_template_id should exit 1', async () => {
