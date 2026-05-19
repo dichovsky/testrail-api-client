@@ -5,6 +5,12 @@
  *
  * Nothing here reads files or has side effects. Side-effectful orchestration
  * (loading JSON, walking modules, writing output) stays in generate-mapping.js.
+ *
+ * Phase 2 changes: the Phase-1 `CLI_OPERATION_MAP` / `guessCliCommand` heuristic
+ * is gone. Each `ActionSpec` now carries an explicit `apiEndpoint` field, so
+ * the generator looks up the CLI cell directly. The generator also cross-
+ * validates `@testrail` JSDoc tags against the JSON inventory (gate B) and
+ * `ActionSpec.apiEndpoint` against the tags (gate C).
  */
 
 import { z } from 'zod';
@@ -41,120 +47,99 @@ export const EndpointsArraySchema = z.array(EndpointSchema).superRefine((arr, ct
 // ── Path normalization ───────────────────────────────────────────────────────
 
 /**
- * Normalize both TS source paths (with `${expr}`) and JSON paths (with `{id}`)
- * to a common form so they can be compared. Strips the TestRail query-param
- * suffix (`&foo=...`) which appears in some GET endpoints.
+ * Normalize a path so JSON entries and `@testrail` JSDoc tags can be compared.
+ * Strips TestRail's `&key=val` query suffix (which appears in some endpoints).
+ * Both sides use `{snake_case}` placeholders already, so no further work is
+ * needed there.
  *
  * @param {string} raw
  * @returns {string}
  */
 export function normalizePathForMatch(raw) {
-    let s = raw;
-    const amp = s.indexOf('&');
-    if (amp !== -1) s = s.slice(0, amp);
-    s = s.replace(/\$\{[^}]*\}/g, '{}');
-    s = s.replace(/\{[^}]*\}/g, '{}');
-    return s;
+    const amp = raw.indexOf('&');
+    return amp === -1 ? raw : raw.slice(0, amp);
 }
 
-// ── CLI heuristic mapping (Phase 1 only) ──────────────────────────────────────
-//
-// Maps TestRail snake_case operation names to the `{resource, action}` pair the
-// CLI exposes. Intentionally explicit; ambiguity returns null so the table
-// doesn't claim wrong wiring. Phase 2 replaces this with `apiEndpoint` field
-// on ActionSpec and deletes this map.
-export const CLI_OPERATION_MAP = {
-    get_project: ['project', 'get'],
-    get_projects: ['project', 'list'],
-    add_project: ['project', 'add'],
-    update_project: ['project', 'update'],
-    delete_project: ['project', 'delete'],
-    get_suite: ['suite', 'get'],
-    get_suites: ['suite', 'list'],
-    add_suite: ['suite', 'add'],
-    update_suite: ['suite', 'update'],
-    delete_suite: ['suite', 'delete'],
-    get_section: ['section', 'get'],
-    get_sections: ['section', 'list'],
-    add_section: ['section', 'add'],
-    update_section: ['section', 'update'],
-    delete_section: ['section', 'delete'],
-    move_section: ['section', 'move'],
-    get_case: ['case', 'get'],
-    get_cases: ['case', 'list'],
-    get_history_for_case: ['case', 'history'],
-    add_case: ['case', 'add'],
-    update_case: ['case', 'update'],
-    update_cases: ['case', 'update-bulk'],
-    delete_case: ['case', 'delete'],
-    delete_cases: ['case', 'delete-bulk'],
-    copy_cases_to_section: ['case', 'copy-to-section'],
-    move_cases_to_section: ['case', 'move-to-section'],
-    get_case_fields: ['case-field', 'list'],
-    add_case_field: ['case-field', 'add'],
-    get_run: ['run', 'get'],
-    get_runs: ['run', 'list'],
-    add_run: ['run', 'add'],
-    update_run: ['run', 'update'],
-    close_run: ['run', 'close'],
-    delete_run: ['run', 'delete'],
-    // Results — the CLI exposes a narrower surface than TestRail:
-    //   `result:list`             → getResultsForRun       (per src/cli/handlers/result.ts)
-    //   `result:add`              → addResultForCase       (per src/cli/handlers/result-write.ts)
-    //   `result:add-bulk`         → addResultsForCases
-    //   `result:add-bulk-by-test` → addResults
-    // The three endpoints with no CLI cover (get_results, get_results_for_case,
-    // add_result) are omitted intentionally; they show as '—' in the CLI cell.
-    get_results_for_run: ['result', 'list'],
-    add_result_for_case: ['result', 'add'],
-    add_results: ['result', 'add-bulk-by-test'],
-    add_results_for_cases: ['result', 'add-bulk'],
-    get_plan: ['plan', 'get'],
-    get_plans: ['plan', 'list'],
-    add_plan: ['plan', 'add'],
-    update_plan: ['plan', 'update'],
-    close_plan: ['plan', 'close'],
-    delete_plan: ['plan', 'delete'],
-    add_plan_entry: ['plan', 'add-entry'],
-    get_milestone: ['milestone', 'get'],
-    get_milestones: ['milestone', 'list'],
-    add_milestone: ['milestone', 'add'],
-    update_milestone: ['milestone', 'update'],
-    delete_milestone: ['milestone', 'delete'],
-    get_user: ['user', 'get'],
-    get_users: ['user', 'list'],
-    get_current_user: ['user', 'me'],
-    get_attachments_for_case: ['attachment', 'list-for-case'],
-    get_attachments_for_plan: ['attachment', 'list-for-plan'],
-    get_attachments_for_plan_entry: ['attachment', 'list-for-plan-entry'],
-    get_attachments_for_run: ['attachment', 'list-for-run'],
-    get_attachments_for_test: ['attachment', 'list-for-test'],
-    get_attachment: ['attachment', 'get'],
-    add_attachment_to_case: ['attachment', 'add-to-case'],
-    add_attachment_to_plan: ['attachment', 'add-to-plan'],
-    add_attachment_to_plan_entry: ['attachment', 'add-to-plan-entry'],
-    add_attachment_to_result: ['attachment', 'add-to-result'],
-    add_attachment_to_run: ['attachment', 'add-to-run'],
-    delete_attachment: ['attachment', 'delete'],
-    // BDD, Statuses, Shared Steps — small CLI surfaces not covered above.
-    get_bdd: ['bdd', 'get'],
-    add_bdd: ['bdd', 'add'],
-    get_case_statuses: ['case-status', 'list'],
-    get_shared_step: ['shared-step', 'get'],
-    get_shared_steps: ['shared-step', 'list'],
-    get_shared_step_history: ['shared-step', 'history'],
-};
+/**
+ * Parse a `@testrail` JSDoc tag value into `{ method, path }`. Accepts forms
+ * like `GET get_case/{case_id}` or `POST add_project`. Returns `null` for
+ * unparseable input so callers can decide how to report the error.
+ *
+ * @param {string} text
+ * @returns {{ method: string, path: string } | null}
+ */
+export function parseTestrailTag(text) {
+    const trimmed = text.trim();
+    const match = trimmed.match(/^(GET|POST)\s+(\S+)$/);
+    if (!match) return null;
+    return { method: match[1], path: match[2] };
+}
+
+// ── Skill recipe parsing (Phase 3) ────────────────────────────────────────────
 
 /**
- * @param {string} operation snake_case TestRail operation
- * @param {Set<string>} actionsSet  e.g. `Set(['case:get','run:add',...])`
- * @returns {string|null}  `'case:get'` or null when no match
+ * GitHub-flavored heading anchor: lowercase, strip everything that isn't
+ * alphanumeric / space / hyphen, then replace spaces with hyphens. Matches
+ * GitHub's behavior for `### 1. Smoke-test auth & connectivity` → `#1-smoke-test-auth--connectivity`.
+ *
+ * @param {string} heading raw text after `### ` markdown prefix
+ * @returns {string}
  */
-export function guessCliCommand(operation, actionsSet) {
-    const guess = CLI_OPERATION_MAP[operation];
-    if (!guess) return null;
-    const key = `${guess[0]}:${guess[1]}`;
-    return actionsSet.has(key) ? key : null;
+export function slugifyHeading(heading) {
+    return heading
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s/g, '-');
+}
+
+/**
+ * Walk a SKILL.md body looking for `### N. Title` recipe headings followed by
+ * `<!-- recipe-for: resource:action[, ...] -->` HTML comments. Returns a map
+ * keyed by `resource:action` → `{ number, title, anchor }`. When a recipe
+ * tag lists multiple actions, every listed action maps to the same recipe.
+ *
+ * Skips the GENERATED sections (anything between `<!-- GENERATED:` markers)
+ * so generator-rendered tables can't poison the parse.
+ *
+ * @param {string} skillSource full SKILL.md content
+ * @returns {Map<string, { number: number, title: string, anchor: string }>}
+ */
+export function parseSkillRecipes(skillSource) {
+    const recipes = new Map();
+    const lines = skillSource.split('\n');
+    let inGenerated = false;
+    let currentRecipe = null;
+    for (const raw of lines) {
+        if (raw.startsWith('<!-- GENERATED:')) {
+            inGenerated = true;
+            continue;
+        }
+        if (raw.startsWith('<!-- /GENERATED:')) {
+            inGenerated = false;
+            continue;
+        }
+        if (inGenerated) continue;
+
+        const headingMatch = raw.match(/^###\s+(\d+)\.\s+(.+?)\s*$/);
+        if (headingMatch) {
+            const number = Number.parseInt(headingMatch[1], 10);
+            const title = headingMatch[2];
+            currentRecipe = { number, title, anchor: slugifyHeading(`${number}. ${title}`) };
+            continue;
+        }
+
+        const tagMatch = raw.match(/^<!--\s*recipe-for:\s*(.+?)\s*-->\s*$/);
+        if (tagMatch && currentRecipe) {
+            const keys = tagMatch[1]
+                .split(',')
+                .map((k) => k.trim())
+                .filter(Boolean);
+            for (const key of keys) {
+                if (!recipes.has(key)) recipes.set(key, currentRecipe);
+            }
+        }
+    }
+    return recipes;
 }
 
 // ── Cell renderers ───────────────────────────────────────────────────────────
@@ -185,14 +170,23 @@ export function renderCliCell(cliKey) {
     return `\`${cliKey.replace(':', ' ')}\``;
 }
 
-export function renderSkillCell(cliKey) {
+/**
+ * If the CLI action has a numbered recipe (via `recipe-for:` tag in SKILL.md),
+ * link directly to that recipe. Otherwise fall back to the generated command-
+ * table anchor. Returns em-dash when the row has no CLI binding at all.
+ */
+export function renderSkillCell(cliKey, recipes) {
     if (!cliKey) return '—';
+    const recipe = recipes && recipes.get ? recipes.get(cliKey) : null;
+    if (recipe) {
+        return `[recipe #${recipe.number}](${LINK_PREFIX}skill/SKILL.md#${recipe.anchor})`;
+    }
     return `[command-table](${SKILL_COMMAND_TABLE_ANCHOR})`;
 }
 
 // ── Aggregate renderers ───────────────────────────────────────────────────────
 
-export function renderSummaryTable(grouped) {
+export function renderSummaryTable(grouped, recipes) {
     const lines = [
         '| Resource | TestRail endpoints | Client methods | CLI commands | Skill exposure |',
         '| --- | ---: | ---: | ---: | ---: |',
@@ -202,7 +196,8 @@ export function renderSummaryTable(grouped) {
         const ep = rows.length;
         const client = rows.filter((r) => r.match).length;
         const cli = rows.filter((r) => r.cliKey).length;
-        const skill = cli;
+        // Skill count: rows whose cliKey has a recipe-for: tag in SKILL.md.
+        const skill = recipes ? rows.filter((r) => r.cliKey && recipes.has(r.cliKey)).length : 0;
         totals.ep += ep;
         totals.client += client;
         totals.cli += cli;
@@ -214,19 +209,19 @@ export function renderSummaryTable(grouped) {
     return lines.join('\n');
 }
 
-export function renderResourceSection(resource, rows, rootPrefix) {
+export function renderResourceSection(resource, rows, rootPrefix, recipes) {
     const slug = resource.toLowerCase().replace(/\s+/g, '-');
     const header = [`## ${resource}`, '', '<a id="' + slug + '"></a>', ''];
     const table = ['| Endpoint | Client method | CLI command | Skill recipe |', '| --- | --- | --- | --- |'];
     for (const row of rows) {
         table.push(
-            `| ${renderEndpointCell(row.endpoint)} | ${renderClientCell(row.match, rootPrefix)} | ${renderCliCell(row.cliKey)} | ${renderSkillCell(row.cliKey)} |`,
+            `| ${renderEndpointCell(row.endpoint)} | ${renderClientCell(row.match, rootPrefix)} | ${renderCliCell(row.cliKey)} | ${renderSkillCell(row.cliKey, recipes)} |`,
         );
     }
     return [...header, ...table, ''].join('\n');
 }
 
-export function renderDocument(grouped, rootPrefix) {
+export function renderDocument(grouped, rootPrefix, recipes) {
     const lines = [
         '<!-- Generated by scripts/generate-mapping.js. Do not edit by hand. -->',
         '',
@@ -234,17 +229,19 @@ export function renderDocument(grouped, rootPrefix) {
         '',
         'Coverage matrix linking every TestRail API endpoint to its implementation in this package: the client method, the CLI command, and the agent skill recipe. Rows with `—` indicate gaps (endpoint exists in TestRail but not yet surfaced at that layer).',
         '',
-        '**Sources of truth.** The endpoint inventory is hand-curated in [`docs/testrail-endpoints.json`](testrail-endpoints.json). Client-method binding is extracted from `this.client.request*()` call-site literals in `src/modules/*.ts`. CLI commands are derived from `ACTIONS` in `src/cli/metadata.ts`.',
+        '**Sources of truth.** The endpoint inventory is hand-curated in [`docs/testrail-endpoints.json`](testrail-endpoints.json). Client methods are bound via `@testrail` JSDoc tags on each method in `src/modules/*.ts`. CLI commands are read from the `apiEndpoint` field on each entry in `ACTIONS` in `src/cli/metadata.ts`.',
         '',
-        '**Phase 1 caveats.** Methods that build their endpoint dynamically (via `buildEndpoint(...)` or other helpers) are not yet matched and will appear as `—` in the client-method column even when implemented. The CLI column uses a name-based heuristic. A subsequent PR will add `@testrail` JSDoc tags and an `apiEndpoint` field on `ActionSpec`, replacing both shortcuts and turning on CI drift gates. Skill exposure currently counts only the auto-generated command-table entry; numbered recipes (e.g., "Author a new test case") will be linked individually in a later PR.',
+        '**Drift gates.** The generator validates four things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI).',
+        '',
+        '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary table\'s "Skill exposure" column counts only the curated-recipe rows; the command-table itself covers every CLI-bound row.',
         '',
         '## Summary',
         '',
-        renderSummaryTable(grouped),
+        renderSummaryTable(grouped, recipes),
         '',
     ];
     for (const { resource, rows } of grouped) {
-        lines.push(renderResourceSection(resource, rows, rootPrefix));
+        lines.push(renderResourceSection(resource, rows, rootPrefix, recipes));
     }
     return lines.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
 }

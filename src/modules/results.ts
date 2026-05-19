@@ -8,6 +8,7 @@ import { z } from 'zod';
 export class ResultModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_results/{test_id} */
     async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
         this.client.validateId(testId, 'testId');
         this.client.validatePaginationParams(options?.limit, options?.offset);
@@ -30,6 +31,7 @@ export class ResultModule {
         );
     }
 
+    /** @testrail GET get_results_for_case/{run_id}/{case_id} */
     async getResultsForCase(runId: number, caseId: number, options?: GetResultsOptions): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
         this.client.validateId(caseId, 'caseId');
@@ -53,6 +55,7 @@ export class ResultModule {
         );
     }
 
+    /** @testrail GET get_results_for_run/{run_id} */
     async getResultsForRun(runId: number, options?: GetResultsOptions): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
         this.client.validatePaginationParams(options?.limit, options?.offset);
@@ -75,11 +78,13 @@ export class ResultModule {
         );
     }
 
+    /** @testrail POST add_result/{test_id} */
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
         this.client.validateId(testId, 'testId');
         return this.client.requestParsed<Result>('POST', `add_result/${testId}`, ResultSchema, payload);
     }
 
+    /** @testrail POST add_result_for_case/{run_id}/{case_id} */
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
         this.client.validateId(runId, 'runId');
         this.client.validateId(caseId, 'caseId');
@@ -91,6 +96,7 @@ export class ResultModule {
         );
     }
 
+    /** @testrail POST add_results_for_cases/{run_id} */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
         return this.client.requestParsed<Result[]>(
@@ -101,6 +107,7 @@ export class ResultModule {
         );
     }
 
+    /** @testrail POST add_results/{run_id} */
     async addResults(runId: number, payload: AddResultsPayload): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
         return this.client.requestParsed<Result[]>('POST', `add_results/${runId}`, z.array(ResultSchema), payload);

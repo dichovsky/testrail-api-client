@@ -7,11 +7,13 @@ import { z } from 'zod';
 export class TestModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_test/{test_id} */
     async getTest(testId: number): Promise<Test> {
         this.client.validateId(testId, 'testId');
         return this.client.requestParsed<Test>('GET', `get_test/${testId}`, TestSchema);
     }
 
+    /** @testrail GET get_tests/{run_id} */
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
         this.client.validateId(runId, 'runId');
         this.client.validatePaginationParams(options?.limit, options?.offset);

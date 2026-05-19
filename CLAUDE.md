@@ -35,10 +35,23 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                                                 |
 | `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                                              |
 | `scripts/generate-codemap.js`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                                  |
+| `docs/API-MAPPING.md`                                   | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)             |
+| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (116 endpoints × 25 resources); Zod-validated by the mapping generator                          |
+| `scripts/generate-mapping.js`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2; `--check` flag for CI drift detection                    |
+| `scripts/mapping-renderer.mjs`                          | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers    |
 
 ## API Symbol Index
 
 See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and constant with exact file:line links. The file embeds a `codemap.v2` JSON block — agents can `JSON.parse` the fenced block, then look up symbols in `publicApi[]` (transitively re-exported from `src/index.ts` and `src/cli.ts`) or `files[]` (every declaration, including private). `npm run codemap:check` (run by `pretest` and CI) fails if the committed file drifts from source.
+
+## API Coverage Matrix
+
+See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe. `@testrail` JSDoc tags on each module method bind methods to endpoints; `apiEndpoint` on each `ActionSpec` binds CLI commands; `<!-- recipe-for: resource:action -->` HTML comments in `skill/SKILL.md` bind numbered recipes. `npm run mapping:check` (run by `pretest` and CI) enforces four drift gates:
+
+- **A** — committed `docs/API-MAPPING.md` matches generator output.
+- **B** — every `@testrail` tag references an endpoint in `docs/testrail-endpoints.json`.
+- **C** — every `ActionSpec.apiEndpoint` matches a `@testrail` tag.
+- **C2** — every `recipe-for:` tag in `skill/SKILL.md` references an existing `ACTIONS` entry.
 
 ## Architecture Invariants
 

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "70d96e6307a3d5971138b3c5db4ea2138ef883b69b0d4c5455044cdc28493fe2",
+  "sourceHash": "5836086b68a974d80b2f301a4907327c30863833c97585575247fe27bcbfb0aa",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2421,28 +2421,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 45,
+          "line": 49,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 50,
+          "line": 54,
           "exported": true,
-          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boolean; outputKind?: 'b…"
+          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 81,
+          "line": 92,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 605,
+          "line": 680,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
@@ -3850,62 +3850,62 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getAttachmentsForCase",
               "kind": "method",
-              "line": 9
+              "line": 10
             },
             {
               "name": "getAttachmentsForRun",
               "kind": "method",
-              "line": 22
+              "line": 24
             },
             {
               "name": "getAttachmentsForTest",
               "kind": "method",
-              "line": 35
+              "line": 38
             },
             {
               "name": "getAttachmentsForPlan",
               "kind": "method",
-              "line": 48
+              "line": 52
             },
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 61
+              "line": 66
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 75
+              "line": 81
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 80
+              "line": 87
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 89
+              "line": 97
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 98
+              "line": 107
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 107
+              "line": 117
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 116
+              "line": 127
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 131
+              "line": 143
             }
           ]
         }
@@ -3935,12 +3935,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 24
+              "line": 25
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 33
+              "line": 35
             }
           ]
         }
@@ -3992,32 +3992,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getCase",
               "kind": "method",
-              "line": 33
+              "line": 34
             },
             {
               "name": "getCases",
               "kind": "method",
-              "line": 38
+              "line": 40
             },
             {
               "name": "addCase",
               "kind": "method",
-              "line": 86
+              "line": 89
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 91
+              "line": 95
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 103
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 104
+              "line": 109
             },
             {
               "name": "deleteCase",
@@ -4027,47 +4022,52 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 111
+              "line": 116
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 117
             },
             {
               "name": "updateCases",
               "kind": "method",
-              "line": 133
+              "line": 141
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 144
+              "line": 154
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 150
+              "line": 160
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 157
+              "line": 167
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 163
+              "line": 173
             },
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 185
+              "line": 196
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 201
+              "line": 213
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 206
+              "line": 219
             }
           ]
         }
@@ -4098,37 +4098,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getConfigurations",
               "kind": "method",
-              "line": 16
+              "line": 17
             },
             {
               "name": "addConfigurationGroup",
               "kind": "method",
-              "line": 25
+              "line": 27
             },
             {
               "name": "updateConfigurationGroup",
               "kind": "method",
-              "line": 35
+              "line": 38
             },
             {
               "name": "deleteConfigurationGroup",
               "kind": "method",
-              "line": 48
+              "line": 52
             },
             {
               "name": "addConfiguration",
               "kind": "method",
-              "line": 53
+              "line": 58
             },
             {
               "name": "updateConfiguration",
               "kind": "method",
-              "line": 63
+              "line": 69
             },
             {
               "name": "deleteConfiguration",
               "kind": "method",
-              "line": 73
+              "line": 80
             }
           ]
         }
@@ -4158,27 +4158,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 8
+              "line": 9
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 13
+              "line": 15
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 18
+              "line": 21
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 23
+              "line": 27
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 28
+              "line": 33
             }
           ]
         }
@@ -4209,47 +4209,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getStatuses",
               "kind": "method",
-              "line": 19
+              "line": 20
             },
             {
               "name": "getCaseStatuses",
               "kind": "method",
-              "line": 23
+              "line": 25
             },
             {
               "name": "getPriorities",
               "kind": "method",
-              "line": 27
+              "line": 30
             },
             {
               "name": "getResultFields",
               "kind": "method",
-              "line": 31
+              "line": 35
             },
             {
               "name": "getCaseFields",
               "kind": "method",
-              "line": 35
+              "line": 40
             },
             {
               "name": "addCaseField",
               "kind": "method",
-              "line": 52
+              "line": 59
             },
             {
               "name": "getCaseTypes",
               "kind": "method",
-              "line": 56
+              "line": 64
             },
             {
               "name": "getTemplates",
               "kind": "method",
-              "line": 60
+              "line": 69
             },
             {
               "name": "getRoles",
               "kind": "method",
-              "line": 65
+              "line": 75
             }
           ]
         }
@@ -4280,27 +4280,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getMilestone",
               "kind": "method",
-              "line": 10
+              "line": 11
             },
             {
               "name": "getMilestones",
               "kind": "method",
-              "line": 15
+              "line": 17
             },
             {
               "name": "addMilestone",
               "kind": "method",
-              "line": 34
+              "line": 37
             },
             {
               "name": "updateMilestone",
               "kind": "method",
-              "line": 39
+              "line": 43
             },
             {
               "name": "deleteMilestone",
               "kind": "method",
-              "line": 49
+              "line": 54
             }
           ]
         }
@@ -4332,62 +4332,62 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getPlan",
               "kind": "method",
-              "line": 20
+              "line": 21
             },
             {
               "name": "getPlans",
               "kind": "method",
-              "line": 25
+              "line": 27
             },
             {
               "name": "addPlan",
               "kind": "method",
-              "line": 48
+              "line": 51
             },
             {
               "name": "updatePlan",
               "kind": "method",
-              "line": 53
+              "line": 57
             },
             {
               "name": "closePlan",
               "kind": "method",
-              "line": 58
+              "line": 63
             },
             {
               "name": "deletePlan",
               "kind": "method",
-              "line": 63
+              "line": 69
             },
             {
               "name": "addPlanEntry",
               "kind": "method",
-              "line": 68
+              "line": 75
             },
             {
               "name": "updatePlanEntry",
               "kind": "method",
-              "line": 73
+              "line": 81
             },
             {
               "name": "deletePlanEntry",
               "kind": "method",
-              "line": 84
+              "line": 93
             },
             {
               "name": "addRunToPlanEntry",
               "kind": "method",
-              "line": 90
+              "line": 100
             },
             {
               "name": "updateRunInPlanEntry",
               "kind": "method",
-              "line": 96
+              "line": 107
             },
             {
               "name": "deleteRunFromPlanEntry",
               "kind": "method",
-              "line": 101
+              "line": 113
             }
           ]
         }
@@ -4418,27 +4418,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getProject",
               "kind": "method",
-              "line": 15
+              "line": 16
             },
             {
               "name": "getProjects",
               "kind": "method",
-              "line": 25
+              "line": 27
             },
             {
               "name": "addProject",
               "kind": "method",
-              "line": 43
+              "line": 46
             },
             {
               "name": "updateProject",
               "kind": "method",
-              "line": 52
+              "line": 56
             },
             {
               "name": "deleteProject",
               "kind": "method",
-              "line": 62
+              "line": 67
             }
           ]
         }
@@ -4468,12 +4468,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getReports",
               "kind": "method",
-              "line": 8
+              "line": 9
             },
             {
               "name": "runReport",
               "kind": "method",
-              "line": 13
+              "line": 15
             }
           ]
         }
@@ -4505,37 +4505,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getResults",
               "kind": "method",
-              "line": 11
+              "line": 12
             },
             {
               "name": "getResultsForCase",
               "kind": "method",
-              "line": 33
+              "line": 35
             },
             {
               "name": "getResultsForRun",
               "kind": "method",
-              "line": 56
+              "line": 59
             },
             {
               "name": "addResult",
               "kind": "method",
-              "line": 78
+              "line": 82
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 83
+              "line": 88
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 94
+              "line": 100
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 104
+              "line": 111
             }
           ]
         }
@@ -4566,47 +4566,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getRun",
               "kind": "method",
-              "line": 10
+              "line": 11
             },
             {
               "name": "getRuns",
               "kind": "method",
-              "line": 15
+              "line": 17
             },
             {
               "name": "addRun",
               "kind": "method",
-              "line": 52
+              "line": 55
             },
             {
               "name": "updateRun",
               "kind": "method",
-              "line": 57
+              "line": 61
             },
             {
               "name": "closeRun",
               "kind": "method",
-              "line": 62
+              "line": 67
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 73
+              "line": 80
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 74
+              "line": 81
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 77
+              "line": 84
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 78
+              "line": 85
             }
           ]
         }
@@ -4637,47 +4637,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getSection",
               "kind": "method",
-              "line": 10
+              "line": 11
             },
             {
               "name": "getSections",
               "kind": "method",
-              "line": 15
+              "line": 17
             },
             {
               "name": "addSection",
               "kind": "method",
-              "line": 37
+              "line": 40
             },
             {
               "name": "updateSection",
               "kind": "method",
-              "line": 42
+              "line": 46
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 53
+              "line": 59
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 54
+              "line": 60
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 56
+              "line": 62
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 57
+              "line": 63
             },
             {
               "name": "moveSection",
               "kind": "method",
-              "line": 80
+              "line": 88
             }
           ]
         }
@@ -4715,32 +4715,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 16
+              "line": 17
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 21
+              "line": 23
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 30
+              "line": 33
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 35
+              "line": 39
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 45
+              "line": 50
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 50
+              "line": 56
             }
           ]
         }
@@ -4771,42 +4771,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getSuite",
               "kind": "method",
-              "line": 15
+              "line": 16
             },
             {
               "name": "getSuites",
               "kind": "method",
-              "line": 25
+              "line": 27
             },
             {
               "name": "addSuite",
               "kind": "method",
-              "line": 35
+              "line": 38
             },
             {
               "name": "updateSuite",
               "kind": "method",
-              "line": 45
+              "line": 49
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 59
+              "line": 64
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 60
+              "line": 65
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 62
+              "line": 67
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 63
+              "line": 68
             }
           ]
         }
@@ -4838,12 +4838,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getTest",
               "kind": "method",
-              "line": 10
+              "line": 11
             },
             {
               "name": "getTests",
               "kind": "method",
-              "line": 15
+              "line": 17
             }
           ]
         }
@@ -4882,57 +4882,57 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getUser",
               "kind": "method",
-              "line": 12
+              "line": 13
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 17
+              "line": 19
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 26
+              "line": 29
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 48
+              "line": 52
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 52
+              "line": 57
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 56
+              "line": 62
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 61
+              "line": 68
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 66
+              "line": 74
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 70
+              "line": 79
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 74
+              "line": 84
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 79
+              "line": 90
             }
           ]
         }
@@ -4962,22 +4962,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 8
+              "line": 9
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 13
+              "line": 15
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 18
+              "line": 21
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 23
+              "line": 27
             }
           ]
         }

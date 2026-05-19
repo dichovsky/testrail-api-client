@@ -20,6 +20,7 @@ export class BddModule {
     /**
      * Fetch a case's BDD content as raw Gherkin text.
      * @returns The `.feature` file body (Gherkin syntax). Empty string if unset.
+     * @testrail GET get_bdd/{case_id}
      */
     async getBdd(caseId: number): Promise<string> {
         this.client.validateId(caseId, 'caseId');
@@ -29,6 +30,7 @@ export class BddModule {
     /**
      * Upload a `.feature` file to a case as its BDD content. Returns the
      * updated `Case` object reflecting the newly attached BDD.
+     * @testrail POST add_bdd/{case_id}
      */
     async addBdd(
         caseId: number,

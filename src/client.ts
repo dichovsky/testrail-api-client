@@ -1377,11 +1377,11 @@ export class TestRailClient extends TestRailClientCore {
 
     /**
      * Get history for a shared step (paginated).
-     * @throws {TestRailValidationError} When sharedUpdateId or pagination params are invalid
+     * @throws {TestRailValidationError} When sharedStepId or pagination params are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getSharedStepHistory(sharedUpdateId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
-        return this.sharedSteps.getSharedStepHistory(sharedUpdateId, options);
+    async getSharedStepHistory(sharedStepId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
+        return this.sharedSteps.getSharedStepHistory(sharedStepId, options);
     }
 
     // ── Variables ─────────────────────────────────────────────────────────────

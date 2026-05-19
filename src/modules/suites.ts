@@ -11,6 +11,7 @@ export class SuiteModule {
      * Get a suite by ID.
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail GET get_suite/{suite_id}
      */
     async getSuite(suiteId: number): Promise<Suite> {
         this.client.validateId(suiteId, 'suiteId');
@@ -21,6 +22,7 @@ export class SuiteModule {
      * Get all suites for a project.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail GET get_suites/{project_id}
      */
     async getSuites(projectId: number): Promise<Suite[]> {
         this.client.validateId(projectId, 'projectId');
@@ -31,6 +33,7 @@ export class SuiteModule {
      * Add a suite to a project.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail POST add_suite/{project_id}
      */
     async addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite> {
         this.client.validateId(projectId, 'projectId');
@@ -41,6 +44,7 @@ export class SuiteModule {
      * Update a suite.
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail POST update_suite/{suite_id}
      */
     async updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite> {
         this.client.validateId(suiteId, 'suiteId');
@@ -55,6 +59,7 @@ export class SuiteModule {
      *
      * @throws {TestRailValidationError} When suiteId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail POST delete_suite/{suite_id}
      */
     async deleteSuite(suiteId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteSuite(suiteId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;

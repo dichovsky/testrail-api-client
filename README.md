@@ -216,172 +216,93 @@ client.destroy();
 
 ## API Methods
 
+For the complete coverage matrix linking every TestRail endpoint to its client method, CLI command, and skill recipe, see **[`docs/API-MAPPING.md`](docs/API-MAPPING.md)**. For exact signatures, types, and file:line locations of every symbol, see **[`CODEMAP.md`](CODEMAP.md)**.
+
+The examples below show one minimal call per resource family — enough to demonstrate the shape. Refer to the mapping table for the full surface.
+
 ### Projects
 
 ```typescript
-// Get project by ID
-const project = await client.getProject(projectId);
-
-// Get all projects
+const project = await client.getProject(5);
 const projects = await client.getProjects();
 ```
 
-### Suites
+### Suites & Sections
 
 ```typescript
-// Get suite by ID
-const suite = await client.getSuite(suiteId);
-
-// Get all suites for a project
-const suites = await client.getSuites(projectId);
+const suite = await client.getSuite(12);
+const sections = await client.getSections(5, { suiteId: 12 });
 ```
 
-### Sections
+### Cases
 
 ```typescript
-// Get section by ID
-const section = await client.getSection(sectionId);
-
-// Get all sections (optionally filtered by suite)
-const sections = await client.getSections(projectId, suiteId);
-```
-
-### Test Cases
-
-```typescript
-// Get case by ID
-const testCase = await client.getCase(caseId);
-
-// Get all cases (optionally filtered by suite/section)
-const cases = await client.getCases(projectId, suiteId, sectionId);
-
-// Add a new test case
-const newCase = await client.addCase(sectionId, {
-    title: 'New test case',
+const testCase = await client.getCase(42);
+const newCase = await client.addCase(12, {
+    title: 'Login page accepts SSO redirect',
     type_id: 1,
-    priority_id: 2,
-    estimate: '5m',
+    priority_id: 3,
 });
-
-// Update a test case
-const updatedCase = await client.updateCase(caseId, {
-    title: 'Updated test case title',
-});
-
-// Delete a test case
-await client.deleteCase(caseId);
-
-// Soft-preview delete: hits the API but doesn't delete; returns affected counts
-const preview = await client.deleteCase(caseId, { soft: true });
-// preview = { affected_tests?: number, ... } — passthrough preserves unknown counters
+// Soft-preview delete: hits the API but doesn't delete; returns affected counts.
 // Same `{ soft: true }` overload exists on deleteRun / deleteSection / deleteSuite / deleteCases.
+const preview = await client.deleteCase(42, { soft: true });
 ```
 
 ### Test Plans
 
 ```typescript
-// Get plan by ID
-const plan = await client.getPlan(planId);
-
-// Get all plans for a project
-const plans = await client.getPlans(projectId);
-
-// Add a new plan
-const newPlan = await client.addPlan(projectId, {
-    name: 'Automated Test Plan',
-    entries: [
-        {
-            suite_id: suiteId,
-            include_all: true,
-        },
-    ],
+const plan = await client.addPlan(5, {
+    name: 'Release 1.0',
+    entries: [{ suite_id: 12, include_all: true }],
 });
-
-// Close a plan
-await client.closePlan(planId);
-
-// Delete a plan
-await client.deletePlan(planId);
 ```
 
 ### Test Runs
 
 ```typescript
-// Get run by ID
-const run = await client.getRun(runId);
-
-// Get all runs for a project
-const runs = await client.getRuns(projectId);
-
-// Add a new run
-const newRun = await client.addRun(projectId, {
-    suite_id: suiteId,
-    name: 'Automated Test Run',
-    include_all: true,
+const run = await client.addRun(5, {
+    suite_id: 12,
+    name: 'CI build',
+    include_all: false,
+    case_ids: [42, 43, 44],
 });
-
-// Close a run
-await client.closeRun(runId);
-
-// Delete a run
-await client.deleteRun(runId);
+await client.closeRun(run.id);
 ```
 
 ### Tests & Results
 
 ```typescript
-// Get test by ID
-const test = await client.getTest(testId);
-
-// Get all tests in a run
-const tests = await client.getTests(runId);
-
-// Add a test result
-const result = await client.addResult(testId, {
+const tests = await client.getTests(run.id);
+await client.addResultForCase(run.id, 42, {
     status_id: 1, // 1 = Passed, 5 = Failed
-    comment: 'Test completed successfully',
-    elapsed: '2m 30s',
-    defects: 'BUG-123',
+    comment: 'Passed',
 });
-
-// Add result for a specific case in a run
-const result = await client.addResultForCase(runId, caseId, {
-    status_id: 5,
-    comment: 'Test failed due to timeout',
-});
-
-// Add multiple results at once
-const results = await client.addResultsForCases(runId, {
+await client.addResultsForCases(run.id, {
     results: [
-        { case_id: 1, status_id: 1, comment: 'Passed' },
-        { case_id: 2, status_id: 5, comment: 'Failed' },
+        { case_id: 42, status_id: 1 },
+        { case_id: 43, status_id: 5, comment: 'Failed: timeout' },
     ],
 });
 ```
 
-### Users & System
+### Attachments
 
 ```typescript
-// Get user by ID
-const user = await client.getUser(userId);
+import { readFileSync } from 'node:fs';
 
-// Get user by email
-const user = await client.getUserByEmail('user@example.com');
-
-// Get all users
-const users = await client.getUsers();
-
-// Get all statuses
-const statuses = await client.getStatuses();
-
-// Get all priorities
-const priorities = await client.getPriorities();
-
-// Get milestones
-const milestones = await client.getMilestones(projectId);
+const attachment = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+const blob = await client.getAttachment(attachment.attachment_id);
 ```
 
-Advanced usage: the client also exposes domain modules such as `client.metadata` for organization, but the supported/documented usage pattern remains the top-level `client.getX()` methods.
+### Users & metadata
+
+```typescript
+const me = await client.getCurrentUser();
+const statuses = await client.getStatuses();
+const milestones = await client.getMilestones(5);
+```
+
+Advanced usage: the client also exposes domain modules (e.g., `client.metadata`, `client.attachments`) for organization, but the supported/documented usage pattern remains the top-level `client.<method>()` calls.
 
 ### Caching
 

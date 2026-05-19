@@ -1,12 +1,12 @@
 /**
  * Unit tests for the mapping-generator helpers (scripts/mapping-renderer.mjs).
  *
- * The pure helpers (schema validation, path normalization, CLI heuristic,
+ * The pure helpers (schema validation, path normalization, tag parsing,
  * cell renderers, document assembly) are exercised here. The full integration
- * (script invocation + AST crawl + filesystem write/check) is exercised in CI
- * by the `Run API mapping drift check` step (`.github/workflows/ci.yml`),
- * which runs `npm run mapping:check` and fails the build if the committed
- * `docs/API-MAPPING.md` is out of date.
+ * (script invocation + AST crawl + gates B/C + filesystem write/check) is
+ * exercised in CI by the `Run API mapping drift check` step
+ * (`.github/workflows/ci.yml`), which runs `npm run mapping:check` and fails
+ * the build if the committed `docs/API-MAPPING.md` is out of date.
  */
 import { describe, expect, it } from 'vitest';
 // scripts/ is outside the tsconfig include for src/; the .mjs has no .d.ts.
@@ -15,11 +15,15 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error -- importing a .mjs script module not covered by tsc
 import * as renderer from '../scripts/mapping-renderer.mjs';
 
+type Recipe = { number: number; title: string; anchor: string };
+type RecipeMap = Map<string, Recipe>;
+
 const {
     EndpointsArraySchema,
     EndpointSchema,
-    guessCliCommand,
     normalizePathForMatch,
+    parseSkillRecipes,
+    parseTestrailTag,
     renderClientCell,
     renderCliCell,
     renderDocument,
@@ -27,24 +31,34 @@ const {
     renderResourceSection,
     renderSkillCell,
     renderSummaryTable,
+    slugifyHeading,
 } = renderer as {
     EndpointsArraySchema: {
         safeParse: (input: unknown) => { success: boolean; error?: { issues: { message: string }[] }; data?: unknown };
         parse: (input: unknown) => unknown;
     };
     EndpointSchema: { parse: (input: unknown) => unknown };
-    guessCliCommand: (op: string, set: Set<string>) => string | null;
     normalizePathForMatch: (raw: string) => string;
+    parseSkillRecipes: (skillSource: string) => RecipeMap;
+    parseTestrailTag: (text: string) => { method: string; path: string } | null;
     renderClientCell: (
         match: { moduleFile: string; methodName: string; line: number } | null,
         rootPrefix: string,
     ) => string;
     renderCliCell: (cliKey: string | null) => string;
-    renderDocument: (grouped: { resource: string; rows: unknown[] }[], rootPrefix: string) => string;
+    renderDocument: (
+        grouped: { resource: string; rows: unknown[] }[],
+        rootPrefix: string,
+        recipes?: RecipeMap,
+    ) => string;
     renderEndpointCell: (ep: { method: string; path: string; docUrl?: string }) => string;
-    renderResourceSection: (resource: string, rows: unknown[], rootPrefix: string) => string;
-    renderSkillCell: (cliKey: string | null) => string;
-    renderSummaryTable: (grouped: { resource: string; rows: { match: unknown; cliKey: unknown }[] }[]) => string;
+    renderResourceSection: (resource: string, rows: unknown[], rootPrefix: string, recipes?: RecipeMap) => string;
+    renderSkillCell: (cliKey: string | null, recipes?: RecipeMap) => string;
+    renderSummaryTable: (
+        grouped: { resource: string; rows: { match: unknown; cliKey: unknown }[] }[],
+        recipes?: RecipeMap,
+    ) => string;
+    slugifyHeading: (heading: string) => string;
 };
 
 describe('EndpointSchema', () => {
@@ -114,78 +128,61 @@ describe('EndpointsArraySchema', () => {
 });
 
 describe('normalizePathForMatch', () => {
-    it('collapses ${expr} placeholders to {}', () => {
-        expect(normalizePathForMatch('get_case/${caseId}')).toBe('get_case/{}');
-    });
-
-    it('collapses {name} placeholders to {}', () => {
-        expect(normalizePathForMatch('get_case/{case_id}')).toBe('get_case/{}');
-    });
-
-    it('treats ${expr} and {name} as the same shape (so TS source and JSON match)', () => {
-        expect(normalizePathForMatch('delete_plan_entry/${planId}/${entryId}')).toBe(
-            normalizePathForMatch('delete_plan_entry/{plan_id}/{entry_id}'),
-        );
+    it('preserves snake_case paths and placeholders unchanged', () => {
+        expect(normalizePathForMatch('get_case/{case_id}')).toBe('get_case/{case_id}');
     });
 
     it('strips TestRail query suffixes after &', () => {
-        expect(normalizePathForMatch('get_users&project_id=${pid}')).toBe('get_users');
+        expect(normalizePathForMatch('get_users&project_id=5')).toBe('get_users');
         expect(normalizePathForMatch('get_user_by_email&email=foo@bar')).toBe('get_user_by_email');
     });
 
     it('handles paths with no placeholders or query strings', () => {
         expect(normalizePathForMatch('get_statuses')).toBe('get_statuses');
     });
+
+    it('is idempotent (applying twice yields the same result)', () => {
+        const out = normalizePathForMatch('get_users&limit=10');
+        expect(normalizePathForMatch(out)).toBe(out);
+    });
 });
 
-describe('guessCliCommand', () => {
-    const set = new Set(['case:get', 'case:list', 'attachment:add-to-case', 'project:add']);
-
-    it('returns the resource:action key when the heuristic map matches AND the CLI exposes it', () => {
-        expect(guessCliCommand('get_case', set)).toBe('case:get');
-        expect(guessCliCommand('add_attachment_to_case', set)).toBe('attachment:add-to-case');
+describe('parseTestrailTag', () => {
+    it('parses a GET tag with path params', () => {
+        expect(parseTestrailTag('GET get_case/{case_id}')).toEqual({
+            method: 'GET',
+            path: 'get_case/{case_id}',
+        });
     });
 
-    it('returns null when the heuristic map matches but the CLI does not expose it', () => {
-        expect(guessCliCommand('delete_case', set)).toBeNull();
+    it('parses a POST tag with multiple path params', () => {
+        expect(parseTestrailTag('POST add_attachment_to_plan_entry/{plan_id}/{entry_id}')).toEqual({
+            method: 'POST',
+            path: 'add_attachment_to_plan_entry/{plan_id}/{entry_id}',
+        });
     });
 
-    it('returns null for operations not in the heuristic map at all', () => {
-        expect(guessCliCommand('get_statuses', set)).toBeNull();
-        expect(guessCliCommand('made_up_op', set)).toBeNull();
+    it('parses a tag with no path params', () => {
+        expect(parseTestrailTag('GET get_statuses')).toEqual({ method: 'GET', path: 'get_statuses' });
     });
 
-    // Regression: PR #79 review caught these mappings claiming non-existent CLI
-    // actions (`result:list-for-run`, `result:add-for-case`, etc.). The CLI
-    // surface is narrower than TestRail's: `result:list` wraps getResultsForRun,
-    // `result:add` wraps addResultForCase.
-    it('maps result operations to the actual CLI surface (not invented action names)', () => {
-        const resultsSet = new Set(['result:list', 'result:add', 'result:add-bulk', 'result:add-bulk-by-test']);
-        expect(guessCliCommand('get_results_for_run', resultsSet)).toBe('result:list');
-        expect(guessCliCommand('add_result_for_case', resultsSet)).toBe('result:add');
-        expect(guessCliCommand('add_results_for_cases', resultsSet)).toBe('result:add-bulk');
-        expect(guessCliCommand('add_results', resultsSet)).toBe('result:add-bulk-by-test');
-        // Endpoints with no CLI cover stay unmapped (em-dash in the table).
-        expect(guessCliCommand('get_results', resultsSet)).toBeNull();
-        expect(guessCliCommand('get_results_for_case', resultsSet)).toBeNull();
-        expect(guessCliCommand('add_result', resultsSet)).toBeNull();
+    it('trims surrounding whitespace', () => {
+        expect(parseTestrailTag('  POST add_case/{section_id}  ')).toEqual({
+            method: 'POST',
+            path: 'add_case/{section_id}',
+        });
     });
 
-    it('maps bdd, case-status, and shared-step operations to their real CLI actions', () => {
-        const set2 = new Set([
-            'bdd:get',
-            'bdd:add',
-            'case-status:list',
-            'shared-step:get',
-            'shared-step:list',
-            'shared-step:history',
-        ]);
-        expect(guessCliCommand('get_bdd', set2)).toBe('bdd:get');
-        expect(guessCliCommand('add_bdd', set2)).toBe('bdd:add');
-        expect(guessCliCommand('get_case_statuses', set2)).toBe('case-status:list');
-        expect(guessCliCommand('get_shared_step', set2)).toBe('shared-step:get');
-        expect(guessCliCommand('get_shared_steps', set2)).toBe('shared-step:list');
-        expect(guessCliCommand('get_shared_step_history', set2)).toBe('shared-step:history');
+    it('returns null for unsupported HTTP methods', () => {
+        expect(parseTestrailTag('PUT update_case/{case_id}')).toBeNull();
+        expect(parseTestrailTag('DELETE delete_case/{case_id}')).toBeNull();
+    });
+
+    it('returns null for malformed input (missing method, missing path, extra tokens)', () => {
+        expect(parseTestrailTag('get_case/{case_id}')).toBeNull();
+        expect(parseTestrailTag('GET')).toBeNull();
+        expect(parseTestrailTag('GET get_case extra_token')).toBeNull();
+        expect(parseTestrailTag('')).toBeNull();
     });
 });
 
@@ -221,9 +218,124 @@ describe('cell renderers', () => {
         expect(renderCliCell(null)).toBe('—');
     });
 
-    it('renders skill cell as ../skill-relative command-table link when CLI is bound, em-dash otherwise', () => {
+    it('renders skill cell as command-table fallback when CLI is bound but no recipe tag exists', () => {
         expect(renderSkillCell('case:get')).toBe('[command-table](../skill/SKILL.md#command-surface)');
+        expect(renderSkillCell('case:get', new Map())).toBe('[command-table](../skill/SKILL.md#command-surface)');
         expect(renderSkillCell(null)).toBe('—');
+    });
+
+    it('renders skill cell as a recipe link when the CLI key has a recipe-for tag', () => {
+        const recipes: RecipeMap = new Map([
+            ['case:get', { number: 5, title: 'Fetch a case', anchor: '5-fetch-a-case' }],
+        ]);
+        expect(renderSkillCell('case:get', recipes)).toBe('[recipe #5](../skill/SKILL.md#5-fetch-a-case)');
+    });
+
+    it('renders skill cell as em-dash when no CLI binding, regardless of recipes map', () => {
+        const recipes: RecipeMap = new Map([['case:get', { number: 1, title: 'x', anchor: 'x' }]]);
+        expect(renderSkillCell(null, recipes)).toBe('—');
+    });
+});
+
+describe('slugifyHeading', () => {
+    it('lowercases, strips punctuation, and hyphenates spaces (GitHub-compatible)', () => {
+        expect(slugifyHeading('1. Smoke-test auth & connectivity')).toBe('1-smoke-test-auth--connectivity');
+    });
+
+    it('preserves existing hyphens and digits', () => {
+        expect(slugifyHeading('22. Create a plan with nested entries (matrix testing in one call)')).toBe(
+            '22-create-a-plan-with-nested-entries-matrix-testing-in-one-call',
+        );
+    });
+
+    it('handles simple headings', () => {
+        expect(slugifyHeading('Fetch a project')).toBe('fetch-a-project');
+    });
+});
+
+describe('parseSkillRecipes', () => {
+    it('returns an empty map when no recipe-for tags are present', () => {
+        const src = `## Recipes\n\n### 1. Just a heading\n\nNo tag.\n`;
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.size).toBe(0);
+    });
+
+    it('maps a single resource:action to the immediately-preceding numbered recipe', () => {
+        const src = [
+            '## Recipes',
+            '',
+            '### 1. Fetch a case',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+            '```bash',
+            'testrail case get 5',
+            '```',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        const r = recipes.get('case:get');
+        expect(r).toBeDefined();
+        expect(r?.number).toBe(1);
+        expect(r?.title).toBe('Fetch a case');
+        expect(r?.anchor).toBe('1-fetch-a-case');
+    });
+
+    it('handles multi-action recipe-for tags (comma-separated, one recipe per action)', () => {
+        const src = [
+            '### 15. Attach a screenshot to a result',
+            '',
+            '<!-- recipe-for: result:add, attachment:add-to-result -->',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.get('result:add')?.number).toBe(15);
+        expect(recipes.get('attachment:add-to-result')?.number).toBe(15);
+    });
+
+    it('keeps the first recipe for a given key when duplicates exist (matches generator behavior)', () => {
+        const src = [
+            '### 5. First',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+            '### 8. Second',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.get('case:get')?.number).toBe(5);
+    });
+
+    it('skips tags inside GENERATED regions', () => {
+        const src = [
+            '### 1. Real recipe',
+            '',
+            '<!-- recipe-for: case:get -->',
+            '',
+            '<!-- GENERATED:command-table -->',
+            '### 99. Fake heading inside generated block',
+            '',
+            '<!-- recipe-for: should:not-be-picked-up -->',
+            '<!-- /GENERATED:command-table -->',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.get('case:get')?.number).toBe(1);
+        expect(recipes.has('should:not-be-picked-up')).toBe(false);
+    });
+
+    it('ignores standalone recipe-for tags that have no preceding numbered heading', () => {
+        const src = [
+            '# Top of file',
+            '',
+            '<!-- recipe-for: orphan:action -->',
+            '',
+            '## Some unnumbered section',
+            '',
+        ].join('\n');
+        const recipes = parseSkillRecipes(src);
+        expect(recipes.has('orphan:action')).toBe(false);
     });
 });
 
@@ -251,16 +363,19 @@ describe('aggregate renderers', () => {
                         path: 'delete_case/{case_id}',
                         summary: 'Delete a case.',
                     },
-                    match: null, // dynamic-endpoint case
+                    match: null,
                     cliKey: null,
                 },
             ],
         },
     ];
 
-    it('summary totals correctly count endpoints/client/CLI/skill', () => {
-        const out = renderSummaryTable(grouped);
-        // Cases row: 2 endpoints, 1 client-bound, 1 CLI-bound, 1 skill-bound
+    it('summary totals: skill column counts only rows with a recipe-for tag (not CLI fallback rows)', () => {
+        // Without a recipes map, skill column is 0 (Phase 3: only curated recipes count).
+        expect(renderSummaryTable(grouped)).toContain('| **Total** | **2** | **1** | **1** | **0** |');
+        // With a recipe for case:get, skill column rises to 1.
+        const recipes: RecipeMap = new Map([['case:get', { number: 1, title: 'Get a case', anchor: '1-get-a-case' }]]);
+        const out = renderSummaryTable(grouped, recipes);
         expect(out).toContain('| [Cases](#cases) | 2 | 1 | 1 | 1 |');
         expect(out).toContain('| **Total** | **2** | **1** | **1** | **1** |');
     });
@@ -277,7 +392,6 @@ describe('aggregate renderers', () => {
         const out = renderResourceSection('Cases', casesRows, '/repo/');
         expect(out).toContain('[`getCase`](../src/modules/cases.ts#L35)');
         expect(out).toContain('`case get`');
-        // Second row: client + CLI both missing → two em-dashes in the cells
         const secondRowLine = out.split('\n').find((l: string) => l.includes('delete_case/{case_id}'));
         expect(secondRowLine).toBeDefined();
         const cells = (secondRowLine ?? '').split('|').filter((cell: string) => cell.trim() === '—');
@@ -290,6 +404,8 @@ describe('aggregate renderers', () => {
         expect(out).toContain('## Summary');
         expect(out).toContain('## Cases');
         expect(out).toContain('Generated by scripts/generate-mapping.js');
+        // Phase 2: document calls out the drift gates.
+        expect(out).toContain('Drift gates');
     });
 
     it('document output is deterministic (running twice produces identical bytes)', () => {
@@ -304,8 +420,6 @@ describe('aggregate renderers', () => {
             { resource: 'Suites', rows: casesRows },
             { resource: 'Cases', rows: casesRows },
         ];
-        // renderDocument iterates in input order, but our generator sorts before passing in.
-        // Test the contract by passing pre-sorted input and asserting Cases comes before Suites.
         const sorted = [...multi].sort((a, b) => a.resource.localeCompare(b.resource));
         const out = renderDocument(sorted, '/repo/');
         const casesIdx = out.indexOf('## Cases');
