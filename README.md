@@ -75,6 +75,30 @@ npx testrail install-skill --print-path
 
 The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface and recipes.
 
+### CLI output formats
+
+Every read / list / write action accepts `--format <json|table|yaml|csv>` (default: `json`). Pick the format that matches your downstream pipeline:
+
+| Format  | Best for                                                                                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `json`  | Default. Pretty-printed JSON, safe to pipe into `jq` and any JSON-aware tool.                                                                                         |
+| `table` | Human-readable ASCII table with sanitized cell values (control chars stripped, CTF #18). Good for terminal inspection.                                                |
+| `yaml`  | Zero-dependency YAML 1.2 emitter. 2-space indent, double-quoted strings where ambiguity demands it. Good for piping into `yq`, embedding in Helm/Ansible/K8s configs. |
+| `csv`   | RFC 4180. CRLF row terminators, deterministic header order (sorted union of top-level keys). Nested objects/arrays are JSON-stringified into a single cell.           |
+
+```bash
+# Pipe a project list into yq for further filtering
+testrail project list --format yaml | yq '.[] | select(.suite_mode == 1)'
+
+# Export a run's results as a spreadsheet
+testrail result list --run-id 42 --format csv > results.csv
+
+# Inspect a single case as a table
+testrail case get 1234 --format table
+```
+
+`--format csv` keeps nested values as JSON in-cell (no dot-path flattening) so the CSV column count is stable regardless of payload shape. Header order in CSV mode is the sorted union of top-level keys across all rows, so two CSV exports of the same endpoint always produce the same header.
+
 ## Quick Start
 
 ```typescript

@@ -8,8 +8,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 - [ ] 🟢 📦 CLI: `user add` / `user update` (7.3+; password UX unresolved — superseded by endpoint items below)
 - [ ] 🟡 📦 CLI: `case add-bulk`
-- [ ] 🟢 📦 CLI: `--format yaml`
-- [ ] 🟢 📦 CLI: `--format csv`
 - [ ] 🟡 📦 CLI: `run watch <run_id>`
 - [ ] 🟢 📦 CLI: binary stdin upload
 - [ ] 🟢 📦 CLI: binary stdout download
