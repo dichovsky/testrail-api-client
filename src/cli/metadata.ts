@@ -219,6 +219,22 @@ export const ACTIONS: readonly ActionSpec[] = [
         apiEndpoint: 'GET get_plans/{project_id}',
         isWrite: false,
     },
+    {
+        resource: 'section',
+        action: 'get',
+        summary: 'Fetch a single section by ID',
+        pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        apiEndpoint: 'GET get_section/{section_id}',
+        isWrite: false,
+    },
+    {
+        resource: 'section',
+        action: 'list',
+        summary: 'List sections in a project (optionally filtered by suite; paginated)',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'GET get_sections/{project_id}',
+        isWrite: false,
+    },
     // ── Write actions ─────────────────────────────────────────────────────
     {
         resource: 'case',

@@ -31,7 +31,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Results](#results) | 7 | 7 | 4 | 3 |
 | [Roles](#roles) | 1 | 1 | 0 | 0 |
 | [Runs](#runs) | 6 | 6 | 5 | 3 |
-| [Sections](#sections) | 6 | 6 | 4 | 0 |
+| [Sections](#sections) | 6 | 6 | 6 | 0 |
 | [Shared Steps](#shared-steps) | 6 | 6 | 3 | 0 |
 | [Statuses](#statuses) | 2 | 2 | 1 | 0 |
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 0 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **64** | **23** |
+| **Total** | **116** | **116** | **66** | **23** |
 
 ## Attachments
 
@@ -250,8 +250,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSection`](../src/modules/sections.ts#L11) | — | — |
-| [`GET get_sections/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSections`](../src/modules/sections.ts#L17) | — | — |
+| [`GET get_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSection`](../src/modules/sections.ts#L11) | `section get` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_sections/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSections`](../src/modules/sections.ts#L17) | `section list` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST add_section/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addSection`](../src/modules/sections.ts#L40) | `section add` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST delete_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteSection`](../src/modules/sections.ts#L59) | `section delete` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST move_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveSection`](../src/modules/sections.ts#L88) | `section move` | [command-table](../skill/SKILL.md#command-surface) |

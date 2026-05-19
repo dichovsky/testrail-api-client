@@ -33,6 +33,7 @@ Read actions:
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
   user     get <id> | list [--limit N] [--offset N]
   plan     get <id> | list --project-id <id> [--limit N] [--offset N]
+  section  get <id> | list <id> [--suite-id <id>] [--limit N] [--offset N]
   shared-step  get <id> | list --project-id <id>
   shared-step  history <shared_step_id> [--limit N] [--offset N]
   case-status  list

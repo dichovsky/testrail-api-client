@@ -250,6 +250,26 @@ describe('parseId', () => {
         expect(() => parseId('1.5', 'project id')).toThrow(IdParseError);
     });
 
+    it('throws when raw uses scientific notation (rejects "1e2" even though Number() yields 100)', () => {
+        expect(() => parseId('1e2', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw uses a hex prefix (rejects "0x1" even though Number() yields 1)', () => {
+        expect(() => parseId('0x1', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw has leading zeros (rejects "01")', () => {
+        expect(() => parseId('01', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw has surrounding whitespace (rejects " 5 ")', () => {
+        expect(() => parseId(' 5 ', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw has an explicit + sign (rejects "+1")', () => {
+        expect(() => parseId('+1', 'project id')).toThrow(IdParseError);
+    });
+
     it('includes the parameter name in the error', () => {
         expect(() => parseId(undefined, '--run-id')).toThrow(/--run-id/);
     });
@@ -278,6 +298,29 @@ describe('optInt', () => {
 
     it('returns the parsed integer for positive input', () => {
         expect(optInt('42')).toBe(42);
+    });
+
+    // Boundary cases: parity with parseId's tightening (SEC #27). These
+    // inputs are silently dropped to undefined — the caller (pagination
+    // resolver) simply omits the param so the request goes through with
+    // server defaults rather than coercing a smuggled value.
+    it.each([
+        ['scientific notation', '1e2'],
+        ['hex prefix', '0x1'],
+        ['hex prefix (larger)', '0x10'],
+        ['leading zero', '01'],
+        ['whitespace-padded', ' 5 '],
+        ['explicit positive sign', '+1'],
+        ['decimal (control)', '1.5'],
+    ])('returns undefined for non-decimal form: %s (%s)', (_label, raw) => {
+        expect(optInt(raw)).toBeUndefined();
+    });
+
+    it.each([
+        ['offset boundary "0"', '0', 0],
+        ['typical pagination "100"', '100', 100],
+    ])('accepts valid non-negative decimal: %s', (_label, raw, expected) => {
+        expect(optInt(raw)).toBe(expected);
     });
 });
 

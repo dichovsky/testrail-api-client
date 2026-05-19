@@ -29,8 +29,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🔴 P0 — daily-use endpoints
 
-- [ ] 🔴 📦 CLI: `section get` (GET `get_section/{section_id}`)
-- [ ] 🔴 📦 CLI: `section list` (GET `get_sections/{project_id}`)
 - [ ] 🔴 📦 CLI: `run update` (POST `update_run/{run_id}`)
 - [ ] 🔴 📦 CLI: `test get` (GET `get_test/{test_id}`)
 - [ ] 🔴 📦 CLI: `test list` (GET `get_tests/{run_id}`)
@@ -108,7 +106,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 🐛 SEC #23: Identical GETs stampede into parallel upstream calls
 - [ ] 🟢 🐛 SEC #24: stdin wall-clock deadline still missing (size cap shipped)
 - [ ] 🟢 🐛 SEC #26: `allowInsecure: true` lacks runtime warning / audit trail
-- [ ] 🟢 🐛 SEC #27: `parseId` accepts hex / binary / scientific forms
 - [ ] 🟢 🐛 SEC #28: throwing `destroy()` aborts cleanup of later clients
 - [ ] 🟡 🐛 SEC #29: `validateEntryId` accepts any non-empty string
 
@@ -129,4 +126,3 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 🧪 QA: separate CI job for skill-generation drift
 - [ ] 🟢 🧪 QA: coverage delta enforcement (98% floor)
 - [ ] 🟡 🧪 QA: CLI fuzz tests
-- [ ] 🟢 🐛 QA: stricter decimal-only parsing in `parseId` / `optInt`

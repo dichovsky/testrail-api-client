@@ -35,6 +35,7 @@ import {
     handleAttachmentAddToPlanEntry,
     handleAttachmentDelete,
 } from './handlers/attachment-write.js';
+import { handleSectionGet, handleSectionList } from './handlers/section.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
 import { handleCaseStatusList } from './handlers/case-status.js';
 import { handleBddGet, handleBddAdd } from './handlers/bdd.js';
@@ -121,6 +122,8 @@ const HANDLERS: Record<string, Handler> = {
     'bdd:get': handleBddGet,
     'bdd:add': handleBddAdd,
     'case-field:add': handleCaseFieldAdd,
+    'section:get': handleSectionGet,
+    'section:list': handleSectionList,
     'section:add': handleSectionAdd,
     'section:update': handleSectionUpdate,
     'section:delete': handleSectionDelete,
