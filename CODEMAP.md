@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "017fbd717b80fe47321d8c5d69e9d3d4378ffb7c0389ee874dc14268176e8d39",
+  "sourceHash": "1c443e59429624019e653b656ee01dd1b5084a6be520045adc27822d61ec3160",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1411,9 +1411,11 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/run-write.js",
         "./handlers/run.js",
         "./handlers/section-write.js",
+        "./handlers/section.js",
         "./handlers/shared-step.js",
         "./handlers/suite-write.js",
         "./handlers/suite.js",
+        "./handlers/test.js",
         "./handlers/user.js"
       ],
       "reExports": [],
@@ -1421,35 +1423,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 63,
+          "line": 72,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 132,
+          "line": 149,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 147,
+          "line": 164,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 154,
+          "line": 171,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 158,
+          "line": 175,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1568,21 +1570,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "BodyInput",
           "kind": "interface",
-          "line": 48,
+          "line": 51,
           "exported": true,
           "signature": "export interface BodyInput { dataFlag?: string; dataFileFlag?: string; readStdin?: () => string; }"
         },
         {
           "name": "HandlerContext",
           "kind": "interface",
-          "line": 54,
+          "line": 57,
           "exported": true,
           "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: (data: unknown) => void; }"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 68,
+          "line": 71,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
         }
@@ -1932,23 +1934,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handlePlanAdd",
           "kind": "function",
-          "line": 6,
+          "line": 13,
           "exported": true,
           "signature": "export async function handlePlanAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanUpdate",
           "kind": "function",
-          "line": 17,
+          "line": 24,
           "exported": true,
           "signature": "export async function handlePlanUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanAddEntry",
           "kind": "function",
-          "line": 28,
+          "line": 35,
           "exported": true,
           "signature": "export async function handlePlanAddEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanAddRunToEntry",
+          "kind": "function",
+          "line": 46,
+          "exported": true,
+          "signature": "export async function handlePlanAddRunToEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanUpdateEntry",
+          "kind": "function",
+          "line": 65,
+          "exported": true,
+          "signature": "export async function handlePlanUpdateEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanUpdateRunInEntry",
+          "kind": "function",
+          "line": 84,
+          "exported": true,
+          "signature": "export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2123,16 +2146,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export async function handleRunAdd(ctx: HandlerContext): Promise<void>"
         },
         {
+          "name": "handleRunUpdate",
+          "kind": "function",
+          "line": 23,
+          "exported": true,
+          "signature": "export async function handleRunUpdate(ctx: HandlerContext): Promise<void>"
+        },
+        {
           "name": "handleRunClose",
           "kind": "function",
-          "line": 28,
+          "line": 45,
           "exported": true,
           "signature": "export async function handleRunClose(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleRunDelete",
           "kind": "function",
-          "line": 47,
+          "line": 64,
           "exported": true,
           "signature": "export async function handleRunDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2199,6 +2229,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 75,
           "exported": true,
           "signature": "export async function handleSectionDelete(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/section.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleSectionGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleSectionGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleSectionList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleSectionList(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2291,6 +2345,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/test.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "parseStatusIdList",
+          "kind": "function",
+          "line": 11,
+          "exported": false,
+          "signature": "function parseStatusIdList(raw: string | undefined): number[] | undefined"
+        },
+        {
+          "name": "handleTestGet",
+          "kind": "function",
+          "line": 16,
+          "exported": true,
+          "signature": "export async function handleTestGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleTestList",
+          "kind": "function",
+          "line": 21,
+          "exported": true,
+          "signature": "export async function handleTestList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/user.ts",
       "imports": [
         "../handler-context.js",
@@ -2334,30 +2419,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           ]
         },
         {
-          "name": "POSITIVE_INTEGER_RE",
+          "name": "POSITIVE_INT_RE",
           "kind": "const",
-          "line": 16,
+          "line": 14,
           "exported": false,
-          "signature": "const POSITIVE_INTEGER_RE = /^[1-9][0-9]*$/"
+          "signature": "const POSITIVE_INT_RE = /^[1-9]\\d*$/"
+        },
+        {
+          "name": "NON_NEG_INT_RE",
+          "kind": "const",
+          "line": 26,
+          "exported": false,
+          "signature": "const NON_NEG_INT_RE = /^(0|[1-9]\\d*)$/"
         },
         {
           "name": "parseId",
           "kind": "function",
-          "line": 18,
+          "line": 28,
           "exported": true,
           "signature": "export function parseId(raw: string | undefined, name: string): number"
         },
         {
+          "name": "parseEntryId",
+          "kind": "function",
+          "line": 45,
+          "exported": true,
+          "signature": "export function parseEntryId(raw: string | undefined, name: string): string"
+        },
+        {
           "name": "optInt",
           "kind": "function",
-          "line": 33,
+          "line": 52,
           "exported": true,
           "signature": "export function optInt(raw: string | undefined): number | undefined"
         },
         {
           "name": "parseIdList",
           "kind": "function",
-          "line": 48,
+          "line": 67,
           "exported": true,
           "signature": "export function parseIdList(raw: string | undefined, name: string): number[] | undefined"
         }
@@ -2406,7 +2505,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 152,
+          "line": 159,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2457,28 +2556,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 49,
+          "line": 53,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 54,
+          "line": 58,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 92,
+          "line": 96,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 699,
+          "line": 777,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
