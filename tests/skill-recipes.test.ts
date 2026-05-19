@@ -144,9 +144,11 @@ describe('skill/SKILL.md — Bulk case delete recipe', () => {
         const section = extractSection(md, 'Bulk case delete');
         // The two-step workflow is the headline takeaway. Snapshot both
         // canonical invocations so a future rewrite that drops the
-        // server-side preview step shows up as a diff.
-        expect(section).toContain('--case-ids 101,102,103 --soft --yes');
-        expect(section).toContain('--case-ids 101,102,103 --yes');
+        // server-side preview step shows up as a diff. Case IDs are
+        // passed via --data '{"case_ids":[…]}'; there is no --case-ids
+        // flag (the CLI rejects unknown flags).
+        expect(section).toContain('--soft --yes \\\n    --data \'{"case_ids":[101,102,103]}\'');
+        expect(section).toContain('--yes \\\n    --data \'{"case_ids":[101,102,103]}\'');
     });
 
     it('documents the flag-interaction matrix: dry-run wins, soft preview, real delete', () => {

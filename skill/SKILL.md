@@ -988,7 +988,7 @@ Recommended workflow — preview server-side first, then commit:
 #    the target suite/project and surfaces the blast radius (e.g. how
 #    many tests inside open runs would be touched).
 testrail case delete-bulk 12 --project-id 5 \
-    --case-ids 101,102,103 --soft --yes \
+    --soft --yes \
     --data '{"case_ids":[101,102,103]}'
 
 # 2. Review the returned preview. If the affected-test counts look
@@ -997,7 +997,7 @@ testrail case delete-bulk 12 --project-id 5 \
 
 # 3. Real delete — drop --soft. This is irreversible.
 testrail case delete-bulk 12 --project-id 5 \
-    --case-ids 101,102,103 --yes \
+    --yes \
     --data '{"case_ids":[101,102,103]}'
 ```
 
