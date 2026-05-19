@@ -210,6 +210,60 @@ payload shape before consuming TestRail rate limit.
 testrail case add 5 --data '{"title":"x"}' --dry-run
 ```
 
+## Destructive operations
+
+Every destructive CLI action (any `delete` plus `run close` / `plan close`) is
+protected by a **two-gate model** as of v3.6.0. Both gates must be satisfied
+before a destructive call reaches the API:
+
+1. **`--yes` flag** — per-invocation explicit confirmation. Required on every
+   destructive command. Missing `--yes` exits with code `1` and the message
+   `Destructive action; pass --yes to confirm.`
+2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env var** — process-wide unlock. Must be
+   set in the environment before invoking destructive commands. The env var
+   must be **exactly** the string `'1'` — `'true'`, `'yes'`, `'on'`, `'1 '`
+   (whitespace) are all rejected. Missing/wrong env value exits with code
+   `2` (distinct from the generic `1`) so CI can distinguish "blocked by
+   env gate" from "wrong flag / bad JSON / 4xx".
+
+Either gate alone is insufficient.
+
+```bash
+# Blocked: --yes set, env var missing → exit code 2
+testrail run delete 5 --yes
+
+# Blocked: env var set, --yes missing → exit code 1
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5
+
+# Proceeds: both gates satisfied
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
+```
+
+**`--dry-run` bypasses BOTH gates.** Preview is non-destructive by definition
+(no API call leaves the process), so CI agents can safely preview destructive
+commands without unlocking either gate:
+
+```bash
+# Safe in any environment — no gates required, no API call made
+testrail run delete 5 --dry-run
+```
+
+**Recommended CI pattern** — export the env var once at the top of the
+destructive step, then run any number of destructive commands within that
+step:
+
+```bash
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail run delete 5 --yes
+testrail case delete 10 --yes
+```
+
+**`--soft` (server-side preview)** on soft-capable deletes (`case delete`,
+`case delete-bulk`, `run delete`, `section delete`, `suite delete`) still
+hits the API and remains gated by both `--yes` and
+`TESTRAIL_ALLOW_DESTRUCTIVE=1`. Distinct from `--dry-run` which makes no
+API call at all.
+
 ## Payload schemas
 
 Each write action validates its body against a Zod schema with

@@ -15,7 +15,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 CLI: binary stdout download
 - [ ] 🟡 📦 CLI: pagination on `attachment list-for-*`
 - [ ] 🟡 ♻️ CLI: streaming upload for large files
-- [ ] 🟢 📦 CLI: destructive env-var gate (`TESTRAIL_ALLOW_DESTRUCTIVE=1`)
 - [ ] 🟡 📦 SKILL: programmatic TS API recipes
 - [ ] 🟢 📦 SKILL: `.cursor/rules/testrail.mdc`
 - [ ] 🟢 📦 SKILL: Continue rules
