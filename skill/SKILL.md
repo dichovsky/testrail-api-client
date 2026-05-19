@@ -125,6 +125,8 @@ on stderr. Never echo or log the API key.
 | shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
 | shared-step | list | — | — | List shared steps in a project |
 | shared-step | history | `<shared_step_id>` | — | List revision history for a shared step (paginated) |
+| report | list | `<project_id>` | — | List report templates configured for a project |
+| report | run | `<report_template_id>` | — | Execute a report template and return the generated report URLs |
 | case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
 | case-field | add | — | `AddCaseFieldPayloadSchema` | Create a custom case field (admin-only); no path params, payload-only |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |

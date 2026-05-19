@@ -19,6 +19,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { handleSectionGet, handleSectionList } from '../src/cli/handlers/section.js';
 import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
 import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
+import { handleReportList, handleReportRun } from '../src/cli/handlers/report.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -30,6 +31,8 @@ interface MockedClient {
     getTests: ReturnType<typeof vi.fn>;
     getResults: ReturnType<typeof vi.fn>;
     getResultsForCase: ReturnType<typeof vi.fn>;
+    getReports: ReturnType<typeof vi.fn>;
+    runReport: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -46,6 +49,13 @@ function buildClient(): MockedClient {
         getTests: vi.fn().mockResolvedValue([{ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }]),
         getResults: vi.fn().mockResolvedValue([{ id: 1, test_id: 4242, status_id: 1 }]),
         getResultsForCase: vi.fn().mockResolvedValue([{ id: 7, test_id: 99, status_id: 5 }]),
+        getReports: vi
+            .fn()
+            .mockResolvedValue([{ id: 11, name: 'Coverage Report', description: 'desc', is_shared: true }]),
+        runReport: vi.fn().mockResolvedValue({
+            report_url: 'https://example.testrail.io/reports/view/11',
+            user_report_url: 'https://example.testrail.io/reports/user/11',
+        }),
     };
 }
 
@@ -426,5 +436,63 @@ describe('handleResultListForCase', () => {
     it('rejects malformed --status-id even when ids are valid', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['100', '87'], statusId: '1,,5' });
         await expect(handleResultListForCase(ctx)).rejects.toThrow(/--status-id/);
+    });
+});
+
+// ── handleReportList ─────────────────────────────────────────────────────
+
+describe('handleReportList', () => {
+    it('calls client.getReports with the parsed project_id and emits the result array', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
+        await handleReportList(ctx);
+        expect(client.getReports).toHaveBeenCalledTimes(1);
+        expect(client.getReports).toHaveBeenCalledWith(3);
+        expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 11, name: 'Coverage Report' })]);
+    });
+
+    it.each(INVALID_IDS)('rejects project_id %s before any client call', async (badId) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [badId] });
+        await expect(handleReportList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getReports).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing project_id (pathParams empty)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [] });
+        await expect(handleReportList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getReports).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleReportRun ──────────────────────────────────────────────────────
+
+describe('handleReportRun', () => {
+    it('calls client.runReport with the parsed report_template_id and emits the result object', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['11'] });
+        await handleReportRun(ctx);
+        expect(client.runReport).toHaveBeenCalledTimes(1);
+        expect(client.runReport).toHaveBeenCalledWith(11);
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                report_url: 'https://example.testrail.io/reports/view/11',
+            }),
+        );
+    });
+
+    it.each(INVALID_IDS)('rejects report_template_id %s before any client call', async (badId) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [badId] });
+        await expect(handleReportRun(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.runReport).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing report_template_id (pathParams empty)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [] });
+        await expect(handleReportRun(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.runReport).not.toHaveBeenCalled();
     });
 });

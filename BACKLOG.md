@@ -36,8 +36,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🟡 P1 — common metadata & admin
 
-- [ ] 🟡 📦 CLI: `report list` (GET `get_reports/{project_id}`)
-- [ ] 🟡 📦 CLI: `report run` (GET `run_report/{report_template_id}`)
 - [ ] 🟡 📦 CLI: `shared-step add` (POST `add_shared_step/{project_id}`)
 - [ ] 🟡 📦 CLI: `shared-step update` (POST `update_shared_step/{shared_step_id}`)
 - [ ] 🟡 📦 ⚠️ CLI: `shared-step delete` (POST `delete_shared_step/{shared_step_id}`)
