@@ -360,9 +360,16 @@ async function main(): Promise<number> {
         ...(values['out'] !== undefined && { out: values['out'] as string }),
         ...(values['soft'] === true && { soft: true }),
         // `--email` is consumed twice by design: once by resolveAuth() above
-        // for the HTTP Basic credential, and once here for `user get-by-email`'s
-        // query payload. Read handlers ignore this when irrelevant; the user
-        // get-by-email handler enforces non-empty before issuing the call.
+        // for the HTTP Basic credential (where the flag takes priority over
+        // TESTRAIL_EMAIL), and once here for `user get-by-email`'s query
+        // payload. Note: passing `--email alice@…` will authenticate AS that
+        // email, which is the intended behavior when a script supplies the
+        // matching API key. Callers who need to look up a third party while
+        // authenticating as a different identity should set TESTRAIL_EMAIL
+        // for auth and omit `--email` in favor of a different lookup path
+        // (e.g. `user get <id>`). Read handlers ignore this when irrelevant;
+        // the user get-by-email handler enforces non-empty before issuing
+        // the call.
         ...(values['email'] !== undefined && { email: values['email'] as string }),
     };
 

@@ -1478,11 +1478,12 @@ describe('CLI', () => {
 
         // ── user get-by-email ─────────────────────────────────────────────
         // `--email` is consumed twice: by resolveAuth() for the HTTP Basic
-        // credential, and by the handler for the lookup query. Subprocess
-        // tests use the env-var auth path so the `--email` arg unambiguously
-        // serves the lookup (otherwise the credential email and query email
-        // would collide). The handler enforces non-empty client-side;
-        // TestRail-side EMAIL_REGEX rejects malformed addresses before any
+        // credential, and by the handler for the lookup query. resolveAuth()
+        // prefers the `--email` flag over `TESTRAIL_EMAIL`, so when the flag
+        // is set it also becomes the authenticated identity — which is fine
+        // for these tests because the API key still comes from env. The
+        // handler enforces non-empty client-side; client-side EMAIL_REGEX
+        // (src/modules/users.ts) rejects malformed addresses before any
         // network call.
 
         it('user get-by-email exits 0 and calls get_user_by_email with the email query param', async () => {

@@ -38,8 +38,8 @@ export interface HandlerArgs {
      *  Reuses the same `--email` flag that supplies the auth credential — the
      *  flag is consumed twice by design: once by `resolveAuth()` for the HTTP
      *  Basic credential, and once here for the query payload. The handler
-     *  requires this to be a non-empty string; TestRail enforces the format
-     *  server-side via `EMAIL_REGEX` in `src/modules/users.ts`. */
+     *  requires this to be a non-empty string; format is enforced client-side
+     *  by `EMAIL_REGEX` in `src/modules/users.ts` before any network call. */
     email?: string;
 }
 

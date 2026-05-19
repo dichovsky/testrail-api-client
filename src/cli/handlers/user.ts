@@ -17,10 +17,12 @@ export async function handleUserList(ctx: HandlerContext): Promise<void> {
  *
  * The `--email` flag is shared with the auth resolver (which consumes the
  * same value for the HTTP Basic credential); reusing the flag keeps the
- * KNOWN_FLAGS surface minimal. The handler only enforces non-empty here
- * (TestRail-side `EMAIL_REGEX` in `src/modules/users.ts` rejects malformed
- * addresses with `TestRailValidationError` before any network call, so
- * format validation isn't duplicated at the CLI boundary).
+ * KNOWN_FLAGS surface minimal. The handler only enforces non-empty here.
+ * The client-side `EMAIL_REGEX` check in `src/modules/users.ts` rejects
+ * malformed addresses with `TestRailValidationError` before any network
+ * call, so format validation isn't duplicated at the CLI boundary. The
+ * trimmed value is passed to `getUserByEmail()` so a trailing whitespace
+ * typo in `--email` does not slip past the strict regex.
  *
  * Extra positional args are rejected fail-fast with `IdParseError` for
  * parity with the rest of the CLI's arg-parse failures.
