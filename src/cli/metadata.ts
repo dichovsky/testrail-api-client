@@ -686,6 +686,46 @@ export const ACTIONS: readonly ActionSpec[] = [
         apiEndpoint: 'GET get_case_statuses',
         isWrite: false,
     },
+    // ── Metadata read actions ─────────────────────────────────────────────
+    // Instance-level metadata getters: case fields, result fields, statuses,
+    // and per-project templates. Four of the five take no path params
+    // (`case-field list`, `case-status list`, `result-field list`,
+    // `status list`); the handlers reject extra positional args fail-fast
+    // with `IdParseError` so a typo like `testrail status list 5` surfaces
+    // as an error instead of silently ignoring the `5`. `template list`
+    // takes a single `project_id`.
+    {
+        resource: 'case-field',
+        action: 'list',
+        summary: 'List all custom case fields defined on the TestRail instance',
+        pathParams: [],
+        apiEndpoint: 'GET get_case_fields',
+        isWrite: false,
+    },
+    {
+        resource: 'result-field',
+        action: 'list',
+        summary: 'List all custom result fields defined on the TestRail instance',
+        pathParams: [],
+        apiEndpoint: 'GET get_result_fields',
+        isWrite: false,
+    },
+    {
+        resource: 'status',
+        action: 'list',
+        summary: 'List all result statuses defined on the TestRail instance',
+        pathParams: [],
+        apiEndpoint: 'GET get_statuses',
+        isWrite: false,
+    },
+    {
+        resource: 'template',
+        action: 'list',
+        summary: 'List case templates available in a project',
+        pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'GET get_templates/{project_id}',
+        isWrite: false,
+    },
     // ── Case-field write action ───────────────────────────────────────────
     {
         resource: 'case-field',

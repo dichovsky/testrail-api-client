@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "ce29d227a119846244e77c996ab63791a61b7daeb32abfdb194053d8cf3cb5c7",
+  "sourceHash": "7fc89e6ec1e52dce8dfac8a02c52282897769aefce77431c25030ee47f40e86c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1397,6 +1397,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/attachment.js",
         "./handlers/bdd.js",
         "./handlers/case-field-write.js",
+        "./handlers/case-field.js",
         "./handlers/case-status.js",
         "./handlers/case-write.js",
         "./handlers/case.js",
@@ -1407,6 +1408,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/project-write.js",
         "./handlers/project.js",
         "./handlers/report.js",
+        "./handlers/result-field.js",
         "./handlers/result-write.js",
         "./handlers/result.js",
         "./handlers/run-write.js",
@@ -1414,8 +1416,10 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/section-write.js",
         "./handlers/section.js",
         "./handlers/shared-step.js",
+        "./handlers/status.js",
         "./handlers/suite-write.js",
         "./handlers/suite.js",
+        "./handlers/template.js",
         "./handlers/test.js",
         "./handlers/user.js"
       ],
@@ -1424,35 +1428,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 77,
+          "line": 81,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 160,
+          "line": 168,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 175,
+          "line": 183,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 182,
+          "line": 190,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 186,
+          "line": 194,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1758,16 +1762,34 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/case-field.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleCaseFieldList",
+          "kind": "function",
+          "line": 13,
+          "exported": true,
+          "signature": "export async function handleCaseFieldList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/case-status.ts",
       "imports": [
-        "../handler-context.js"
+        "../handler-context.js",
+        "../ids.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleCaseStatusList",
           "kind": "function",
-          "line": 3,
+          "line": 13,
           "exported": true,
           "signature": "export async function handleCaseStatusList(ctx: HandlerContext): Promise<void>"
         }
@@ -2110,6 +2132,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/result-field.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleResultFieldList",
+          "kind": "function",
+          "line": 10,
+          "exported": true,
+          "signature": "export async function handleResultFieldList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/result-write.ts",
       "imports": [
         "../../schemas.js",
@@ -2341,6 +2380,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/status.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleStatusList",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export async function handleStatusList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/suite-write.ts",
       "imports": [
         "../../schemas.js",
@@ -2394,6 +2450,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 9,
           "exported": true,
           "signature": "export async function handleSuiteList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/template.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleTemplateList",
+          "kind": "function",
+          "line": 11,
+          "exported": true,
+          "signature": "export async function handleTemplateList(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2558,7 +2631,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 176,
+          "line": 182,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2630,7 +2703,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 836,
+          "line": 876,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

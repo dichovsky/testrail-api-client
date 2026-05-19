@@ -1560,6 +1560,18 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['case-status', 'get', '1']);
             expect(exitCodes).toContain(1);
         });
+
+        // Retroactive tightening — `case-status list` used to silently
+        // ignore extra positional args (two-tier behaviour vs the other
+        // no-arg metadata handlers). It now rejects fail-fast like
+        // case-field / result-field / status, before any fetch leaves
+        // the process.
+        it('case-status list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['case-status', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     // ── report ───────────────────────────────────────────────────────────────
@@ -1785,7 +1797,292 @@ describe('CLI', () => {
         });
 
         it('case-field unknown action should exit 1', async () => {
-            const { exitCodes } = await runCli(['case-field', 'list']);
+            const { exitCodes } = await runCli(['case-field', 'get', '1']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    // ── metadata reads (case-field list / result-field list / status list / template list) ──
+
+    describe('metadata reads', () => {
+        const MOCK_CASE_FIELD = {
+            id: 1,
+            system_name: 'custom_steps',
+            label: 'Steps',
+            name: 'steps',
+            type_id: 6,
+            display_order: 1,
+            configs: [],
+            is_active: true,
+            include_all: true,
+            template_ids: [],
+        };
+        const MOCK_RESULT_FIELD = {
+            id: 5,
+            system_name: 'custom_step_results',
+            label: 'Steps',
+            name: 'step_results',
+            type_id: 11,
+            display_order: 1,
+            configs: [],
+            is_active: true,
+            include_all: true,
+            template_ids: [],
+        };
+        const MOCK_STATUS = {
+            id: 1,
+            name: 'passed',
+            label: 'Passed',
+            color_dark: 1,
+            color_medium: 1,
+            color_bright: 1,
+            is_system: true,
+            is_untested: false,
+            is_final: true,
+        };
+        const MOCK_TEMPLATE = { id: 1, name: 'Test Case (Text)', is_default: true };
+
+        // ── case-field list ───────────────────────────────────────────────
+
+        it('case-field list exits 0 and calls get_case_fields', async () => {
+            const { exitCodes } = await runCli(['case-field', 'list'], [jsonResponse([MOCK_CASE_FIELD])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_case_fields'), expect.anything());
+        });
+
+        it('case-field list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case-field', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_CASE_FIELD])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('system_name');
+            expect(stdout).toContain('custom_steps');
+        });
+
+        it('case-field list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case-field', 'list', '--format', 'json'],
+                [jsonResponse([MOCK_CASE_FIELD])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"system_name": "custom_steps"');
+        });
+
+        it('case-field list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['case-field', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('case-field list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-field', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('case-field list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-field', 'list'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('case-field list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-field', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('case-field list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['case-field', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── result-field list ─────────────────────────────────────────────
+
+        it('result-field list exits 0 and calls get_result_fields', async () => {
+            const { exitCodes } = await runCli(['result-field', 'list'], [jsonResponse([MOCK_RESULT_FIELD])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_result_fields'), expect.anything());
+        });
+
+        it('result-field list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['result-field', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_RESULT_FIELD])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('custom_step_results');
+        });
+
+        it('result-field list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['result-field', 'list', '--format', 'json'],
+                [jsonResponse([MOCK_RESULT_FIELD])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"system_name": "custom_step_results"');
+        });
+
+        it('result-field list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['result-field', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('result-field list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['result-field', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('result-field list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['result-field', 'list'],
+                [jsonResponse({ error: 'Unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('result-field list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['result-field', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('result-field list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['result-field', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── status list ───────────────────────────────────────────────────
+
+        it('status list exits 0 and calls get_statuses', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [jsonResponse([MOCK_STATUS])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_statuses'), expect.anything());
+        });
+
+        it('status list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['status', 'list', '--format', 'table'],
+                [jsonResponse([MOCK_STATUS])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('passed');
+        });
+
+        it('status list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['status', 'list', '--format', 'json'],
+                [jsonResponse([MOCK_STATUS])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"name": "passed"');
+        });
+
+        it('status list rejects extra positional args (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['status', 'list', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('no positional arguments');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('status list does not collide with case-status list', async () => {
+            // Sanity: both resources exist and route to different endpoints.
+            const { exitCodes: statusExit } = await runCli(['status', 'list'], [jsonResponse([MOCK_STATUS])]);
+            expect(statusExit).toContain(0);
+            const statusUrl = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(statusUrl).toContain('get_statuses');
+            expect(statusUrl).not.toContain('get_case_statuses');
+        });
+
+        it('status list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('status list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('status list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('status list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['status', 'list'], [], AUTH_ENV, new Error('ECONNREFUSED'));
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── template list ─────────────────────────────────────────────────
+
+        it('template list <project_id> exits 0 and calls get_templates/{project_id}', async () => {
+            const { exitCodes } = await runCli(['template', 'list', '3'], [jsonResponse([MOCK_TEMPLATE])]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_templates/3'), expect.anything());
+        });
+
+        it('template list --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['template', 'list', '3', '--format', 'table'],
+                [jsonResponse([MOCK_TEMPLATE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Test Case (Text)');
+        });
+
+        it('template list --format json renders JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['template', 'list', '3', '--format', 'json'],
+                [jsonResponse([MOCK_TEMPLATE])],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"name": "Test Case (Text)"');
+        });
+
+        it('template list exits 1 when project_id is missing', async () => {
+            const { exitCodes, stderr } = await runCli(['template', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/project_id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // Boundary IDs from the strict POSITIVE_INT_RE in src/cli/ids.ts.
+        // Each must reject BEFORE any fetch leaves the process.
+        it.each([
+            ['zero', '0'],
+            ['negative', '-1'],
+            ['float', '1.5'],
+            ['alpha', 'abc'],
+            ['empty', ''],
+            ['scientific notation', '1e2'],
+            ['hex', '0x1'],
+        ])('template list rejects %s project_id (exit 1, no fetch)', async (_label, raw) => {
+            const { exitCodes } = await runCli(['template', 'list', raw]);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('template list surfaces 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(['template', 'list', '3'], [jsonResponse({ error: 'Not found' }, 404)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('template list surfaces 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['template', 'list', '3'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('template list surfaces 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['template', 'list', '3'],
+                [jsonResponse({ error: 'Unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('template list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['template', 'list', '3'], [], AUTH_ENV, new Error('ECONNREFUSED'));
             expect(exitCodes).toContain(1);
         });
     });

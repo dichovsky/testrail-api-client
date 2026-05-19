@@ -50,10 +50,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟡 📦 CLI: `variable add` (POST `add_variable/{project_id}`)
 - [ ] 🟡 📦 CLI: `variable update` (POST `update_variable/{variable_id}`)
 - [ ] 🟡 📦 ⚠️ CLI: `variable delete` (POST `delete_variable/{variable_id}`)
-- [ ] 🟡 📦 CLI: `case-field list` (GET `get_case_fields`)
-- [ ] 🟡 📦 CLI: `result-field list` (GET `get_result_fields`)
-- [ ] 🟡 📦 CLI: `status list` (GET `get_statuses`)
-- [ ] 🟡 📦 CLI: `template list` (GET `get_templates/{project_id}`)
 - [ ] 🟡 📦 SKILL recipe: Configuration groups & configs hierarchy management
 
 #### 🟢 P2 — admin & low-traffic endpoints

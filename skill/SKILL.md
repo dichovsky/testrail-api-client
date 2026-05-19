@@ -128,6 +128,10 @@ on stderr. Never echo or log the API key.
 | report | list | `<project_id>` | — | List report templates configured for a project |
 | report | run | `<report_template_id>` | — | Execute a report template and return the generated report URLs |
 | case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
+| case-field | list | — | — | List all custom case fields defined on the TestRail instance |
+| result-field | list | — | — | List all custom result fields defined on the TestRail instance |
+| status | list | — | — | List all result statuses defined on the TestRail instance |
+| template | list | `<project_id>` | — | List case templates available in a project |
 | case-field | add | — | `AddCaseFieldPayloadSchema` | Create a custom case field (admin-only); no path params, payload-only |
 | attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
 | attachment | list-for-run | `<run_id>` | — | List attachments on a test run |

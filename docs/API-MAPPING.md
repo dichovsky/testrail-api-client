@@ -16,7 +16,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | --- | ---: | ---: | ---: | ---: |
 | [Attachments](#attachments) | 12 | 12 | 12 | 5 |
 | [BDD](#bdd) | 2 | 2 | 2 | 0 |
-| [Case Fields](#case-fields) | 2 | 2 | 1 | 0 |
+| [Case Fields](#case-fields) | 2 | 2 | 2 | 0 |
 | [Case Types](#case-types) | 1 | 1 | 0 | 0 |
 | [Cases](#cases) | 10 | 10 | 10 | 4 |
 | [Configurations](#configurations) | 7 | 7 | 0 | 0 |
@@ -27,19 +27,19 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Priorities](#priorities) | 1 | 1 | 0 | 0 |
 | [Projects](#projects) | 5 | 5 | 5 | 2 |
 | [Reports](#reports) | 2 | 2 | 2 | 0 |
-| [Result Fields](#result-fields) | 1 | 1 | 0 | 0 |
+| [Result Fields](#result-fields) | 1 | 1 | 1 | 0 |
 | [Results](#results) | 7 | 7 | 6 | 5 |
 | [Roles](#roles) | 1 | 1 | 0 | 0 |
 | [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
 | [Shared Steps](#shared-steps) | 6 | 6 | 3 | 0 |
-| [Statuses](#statuses) | 2 | 2 | 1 | 0 |
+| [Statuses](#statuses) | 2 | 2 | 2 | 0 |
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
-| [Templates](#templates) | 1 | 1 | 0 | 0 |
+| [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **80** | **30** |
+| **Total** | **116** | **116** | **84** | **30** |
 
 ## Attachments
 
@@ -75,7 +75,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseFields`](../src/modules/metadata.ts#L40) | — | — |
+| [`GET get_case_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseFields`](../src/modules/metadata.ts#L40) | `case-field list` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST add_case_field`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCaseField`](../src/modules/metadata.ts#L59) | `case-field add` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Case Types
@@ -207,7 +207,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_result_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultFields`](../src/modules/metadata.ts#L35) | — | — |
+| [`GET get_result_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultFields`](../src/modules/metadata.ts#L35) | `result-field list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Results
 
@@ -277,7 +277,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
 | [`GET get_case_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseStatuses`](../src/modules/metadata.ts#L25) | `case-status list` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getStatuses`](../src/modules/metadata.ts#L20) | — | — |
+| [`GET get_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getStatuses`](../src/modules/metadata.ts#L20) | `status list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Suites
 
@@ -297,7 +297,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_templates/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTemplates`](../src/modules/metadata.ts#L69) | — | — |
+| [`GET get_templates/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTemplates`](../src/modules/metadata.ts#L69) | `template list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Tests
 
