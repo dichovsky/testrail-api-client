@@ -5,7 +5,6 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
 ## [Unreleased] — Skill expansion: programmatic recipes + multi-harness rules + uninstall-skill
 
 Five-deliverable package broadening the agent-instruction surface so this
@@ -136,7 +135,6 @@ not introduce a parallel hazard but does not fix the existing one.
 - New CLI flags: `--interval <seconds>`, `--once` (both consumed only by
   `run watch`); attachment list actions now honor the existing `--limit` /
   `--offset` flags.
-
 
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 

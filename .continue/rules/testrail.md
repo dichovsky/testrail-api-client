@@ -8,8 +8,8 @@ REST API. ESM only. Ships two surfaces:
 - **Programmatic**: `import { TestRailClient } from "@dichovsky/testrail-api-client"`
 - **CLI**: the `testrail` binary (also `npx testrail`)
 
-Today the CLI exposes 113 actions across 27 resources
-(50 read, 63 write, 19 destructive). The
+Today the CLI exposes 115 actions across 27 resources
+(51 read, 64 write, 19 destructive). The
 programmatic API is a strict superset — every CLI action calls a
 method on `TestRailClient`.
 
