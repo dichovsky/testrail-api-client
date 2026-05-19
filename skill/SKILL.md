@@ -89,6 +89,7 @@ on stderr. Never echo or log the API key.
 | case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
 | case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
+| run | update | `<run_id>` | `UpdateRunPayloadSchema` | Update an existing test run (all fields optional) |
 | run | close | `<run_id>` | — (no body, requires `--yes`) | Close a test run permanently — irreversible (no body; requires --yes) |
 | run | delete | `<run_id>` | — (no body, requires `--yes`) | Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
@@ -251,6 +252,20 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 {
     "name": "string (required)",
     "suite_id": "number?",
+    "description": "string?",
+    "milestone_id": "number?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "refs": "string?"
+}
+```
+
+### `UpdateRunPayloadSchema` (used by `run update`)
+
+```jsonc
+{
+    "name": "string?",
     "description": "string?",
     "milestone_id": "number?",
     "assignedto_id": "number?",

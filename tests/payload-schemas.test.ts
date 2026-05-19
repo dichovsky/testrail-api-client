@@ -483,6 +483,28 @@ describe('UpdateRunPayloadSchema', () => {
         const parsed = UpdateRunPayloadSchema.parse({ name: 'New name' });
         expect(parsed.name).toBe('New name');
     });
+
+    it('parses include_all + case_ids selection update', () => {
+        const parsed = UpdateRunPayloadSchema.parse({
+            include_all: false,
+            case_ids: [1, 2, 3],
+        });
+        expect(parsed.include_all).toBe(false);
+        expect(parsed.case_ids).toEqual([1, 2, 3]);
+    });
+
+    it('rejects non-string name', () => {
+        expect(() => UpdateRunPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('rejects non-number milestone_id', () => {
+        expect(() => UpdateRunPayloadSchema.parse({ milestone_id: '5' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateRunPayloadSchema.parse({ custom_status: 'in_progress' }) as Record<string, unknown>;
+        expect(parsed['custom_status']).toBe('in_progress');
+    });
 });
 
 describe('AddResultPayloadSchema', () => {

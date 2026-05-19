@@ -29,7 +29,7 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { handleRunAdd, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
+import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
 import {
     handlePlanAdd,
@@ -66,6 +66,7 @@ interface MockedClient {
     addCaseField: ReturnType<typeof vi.fn>;
     moveSection: ReturnType<typeof vi.fn>;
     addRun: ReturnType<typeof vi.fn>;
+    updateRun: ReturnType<typeof vi.fn>;
     closeRun: ReturnType<typeof vi.fn>;
     deleteRun: ReturnType<typeof vi.fn>;
     addResultForCase: ReturnType<typeof vi.fn>;
@@ -103,6 +104,7 @@ function buildClient(): MockedClient {
         addCaseField: vi.fn().mockResolvedValue({ id: 99, name: 'preconds', label: 'Preconditions' }),
         moveSection: vi.fn().mockResolvedValue(undefined),
         addRun: vi.fn().mockResolvedValue({ id: 10, name: 'r' }),
+        updateRun: vi.fn().mockResolvedValue({ id: 10, name: 'r2' }),
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
         deleteRun: vi.fn().mockResolvedValue(undefined),
         addResultForCase: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
@@ -592,6 +594,53 @@ describe('handleRunAdd', () => {
         await handleRunAdd(ctx);
         expect(client.addRun).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'run add', projectId: 3 }));
+    });
+});
+
+// ── run update ────────────────────────────────────────────────────────────
+
+describe('handleRunUpdate', () => {
+    it('calls client.updateRun with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['10'], dataFlag: '{"name":"renamed"}' });
+        await handleRunUpdate(ctx);
+        expect(client.updateRun).toHaveBeenCalledWith(10, expect.objectContaining({ name: 'renamed' }));
+        expect(out).toHaveBeenCalledWith({ id: 10, name: 'r2' });
+    });
+
+    it('accepts an empty body (all fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['10'], dataFlag: '{}' });
+        await handleRunUpdate(ctx);
+        expect(client.updateRun).toHaveBeenCalledWith(10, expect.any(Object));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['10'], dataFlag: '{"name":"x"}', dryRun: true });
+        await handleRunUpdate(ctx);
+        expect(client.updateRun).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'run update', runId: 10 }));
+    });
+
+    it('rejects non-string name', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['10'], dataFlag: '{"name":42}' });
+        await expect(handleRunUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when run_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['bad'], dataFlag: '{}' });
+        await expect(handleRunUpdate(ctx)).rejects.toThrow(/run_id/);
+    });
+
+    it('rejects when run_id is zero', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{}' });
+        await expect(handleRunUpdate(ctx)).rejects.toThrow(/run_id/);
+    });
+
+    it('rejects when run_id is negative', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], dataFlag: '{}' });
+        await expect(handleRunUpdate(ctx)).rejects.toThrow(/run_id/);
     });
 });
 

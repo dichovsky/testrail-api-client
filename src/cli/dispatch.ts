@@ -12,7 +12,7 @@ import {
     handleCaseMoveToSection,
 } from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
-import { handleRunAdd, handleRunClose, handleRunDelete } from './handlers/run-write.js';
+import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from './handlers/run-write.js';
 import { handleResultList } from './handlers/result.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
@@ -92,6 +92,7 @@ const HANDLERS: Record<string, Handler> = {
     'run:get': handleRunGet,
     'run:list': handleRunList,
     'run:add': handleRunAdd,
+    'run:update': handleRunUpdate,
     'run:close': handleRunClose,
     'run:delete': handleRunDelete,
     'result:list': handleResultList,

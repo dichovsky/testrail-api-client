@@ -1649,6 +1649,130 @@ describe('CLI', () => {
         });
     });
 
+    describe('run update', () => {
+        it('POSTs the payload and returns the updated run', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'update', '1', '--data', '{"name":"Updated"}'],
+                [jsonResponse({ ...MOCK_RUN, name: 'Updated' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_run/1');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['name']).toBe('Updated');
+        });
+
+        it('exits 1 when --data is missing and no other body source', async () => {
+            const { stderr, exitCodes } = await runCli(['run', 'update', '1']);
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('exits 1 when run_id is non-numeric', async () => {
+            const { stderr, exitCodes } = await runCli(['run', 'update', 'abc', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('run_id');
+        });
+
+        it('exits 1 when run_id is zero', async () => {
+            const { exitCodes } = await runCli(['run', 'update', '0', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 when run_id is negative', async () => {
+            const { exitCodes } = await runCli(['run', 'update', '-1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 when run_id is fractional', async () => {
+            const { exitCodes } = await runCli(['run', 'update', '1.5', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 when run_id is empty positional', async () => {
+            const { exitCodes } = await runCli(['run', 'update', '', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 when run_id is scientific notation', async () => {
+            const { exitCodes } = await runCli(['run', 'update', '1e2', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 when run_id is hex', async () => {
+            const { exitCodes } = await runCli(['run', 'update', '0x1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 when payload has wrong field type', async () => {
+            const { stderr, exitCodes } = await runCli(['run', 'update', '1', '--data', '{"name":42}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('--dry-run does not call the API and emits a preview', async () => {
+            const { stdout, exitCodes } = await runCli(['run', 'update', '1', '--data', '{"name":"x"}', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            const out = JSON.parse(stdout) as Record<string, unknown>;
+            expect(out['dryRun']).toBe(true);
+            expect(out['action']).toBe('run update');
+            expect(out['runId']).toBe(1);
+        });
+
+        it('--format table renders tabular output', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['run', 'update', '1', '--data', '{"name":"Updated"}', '--format', 'table'],
+                [jsonResponse({ ...MOCK_RUN, name: 'Updated' })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Updated');
+        });
+
+        it('--format json (default) emits parseable JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['run', 'update', '1', '--data', '{"name":"Updated"}'],
+                [jsonResponse({ ...MOCK_RUN, name: 'Updated' })],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as Record<string, unknown>;
+            expect(parsed['name']).toBe('Updated');
+        });
+
+        it('exits 1 on 400 (bad payload server-side)', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'update', '1', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'Bad payload' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 on 404 (run not found)', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'update', '9999', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'Not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 on 401 (auth)', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'update', '1', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'Unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('exits 1 on 403 (forbidden)', async () => {
+            const { exitCodes } = await runCli(
+                ['run', 'update', '1', '--data', '{"name":"x"}'],
+                [jsonResponse({ error: 'Forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+    });
+
     describe('run close', () => {
         it('POSTs without a body when --yes is passed', async () => {
             const { exitCodes } = await runCli(
