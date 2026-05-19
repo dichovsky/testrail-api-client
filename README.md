@@ -290,9 +290,22 @@ await client.addResultsForCases(run.id, {
 ```typescript
 import { readFileSync } from 'node:fs';
 
-const attachment = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+// Streaming-from-disk (recommended for large files — heap stays flat):
+const attachment = await client.addAttachmentToResult(resultId, { path: './screenshot.png' }, 'screenshot.png');
+
+// In-memory (Blob / Uint8Array / File) still supported:
+const inMemory = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+
 const blob = await client.getAttachment(attachment.attachment_id);
 ```
+
+Uploads accept either an in-memory variant (`Blob`, `Uint8Array`, or `File`) or
+a `{ path: string; type?: string }` descriptor. When a descriptor is supplied
+the bytes are read from disk on demand via Node's `fs.openAsBlob`, so a
+100 MB attachment grows heap by ~0 MB instead of fully buffering the file.
+The CLI (`testrail attachment add-to-* --file`) uses this path by default;
+programmatic callers that already hold the bytes in memory may continue to
+pass them directly.
 
 ### Users & metadata
 

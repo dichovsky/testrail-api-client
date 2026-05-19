@@ -99,7 +99,9 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 
 Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly _not_ safe — server state is ambiguous.
 
-`requestMultipart` (uploads) never retries — uploads are non-idempotent and bandwidth-expensive. `requestBinary` retries 5xx / 429 / network errors for its single GET method.
+`requestMultipart` (uploads) never retries — uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the server with the attachment already persisted; retrying would duplicate the record. `requestBinary` retries 5xx / 429 / network errors for its single GET method.
+
+**Streaming upload bodies.** `requestMultipart` accepts either an in-memory variant (`Blob`, `Uint8Array`, `File`) or a `{ path: string; type?: string }` descriptor. The descriptor is resolved via `node:fs.openAsBlob`, which returns a file-backed `Blob` whose `.stream()` reads bytes on demand. `fetch` consumes the multipart `FormData` through that stream, so a 100 MB attachment grows process heap by ~0 MB instead of fully buffering. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) always passes the descriptor; programmatic callers that already hold the bytes in memory may continue to pass them directly. File-open errors (ENOENT, EACCES, EISDIR, …) surface as `TestRailApiError(0, 'Network error: …')` — the open is performed inside the same try/catch that wraps `fetch`, so the error path is symmetric with a transport failure.
 
 Backoff: `min(BASE_RETRY_DELAY_MS × 2^n, MAX_RETRY_DELAY_MS)` — currently `min(1000 × 2^n, 10000)` ms. `Retry-After` (numeric or HTTP-date) is honored, capped to `MAX_RETRY_DELAY_MS` to defend against a malicious server pinning the client with a huge value.
 

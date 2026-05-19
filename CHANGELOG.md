@@ -5,6 +5,15 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`requestMultipart` now streams file uploads from disk** instead of buffering the entire payload into the heap. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) and any programmatic caller using the new `{ path: string; type?: string }` input shape pull bytes via `node:fs.openAsBlob`, so `fetch` reads the file on demand and the process never materializes the whole attachment in memory. Benchmark on a 100 MB file: heap +2.30 MB / RSS +175.61 MB before → heap +0.00 MB / RSS +0.02 MB after.
+- Public API is backwards compatible. `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` accept the existing `Blob | Uint8Array | File` inputs plus the new `{ path }` descriptor. In-memory inputs are unchanged.
+- The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).
+- Upload invariants are preserved: no retry on 5xx/429/network errors, `AbortSignal` honored throughout the body upload, DNS-pin/SSRF guard still applied before fetch, 3xx still rejected by `assertNotRedirect`.
+
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
 Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**
