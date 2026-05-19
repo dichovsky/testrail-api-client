@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
+import { parseId, IdParseError } from '../ids.js';
 import { resolveBody } from '../body.js';
 import { AddGroupPayloadSchema, UpdateGroupPayloadSchema } from '../../schemas.js';
 
@@ -10,7 +10,7 @@ import { AddGroupPayloadSchema, UpdateGroupPayloadSchema } from '../../schemas.j
  */
 export async function handleGroupAdd(ctx: HandlerContext): Promise<void> {
     if (ctx.args.pathParams.length > 0) {
-        throw new Error(
+        throw new IdParseError(
             `group add takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
@@ -80,7 +80,7 @@ export async function handleGroupDelete(ctx: HandlerContext): Promise<void> {
     }
 
     if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
+        throw new Error('group delete: pass --yes to confirm');
     }
 
     await ctx.client.deleteGroup(groupId);

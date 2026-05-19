@@ -2923,6 +2923,11 @@ describe('handleGroupUpdate', () => {
         expect(client.updateGroup).toHaveBeenCalledWith(77, expect.any(Object));
     });
 
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'] });
+        await expect(handleGroupUpdate(ctx)).rejects.toThrow(/Body required/);
+    });
+
     it('dry-run does not call client', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"x"}', dryRun: true });
