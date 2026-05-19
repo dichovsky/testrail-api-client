@@ -18,7 +18,14 @@ import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from 
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList } from './handlers/user.js';
 import { handlePlanGet, handlePlanList } from './handlers/plan.js';
-import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from './handlers/plan-write.js';
+import {
+    handlePlanAdd,
+    handlePlanUpdate,
+    handlePlanAddEntry,
+    handlePlanAddRunToEntry,
+    handlePlanUpdateEntry,
+    handlePlanUpdateRunInEntry,
+} from './handlers/plan-write.js';
 import {
     handleAttachmentListForCase,
     handleAttachmentListForRun,
@@ -103,6 +110,9 @@ const HANDLERS: Record<string, Handler> = {
     'plan:add': handlePlanAdd,
     'plan:update': handlePlanUpdate,
     'plan:add-entry': handlePlanAddEntry,
+    'plan:add-run-to-entry': handlePlanAddRunToEntry,
+    'plan:update-entry': handlePlanUpdateEntry,
+    'plan:update-run-in-entry': handlePlanUpdateRunInEntry,
     'attachment:list-for-case': handleAttachmentListForCase,
     'attachment:list-for-run': handleAttachmentListForRun,
     'attachment:list-for-test': handleAttachmentListForTest,

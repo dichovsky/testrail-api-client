@@ -40,3 +40,16 @@ export function optInt(raw: string | undefined): number | undefined {
     const n = Number(raw);
     return Number.isSafeInteger(n) ? n : undefined;
 }
+
+/**
+ * Parse a TestRail plan entry ID. Unlike numeric IDs (plan_id, run_id),
+ * entry_id is a UUID-style string per TestRail's API. We mirror the
+ * client-core validation rule: a non-empty trimmed string. Surface as a
+ * thrown IdParseError so `main()` translates it to exit 1 (matching parseId).
+ */
+export function parseEntryId(raw: string | undefined, name: string): string {
+    if (typeof raw !== 'string' || raw.trim() === '') {
+        throw new IdParseError(`${name} must be a non-empty string (got: ${raw ?? '(none)'})`);
+    }
+    return raw.trim();
+}

@@ -1750,6 +1750,202 @@ describe('CLI', () => {
             expect(stdout).toContain('dryRun');
             expect(stdout).toContain('plan add');
         });
+
+        it('plan add-run-to-entry POSTs the payload and returns the created run', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1,2]}'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_run_to_plan_entry/50/abc-def-uuid'),
+                expect.anything(),
+            );
+        });
+
+        it('plan add-run-to-entry exits 1 when payload is missing required config_ids', async () => {
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'add-run-to-entry',
+                '50',
+                'abc-def-uuid',
+                '--data',
+                '{"include_all":true}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('plan add-run-to-entry exits 1 when --data is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'add-run-to-entry', '50', 'abc-def-uuid']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('plan add-run-to-entry --dry-run does not call the API', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'plan',
+                'add-run-to-entry',
+                '50',
+                'abc-def-uuid',
+                '--data',
+                '{"config_ids":[1]}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('plan add-run-to-entry');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan add-run-to-entry --format table renders the result as a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}', '--format', 'table'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+            // Table rendering surfaces the run id/name as plain text
+            expect(stdout).toContain('Run 1');
+        });
+
+        it('plan add-run-to-entry surfaces 404 as TestRailApiError exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
+        });
+
+        it('plan update-entry POSTs the payload', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"renamed"}'],
+                [jsonResponse(MOCK_PLAN_ENTRY)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_plan_entry/50/abc-def-uuid'),
+                expect.anything(),
+            );
+        });
+
+        it('plan update-entry accepts an empty body', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{}'],
+                [jsonResponse(MOCK_PLAN_ENTRY)],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('plan update-entry exits 1 when --data is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'update-entry', '50', 'abc-def-uuid']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('plan update-entry exits 1 on Zod validation failure', async () => {
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'update-entry',
+                '50',
+                'abc-def-uuid',
+                '--data',
+                '{"name":42}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('plan update-entry --dry-run does not call the API', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'plan',
+                'update-entry',
+                '50',
+                'abc-def-uuid',
+                '--data',
+                '{"name":"R"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('plan update-entry');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan update-run-in-entry POSTs the payload', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'update-run-in-entry', '77', '--data', '{"description":"new"}'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_run_in_plan_entry/77'),
+                expect.anything(),
+            );
+        });
+
+        it('plan update-run-in-entry exits 1 when --data is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'update-run-in-entry', '77']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('plan update-run-in-entry exits 1 on Zod validation failure', async () => {
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'update-run-in-entry',
+                '77',
+                '--data',
+                '{"description":42}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('plan update-run-in-entry exits 1 when run_id is not a positive integer', async () => {
+            const { stderr, exitCodes } = await runCli(['plan', 'update-run-in-entry', '0', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('run_id');
+        });
+
+        it('plan update-run-in-entry --dry-run does not call the API', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'plan',
+                'update-run-in-entry',
+                '77',
+                '--data',
+                '{"description":"x"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('plan update-run-in-entry');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan update-run-in-entry --format json emits parseable JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'update-run-in-entry', '77', '--data', '{}', '--format', 'json'],
+                [jsonResponse(MOCK_RUN)],
+            );
+            expect(exitCodes).toContain(0);
+            // Trim trailing whitespace/newlines before parsing
+            const parsed = JSON.parse(stdout.trim());
+            expect(parsed).toMatchObject({ id: 1 });
+        });
+
+        it('plan add-run-to-entry exits 1 when entry_id is missing positional', async () => {
+            // Only one positional after action → resource has only plan_id, entry_id missing
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'add-run-to-entry',
+                '50',
+                '--data',
+                '{"config_ids":[1]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('entry_id');
+        });
     });
 
     describe('result add-bulk', () => {
