@@ -2942,13 +2942,15 @@ describe('CLI', () => {
         // `plan close` / `plan delete` / `plan delete-entry` already have 401/403/404
         // mock-status paths above; mirror them here for delete-run-from-entry
         // and exercise the fetch-rejection path (network/TLS failure) which
-        // surfaces as exit 1. Uses `mockRejectedValueOnce` queued BEFORE
-        // runCli — runCli's own setup only adds `mockResolvedValue` (default)
-        // and `mockResolvedValueOnce` entries; the queued *Once mocks fire
-        // in queue order, so the rejection arrives on the first fetch.
+        // surfaces as exit 1. runCli applies its own mockReset(), so use the
+        // `fetchRejection` parameter to install a persistent rejection.
         it('plan delete-run-from-entry maps a network error to exit 1', async () => {
-            mockFetch.mockRejectedValueOnce(new TypeError('fetch failed'));
-            const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', '42', '--yes']);
+            const { exitCodes, stderr } = await runCli(
+                ['plan', 'delete-run-from-entry', '42', '--yes'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/fetch failed/);
         });

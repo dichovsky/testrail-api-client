@@ -72,13 +72,19 @@ on stderr. Never echo or log the API key.
 | case | history | `<case_id>` | — | List edit history for a test case (paginated; TestRail 7.5+) |
 | run | get | `<run_id>` | — | Fetch a single run by ID |
 | run | list | — | — | List runs in a project (paginated) |
+| test | get | `<test_id>` | — | Fetch a single test (run instance of a case) by ID |
+| test | list | `<run_id>` | — | List tests in a run (optionally filtered by status, paginated) |
 | result | list | — | — | List results for a run (paginated) |
+| result | list-for-test | `<test_id>` | — | List results for a single test (paginated; --status-id / --defects-filter supported) |
+| result | list-for-case | `<run_id>` `<case_id>` | — | List results for a case within a run (paginated; --status-id / --defects-filter supported) |
 | milestone | get | `<milestone_id>` | — | Fetch a single milestone by ID |
 | milestone | list | — | — | List milestones in a project (paginated) |
 | user | get | `<user_id>` | — | Fetch a single user by ID |
 | user | list | — | — | List users (paginated) |
 | plan | get | `<plan_id>` | — | Fetch a single test plan by ID |
 | plan | list | — | — | List plans in a project (paginated) |
+| section | get | `<section_id>` | — | Fetch a single section by ID |
+| section | list | `<project_id>` | — | List sections in a project (optionally filtered by suite; paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
 | case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
@@ -87,6 +93,7 @@ on stderr. Never echo or log the API key.
 | case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
 | case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
 | run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
+| run | update | `<run_id>` | `UpdateRunPayloadSchema` | Update an existing test run (all fields optional) |
 | run | close | `<run_id>` | — (no body, requires `--yes`) | Close a test run permanently — irreversible (no body; requires --yes) |
 | run | delete | `<run_id>` | — (no body, requires `--yes`) | Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion) |
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
@@ -95,6 +102,9 @@ on stderr. Never echo or log the API key.
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
+| plan | add-run-to-entry | `<plan_id>` `<entry_id>` | `AddRunToPlanEntryPayloadSchema` | Add a config-specific run to an existing plan entry (config_ids required) |
+| plan | update-entry | `<plan_id>` `<entry_id>` | `UpdatePlanEntryPayloadSchema` | Update an existing plan entry (partial fields; applies to every run in the entry) |
+| plan | update-run-in-entry | `<run_id>` | `UpdateRunInPlanEntryPayloadSchema` | Update a single config-specific run inside a plan entry (description/assignee/case selection only) |
 | plan | close | `<plan_id>` | — (no body, requires `--yes`) | Close a test plan permanently — irreversible (no body; requires --yes) |
 | plan | delete | `<plan_id>` | — (no body, requires `--yes`) | Delete a test plan and all of its entries and runs (requires --yes; --soft NOT supported by TestRail) |
 | plan | delete-entry | `<plan_id>` `<entry_id>` | — (no body, requires `--yes`) | Delete a single plan entry and its runs (requires --yes; --soft NOT supported by TestRail). entry_id is a UUID-style string. |
@@ -259,6 +269,20 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
 }
 ```
 
+### `UpdateRunPayloadSchema` (used by `run update`)
+
+```jsonc
+{
+    "name": "string?",
+    "description": "string?",
+    "milestone_id": "number?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "refs": "string?"
+}
+```
+
 ### `AddResultPayloadSchema` (used by `result add`)
 
 ```jsonc
@@ -323,6 +347,45 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "case_ids": "number[]?",
     "config_ids": "number[]?",
     "runs": "object[]?"
+}
+```
+
+### `AddRunToPlanEntryPayloadSchema` (used by `plan add-run-to-entry`)
+
+```jsonc
+{
+    "config_ids": "number[] (required)",
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "refs": "string?"
+}
+```
+
+### `UpdatePlanEntryPayloadSchema` (used by `plan update-entry`)
+
+```jsonc
+{
+    "suite_id": "number?",
+    "name": "string?",
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "config_ids": "number[]?",
+    "runs": "object[]?"
+}
+```
+
+### `UpdateRunInPlanEntryPayloadSchema` (used by `plan update-run-in-entry`)
+
+```jsonc
+{
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?"
 }
 ```
 
@@ -752,7 +815,62 @@ testrail plan add-entry 50 --data '{
 }'
 ```
 
-### 24. Plan entries lifecycle (add → add-run → update → delete cascade)
+### 24. Results pipeline — choosing per-test vs per-case vs bulk endpoints
+
+<!-- recipe-for: result:list-for-test -->
+<!-- recipe-for: result:list-for-case -->
+
+TestRail exposes four ways to fetch results; the right one depends on what
+IDs you already have and the granularity you need. Decision tree:
+
+1. **You have a `test_id`** (a test is the run-instance of a case in a
+   specific run) → `result list-for-test <test_id>`. Returns the full
+   result history for that one test. Cheapest call when you already
+   resolved the test from a previous `get_tests` / `get_test` lookup.
+
+    ```bash
+    testrail result list-for-test 4242 --limit 50 --status-id 1,5
+    ```
+
+2. **You have a `run_id` and `case_id` but no `test_id`** →
+   `result list-for-case <run_id> <case_id>`. TestRail resolves the
+   test internally. Use this from CI when the test runner only knows the
+   case ID (e.g. tagged in the test file) and the run it published to.
+
+    ```bash
+    # Find the most recent failure for case 87 in run 100, filtered by JIRA ticket
+    testrail result list-for-case 100 87 --limit 1 --status-id 5 --defects-filter JIRA-1234
+    ```
+
+3. **You want every result in the run** (audit, export, dashboard) →
+   `result list --run-id <id>`. Already-shipped batch read; paginate
+   through with `--limit` / `--offset`. Prefer this over N calls to
+   `list-for-test` when N is the size of the run.
+
+    ```bash
+    testrail result list --run-id 100 --limit 100 --offset 0
+    ```
+
+4. **You're writing, not reading** → `result add` (one), `result
+   add-bulk` (many by `case_id`), or `result add-bulk-by-test` (many by
+   `test_id`). Already shipped; mirror the per-test / per-case split on
+   the write side.
+
+Filter flags shared by `list-for-test` and `list-for-case`:
+
+- `--status-id 1,5` — comma-separated status IDs (1 = passed,
+  5 = failed; project-specific values via `case-status list`).
+- `--defects-filter JIRA-1234` — substring match on the result's
+  `defects` field.
+- `--limit N` / `--offset N` — pagination (TestRail caps `limit` at 250
+  server-side).
+
+Rule of thumb: prefer `list-for-test` when you already have a `test_id`
+(one fewer server-side join); fall back to `list-for-case` when CI only
+knows the case; reach for `list` only when you actually need every result
+in the run.
+
+### 25. Plan entries lifecycle (add → add-run → update → delete cascade)
 
 <!-- recipe-for: plan:close -->
 <!-- recipe-for: plan:delete -->
