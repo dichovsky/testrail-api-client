@@ -85,9 +85,7 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
     const entryId = parseId(ctx.args.pathParams[1], 'entry_id');
     const upload = setupUpload(ctx, 'attachment add-to-plan-entry', { planId, entryId });
     if (upload === null) return;
-    ctx.out(
-        await ctx.client.addAttachmentToPlanEntry(planId, entryId, { path: upload.path }, upload.filename),
-    );
+    ctx.out(await ctx.client.addAttachmentToPlanEntry(planId, entryId, { path: upload.path }, upload.filename));
 }
 
 /**

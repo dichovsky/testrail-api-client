@@ -21,9 +21,7 @@ export interface FileInput {
  * from `path` themselves; only the multipart pipeline consumes
  * `FileResolution` and it has been migrated to the streaming variant.
  */
-export type FileResolution =
-    | { ok: true; path: string; filename: string; size: number }
-    | { ok: false; error: string };
+export type FileResolution = { ok: true; path: string; filename: string; size: number } | { ok: false; error: string };
 
 export interface ResolveFileOptions {
     /**
@@ -50,6 +48,7 @@ export interface ResolveFileOptions {
  * eliminates the previous TOCTOU window in which a file could vanish
  * between the CLI's `readFileSync` and the HTTP send.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function resolveFile(input: FileInput, _opts: ResolveFileOptions): FileResolution {
     if (input.fileFlag === undefined || input.fileFlag === '') {
         return { ok: false, error: '--file <path> required for upload actions.' };

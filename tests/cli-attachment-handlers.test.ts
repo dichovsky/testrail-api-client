@@ -230,7 +230,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath });
         await handleAttachmentAddToCase(ctx);
-        expect(client.addAttachmentToCase).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'shot.png');
+        expect(client.addAttachmentToCase).toHaveBeenCalledWith(42, { path: filePath }, 'shot.png');
         expect(out).toHaveBeenCalledWith({ attachment_id: 100 });
     });
 
@@ -264,35 +264,35 @@ describe('attachment upload handlers', () => {
             filename: 'renamed.png',
         });
         await handleAttachmentAddToCase(ctx);
-        expect(client.addAttachmentToCase).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'renamed.png');
+        expect(client.addAttachmentToCase).toHaveBeenCalledWith(42, { path: filePath }, 'renamed.png');
     });
 
     it('add-to-result uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['77'], file: filePath });
         await handleAttachmentAddToResult(ctx);
-        expect(client.addAttachmentToResult).toHaveBeenCalledWith(77, expect.any(Uint8Array), 'shot.png');
+        expect(client.addAttachmentToResult).toHaveBeenCalledWith(77, { path: filePath }, 'shot.png');
     });
 
     it('add-to-run uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['88'], file: filePath });
         await handleAttachmentAddToRun(ctx);
-        expect(client.addAttachmentToRun).toHaveBeenCalledWith(88, expect.any(Uint8Array), 'shot.png');
+        expect(client.addAttachmentToRun).toHaveBeenCalledWith(88, { path: filePath }, 'shot.png');
     });
 
     it('add-to-plan uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['99'], file: filePath });
         await handleAttachmentAddToPlan(ctx);
-        expect(client.addAttachmentToPlan).toHaveBeenCalledWith(99, expect.any(Uint8Array), 'shot.png');
+        expect(client.addAttachmentToPlan).toHaveBeenCalledWith(99, { path: filePath }, 'shot.png');
     });
 
     it('add-to-plan-entry uploads with both ids', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['9', '10'], file: filePath });
         await handleAttachmentAddToPlanEntry(ctx);
-        expect(client.addAttachmentToPlanEntry).toHaveBeenCalledWith(9, 10, expect.any(Uint8Array), 'shot.png');
+        expect(client.addAttachmentToPlanEntry).toHaveBeenCalledWith(9, 10, { path: filePath }, 'shot.png');
     });
 
     it('add-to-plan-entry dry-run preview includes both ids', async () => {

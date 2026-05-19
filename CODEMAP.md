@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "684a12029315bd49616dcd2be62966f602db4d4ec37ba1729e9d82e2705db475",
+  "sourceHash": "695926602d92ddc901c496d775ee4d6aebc81b4d147f0d5892d485795bf95591",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1568,23 +1568,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "FileResolution",
           "kind": "type",
-          "line": 20,
+          "line": 24,
           "exported": true,
-          "signature": "export type FileResolution = | { ok: true; path: string; filename: string; size: number; contents?: Uint8Array } | { ok: false; error: string }"
+          "signature": "export type FileResolution = { ok: true; path: string; filename: string; size: number } | { ok: false; error: string }"
         },
         {
           "name": "ResolveFileOptions",
           "kind": "interface",
-          "line": 24,
+          "line": 26,
           "exported": true,
           "signature": "export interface ResolveFileOptions { read: boolean; }"
         },
         {
           "name": "resolveFile",
           "kind": "function",
-          "line": 38,
+          "line": 52,
           "exported": true,
-          "signature": "export function resolveFile(input: FileInput, opts: ResolveFileOptions): FileResolution"
+          "signature": "export function resolveFile(input: FileInput, _opts: ResolveFileOptions): FileResolution"
         }
       ]
     },
@@ -1695,56 +1695,56 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ResolvedUpload",
           "kind": "interface",
-          "line": 10,
+          "line": 15,
           "exported": false,
-          "signature": "interface ResolvedUpload { filename: string; contents: Uint8Array; }"
+          "signature": "interface ResolvedUpload { filename: string; path: string; }"
         },
         {
           "name": "setupUpload",
           "kind": "function",
-          "line": 21,
+          "line": 30,
           "exported": false,
           "signature": "function setupUpload(ctx: HandlerContext, action: string, idFields: Record<string, number>): ResolvedUpload | null"
         },
         {
           "name": "handleAttachmentAddToCase",
           "kind": "function",
-          "line": 50,
+          "line": 55,
           "exported": true,
           "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToResult",
           "kind": "function",
-          "line": 57,
+          "line": 62,
           "exported": true,
           "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToRun",
           "kind": "function",
-          "line": 64,
+          "line": 69,
           "exported": true,
           "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlan",
           "kind": "function",
-          "line": 71,
+          "line": 76,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlanEntry",
           "kind": "function",
-          "line": 78,
+          "line": 83,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentDelete",
           "kind": "function",
-          "line": 91,
+          "line": 96,
           "exported": true,
           "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -1825,7 +1825,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleBddAdd",
           "kind": "function",
-          "line": 47,
+          "line": 49,
           "exported": true,
           "signature": "export async function handleBddAdd(ctx: HandlerContext): Promise<void>"
         }
@@ -3264,285 +3264,293 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./errors.js",
         "./types.js",
         "./utils.js",
+        "node:fs",
         "node:net",
         "zod"
       ],
       "reExports": [],
       "symbols": [
         {
+          "name": "isFilePathInput",
+          "kind": "function",
+          "line": 19,
+          "exported": false,
+          "signature": "function isFilePathInput(value: unknown): value is { path: string; type?: string }"
+        },
+        {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 8,
+          "line": 29,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
         },
         {
           "name": "PRIVATE_HOST_PATTERNS",
           "kind": "const",
-          "line": 35,
+          "line": 56,
           "exported": false,
           "signature": "const PRIVATE_HOST_PATTERNS: RegExp[] = [ /^localhost\\.?$/i, /^127\\./, /^10\\./, /^172\\.(1[6-9]|2\\d|3[01])\\./, /^192\\.168\\./, /^169\\.254\\./, /^::1$/, /^fe80:/i, /^f[cd][0-9a-f]{2}:/i, /^0\\./, ]"
         },
         {
           "name": "isPrivateOrLoopbackIPv4",
           "kind": "function",
-          "line": 48,
+          "line": 69,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIPv4(ip: string): boolean"
         },
         {
           "name": "isPrivateOrLoopbackIP",
           "kind": "function",
-          "line": 70,
+          "line": 91,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIP(ip: string, family?: number): boolean"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 102,
+          "line": 123,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string): Promise<void>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 151,
+          "line": 172,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 152,
+          "line": 173,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 155,
+          "line": 176,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 161,
+          "line": 182,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 184,
+          "line": 205,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 185
+              "line": 206
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 188
+              "line": 209
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 189
+              "line": 210
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 190
+              "line": 211
             },
             {
               "name": "enableCache",
               "kind": "property",
-              "line": 191
+              "line": 212
             },
             {
               "name": "cacheTtl",
               "kind": "property",
-              "line": 192
+              "line": 213
             },
             {
               "name": "cacheCleanupInterval",
               "kind": "property",
-              "line": 193
+              "line": 214
             },
             {
               "name": "maxCacheSize",
               "kind": "property",
-              "line": 194
+              "line": 215
             },
             {
               "name": "cache",
               "kind": "property",
-              "line": 195
+              "line": 216
             },
             {
               "name": "cacheCleanupTimer",
               "kind": "property",
-              "line": 196
+              "line": 217
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 197
+              "line": 218
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 198
+              "line": 219
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 199
+              "line": 220
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 200
+              "line": 221
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 201
+              "line": 222
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 202
+              "line": 223
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 207
+              "line": 228
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 209
+              "line": 230
             },
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 268
+              "line": 289
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 414
+              "line": 435
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 439
+              "line": 460
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 480
+              "line": 501
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 498
+              "line": 519
             },
             {
               "name": "validateId",
               "kind": "method",
-              "line": 526
+              "line": 547
             },
             {
               "name": "validateEntryId",
               "kind": "method",
-              "line": 536
+              "line": 557
             },
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 546
+              "line": 567
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 565
+              "line": 586
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 577
+              "line": 598
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 598
+              "line": 619
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 620
+              "line": 641
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 624
+              "line": 645
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 635
+              "line": 656
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 642
+              "line": 663
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 669
+              "line": 690
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 703
+              "line": 724
             },
             {
               "name": "requestText",
               "kind": "method",
-              "line": 883
+              "line": 904
             },
             {
               "name": "requestMultipart",
               "kind": "method",
-              "line": 992
+              "line": 1030
             },
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1093
+              "line": 1141
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1199
+              "line": 1247
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1208
+              "line": 1256
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1241
+              "line": 1289
             }
           ]
         }

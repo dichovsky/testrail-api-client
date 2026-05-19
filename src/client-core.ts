@@ -1042,30 +1042,30 @@ export class TestRailClientCore {
 
         const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
 
-        const formData = new globalThis.FormData();
-        let blob: globalThis.Blob;
-        if (isFilePathInput(file)) {
-            // openAsBlob returns a file-backed Blob whose stream() reads from
-            // disk on demand. fetch consumes the FormData via that stream, so
-            // the entire file is never resident in memory at once. Errors
-            // opening the file (ENOENT, EACCES, etc.) surface as a thrown
-            // Error from openAsBlob — caught by the outer try/catch and
-            // re-emitted as TestRailApiError(0, 'Network error: ...').
-            const opts: { type?: string } = {};
-            if (file.type !== undefined) opts.type = file.type;
-            blob = await openAsBlob(file.path, opts);
-        } else if (file instanceof globalThis.Blob) {
-            blob = file;
-        } else {
-            // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
-            blob = new globalThis.Blob([new Uint8Array(file)]);
-        }
-        formData.append('attachment', blob, filename);
-
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
         try {
+            // Build the multipart body inside the try block so file-open
+            // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
+            // TestRailApiError rather than an unhandled TypeError. openAsBlob
+            // returns a file-backed Blob whose stream() reads from disk on
+            // demand, so fetch consumes the FormData via that stream and the
+            // entire file is never resident in memory at once.
+            const formData = new globalThis.FormData();
+            let blob: globalThis.Blob;
+            if (isFilePathInput(file)) {
+                const opts: { type?: string } = {};
+                if (file.type !== undefined) opts.type = file.type;
+                blob = await openAsBlob(file.path, opts);
+            } else if (file instanceof globalThis.Blob) {
+                blob = file;
+            } else {
+                // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
+                blob = new globalThis.Blob([new Uint8Array(file)]);
+            }
+            formData.append('attachment', blob, filename);
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
