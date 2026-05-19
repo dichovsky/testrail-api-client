@@ -902,24 +902,23 @@ ENTRY=$(testrail plan add-entry "$PLAN_ID" --data '{
 }')
 ENTRY_ID=$(echo "$ENTRY" | jq -r '.id')     # UUID-style string, NOT numeric
 
-# 3. Add a fresh run to the entry (e.g. a newly-added platform)
-#    Requires PR5: `plan add-run-to-entry`. Until that ships, recreate
-#    the entry with the new config_ids instead.
+# 3. Add a fresh run to the entry (e.g. a newly-added platform).
+#    If your CLI build is older than the one that shipped
+#    `plan add-run-to-entry`, recreate the entry with the new
+#    config_ids instead.
 NEW_RUN=$(testrail plan add-run-to-entry "$PLAN_ID" "$ENTRY_ID" --data '{
     "config_ids": [12],
     "assignedto_id": 9
 }')
 NEW_RUN_ID=$(echo "$NEW_RUN" | jq '.id')
 
-# 4. Update the entry's name/assignee/include_all across all its runs
-#    Requires PR5: `plan update-entry`.
+# 4. Update the entry's name/assignee/include_all across all its runs.
 testrail plan update-entry "$PLAN_ID" "$ENTRY_ID" --data '{
     "name": "Cross-platform smoke (renamed)",
     "include_all": true
 }'
 
-# 5. Update a single run inside the entry (e.g. swap the assignee)
-#    Requires PR5: `plan update-run-in-entry`.
+# 5. Update a single run inside the entry (e.g. swap the assignee).
 testrail plan update-run-in-entry "$NEW_RUN_ID" --data '{
     "assignedto_id": 10
 }'

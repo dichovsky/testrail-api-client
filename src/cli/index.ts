@@ -148,9 +148,11 @@ For body-bearing write actions, exactly one body source is required
 (any --data / --data-file / stdin is ignored): run close, attachment delete,
 case delete, run delete, suite delete, section delete, milestone delete,
 project delete, plan close, plan delete, plan delete-entry,
-plan delete-run-from-entry — they accept only a positional id (and optional
---soft on the soft-capable deletes). Attachment upload actions take a binary
-file via --file <path> and do not accept --data/--data-file/stdin.
+plan delete-run-from-entry — they accept only positional id(s) (one for most
+actions; plan delete-entry and attachment add-to-plan-entry take two:
+<plan_id> <entry_id>) and the optional --soft flag on the soft-capable
+deletes. Attachment upload actions take a binary file via --file <path>
+and do not accept --data/--data-file/stdin.
 Destructive actions (attachment delete, case delete, case delete-bulk, run close,
 run delete, section delete, suite delete, milestone delete, project delete,
 plan close, plan delete, plan delete-entry, plan delete-run-from-entry)
