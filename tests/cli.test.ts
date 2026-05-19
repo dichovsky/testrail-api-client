@@ -1532,6 +1532,254 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['shared-step', 'history', '-1']);
             expect(exitCodes).toContain(1);
         });
+
+        // ── shared-step add (non-destructive write) ───────────────────────
+        it('shared-step add POSTs the payload and returns the created shared step', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"Login Steps"}'],
+                [jsonResponse(MOCK_SHARED_STEP)],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_shared_step/1');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as { method?: string; body?: string } | undefined;
+            expect(init?.method).toBe('POST');
+            expect(init?.body).toContain('"title":"Login Steps"');
+        });
+
+        it('shared-step add exits 1 when --data is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['shared-step', 'add', '1']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('shared-step add exits 1 when payload is missing required title', async () => {
+            const { stderr, exitCodes } = await runCli(['shared-step', 'add', '1', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('shared-step add --dry-run does not call the API', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'shared-step',
+                'add',
+                '1',
+                '--data',
+                '{"title":"x"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('shared-step add');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('shared-step add --format table renders the result', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"Login Steps"}', '--format', 'table'],
+                [jsonResponse(MOCK_SHARED_STEP)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Login Steps');
+        });
+
+        it('shared-step add --format json emits parseable JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"Login Steps"}', '--format', 'json'],
+                [jsonResponse(MOCK_SHARED_STEP)],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { id: number; title: string };
+            expect(parsed.id).toBe(1);
+            expect(parsed.title).toBe('Login Steps');
+        });
+
+        it('shared-step add surfaces 400 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Bad request' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/400/);
+        });
+
+        it('shared-step add surfaces 404 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'add', '9999', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Project not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/404/);
+        });
+
+        it('shared-step add maps a network error to exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'add', '1', '--data', '{"title":"x"}'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed/);
+        });
+
+        // ID boundaries: parseId boundary is non-integers, non-positives, empty.
+        // "1e2" (→ 100) and "0x1" (→ 1) coerce to valid positive ints and pass.
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'shared-step add rejects non-positive-integer project_id (%s)',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['shared-step', 'add', raw, '--data', '{"title":"x"}']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/project_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        // ── shared-step update (non-destructive write) ────────────────────
+        it('shared-step update POSTs the payload', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{"title":"Login (v2)"}'],
+                [jsonResponse({ ...MOCK_SHARED_STEP, id: 55, title: 'Login (v2)' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_shared_step/55');
+        });
+
+        it('shared-step update accepts an empty body', async () => {
+            const { exitCodes } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{}'],
+                [jsonResponse({ ...MOCK_SHARED_STEP, id: 55 })],
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('shared-step update exits 1 when --data is missing', async () => {
+            const { stderr, exitCodes } = await runCli(['shared-step', 'update', '55']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Body required');
+        });
+
+        it('shared-step update exits 1 on Zod validation failure', async () => {
+            const { stderr, exitCodes } = await runCli(['shared-step', 'update', '55', '--data', '{"title":42}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('shared-step update --dry-run does not call the API', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'shared-step',
+                'update',
+                '55',
+                '--data',
+                '{"title":"x"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('shared-step update');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('shared-step update --format json emits parseable JSON', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{"title":"v2"}', '--format', 'json'],
+                [jsonResponse({ ...MOCK_SHARED_STEP, id: 55, title: 'v2' })],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { id: number; title: string };
+            expect(parsed.id).toBe(55);
+            expect(parsed.title).toBe('v2');
+        });
+
+        it('shared-step update surfaces 401 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'update', '55', '--data', '{"title":"x"}'],
+                [jsonResponse({ error: 'Auth failed' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/401/);
+        });
+
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'shared-step update rejects non-positive-integer shared_step_id (%s)',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['shared-step', 'update', raw, '--data', '{"title":"x"}']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/shared_step_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        // ── shared-step delete (destructive; no --soft) ───────────────────
+        it('shared-step delete without --yes rejects', async () => {
+            const { exitCodes, stderr } = await runCli(['shared-step', 'delete', '55']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('shared-step delete with --yes POSTs to delete_shared_step/{id}', async () => {
+            const { exitCodes, stdout } = await runCli(['shared-step', 'delete', '55', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_shared_step/55');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as { method?: string } | undefined;
+            expect(init?.method).toBe('POST');
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('shared-step delete --dry-run skips the API call (no --yes needed)', async () => {
+            const { exitCodes, stdout } = await runCli(['shared-step', 'delete', '55', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        it('shared-step delete --dry-run wins even with --yes', async () => {
+            const { exitCodes, stdout } = await runCli(['shared-step', 'delete', '55', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        it('shared-step delete --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['shared-step', 'delete', '55', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { sharedStepId: number; deleted: boolean };
+            expect(parsed).toEqual({ sharedStepId: 55, deleted: true });
+        });
+
+        it('shared-step delete surfaces 404 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['shared-step', 'delete', '999', '--yes'],
+                [jsonResponse({ error: 'Not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/404/);
+        });
+
+        it('shared-step delete rejects --soft (TestRail does not support soft on delete_shared_step)', async () => {
+            const { exitCodes, stderr } = await runCli(['shared-step', 'delete', '55', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/shared-step delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'shared-step delete rejects non-positive-integer shared_step_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['shared-step', 'delete', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/shared_step_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
     });
 
     // ── case-status ───────────────────────────────────────────────────────────

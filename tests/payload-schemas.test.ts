@@ -45,6 +45,8 @@ import {
     UpdateMilestonePayloadSchema,
     AddVariablePayloadSchema,
     UpdateVariablePayloadSchema,
+    AddSharedStepPayloadSchema,
+    UpdateSharedStepPayloadSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -1056,5 +1058,65 @@ describe('UpdateVariablePayloadSchema', () => {
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateVariablePayloadSchema.parse({ custom_owner: 'x' }) as Record<string, unknown>;
         expect(parsed['custom_owner']).toBe('x');
+    });
+});
+
+describe('AddSharedStepPayloadSchema', () => {
+    it('parses a minimal valid payload (title only)', () => {
+        expect(AddSharedStepPayloadSchema.parse({ title: 'Login Steps' }).title).toBe('Login Steps');
+    });
+
+    it('parses a payload with custom_steps_separated', () => {
+        const parsed = AddSharedStepPayloadSchema.parse({
+            title: 'Login',
+            custom_steps_separated: [{ content: 'Open URL', expected: 'Page loads' }],
+        });
+        expect(parsed.custom_steps_separated).toEqual([{ content: 'Open URL', expected: 'Page loads' }]);
+    });
+
+    it('rejects missing title', () => {
+        expect(() => AddSharedStepPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string title (no coercion)', () => {
+        expect(() => AddSharedStepPayloadSchema.parse({ title: 42 })).toThrow();
+    });
+
+    it('rejects non-array custom_steps_separated', () => {
+        expect(() => AddSharedStepPayloadSchema.parse({ title: 'x', custom_steps_separated: 'oops' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = AddSharedStepPayloadSchema.parse({
+            title: 'Login',
+            custom_owner: 'qa',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('qa');
+    });
+});
+
+describe('UpdateSharedStepPayloadSchema', () => {
+    it('parses an empty body', () => {
+        expect(UpdateSharedStepPayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses partial updates (title only)', () => {
+        expect(UpdateSharedStepPayloadSchema.parse({ title: 'Renamed' }).title).toBe('Renamed');
+    });
+
+    it('parses a payload with custom_steps_separated', () => {
+        const parsed = UpdateSharedStepPayloadSchema.parse({
+            custom_steps_separated: [{ content: 'step' }],
+        });
+        expect(parsed.custom_steps_separated).toEqual([{ content: 'step' }]);
+    });
+
+    it('rejects non-string title', () => {
+        expect(() => UpdateSharedStepPayloadSchema.parse({ title: 9 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateSharedStepPayloadSchema.parse({ custom_owner: 'qa' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('qa');
     });
 });

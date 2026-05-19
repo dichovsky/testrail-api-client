@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload, HistoryEntry } from '../types.js';
+import type { HistoryEntry } from '../types.js';
+import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload } from '../schemas.js';
 import { SharedStepSchema, HistoryEntrySchema } from '../schemas.js';
 import { z } from 'zod';
 

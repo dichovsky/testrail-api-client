@@ -948,3 +948,25 @@ export const UpdateMilestonePayloadSchema = zObject({
 });
 
 export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>;
+
+// ── Shared-step write payloads (TestRail 7.0+) ────────────────────────────────
+// `custom_steps_separated` is intentionally typed as `z.array(z.record(z.string(), z.unknown()))`
+// rather than a structured step schema — the step shape varies by TestRail
+// template configuration (separated, additional info, expected result, etc.)
+// and there's no project-time visibility into which keys are present. The
+// `.passthrough()` from `zObject` also lets future `custom_*` keys survive
+// round-trip (matches the AddCase / AddRun precedent).
+
+export const AddSharedStepPayloadSchema = zObject({
+    title: z.string(),
+    custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>;
+
+export const UpdateSharedStepPayloadSchema = zObject({
+    title: z.string().optional(),
+    custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>;

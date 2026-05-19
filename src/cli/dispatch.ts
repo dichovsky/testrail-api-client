@@ -50,6 +50,7 @@ import {
 import { handleSectionGet, handleSectionList } from './handlers/section.js';
 import { handleReportList, handleReportRun } from './handlers/report.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from './handlers/shared-step.js';
+import { handleSharedStepAdd, handleSharedStepUpdate, handleSharedStepDelete } from './handlers/shared-step-write.js';
 import { handleCaseStatusList } from './handlers/case-status.js';
 import { handleBddGet, handleBddAdd } from './handlers/bdd.js';
 import { handleCaseFieldAdd } from './handlers/case-field-write.js';
@@ -149,6 +150,9 @@ const HANDLERS: Record<string, Handler> = {
     'shared-step:get': handleSharedStepGet,
     'shared-step:list': handleSharedStepList,
     'shared-step:history': handleSharedStepHistory,
+    'shared-step:add': handleSharedStepAdd,
+    'shared-step:update': handleSharedStepUpdate,
+    'shared-step:delete': handleSharedStepDelete,
     'case-status:list': handleCaseStatusList,
     'bdd:get': handleBddGet,
     'bdd:add': handleBddAdd,

@@ -694,44 +694,10 @@ export interface Attachment {
 }
 
 // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────────
-
-/** A shared step set returned by GET /get_shared_step (TestRail 7.0+) */
-export interface SharedStep {
-    /** Unique shared step ID */
-    id: number;
-    /** Display title of the shared step */
-    title: string;
-    /** ID of the project this shared step belongs to */
-    project_id?: number;
-    /** Number of cases that reference this shared step */
-    case_ids?: number[];
-    /** Unix timestamp when created */
-    created_on?: number;
-    /** ID of the user who created it */
-    created_by?: number;
-    /** Unix timestamp when last updated */
-    updated_on?: number;
-    /** ID of the user who last updated it */
-    updated_by?: number;
-    /** Custom step definitions (varies by template) */
-    custom_steps_separated?: Record<string, unknown>[];
-}
-
-/** Payload for creating a shared step via POST /add_shared_step/{project_id} (TestRail 7.0+) */
-export interface AddSharedStepPayload {
-    /** Title of the shared step */
-    title: string;
-    /** Step definitions (varies by template configuration) */
-    custom_steps_separated?: Record<string, unknown>[];
-}
-
-/** Payload for updating a shared step via POST /update_shared_step/{shared_step_id} (TestRail 7.0+) */
-export interface UpdateSharedStepPayload {
-    /** New title */
-    title?: string;
-    /** Updated step definitions */
-    custom_steps_separated?: Record<string, unknown>[];
-}
+// `SharedStep` + write payloads (`AddSharedStepPayload` / `UpdateSharedStepPayload`)
+// live in `src/schemas.ts` as Zod-derived types — source of truth for both the
+// CLI `--data` validator and the programmatic client. Matches the AddCase /
+// AddPlan / AddMilestone payload-migration precedent.
 
 // ── Variables (TASK-029) ──────────────────────────────────────────────────────
 // `Variable`, `AddVariablePayload`, and `UpdateVariablePayload` now live in
