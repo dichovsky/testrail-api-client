@@ -615,17 +615,28 @@ describe('handleRunUpdate', () => {
         expect(client.updateRun).toHaveBeenCalledWith(10, expect.any(Object));
     });
 
-    it('dry-run does not call client', async () => {
+    it('dry-run does not call client and emits payload + source=data (--data channel)', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['10'], dataFlag: '{"name":"x"}', dryRun: true });
         await handleRunUpdate(ctx);
         expect(client.updateRun).not.toHaveBeenCalled();
-        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'run update', runId: 10 }));
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'run update',
+            runId: 10,
+            payload: { name: 'x' },
+            source: 'data',
+        });
     });
 
     it('rejects non-string name', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['10'], dataFlag: '{"name":42}' });
         await expect(handleRunUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('throws when no body source is provided', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['10'] }); // no dataFlag
+        await expect(handleRunUpdate(ctx)).rejects.toThrow();
     });
 
     it('rejects when run_id is not a positive integer', async () => {

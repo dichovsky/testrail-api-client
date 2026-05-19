@@ -1711,7 +1711,7 @@ describe('CLI', () => {
             expect(stderr).toContain('validation failed');
         });
 
-        it('--dry-run does not call the API and emits a preview', async () => {
+        it('--dry-run does not call the API and emits a preview with payload + source=data', async () => {
             const { stdout, exitCodes } = await runCli(['run', 'update', '1', '--data', '{"name":"x"}', '--dry-run']);
             expect(exitCodes).toContain(0);
             expect(mockFetch).not.toHaveBeenCalled();
@@ -1719,6 +1719,40 @@ describe('CLI', () => {
             expect(out['dryRun']).toBe(true);
             expect(out['action']).toBe('run update');
             expect(out['runId']).toBe(1);
+            expect(out['payload']).toEqual({ name: 'x' });
+            expect(out['source']).toBe('data');
+        });
+
+        it('--dry-run with --data-file emits payload + source=file', async () => {
+            // Q11b: assert source distinguishes --data vs --data-file body channels.
+            const fs = await import('node:fs');
+            const os = await import('node:os');
+            const path = await import('node:path');
+            const tmp = path.join(os.tmpdir(), `testrail-run-update-${Date.now()}.json`);
+            fs.writeFileSync(tmp, '{"name":"from-file"}', 'utf-8');
+            try {
+                const { stdout, exitCodes } = await runCli(['run', 'update', '1', '--data-file', tmp, '--dry-run']);
+                expect(exitCodes).toContain(0);
+                expect(mockFetch).not.toHaveBeenCalled();
+                const out = JSON.parse(stdout) as Record<string, unknown>;
+                expect(out['dryRun']).toBe(true);
+                expect(out['action']).toBe('run update');
+                expect(out['runId']).toBe(1);
+                expect(out['payload']).toEqual({ name: 'from-file' });
+                expect(out['source']).toBe('file');
+            } finally {
+                fs.unlinkSync(tmp);
+            }
+        });
+
+        it('exits 1 and propagates TestRailApiError on network error (TypeError: fetch failed)', async () => {
+            // Q11b gate: POST does not retry on network errors (only 429), so
+            // a single mockRejectedValueOnce is sufficient. The error must
+            // surface as a non-zero exit, not be swallowed.
+            mockFetch.mockRejectedValueOnce(new TypeError('fetch failed'));
+            const { exitCodes, stderr } = await runCli(['run', 'update', '1', '--data', '{"name":"x"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr.length).toBeGreaterThan(0);
         });
 
         it('--format table renders tabular output', async () => {
