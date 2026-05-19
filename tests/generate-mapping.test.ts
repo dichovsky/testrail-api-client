@@ -153,6 +153,39 @@ describe('guessCliCommand', () => {
         expect(guessCliCommand('get_statuses', set)).toBeNull();
         expect(guessCliCommand('made_up_op', set)).toBeNull();
     });
+
+    // Regression: PR #79 review caught these mappings claiming non-existent CLI
+    // actions (`result:list-for-run`, `result:add-for-case`, etc.). The CLI
+    // surface is narrower than TestRail's: `result:list` wraps getResultsForRun,
+    // `result:add` wraps addResultForCase.
+    it('maps result operations to the actual CLI surface (not invented action names)', () => {
+        const resultsSet = new Set(['result:list', 'result:add', 'result:add-bulk', 'result:add-bulk-by-test']);
+        expect(guessCliCommand('get_results_for_run', resultsSet)).toBe('result:list');
+        expect(guessCliCommand('add_result_for_case', resultsSet)).toBe('result:add');
+        expect(guessCliCommand('add_results_for_cases', resultsSet)).toBe('result:add-bulk');
+        expect(guessCliCommand('add_results', resultsSet)).toBe('result:add-bulk-by-test');
+        // Endpoints with no CLI cover stay unmapped (em-dash in the table).
+        expect(guessCliCommand('get_results', resultsSet)).toBeNull();
+        expect(guessCliCommand('get_results_for_case', resultsSet)).toBeNull();
+        expect(guessCliCommand('add_result', resultsSet)).toBeNull();
+    });
+
+    it('maps bdd, case-status, and shared-step operations to their real CLI actions', () => {
+        const set2 = new Set([
+            'bdd:get',
+            'bdd:add',
+            'case-status:list',
+            'shared-step:get',
+            'shared-step:list',
+            'shared-step:history',
+        ]);
+        expect(guessCliCommand('get_bdd', set2)).toBe('bdd:get');
+        expect(guessCliCommand('add_bdd', set2)).toBe('bdd:add');
+        expect(guessCliCommand('get_case_statuses', set2)).toBe('case-status:list');
+        expect(guessCliCommand('get_shared_step', set2)).toBe('shared-step:get');
+        expect(guessCliCommand('get_shared_steps', set2)).toBe('shared-step:list');
+        expect(guessCliCommand('get_shared_step_history', set2)).toBe('shared-step:history');
+    });
 });
 
 describe('cell renderers', () => {
@@ -173,9 +206,9 @@ describe('cell renderers', () => {
         expect(cell).toMatch(/^\[`GET get_case\/\{case_id\}`\]\(https:\/\/support\.testrail\.com\//);
     });
 
-    it('renders client cell as a relative-link with #L<line> when matched', () => {
+    it('renders client cell with ../ prefix so links resolve from docs/ to repo root', () => {
         const match = { moduleFile: '/repo/src/modules/cases.ts', methodName: 'getCase', line: 42 };
-        expect(renderClientCell(match, '/repo/')).toBe('[`getCase`](src/modules/cases.ts#L42)');
+        expect(renderClientCell(match, '/repo/')).toBe('[`getCase`](../src/modules/cases.ts#L42)');
     });
 
     it('renders client cell as em-dash when no match', () => {
@@ -187,8 +220,8 @@ describe('cell renderers', () => {
         expect(renderCliCell(null)).toBe('—');
     });
 
-    it('renders skill cell as command-table link when CLI is bound, em-dash otherwise', () => {
-        expect(renderSkillCell('case:get')).toContain('skill/SKILL.md#command-surface');
+    it('renders skill cell as ../skill-relative command-table link when CLI is bound, em-dash otherwise', () => {
+        expect(renderSkillCell('case:get')).toBe('[command-table](../skill/SKILL.md#command-surface)');
         expect(renderSkillCell(null)).toBe('—');
     });
 });
@@ -241,7 +274,7 @@ describe('aggregate renderers', () => {
     it('resource section emits one table row per endpoint with em-dashes for gaps', () => {
         const casesRows = grouped[0]?.rows ?? [];
         const out = renderResourceSection('Cases', casesRows, '/repo/');
-        expect(out).toContain('[`getCase`](src/modules/cases.ts#L35)');
+        expect(out).toContain('[`getCase`](../src/modules/cases.ts#L35)');
         expect(out).toContain('`case get`');
         // Second row: client + CLI both missing → two em-dashes in the cells
         const secondRowLine = out.split('\n').find((l: string) => l.includes('delete_case/{case_id}'));

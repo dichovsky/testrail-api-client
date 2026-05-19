@@ -98,11 +98,15 @@ export const CLI_OPERATION_MAP = {
     update_run: ['run', 'update'],
     close_run: ['run', 'close'],
     delete_run: ['run', 'delete'],
-    get_results: ['result', 'list-for-test'],
-    get_results_for_case: ['result', 'list-for-case'],
-    get_results_for_run: ['result', 'list-for-run'],
-    add_result: ['result', 'add'],
-    add_result_for_case: ['result', 'add-for-case'],
+    // Results — the CLI exposes a narrower surface than TestRail:
+    //   `result:list`             → getResultsForRun       (per src/cli/handlers/result.ts)
+    //   `result:add`              → addResultForCase       (per src/cli/handlers/result-write.ts)
+    //   `result:add-bulk`         → addResultsForCases
+    //   `result:add-bulk-by-test` → addResults
+    // The three endpoints with no CLI cover (get_results, get_results_for_case,
+    // add_result) are omitted intentionally; they show as '—' in the CLI cell.
+    get_results_for_run: ['result', 'list'],
+    add_result_for_case: ['result', 'add'],
     add_results: ['result', 'add-bulk-by-test'],
     add_results_for_cases: ['result', 'add-bulk'],
     get_plan: ['plan', 'get'],
@@ -132,6 +136,13 @@ export const CLI_OPERATION_MAP = {
     add_attachment_to_result: ['attachment', 'add-to-result'],
     add_attachment_to_run: ['attachment', 'add-to-run'],
     delete_attachment: ['attachment', 'delete'],
+    // BDD, Statuses, Shared Steps — small CLI surfaces not covered above.
+    get_bdd: ['bdd', 'get'],
+    add_bdd: ['bdd', 'add'],
+    get_case_statuses: ['case-status', 'list'],
+    get_shared_step: ['shared-step', 'get'],
+    get_shared_steps: ['shared-step', 'list'],
+    get_shared_step_history: ['shared-step', 'history'],
 };
 
 /**
@@ -147,8 +158,14 @@ export function guessCliCommand(operation, actionsSet) {
 }
 
 // ── Cell renderers ───────────────────────────────────────────────────────────
+//
+// `docs/API-MAPPING.md` lives one directory below the repo root, so all links
+// to repo-root files (src/, skill/, etc.) must be prefixed with `../` to
+// resolve correctly. The `LINK_PREFIX` constant centralizes this so a future
+// move of the output file is a one-line change.
 
-const SKILL_COMMAND_TABLE_ANCHOR = 'skill/SKILL.md#command-surface';
+const LINK_PREFIX = '../';
+const SKILL_COMMAND_TABLE_ANCHOR = `${LINK_PREFIX}skill/SKILL.md#command-surface`;
 const TESTRAIL_DOCS_BASE = 'https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference';
 
 export function renderEndpointCell(ep) {
@@ -160,7 +177,7 @@ export function renderEndpointCell(ep) {
 export function renderClientCell(match, rootPrefix) {
     if (!match) return '—';
     const rel = match.moduleFile.replace(rootPrefix, '');
-    return `[\`${match.methodName}\`](${rel}#L${match.line})`;
+    return `[\`${match.methodName}\`](${LINK_PREFIX}${rel}#L${match.line})`;
 }
 
 export function renderCliCell(cliKey) {
