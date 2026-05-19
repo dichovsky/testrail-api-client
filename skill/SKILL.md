@@ -97,6 +97,9 @@ on stderr. Never echo or log the API key.
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
+| plan | add-run-to-entry | `<plan_id>` `<entry_id>` | `AddRunToPlanEntryPayloadSchema` | Add a config-specific run to an existing plan entry (config_ids required) |
+| plan | update-entry | `<plan_id>` `<entry_id>` | `UpdatePlanEntryPayloadSchema` | Update an existing plan entry (partial fields; applies to every run in the entry) |
+| plan | update-run-in-entry | `<run_id>` | `UpdateRunInPlanEntryPayloadSchema` | Update a single config-specific run inside a plan entry (description/assignee/case selection only) |
 | section | add | `<project_id>` | `AddSectionPayloadSchema` | Create a new section in a project (suite_id required for multi-suite-mode projects) |
 | section | update | `<section_id>` | `UpdateSectionPayloadSchema` | Update an existing section (partial fields) |
 | section | move | `<section_id>` | `MoveSectionPayloadSchema` | Move a section to a new parent and/or position (TestRail 6.5.2+) |
@@ -321,6 +324,45 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "case_ids": "number[]?",
     "config_ids": "number[]?",
     "runs": "object[]?"
+}
+```
+
+### `AddRunToPlanEntryPayloadSchema` (used by `plan add-run-to-entry`)
+
+```jsonc
+{
+    "config_ids": "number[] (required)",
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "refs": "string?"
+}
+```
+
+### `UpdatePlanEntryPayloadSchema` (used by `plan update-entry`)
+
+```jsonc
+{
+    "suite_id": "number?",
+    "name": "string?",
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?",
+    "config_ids": "number[]?",
+    "runs": "object[]?"
+}
+```
+
+### `UpdateRunInPlanEntryPayloadSchema` (used by `plan update-run-in-entry`)
+
+```jsonc
+{
+    "description": "string?",
+    "assignedto_id": "number?",
+    "include_all": "boolean?",
+    "case_ids": "number[]?"
 }
 ```
 

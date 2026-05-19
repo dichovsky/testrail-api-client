@@ -31,7 +31,14 @@ import {
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
 import { handleRunAdd, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
-import { handlePlanAdd, handlePlanUpdate, handlePlanAddEntry } from '../src/cli/handlers/plan-write.js';
+import {
+    handlePlanAdd,
+    handlePlanUpdate,
+    handlePlanAddEntry,
+    handlePlanAddRunToEntry,
+    handlePlanUpdateEntry,
+    handlePlanUpdateRunInEntry,
+} from '../src/cli/handlers/plan-write.js';
 import {
     handleSectionAdd,
     handleSectionDelete,
@@ -67,6 +74,9 @@ interface MockedClient {
     addPlan: ReturnType<typeof vi.fn>;
     updatePlan: ReturnType<typeof vi.fn>;
     addPlanEntry: ReturnType<typeof vi.fn>;
+    addRunToPlanEntry: ReturnType<typeof vi.fn>;
+    updatePlanEntry: ReturnType<typeof vi.fn>;
+    updateRunInPlanEntry: ReturnType<typeof vi.fn>;
     addProject: ReturnType<typeof vi.fn>;
     updateProject: ReturnType<typeof vi.fn>;
     deleteProject: ReturnType<typeof vi.fn>;
@@ -101,6 +111,9 @@ function buildClient(): MockedClient {
         addPlan: vi.fn().mockResolvedValue({ id: 50, name: 'p' }),
         updatePlan: vi.fn().mockResolvedValue({ id: 50, name: 'p2' }),
         addPlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'e' }),
+        addRunToPlanEntry: vi.fn().mockResolvedValue({ id: 77, suite_id: 1, name: 'r-in-entry' }),
+        updatePlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'updated' }),
+        updateRunInPlanEntry: vi.fn().mockResolvedValue({ id: 77, suite_id: 1, name: 'updated-run' }),
         addProject: vi.fn().mockResolvedValue({ id: 7, name: 'New', suite_mode: 1, url: 'u' }),
         updateProject: vi.fn().mockResolvedValue({ id: 7, name: 'Renamed', suite_mode: 1, url: 'u' }),
         deleteProject: vi.fn().mockResolvedValue(undefined),
@@ -899,6 +912,292 @@ describe('handlePlanAddEntry', () => {
     it('rejects when plan_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], dataFlag: '{"suite_id":1}' });
         await expect(handlePlanAddEntry(ctx)).rejects.toThrow(/plan_id/);
+    });
+});
+
+// ── plan add-run-to-entry ────────────────────────────────────────────────
+
+describe('handlePlanAddRunToEntry', () => {
+    it('calls client.addRunToPlanEntry with planId, entryId, and parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"config_ids":[1,2],"include_all":true}',
+        });
+        await handlePlanAddRunToEntry(ctx);
+        expect(client.addRunToPlanEntry).toHaveBeenCalledWith(
+            50,
+            'abc-def-uuid',
+            expect.objectContaining({ config_ids: [1, 2], include_all: true }),
+        );
+        expect(out).toHaveBeenCalledWith({ id: 77, suite_id: 1, name: 'r-in-entry' });
+    });
+
+    it('passes through custom_* fields (Zod passthrough)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"config_ids":[1],"custom_label":"xyz"}',
+        });
+        await handlePlanAddRunToEntry(ctx);
+        expect(client.addRunToPlanEntry).toHaveBeenCalledWith(
+            50,
+            'abc-def-uuid',
+            expect.objectContaining({ config_ids: [1], custom_label: 'xyz' }),
+        );
+    });
+
+    it('dry-run does not call the client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"config_ids":[1]}',
+            dryRun: true,
+        });
+        await handlePlanAddRunToEntry(ctx);
+        expect(client.addRunToPlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'plan add-run-to-entry',
+                planId: 50,
+                entryId: 'abc-def-uuid',
+            }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', 'abc-def-uuid'] });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required config_ids', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"include_all":true}',
+        });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when plan_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['0', 'abc-def-uuid'],
+            dataFlag: '{"config_ids":[1]}',
+        });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/plan_id/);
+    });
+
+    it('rejects when entry_id is missing (undefined)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50'], dataFlag: '{"config_ids":[1]}' });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+
+    it('rejects when entry_id is empty string', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', ''], dataFlag: '{"config_ids":[1]}' });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+
+    it('rejects when entry_id is whitespace-only', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', '   '], dataFlag: '{"config_ids":[1]}' });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+});
+
+// ── plan update-entry ────────────────────────────────────────────────────
+
+describe('handlePlanUpdateEntry', () => {
+    it('calls client.updatePlanEntry with planId, entryId, and parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"name":"renamed","include_all":false}',
+        });
+        await handlePlanUpdateEntry(ctx);
+        expect(client.updatePlanEntry).toHaveBeenCalledWith(
+            50,
+            'abc-def-uuid',
+            expect.objectContaining({ name: 'renamed', include_all: false }),
+        );
+        expect(out).toHaveBeenCalledWith({ id: 'abc-uuid', suite_id: 1, name: 'updated' });
+    });
+
+    it('accepts an empty body (all fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50', 'abc-def-uuid'], dataFlag: '{}' });
+        await handlePlanUpdateEntry(ctx);
+        expect(client.updatePlanEntry).toHaveBeenCalledWith(50, 'abc-def-uuid', expect.any(Object));
+    });
+
+    it('passes through custom_* fields (Zod passthrough)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"custom_field":42}',
+        });
+        await handlePlanUpdateEntry(ctx);
+        expect(client.updatePlanEntry).toHaveBeenCalledWith(
+            50,
+            'abc-def-uuid',
+            expect.objectContaining({ custom_field: 42 }),
+        );
+    });
+
+    it('dry-run does not call the client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"name":"x"}',
+            dryRun: true,
+        });
+        await handlePlanUpdateEntry(ctx);
+        expect(client.updatePlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'plan update-entry',
+                planId: 50,
+                entryId: 'abc-def-uuid',
+            }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', 'abc-def-uuid'] });
+        await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body with wrong field type', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['50', 'abc-def-uuid'],
+            dataFlag: '{"name":42}',
+        });
+        await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when plan_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['bad', 'abc-def-uuid'], dataFlag: '{}' });
+        await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/plan_id/);
+    });
+
+    it('rejects when entry_id is empty', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', ''], dataFlag: '{}' });
+        await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/entry_id/);
+    });
+});
+
+// ── plan update-run-in-entry ─────────────────────────────────────────────
+
+describe('handlePlanUpdateRunInEntry', () => {
+    it('calls client.updateRunInPlanEntry with runId and parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['77'],
+            dataFlag: '{"description":"new","include_all":false,"case_ids":[1,2]}',
+        });
+        await handlePlanUpdateRunInEntry(ctx);
+        expect(client.updateRunInPlanEntry).toHaveBeenCalledWith(
+            77,
+            expect.objectContaining({ description: 'new', include_all: false, case_ids: [1, 2] }),
+        );
+        expect(out).toHaveBeenCalledWith({ id: 77, suite_id: 1, name: 'updated-run' });
+    });
+
+    it('accepts an empty body (all fields optional)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'], dataFlag: '{}' });
+        await handlePlanUpdateRunInEntry(ctx);
+        expect(client.updateRunInPlanEntry).toHaveBeenCalledWith(77, expect.any(Object));
+    });
+
+    it('passes through custom_* fields (Zod passthrough)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['77'],
+            dataFlag: '{"description":"d","custom_extra":"v"}',
+        });
+        await handlePlanUpdateRunInEntry(ctx);
+        expect(client.updateRunInPlanEntry).toHaveBeenCalledWith(
+            77,
+            expect.objectContaining({ description: 'd', custom_extra: 'v' }),
+        );
+    });
+
+    it('dry-run does not call the client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['77'],
+            dataFlag: '{"description":"x"}',
+            dryRun: true,
+        });
+        await handlePlanUpdateRunInEntry(ctx);
+        expect(client.updateRunInPlanEntry).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'plan update-run-in-entry',
+                runId: 77,
+            }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'] });
+        await expect(handlePlanUpdateRunInEntry(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body with wrong field type', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], dataFlag: '{"description":42}' });
+        await expect(handlePlanUpdateRunInEntry(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when run_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-1'], dataFlag: '{}' });
+        await expect(handlePlanUpdateRunInEntry(ctx)).rejects.toThrow(/run_id/);
+    });
+
+    // Note on boundary inputs: `1e2` and `0x1` are *valid* JS positive
+    // integers per `Number()` (100 and 1 respectively); the existing
+    // `parseId()` accepts them intentionally. The cases below cover only
+    // inputs that should be rejected: non-positive, non-integer, non-numeric,
+    // and empty.
+    it.each([
+        ['0', '0'],
+        ['-1', '-1'],
+        ['1.5', '1.5'],
+        ['abc', 'abc'],
+        ['empty', ''],
+    ])('rejects run_id boundary input (%s)', async (_label, raw) => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [raw], dataFlag: '{}' });
+        await expect(handlePlanUpdateRunInEntry(ctx)).rejects.toThrow(/run_id/);
+    });
+});
+
+// ── plan add-run-to-entry / update-entry numeric ID boundaries ────────────
+
+describe('plan-entry handlers — numeric ID boundary inputs', () => {
+    it.each([
+        ['0', '0'],
+        ['-1', '-1'],
+        ['1.5', '1.5'],
+        ['abc', 'abc'],
+        ['empty', ''],
+    ])('plan add-run-to-entry: rejects plan_id=%s', async (_label, raw) => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: [raw, 'abc-def-uuid'],
+            dataFlag: '{"config_ids":[1]}',
+        });
+        await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/plan_id/);
+    });
+
+    it.each([
+        ['0', '0'],
+        ['-1', '-1'],
+        ['1.5', '1.5'],
+        ['abc', 'abc'],
+        ['empty', ''],
+    ])('plan update-entry: rejects plan_id=%s', async (_label, raw) => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [raw, 'abc-def-uuid'], dataFlag: '{}' });
+        await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/plan_id/);
     });
 });
 

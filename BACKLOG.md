@@ -38,9 +38,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
      `add_result_for_case/{run_id}/{case_id}` is already covered by the existing `result add` CLI command.
      See docs/API-MAPPING.md (Results section) for the binding. -->
 
-- [ ] 🔴 📦 CLI: `plan add-run-to-entry` (POST `add_run_to_plan_entry/{plan_id}/{entry_id}`)
-- [ ] 🔴 📦 CLI: `plan update-entry` (POST `update_plan_entry/{plan_id}/{entry_id}`)
-- [ ] 🔴 📦 CLI: `plan update-run-in-entry` (POST `update_run_in_plan_entry/{run_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan close` (POST `close_plan/{plan_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan delete` (POST `delete_plan/{plan_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan delete-entry` (POST `delete_plan_entry/{plan_id}/{entry_id}`)

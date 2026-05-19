@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
-import { parseId, optInt, IdParseError } from '../src/cli/ids.js';
+import { parseId, optInt, parseEntryId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
@@ -272,6 +272,32 @@ describe('parseId', () => {
 
     it('includes the parameter name in the error', () => {
         expect(() => parseId(undefined, '--run-id')).toThrow(/--run-id/);
+    });
+});
+
+describe('parseEntryId', () => {
+    it('returns the trimmed entry id for a valid non-empty string', () => {
+        expect(parseEntryId('abc-uuid', 'entry_id')).toBe('abc-uuid');
+    });
+
+    it('trims surrounding whitespace before returning', () => {
+        expect(parseEntryId('  abc-uuid  ', 'entry_id')).toBe('abc-uuid');
+    });
+
+    it('throws IdParseError when raw is undefined', () => {
+        expect(() => parseEntryId(undefined, 'entry_id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw is empty string', () => {
+        expect(() => parseEntryId('', 'entry_id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw is whitespace-only', () => {
+        expect(() => parseEntryId('   ', 'entry_id')).toThrow(IdParseError);
+    });
+
+    it('includes the parameter name in the error', () => {
+        expect(() => parseEntryId(undefined, 'entry_id')).toThrow(/entry_id/);
     });
 });
 
