@@ -20,6 +20,10 @@ import { handleSectionGet, handleSectionList } from '../src/cli/handlers/section
 import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
 import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleReportList, handleReportRun } from '../src/cli/handlers/report.js';
+import { handleCaseFieldList } from '../src/cli/handlers/case-field.js';
+import { handleResultFieldList } from '../src/cli/handlers/result-field.js';
+import { handleStatusList } from '../src/cli/handlers/status.js';
+import { handleTemplateList } from '../src/cli/handlers/template.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -33,6 +37,10 @@ interface MockedClient {
     getResultsForCase: ReturnType<typeof vi.fn>;
     getReports: ReturnType<typeof vi.fn>;
     runReport: ReturnType<typeof vi.fn>;
+    getCaseFields: ReturnType<typeof vi.fn>;
+    getResultFields: ReturnType<typeof vi.fn>;
+    getStatuses: ReturnType<typeof vi.fn>;
+    getTemplates: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -56,6 +64,46 @@ function buildClient(): MockedClient {
             report_url: 'https://example.testrail.io/reports/view/11',
             user_report_url: 'https://example.testrail.io/reports/user/11',
         }),
+        getCaseFields: vi.fn().mockResolvedValue([
+            {
+                id: 1,
+                system_name: 'custom_steps',
+                label: 'Steps',
+                name: 'steps',
+                type_id: 6,
+                display_order: 1,
+                configs: [],
+                is_active: true,
+                include_all: true,
+                template_ids: [],
+            },
+        ]),
+        getResultFields: vi.fn().mockResolvedValue([
+            {
+                id: 5,
+                system_name: 'custom_step_results',
+                label: 'Steps',
+                name: 'step_results',
+                type_id: 11,
+                display_order: 1,
+                configs: [],
+                is_active: true,
+                include_all: true,
+                template_ids: [],
+            },
+        ]),
+        getStatuses: vi.fn().mockResolvedValue([
+            {
+                id: 1,
+                name: 'passed',
+                label: 'Passed',
+                color_dark: 1,
+                color_medium: 1,
+                color_bright: 1,
+                is_system: true,
+            },
+        ]),
+        getTemplates: vi.fn().mockResolvedValue([{ id: 1, name: 'Test Case (Text)', is_default: true }]),
     };
 }
 
@@ -494,5 +542,110 @@ describe('handleReportRun', () => {
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleReportRun(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.runReport).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleCaseFieldList ───────────────────────────────────────────────────
+//
+// `case-field list`, `result-field list`, and `status list` share the same
+// zero-arg shape: the endpoint takes no path/query params and the handler
+// rejects extra positional args fail-fast (a typo like `status list 5`
+// must surface as an error, not a silent ignore of the `5`). The three
+// suites below pin that contract; the inverse precedent — `case-status
+// list` silently ignoring extras — is intentionally NOT followed here.
+
+describe('handleCaseFieldList', () => {
+    it('calls client.getCaseFields with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleCaseFieldList(ctx);
+        expect(client.getCaseFields).toHaveBeenCalledTimes(1);
+        expect(client.getCaseFields).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 1, system_name: 'custom_steps' })]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleCaseFieldList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseFields).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handleCaseFieldList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseFields).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleResultFieldList ─────────────────────────────────────────────────
+
+describe('handleResultFieldList', () => {
+    it('calls client.getResultFields with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleResultFieldList(ctx);
+        expect(client.getResultFields).toHaveBeenCalledTimes(1);
+        expect(client.getResultFields).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 5, system_name: 'custom_step_results' })]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['7'] });
+        await expect(handleResultFieldList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getResultFields).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleStatusList ──────────────────────────────────────────────────────
+
+describe('handleStatusList', () => {
+    it('calls client.getStatuses with no args and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client);
+        await handleStatusList(ctx);
+        expect(client.getStatuses).toHaveBeenCalledTimes(1);
+        expect(client.getStatuses).toHaveBeenCalledWith();
+        expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 1, name: 'passed' })]);
+    });
+
+    it('rejects extra positional args before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1'] });
+        await expect(handleStatusList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getStatuses).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleTemplateList ────────────────────────────────────────────────────
+//
+// `template list <project_id>` takes one positive-integer path param.
+// parseId rejects 0, -1, 1.5, abc, '', 1e2, 0x1 (the full INVALID_IDS set)
+// before any client call leaves the process.
+
+describe('handleTemplateList', () => {
+    it('calls client.getTemplates with the parsed project_id and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
+        await handleTemplateList(ctx);
+        expect(client.getTemplates).toHaveBeenCalledTimes(1);
+        expect(client.getTemplates).toHaveBeenCalledWith(3);
+        expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 1, name: 'Test Case (Text)' })]);
+    });
+
+    it('rejects missing project_id without calling the client', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [] });
+        await expect(handleTemplateList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getTemplates).not.toHaveBeenCalled();
+    });
+
+    it.each(INVALID_IDS)('rejects project_id %s before calling the client', async (raw) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [raw] });
+        await expect(handleTemplateList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.getTemplates).not.toHaveBeenCalled();
     });
 });

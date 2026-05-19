@@ -43,6 +43,12 @@ Read actions:
   case-status  list
   report   list <project_id> | run <report_template_id>
 
+Metadata actions:
+  case-field   list                       (no positional args)
+  result-field list                       (no positional args)
+  status       list                       (no positional args)
+  template     list <project_id>
+
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
   case   update <case_id>           --data '{"title":"..."}'
