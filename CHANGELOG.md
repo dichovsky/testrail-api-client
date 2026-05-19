@@ -5,6 +5,96 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Skill expansion: programmatic recipes + multi-harness rules + uninstall-skill
+
+Five-deliverable package broadening the agent-instruction surface so this
+package is first-class on Cursor, Continue, and any harness honouring the
+[agents.md](https://agents.md/) convention — not just Claude Code.
+
+### Added
+
+- **Programmatic TypeScript API recipes** in `skill/SKILL.md`. A new
+  `## Programmatic TypeScript API` section gives copy-paste-runnable
+  snippets for every major resource (projects, suites, sections, cases,
+  runs, results, milestones, attachments, plans, users, datasets,
+  variables, groups, shared steps, configurations) using `TestRailClient`
+  directly. Each snippet compiles against the published types — no
+  pseudo-code. Includes an `instanceof`-narrowing pattern for
+  `TestRailApiError` / `TestRailValidationError` and a tuning example
+  covering retries, rate limits, body caps, and `registerProcessHandlers`.
+- **Cursor rule** at `.cursor/rules/testrail.mdc`. Auto-generated from
+  the same source as `skill/SKILL.md`; includes the standard
+  `description` / `globs` / `alwaysApply` frontmatter per the
+  [Cursor rules spec](https://docs.cursor.com/context/rules-for-ai).
+  Regenerate via `npm run cursor-rules`. CI drift gate:
+  `npm run cursor-rules:check` (wired into `pretest`).
+- **Continue rule** at `.continue/rules/testrail.md`. Plain-markdown
+  format per [continue.dev rules spec](https://docs.continue.dev/customization/rules).
+  Regenerate via `npm run continue-rules`. CI drift gate:
+  `npm run continue-rules:check`.
+- **Vendor-neutral `AGENTS.md`** at the repo root, following the
+  [agents.md](https://agents.md/) convention. Acts as a "what every AI
+  agent should know" entry point that doesn't bind to a specific
+  harness. Regenerate via `npm run agents-md`. CI drift gate:
+  `npm run agents-md:check`.
+- **`testrail uninstall-skill`** — symmetric reverse of `install-skill`.
+  Removes a previously-installed skill from `./.claude/skills/testrail-cli/`
+  (default) or `~/.claude/skills/testrail-cli/` (`--global`). Best-effort
+  cleanup of the empty `testrail-cli/` directory after unlinking the
+  skill file. Does NOT touch `.cursor/rules/testrail.mdc`,
+  `.continue/rules/testrail.md`, or `AGENTS.md` — those have an
+  independent lifecycle (generated from `src/cli/metadata.ts` and live
+  alongside other agent-tool configuration). HELP text and README
+  document this boundary.
+- **Shared `scripts/rules-content.mjs` module** — single source of truth
+  for the body of the three rule artifacts. Each format wraps the shared
+  body in its own header/frontmatter so usage guidance lives in one
+  place.
+
+### Safety
+
+The new `uninstall-skill` command uses TOCTOU-aware filesystem checks
+that mirror the existing `install-skill` patterns:
+
+- `lstat` (not `stat`) so symlinks are detected without following.
+- Refuses to unlink anything that is a symlink — `install-skill` only
+  ever produces regular files via `copyFileSync`, so anything else
+  indicates either tampering or unrelated user-managed content.
+- Refuses to unlink non-files (e.g. a directory planted at the target
+  path).
+- After unlinking the skill, attempts to remove the parent
+  `testrail-cli/` directory ONLY if empty — never touches
+  `.claude/skills/` or higher.
+
+Related backlog: SEC #5 (TOCTOU symlink-clobber on `install-skill`
+target) remains open as a separate, pre-existing concern. This PR does
+not introduce a parallel hazard but does not fix the existing one.
+
+### Tooling / CI
+
+- Four new npm scripts plus `:check` drift-gate variants:
+  `cursor-rules`, `continue-rules`, `agents-md`, and the existing
+  `skill` script unchanged.
+- `pretest` now also runs `cursor-rules:check`, `continue-rules:check`,
+  and `agents-md:check`. PRs that update `src/cli/metadata.ts` without
+  regenerating fail in CI.
+- All generated files are deterministic (no timestamps, no random IDs,
+  stable iteration order). `tests/generate-rules.test.ts` asserts
+  byte-equality of committed vs. re-rendered output.
+
+### Tests
+
+- `tests/uninstall-skill.test.ts` (12 cases): happy paths (project +
+  global), missing-file, quiet semantics, install/uninstall round-trip,
+  TOCTOU defenses (symlink refusal + non-file refusal), sibling-file
+  preservation, lifecycle messaging.
+- `tests/generate-rules.test.ts` (13 cases): pure-renderer determinism,
+  frontmatter shape (cursor has YAML; continue does not),
+  `AGENTS.md` self-references, committed-output drift checks.
+- `tests/cli.test.ts` adds a smoke test confirming `uninstall-skill` is
+  reachable via `--help` (full behaviour coverage lives in the unit
+  test where the filesystem can be sandboxed).
+
 ## [4.0.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
 
 Closes [BACKLOG CLI: destructive env-var gate](BACKLOG-ARCHIVE.md). Adds a

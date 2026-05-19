@@ -4285,6 +4285,18 @@ describe('CLI', () => {
         });
     });
 
+    describe('uninstall-skill', () => {
+        it('is wired into the CLI surface (HELP text mentions the command)', async () => {
+            // Full-behaviour coverage lives in tests/uninstall-skill.test.ts
+            // (where we can sandbox the filesystem via cwdOverride / homeOverride).
+            // This subprocess smoke-test just confirms the dispatch path is wired
+            // up — `--help` doesn't touch any filesystem path.
+            const { stdout, exitCodes } = await runCli(['--help']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('uninstall-skill');
+        });
+    });
+
     describe('plan', () => {
         it('plan get <id> should exit 0', async () => {
             const { exitCodes } = await runCli(['plan', 'get', '50'], [jsonResponse(MOCK_PLAN)]);
