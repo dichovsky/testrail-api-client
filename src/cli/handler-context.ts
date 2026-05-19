@@ -15,6 +15,11 @@ export interface HandlerArgs {
     caseId?: string;
     limit?: string;
     offset?: string;
+    /** Comma-separated list of status IDs (`--status-id 1,5`) consumed by
+     *  `test list` to filter on TestRail's `status_id` query param. Parsed
+     *  into a `number[]` by the handler so invalid tokens surface as
+     *  `IdParseError` and not silent drops. */
+    statusId?: string;
     /** Path to a binary file for attachment upload actions (`--file <path>`). */
     file?: string;
     /** Optional override for the upload filename; otherwise derived from `basename(file)`. */

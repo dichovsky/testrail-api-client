@@ -90,6 +90,13 @@ const MOCK_MILESTONE = {
     project_id: 1,
     url: 'https://example.testrail.io/milestones/view/1',
 };
+const MOCK_TEST = {
+    id: 100,
+    case_id: 1,
+    status_id: 1,
+    run_id: 1,
+    title: 'Login works',
+};
 const MOCK_USER = { id: 1, name: 'Alice', email: 'alice@example.com', is_active: true };
 const MOCK_PLAN = {
     id: 50,
@@ -935,6 +942,147 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
             expect(stdout).toContain('dryRun');
             expect(stdout).toContain('destructive');
+        });
+    });
+
+    // ── test ──────────────────────────────────────────────────────────────────
+
+    describe('test', () => {
+        it('test get <id> should exit 0 and call get_test/{test_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['test', 'get', '100'], [jsonResponse(MOCK_TEST)]);
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_TEST;
+            expect(parsed.id).toBe(100);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_test/100'), expect.anything());
+        });
+
+        it('test get renders in table format', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['test', 'get', '100', '--format', 'table'],
+                [jsonResponse(MOCK_TEST)],
+            );
+            expect(exitCodes).toContain(0);
+            // Table format uses " | " column separators; field names are printed
+            expect(stdout).toContain('case_id');
+            expect(stdout).toContain('status_id');
+        });
+
+        it('test get without id should exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['test', 'get']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/positive integer/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+            'test get rejects non-positive-integer id "%s"',
+            async (bad) => {
+                const { exitCodes } = await runCli(['test', 'get', bad]);
+                expect(exitCodes).toContain(1);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it('test list <run_id> should exit 0 and call get_tests/{run_id}', async () => {
+            const { exitCodes } = await runCli(['test', 'list', '5'], [jsonResponse({ tests: [MOCK_TEST] })]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_tests/5'), expect.anything());
+        });
+
+        it('test list with --limit and --offset forwards both to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['test', 'list', '5', '--limit', '50', '--offset', '10'],
+                [jsonResponse({ tests: [MOCK_TEST] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_tests/5');
+            expect(url).toContain('limit=50');
+            expect(url).toContain('offset=10');
+        });
+
+        it('test list with --status-id passes a comma-joined list to the API', async () => {
+            const { exitCodes } = await runCli(
+                ['test', 'list', '5', '--status-id', '1,5'],
+                [jsonResponse({ tests: [MOCK_TEST] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_tests/5');
+            // URLSearchParams percent-encodes ',' → '%2C'; accept either form
+            expect(url).toMatch(/status_id=1(,|%2C)5/);
+        });
+
+        it('test list with --status-id rejects malformed token', async () => {
+            const { exitCodes, stderr } = await runCli(['test', 'list', '5', '--status-id', '1,abc']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--status-id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('test list renders the tests array as table rows', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['test', 'list', '5', '--format', 'table'],
+                [jsonResponse({ tests: [MOCK_TEST] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('case_id');
+            expect(stdout).toContain('Login works');
+        });
+
+        it('test list without run_id should exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['test', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/positive integer/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])(
+            'test list rejects non-positive-integer run_id "%s"',
+            async (bad) => {
+                const { exitCodes } = await runCli(['test', 'list', bad]);
+                expect(exitCodes).toContain(1);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it('test list returns empty array when API responds with no tests field', async () => {
+            const { exitCodes, stdout } = await runCli(['test', 'list', '5'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            expect(stdout.trim()).toBe('[]');
+        });
+
+        it('test unknown action should exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['test', 'delete', '1']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Unknown action');
+        });
+
+        it('test get surfaces 404 as TestRail API error and exits 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['test', 'get', '999'],
+                [new Response('not found', { status: 404, statusText: 'Not Found' })],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('TestRail API error');
+        });
+
+        it('test get surfaces 401 as TestRail API error and exits 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['test', 'get', '1'],
+                [new Response('auth required', { status: 401, statusText: 'Unauthorized' })],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('TestRail API error');
+        });
+
+        it('test list surfaces 403 as TestRail API error and exits 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['test', 'list', '5'],
+                [new Response('forbidden', { status: 403, statusText: 'Forbidden' })],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('TestRail API error');
         });
     });
 

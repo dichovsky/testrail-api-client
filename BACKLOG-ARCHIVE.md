@@ -20,6 +20,15 @@ Conventions:
 
 ---
 
+## CLI read surface — API coverage gaps (P0)
+
+These programmatic methods (`getTest` / `getTests`) already existed on
+`TestRailClient`; the items below shipped the CLI-exposure half of the
+read-surface coverage tracked in `docs/API-MAPPING.md`.
+
+- [x] **`test get` (GET `get_test/{test_id}`)** — Shipped with the "CLI test get + test list (P0)" PR (#TBD). Exposed as `testrail test get <test_id>` via `src/cli/handlers/test.ts`. New `ActionSpec` entry in `src/cli/metadata.ts` with `apiEndpoint: 'GET get_test/{test_id}'` matching the `@testrail` JSDoc tag in `src/modules/tests.ts`. Drift gates (codemap/mapping/skill `--check`) all wired automatically.
+- [x] **`test list` (GET `get_tests/{run_id}`)** — Shipped with the "CLI test get + test list (P0)" PR (#TBD). Exposed as `testrail test list <run_id> [--status-id 1,5] [--limit N] [--offset N]`. The `--status-id` flag is parsed into a `number[]` via a comma-split + `parseId` helper inside the handler so malformed tokens fail-fast with the same `IdParseError` shape as path-param validation — no silent drops, no string-passthrough to the API. New `status-id` flag added to `src/cli/flags.ts` (and the `KNOWN_FLAGS` inventory test). Empty `{}` response body returns `[]` (matches `getTests` programmatic behavior). Unit tests live in `tests/cli-read-handlers.test.ts` (new file — the read-side counterpart to `cli-write-handlers.test.ts`).
+
 ## CLI write surface — structural setup
 
 These map to existing `TestRailClient` methods but aren't exposed in the v2.1

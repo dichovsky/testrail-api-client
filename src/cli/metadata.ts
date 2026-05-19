@@ -168,6 +168,22 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: false,
     },
     {
+        resource: 'test',
+        action: 'get',
+        summary: 'Fetch a single test (run instance of a case) by ID',
+        pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
+        apiEndpoint: 'GET get_test/{test_id}',
+        isWrite: false,
+    },
+    {
+        resource: 'test',
+        action: 'list',
+        summary: 'List tests in a run (optionally filtered by status, paginated)',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'GET get_tests/{run_id}',
+        isWrite: false,
+    },
+    {
         resource: 'result',
         action: 'list',
         summary: 'List results for a run (paginated)',

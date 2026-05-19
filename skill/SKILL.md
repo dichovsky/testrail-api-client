@@ -72,6 +72,8 @@ on stderr. Never echo or log the API key.
 | case | history | `<case_id>` | — | List edit history for a test case (paginated; TestRail 7.5+) |
 | run | get | `<run_id>` | — | Fetch a single run by ID |
 | run | list | — | — | List runs in a project (paginated) |
+| test | get | `<test_id>` | — | Fetch a single test (run instance of a case) by ID |
+| test | list | `<run_id>` | — | List tests in a run (optionally filtered by status, paginated) |
 | result | list | — | — | List results for a run (paginated) |
 | milestone | get | `<milestone_id>` | — | Fetch a single milestone by ID |
 | milestone | list | — | — | List milestones in a project (paginated) |
