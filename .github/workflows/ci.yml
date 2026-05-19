@@ -34,6 +34,9 @@ jobs:
             - name: Run codemap drift check
               run: npm run codemap:check
 
+            - name: Run API mapping drift check
+              run: npm run mapping:check
+
             - name: Run tests
               run: npm run test:coverage
 

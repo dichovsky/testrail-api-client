@@ -2,9 +2,11 @@
  * Unit tests for the mapping-generator helpers (scripts/mapping-renderer.mjs).
  *
  * The pure helpers (schema validation, path normalization, tag parsing,
- * cell renderers, document assembly) are exercised here. The full
- * integration (script invocation + AST crawl + gates B/C + filesystem) is
- * covered by `npm run mapping:check` in `pretest` and CI.
+ * cell renderers, document assembly) are exercised here. The full integration
+ * (script invocation + AST crawl + gates B/C + filesystem write/check) is
+ * exercised in CI by the `Run API mapping drift check` step
+ * (`.github/workflows/ci.yml`), which runs `npm run mapping:check` and fails
+ * the build if the committed `docs/API-MAPPING.md` is out of date.
  */
 import { describe, expect, it } from 'vitest';
 // scripts/ is outside the tsconfig include for src/; the .mjs has no .d.ts.
