@@ -109,6 +109,60 @@ curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/
 
 `AGENTS.md` at the repo root follows the vendor-neutral [agents.md](https://agents.md/) convention — a single markdown file any AI coding agent or harness can read for project conventions, build commands, and "what to know" pointers. No installation required; agents that honour the spec pick it up automatically when working in this repository.
 
+### Destructive operations
+
+Every destructive CLI action (any `delete` plus `run close` / `plan close`) is protected by a **two-gate model**. Both gates must be satisfied before a destructive call reaches the API:
+
+1. **`--yes` flag** — per-invocation explicit confirmation. Required on every destructive command.
+2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable** — process-wide unlock. Set this in your shell / CI step before invoking destructive commands.
+
+Either gate alone is insufficient. The env var must be **exactly** the string `'1'` — `'true'`, `'yes'`, `'on'`, `'1 '` (whitespace), or any other value is rejected. The strict comparison keeps `set | unset | wrong-value` unambiguous in `printenv` output and CI definitions.
+
+```bash
+# Blocked: --yes set, but env var missing → exit code 2
+testrail run delete 5 --yes
+
+# Blocked: env var set, but --yes missing → exit code 1
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5
+
+# Proceeds: both gates satisfied
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
+
+# Recommended CI pattern: export once at the top of the destructive step,
+# then run any number of destructive commands within that step.
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail run delete 5 --yes
+testrail case delete 10 --yes
+```
+
+**Exit codes:**
+
+- `0` — success (or successful `--dry-run` preview).
+- `1` — generic failure (invalid argv, missing auth, 4xx/5xx, validation error, missing `--yes`).
+- `2` — destructive action blocked by the env-var gate. Distinct from `1` so CI can branch on "needs `TESTRAIL_ALLOW_DESTRUCTIVE`" vs everything else.
+
+**`--dry-run` semantics:**
+
+`--dry-run` is **client-side**: no HTTP request leaves the process. It bypasses **both** gates (the env var AND the `--yes` flag) because preview is non-destructive by definition. This lets CI agents safely preview a destructive command without setting up the gates:
+
+```bash
+# Safe in any environment — no gates required, no API call made
+testrail run delete 5 --dry-run
+```
+
+**`--soft` semantics (case / run / section / suite delete only):**
+
+`--soft` is **server-side**: TestRail returns affected-entity counts without performing the deletion. The HTTP request is still made (and still gated by both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`). Distinct from `--dry-run` which makes no API call at all.
+
+```bash
+# Server-side preview — hits the API, returns counts, deletes nothing
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail case delete 10 --soft --yes
+```
+
+**Why two gates?** The env var is a process-wide audit-friendly switch (visible in `printenv`, CI step logs, dump output). The `--yes` flag is per-invocation explicit intent. Together they make accidental destructive operations meaningfully harder — a script run with a stale env still needs `--yes`, and a typo with `--yes` still needs the env var. The dispatch-level check runs in `src/cli/dispatch.ts` before the handler is invoked, so it cannot be bypassed by a regression in any single handler.
+
+**Migration note (v3.6+):** Before v3.6, only `--yes` was required. Existing CI users must add `export TESTRAIL_ALLOW_DESTRUCTIVE=1` (or set the variable in their CI step definition) before any destructive command. See [CHANGELOG.md](CHANGELOG.md) for the full migration guide.
+
 ## Quick Start
 
 ```typescript
