@@ -32,14 +32,14 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Roles](#roles) | 1 | 1 | 1 | 0 |
 | [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
-| [Shared Steps](#shared-steps) | 6 | 6 | 6 | 0 |
+| [Shared Steps](#shared-steps) | 6 | 6 | 6 | 4 |
 | [Statuses](#statuses) | 2 | 2 | 2 | 0 |
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
 | [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **116** | **116** | **101** | **35** |
+| **Total** | **116** | **116** | **101** | **39** |
 
 ## Attachments
 
@@ -264,11 +264,11 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
 | [`GET get_shared_step/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSharedStep`](../src/modules/sharedSteps.ts#L18) | `shared-step get` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_shared_step_history/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSharedStepHistory`](../src/modules/sharedSteps.ts#L57) | `shared-step history` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_shared_step_history/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSharedStepHistory`](../src/modules/sharedSteps.ts#L57) | `shared-step history` | [recipe #28](../skill/SKILL.md#28-shared-step-propagation--history-audit) |
 | [`GET get_shared_steps/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSharedSteps`](../src/modules/sharedSteps.ts#L24) | `shared-step list` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_shared_step/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addSharedStep`](../src/modules/sharedSteps.ts#L34) | `shared-step add` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_shared_step/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteSharedStep`](../src/modules/sharedSteps.ts#L51) | `shared-step delete` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST update_shared_step/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateSharedStep`](../src/modules/sharedSteps.ts#L40) | `shared-step update` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_shared_step/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addSharedStep`](../src/modules/sharedSteps.ts#L34) | `shared-step add` | [recipe #28](../skill/SKILL.md#28-shared-step-propagation--history-audit) |
+| [`POST delete_shared_step/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteSharedStep`](../src/modules/sharedSteps.ts#L51) | `shared-step delete` | [recipe #28](../skill/SKILL.md#28-shared-step-propagation--history-audit) |
+| [`POST update_shared_step/{shared_step_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateSharedStep`](../src/modules/sharedSteps.ts#L40) | `shared-step update` | [recipe #28](../skill/SKILL.md#28-shared-step-propagation--history-audit) |
 
 ## Statuses
 

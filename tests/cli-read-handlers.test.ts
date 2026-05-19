@@ -764,6 +764,14 @@ describe('handlePriorityList', () => {
         await expect(handlePriorityList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getPriorities).not.toHaveBeenCalled();
     });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
+        await expect(handlePriorityList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handlePriorityList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getPriorities).not.toHaveBeenCalled();
+    });
 });
 
 // ── handleCaseTypeList ────────────────────────────────────────────────────
@@ -784,6 +792,14 @@ describe('handleCaseTypeList', () => {
     it('rejects extra positional args before any client call', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
+        await expect(handleCaseTypeList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        await expect(handleCaseTypeList(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.getCaseTypes).not.toHaveBeenCalled();
+    });
+
+    it('rejects multiple extra positional args', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleCaseTypeList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseTypeList(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.getCaseTypes).not.toHaveBeenCalled();
