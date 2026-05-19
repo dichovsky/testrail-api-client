@@ -40,20 +40,26 @@ export async function handleVariableUpdate(ctx: HandlerContext): Promise<void> {
 /**
  * Destructive: deletes a variable. Gated by `--yes`; `--dry-run` wins for
  * preview-without-API. TestRail's `delete_variable` does NOT support the
- * `soft=1` server-side preview, so `--soft` is rejected here rather than
- * silently dropped — keeping destructive intent unambiguous (mirrors the
- * `milestone delete` / `project delete` pattern).
+ * `soft=1` server-side preview, so `--soft` is rejected — keeping
+ * destructive intent unambiguous (mirrors the `milestone delete` /
+ * `project delete` pattern).
+ *
+ * Check order (canonical, matches PR #88 plan-destructive pattern):
+ *   parseId → `--dry-run` (wins) → `--soft` reject → `--yes` gate.
+ * Putting `--dry-run` first means a caller previewing a destructive op
+ * never trips the `--soft` rejection — preview is always a no-op against
+ * the network, regardless of other intent flags.
  */
 export async function handleVariableDelete(ctx: HandlerContext): Promise<void> {
     const variableId = parseId(ctx.args.pathParams[0], 'variable_id');
 
-    if (ctx.args.soft === true) {
-        throw new Error('variable delete does not support --soft.');
-    }
-
     if (ctx.dryRun) {
         ctx.out({ dryRun: true, action: 'variable delete', variableId, destructive: true });
         return;
+    }
+
+    if (ctx.args.soft === true) {
+        throw new Error('variable delete does not support --soft.');
     }
 
     if (!ctx.confirmDestructive) {

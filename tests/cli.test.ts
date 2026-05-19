@@ -2664,6 +2664,40 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
         });
 
+        it('variable add 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'add', '1', '--data', '{"name":"env"}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable add 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'add', '1', '--data', '{"name":"env"}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable add 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'add', '1', '--data', '{"name":"env"}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable add network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'add', '1', '--data', '{"name":"env"}'],
+                [],
+                AUTH_ENV,
+                new Error('network down'),
+            );
+            expect(exitCodes).toContain(1);
+        });
+
         it('variable update POSTs to update_variable/{variable_id}', async () => {
             const { exitCodes } = await runCli(
                 ['variable', 'update', '7', '--data', '{"name":"region"}'],
@@ -2709,6 +2743,49 @@ describe('CLI', () => {
 
         it('variable update missing --data exits 1', async () => {
             const { exitCodes } = await runCli(['variable', 'update', '7']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update supports --format table', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['variable', 'update', '7', '--data', '{"name":"region"}', '--format', 'table'],
+                [jsonResponse({ id: 7, name: 'region' })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('region');
+        });
+
+        it('variable update 401 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'update', '7', '--data', '{"name":"region"}'],
+                [jsonResponse({ error: 'unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update 403 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'update', '7', '--data', '{"name":"region"}'],
+                [jsonResponse({ error: 'forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update 404 maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'update', '7', '--data', '{"name":"region"}'],
+                [jsonResponse({ error: 'not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('variable update network error maps to exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['variable', 'update', '7', '--data', '{"name":"region"}'],
+                [],
+                AUTH_ENV,
+                new Error('network down'),
+            );
             expect(exitCodes).toContain(1);
         });
 

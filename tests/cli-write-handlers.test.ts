@@ -2169,6 +2169,19 @@ describe('handleVariableAdd', () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"name":"env"}' });
         await expect(handleVariableAdd(ctx)).rejects.toThrow(/project_id/);
     });
+
+    it('passes custom_* fields through unchanged (zObject passthrough)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"name":"env","custom_team":"qa","custom_priority":3}',
+        });
+        await handleVariableAdd(ctx);
+        expect(client.addVariable).toHaveBeenCalledWith(
+            7,
+            expect.objectContaining({ name: 'env', custom_team: 'qa', custom_priority: 3 }),
+        );
+    });
 });
 
 // ── variable update ───────────────────────────────────────────────────────
@@ -2243,14 +2256,19 @@ describe('handleVariableDelete', () => {
         await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable delete does not support --soft/);
     });
 
-    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
-        const { ctx } = buildCtx(buildClient(), {
+    it('dry-run wins over --soft (preview emitted, --soft never reached)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
             pathParams: ['55'],
             confirmDestructive: true,
             dryRun: true,
             soft: true,
         });
-        await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable delete does not support --soft/);
+        await handleVariableDelete(ctx);
+        expect(client.deleteVariable).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'variable delete', variableId: 55, destructive: true }),
+        );
     });
 
     it('rejects when variable_id is not a positive integer', async () => {
