@@ -8,6 +8,9 @@
  *   - missing required positional → IdParseError thrown before any
  *     client call (caught by main() and translated to exit 1)
  *   - invalid path-param ids (0, -1, 1.5, abc, '', 1e2, 0x1) → IdParseError
+ *   - filter-flag handlers (result list-for-test/-case): comma-separated
+ *     `--status-id` parsing, `--defects-filter` verbatim forwarding,
+ *     malformed-list rejection
  *
  * Read handlers do not consume a body, so the body-source / dry-run paths
  * exercised by `cli-write-handlers.test.ts` are intentionally out of scope.
@@ -15,6 +18,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { handleSectionGet, handleSectionList } from '../src/cli/handlers/section.js';
 import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
+import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -24,6 +28,8 @@ interface MockedClient {
     getSections: ReturnType<typeof vi.fn>;
     getTest: ReturnType<typeof vi.fn>;
     getTests: ReturnType<typeof vi.fn>;
+    getResults: ReturnType<typeof vi.fn>;
+    getResultsForCase: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -38,6 +44,8 @@ function buildClient(): MockedClient {
         getSections: vi.fn().mockResolvedValue([{ id: 1, suite_id: 1, name: 'Sec', display_order: 1, depth: 0 }]),
         getTest: vi.fn().mockResolvedValue({ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }),
         getTests: vi.fn().mockResolvedValue([{ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }]),
+        getResults: vi.fn().mockResolvedValue([{ id: 1, test_id: 4242, status_id: 1 }]),
+        getResultsForCase: vi.fn().mockResolvedValue([{ id: 7, test_id: 99, status_id: 5 }]),
     };
 }
 
@@ -47,6 +55,7 @@ interface CtxOverrides {
     limit?: string;
     offset?: string;
     statusId?: string;
+    defectsFilter?: string;
 }
 
 function buildCtx(
@@ -62,6 +71,7 @@ function buildCtx(
             ...(overrides.limit !== undefined && { limit: overrides.limit }),
             ...(overrides.offset !== undefined && { offset: overrides.offset }),
             ...(overrides.statusId !== undefined && { statusId: overrides.statusId }),
+            ...(overrides.defectsFilter !== undefined && { defectsFilter: overrides.defectsFilter }),
         },
         bodyInput: {},
         dryRun: false,
@@ -71,6 +81,12 @@ function buildCtx(
     };
     return { ctx, out };
 }
+
+// IDs that must be rejected by parseId() — the read handlers MUST refuse
+// these before any client call leaves the process. "1e2" / "0x1" trip the
+// positive-integer regex gate because they would otherwise round-trip
+// through Number() cleanly.
+const INVALID_IDS: readonly string[] = ['0', '-1', '1.5', 'abc', '', '1e2', '0x1'];
 
 // ── handleSectionGet ──────────────────────────────────────────────────────
 
@@ -275,5 +291,139 @@ describe('handleTestList', () => {
         const { ctx } = buildCtx(client, raw === undefined ? {} : { pathParams: [raw] });
         await expect(handleTestList(ctx)).rejects.toThrow(/positive integer/);
         expect(client.getTests).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleResultListForTest ───────────────────────────────────────────────
+
+describe('handleResultListForTest', () => {
+    it('calls client.getResults with parsed test_id and empty options when no filter flags are passed', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['4242'] });
+        await handleResultListForTest(ctx);
+        expect(client.getResults).toHaveBeenCalledWith(4242, {});
+        expect(out).toHaveBeenCalledWith([{ id: 1, test_id: 4242, status_id: 1 }]);
+    });
+
+    it('forwards --limit and --offset as numeric option fields', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['4242'], limit: '50', offset: '100' });
+        await handleResultListForTest(ctx);
+        expect(client.getResults).toHaveBeenCalledWith(4242, { limit: 50, offset: 100 });
+    });
+
+    it('parses --status-id comma list into number[] under status_id key', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['4242'], statusId: '1,5,7' });
+        await handleResultListForTest(ctx);
+        expect(client.getResults).toHaveBeenCalledWith(4242, { status_id: [1, 5, 7] });
+    });
+
+    it('forwards --defects-filter as a verbatim string', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['4242'], defectsFilter: 'JIRA-1234' });
+        await handleResultListForTest(ctx);
+        expect(client.getResults).toHaveBeenCalledWith(4242, { defects_filter: 'JIRA-1234' });
+    });
+
+    it('combines all filter flags into one options bag', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['4242'],
+            limit: '25',
+            offset: '0',
+            statusId: '1,5',
+            defectsFilter: 'JIRA-9',
+        });
+        await handleResultListForTest(ctx);
+        expect(client.getResults).toHaveBeenCalledWith(4242, {
+            limit: 25,
+            offset: 0,
+            status_id: [1, 5],
+            defects_filter: 'JIRA-9',
+        });
+    });
+
+    it('rejects malformed --status-id list (non-positive token)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['4242'], statusId: '1,abc,5' });
+        await expect(handleResultListForTest(ctx)).rejects.toThrow(/--status-id/);
+    });
+
+    it('rejects empty --status-id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['4242'], statusId: '' });
+        await expect(handleResultListForTest(ctx)).rejects.toThrow(/--status-id/);
+    });
+
+    it('rejects --status-id with zero or negative token', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['4242'], statusId: '1,0,5' });
+        await expect(handleResultListForTest(ctx)).rejects.toThrow(/--status-id/);
+    });
+
+    it.each(INVALID_IDS)('rejects test id %s', async (badId) => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [badId] });
+        await expect(handleResultListForTest(ctx)).rejects.toThrow(/test id/);
+    });
+
+    it('rejects missing test id (pathParams empty)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [] });
+        await expect(handleResultListForTest(ctx)).rejects.toThrow(/test id/);
+    });
+});
+
+// ── handleResultListForCase ───────────────────────────────────────────────
+
+describe('handleResultListForCase', () => {
+    it('calls client.getResultsForCase with parsed run_id + case_id and empty options', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['100', '87'] });
+        await handleResultListForCase(ctx);
+        expect(client.getResultsForCase).toHaveBeenCalledWith(100, 87, {});
+        expect(out).toHaveBeenCalledWith([{ id: 7, test_id: 99, status_id: 5 }]);
+    });
+
+    it('forwards pagination flags', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['100', '87'], limit: '10', offset: '20' });
+        await handleResultListForCase(ctx);
+        expect(client.getResultsForCase).toHaveBeenCalledWith(100, 87, { limit: 10, offset: 20 });
+    });
+
+    it('forwards --status-id and --defects-filter together', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['100', '87'],
+            statusId: '5',
+            defectsFilter: 'JIRA-7',
+        });
+        await handleResultListForCase(ctx);
+        expect(client.getResultsForCase).toHaveBeenCalledWith(100, 87, {
+            status_id: [5],
+            defects_filter: 'JIRA-7',
+        });
+    });
+
+    it.each(INVALID_IDS)('rejects run id %s (case id valid)', async (badId) => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [badId, '87'] });
+        await expect(handleResultListForCase(ctx)).rejects.toThrow(/run id/);
+    });
+
+    it.each(INVALID_IDS)('rejects case id %s (run id valid)', async (badId) => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['100', badId] });
+        await expect(handleResultListForCase(ctx)).rejects.toThrow(/case id/);
+    });
+
+    it('rejects when both ids missing', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: [] });
+        await expect(handleResultListForCase(ctx)).rejects.toThrow(/run id/);
+    });
+
+    it('rejects when case id is missing (only run id supplied)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['100'] });
+        await expect(handleResultListForCase(ctx)).rejects.toThrow(/case id/);
+    });
+
+    it('rejects malformed --status-id even when ids are valid', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['100', '87'], statusId: '1,,5' });
+        await expect(handleResultListForCase(ctx)).rejects.toThrow(/--status-id/);
     });
 });

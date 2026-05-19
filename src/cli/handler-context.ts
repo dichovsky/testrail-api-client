@@ -15,11 +15,15 @@ export interface HandlerArgs {
     caseId?: string;
     limit?: string;
     offset?: string;
-    /** Comma-separated list of status IDs (`--status-id 1,5`) consumed by
-     *  `test list` to filter on TestRail's `status_id` query param. Parsed
-     *  into a `number[]` by the handler so invalid tokens surface as
-     *  `IdParseError` and not silent drops. */
+    /** Comma-separated list of status IDs (`--status-id 1,5`). Consumed by
+     *  `test list` (filters on TestRail's `status_id` query param) and by
+     *  `result list-for-test` / `result list-for-case` (filters by result
+     *  status). Parsed into a `number[]` by the handler so invalid tokens
+     *  surface as `IdParseError` and not silent drops. */
     statusId?: string;
+    /** Substring filter on the result `defects` field (`--defects-filter
+     *  JIRA-123`); used by result list-for-test / list-for-case. */
+    defectsFilter?: string;
     /** Path to a binary file for attachment upload actions (`--file <path>`). */
     file?: string;
     /** Optional override for the upload filename; otherwise derived from `basename(file)`. */

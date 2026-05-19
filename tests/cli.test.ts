@@ -1176,6 +1176,221 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
         });
+
+        // ── result list-for-test ──────────────────────────────────────────
+        // Per-test read endpoint (`GET get_results/{test_id}`). Exercises
+        // the new filter-flag pipeline (`--status-id`, `--defects-filter`)
+        // alongside the existing pagination flags.
+
+        it('result list-for-test <id> should exit 0 and GET get_results/<id>', async () => {
+            const { exitCodes } = await runCli(['result', 'list-for-test', '4242'], [jsonResponse({ results: [] })]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_results/4242');
+        });
+
+        it('result list-for-test propagates --limit / --offset / --status-id / --defects-filter to URL', async () => {
+            const { exitCodes } = await runCli(
+                [
+                    'result',
+                    'list-for-test',
+                    '4242',
+                    '--limit',
+                    '25',
+                    '--offset',
+                    '0',
+                    '--status-id',
+                    '1,5',
+                    '--defects-filter',
+                    'JIRA-99',
+                ],
+                [jsonResponse({ results: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=25');
+            expect(url).toContain('offset=0');
+            // serializeIdList joins with comma; encodeURIComponent leaves digits/commas as-is except commas → %2C
+            expect(url).toMatch(/status_id=1(%2C|,)5/);
+            expect(url).toContain('defects_filter=JIRA-99');
+        });
+
+        it('result list-for-test rejects missing positional', async () => {
+            const { stderr, exitCodes } = await runCli(['result', 'list-for-test']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/test id/);
+        });
+
+        // '-1' is parsed as a short-flag '-1' by parseArgs and rejected by
+        // the unknown-flag gate before ever reaching parseId; the other
+        // tokens flow through to parseId and produce the canonical "test id
+        // must be a positive integer" message. Both paths exit 1, which is
+        // what the contract guarantees.
+        it.each(['0', '1.5', 'abc', '1e2', '0x1'])(
+            'result list-for-test rejects invalid id %s with the "test id" error',
+            async (badId) => {
+                const { stderr, exitCodes } = await runCli(['result', 'list-for-test', badId]);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/test id/);
+            },
+        );
+
+        it('result list-for-test rejects negative id -1 (parsed as unknown flag → exit 1)', async () => {
+            const { exitCodes } = await runCli(['result', 'list-for-test', '-1']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('result list-for-test rejects malformed --status-id', async () => {
+            const { stderr, exitCodes } = await runCli(['result', 'list-for-test', '4242', '--status-id', '1,abc']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--status-id/);
+        });
+
+        it('result list-for-test renders --format table without throwing', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['result', 'list-for-test', '4242', '--format', 'table'],
+                [
+                    jsonResponse({
+                        results: [
+                            { id: 1, test_id: 4242, status_id: 1, created_by: 1, created_on: 0 },
+                            { id: 2, test_id: 4242, status_id: 5, created_by: 1, created_on: 0 },
+                        ],
+                    }),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            // Table renderer emits column headers; presence of `id` and `status_id`
+            // suffices as a smoke check.
+            expect(stdout).toContain('id');
+            expect(stdout).toContain('status_id');
+        });
+
+        it('result list-for-test --format json emits parseable JSON array', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['result', 'list-for-test', '4242', '--format', 'json'],
+                [jsonResponse({ results: [{ id: 1, test_id: 4242, status_id: 1, created_by: 1, created_on: 0 }] })],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as unknown;
+            expect(Array.isArray(parsed)).toBe(true);
+        });
+
+        it.each([
+            [404, /404/],
+            [401, /401/],
+            [403, /403/],
+        ])('result list-for-test surfaces %s as exit 1', async (status, errMatch) => {
+            const { stderr, exitCodes } = await runCli(
+                ['result', 'list-for-test', '4242'],
+                [jsonResponse({ error: 'x' }, status)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(errMatch);
+        });
+
+        it('result list-for-test surfaces network error as exit 1', async () => {
+            mockFetch.mockReset();
+            mockFetch.mockRejectedValue(new TypeError('fetch failed'));
+            const { exitCodes } = await runCli(['result', 'list-for-test', '4242']);
+            expect(exitCodes).toContain(1);
+        });
+
+        // ── result list-for-case ──────────────────────────────────────────
+        // Per-case-in-run read endpoint (`GET get_results_for_case/{run_id}/{case_id}`).
+        // Two-positional-id shape exercises both path-param slots.
+
+        it('result list-for-case <run_id> <case_id> should exit 0', async () => {
+            const { exitCodes } = await runCli(
+                ['result', 'list-for-case', '100', '87'],
+                [jsonResponse({ results: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_results_for_case/100/87');
+        });
+
+        it('result list-for-case propagates all filter flags', async () => {
+            const { exitCodes } = await runCli(
+                [
+                    'result',
+                    'list-for-case',
+                    '100',
+                    '87',
+                    '--limit',
+                    '10',
+                    '--offset',
+                    '20',
+                    '--status-id',
+                    '5',
+                    '--defects-filter',
+                    'JIRA-1234',
+                ],
+                [jsonResponse({ results: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=10');
+            expect(url).toContain('offset=20');
+            expect(url).toContain('status_id=5');
+            expect(url).toContain('defects_filter=JIRA-1234');
+        });
+
+        it('result list-for-case missing case id should exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['result', 'list-for-case', '100']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/case id/);
+        });
+
+        it.each(['0', '1.5', 'abc', '1e2', '0x1'])(
+            'result list-for-case rejects run id %s with the "run id" error',
+            async (badId) => {
+                const { stderr, exitCodes } = await runCli(['result', 'list-for-case', badId, '87']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/run id/);
+            },
+        );
+
+        it('result list-for-case rejects negative run id -1 (parsed as flag → exit 1)', async () => {
+            const { exitCodes } = await runCli(['result', 'list-for-case', '-1', '87']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it.each(['0', '1.5', 'abc', '1e2', '0x1'])(
+            'result list-for-case rejects case id %s with the "case id" error',
+            async (badId) => {
+                const { stderr, exitCodes } = await runCli(['result', 'list-for-case', '100', badId]);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/case id/);
+            },
+        );
+
+        it('result list-for-case rejects negative case id -1 (parsed as flag → exit 1)', async () => {
+            const { exitCodes } = await runCli(['result', 'list-for-case', '100', '-1']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('result list-for-case --format json emits parseable JSON array', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['result', 'list-for-case', '100', '87', '--format', 'json'],
+                [jsonResponse({ results: [{ id: 7, test_id: 99, status_id: 5, created_by: 1, created_on: 0 }] })],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout) as unknown;
+            expect(Array.isArray(parsed)).toBe(true);
+        });
+
+        it.each([
+            [404, /404/],
+            [401, /401/],
+            [403, /403/],
+        ])('result list-for-case surfaces %s as exit 1', async (status, errMatch) => {
+            const { stderr, exitCodes } = await runCli(
+                ['result', 'list-for-case', '100', '87'],
+                [jsonResponse({ error: 'x' }, status)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(errMatch);
+        });
     });
 
     // ── milestone ─────────────────────────────────────────────────────────────

@@ -54,3 +54,29 @@ export function optInt(raw: string | undefined): number | undefined {
     const n = Number(raw);
     return Number.isSafeInteger(n) ? n : undefined;
 }
+
+/**
+ * Parse a comma-separated list of positive integers (`--status-id 1,5,7`).
+ *
+ * Returns `undefined` when `raw` is undefined (flag omitted) so callers can
+ * spread it conditionally into the options object. Throws `IdParseError` when
+ * any token is empty / non-integer / non-positive — failing fast on malformed
+ * filters is preferable to silently dropping bad IDs (which would surface as
+ * an unexpected empty result set).
+ */
+export function parseIdList(raw: string | undefined, name: string): number[] | undefined {
+    if (raw === undefined) return undefined;
+    if (raw === '') {
+        throw new IdParseError(`${name} must be a comma-separated list of positive integers (got: empty)`);
+    }
+    const tokens = raw.split(',');
+    const ids: number[] = [];
+    for (const token of tokens) {
+        const trimmed = token.trim();
+        if (!POSITIVE_INT_RE.test(trimmed)) {
+            throw new IdParseError(`${name} must be a comma-separated list of positive integers (got: ${raw})`);
+        }
+        ids.push(Number(trimmed));
+    }
+    return ids;
+}
