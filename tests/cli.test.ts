@@ -112,6 +112,14 @@ const MOCK_PLAN_ENTRY = {
     include_all: true,
     runs: [],
 };
+const MOCK_SECTION = {
+    id: 1,
+    suite_id: 1,
+    name: 'Section A',
+    description: 'A section',
+    display_order: 1,
+    depth: 0,
+};
 const MOCK_SHARED_STEP = {
     id: 1,
     title: 'Login Steps',
@@ -186,6 +194,12 @@ async function runCli(
     env: Record<string, string | undefined> = AUTH_ENV,
 ): Promise<CliResult> {
     vi.resetModules();
+    // Fully reset between runs so queued mockResolvedValueOnce items from a
+    // previous test cannot leak into the next test's fetch sequence (a real
+    // hazard when a test pre-queues N responses but the CLI consumes fewer
+    // than N — clearAllMocks() only resets call history, not pending `once`
+    // implementations).
+    mockFetch.mockReset();
     mockFetch.mockResolvedValue(jsonResponse({ error: 'Not found' }, 404));
 
     process.argv = ['node', 'testrail', ...argv];
@@ -507,6 +521,164 @@ describe('CLI', () => {
             const { stderr, exitCodes } = await runCli(['suite', 'create']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
+        });
+    });
+
+    // ── section (read) ────────────────────────────────────────────────────────
+
+    describe('section (read)', () => {
+        it('section get <id> should output JSON and exit 0', async () => {
+            const { stdout, exitCodes } = await runCli(['section', 'get', '1'], [jsonResponse(MOCK_SECTION)]);
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_SECTION;
+            expect(parsed.id).toBe(1);
+            expect(parsed.name).toBe('Section A');
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_section/1');
+        });
+
+        it('section get <id> with --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['section', 'get', '1', '--format', 'table'],
+                [jsonResponse(MOCK_SECTION)],
+            );
+            expect(exitCodes).toContain(0);
+            // Table renderer emits a header row with the schema keys.
+            expect(stdout).toContain('id');
+            expect(stdout).toContain('name');
+            expect(stdout).toContain('Section A');
+        });
+
+        it('section get with missing id should exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(['section', 'get']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/section id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get with non-integer id should exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'get', 'abc']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get with id=0 should exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '0']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get with negative id should exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '-1']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get with float id should exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '1.5']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get with scientific-notation id should exit 1 (rejects "1e2")', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '1e2']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get with hex id should exit 1 (rejects "0x1")', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '0x1']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section get propagates 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'get', '999'],
+                [jsonResponse({ error: 'Section not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('section get propagates 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '1'], [jsonResponse({ error: 'Unauthorized' }, 401)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('section get propagates 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'get', '1'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('section list <project_id> should exit 0 and call get_sections/{project_id}', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['section', 'list', '1'],
+                [jsonResponse({ sections: [MOCK_SECTION] })],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as (typeof MOCK_SECTION)[];
+            expect(Array.isArray(parsed)).toBe(true);
+            expect(parsed[0]?.id).toBe(1);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_sections/1');
+        });
+
+        it('section list with --suite-id appends suite_id query param', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'list', '1', '--suite-id', '2'],
+                [jsonResponse({ sections: [MOCK_SECTION] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_sections/1');
+            expect(url).toContain('suite_id=2');
+        });
+
+        it('section list with --limit and --offset appends pagination', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'list', '1', '--limit', '5', '--offset', '10'],
+                [jsonResponse({ sections: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('limit=5');
+            expect(url).toContain('offset=10');
+        });
+
+        it('section list with --format table renders a table', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['section', 'list', '1', '--format', 'table'],
+                [jsonResponse({ sections: [MOCK_SECTION] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Section A');
+        });
+
+        it('section list with missing project_id should exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(['section', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/project id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section list with non-integer project_id should exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'list', 'abc']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section list with non-integer --suite-id should exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'list', '1', '--suite-id', 'abc']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('section list propagates 401 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'list', '1'],
+                [jsonResponse({ error: 'Unauthorized' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
         });
     });
 

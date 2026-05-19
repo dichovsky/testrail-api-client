@@ -79,6 +79,8 @@ on stderr. Never echo or log the API key.
 | user | list | — | — | List users (paginated) |
 | plan | get | `<plan_id>` | — | Fetch a single test plan by ID |
 | plan | list | — | — | List plans in a project (paginated) |
+| section | get | `<section_id>` | — | Fetch a single section by ID |
+| section | list | `<project_id>` | — | List sections in a project (optionally filtered by suite; paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
 | case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |

@@ -29,8 +29,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🔴 P0 — daily-use endpoints
 
-- [ ] 🔴 📦 CLI: `section get` (GET `get_section/{section_id}`)
-- [ ] 🔴 📦 CLI: `section list` (GET `get_sections/{project_id}`)
 - [ ] 🔴 📦 CLI: `run update` (POST `update_run/{run_id}`)
 - [ ] 🔴 📦 CLI: `test get` (GET `get_test/{test_id}`)
 - [ ] 🔴 📦 CLI: `test list` (GET `get_tests/{run_id}`)

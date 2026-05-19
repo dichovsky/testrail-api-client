@@ -250,6 +250,26 @@ describe('parseId', () => {
         expect(() => parseId('1.5', 'project id')).toThrow(IdParseError);
     });
 
+    it('throws when raw uses scientific notation (rejects "1e2" even though Number() yields 100)', () => {
+        expect(() => parseId('1e2', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw uses a hex prefix (rejects "0x1" even though Number() yields 1)', () => {
+        expect(() => parseId('0x1', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw has leading zeros (rejects "01")', () => {
+        expect(() => parseId('01', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw has surrounding whitespace (rejects " 5 ")', () => {
+        expect(() => parseId(' 5 ', 'project id')).toThrow(IdParseError);
+    });
+
+    it('throws when raw has an explicit + sign (rejects "+1")', () => {
+        expect(() => parseId('+1', 'project id')).toThrow(IdParseError);
+    });
+
     it('includes the parameter name in the error', () => {
         expect(() => parseId(undefined, '--run-id')).toThrow(/--run-id/);
     });

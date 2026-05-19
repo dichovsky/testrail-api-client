@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "5836086b68a974d80b2f301a4907327c30863833c97585575247fe27bcbfb0aa",
+  "sourceHash": "df80425c40d91d645a8f5694056725a656b929cb791b3544706c530ebcb2887c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1411,6 +1411,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./handlers/run-write.js",
         "./handlers/run.js",
         "./handlers/section-write.js",
+        "./handlers/section.js",
         "./handlers/shared-step.js",
         "./handlers/suite-write.js",
         "./handlers/suite.js",
@@ -1421,35 +1422,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 63,
+          "line": 64,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 130,
+          "line": 133,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 145,
+          "line": 148,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 152,
+          "line": 155,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 156,
+          "line": 159,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -2181,6 +2182,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/section.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleSectionGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleSectionGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleSectionList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleSectionList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/shared-step.ts",
       "imports": [
         "../handler-context.js",
@@ -2312,16 +2337,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           ]
         },
         {
+          "name": "POSITIVE_INT_RE",
+          "kind": "const",
+          "line": 14,
+          "exported": false,
+          "signature": "const POSITIVE_INT_RE = /^[1-9]\\d*$/"
+        },
+        {
           "name": "parseId",
           "kind": "function",
-          "line": 8,
+          "line": 16,
           "exported": true,
           "signature": "export function parseId(raw: string | undefined, name: string): number"
         },
         {
           "name": "optInt",
           "kind": "function",
-          "line": 16,
+          "line": 26,
           "exported": true,
           "signature": "export function optInt(raw: string | undefined): number | undefined"
         }
@@ -2370,7 +2402,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 148,
+          "line": 149,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2442,7 +2474,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 680,
+          "line": 696,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
