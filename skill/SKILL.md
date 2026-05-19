@@ -1571,8 +1571,9 @@ mismatch, fall back to issuing N separate `case add` calls — slower
 <!-- recipe-for: run:watch -->
 
 `run watch` polls `get_run/{run_id}` on a fixed interval (default 30s)
-and emits a one-line JSON event to stdout each time one of the watched
-counters changes. The watcher exits with code 0 the moment TestRail
+and emits an event each time one of the watched counters changes. With
+`--format json` the event is structured JSON; with `--format table` the
+same event object is rendered as a table row. The watcher exits with code 0 the moment TestRail
 flips `is_completed` to `true` — useful for CI pipelines that need to
 block until a manual / external run completes before publishing
 reports, sending notifications, or promoting a deploy.
@@ -1604,12 +1605,24 @@ testrail run watch 42 --interval 10
 testrail run watch 42 --once
 ```
 
-Event stream (one JSON object per line):
+Example event output (`--format json`):
 
 ```json
-{"event": "snapshot", "runId": 42, "is_completed": false, "passed_count": 7, ...}
-{"event": "change", "runId": 42, "changes": [{"field": "passed_count", "from": 7, "to": 8}], ...}
-{"event": "completed", "runId": 42, "is_completed": true, ...}
+{
+  "event": "snapshot",
+  "runId": 42,
+  "is_completed": false
+}
+{
+  "event": "change",
+  "runId": 42,
+  "changes": [{ "field": "passed_count", "from": 7, "to": 8 }]
+}
+{
+  "event": "completed",
+  "runId": 42,
+  "is_completed": true
+}
 ```
 
 SIGINT (Ctrl-C) is handled gracefully: the watcher cancels the pending

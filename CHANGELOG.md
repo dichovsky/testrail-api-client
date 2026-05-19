@@ -16,8 +16,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   and array items that fail `AddCasePayloadSchema` are rejected client-side
   before any network call. **Version-aware error wrap:** older TestRail
   servers return 400/404 with `"Invalid uri"` because the endpoint doesn't
-  exist; the module rethrows that as `TestRailApiError(status, 'TestRail
-server >= 7.5 required for add_cases bulk endpoint', <original response>)`
+  exist; the module rethrows that as `TestRailApiError(status, 'TestRail server >= 7.5 required for add_cases bulk endpoint', <original response>)`
   so callers can tell "your TestRail is too old" from "your payload is
   malformed". `--dry-run` previews the parsed array with a `count` field.
 - **`run watch <run_id>` CLI action** — long-running command that polls

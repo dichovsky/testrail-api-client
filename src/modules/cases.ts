@@ -101,9 +101,9 @@ export class CaseModule {
      * **Server version gate:** TestRail 7.5+ is required — older instances
      * return 400 / 404 with messages like `"Invalid uri"` because the
      * endpoint does not exist. When that shape is detected the error is
-     * rethrown as a clearer `TestRailApiError(status, statusText, 'TestRail
-     * server >= 7.5 required for add_cases bulk endpoint')` so callers can
-     * tell "your TestRail is too old" from "your payload is malformed".
+     * rethrown as a clearer `TestRailApiError(status, 'TestRail server >= 7.5
+     * required for add_cases bulk endpoint', <original response>)` so callers
+     * can tell "your TestRail is too old" from "your payload is malformed".
      *
      * @testrail POST add_cases/{section_id}
      */

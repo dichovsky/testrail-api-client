@@ -96,9 +96,9 @@ function parseInterval(raw: string | undefined): number {
 
 /**
  * `run watch <run_id>` — long-running CLI command that polls `get_run/{run_id}`
- * on a fixed interval (default 30s; configurable via `--interval`) and prints
- * a compact one-line diff to stdout every time one of the {@link WATCHED_FIELDS}
- * changes between polls. Exits cleanly with code 0 when `is_completed` flips
+ * on a fixed interval (default 30s; configurable via `--interval`) and emits
+ * change events whenever one of the {@link WATCHED_FIELDS} differs between
+ * polls. Exits cleanly with code 0 when `is_completed` flips
  * to `true` (TestRail emits this on `closeRun` and on the natural "all tests
  * have a final status" transition).
  *
@@ -120,8 +120,9 @@ function parseInterval(raw: string | undefined): number {
  * `--once` short-circuits the recursion after the first poll, useful for CI
  * scripts that want the diff/render but not a long-running process.
  *
- * `--format table` and `--format json` both work; the per-poll line is always
- * structured JSON so downstream tooling (e.g. `jq`) can ingest the stream.
+ * Output is routed through the normal CLI formatter: `--format json` emits
+ * structured JSON events, while `--format table` renders the same event
+ * objects as table rows.
  */
 export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
@@ -160,9 +161,11 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
         // watcher's own status text is constant, but defense-in-depth keeps
         // the path uniform with `createOutput().err`.
         const lastStr = lastSnapshot !== undefined ? JSON.stringify(lastSnapshot) : '(no successful poll)';
-        process.stderr.write(
-            sanitizeForTerminal(`run watch: interrupted at runId=${runId}; lastSnapshot=${lastStr}\n`),
-        );
+        if (!process.argv.includes('--quiet')) {
+            process.stderr.write(
+                sanitizeForTerminal(`run watch: interrupted at runId=${runId}; lastSnapshot=${lastStr}\n`),
+            );
+        }
         // Settle the loop so the handler's `await` returns. The client's
         // SIGINT handler still runs after this (we use prependListener so
         // ours runs first) and calls process.exit(130); without that the
