@@ -1234,6 +1234,123 @@ Notes:
   different project is a different ID. Always pair list/mutate calls
   with the project context.
 
+### 28. Shared step propagation + history audit
+
+<!-- recipe-for: shared-step:add -->
+<!-- recipe-for: shared-step:update -->
+<!-- recipe-for: shared-step:delete -->
+<!-- recipe-for: shared-step:history -->
+
+Shared steps let a single step block be reused across many test cases.
+Editing the shared step updates **every case that references it** — the
+change is server-side and propagates immediately, so a single
+`shared-step update` can mutate hundreds of cases in one call. That
+power cuts both ways: an unchecked edit is a fan-out blast radius.
+Always audit references with `shared-step history` before any update or
+delete.
+
+Lifecycle walkthrough — create, reference from cases, update,
+audit the blast radius, then retire safely:
+
+```bash
+# 1. Create the shared step at the project level. `custom_steps_separated`
+#    is a free-form array of step objects (passthrough); TestRail
+#    accepts whatever keys your project template defines (typically
+#    `content`, `expected`, `additional_info`).
+STEP=$(testrail shared-step add 5 --data '{
+  "title": "Log in as admin",
+  "custom_steps_separated": [
+    {"content": "Navigate to /login", "expected": "Login form renders"},
+    {"content": "Submit admin credentials", "expected": "Redirected to /dashboard"}
+  ]
+}')
+SHARED_STEP_ID=$(echo "$STEP" | jq '.id')
+
+# 2. Reference the shared step from a test case. In `custom_steps_separated`,
+#    a step entry with `shared_step_id` points to the shared block;
+#    TestRail expands it server-side when the case is rendered or copied
+#    into a run. Mix inline steps and shared-step references freely.
+testrail case add "$SECTION_ID" --data "{
+  \"title\": \"Admin can delete users\",
+  \"custom_steps_separated\": [
+    {\"shared_step_id\": $SHARED_STEP_ID},
+    {\"content\": \"Open /users\", \"expected\": \"User list renders\"},
+    {\"content\": \"Click 'Delete' on a user row\", \"expected\": \"User removed\"}
+  ]
+}"
+
+# 3. Audit BEFORE you mutate. `shared-step history` returns every prior
+#    revision (timestamps + `user_id` + the `custom_steps_separated`
+#    snapshot at that point) so you can see who last touched it and what
+#    the cases inherited. Paginate with --limit / --offset on long
+#    histories.
+testrail shared-step history "$SHARED_STEP_ID" --limit 50
+
+# 4. Update the shared step. Every case referencing it now picks up the
+#    new content on its next read (no per-case patch needed). The
+#    history endpoint records this revision so future audits can trace
+#    when behavior changed.
+testrail shared-step update "$SHARED_STEP_ID" --data '{
+  "title": "Log in as admin (MFA)",
+  "custom_steps_separated": [
+    {"content": "Navigate to /login", "expected": "Login form renders"},
+    {"content": "Submit admin credentials", "expected": "MFA prompt shown"},
+    {"content": "Enter TOTP code", "expected": "Redirected to /dashboard"}
+  ]
+}'
+
+# 5. Confirm the revision landed and inspect the diff against the
+#    previous entry before letting CI run any cases that reference it.
+testrail shared-step history "$SHARED_STEP_ID" --limit 1
+
+# 6. Retire the shared step. `--dry-run` (client-side, no API call)
+#    previews the destructive call without touching the server; pair
+#    with `--yes` for the real delete. There is no `--soft` server-side
+#    preview — TestRail's `delete_shared_step` does not accept `soft=1`.
+testrail shared-step delete "$SHARED_STEP_ID" --yes --dry-run
+testrail shared-step delete "$SHARED_STEP_ID" --yes
+```
+
+Notes:
+
+- **Propagation is immediate and server-side.** Updates to a shared
+  step take effect the next time any referencing case is read by the
+  API, the UI, or a run. There is no per-case cache to invalidate on
+  the client side; the GET-LRU in this client keys by endpoint, so
+  `case get` for a referencing case must be re-fetched (or cache
+  bypassed) after `shared-step update` to see the new content.
+- **Delete does NOT cascade to test cases.** Per TestRail's documented
+  behavior for `delete_shared_step` (and pinned in
+  `src/cli/handlers/shared-step-write.ts`), test cases that referenced
+  the deleted shared step are **not** deleted — those cases lose the reference to the step block.
+  The case row survives; the expanded steps that came from the shared
+  block disappear from `custom_steps_separated` on that case's next
+  read. Existing runs that already executed the case keep their
+  historical step text and results unchanged.
+- **Audit before every mutation.** `shared-step history` is the only
+  reliable way to see how many revisions a shared step has accumulated
+  and who touched it last. A high revision count on a step
+  referenced by hundreds of cases means an update has a wide blast
+  radius — review the inline steps before pushing. The history
+  endpoint is paginated; combine `--limit` + `--offset` to walk long
+  histories without exceeding the response-body cap.
+- **No bulk reference lookup upstream.** TestRail does not expose a
+  "list cases referencing shared step X" endpoint. To estimate impact
+  before an update, page through `case list` for the project/suite
+  and `jq` over `custom_steps_separated[]?.shared_step_id` looking
+  for the target ID. The walk is read-only and cache-friendly.
+- **Empty update payloads are accepted.** `UpdateSharedStepPayloadSchema`
+  intentionally allows `{}` (every field optional, matching
+  `UpdateMilestonePayloadSchema`) — TestRail treats it as a no-op.
+  This is a schema-layer decision; if you want non-empty enforcement,
+  validate above the CLI before invoking.
+- **`shared-step delete` is destructive, gated by `--yes`.** Mirrors
+  `milestone delete` / `plan delete`: no `--soft` server-side preview
+  upstream, so the only preview mechanism is client-side `--dry-run`.
+  `--dry-run` wins
+  over `--yes` so `--yes --dry-run` always short-circuits without
+  hitting the API.
+
 ## Destructive actions
 
 Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,

@@ -55,7 +55,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 CLI: `role list` (GET `get_roles`)
 - [ ] 🟢 📦 CLI: `priority list` (GET `get_priorities`)
 - [ ] 🟢 📦 CLI: `case-type list` (GET `get_case_types`)
-- [ ] 🟢 📦 SKILL recipe: Shared step propagation + history audit
 - [ ] 🟢 📦 SKILL recipe: Data-driven runs via Variables + Datasets
 
 ## 🔒 Security
