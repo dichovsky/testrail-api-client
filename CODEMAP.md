@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "1c443e59429624019e653b656ee01dd1b5084a6be520045adc27822d61ec3160",
+  "sourceHash": "a13d0fbc6bef7b867cf44aa05d3dd398b5ad38c808f8fa4dfaf7160e9e919767",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1423,35 +1423,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 72,
+          "line": 76,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 149,
+          "line": 157,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 164,
+          "line": 172,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 171,
+          "line": 179,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 175,
+          "line": 183,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -1972,6 +1972,34 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 84,
           "exported": true,
           "signature": "export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanClose",
+          "kind": "function",
+          "line": 112,
+          "exported": true,
+          "signature": "export async function handlePlanClose(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanDelete",
+          "kind": "function",
+          "line": 134,
+          "exported": true,
+          "signature": "export async function handlePlanDelete(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanDeleteEntry",
+          "kind": "function",
+          "line": 157,
+          "exported": true,
+          "signature": "export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handlePlanDeleteRunFromEntry",
+          "kind": "function",
+          "line": 180,
+          "exported": true,
+          "signature": "export async function handlePlanDeleteRunFromEntry(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2505,7 +2533,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 159,
+          "line": 175,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2577,7 +2605,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 777,
+          "line": 819,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

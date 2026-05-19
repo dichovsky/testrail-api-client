@@ -78,3 +78,43 @@ describe('skill/SKILL.md — Results pipeline recipe', () => {
         expect(section).toMatch(/4\.\s+\*\*You're writing, not reading\*\*/);
     });
 });
+
+describe('skill/SKILL.md — Plan entries lifecycle recipe', () => {
+    const md = readFileSync(SKILL_PATH, 'utf-8');
+
+    // gate C2 (`npm run mapping:check`) already enforces that the tags
+    // resolve to ActionSpec entries, but it does NOT enforce that the
+    // four tags stay grouped under the same heading — if someone splits
+    // them across separate recipes the binding semantics change without
+    // gate C2 noticing. Pin the grouping explicitly.
+    it('groups all four plan destructive recipe-for tags under the same heading', () => {
+        const section = extractSection(md, 'Plan entries lifecycle');
+        expect(section).toContain('<!-- recipe-for: plan:close -->');
+        expect(section).toContain('<!-- recipe-for: plan:delete -->');
+        expect(section).toContain('<!-- recipe-for: plan:delete-entry -->');
+        expect(section).toContain('<!-- recipe-for: plan:delete-run-from-entry -->');
+    });
+
+    it('pins the cascade-order narration (run → entry → plan)', () => {
+        const section = extractSection(md, 'Plan entries lifecycle');
+        expect(section).toContain('cascade order (run → entry → plan)');
+    });
+
+    it('pins the delete-cascade example commands in order', () => {
+        const section = extractSection(md, 'Plan entries lifecycle');
+        // Order matters: narrowest first, widest last. Snapshot the three
+        // canonical command lines so a re-order surfaces as a diff.
+        expect(section).toContain('testrail plan delete-run-from-entry "$NEW_RUN_ID" --yes');
+        expect(section).toContain('testrail plan delete-entry "$PLAN_ID" "$ENTRY_ID" --yes');
+        expect(section).toContain('testrail plan close "$PLAN_ID" --yes');
+        // delete preview-then-commit dyad
+        expect(section).toContain('testrail plan delete "$PLAN_ID" --yes --dry-run');
+    });
+
+    it('warns that close is irreversible (no open_plan) and delete has no --soft', () => {
+        const section = extractSection(md, 'Plan entries lifecycle');
+        expect(section).toContain('irreversible');
+        expect(section).toContain('open_plan');
+        expect(section).toContain('does NOT support');
+    });
+});

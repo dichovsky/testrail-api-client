@@ -97,3 +97,98 @@ export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<v
     }
     ctx.out(await ctx.client.updateRunInPlanEntry(runId, body.payload));
 }
+
+/**
+ * Destructive: closes a plan. TestRail offers no `open_plan` endpoint —
+ * once closed, the plan accepts no new entries/runs and existing runs in
+ * the plan can no longer receive results. Gated by `--yes`; if `--dry-run`
+ * is also passed, dry-run wins (no API call) and emits a preview with
+ * `destructive: true`. Mirrors `handleRunClose`.
+ *
+ * No body is taken — any `--data` / `--data-file` / stdin supplied for
+ * this action is silently ignored, matching the no-body close pattern
+ * locked in by `run close`.
+ */
+export async function handlePlanClose(ctx: HandlerContext): Promise<void> {
+    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan close does not support --soft.');
+    }
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'plan close', planId, destructive: true });
+        return;
+    }
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+    ctx.out(await ctx.client.closePlan(planId));
+}
+
+/**
+ * Destructive: deletes a plan and all of its entries and associated runs.
+ * Gated by `--yes`; `--dry-run` wins for preview-without-API. TestRail does
+ * NOT support `?soft=1` on `delete_plan` — there's no server-side preview;
+ * the only safety net is the client-side `--dry-run`. Mirrors
+ * `handleMilestoneDelete` / `handleProjectDelete` (no-`--soft` deletes).
+ */
+export async function handlePlanDelete(ctx: HandlerContext): Promise<void> {
+    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan delete does not support --soft.');
+    }
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'plan delete', planId, destructive: true });
+        return;
+    }
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+    await ctx.client.deletePlan(planId);
+    ctx.out({ planId, deleted: true });
+}
+
+/**
+ * Destructive: deletes a single plan entry (which removes every run in
+ * that entry). `entry_id` is a UUID-style string (not a number); it's
+ * validated against the non-empty-string rule via `parseEntryId` before
+ * the destructive gate is even checked. Gated by `--yes`; `--dry-run`
+ * wins for preview-without-API. No `--soft` support upstream.
+ */
+export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void> {
+    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
+    const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan delete-entry does not support --soft.');
+    }
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'plan delete-entry', planId, entryId, destructive: true });
+        return;
+    }
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+    await ctx.client.deletePlanEntry(planId, entryId);
+    ctx.out({ planId, entryId, deleted: true });
+}
+
+/**
+ * Destructive: deletes a single run from its plan entry. Takes only the
+ * `run_id` (numeric) — the entry/plan are looked up server-side. Gated
+ * by `--yes`; `--dry-run` wins for preview-without-API. No `--soft`
+ * support upstream.
+ */
+export async function handlePlanDeleteRunFromEntry(ctx: HandlerContext): Promise<void> {
+    const runId = parseId(ctx.args.pathParams[0], 'run_id');
+    if (ctx.args.soft === true) {
+        throw new Error('plan delete-run-from-entry does not support --soft.');
+    }
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'plan delete-run-from-entry', runId, destructive: true });
+        return;
+    }
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+    await ctx.client.deleteRunFromPlanEntry(runId);
+    ctx.out({ runId, deleted: true });
+}

@@ -26,6 +26,10 @@ import {
     handlePlanAddRunToEntry,
     handlePlanUpdateEntry,
     handlePlanUpdateRunInEntry,
+    handlePlanClose,
+    handlePlanDelete,
+    handlePlanDeleteEntry,
+    handlePlanDeleteRunFromEntry,
 } from './handlers/plan-write.js';
 import {
     handleAttachmentListForCase,
@@ -119,6 +123,10 @@ const HANDLERS: Record<string, Handler> = {
     'plan:add-run-to-entry': handlePlanAddRunToEntry,
     'plan:update-entry': handlePlanUpdateEntry,
     'plan:update-run-in-entry': handlePlanUpdateRunInEntry,
+    'plan:close': handlePlanClose,
+    'plan:delete': handlePlanDelete,
+    'plan:delete-entry': handlePlanDeleteEntry,
+    'plan:delete-run-from-entry': handlePlanDeleteRunFromEntry,
     'attachment:list-for-case': handleAttachmentListForCase,
     'attachment:list-for-run': handleAttachmentListForRun,
     'attachment:list-for-test': handleAttachmentListForTest,

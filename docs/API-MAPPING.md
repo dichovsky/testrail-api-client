@@ -23,7 +23,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Datasets](#datasets) | 5 | 5 | 0 | 0 |
 | [Groups](#groups) | 5 | 5 | 0 | 0 |
 | [Milestones](#milestones) | 5 | 5 | 5 | 0 |
-| [Plans](#plans) | 12 | 12 | 8 | 5 |
+| [Plans](#plans) | 12 | 12 | 12 | 9 |
 | [Priorities](#priorities) | 1 | 1 | 0 | 0 |
 | [Projects](#projects) | 5 | 5 | 5 | 2 |
 | [Reports](#reports) | 2 | 2 | 0 | 0 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **74** | **25** |
+| **Total** | **116** | **116** | **78** | **29** |
 
 ## Attachments
 
@@ -164,10 +164,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`POST add_plan/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addPlan`](../src/modules/plans.ts#L51) | `plan add` | [recipe #21](../skill/SKILL.md#21-create-an-empty-test-plan) |
 | [`POST add_plan_entry/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addPlanEntry`](../src/modules/plans.ts#L75) | `plan add-entry` | [recipe #23](../skill/SKILL.md#23-add-an-entry-to-an-existing-plan) |
 | [`POST add_run_to_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addRunToPlanEntry`](../src/modules/plans.ts#L100) | `plan add-run-to-entry` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST close_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`closePlan`](../src/modules/plans.ts#L63) | — | — |
-| [`POST delete_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deletePlan`](../src/modules/plans.ts#L69) | — | — |
-| [`POST delete_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deletePlanEntry`](../src/modules/plans.ts#L93) | — | — |
-| [`POST delete_run_from_plan_entry/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteRunFromPlanEntry`](../src/modules/plans.ts#L113) | — | — |
+| [`POST close_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`closePlan`](../src/modules/plans.ts#L63) | `plan close` | [recipe #25](../skill/SKILL.md#25-plan-entries-lifecycle-add--add-run--update--delete-cascade) |
+| [`POST delete_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deletePlan`](../src/modules/plans.ts#L69) | `plan delete` | [recipe #25](../skill/SKILL.md#25-plan-entries-lifecycle-add--add-run--update--delete-cascade) |
+| [`POST delete_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deletePlanEntry`](../src/modules/plans.ts#L93) | `plan delete-entry` | [recipe #25](../skill/SKILL.md#25-plan-entries-lifecycle-add--add-run--update--delete-cascade) |
+| [`POST delete_run_from_plan_entry/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteRunFromPlanEntry`](../src/modules/plans.ts#L113) | `plan delete-run-from-entry` | [recipe #25](../skill/SKILL.md#25-plan-entries-lifecycle-add--add-run--update--delete-cascade) |
 | [`POST update_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updatePlan`](../src/modules/plans.ts#L57) | `plan update` | [recipe #22](../skill/SKILL.md#22-create-a-plan-with-nested-entries-matrix-testing-in-one-call) |
 | [`POST update_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updatePlanEntry`](../src/modules/plans.ts#L81) | `plan update-entry` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST update_run_in_plan_entry/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateRunInPlanEntry`](../src/modules/plans.ts#L107) | `plan update-run-in-entry` | [command-table](../skill/SKILL.md#command-surface) |

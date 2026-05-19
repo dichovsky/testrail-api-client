@@ -105,6 +105,10 @@ on stderr. Never echo or log the API key.
 | plan | add-run-to-entry | `<plan_id>` `<entry_id>` | `AddRunToPlanEntryPayloadSchema` | Add a config-specific run to an existing plan entry (config_ids required) |
 | plan | update-entry | `<plan_id>` `<entry_id>` | `UpdatePlanEntryPayloadSchema` | Update an existing plan entry (partial fields; applies to every run in the entry) |
 | plan | update-run-in-entry | `<run_id>` | `UpdateRunInPlanEntryPayloadSchema` | Update a single config-specific run inside a plan entry (description/assignee/case selection only) |
+| plan | close | `<plan_id>` | — (no body, requires `--yes`) | Close a test plan permanently — irreversible (no body; requires --yes) |
+| plan | delete | `<plan_id>` | — (no body, requires `--yes`) | Delete a test plan and all of its entries and runs (requires --yes; --soft NOT supported by TestRail) |
+| plan | delete-entry | `<plan_id>` `<entry_id>` | — (no body, requires `--yes`) | Delete a single plan entry and its runs (requires --yes; --soft NOT supported by TestRail). entry_id is a UUID-style string. |
+| plan | delete-run-from-entry | `<run_id>` | — (no body, requires `--yes`) | Delete a single run from its plan entry, leaving sibling runs intact (requires --yes; --soft NOT supported by TestRail) |
 | section | add | `<project_id>` | `AddSectionPayloadSchema` | Create a new section in a project (suite_id required for multi-suite-mode projects) |
 | section | update | `<section_id>` | `UpdateSectionPayloadSchema` | Update an existing section (partial fields) |
 | section | move | `<section_id>` | `MoveSectionPayloadSchema` | Move a section to a new parent and/or position (TestRail 6.5.2+) |
@@ -866,17 +870,107 @@ Rule of thumb: prefer `list-for-test` when you already have a `test_id`
 knows the case; reach for `list` only when you actually need every result
 in the run.
 
+### 25. Plan entries lifecycle (add → add-run → update → delete cascade)
+
+<!-- recipe-for: plan:close -->
+<!-- recipe-for: plan:delete -->
+<!-- recipe-for: plan:delete-entry -->
+<!-- recipe-for: plan:delete-run-from-entry -->
+
+End-to-end walkthrough of a plan's lifecycle, showing where each
+destructive operation fits. Every step is idempotent in isolation; the
+cascade order (run → entry → plan) matters because `delete_plan` removes
+everything inside it but `delete_plan_entry` only removes its own runs.
+
+```bash
+# 1. Create the plan
+PLAN=$(testrail plan add 1 --data '{
+    "name": "Release 1.0 — Cross-platform",
+    "milestone_id": 4
+}')
+PLAN_ID=$(echo "$PLAN" | jq '.id')
+
+# 2. Add an entry (a suite to run, optionally split across configs)
+ENTRY=$(testrail plan add-entry "$PLAN_ID" --data '{
+    "suite_id": 1,
+    "include_all": true,
+    "config_ids": [10, 11],
+    "runs": [
+        { "config_ids": [10], "assignedto_id": 7 },
+        { "config_ids": [11], "assignedto_id": 8 }
+    ]
+}')
+ENTRY_ID=$(echo "$ENTRY" | jq -r '.id')     # UUID-style string, NOT numeric
+
+# 3. Add a fresh run to the entry (e.g. a newly-added platform).
+#    If your CLI build is older than the one that shipped
+#    `plan add-run-to-entry`, recreate the entry with the new
+#    config_ids instead.
+NEW_RUN=$(testrail plan add-run-to-entry "$PLAN_ID" "$ENTRY_ID" --data '{
+    "config_ids": [12],
+    "assignedto_id": 9
+}')
+NEW_RUN_ID=$(echo "$NEW_RUN" | jq '.id')
+
+# 4. Update the entry's name/assignee/include_all across all its runs.
+testrail plan update-entry "$PLAN_ID" "$ENTRY_ID" --data '{
+    "name": "Cross-platform smoke (renamed)",
+    "include_all": true
+}'
+
+# 5. Update a single run inside the entry (e.g. swap the assignee).
+testrail plan update-run-in-entry "$NEW_RUN_ID" --data '{
+    "assignedto_id": 10
+}'
+
+# 6. Delete cascade — narrowest first, widest last
+#    a) Remove one specific run from its entry; siblings remain.
+testrail plan delete-run-from-entry "$NEW_RUN_ID" --yes
+
+#    b) Remove the entire entry (all of its remaining runs).
+testrail plan delete-entry "$PLAN_ID" "$ENTRY_ID" --yes
+
+#    c) Either close the plan (irreversible — preferred when results
+#       need to be preserved) …
+testrail plan close "$PLAN_ID" --yes
+
+#    … or delete it outright (also irreversible; loses all results).
+#    `delete_plan` does NOT support TestRail's --soft preview, so the
+#    only safe rehearsal is --dry-run (client-side, no API call).
+testrail plan delete "$PLAN_ID" --yes --dry-run    # preview
+testrail plan delete "$PLAN_ID" --yes              # commit
+```
+
+Notes:
+
+- `entry_id` is a UUID-style string TestRail mints server-side; pass it
+  verbatim. The CLI rejects empty or whitespace-only values before
+  calling the API.
+- `--dry-run` always wins over `--yes`. Use it in CI to confirm the
+  target before committing — `--yes --dry-run` emits a preview marked
+  `"destructive": true` and makes no API call.
+- `plan close` is irreversible — TestRail has no `open_plan`. Prefer it
+  over `plan delete` when historical results matter (closed plans stay
+  queryable; deleted plans take their runs and results with them).
+- The chain `delete-run-from-entry → delete-entry → delete/close plan`
+  is the safe top-down ordering. Reversing it (`delete plan` first)
+  works but skips the audit trail of touching each layer; not
+  recommended in shared/production projects.
+
 ## Destructive actions
 
-Destructive actions (`attachment delete`, `case delete-bulk`, `run close`)
-require `--yes` to execute. Without `--yes`, the CLI exits 1 with
-`Destructive action; pass --yes to confirm.` This is the only gate —
-there is no interactive prompt (by design; this skill targets agents,
-not humans).
+Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
+`run close`, `run delete`, `section delete`, `suite delete`, `milestone delete`,
+`project delete`, `plan close`, `plan delete`, `plan delete-entry`,
+`plan delete-run-from-entry`) require `--yes` to execute. Without `--yes`,
+the CLI exits 1 with `Destructive action; pass --yes to confirm.` This is
+the only gate — there is no interactive prompt (by design; this skill
+targets agents, not humans).
 
-`run close` is irreversible: TestRail has no `open_run` endpoint and
-the web UI offers no reopen action. Once closed, a run accepts no new
-results, no edits to existing ones, and no re-association — only reads.
+`run close` and `plan close` are irreversible: TestRail has no `open_run`
+or `open_plan` endpoint and the web UI offers no reopen action. Once
+closed, the run/plan accepts no new results, no edits to existing ones,
+and no re-association — only reads.
 
 `--dry-run` always wins over `--yes`: `case delete-bulk 5 --project-id 9
 --yes --dry-run --data '{"case_ids":[1]}'` emits a preview

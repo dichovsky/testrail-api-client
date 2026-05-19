@@ -32,11 +32,7 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 <!-- `get_results_for_run/{run_id}` is already covered by the existing `result list` CLI command.
      `add_result_for_case/{run_id}/{case_id}` is already covered by the existing `result add` CLI command. -->
 
-- [ ] 🔴 📦 ⚠️ CLI: `plan close` (POST `close_plan/{plan_id}`)
-- [ ] 🔴 📦 ⚠️ CLI: `plan delete` (POST `delete_plan/{plan_id}`)
-- [ ] 🔴 📦 ⚠️ CLI: `plan delete-entry` (POST `delete_plan_entry/{plan_id}/{entry_id}`)
-- [ ] 🔴 📦 ⚠️ CLI: `plan delete-run-from-entry` (POST `delete_run_from_plan_entry/{run_id}`)
-- [ ] 🔴 📦 SKILL recipe: Plan entries lifecycle (add → add-run → update → delete cascade)
+(all P0 items shipped — see BACKLOG-ARCHIVE.md)
 
 #### 🟡 P1 — common metadata & admin
 

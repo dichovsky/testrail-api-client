@@ -2722,6 +2722,323 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('entry_id');
         });
+
+        // ── plan close (destructive, irreversible) ─────────────────────────
+        it('plan close without --yes rejects (destructive: irreversible)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'close', '50']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan close with --yes POSTs to close_plan/{plan_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'close', '50', '--yes'],
+                [jsonResponse({ ...MOCK_PLAN, is_completed: true })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('close_plan/50');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as { method?: string } | undefined;
+            expect(init?.method).toBe('POST');
+        });
+
+        it('plan close --dry-run skips the API call even with --yes; preview marks destructive', async () => {
+            const { exitCodes, stdout } = await runCli(['plan', 'close', '50', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        it('plan close --dry-run without --yes also previews without API call', async () => {
+            const { exitCodes, stdout } = await runCli(['plan', 'close', '50', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('plan close');
+        });
+
+        // ── plan delete (destructive; no --soft) ───────────────────────────
+        it('plan delete without --yes rejects', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete', '50']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete with --yes POSTs to delete_plan/{plan_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['plan', 'delete', '50', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_plan/50');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as { method?: string } | undefined;
+            expect(init?.method).toBe('POST');
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('plan delete --dry-run skips the API call even with --yes', async () => {
+            const { exitCodes, stdout } = await runCli(['plan', 'delete', '50', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        // ── plan delete-entry (entry_id is a UUID string) ──────────────────
+        it('plan delete-entry without --yes rejects', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '50', 'abc-def-uuid']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-entry with --yes POSTs to delete_plan_entry/{plan_id}/{entry_id}', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['plan', 'delete-entry', '50', 'abc-def-uuid', '--yes'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_plan_entry/50/abc-def-uuid');
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('plan delete-entry --dry-run skips the API call even with --yes', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'plan',
+                'delete-entry',
+                '50',
+                'abc-def-uuid',
+                '--yes',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        it('plan delete-entry rejects missing entry_id', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '50', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/entry_id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-entry rejects non-positive plan_id before --yes check', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '0', 'abc-def-uuid']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan_id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // ── plan delete-run-from-entry ─────────────────────────────────────
+        it('plan delete-run-from-entry without --yes rejects', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', '42']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-run-from-entry with --yes POSTs to delete_run_from_plan_entry/{run_id}', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['plan', 'delete-run-from-entry', '42', '--yes'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_run_from_plan_entry/42');
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('plan delete-run-from-entry --dry-run skips the API call even with --yes', async () => {
+            const { exitCodes, stdout } = await runCli(['plan', 'delete-run-from-entry', '42', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        // ── Error path: 404 surfaces as exit 1 (sample for the cluster) ────
+        it('plan close surfaces 404 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['plan', 'close', '999', '--yes'],
+                [jsonResponse({ error: 'Plan not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/404/);
+        });
+
+        it('plan delete surfaces 401 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['plan', 'delete', '50', '--yes'],
+                [jsonResponse({ error: 'Auth failed' }, 401)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/401/);
+        });
+
+        it('plan delete-entry surfaces 403 from TestRail as exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['plan', 'delete-entry', '50', 'abc-uuid', '--yes'],
+                [jsonResponse({ error: 'Forbidden' }, 403)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/403/);
+        });
+
+        // ── --format table emits a tabular preview for dry-run ────────────
+        it('plan close --dry-run --format table renders a table preview', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'plan',
+                'close',
+                '50',
+                '--yes',
+                '--dry-run',
+                '--format',
+                'table',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('plan close');
+        });
+
+        // ── --format json emits JSON-parseable stdout for each destructive op ─
+        // `plan close --format table` already exists; these mirror it for the
+        // other three destructive ops so every --format json path is exercised
+        // end-to-end (not just at the unit-handler level).
+
+        it('plan delete --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'delete', '50', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { planId: number; deleted: boolean };
+            expect(parsed).toEqual({ planId: 50, deleted: true });
+        });
+
+        it('plan delete-entry --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'delete-entry', '50', 'abc-def-uuid', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { planId: number; entryId: string; deleted: boolean };
+            expect(parsed).toEqual({ planId: 50, entryId: 'abc-def-uuid', deleted: true });
+        });
+
+        it('plan delete-run-from-entry --format json --yes emits JSON-parseable stdout', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['plan', 'delete-run-from-entry', '42', '--yes', '--format', 'json'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const parsed = JSON.parse(stdout.trim()) as { runId: number; deleted: boolean };
+            expect(parsed).toEqual({ runId: 42, deleted: true });
+        });
+
+        // ── network-error mapping for plan delete-run-from-entry ──────────
+        // `plan close` / `plan delete` / `plan delete-entry` already have 401/403/404
+        // mock-status paths above; mirror them here for delete-run-from-entry
+        // and exercise the fetch-rejection path (network/TLS failure) which
+        // surfaces as exit 1. runCli applies its own mockReset(), so use the
+        // `fetchRejection` parameter to install a persistent rejection.
+        it('plan delete-run-from-entry maps a network error to exit 1', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['plan', 'delete-run-from-entry', '42', '--yes'],
+                [],
+                AUTH_ENV,
+                new TypeError('fetch failed'),
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/fetch failed/);
+        });
+
+        // ── whitespace-only entry_id is rejected before any API call ──────
+        it('plan delete-entry rejects whitespace-only entry_id', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '50', '   ', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/entry_id/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // ── ID boundary subprocess tests (mirror plan delete-entry coverage) ─
+        // `plan delete-entry` already exercises non-positive-integer plan_id at
+        // the subprocess level (line 1638 above). These extend that coverage to
+        // the other three destructive ops so the parseId boundary is enforced
+        // by the actual CLI binary, not just the unit handlers.
+        // NOTE: '-1' is omitted from the it.each set because parseArgs
+        // (strict: false) interprets `--1` / `-1` as a flag, not a
+        // positional — so the negative-int branch is exercised at the
+        // unit level (cli-write-handlers.test.ts) but not here. The
+        // remaining four values cover the other parseId boundary cases.
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'plan close rejects non-positive-integer plan_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['plan', 'close', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/plan_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'plan delete rejects non-positive-integer plan_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['plan', 'delete', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/plan_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([['0'], ['1.5'], ['abc'], ['']])(
+            'plan delete-run-from-entry rejects non-positive-integer run_id (%s) before destructive gate',
+            async (raw) => {
+                const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', raw, '--yes']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/run_id/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            },
+        );
+
+        // ── --soft rejection: TestRail has no soft preview for any plan op ─
+        // Mirrors `milestone delete` / `project delete` --soft rejection tests.
+        it('plan close rejects --soft (TestRail does not support soft on close_plan)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'close', '50', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan close does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete rejects --soft (TestRail does not support soft on delete_plan)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete', '50', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-entry rejects --soft (TestRail does not support soft on delete_plan_entry)', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'plan',
+                'delete-entry',
+                '50',
+                'abc-def-uuid',
+                '--soft',
+                '--yes',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan delete-entry does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('plan delete-run-from-entry rejects --soft (TestRail does not support soft on delete_run_from_plan_entry)', async () => {
+            const { exitCodes, stderr } = await runCli(['plan', 'delete-run-from-entry', '42', '--soft', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/plan delete-run-from-entry does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     describe('result add-bulk', () => {
