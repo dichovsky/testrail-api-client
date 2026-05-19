@@ -56,7 +56,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟡 📦 CLI: `result-field list` (GET `get_result_fields`)
 - [ ] 🟡 📦 CLI: `status list` (GET `get_statuses`)
 - [ ] 🟡 📦 CLI: `template list` (GET `get_templates/{project_id}`)
-- [ ] 🟡 📦 SKILL recipe: Bulk case delete with `--soft` server-side preview
 - [ ] 🟡 📦 SKILL recipe: Configuration groups & configs hierarchy management
 
 #### 🟢 P2 — admin & low-traffic endpoints

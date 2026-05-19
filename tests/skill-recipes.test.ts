@@ -118,3 +118,60 @@ describe('skill/SKILL.md — Plan entries lifecycle recipe', () => {
         expect(section).toContain('does NOT support');
     });
 });
+
+describe('skill/SKILL.md — Bulk case delete recipe', () => {
+    const md = readFileSync(SKILL_PATH, 'utf-8');
+
+    it('binds the recipe to case:delete-bulk via recipe-for tag', () => {
+        const section = extractSection(md, 'Bulk case delete');
+        expect(section).toContain('<!-- recipe-for: case:delete-bulk -->');
+    });
+
+    it('documents the three independent safety layers (dry-run, soft, yes)', () => {
+        const section = extractSection(md, 'Bulk case delete');
+        // The safety-layer table is the load-bearing reference. Pin each row's
+        // first column so a relabel (e.g. dropping `--soft` to a footnote)
+        // surfaces as a diff rather than silently weakening the recipe.
+        expect(section).toContain('`--dry-run`');
+        expect(section).toContain('`--soft`');
+        expect(section).toContain('`--yes`');
+        // Side classification — client vs server — is the key insight.
+        expect(section).toContain('client');
+        expect(section).toContain('server');
+    });
+
+    it('pins the recommended preview-then-commit workflow commands', () => {
+        const section = extractSection(md, 'Bulk case delete');
+        // The two-step workflow is the headline takeaway. Snapshot both
+        // canonical invocations so a future rewrite that drops the
+        // server-side preview step shows up as a diff. Case IDs are
+        // passed via --data '{"case_ids":[…]}'; there is no --case-ids
+        // flag (the CLI rejects unknown flags).
+        expect(section).toContain('--soft --yes \\\n    --data \'{"case_ids":[101,102,103]}\'');
+        expect(section).toContain('--yes \\\n    --data \'{"case_ids":[101,102,103]}\'');
+    });
+
+    it('documents the flag-interaction matrix: dry-run wins, soft preview, real delete', () => {
+        const section = extractSection(md, 'Bulk case delete');
+        // (a) --dry-run --yes --soft → no API call, preview marker
+        expect(section).toContain('--yes --dry-run --soft');
+        // (b) --soft --yes (no --dry-run) → server preview, deleted: false
+        expect(section).toContain('"deleted": false');
+        // (c) --yes (real delete) → deleted: true
+        expect(section).toContain('"deleted": true');
+        // (d) no --yes → exit 1 with the destructive-gate message
+        expect(section).toContain('Destructive action; pass --yes to confirm.');
+    });
+
+    it('warns that there is no client-side recovery, points to TestRail audit log', () => {
+        const section = extractSection(md, 'Bulk case delete');
+        expect(section).toContain('No client-side recovery');
+        expect(section).toContain('audit log');
+    });
+
+    it('mentions CI/automation usage and recommends soft as the rehearsal step', () => {
+        const section = extractSection(md, 'Bulk case delete');
+        expect(section).toContain('CI/automation');
+        expect(section).toContain('rehearsal');
+    });
+});

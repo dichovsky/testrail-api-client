@@ -957,6 +957,115 @@ Notes:
   works but skips the audit trail of touching each layer; not
   recommended in shared/production projects.
 
+### 26. Bulk case delete with `--soft` server-side preview
+
+<!-- recipe-for: case:delete-bulk -->
+
+Use `case delete-bulk` for mass cleanup (sunset features, deprecated
+suites) or project archival where deleting cases one-by-one would burn
+through the 100 req/60s rate budget. The action wraps TestRail's
+`POST delete_cases/{suite_id}&project_id={project_id}` and accepts a
+`case_ids: number[]` payload.
+
+Three independent safety layers stack on top of each other; understand
+which one runs where before invoking:
+
+| Layer       | Side       | API call?     | What it does                                                       |
+| ----------- | ---------- | ------------- | ------------------------------------------------------------------ |
+| `--dry-run` | client     | no            | Short-circuits before the request; emits a parsed-payload preview  |
+| `--soft`    | server     | yes (`soft=1`)| TestRail returns affected-test counts but does **not** delete      |
+| `--yes`     | client     | n/a           | Gate flag; without it the CLI exits 1 before any API call          |
+
+`--dry-run` always wins over `--yes` and over `--soft`. `--soft` only
+takes effect when an actual API call is made (i.e. `--yes` without
+`--dry-run`).
+
+Recommended workflow — preview server-side first, then commit:
+
+```bash
+# 1. Server-side preview: hit the API with soft=1 so TestRail returns
+#    affected-test counts WITHOUT deleting. Confirms the IDs resolve in
+#    the target suite/project and surfaces the blast radius (e.g. how
+#    many tests inside open runs would be touched).
+testrail case delete-bulk 12 --project-id 5 \
+    --soft --yes \
+    --data '{"case_ids":[101,102,103]}'
+
+# 2. Review the returned preview. If the affected-test counts look
+#    wrong (e.g. far more than expected, hitting active runs), STOP
+#    and reconcile the case_ids list before continuing.
+
+# 3. Real delete — drop --soft. This is irreversible.
+testrail case delete-bulk 12 --project-id 5 \
+    --yes \
+    --data '{"case_ids":[101,102,103]}'
+```
+
+Flag-interaction matrix (verified against `handleCaseDeleteBulk`):
+
+```bash
+# (a) --dry-run --yes --soft → client-side preview, NO API call.
+#     The preview JSON includes "destructive": true and "soft": true so
+#     audit logs distinguish it from a plain dry-run. Safe in CI to
+#     validate payload shape before consuming rate budget.
+testrail case delete-bulk 12 --project-id 5 --yes --dry-run --soft \
+    --data '{"case_ids":[101,102,103]}'
+
+# (b) --soft --yes (no --dry-run) → real API call with soft=1.
+#     Server returns affected-test counts; nothing is deleted.
+#     Output: { "suiteId": 12, "projectId": 5, "soft": true,
+#               "deleted": false, "preview": {...} }
+testrail case delete-bulk 12 --project-id 5 --yes --soft \
+    --data '{"case_ids":[101,102,103]}'
+
+# (c) --yes (no --soft, no --dry-run) → real delete. Irreversible.
+#     Output: { "suiteId": 12, "projectId": 5, "soft": false,
+#               "deleted": true }
+testrail case delete-bulk 12 --project-id 5 --yes \
+    --data '{"case_ids":[101,102,103]}'
+
+# (d) (no --yes) → exits 1: "Destructive action; pass --yes to confirm."
+```
+
+CI/automation pattern — fail loud if the soft preview indicates a
+blast radius outside expectations:
+
+```bash
+# Pin the expected count of affected cases. If TestRail reports a
+# different number, bail before the real delete. Adjust the jq path
+# (`.preview.cases_to_delete` here) to whatever the soft response
+# returns for your TestRail version.
+EXPECTED=3
+PREVIEW=$(testrail case delete-bulk 12 --project-id 5 --yes --soft \
+    --data '{"case_ids":[101,102,103]}')
+ACTUAL=$(echo "$PREVIEW" | jq '.preview.cases_to_delete // (.preview | length)')
+if [ "$ACTUAL" != "$EXPECTED" ]; then
+    echo "Bulk delete preview mismatch: expected $EXPECTED, got $ACTUAL" >&2
+    exit 1
+fi
+testrail case delete-bulk 12 --project-id 5 --yes \
+    --data '{"case_ids":[101,102,103]}'
+```
+
+Recovery if a delete fires by mistake:
+
+- **No client-side recovery.** The CLI does not stage or buffer the
+  request; once `--yes` (without `--dry-run`) is sent, TestRail deletes
+  the cases server-side and returns 200.
+- **TestRail audit log** (admin-only, web UI) records the delete with
+  the acting user and timestamp. Use it to identify which cases were
+  removed and replay their definitions from version control if the
+  case bodies live in a repo (e.g. BDD `.feature` files committed
+  alongside the test suite).
+- **TestRail support recovery** is best-effort and depends on backup
+  cadence (TestRail Cloud) or your self-hosted backup policy. Open a
+  ticket immediately; don't wait — backups roll off.
+
+The takeaway: treat `--soft --yes` as the rehearsal step in every CI
+pipeline that touches bulk delete, and never invoke the no-`--soft`
+form without a recent backup or a versioned definition of the cases
+being removed.
+
 ## Destructive actions
 
 Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
