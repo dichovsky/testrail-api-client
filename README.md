@@ -57,7 +57,11 @@ npm install @dichovsky/testrail-api-client
 
 ## Using with AI Coding Agents
 
-This package ships a Claude Code skill at `skill/SKILL.md` that teaches coding agents how to use the bundled `testrail` CLI. Install it into your project (or globally) so Claude Code auto-loads it whenever you ask the agent to query or write TestRail entities.
+This package ships first-class instructions for several agent harnesses. All artifacts are generated from the same source (`src/cli/metadata.ts` + `scripts/rules-content.mjs`) so they stay in sync; CI drift gates fail the build if any committed copy diverges from generator output.
+
+### Claude Code (skill)
+
+`skill/SKILL.md` is a Claude Code skill. Install it into your project (or globally) so Claude Code auto-loads it whenever you ask the agent to query or write TestRail entities:
 
 ```bash
 # Install into the current project: ./.claude/skills/testrail-cli/SKILL.md
@@ -71,9 +75,39 @@ npx testrail install-skill --force
 
 # Just print the bundled SKILL.md path (for scripting / vendoring)
 npx testrail install-skill --print-path
+
+# Symmetric reverse — remove a previously-installed skill
+npx testrail uninstall-skill            # project-scoped
+npx testrail uninstall-skill --global   # global-scoped
 ```
 
-The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface and recipes.
+`uninstall-skill` removes ONLY the skill file (and its empty parent directory). It deliberately does NOT touch `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md` — those artifacts have an independent lifecycle (they are generated from `src/cli/metadata.ts` and live alongside other agent-tool configuration). Remove them manually if you want to fully decouple.
+
+The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface, recipes, and a parallel "Programmatic TypeScript API" section with copy-paste examples for using `TestRailClient` directly.
+
+### Cursor
+
+`.cursor/rules/testrail.mdc` is a [Cursor rule](https://docs.cursor.com/context/rules-for-ai) generated from the same source. It is committed at the repo root so contributors who clone the repo get the rule automatically. To install it into your own project:
+
+```bash
+mkdir -p .cursor/rules
+curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/.cursor/rules/testrail.mdc \
+    > .cursor/rules/testrail.mdc
+```
+
+### Continue (continue.dev)
+
+`.continue/rules/testrail.md` is a [Continue workspace rule](https://docs.continue.dev/customization/rules). Installation mirrors Cursor:
+
+```bash
+mkdir -p .continue/rules
+curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/.continue/rules/testrail.md \
+    > .continue/rules/testrail.md
+```
+
+### Generic AGENTS.md
+
+`AGENTS.md` at the repo root follows the vendor-neutral [agents.md](https://agents.md/) convention — a single markdown file any AI coding agent or harness can read for project conventions, build commands, and "what to know" pointers. No installation required; agents that honour the spec pick it up automatically when working in this repository.
 
 ### CLI output formats
 
