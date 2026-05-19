@@ -5,9 +5,14 @@ import type { BodyInput } from './handler-context.js';
 /**
  * Source of a parsed body. Reported alongside the resolution result so
  * handlers (or callers writing recipes) can log which input mechanism the
- * agent actually used.
+ * agent actually used. `'default'` is reserved for handlers that
+ * synthesize an empty body when all three input mechanisms are absent
+ * and the underlying schema accepts `{}` (e.g. `handleDatasetUpdate` —
+ * partial update where every field is optional). `resolveBody` itself
+ * never emits `'default'`; only handlers that opt into the no-body
+ * fallback do.
  */
-export type BodySource = 'data' | 'file' | 'stdin';
+export type BodySource = 'data' | 'file' | 'stdin' | 'default';
 
 export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | { ok: false; error: string };
 

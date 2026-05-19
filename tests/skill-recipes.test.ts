@@ -325,8 +325,15 @@ describe('skill/SKILL.md — Data-driven runs via Variables + Datasets recipe', 
     // recipes would change binding semantics without gate C2 noticing.
     // Pin the grouping explicitly (mirrors the Configuration groups
     // recipe pattern).
-    it('groups all three dataset recipe-for tags under the same heading', () => {
+    it('groups all five dataset recipe-for tags under the same heading', () => {
+        // The walkthrough exercises both reads (`dataset get`, `dataset list`)
+        // alongside the three writes, so all five `recipe-for:` tags must
+        // resolve to this section. Without the read tags, the API mapping
+        // matrix (docs/API-MAPPING.md) would leave `dataset:get` and
+        // `dataset:list` un-linked even though they're documented here.
         const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
+        expect(section).toContain('<!-- recipe-for: dataset:get -->');
+        expect(section).toContain('<!-- recipe-for: dataset:list -->');
         expect(section).toContain('<!-- recipe-for: dataset:add -->');
         expect(section).toContain('<!-- recipe-for: dataset:update -->');
         expect(section).toContain('<!-- recipe-for: dataset:delete -->');

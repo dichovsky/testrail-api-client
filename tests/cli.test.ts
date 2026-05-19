@@ -18,6 +18,17 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// Each `runCli` invocation re-imports `src/cli.js` after `vi.resetModules()`,
+// and the CLI opts into process signal handlers (`exit` / `SIGINT` /
+// `SIGTERM`) via `registerProcessHandlers: true`. Node's default
+// `defaultMaxListeners` is 10, so once the suite passes ~10 subprocess-style
+// tests the runtime emits `MaxListenersExceededWarning` for the `exit`
+// event (one listener added per CLI re-import; nothing removes them since
+// the worker stays alive between tests). Disable the cap for this test
+// process only — the worker dies between vitest invocations so there's no
+// long-lived listener leak.
+process.setMaxListeners(0);
+
 // Mock DNS so validatePublicHost() resolves immediately without hitting the network.
 // Returns a single public IP (example.com) so the private-IP check passes cleanly.
 vi.mock('node:dns/promises', () => ({
@@ -3465,7 +3476,6 @@ describe('CLI', () => {
 
     // ── group get/list/add/update/delete (TestRail 7.5+) ──────────────────────
 
-
     describe('group get/list/add/update/delete', () => {
         it('group get <id> GETs get_group/{group_id}', async () => {
             const { exitCodes, stdout } = await runCli(['group', 'get', '7'], [jsonResponse(MOCK_GROUP)]);
@@ -3760,7 +3770,6 @@ describe('CLI', () => {
         });
     });
 
-
     // ── dataset get/list/add/update ────────────────────────────────────────
 
     describe('dataset get/list/add/update', () => {
@@ -3997,9 +4006,22 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
         });
 
-        it('dataset update missing --data exits 1', async () => {
-            const { exitCodes } = await runCli(['dataset', 'update', '77']);
-            expect(exitCodes).toContain(1);
+        it('dataset update with no --data defaults body to {} and POSTs', async () => {
+            // UpdateDatasetPayloadSchema accepts an empty body (rename-only,
+            // every field optional). The handler treats absent --data /
+            // --data-file / stdin as `{}` so the CLI doesn't bail with the
+            // generic "Body required" message for a partial-update where
+            // the agent legitimately has nothing to send.
+            const { exitCodes } = await runCli(
+                ['dataset', 'update', '77'],
+                [jsonResponse({ id: 77, name: 'Production matrix', project_id: 1 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_dataset/77');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body).toEqual({});
         });
 
         it('dataset update supports --format table', async () => {
@@ -4050,7 +4072,6 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
         });
     });
-
 
     describe('run add', () => {
         it('POSTs the payload and returns the created run', async () => {

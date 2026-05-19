@@ -3104,6 +3104,37 @@ describe('handleDatasetUpdate', () => {
         expect(client.updateDataset).toHaveBeenCalledWith(77, expect.any(Object));
     });
 
+    it('with no --data defaults the payload to {} and forwards it to the client', async () => {
+        // UpdateDatasetPayloadSchema makes every field optional, so the
+        // handler synthesizes `{}` rather than rejecting with the generic
+        // "Body required" message. Empty `bodyInput` (no dataFlag,
+        // dataFileFlag, or readStdin thunk) is the no-body marker.
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['77'] });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).toHaveBeenCalledWith(77, {});
+    });
+
+    it('dry-run with no --data emits source=default and the empty payload', async () => {
+        // Pins the BodySource label introduced for this synthesized-empty
+        // case — dry-run output stays self-describing so the agent can tell
+        // apart "explicit {}" (source: data) from "no --data, defaulted"
+        // (source: default).
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dryRun: true });
+        await handleDatasetUpdate(ctx);
+        expect(client.updateDataset).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'dataset update',
+                datasetId: 77,
+                payload: {},
+                source: 'default',
+            }),
+        );
+    });
+
     it('dry-run does not call client', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"x"}', dryRun: true });
@@ -3173,13 +3204,18 @@ describe('handleDatasetDelete', () => {
         );
     });
 
-    it('rejects when dataset_id is not a positive integer', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], confirmDestructive: true });
-        await expect(handleDatasetDelete(ctx)).rejects.toThrow(/dataset_id/);
-    });
-
-    it('rejects when dataset_id is empty string', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: [''], confirmDestructive: true });
-        await expect(handleDatasetDelete(ctx)).rejects.toThrow(/dataset_id/);
-    });
+    // Full INVALID_IDS sweep mirrors the cli-read-handlers convention
+    // (`INVALID_IDS = ['0', '-1', '1.5', 'abc', '', '1e2', '0x1']`). Pre-fix
+    // coverage hit only `'0'` and `''` — extending to the canonical 7
+    // values pins parseId's reject contract for every shape an agent might
+    // pipe in (scientific notation, hex, fractional, negative).
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(
+        'rejects non-positive-integer dataset_id (%s) before --yes or --soft is consulted',
+        async (raw) => {
+            const client = buildClient();
+            const { ctx } = buildCtx(client, { pathParams: [raw], confirmDestructive: true });
+            await expect(handleDatasetDelete(ctx)).rejects.toThrow(/dataset_id/);
+            expect(client.deleteDataset).not.toHaveBeenCalled();
+        },
+    );
 });
