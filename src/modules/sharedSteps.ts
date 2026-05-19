@@ -13,11 +13,13 @@ export interface GetSharedStepHistoryOptions {
 export class SharedStepModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_shared_step/{shared_step_id} */
     async getSharedStep(sharedStepId: number): Promise<SharedStep> {
         this.client.validateId(sharedStepId, 'sharedStepId');
         return this.client.requestParsed<SharedStep>('GET', `get_shared_step/${sharedStepId}`, SharedStepSchema);
     }
 
+    /** @testrail GET get_shared_steps/{project_id} */
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
         this.client.validateId(projectId, 'projectId');
         return this.client.requestParsed<SharedStep[]>(
@@ -27,11 +29,13 @@ export class SharedStepModule {
         );
     }
 
+    /** @testrail POST add_shared_step/{project_id} */
     async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
         this.client.validateId(projectId, 'projectId');
         return this.client.requestParsed<SharedStep>('POST', `add_shared_step/${projectId}`, SharedStepSchema, payload);
     }
 
+    /** @testrail POST update_shared_step/{shared_step_id} */
     async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
         this.client.validateId(sharedStepId, 'sharedStepId');
         return this.client.requestParsed<SharedStep>(
@@ -42,11 +46,13 @@ export class SharedStepModule {
         );
     }
 
+    /** @testrail POST delete_shared_step/{shared_step_id} */
     async deleteSharedStep(sharedStepId: number): Promise<void> {
         this.client.validateId(sharedStepId, 'sharedStepId');
         await this.client.request<void>('POST', `delete_shared_step/${sharedStepId}`);
     }
 
+    /** @testrail GET get_shared_step_history/{shared_step_id} */
     async getSharedStepHistory(sharedUpdateId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
         this.client.validateId(sharedUpdateId, 'sharedUpdateId');
         this.client.validatePaginationParams(options?.limit, options?.offset);

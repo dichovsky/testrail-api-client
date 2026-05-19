@@ -6,32 +6,33 @@
  * Run: node scripts/generate-mapping.js          (regenerate)
  *      node scripts/generate-mapping.js --check  (verify committed file is up to date)
  *
- * Sources of truth (Phase 1):
+ * Sources of truth (Phase 2):
  *   - docs/testrail-endpoints.json   ← upstream TestRail endpoint inventory
  *                                      (hand-curated, Zod-validated here)
- *   - src/modules/*.ts               ← client method bodies; AST-crawled for
- *                                      `this.client.request*('METHOD', '<path>')`
- *                                      call sites to bind endpoint → method name.
- *   - src/cli/metadata.ts            ← ACTIONS[] array; AST-parsed for the
- *                                      resource:action surface of the CLI.
+ *   - src/modules/*.ts               ← `@testrail GET path/{id}` JSDoc tags on
+ *                                      each method; AST-extracted to bind
+ *                                      endpoint → method name.
+ *   - src/cli/metadata.ts            ← `ACTIONS[]` array; each entry carries
+ *                                      `apiEndpoint: 'METHOD path'`.
  *
- * Pure helpers (Zod schema, path normalization, CLI heuristic map, cell
- * renderers, document assembler) live in `scripts/mapping-renderer.mjs` so
+ * Pure helpers (Zod schema, path normalization, tag parsing, cell renderers,
+ * document assembler) live in `scripts/mapping-renderer.mjs` so
  * `tests/generate-mapping.test.ts` can exercise them without touching the
  * filesystem.
  *
- * Phase 1 limitations (resolved in later PRs):
- *   - No JSDoc @testrail tags yet. Endpoint→method binding is inferred from
- *     literal arguments to request*(); methods that build their path via
- *     `buildEndpoint(...)` or other helpers won't be matched and will show '—'
- *     for client-method even though they are implemented. Phase 2 adds
- *     @testrail tags and switches the join source.
- *   - No `apiEndpoint` field on ActionSpec yet, so CLI cell uses a name-based
- *     heuristic mapping `{resource, action}` → TestRail operation name.
- *     Phase 2 adds apiEndpoint and the heuristic goes away.
- *   - Skill recipe cell links only to the SKILL.md command-table anchor for
- *     each CLI action. Phase 3 adds `recipe-for:` HTML comments so that rich
- *     numbered recipes get linked directly when present.
+ * Drift gates (Phase 2):
+ *   A — Drift: committed `docs/API-MAPPING.md` must match generator output.
+ *       Enforced by `--check` mode, wired into `pretest` and CI.
+ *   B — Code↔JSON: every `@testrail` tag in `src/modules/*.ts` must reference
+ *       an endpoint that exists in `docs/testrail-endpoints.json`. Catches
+ *       typos and renames in either direction.
+ *   C — ActionSpec↔JSDoc: every `apiEndpoint` field on an `ACTIONS` entry
+ *       must match a `@testrail` tag on some method in `src/modules/*.ts`.
+ *       Catches CLI claims about endpoints the client doesn't implement.
+ *
+ * D (coverage regression) is intentionally NOT enforced — shrinkage is
+ * sometimes legitimate (TestRail deprecates endpoints); PR review catches
+ * accidental removals.
  *
  * Determinism: no timestamps; tables and per-resource sections sorted by
  * stable keys; running twice produces byte-identical output.
@@ -44,7 +45,7 @@ import ts from 'typescript';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore -- sibling .mjs helper module, not part of the TS build
-import { EndpointsArraySchema, guessCliCommand, normalizePathForMatch, renderDocument } from './mapping-renderer.mjs';
+import { EndpointsArraySchema, normalizePathForMatch, parseTestrailTag, renderDocument } from './mapping-renderer.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -58,90 +59,54 @@ const METADATA_PATH = join(ROOT, 'src', 'cli', 'metadata.ts');
 
 // ── AST helpers ──────────────────────────────────────────────────────────────
 
-function extractPathLiteral(node) {
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-        return node.text;
-    }
-    if (ts.isTemplateExpression(node)) {
-        let out = node.head.text;
-        for (const span of node.templateSpans) {
-            out += '${X}' + span.literal.text;
+/**
+ * Extract the `@testrail` JSDoc tag content from a method declaration.
+ * Returns the raw text after `@testrail ` (e.g., `'GET get_case/{case_id}'`),
+ * or null if no such tag exists.
+ */
+function getTestrailTagText(method) {
+    const tags = ts.getJSDocTags(method);
+    for (const tag of tags) {
+        if (tag.tagName && tag.tagName.text === 'testrail') {
+            const c = tag.comment;
+            if (typeof c === 'string') return c;
+            if (Array.isArray(c)) return c.map((n) => (typeof n === 'string' ? n : (n.text ?? ''))).join('');
         }
-        return out;
     }
     return null;
 }
 
-// Walk a module file: for each method declaration on the exported class, find
-// `this.client.request*(...)` calls and pull out method+path from string-literal
-// arguments. Bind endpoint → method-name.
+/**
+ * Walk a module file: for each method declaration on the exported class, read
+ * its `@testrail` JSDoc tag. Returns the binding from endpoint → method.
+ *
+ * @returns {Array<{ moduleFile, methodName, method, path, line }>}
+ */
 function crawlModuleFile(filePath) {
     const source = readFileSync(filePath, 'utf8');
     const sf = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true);
     const out = [];
 
-    function recordCall(methodName, call) {
-        const callee = call.expression;
-        if (!ts.isPropertyAccessExpression(callee)) return;
-        const verbId = callee.name;
-        if (!ts.isIdentifier(verbId)) return;
-        const verb = verbId.text;
-        if (!verb.startsWith('request')) return;
-
-        const inner = callee.expression;
-        if (!ts.isPropertyAccessExpression(inner)) return;
-        if (inner.name.text !== 'client') return;
-        if (inner.expression.kind !== ts.SyntaxKind.ThisKeyword) return;
-
-        // Determine HTTP method + which arg is the path:
-        //   request<T>(method, endpoint, payload?, ...)
-        //   requestParsed<T>(method, endpoint, schema, payload?)
-        //   requestText(method, endpoint)
-        //   requestBinary(endpoint)     ← GET only by construction
-        //   requestMultipart<T>(endpoint, file, filename)  ← POST only
-        let httpMethod = null;
-        let pathArg = null;
-        if (verb === 'requestBinary') {
-            httpMethod = 'GET';
-            pathArg = call.arguments[0];
-        } else if (verb === 'requestMultipart') {
-            httpMethod = 'POST';
-            pathArg = call.arguments[0];
-        } else if (verb === 'request' || verb === 'requestParsed' || verb === 'requestText') {
-            const methodArg = call.arguments[0];
-            if (methodArg && (ts.isStringLiteral(methodArg) || ts.isNoSubstitutionTemplateLiteral(methodArg))) {
-                httpMethod = methodArg.text;
-            }
-            pathArg = call.arguments[1];
-        } else {
-            return;
+    function visitMethod(member) {
+        if (!member.name || !ts.isIdentifier(member.name)) return;
+        const methodName = member.name.text;
+        const tagText = getTestrailTagText(member);
+        if (!tagText) return;
+        const parsed = parseTestrailTag(tagText);
+        if (!parsed) {
+            console.error(
+                `[generate-mapping] ${filePath}: unparseable @testrail tag on \`${methodName}\` — expected "METHOD path", got "${tagText.trim()}"`,
+            );
+            process.exit(1);
         }
-
-        if (!httpMethod || !pathArg) return;
-        const pathRaw = extractPathLiteral(pathArg);
-        if (pathRaw === null) return;
-
-        const { line } = sf.getLineAndCharacterOfPosition(call.getStart(sf));
+        const { line } = sf.getLineAndCharacterOfPosition(member.getStart(sf));
         out.push({
             moduleFile: filePath,
             methodName,
-            method: httpMethod,
-            pathRaw,
-            pathNormalized: normalizePathForMatch(pathRaw),
+            method: parsed.method,
+            path: parsed.path,
             line: line + 1,
         });
-    }
-
-    function visitMethod(method) {
-        if (!method.name || !ts.isIdentifier(method.name)) return;
-        const methodName = method.name.text;
-        function walk(node) {
-            if (ts.isCallExpression(node)) {
-                recordCall(methodName, node);
-            }
-            ts.forEachChild(node, walk);
-        }
-        if (method.body) walk(method.body);
     }
 
     function visit(node) {
@@ -156,17 +121,17 @@ function crawlModuleFile(filePath) {
     return out;
 }
 
-// Parse src/cli/metadata.ts to extract `{ resource, action }` for every entry
-// in the `ACTIONS` array literal. Pure AST walk; no runtime import.
+/**
+ * Parse `src/cli/metadata.ts` ACTIONS array. Returns one entry per CLI action
+ * with `resource`, `action`, `apiEndpoint`.
+ */
 function loadCliActions() {
     const source = readFileSync(METADATA_PATH, 'utf8');
     const sf = ts.createSourceFile(METADATA_PATH, source, ts.ScriptTarget.Latest, true);
     const actions = [];
 
     function literalValue(node) {
-        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-            return node.text;
-        }
+        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
         if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
         if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
         return undefined;
@@ -191,8 +156,12 @@ function loadCliActions() {
                     const v = literalValue(prop.initializer);
                     if (v !== undefined) entry[prop.name.text] = v;
                 }
-                if (entry.resource && entry.action) {
-                    actions.push({ resource: entry.resource, action: entry.action });
+                if (entry.resource && entry.action && entry.apiEndpoint) {
+                    actions.push({
+                        resource: entry.resource,
+                        action: entry.action,
+                        apiEndpoint: entry.apiEndpoint,
+                    });
                 }
             }
         }
@@ -200,6 +169,53 @@ function loadCliActions() {
     }
     visit(sf);
     return actions;
+}
+
+// ── Cross-validation gates ───────────────────────────────────────────────────
+
+/**
+ * Gate B: every `@testrail` tag must reference an endpoint in the JSON.
+ * Gate C: every `ActionSpec.apiEndpoint` must reference an endpoint that has
+ *         a `@testrail` tag (i.e., the client actually implements it).
+ *
+ * Both gates produce error lists; the generator exits non-zero if either is
+ * non-empty.
+ */
+function validateGates(callSites, actions, endpoints) {
+    const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
+    const tagKeys = new Set(callSites.map((c) => `${c.method} ${normalizePathForMatch(c.path)}`));
+
+    const errors = [];
+
+    // Gate B
+    for (const cs of callSites) {
+        const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
+        if (!jsonKeys.has(key)) {
+            const rel = cs.moduleFile.replace(ROOT + '/', '');
+            errors.push(
+                `[gate B] ${rel}:${cs.line} — \`${cs.methodName}\` has @testrail "${cs.method} ${cs.path}" but this endpoint is not in docs/testrail-endpoints.json`,
+            );
+        }
+    }
+
+    // Gate C
+    for (const a of actions) {
+        const parsed = parseTestrailTag(a.apiEndpoint);
+        if (!parsed) {
+            errors.push(
+                `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` has malformed apiEndpoint: "${a.apiEndpoint}"`,
+            );
+            continue;
+        }
+        const key = `${parsed.method} ${normalizePathForMatch(parsed.path)}`;
+        if (!tagKeys.has(key)) {
+            errors.push(
+                `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` claims apiEndpoint "${a.apiEndpoint}" but no method in src/modules/*.ts has a matching @testrail tag`,
+            );
+        }
+    }
+
+    return errors;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -217,7 +233,7 @@ async function main() {
     }
     const endpoints = parsed.data;
 
-    // 2. Crawl modules
+    // 2. Crawl modules (JSDoc-based)
     const moduleFiles = readdirSync(MODULES_DIR)
         .filter((f) => f.endsWith('.ts'))
         .map((f) => join(MODULES_DIR, f))
@@ -227,26 +243,40 @@ async function main() {
         callSites.push(...crawlModuleFile(file));
     }
 
-    const callSiteIndex = new Map();
-    for (const cs of callSites) {
-        const key = `${cs.method} ${cs.pathNormalized}`;
-        if (!callSiteIndex.has(key)) callSiteIndex.set(key, cs);
-    }
-
     // 3. Load CLI actions
     const actions = loadCliActions();
-    const actionsSet = new Set(actions.map((a) => `${a.resource}:${a.action}`));
 
-    // 4. Build rows
+    // 4. Run drift gates
+    const errors = validateGates(callSites, actions, endpoints);
+    if (errors.length > 0) {
+        console.error('docs/API-MAPPING.md generator failed cross-validation:');
+        for (const e of errors) console.error(`  · ${e}`);
+        process.exit(1);
+    }
+
+    // 5. Index for joins
+    const callSiteIndex = new Map();
+    for (const cs of callSites) {
+        const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
+        if (!callSiteIndex.has(key)) callSiteIndex.set(key, cs);
+    }
+    const actionByEndpoint = new Map();
+    for (const a of actions) {
+        const parsedEp = parseTestrailTag(a.apiEndpoint);
+        if (!parsedEp) continue;
+        const key = `${parsedEp.method} ${normalizePathForMatch(parsedEp.path)}`;
+        if (!actionByEndpoint.has(key)) actionByEndpoint.set(key, `${a.resource}:${a.action}`);
+    }
+
+    // 6. Build rows
     const rows = endpoints.map((endpoint) => {
-        const normalized = normalizePathForMatch(endpoint.path);
-        const key = `${endpoint.method} ${normalized}`;
+        const key = `${endpoint.method} ${normalizePathForMatch(endpoint.path)}`;
         const match = callSiteIndex.get(key) ?? null;
-        const cliKey = guessCliCommand(endpoint.operation, actionsSet);
+        const cliKey = actionByEndpoint.get(key) ?? null;
         return { endpoint, match, cliKey };
     });
 
-    // 5. Group + sort
+    // 7. Group + sort
     const byResource = new Map();
     for (const row of rows) {
         const r = row.endpoint.resource;
@@ -265,7 +295,7 @@ async function main() {
             }),
         }));
 
-    // 6. Render + write/check
+    // 8. Render + write/check
     const out = renderDocument(grouped, ROOT + '/');
     if (CHECK_MODE) {
         const committed = existsSync(OUTPUT_PATH) ? readFileSync(OUTPUT_PATH, 'utf8') : '';

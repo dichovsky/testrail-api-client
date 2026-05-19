@@ -30,11 +30,13 @@ export type DeleteCasesPreview = SoftDeletePreview;
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_case/{case_id} */
     async getCase(caseId: number): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
         return this.client.requestParsed<Case>('GET', `get_case/${caseId}`, CaseSchema);
     }
 
+    /** @testrail GET get_cases/{project_id} */
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
         this.client.validateId(projectId, 'projectId');
         const {
@@ -83,11 +85,13 @@ export class CaseModule {
         );
     }
 
+    /** @testrail POST add_case/{section_id} */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         this.client.validateId(sectionId, 'sectionId');
         return this.client.requestParsed<Case>('POST', `add_case/${sectionId}`, CaseSchema, payload);
     }
 
+    /** @testrail POST update_case/{case_id} */
     async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
         return this.client.requestParsed<Case>('POST', `update_case/${caseId}`, CaseSchema, payload);
@@ -99,6 +103,8 @@ export class CaseModule {
      * nothing is deleted and TestRail returns counts of affected entities.
      * Distinct from a client-side `--dry-run` which short-circuits before
      * any request. TestRail 6.5+ for soft-mode.
+     *
+     * @testrail POST delete_case/{case_id}
      */
     async deleteCase(caseId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteCase(caseId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
@@ -129,6 +135,8 @@ export class CaseModule {
      * optional. In practice it is required even in single-suite mode (the
      * Python reference client documents this caveat) — pass the only suite
      * you have.
+     *
+     * @testrail POST update_cases/{suite_id}
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
         this.client.validateId(suiteId, 'suiteId');
@@ -140,6 +148,8 @@ export class CaseModule {
      * `project_id` (required) as a query parameter. `options.soft=true`
      * adds `soft=1` — a server-side preview that returns affected-test
      * counts without deleting. The body carries the case IDs.
+     *
+     * @testrail POST delete_cases/{suite_id}
      */
     async deleteCases(
         suiteId: number,
@@ -181,6 +191,7 @@ export class CaseModule {
     /**
      * Copy cases into a target section (creates new case copies). Returns
      * the array of newly created cases.
+     * @testrail POST copy_cases_to_section/{section_id}
      */
     async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<Case[]> {
         this.client.validateId(sectionId, 'sectionId');
@@ -197,12 +208,14 @@ export class CaseModule {
      * for same-suite moves (TestRail uses it to resolve the destination
      * section across suites). Path-only `section_id` — NOT in the body.
      * Returns no body.
+     * @testrail POST move_cases_to_section/{section_id}
      */
     async moveCasesToSection(sectionId: number, payload: MoveCasesToSectionPayload): Promise<void> {
         this.client.validateId(sectionId, 'sectionId');
         await this.client.request<void>('POST', `move_cases_to_section/${sectionId}`, payload);
     }
 
+    /** @testrail GET get_history_for_case/{case_id} */
     async getHistoryForCase(caseId: number, options?: GetHistoryForCaseOptions): Promise<HistoryEntry[]> {
         this.client.validateId(caseId, 'caseId');
         this.client.validatePaginationParams(options?.limit, options?.offset);

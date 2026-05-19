@@ -7,11 +7,13 @@ import { z } from 'zod';
 export class SectionModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_section/{section_id} */
     async getSection(sectionId: number): Promise<Section> {
         this.client.validateId(sectionId, 'sectionId');
         return this.client.requestParsed<Section>('GET', `get_section/${sectionId}`, SectionSchema);
     }
 
+    /** @testrail GET get_sections/{project_id} */
     async getSections(
         projectId: number,
         options?: { suiteId?: number; limit?: number; offset?: number },
@@ -34,11 +36,13 @@ export class SectionModule {
         );
     }
 
+    /** @testrail POST add_section/{project_id} */
     async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
         this.client.validateId(projectId, 'projectId');
         return this.client.requestParsed<Section>('POST', `add_section/${projectId}`, SectionSchema, payload);
     }
 
+    /** @testrail POST update_section/{section_id} */
     async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
         this.client.validateId(sectionId, 'sectionId');
         return this.client.requestParsed<Section>('POST', `update_section/${sectionId}`, SectionSchema, payload);
@@ -49,6 +53,8 @@ export class SectionModule {
      * `{ soft: true }` for TestRail's server-side preview (`soft=1`) — the
      * API call still happens but nothing is deleted; TestRail returns counts
      * of affected sections, cases, and tests. TestRail 6.5+ for soft-mode.
+     *
+     * @testrail POST delete_section/{section_id}
      */
     async deleteSection(sectionId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteSection(sectionId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
@@ -76,6 +82,8 @@ export class SectionModule {
      * The endpoint returns no body in older TestRail versions and the updated
      * section in newer ones; we default to `void` and recommend a follow-up
      * `getSection(sectionId)` when callers need the post-move state.
+     *
+     * @testrail POST move_section/{section_id}
      */
     async moveSection(sectionId: number, payload: MoveSectionPayload): Promise<void> {
         this.client.validateId(sectionId, 'sectionId');

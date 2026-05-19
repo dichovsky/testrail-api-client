@@ -36,10 +36,14 @@ import {
  * - PR 4 skill generator: renders the `<!-- GENERATED:command-table -->` and
  *   `<!-- GENERATED:payload-schemas -->` regions of `skill/SKILL.md` from
  *   this array.
+ * - PR 5 API-mapping generator (`scripts/generate-mapping.js`): reads the
+ *   `apiEndpoint` field from each entry to produce `docs/API-MAPPING.md`'s
+ *   CLI column. Cross-validates that each `apiEndpoint` matches a
+ *   `@testrail` JSDoc tag on a method in `src/modules/*.ts`.
  *
  * Adding a new action requires touching exactly two places: the handler in
- * `src/cli/handlers/`, and an entry here. The dispatcher and the skill stay
- * accurate automatically.
+ * `src/cli/handlers/`, and an entry here. The dispatcher, the skill, and the
+ * mapping table stay accurate automatically.
  */
 
 export interface PathParam {
@@ -52,6 +56,13 @@ export interface ActionSpec {
     action: string;
     summary: string;
     pathParams: readonly PathParam[];
+    /** TestRail endpoint this CLI action calls, in the form `'METHOD path'`
+     *  (e.g., `'POST add_case/{section_id}'`). Must agree with the
+     *  `@testrail` JSDoc tag on the linked client method in
+     *  `src/modules/*.ts`. The API-mapping generator validates both
+     *  directions (no orphan ActionSpec referencing a non-existent endpoint,
+     *  no missing endpoints when the JSON says the CLI covers it). */
+    apiEndpoint: string;
     /** Zod schema for the request body. `undefined` for read actions, for
      *  no-body POSTs like `run close`, and for file-input write actions
      *  (which take `--file <path>` instead of a JSON body). */
@@ -85,6 +96,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single project by ID',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'GET get_project/{project_id}',
         isWrite: false,
     },
     {
@@ -92,6 +104,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List all projects (paginated)',
         pathParams: [],
+        apiEndpoint: 'GET get_projects',
         isWrite: false,
     },
     {
@@ -99,6 +112,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single suite by ID',
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        apiEndpoint: 'GET get_suite/{suite_id}',
         isWrite: false,
     },
     {
@@ -106,6 +120,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List suites in a project',
         pathParams: [],
+        apiEndpoint: 'GET get_suites/{project_id}',
         isWrite: false,
     },
     {
@@ -113,6 +128,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single test case by ID',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'GET get_case/{case_id}',
         isWrite: false,
     },
     {
@@ -120,6 +136,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List cases in a project (optionally filtered by suite)',
         pathParams: [],
+        apiEndpoint: 'GET get_cases/{project_id}',
         isWrite: false,
     },
     {
@@ -127,6 +144,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'history',
         summary: 'List edit history for a test case (paginated; TestRail 7.5+)',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'GET get_history_for_case/{case_id}',
         isWrite: false,
     },
     {
@@ -134,6 +152,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single run by ID',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'GET get_run/{run_id}',
         isWrite: false,
     },
     {
@@ -141,6 +160,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List runs in a project (paginated)',
         pathParams: [],
+        apiEndpoint: 'GET get_runs/{project_id}',
         isWrite: false,
     },
     {
@@ -148,6 +168,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List results for a run (paginated)',
         pathParams: [],
+        apiEndpoint: 'GET get_results_for_run/{run_id}',
         isWrite: false,
     },
     {
@@ -155,6 +176,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single milestone by ID',
         pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
+        apiEndpoint: 'GET get_milestone/{milestone_id}',
         isWrite: false,
     },
     {
@@ -162,6 +184,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List milestones in a project (paginated)',
         pathParams: [],
+        apiEndpoint: 'GET get_milestones/{project_id}',
         isWrite: false,
     },
     {
@@ -169,6 +192,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single user by ID',
         pathParams: [{ name: 'user_id', description: 'TestRail user ID' }],
+        apiEndpoint: 'GET get_user/{user_id}',
         isWrite: false,
     },
     {
@@ -176,6 +200,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List users (paginated)',
         pathParams: [],
+        apiEndpoint: 'GET get_users',
         isWrite: false,
     },
     {
@@ -183,6 +208,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single test plan by ID',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'GET get_plan/{plan_id}',
         isWrite: false,
     },
     {
@@ -190,6 +216,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List plans in a project (paginated)',
         pathParams: [],
+        apiEndpoint: 'GET get_plans/{project_id}',
         isWrite: false,
     },
     // ── Write actions ─────────────────────────────────────────────────────
@@ -198,6 +225,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new test case under a section',
         pathParams: [{ name: 'section_id', description: 'Section to create the case under' }],
+        apiEndpoint: 'POST add_case/{section_id}',
         bodySchema: AddCasePayloadSchema,
         isWrite: true,
     },
@@ -206,6 +234,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update',
         summary: 'Update an existing test case (partial fields)',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'POST update_case/{case_id}',
         bodySchema: UpdateCasePayloadSchema,
         isWrite: true,
     },
@@ -214,6 +243,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update-bulk',
         summary: 'Bulk-update many cases in a suite with the same field values',
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        apiEndpoint: 'POST update_cases/{suite_id}',
         bodySchema: UpdateCasesPayloadSchema,
         isWrite: true,
     },
@@ -223,6 +253,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary:
             'Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting)',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'POST delete_case/{case_id}',
         isWrite: true,
         destructive: true,
     },
@@ -232,6 +263,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary:
             'Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion)',
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        apiEndpoint: 'POST delete_cases/{suite_id}',
         bodySchema: DeleteCasesPayloadSchema,
         isWrite: true,
         destructive: true,
@@ -241,6 +273,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'copy-to-section',
         summary: 'Copy cases into a target section (returns the new case copies)',
         pathParams: [{ name: 'section_id', description: 'Destination section ID' }],
+        apiEndpoint: 'POST copy_cases_to_section/{section_id}',
         bodySchema: CopyCasesToSectionPayloadSchema,
         isWrite: true,
     },
@@ -249,6 +282,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'move-to-section',
         summary: 'Move cases into a target section (suite_id required in body)',
         pathParams: [{ name: 'section_id', description: 'Destination section ID' }],
+        apiEndpoint: 'POST move_cases_to_section/{section_id}',
         bodySchema: MoveCasesToSectionPayloadSchema,
         isWrite: true,
     },
@@ -257,6 +291,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new test run in a project',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_run/{project_id}',
         bodySchema: AddRunPayloadSchema,
         isWrite: true,
     },
@@ -265,6 +300,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'close',
         summary: 'Close a test run permanently — irreversible (no body; requires --yes)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST close_run/{run_id}',
         isWrite: true,
         destructive: true,
     },
@@ -274,6 +310,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary:
             'Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST delete_run/{run_id}',
         isWrite: true,
         destructive: true,
     },
@@ -285,6 +322,7 @@ export const ACTIONS: readonly ActionSpec[] = [
             { name: 'run_id', description: 'TestRail run ID' },
             { name: 'case_id', description: 'TestRail case ID' },
         ],
+        apiEndpoint: 'POST add_result_for_case/{run_id}/{case_id}',
         bodySchema: AddResultPayloadSchema,
         isWrite: true,
     },
@@ -293,6 +331,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-bulk',
         summary: 'Record multiple results for cases in one API call',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST add_results_for_cases/{run_id}',
         bodySchema: AddResultsForCasesPayloadSchema,
         isWrite: true,
     },
@@ -301,6 +340,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-bulk-by-test',
         summary: 'Record multiple results for tests (by test_id) in one API call',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST add_results/{run_id}',
         bodySchema: AddResultsPayloadSchema,
         isWrite: true,
     },
@@ -309,6 +349,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new test plan in a project (optionally with nested entries)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_plan/{project_id}',
         bodySchema: AddPlanPayloadSchema,
         isWrite: true,
     },
@@ -317,6 +358,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update',
         summary: 'Update an existing test plan (partial fields)',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'POST update_plan/{plan_id}',
         bodySchema: UpdatePlanPayloadSchema,
         isWrite: true,
     },
@@ -325,6 +367,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-entry',
         summary: 'Add an entry (suite + optional runs) to an existing test plan',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'POST add_plan_entry/{plan_id}',
         bodySchema: AddPlanEntryPayloadSchema,
         isWrite: true,
     },
@@ -333,6 +376,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new section in a project (suite_id required for multi-suite-mode projects)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_section/{project_id}',
         bodySchema: AddSectionPayloadSchema,
         isWrite: true,
     },
@@ -341,6 +385,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update',
         summary: 'Update an existing section (partial fields)',
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        apiEndpoint: 'POST update_section/{section_id}',
         bodySchema: UpdateSectionPayloadSchema,
         isWrite: true,
     },
@@ -349,6 +394,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'move',
         summary: 'Move a section to a new parent and/or position (TestRail 6.5.2+)',
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        apiEndpoint: 'POST move_section/{section_id}',
         bodySchema: MoveSectionPayloadSchema,
         isWrite: true,
     },
@@ -358,6 +404,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary:
             'Delete a section (recursively removes subsections and cases; requires --yes; --soft for server-side preview)',
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
+        apiEndpoint: 'POST delete_section/{section_id}',
         isWrite: true,
         destructive: true,
     },
@@ -371,6 +418,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new project (no path params, payload-only)',
         pathParams: [],
+        apiEndpoint: 'POST add_project',
         bodySchema: AddProjectPayloadSchema,
         isWrite: true,
     },
@@ -379,6 +427,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update',
         summary: 'Update an existing project (partial fields)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST update_project/{project_id}',
         bodySchema: UpdateProjectPayloadSchema,
         isWrite: true,
     },
@@ -388,6 +437,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary:
             'Delete a project and everything inside it (highest blast radius; requires --yes; --soft NOT supported by TestRail)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST delete_project/{project_id}',
         isWrite: true,
         destructive: true,
     },
@@ -396,6 +446,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new test suite in a project',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_suite/{project_id}',
         bodySchema: AddSuitePayloadSchema,
         isWrite: true,
     },
@@ -404,6 +455,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update',
         summary: 'Update an existing test suite (partial fields)',
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        apiEndpoint: 'POST update_suite/{suite_id}',
         bodySchema: UpdateSuitePayloadSchema,
         isWrite: true,
     },
@@ -413,6 +465,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         summary:
             'Delete a suite and everything inside it (sections, cases, runs, plans; requires --yes; --soft for server-side preview)',
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
+        apiEndpoint: 'POST delete_suite/{suite_id}',
         isWrite: true,
         destructive: true,
     },
@@ -421,6 +474,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a new milestone in a project',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
+        apiEndpoint: 'POST add_milestone/{project_id}',
         bodySchema: AddMilestonePayloadSchema,
         isWrite: true,
     },
@@ -429,6 +483,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'update',
         summary: 'Update an existing milestone (partial fields, including is_completed/is_started toggles)',
         pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
+        apiEndpoint: 'POST update_milestone/{milestone_id}',
         bodySchema: UpdateMilestonePayloadSchema,
         isWrite: true,
     },
@@ -437,6 +492,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'delete',
         summary: 'Delete a milestone (requires --yes; --soft NOT supported by TestRail)',
         pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
+        apiEndpoint: 'POST delete_milestone/{milestone_id}',
         isWrite: true,
         destructive: true,
     },
@@ -446,6 +502,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Fetch a single shared step by ID',
         pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
+        apiEndpoint: 'GET get_shared_step/{shared_step_id}',
         isWrite: false,
     },
     {
@@ -453,6 +510,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List shared steps in a project',
         pathParams: [],
+        apiEndpoint: 'GET get_shared_steps/{project_id}',
         isWrite: false,
     },
     {
@@ -460,6 +518,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'history',
         summary: 'List revision history for a shared step (paginated)',
         pathParams: [{ name: 'shared_update_id', description: 'TestRail shared update (revision) ID' }],
+        apiEndpoint: 'GET get_shared_step_history/{shared_step_id}',
         isWrite: false,
     },
     // ── Case-status read action ───────────────────────────────────────────
@@ -468,6 +527,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list',
         summary: 'List case-level lifecycle statuses (TestRail 7.5+)',
         pathParams: [],
+        apiEndpoint: 'GET get_case_statuses',
         isWrite: false,
     },
     // ── Case-field write action ───────────────────────────────────────────
@@ -476,6 +536,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Create a custom case field (admin-only); no path params, payload-only',
         pathParams: [],
+        apiEndpoint: 'POST add_case_field',
         bodySchema: AddCaseFieldPayloadSchema,
         isWrite: true,
     },
@@ -485,6 +546,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list-for-case',
         summary: 'List attachments on a test case',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'GET get_attachments_for_case/{case_id}',
         isWrite: false,
     },
     {
@@ -492,6 +554,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list-for-run',
         summary: 'List attachments on a test run',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'GET get_attachments_for_run/{run_id}',
         isWrite: false,
     },
     {
@@ -499,6 +562,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list-for-test',
         summary: 'List attachments on a test (run instance of a case)',
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
+        apiEndpoint: 'GET get_attachments_for_test/{test_id}',
         isWrite: false,
     },
     {
@@ -506,6 +570,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'list-for-plan',
         summary: 'List attachments on a test plan',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'GET get_attachments_for_plan/{plan_id}',
         isWrite: false,
     },
     {
@@ -516,6 +581,7 @@ export const ACTIONS: readonly ActionSpec[] = [
             { name: 'plan_id', description: 'TestRail plan ID' },
             { name: 'entry_id', description: 'TestRail plan entry ID' },
         ],
+        apiEndpoint: 'GET get_attachments_for_plan_entry/{plan_id}/{entry_id}',
         isWrite: false,
     },
     {
@@ -523,6 +589,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: 'Download an attachment by ID to --out <path>',
         pathParams: [{ name: 'attachment_id', description: 'TestRail attachment ID' }],
+        apiEndpoint: 'GET get_attachment/{attachment_id}',
         fileOutput: true,
         isWrite: false,
     },
@@ -532,6 +599,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-to-case',
         summary: 'Upload an attachment to a test case',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'POST add_attachment_to_case/{case_id}',
         fileInput: true,
         isWrite: true,
     },
@@ -540,6 +608,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-to-result',
         summary: 'Upload an attachment to a test result',
         pathParams: [{ name: 'result_id', description: 'TestRail result ID' }],
+        apiEndpoint: 'POST add_attachment_to_result/{result_id}',
         fileInput: true,
         isWrite: true,
     },
@@ -548,6 +617,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-to-run',
         summary: 'Upload an attachment to a test run',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST add_attachment_to_run/{run_id}',
         fileInput: true,
         isWrite: true,
     },
@@ -556,6 +626,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add-to-plan',
         summary: 'Upload an attachment to a test plan',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
+        apiEndpoint: 'POST add_attachment_to_plan/{plan_id}',
         fileInput: true,
         isWrite: true,
     },
@@ -567,6 +638,7 @@ export const ACTIONS: readonly ActionSpec[] = [
             { name: 'plan_id', description: 'TestRail plan ID' },
             { name: 'entry_id', description: 'TestRail plan entry ID' },
         ],
+        apiEndpoint: 'POST add_attachment_to_plan_entry/{plan_id}/{entry_id}',
         fileInput: true,
         isWrite: true,
     },
@@ -576,6 +648,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'delete',
         summary: 'Delete an attachment by ID (requires --yes)',
         pathParams: [{ name: 'attachment_id', description: 'TestRail attachment ID' }],
+        apiEndpoint: 'POST delete_attachment/{attachment_id}',
         isWrite: true,
         destructive: true,
     },
@@ -587,6 +660,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'get',
         summary: "Download a case's BDD (Gherkin .feature) content to --out <path>",
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'GET get_bdd/{case_id}',
         fileOutput: true,
         outputKind: 'text',
         isWrite: false,
@@ -596,6 +670,7 @@ export const ACTIONS: readonly ActionSpec[] = [
         action: 'add',
         summary: 'Upload a .feature file as the BDD content for a case',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
+        apiEndpoint: 'POST add_bdd/{case_id}',
         fileInput: true,
         isWrite: true,
     },

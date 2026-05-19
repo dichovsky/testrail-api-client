@@ -1,11 +1,10 @@
 /**
  * Unit tests for the mapping-generator helpers (scripts/mapping-renderer.mjs).
  *
- * The pure helpers (schema validation, path normalization, CLI heuristic,
- * cell renderers, document assembly) are exercised here. The full integration
- * (script invocation + AST crawl + filesystem) is covered by the
- * `npm run mapping` smoke run in CI; once Phase 2 lands, `mapping:check` will
- * gate drift between source and generated output.
+ * The pure helpers (schema validation, path normalization, tag parsing,
+ * cell renderers, document assembly) are exercised here. The full
+ * integration (script invocation + AST crawl + gates B/C + filesystem) is
+ * covered by `npm run mapping:check` in `pretest` and CI.
  */
 import { describe, expect, it } from 'vitest';
 // scripts/ is outside the tsconfig include for src/; the .mjs has no .d.ts.
@@ -17,8 +16,8 @@ import * as renderer from '../scripts/mapping-renderer.mjs';
 const {
     EndpointsArraySchema,
     EndpointSchema,
-    guessCliCommand,
     normalizePathForMatch,
+    parseTestrailTag,
     renderClientCell,
     renderCliCell,
     renderDocument,
@@ -32,8 +31,8 @@ const {
         parse: (input: unknown) => unknown;
     };
     EndpointSchema: { parse: (input: unknown) => unknown };
-    guessCliCommand: (op: string, set: Set<string>) => string | null;
     normalizePathForMatch: (raw: string) => string;
+    parseTestrailTag: (text: string) => { method: string; path: string } | null;
     renderClientCell: (
         match: { moduleFile: string; methodName: string; line: number } | null,
         rootPrefix: string,
@@ -113,78 +112,61 @@ describe('EndpointsArraySchema', () => {
 });
 
 describe('normalizePathForMatch', () => {
-    it('collapses ${expr} placeholders to {}', () => {
-        expect(normalizePathForMatch('get_case/${caseId}')).toBe('get_case/{}');
-    });
-
-    it('collapses {name} placeholders to {}', () => {
-        expect(normalizePathForMatch('get_case/{case_id}')).toBe('get_case/{}');
-    });
-
-    it('treats ${expr} and {name} as the same shape (so TS source and JSON match)', () => {
-        expect(normalizePathForMatch('delete_plan_entry/${planId}/${entryId}')).toBe(
-            normalizePathForMatch('delete_plan_entry/{plan_id}/{entry_id}'),
-        );
+    it('preserves snake_case paths and placeholders unchanged', () => {
+        expect(normalizePathForMatch('get_case/{case_id}')).toBe('get_case/{case_id}');
     });
 
     it('strips TestRail query suffixes after &', () => {
-        expect(normalizePathForMatch('get_users&project_id=${pid}')).toBe('get_users');
+        expect(normalizePathForMatch('get_users&project_id=5')).toBe('get_users');
         expect(normalizePathForMatch('get_user_by_email&email=foo@bar')).toBe('get_user_by_email');
     });
 
     it('handles paths with no placeholders or query strings', () => {
         expect(normalizePathForMatch('get_statuses')).toBe('get_statuses');
     });
+
+    it('is idempotent (applying twice yields the same result)', () => {
+        const out = normalizePathForMatch('get_users&limit=10');
+        expect(normalizePathForMatch(out)).toBe(out);
+    });
 });
 
-describe('guessCliCommand', () => {
-    const set = new Set(['case:get', 'case:list', 'attachment:add-to-case', 'project:add']);
-
-    it('returns the resource:action key when the heuristic map matches AND the CLI exposes it', () => {
-        expect(guessCliCommand('get_case', set)).toBe('case:get');
-        expect(guessCliCommand('add_attachment_to_case', set)).toBe('attachment:add-to-case');
+describe('parseTestrailTag', () => {
+    it('parses a GET tag with path params', () => {
+        expect(parseTestrailTag('GET get_case/{case_id}')).toEqual({
+            method: 'GET',
+            path: 'get_case/{case_id}',
+        });
     });
 
-    it('returns null when the heuristic map matches but the CLI does not expose it', () => {
-        expect(guessCliCommand('delete_case', set)).toBeNull();
+    it('parses a POST tag with multiple path params', () => {
+        expect(parseTestrailTag('POST add_attachment_to_plan_entry/{plan_id}/{entry_id}')).toEqual({
+            method: 'POST',
+            path: 'add_attachment_to_plan_entry/{plan_id}/{entry_id}',
+        });
     });
 
-    it('returns null for operations not in the heuristic map at all', () => {
-        expect(guessCliCommand('get_statuses', set)).toBeNull();
-        expect(guessCliCommand('made_up_op', set)).toBeNull();
+    it('parses a tag with no path params', () => {
+        expect(parseTestrailTag('GET get_statuses')).toEqual({ method: 'GET', path: 'get_statuses' });
     });
 
-    // Regression: PR #79 review caught these mappings claiming non-existent CLI
-    // actions (`result:list-for-run`, `result:add-for-case`, etc.). The CLI
-    // surface is narrower than TestRail's: `result:list` wraps getResultsForRun,
-    // `result:add` wraps addResultForCase.
-    it('maps result operations to the actual CLI surface (not invented action names)', () => {
-        const resultsSet = new Set(['result:list', 'result:add', 'result:add-bulk', 'result:add-bulk-by-test']);
-        expect(guessCliCommand('get_results_for_run', resultsSet)).toBe('result:list');
-        expect(guessCliCommand('add_result_for_case', resultsSet)).toBe('result:add');
-        expect(guessCliCommand('add_results_for_cases', resultsSet)).toBe('result:add-bulk');
-        expect(guessCliCommand('add_results', resultsSet)).toBe('result:add-bulk-by-test');
-        // Endpoints with no CLI cover stay unmapped (em-dash in the table).
-        expect(guessCliCommand('get_results', resultsSet)).toBeNull();
-        expect(guessCliCommand('get_results_for_case', resultsSet)).toBeNull();
-        expect(guessCliCommand('add_result', resultsSet)).toBeNull();
+    it('trims surrounding whitespace', () => {
+        expect(parseTestrailTag('  POST add_case/{section_id}  ')).toEqual({
+            method: 'POST',
+            path: 'add_case/{section_id}',
+        });
     });
 
-    it('maps bdd, case-status, and shared-step operations to their real CLI actions', () => {
-        const set2 = new Set([
-            'bdd:get',
-            'bdd:add',
-            'case-status:list',
-            'shared-step:get',
-            'shared-step:list',
-            'shared-step:history',
-        ]);
-        expect(guessCliCommand('get_bdd', set2)).toBe('bdd:get');
-        expect(guessCliCommand('add_bdd', set2)).toBe('bdd:add');
-        expect(guessCliCommand('get_case_statuses', set2)).toBe('case-status:list');
-        expect(guessCliCommand('get_shared_step', set2)).toBe('shared-step:get');
-        expect(guessCliCommand('get_shared_steps', set2)).toBe('shared-step:list');
-        expect(guessCliCommand('get_shared_step_history', set2)).toBe('shared-step:history');
+    it('returns null for unsupported HTTP methods', () => {
+        expect(parseTestrailTag('PUT update_case/{case_id}')).toBeNull();
+        expect(parseTestrailTag('DELETE delete_case/{case_id}')).toBeNull();
+    });
+
+    it('returns null for malformed input (missing method, missing path, extra tokens)', () => {
+        expect(parseTestrailTag('get_case/{case_id}')).toBeNull();
+        expect(parseTestrailTag('GET')).toBeNull();
+        expect(parseTestrailTag('GET get_case extra_token')).toBeNull();
+        expect(parseTestrailTag('')).toBeNull();
     });
 });
 
@@ -250,7 +232,7 @@ describe('aggregate renderers', () => {
                         path: 'delete_case/{case_id}',
                         summary: 'Delete a case.',
                     },
-                    match: null, // dynamic-endpoint case
+                    match: null,
                     cliKey: null,
                 },
             ],
@@ -259,7 +241,6 @@ describe('aggregate renderers', () => {
 
     it('summary totals correctly count endpoints/client/CLI/skill', () => {
         const out = renderSummaryTable(grouped);
-        // Cases row: 2 endpoints, 1 client-bound, 1 CLI-bound, 1 skill-bound
         expect(out).toContain('| [Cases](#cases) | 2 | 1 | 1 | 1 |');
         expect(out).toContain('| **Total** | **2** | **1** | **1** | **1** |');
     });
@@ -276,7 +257,6 @@ describe('aggregate renderers', () => {
         const out = renderResourceSection('Cases', casesRows, '/repo/');
         expect(out).toContain('[`getCase`](../src/modules/cases.ts#L35)');
         expect(out).toContain('`case get`');
-        // Second row: client + CLI both missing → two em-dashes in the cells
         const secondRowLine = out.split('\n').find((l: string) => l.includes('delete_case/{case_id}'));
         expect(secondRowLine).toBeDefined();
         const cells = (secondRowLine ?? '').split('|').filter((cell: string) => cell.trim() === '—');
@@ -289,6 +269,8 @@ describe('aggregate renderers', () => {
         expect(out).toContain('## Summary');
         expect(out).toContain('## Cases');
         expect(out).toContain('Generated by scripts/generate-mapping.js');
+        // Phase 2: document calls out the drift gates.
+        expect(out).toContain('Drift gates');
     });
 
     it('document output is deterministic (running twice produces identical bytes)', () => {
@@ -303,8 +285,6 @@ describe('aggregate renderers', () => {
             { resource: 'Suites', rows: casesRows },
             { resource: 'Cases', rows: casesRows },
         ];
-        // renderDocument iterates in input order, but our generator sorts before passing in.
-        // Test the contract by passing pre-sorted input and asserting Cases comes before Suites.
         const sorted = [...multi].sort((a, b) => a.resource.localeCompare(b.resource));
         const out = renderDocument(sorted, '/repo/');
         const casesIdx = out.indexOf('## Cases');

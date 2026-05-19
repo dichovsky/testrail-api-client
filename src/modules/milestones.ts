@@ -7,11 +7,13 @@ import { z } from 'zod';
 export class MilestoneModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_milestone/{milestone_id} */
     async getMilestone(milestoneId: number): Promise<Milestone> {
         this.client.validateId(milestoneId, 'milestoneId');
         return this.client.requestParsed<Milestone>('GET', `get_milestone/${milestoneId}`, MilestoneSchema);
     }
 
+    /** @testrail GET get_milestones/{project_id} */
     async getMilestones(projectId: number, options?: GetMilestonesOptions): Promise<Milestone[]> {
         this.client.validateId(projectId, 'projectId');
         this.client.validatePaginationParams(options?.limit, options?.offset);
@@ -31,11 +33,13 @@ export class MilestoneModule {
         );
     }
 
+    /** @testrail POST add_milestone/{project_id} */
     async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
         this.client.validateId(projectId, 'projectId');
         return this.client.requestParsed<Milestone>('POST', `add_milestone/${projectId}`, MilestoneSchema, payload);
     }
 
+    /** @testrail POST update_milestone/{milestone_id} */
     async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
         this.client.validateId(milestoneId, 'milestoneId');
         return this.client.requestParsed<Milestone>(
@@ -46,6 +50,7 @@ export class MilestoneModule {
         );
     }
 
+    /** @testrail POST delete_milestone/{milestone_id} */
     async deleteMilestone(milestoneId: number): Promise<void> {
         this.client.validateId(milestoneId, 'milestoneId');
         await this.client.request<void>('POST', `delete_milestone/${milestoneId}`);

@@ -11,6 +11,7 @@ export class ProjectModule {
      * Get a project by ID.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail GET get_project/{project_id}
      */
     async getProject(projectId: number): Promise<Project> {
         this.client.validateId(projectId, 'projectId');
@@ -21,6 +22,7 @@ export class ProjectModule {
      * Get all projects.
      * @throws {TestRailValidationError} When limit or offset is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail GET get_projects
      */
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
         this.client.validatePaginationParams(limit, offset);
@@ -39,6 +41,7 @@ export class ProjectModule {
     /**
      * Add a new project.
      * @throws {TestRailApiError} When the API request fails
+     * @testrail POST add_project
      */
     async addProject(payload: AddProjectPayload): Promise<Project> {
         return this.client.requestParsed<Project>('POST', 'add_project', ProjectSchema, payload);
@@ -48,6 +51,7 @@ export class ProjectModule {
      * Update an existing project.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail POST update_project/{project_id}
      */
     async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
         this.client.validateId(projectId, 'projectId');
@@ -58,6 +62,7 @@ export class ProjectModule {
      * Delete a project.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
+     * @testrail POST delete_project/{project_id}
      */
     async deleteProject(projectId: number): Promise<void> {
         this.client.validateId(projectId, 'projectId');

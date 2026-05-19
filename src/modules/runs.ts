@@ -7,11 +7,13 @@ import { z } from 'zod';
 export class RunModule {
     constructor(private readonly client: TestRailClientCore) {}
 
+    /** @testrail GET get_run/{run_id} */
     async getRun(runId: number): Promise<Run> {
         this.client.validateId(runId, 'runId');
         return this.client.requestParsed<Run>('GET', `get_run/${runId}`, RunSchema);
     }
 
+    /** @testrail GET get_runs/{project_id} */
     async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
         this.client.validateId(projectId, 'projectId');
         const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
@@ -49,16 +51,19 @@ export class RunModule {
         );
     }
 
+    /** @testrail POST add_run/{project_id} */
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
         this.client.validateId(projectId, 'projectId');
         return this.client.requestParsed<Run>('POST', `add_run/${projectId}`, RunSchema, payload);
     }
 
+    /** @testrail POST update_run/{run_id} */
     async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
         this.client.validateId(runId, 'runId');
         return this.client.requestParsed<Run>('POST', `update_run/${runId}`, RunSchema, payload);
     }
 
+    /** @testrail POST close_run/{run_id} */
     async closeRun(runId: number): Promise<Run> {
         this.client.validateId(runId, 'runId');
         return this.client.requestParsed<Run>('POST', `close_run/${runId}`, RunSchema);
@@ -69,6 +74,8 @@ export class RunModule {
      * `{ soft: true }` for TestRail's server-side preview (`soft=1`) —
      * the API call still happens but nothing is deleted; TestRail returns
      * counts of affected entities. TestRail 6.5+ for soft-mode.
+     *
+     * @testrail POST delete_run/{run_id}
      */
     async deleteRun(runId: number, options: SoftDeleteOptions & { soft: true }): Promise<SoftDeletePreview>;
     async deleteRun(runId: number, options?: SoftDeleteOptions & { soft?: false }): Promise<void>;
