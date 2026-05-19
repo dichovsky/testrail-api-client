@@ -1357,7 +1357,7 @@ Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
 `run close`, `run delete`, `section delete`, `suite delete`, `milestone delete`,
 `project delete`, `plan close`, `plan delete`, `plan delete-entry`,
 `plan delete-run-from-entry`, `configuration delete`,
-`configuration-group delete`) require `--yes` to execute. Without `--yes`,
+`configuration-group delete`, `shared-step delete`) require `--yes` to execute. Without `--yes`,
 the CLI exits 1 with `Destructive action; pass --yes to confirm.` This is
 the only gate — there is no interactive prompt (by design; this skill
 targets agents, not humans).

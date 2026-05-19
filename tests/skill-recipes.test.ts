@@ -295,7 +295,8 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         // --dry-run wins over --yes.
         expect(section).toContain('gated by `--yes`');
         expect(section).toContain('no `--soft` server-side preview');
-        expect(section).toContain('--dry-run` wins\n  over `--yes`');
+        expect(section).toContain('`--dry-run` wins');
+        expect(section).toContain('over `--yes`');
     });
 
     it('recommends history audit before any update or delete', () => {
