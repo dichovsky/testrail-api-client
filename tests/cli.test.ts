@@ -591,10 +591,10 @@ describe('CLI', () => {
                 [jsonResponse({ projects: [MOCK_PROJECT] })],
             );
             expect(exitCodes).toContain(0);
-            // Strip the single trailing newline the writer adds.
-            const body = stdout.endsWith('\n') ? stdout.slice(0, -1) : stdout;
-            const lines = body.split('\r\n');
-            expect(lines).toHaveLength(2); // header + 1 row
+            expect(stdout.endsWith('\r\n')).toBe(true);
+            expect(stdout.endsWith('\n') && !stdout.endsWith('\r\n')).toBe(false);
+            const lines = stdout.split('\r\n');
+            expect(lines).toHaveLength(3); // header + 1 row + trailing terminator
             // Headers sorted: id, name, suite_mode, url (alphabetical).
             expect(lines[0]).toBe('id,name,suite_mode,url');
             // Cell content: id=1, name=Demo, suite_mode=1, url unquoted.
@@ -607,9 +607,9 @@ describe('CLI', () => {
                 [jsonResponse(MOCK_PROJECT)],
             );
             expect(exitCodes).toContain(0);
-            const body = stdout.endsWith('\n') ? stdout.slice(0, -1) : stdout;
-            const lines = body.split('\r\n');
-            expect(lines).toHaveLength(2);
+            expect(stdout.endsWith('\r\n')).toBe(true);
+            const lines = stdout.split('\r\n');
+            expect(lines).toHaveLength(3);
             // Single-object path preserves insertion order (not sorted).
             expect(lines[0]).toBe('id,name,suite_mode,url');
         });

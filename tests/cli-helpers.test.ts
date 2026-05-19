@@ -911,6 +911,7 @@ describe('renderYaml — primitives', () => {
         expect(renderYaml('tab\there')).toBe('"tab\\there"');
         expect(renderYaml('\x07bell')).toBe('"\\x07bell"');
         expect(renderYaml('\x00\x1f')).toBe('"\\0\\x1f"');
+        expect(renderYaml('\x7f\x85\x9f')).toBe('"\\x7f\\x85\\x9f"');
     });
 
     it('escapes CR, backspace, and form-feed via their named escapes', () => {
@@ -1213,20 +1214,14 @@ describe('renderCsv — Unicode and special chars', () => {
         expect(out).toBe('id,sym,fn\r\n1,,');
     });
 
-    // CSV is intentionally NOT routed through sanitizeForTerminal (unlike
-    // renderTable which is built for direct human terminal display). CSV is
-    // a structured pipeline format — consumers (Excel, python-csv, awk -F,)
-    // re-parse the bytes before display, and RFC 4180 §2.6 explicitly
-    // permits embedded line breaks inside quoted fields. Sanitising would
-    // corrupt legitimate multi-line content (TestRail descriptions, BDD
-    // step definitions, multi-line custom fields). Matches the same
-    // raw-bytes precedent as the JSON path.
-    it('preserves raw control bytes in CSV cells (CSV is a pipeline format, not a terminal display)', () => {
+    it('strips terminal-control bytes from CSV cells while preserving CSV-safe content', () => {
         const out = renderCsv({ id: 1, title: '\x1b[31mRED\x1b[0m' });
-        // The ESC bytes survive because CSV is meant for tooling
-        // (jq-equivalents for CSV), not direct cat-ing. Embedded newlines
-        // are also preserved per RFC 4180 §2.6 — covered above by
-        // "wraps cells containing newlines in double quotes".
-        expect(out).toContain('\x1b');
+        expect(out).toBe('id,title\r\n1,[31mRED[0m');
+        expect(out).not.toContain('\x1b');
+    });
+
+    it('strips terminal-control bytes from CSV headers', () => {
+        const out = renderCsv({ 'safe\x9dheader': 'ok' });
+        expect(out).toBe('safeheader\r\nok');
     });
 });

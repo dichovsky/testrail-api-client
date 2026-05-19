@@ -179,7 +179,7 @@ function needsQuoting(s: string): boolean {
     if (/:\s/.test(s) || /:$/.test(s) || /\s#/.test(s)) return true;
     // Control chars / non-printables — must be quoted (and escaped).
     // eslint-disable-next-line no-control-regex
-    if (/[\x00-\x1f\x7f]/.test(s)) return true;
+    if (/[\x00-\x1f\x7f-\x9f]/.test(s)) return true;
     // Multi-line — block scalars are out of scope; double-quote with \n escapes.
     if (s.includes('\n') || s.includes('\r')) return true;
     // Embedded double-quote or backslash: plain form would round-trip but
@@ -219,8 +219,8 @@ function escapeDoubleQuoted(s: string): string {
                 out += '\\0';
                 continue;
         }
-        if (code < 0x20 || code === 0x7f) {
-            // C0 / DEL — emit as \xNN.
+        if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) {
+            // C0 / DEL / C1 — emit as \xNN.
             out += `\\x${code.toString(16).padStart(2, '0')}`;
             continue;
         }
@@ -377,13 +377,19 @@ function csvEscapeCell(cell: string): string {
     return cell;
 }
 
+function sanitizeForCsv(cell: string): string {
+    // Strip terminal-control bytes while preserving CR/LF used by CSV itself.
+    // eslint-disable-next-line no-control-regex
+    return cell.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+}
+
 function csvCellFromValue(v: unknown): string {
     if (v === null || v === undefined) return '';
-    if (typeof v === 'string') return v;
+    if (typeof v === 'string') return sanitizeForCsv(v);
     if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
     if (typeof v === 'object') {
         try {
-            return JSON.stringify(v);
+            return sanitizeForCsv(JSON.stringify(v));
         } catch {
             return '';
         }
@@ -392,16 +398,10 @@ function csvCellFromValue(v: unknown): string {
     // safeJsonStringify("null") rationale — nothing meaningful to emit in a
     // tabular cell).
     return '';
-    // Note: CSV cells are intentionally NOT routed through sanitizeForTerminal
-    // (unlike the renderTable path which is built for direct human terminal
-    // display). CSV is a structured pipeline format — consumers (Excel,
-    // python-csv, awk -F,) re-parse the bytes before display. CTF #18-style
-    // ANSI injection on the terminal is the user's risk when they choose to
-    // `cat data.csv` directly, matching the established precedent for the
-    // JSON path. Legitimate CSV use cases include embedded newlines and tabs
-    // (RFC 4180 §2.6: "Fields containing line breaks (CRLF), double quotes,
-    // and commas should be enclosed in double-quotes."), which the
-    // C0-stripping sanitiser would corrupt.
+    // Note: CSV cells are sanitized with a narrower policy than
+    // sanitizeForTerminal: strip terminal-control bytes (including ESC/OSC
+    // introducers and C1 controls), but preserve CR/LF so RFC 4180 multi-line
+    // fields remain representable.
 }
 
 /**
@@ -409,7 +409,8 @@ function csvCellFromValue(v: unknown): string {
  * terminators and standard double-quote escaping.
  *
  * - Top-level arrays: header row = sorted union of top-level keys across
- *   every object row. Primitive rows emit a single `value` column.
+ *   every object row. Primitive rows in mixed-shape arrays are emitted under
+ *   the first existing header column.
  * - Top-level objects: 1-row CSV with the object's own keys as headers
  *   (preserving insertion order, matching `JSON.stringify`).
  * - Empty arrays: empty string (no header, no rows) — mirrors `renderTable`'s
@@ -442,7 +443,7 @@ export function renderCsv(value: unknown): string {
             }
         }
         const keys = Array.from(keySet).sort();
-        const header = keys.map(csvEscapeCell).join(',');
+        const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
         const lines = [header];
         for (const row of value) {
             if (isPlainObject(row)) {
@@ -464,7 +465,7 @@ export function renderCsv(value: unknown): string {
     if (isPlainObject(value)) {
         const keys = Object.keys(value);
         if (keys.length === 0) return '';
-        const header = keys.map(csvEscapeCell).join(',');
+        const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
         const row = keys.map((k) => csvEscapeCell(csvCellFromValue(value[k]))).join(',');
         return [header, row].join(CSV_LINE_TERMINATOR);
     }
@@ -483,7 +484,7 @@ export function createOutput(opts: OutputOptions): Output {
                 process.stdout.write(`${renderYaml(data)}\n`);
                 return;
             case 'csv':
-                process.stdout.write(`${renderCsv(data)}\n`);
+                process.stdout.write(`${renderCsv(data)}${CSV_LINE_TERMINATOR}`);
                 return;
             case 'json':
             default:
