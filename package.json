@@ -51,6 +51,8 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint .",
+        "mapping": "node scripts/generate-mapping.js",
+        "mapping:check": "node scripts/generate-mapping.js --check",
         "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run skill && npm run skill:check && npm run clean:maps",
         "pretest": "npm run typecheck && npm run lint && npm run format:check && npm run codemap:check",
         "skill": "npm run build && node scripts/generate-skill.js",

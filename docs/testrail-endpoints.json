@@ -1,0 +1,838 @@
+[
+    {
+        "resource": "Attachments",
+        "operation": "get_attachments_for_case",
+        "method": "GET",
+        "path": "get_attachments_for_case/{case_id}",
+        "summary": "Returns a list of attachments for a test case."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "get_attachments_for_plan",
+        "method": "GET",
+        "path": "get_attachments_for_plan/{plan_id}",
+        "summary": "Returns a list of attachments for a test plan."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "get_attachments_for_plan_entry",
+        "method": "GET",
+        "path": "get_attachments_for_plan_entry/{plan_id}/{entry_id}",
+        "summary": "Returns a list of attachments for a test plan entry."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "get_attachments_for_run",
+        "method": "GET",
+        "path": "get_attachments_for_run/{run_id}",
+        "summary": "Returns a list of attachments for a test run."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "get_attachments_for_test",
+        "method": "GET",
+        "path": "get_attachments_for_test/{test_id}",
+        "summary": "Returns a list of attachments for a test."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "get_attachment",
+        "method": "GET",
+        "path": "get_attachment/{attachment_id}",
+        "summary": "Returns the requested attachment as binary data."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "add_attachment_to_case",
+        "method": "POST",
+        "path": "add_attachment_to_case/{case_id}",
+        "summary": "Adds an attachment to a test case (multipart upload)."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "add_attachment_to_plan",
+        "method": "POST",
+        "path": "add_attachment_to_plan/{plan_id}",
+        "summary": "Adds an attachment to a test plan (multipart upload)."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "add_attachment_to_plan_entry",
+        "method": "POST",
+        "path": "add_attachment_to_plan_entry/{plan_id}/{entry_id}",
+        "summary": "Adds an attachment to a test plan entry (multipart upload)."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "add_attachment_to_result",
+        "method": "POST",
+        "path": "add_attachment_to_result/{result_id}",
+        "summary": "Adds an attachment to a test result (multipart upload)."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "add_attachment_to_run",
+        "method": "POST",
+        "path": "add_attachment_to_run/{run_id}",
+        "summary": "Adds an attachment to a test run (multipart upload)."
+    },
+    {
+        "resource": "Attachments",
+        "operation": "delete_attachment",
+        "method": "POST",
+        "path": "delete_attachment/{attachment_id}",
+        "summary": "Deletes the specified attachment."
+    },
+
+    {
+        "resource": "BDD",
+        "operation": "get_bdd",
+        "method": "GET",
+        "path": "get_bdd/{case_id}",
+        "summary": "Returns the BDD scenario(s) for a case as plain text (Gherkin)."
+    },
+    {
+        "resource": "BDD",
+        "operation": "add_bdd",
+        "method": "POST",
+        "path": "add_bdd/{case_id}",
+        "summary": "Replaces the BDD scenario(s) for a case (multipart .feature upload)."
+    },
+
+    {
+        "resource": "Cases",
+        "operation": "get_case",
+        "method": "GET",
+        "path": "get_case/{case_id}",
+        "summary": "Returns an existing test case."
+    },
+    {
+        "resource": "Cases",
+        "operation": "get_cases",
+        "method": "GET",
+        "path": "get_cases/{project_id}",
+        "summary": "Returns a list of test cases for a project or suite, with optional filters."
+    },
+    {
+        "resource": "Cases",
+        "operation": "get_history_for_case",
+        "method": "GET",
+        "path": "get_history_for_case/{case_id}",
+        "summary": "Returns the edit history for a case."
+    },
+    {
+        "resource": "Cases",
+        "operation": "add_case",
+        "method": "POST",
+        "path": "add_case/{section_id}",
+        "summary": "Creates a new test case."
+    },
+    {
+        "resource": "Cases",
+        "operation": "copy_cases_to_section",
+        "method": "POST",
+        "path": "copy_cases_to_section/{section_id}",
+        "summary": "Copies the listed cases to a target section."
+    },
+    {
+        "resource": "Cases",
+        "operation": "update_case",
+        "method": "POST",
+        "path": "update_case/{case_id}",
+        "summary": "Updates an existing test case (partial updates supported)."
+    },
+    {
+        "resource": "Cases",
+        "operation": "update_cases",
+        "method": "POST",
+        "path": "update_cases/{suite_id}",
+        "summary": "Bulk-updates cases in a suite with a shared payload."
+    },
+    {
+        "resource": "Cases",
+        "operation": "move_cases_to_section",
+        "method": "POST",
+        "path": "move_cases_to_section/{section_id}",
+        "summary": "Moves the listed cases to a target section."
+    },
+    {
+        "resource": "Cases",
+        "operation": "delete_case",
+        "method": "POST",
+        "path": "delete_case/{case_id}",
+        "summary": "Deletes a test case."
+    },
+    {
+        "resource": "Cases",
+        "operation": "delete_cases",
+        "method": "POST",
+        "path": "delete_cases/{suite_id}",
+        "summary": "Bulk-deletes the listed cases."
+    },
+
+    {
+        "resource": "Case Fields",
+        "operation": "get_case_fields",
+        "method": "GET",
+        "path": "get_case_fields",
+        "summary": "Returns a list of available test case custom fields."
+    },
+    {
+        "resource": "Case Fields",
+        "operation": "add_case_field",
+        "method": "POST",
+        "path": "add_case_field",
+        "summary": "Creates a new test case custom field."
+    },
+
+    {
+        "resource": "Case Types",
+        "operation": "get_case_types",
+        "method": "GET",
+        "path": "get_case_types",
+        "summary": "Returns the system-defined list of test case types."
+    },
+
+    {
+        "resource": "Configurations",
+        "operation": "get_configs",
+        "method": "GET",
+        "path": "get_configs/{project_id}",
+        "summary": "Returns the list of available configurations grouped by configuration groups."
+    },
+    {
+        "resource": "Configurations",
+        "operation": "add_config_group",
+        "method": "POST",
+        "path": "add_config_group/{project_id}",
+        "summary": "Creates a new configuration group."
+    },
+    {
+        "resource": "Configurations",
+        "operation": "update_config_group",
+        "method": "POST",
+        "path": "update_config_group/{config_group_id}",
+        "summary": "Updates an existing configuration group."
+    },
+    {
+        "resource": "Configurations",
+        "operation": "delete_config_group",
+        "method": "POST",
+        "path": "delete_config_group/{config_group_id}",
+        "summary": "Deletes a configuration group and its configurations."
+    },
+    {
+        "resource": "Configurations",
+        "operation": "add_config",
+        "method": "POST",
+        "path": "add_config/{config_group_id}",
+        "summary": "Creates a new configuration in a group."
+    },
+    {
+        "resource": "Configurations",
+        "operation": "update_config",
+        "method": "POST",
+        "path": "update_config/{config_id}",
+        "summary": "Updates an existing configuration."
+    },
+    {
+        "resource": "Configurations",
+        "operation": "delete_config",
+        "method": "POST",
+        "path": "delete_config/{config_id}",
+        "summary": "Deletes a configuration."
+    },
+
+    {
+        "resource": "Datasets",
+        "operation": "get_dataset",
+        "method": "GET",
+        "path": "get_dataset/{dataset_id}",
+        "summary": "Returns an existing dataset."
+    },
+    {
+        "resource": "Datasets",
+        "operation": "get_datasets",
+        "method": "GET",
+        "path": "get_datasets/{project_id}",
+        "summary": "Returns the datasets defined in a project."
+    },
+    {
+        "resource": "Datasets",
+        "operation": "add_dataset",
+        "method": "POST",
+        "path": "add_dataset/{project_id}",
+        "summary": "Creates a new dataset in a project."
+    },
+    {
+        "resource": "Datasets",
+        "operation": "update_dataset",
+        "method": "POST",
+        "path": "update_dataset/{dataset_id}",
+        "summary": "Updates an existing dataset."
+    },
+    {
+        "resource": "Datasets",
+        "operation": "delete_dataset",
+        "method": "POST",
+        "path": "delete_dataset/{dataset_id}",
+        "summary": "Deletes an existing dataset."
+    },
+
+    {
+        "resource": "Groups",
+        "operation": "get_group",
+        "method": "GET",
+        "path": "get_group/{group_id}",
+        "summary": "Returns an existing user group."
+    },
+    {
+        "resource": "Groups",
+        "operation": "get_groups",
+        "method": "GET",
+        "path": "get_groups",
+        "summary": "Returns a list of available user groups."
+    },
+    {
+        "resource": "Groups",
+        "operation": "add_group",
+        "method": "POST",
+        "path": "add_group",
+        "summary": "Creates a new user group."
+    },
+    {
+        "resource": "Groups",
+        "operation": "update_group",
+        "method": "POST",
+        "path": "update_group/{group_id}",
+        "summary": "Updates an existing user group."
+    },
+    {
+        "resource": "Groups",
+        "operation": "delete_group",
+        "method": "POST",
+        "path": "delete_group/{group_id}",
+        "summary": "Deletes a user group."
+    },
+
+    {
+        "resource": "Milestones",
+        "operation": "get_milestone",
+        "method": "GET",
+        "path": "get_milestone/{milestone_id}",
+        "summary": "Returns an existing milestone."
+    },
+    {
+        "resource": "Milestones",
+        "operation": "get_milestones",
+        "method": "GET",
+        "path": "get_milestones/{project_id}",
+        "summary": "Returns the milestones for a project."
+    },
+    {
+        "resource": "Milestones",
+        "operation": "add_milestone",
+        "method": "POST",
+        "path": "add_milestone/{project_id}",
+        "summary": "Creates a new milestone in a project."
+    },
+    {
+        "resource": "Milestones",
+        "operation": "update_milestone",
+        "method": "POST",
+        "path": "update_milestone/{milestone_id}",
+        "summary": "Updates an existing milestone."
+    },
+    {
+        "resource": "Milestones",
+        "operation": "delete_milestone",
+        "method": "POST",
+        "path": "delete_milestone/{milestone_id}",
+        "summary": "Deletes an existing milestone."
+    },
+
+    {
+        "resource": "Plans",
+        "operation": "get_plan",
+        "method": "GET",
+        "path": "get_plan/{plan_id}",
+        "summary": "Returns an existing test plan."
+    },
+    {
+        "resource": "Plans",
+        "operation": "get_plans",
+        "method": "GET",
+        "path": "get_plans/{project_id}",
+        "summary": "Returns the test plans for a project."
+    },
+    {
+        "resource": "Plans",
+        "operation": "add_plan",
+        "method": "POST",
+        "path": "add_plan/{project_id}",
+        "summary": "Creates a new test plan in a project."
+    },
+    {
+        "resource": "Plans",
+        "operation": "add_plan_entry",
+        "method": "POST",
+        "path": "add_plan_entry/{plan_id}",
+        "summary": "Adds a new entry (suite + runs) to an existing test plan."
+    },
+    {
+        "resource": "Plans",
+        "operation": "add_run_to_plan_entry",
+        "method": "POST",
+        "path": "add_run_to_plan_entry/{plan_id}/{entry_id}",
+        "summary": "Adds a new run to an existing plan entry."
+    },
+    {
+        "resource": "Plans",
+        "operation": "update_plan",
+        "method": "POST",
+        "path": "update_plan/{plan_id}",
+        "summary": "Updates an existing test plan (partial updates supported)."
+    },
+    {
+        "resource": "Plans",
+        "operation": "update_plan_entry",
+        "method": "POST",
+        "path": "update_plan_entry/{plan_id}/{entry_id}",
+        "summary": "Updates an existing plan entry."
+    },
+    {
+        "resource": "Plans",
+        "operation": "update_run_in_plan_entry",
+        "method": "POST",
+        "path": "update_run_in_plan_entry/{run_id}",
+        "summary": "Updates a run inside a plan entry."
+    },
+    {
+        "resource": "Plans",
+        "operation": "close_plan",
+        "method": "POST",
+        "path": "close_plan/{plan_id}",
+        "summary": "Closes a plan and archives its runs."
+    },
+    {
+        "resource": "Plans",
+        "operation": "delete_plan",
+        "method": "POST",
+        "path": "delete_plan/{plan_id}",
+        "summary": "Deletes an existing plan."
+    },
+    {
+        "resource": "Plans",
+        "operation": "delete_plan_entry",
+        "method": "POST",
+        "path": "delete_plan_entry/{plan_id}/{entry_id}",
+        "summary": "Deletes an entry from a plan."
+    },
+    {
+        "resource": "Plans",
+        "operation": "delete_run_from_plan_entry",
+        "method": "POST",
+        "path": "delete_run_from_plan_entry/{run_id}",
+        "summary": "Removes a run from a plan entry."
+    },
+
+    {
+        "resource": "Priorities",
+        "operation": "get_priorities",
+        "method": "GET",
+        "path": "get_priorities",
+        "summary": "Returns the system-defined list of priorities."
+    },
+
+    {
+        "resource": "Projects",
+        "operation": "get_project",
+        "method": "GET",
+        "path": "get_project/{project_id}",
+        "summary": "Returns an existing project."
+    },
+    {
+        "resource": "Projects",
+        "operation": "get_projects",
+        "method": "GET",
+        "path": "get_projects",
+        "summary": "Returns the list of available projects."
+    },
+    {
+        "resource": "Projects",
+        "operation": "add_project",
+        "method": "POST",
+        "path": "add_project",
+        "summary": "Creates a new project."
+    },
+    {
+        "resource": "Projects",
+        "operation": "update_project",
+        "method": "POST",
+        "path": "update_project/{project_id}",
+        "summary": "Updates an existing project."
+    },
+    {
+        "resource": "Projects",
+        "operation": "delete_project",
+        "method": "POST",
+        "path": "delete_project/{project_id}",
+        "summary": "Deletes an existing project."
+    },
+
+    {
+        "resource": "Reports",
+        "operation": "get_reports",
+        "method": "GET",
+        "path": "get_reports/{project_id}",
+        "summary": "Returns the report templates configured for a project."
+    },
+    {
+        "resource": "Reports",
+        "operation": "run_report",
+        "method": "GET",
+        "path": "run_report/{report_template_id}",
+        "summary": "Executes a report and returns URLs to retrieve the generated report."
+    },
+
+    {
+        "resource": "Result Fields",
+        "operation": "get_result_fields",
+        "method": "GET",
+        "path": "get_result_fields",
+        "summary": "Returns a list of available test result custom fields."
+    },
+
+    {
+        "resource": "Results",
+        "operation": "get_results",
+        "method": "GET",
+        "path": "get_results/{test_id}",
+        "summary": "Returns a list of test results for a test."
+    },
+    {
+        "resource": "Results",
+        "operation": "get_results_for_case",
+        "method": "GET",
+        "path": "get_results_for_case/{run_id}/{case_id}",
+        "summary": "Returns a list of test results for a case in a run."
+    },
+    {
+        "resource": "Results",
+        "operation": "get_results_for_run",
+        "method": "GET",
+        "path": "get_results_for_run/{run_id}",
+        "summary": "Returns a list of test results for a run."
+    },
+    {
+        "resource": "Results",
+        "operation": "add_result",
+        "method": "POST",
+        "path": "add_result/{test_id}",
+        "summary": "Adds a new test result, comment, or assigns a test."
+    },
+    {
+        "resource": "Results",
+        "operation": "add_result_for_case",
+        "method": "POST",
+        "path": "add_result_for_case/{run_id}/{case_id}",
+        "summary": "Adds a new test result by case (within a run)."
+    },
+    {
+        "resource": "Results",
+        "operation": "add_results",
+        "method": "POST",
+        "path": "add_results/{run_id}",
+        "summary": "Bulk-adds test results for a run, addressed by test IDs."
+    },
+    {
+        "resource": "Results",
+        "operation": "add_results_for_cases",
+        "method": "POST",
+        "path": "add_results_for_cases/{run_id}",
+        "summary": "Bulk-adds test results for a run, addressed by case IDs."
+    },
+
+    {
+        "resource": "Roles",
+        "operation": "get_roles",
+        "method": "GET",
+        "path": "get_roles",
+        "summary": "Returns a list of available access roles."
+    },
+
+    {
+        "resource": "Runs",
+        "operation": "get_run",
+        "method": "GET",
+        "path": "get_run/{run_id}",
+        "summary": "Returns an existing test run."
+    },
+    {
+        "resource": "Runs",
+        "operation": "get_runs",
+        "method": "GET",
+        "path": "get_runs/{project_id}",
+        "summary": "Returns the standalone test runs for a project."
+    },
+    {
+        "resource": "Runs",
+        "operation": "add_run",
+        "method": "POST",
+        "path": "add_run/{project_id}",
+        "summary": "Creates a new test run in a project."
+    },
+    {
+        "resource": "Runs",
+        "operation": "update_run",
+        "method": "POST",
+        "path": "update_run/{run_id}",
+        "summary": "Updates an existing test run."
+    },
+    {
+        "resource": "Runs",
+        "operation": "close_run",
+        "method": "POST",
+        "path": "close_run/{run_id}",
+        "summary": "Closes an existing test run and archives its tests/results."
+    },
+    {
+        "resource": "Runs",
+        "operation": "delete_run",
+        "method": "POST",
+        "path": "delete_run/{run_id}",
+        "summary": "Deletes an existing test run."
+    },
+
+    {
+        "resource": "Sections",
+        "operation": "get_section",
+        "method": "GET",
+        "path": "get_section/{section_id}",
+        "summary": "Returns an existing section."
+    },
+    {
+        "resource": "Sections",
+        "operation": "get_sections",
+        "method": "GET",
+        "path": "get_sections/{project_id}",
+        "summary": "Returns the sections for a project or suite."
+    },
+    {
+        "resource": "Sections",
+        "operation": "add_section",
+        "method": "POST",
+        "path": "add_section/{project_id}",
+        "summary": "Creates a new section in a project."
+    },
+    {
+        "resource": "Sections",
+        "operation": "move_section",
+        "method": "POST",
+        "path": "move_section/{section_id}",
+        "summary": "Moves a section to another suite or parent section."
+    },
+    {
+        "resource": "Sections",
+        "operation": "update_section",
+        "method": "POST",
+        "path": "update_section/{section_id}",
+        "summary": "Updates an existing section."
+    },
+    {
+        "resource": "Sections",
+        "operation": "delete_section",
+        "method": "POST",
+        "path": "delete_section/{section_id}",
+        "summary": "Deletes a section and all of its cases."
+    },
+
+    {
+        "resource": "Shared Steps",
+        "operation": "get_shared_step",
+        "method": "GET",
+        "path": "get_shared_step/{shared_step_id}",
+        "summary": "Returns an existing set of shared steps."
+    },
+    {
+        "resource": "Shared Steps",
+        "operation": "get_shared_steps",
+        "method": "GET",
+        "path": "get_shared_steps/{project_id}",
+        "summary": "Returns the shared step sets for a project."
+    },
+    {
+        "resource": "Shared Steps",
+        "operation": "get_shared_step_history",
+        "method": "GET",
+        "path": "get_shared_step_history/{shared_step_id}",
+        "summary": "Returns the edit history for a shared step set."
+    },
+    {
+        "resource": "Shared Steps",
+        "operation": "add_shared_step",
+        "method": "POST",
+        "path": "add_shared_step/{project_id}",
+        "summary": "Creates a new set of shared steps."
+    },
+    {
+        "resource": "Shared Steps",
+        "operation": "update_shared_step",
+        "method": "POST",
+        "path": "update_shared_step/{shared_step_id}",
+        "summary": "Updates an existing set of shared steps."
+    },
+    {
+        "resource": "Shared Steps",
+        "operation": "delete_shared_step",
+        "method": "POST",
+        "path": "delete_shared_step/{shared_step_id}",
+        "summary": "Deletes an existing set of shared steps."
+    },
+
+    {
+        "resource": "Statuses",
+        "operation": "get_statuses",
+        "method": "GET",
+        "path": "get_statuses",
+        "summary": "Returns the list of available test statuses."
+    },
+    {
+        "resource": "Statuses",
+        "operation": "get_case_statuses",
+        "method": "GET",
+        "path": "get_case_statuses",
+        "summary": "Returns the list of available case statuses (workflow)."
+    },
+
+    {
+        "resource": "Suites",
+        "operation": "get_suite",
+        "method": "GET",
+        "path": "get_suite/{suite_id}",
+        "summary": "Returns an existing test suite."
+    },
+    {
+        "resource": "Suites",
+        "operation": "get_suites",
+        "method": "GET",
+        "path": "get_suites/{project_id}",
+        "summary": "Returns the suites for a project."
+    },
+    {
+        "resource": "Suites",
+        "operation": "add_suite",
+        "method": "POST",
+        "path": "add_suite/{project_id}",
+        "summary": "Creates a new test suite in a project."
+    },
+    {
+        "resource": "Suites",
+        "operation": "update_suite",
+        "method": "POST",
+        "path": "update_suite/{suite_id}",
+        "summary": "Updates an existing test suite."
+    },
+    {
+        "resource": "Suites",
+        "operation": "delete_suite",
+        "method": "POST",
+        "path": "delete_suite/{suite_id}",
+        "summary": "Deletes an existing test suite and its sections/cases."
+    },
+
+    {
+        "resource": "Templates",
+        "operation": "get_templates",
+        "method": "GET",
+        "path": "get_templates/{project_id}",
+        "summary": "Returns the test case templates available for a project."
+    },
+
+    {
+        "resource": "Tests",
+        "operation": "get_test",
+        "method": "GET",
+        "path": "get_test/{test_id}",
+        "summary": "Returns an existing test (instance of a case in a run)."
+    },
+    {
+        "resource": "Tests",
+        "operation": "get_tests",
+        "method": "GET",
+        "path": "get_tests/{run_id}",
+        "summary": "Returns the tests in a run, optionally filtered by status."
+    },
+
+    {
+        "resource": "Users",
+        "operation": "get_user",
+        "method": "GET",
+        "path": "get_user/{user_id}",
+        "summary": "Returns an existing user."
+    },
+    {
+        "resource": "Users",
+        "operation": "get_user_by_email",
+        "method": "GET",
+        "path": "get_user_by_email",
+        "summary": "Returns the user identified by the supplied email (email=... query)."
+    },
+    {
+        "resource": "Users",
+        "operation": "get_users",
+        "method": "GET",
+        "path": "get_users",
+        "summary": "Returns the list of available users (optionally scoped by project)."
+    },
+    {
+        "resource": "Users",
+        "operation": "get_current_user",
+        "method": "GET",
+        "path": "get_current_user",
+        "summary": "Returns the currently authenticated user."
+    },
+    {
+        "resource": "Users",
+        "operation": "add_user",
+        "method": "POST",
+        "path": "add_user",
+        "summary": "Creates a new user."
+    },
+    {
+        "resource": "Users",
+        "operation": "update_user",
+        "method": "POST",
+        "path": "update_user/{user_id}",
+        "summary": "Updates an existing user."
+    },
+
+    {
+        "resource": "Variables",
+        "operation": "get_variables",
+        "method": "GET",
+        "path": "get_variables/{project_id}",
+        "summary": "Returns the variables defined in a project (parameterized testing)."
+    },
+    {
+        "resource": "Variables",
+        "operation": "add_variable",
+        "method": "POST",
+        "path": "add_variable/{project_id}",
+        "summary": "Creates a new variable in a project."
+    },
+    {
+        "resource": "Variables",
+        "operation": "update_variable",
+        "method": "POST",
+        "path": "update_variable/{variable_id}",
+        "summary": "Updates an existing variable."
+    },
+    {
+        "resource": "Variables",
+        "operation": "delete_variable",
+        "method": "POST",
+        "path": "delete_variable/{variable_id}",
+        "summary": "Deletes an existing variable."
+    }
+]
