@@ -9,6 +9,7 @@ import {
     AddCaseFieldPayloadSchema,
     MoveSectionPayloadSchema,
     AddRunPayloadSchema,
+    UpdateRunPayloadSchema,
     AddResultPayloadSchema,
     AddResultsForCasesPayloadSchema,
     AddResultsPayloadSchema,
@@ -312,6 +313,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_run/{project_id}',
         bodySchema: AddRunPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'run',
+        action: 'update',
+        summary: 'Update an existing test run (all fields optional)',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'POST update_run/{run_id}',
+        bodySchema: UpdateRunPayloadSchema,
         isWrite: true,
     },
     {

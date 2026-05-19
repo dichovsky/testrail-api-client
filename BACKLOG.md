@@ -29,7 +29,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🔴 P0 — daily-use endpoints
 
-- [ ] 🔴 📦 CLI: `run update` (POST `update_run/{run_id}`)
 - [ ] 🔴 📦 CLI: `test get` (GET `get_test/{test_id}`)
 - [ ] 🔴 📦 CLI: `test list` (GET `get_tests/{run_id}`)
 - [ ] 🔴 📦 CLI: `result list-for-test` (GET `get_results/{test_id}`)

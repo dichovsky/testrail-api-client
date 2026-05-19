@@ -1,7 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveBody } from '../body.js';
-import { AddRunPayloadSchema } from '../../schemas.js';
+import { AddRunPayloadSchema, UpdateRunPayloadSchema } from '../../schemas.js';
 
 export async function handleRunAdd(ctx: HandlerContext): Promise<void> {
     const projectId = parseId(ctx.args.pathParams[0], 'project_id');
@@ -12,6 +12,23 @@ export async function handleRunAdd(ctx: HandlerContext): Promise<void> {
         return;
     }
     ctx.out(await ctx.client.addRun(projectId, body.payload));
+}
+
+/**
+ * Update a run. Mirrors `handleMilestoneUpdate` / `handlePlanUpdate` — single
+ * path param (`run_id`) + required body (validated against
+ * `UpdateRunPayloadSchema`). All payload fields are optional; an empty body
+ * is a no-op accepted by TestRail.
+ */
+export async function handleRunUpdate(ctx: HandlerContext): Promise<void> {
+    const runId = parseId(ctx.args.pathParams[0], 'run_id');
+    const body = resolveBody(ctx.bodyInput, UpdateRunPayloadSchema);
+    if (!body.ok) throw new Error(body.error);
+    if (ctx.dryRun) {
+        ctx.out({ dryRun: true, action: 'run update', runId, payload: body.payload, source: body.source });
+        return;
+    }
+    ctx.out(await ctx.client.updateRun(runId, body.payload));
 }
 
 /**

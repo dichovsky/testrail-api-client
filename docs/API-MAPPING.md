@@ -30,7 +30,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Result Fields](#result-fields) | 1 | 1 | 0 | 0 |
 | [Results](#results) | 7 | 7 | 4 | 3 |
 | [Roles](#roles) | 1 | 1 | 0 | 0 |
-| [Runs](#runs) | 6 | 6 | 5 | 3 |
+| [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
 | [Shared Steps](#shared-steps) | 6 | 6 | 3 | 0 |
 | [Statuses](#statuses) | 2 | 2 | 1 | 0 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 0 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **69** | **23** |
+| **Total** | **116** | **116** | **70** | **23** |
 
 ## Attachments
 
@@ -242,7 +242,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`POST add_run/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addRun`](../src/modules/runs.ts#L55) | `run add` | [recipe #11](../skill/SKILL.md#11-create-a-ci-test-run) |
 | [`POST close_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`closeRun`](../src/modules/runs.ts#L67) | `run close` | [recipe #13](../skill/SKILL.md#13-close-a-run-when-ci-finishes) |
 | [`POST delete_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteRun`](../src/modules/runs.ts#L80) | `run delete` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST update_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateRun`](../src/modules/runs.ts#L61) | — | — |
+| [`POST update_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateRun`](../src/modules/runs.ts#L61) | `run update` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Sections
 

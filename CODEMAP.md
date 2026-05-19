@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "4b71469ae7846cddeeb2e523e07a5691212ac937ab644711cc2f541a46838a7b",
+  "sourceHash": "75676ef1fd1879d2c2bca9bbb1b4aad4b92262f065d66c75ae36250999fa2d7c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1429,28 +1429,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 143,
+          "line": 144,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 158,
+          "line": 159,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 165,
+          "line": 166,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 169,
+          "line": 170,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -2123,16 +2123,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export async function handleRunAdd(ctx: HandlerContext): Promise<void>"
         },
         {
+          "name": "handleRunUpdate",
+          "kind": "function",
+          "line": 23,
+          "exported": true,
+          "signature": "export async function handleRunUpdate(ctx: HandlerContext): Promise<void>"
+        },
+        {
           "name": "handleRunClose",
           "kind": "function",
-          "line": 28,
+          "line": 45,
           "exported": true,
           "signature": "export async function handleRunClose(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleRunDelete",
           "kind": "function",
-          "line": 47,
+          "line": 64,
           "exported": true,
           "signature": "export async function handleRunDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2437,7 +2444,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 152,
+          "line": 153,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -2488,28 +2495,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 52,
+          "line": 53,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 57,
+          "line": 58,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
         },
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 95,
+          "line": 96,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 732,
+          "line": 742,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

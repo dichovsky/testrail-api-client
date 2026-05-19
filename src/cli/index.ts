@@ -47,6 +47,7 @@ Write actions (body via --data | --data-file | stdin):
   case   copy-to-section <section_id>  --data '{"case_ids":[1,2]}'
   case   move-to-section <section_id>  --data '{"case_ids":[1,2],"suite_id":3}'
   run    add <project_id>           --data '{"name":"..."}'
+  run    update <run_id>            --data '{"name":"..."}'
   run    close <run_id>             --yes  (no body; irreversible)
   run    delete <run_id>            [--soft] --yes  (no body; destructive)
   result add <run_id> <case_id>     --data '{"status_id":1}'
