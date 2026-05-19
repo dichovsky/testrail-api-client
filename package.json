@@ -1,6 +1,6 @@
 {
     "name": "@dichovsky/testrail-api-client",
-    "version": "3.5.0",
+    "version": "4.0.0",
     "description": "TypeScript API client for TestRail",
     "keywords": [
         "testrail",
@@ -68,9 +68,9 @@
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^25.8.0",
+        "@types/node": "^25.9.1",
         "@typescript-eslint/eslint-plugin": "^8.59.3",
-        "@typescript-eslint/parser": "^8.59.3",
+        "@typescript-eslint/parser": "^8.59.4",
         "@vitest/coverage-v8": "^4.1.6",
         "eslint": "^10.4.0",
         "prettier": "~3.8.3",
