@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.6.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
+## [4.0.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
 
 Closes [BACKLOG CLI: destructive env-var gate](BACKLOG-ARCHIVE.md). Adds a
 **second gate** for destructive CLI actions (`*:delete`, `run close`,
@@ -40,7 +40,7 @@ subsequent destructive command in that step):
 # Before (3.5.x):
 testrail run delete 5 --yes
 
-# After (3.6.0+):
+# After (4.0.0+):
 export TESTRAIL_ALLOW_DESTRUCTIVE=1
 testrail run delete 5 --yes
 ```

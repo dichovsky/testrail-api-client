@@ -208,8 +208,8 @@ configuration delete, configuration-group delete)
 require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
 alone is insufficient — this two-gate model is intentional (env var is
 process-wide audit-friendly; --yes is per-invocation explicit). Pass
---dry-run together with --yes to preview without making the API call
-(dry-run wins; the env var is NOT required for dry-run preview).
+--dry-run to preview without making the API call; --yes is optional in
+dry-run mode (dry-run wins; the env var is NOT required for preview).
 'run close' and 'plan close' are irreversible — TestRail offers no reopen
 for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
 pass --soft for a server-side preview that returns affected-entity counts

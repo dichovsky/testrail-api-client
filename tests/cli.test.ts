@@ -168,7 +168,7 @@ const AUTH_ENV = {
     // PR4: destructive-ops env gate. Set for the default test env so every
     // pre-existing destructive subprocess test (`--yes` happy path) keeps
     // passing. Tests that exercise the gate itself override this via the
-    // 4th argument to `runCli()` (omit the key or set a wrong value).
+    // 3rd argument to `runCli()` (omit the key or set a wrong value).
     TESTRAIL_ALLOW_DESTRUCTIVE: '1',
 };
 
@@ -5629,7 +5629,7 @@ describe('CLI', () => {
     // from the generic exit code 1 used for argv / auth / handler failures)
     // lets CI branch on "blocked by env gate" vs everything else.
     //
-    // The 4th argument to `runCli()` overrides the default AUTH_ENV (which
+    // The 3rd argument to `runCli()` overrides the default AUTH_ENV (which
     // includes `TESTRAIL_ALLOW_DESTRUCTIVE: '1'`); these tests pass an env
     // with the destructive key omitted or set to a wrong value.
     describe('destructive env-var gate (TESTRAIL_ALLOW_DESTRUCTIVE)', () => {

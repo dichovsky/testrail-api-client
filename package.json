@@ -1,6 +1,6 @@
 {
     "name": "@dichovsky/testrail-api-client",
-    "version": "3.6.0",
+    "version": "4.0.0",
     "description": "TypeScript API client for TestRail",
     "keywords": [
         "testrail",

@@ -213,7 +213,7 @@ testrail case add 5 --data '{"title":"x"}' --dry-run
 ## Destructive operations
 
 Every destructive CLI action (any `delete` plus `run close` / `plan close`) is
-protected by a **two-gate model** as of v3.6.0. Both gates must be satisfied
+protected by a **two-gate model** as of v4.0.0. Both gates must be satisfied
 before a destructive call reaches the API:
 
 1. **`--yes` flag** — per-invocation explicit confirmation. Required on every
