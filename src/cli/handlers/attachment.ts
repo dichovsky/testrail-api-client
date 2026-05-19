@@ -1,21 +1,39 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
+import { parseId, optInt } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteBinary } from '../safe-write.js';
 
+/**
+ * Build the `{ limit?, offset? }` options object for the per-resource
+ * attachment-list endpoints. Mirrors the `case list` / `run list` /
+ * `result list` pagination convention. Both flags are optional; either one
+ * can be set independently. Malformed input (negative, leading-zero, hex,
+ * scientific notation) is silently dropped to `undefined` by `optInt` — the
+ * client-side `validatePaginationParams` then catches non-positive `limit`
+ * etc. and surfaces `TestRailValidationError` before any network call.
+ */
+function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number } {
+    const limit = optInt(ctx.args.limit);
+    const offset = optInt(ctx.args.offset);
+    return {
+        ...(limit !== undefined && { limit }),
+        ...(offset !== undefined && { offset }),
+    };
+}
+
 export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    ctx.out(await ctx.client.getAttachmentsForCase(caseId));
+    ctx.out(await ctx.client.getAttachmentsForCase(caseId, paginationFromCtx(ctx)));
 }
 
 export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    ctx.out(await ctx.client.getAttachmentsForRun(runId));
+    ctx.out(await ctx.client.getAttachmentsForRun(runId, paginationFromCtx(ctx)));
 }
 
 export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void> {
     const testId = parseId(ctx.args.pathParams[0], 'test_id');
-    ctx.out(await ctx.client.getAttachmentsForTest(testId));
+    ctx.out(await ctx.client.getAttachmentsForTest(testId, paginationFromCtx(ctx)));
 }
 
 export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void> {

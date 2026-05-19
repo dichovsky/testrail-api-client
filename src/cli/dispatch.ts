@@ -4,6 +4,7 @@ import { handleSuiteGet, handleSuiteList } from './handlers/suite.js';
 import { handleCaseGet, handleCaseList, handleCaseHistory } from './handlers/case.js';
 import {
     handleCaseAdd,
+    handleCaseAddBulk,
     handleCaseUpdate,
     handleCaseUpdateBulk,
     handleCaseDelete,
@@ -13,6 +14,7 @@ import {
 } from './handlers/case-write.js';
 import { handleRunGet, handleRunList } from './handlers/run.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from './handlers/run-write.js';
+import { handleRunWatch } from './handlers/run-watch.js';
 import { handleTestGet, handleTestList } from './handlers/test.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from './handlers/result.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from './handlers/result-write.js';
@@ -112,6 +114,7 @@ const HANDLERS: Record<string, Handler> = {
     'case:list': handleCaseList,
     'case:history': handleCaseHistory,
     'case:add': handleCaseAdd,
+    'case:add-bulk': handleCaseAddBulk,
     'case:update': handleCaseUpdate,
     'case:update-bulk': handleCaseUpdateBulk,
     'case:delete': handleCaseDelete,
@@ -120,6 +123,7 @@ const HANDLERS: Record<string, Handler> = {
     'case:move-to-section': handleCaseMoveToSection,
     'run:get': handleRunGet,
     'run:list': handleRunList,
+    'run:watch': handleRunWatch,
     'run:add': handleRunAdd,
     'run:update': handleRunUpdate,
     'run:close': handleRunClose,

@@ -21,6 +21,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
     handleCaseAdd,
+    handleCaseAddBulk,
     handleCaseDelete,
     handleCaseUpdate,
     handleCaseUpdateBulk,
@@ -77,6 +78,7 @@ import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
     addCase: ReturnType<typeof vi.fn>;
+    addCases: ReturnType<typeof vi.fn>;
     updateCase: ReturnType<typeof vi.fn>;
     updateCases: ReturnType<typeof vi.fn>;
     deleteCase: ReturnType<typeof vi.fn>;
@@ -137,6 +139,10 @@ interface MockedClient {
 function buildClient(): MockedClient {
     return {
         addCase: vi.fn().mockResolvedValue({ id: 1, title: 'created' }),
+        addCases: vi.fn().mockResolvedValue([
+            { id: 1, title: 'a' },
+            { id: 2, title: 'b' },
+        ]),
         updateCase: vi.fn().mockResolvedValue({ id: 1, title: 'updated' }),
         updateCases: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
         deleteCase: vi.fn().mockResolvedValue(undefined),
@@ -259,6 +265,71 @@ describe('handleCaseAdd', () => {
     it('rejects when section_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"title":"x"}' });
         await expect(handleCaseAdd(ctx)).rejects.toThrow(/section_id/);
+    });
+});
+
+// ── case add-bulk ─────────────────────────────────────────────────────────
+
+describe('handleCaseAddBulk', () => {
+    it('calls client.addCases with the parsed array payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['12'],
+            dataFlag: '[{"title":"A"},{"title":"B"}]',
+        });
+        await handleCaseAddBulk(ctx);
+        expect(client.addCases).toHaveBeenCalledWith(12, [{ title: 'A' }, { title: 'B' }]);
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('dry-run does not call the client and emits a preview with the array count', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['12'],
+            dataFlag: '[{"title":"A"},{"title":"B"},{"title":"C"}]',
+            dryRun: true,
+        });
+        await handleCaseAddBulk(ctx);
+        expect(client.addCases).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'case add-bulk',
+                sectionId: 12,
+                count: 3,
+            }),
+        );
+    });
+
+    it('rejects a non-array body (object instead of array)', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['12'],
+            dataFlag: '{"title":"A"}',
+        });
+        await expect(handleCaseAddBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects an empty array (TestRail returns 400 — fail-fast at the CLI boundary)', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['12'], dataFlag: '[]' });
+        await expect(handleCaseAddBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects an array item that fails Zod validation', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['12'],
+            dataFlag: '[{"title":"ok"},{"title":123}]',
+        });
+        await expect(handleCaseAddBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['12'] });
+        await expect(handleCaseAddBulk(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects when section_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '[{"title":"x"}]' });
+        await expect(handleCaseAddBulk(ctx)).rejects.toThrow(/section_id/);
     });
 });
 

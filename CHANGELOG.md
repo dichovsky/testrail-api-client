@@ -5,6 +5,50 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — CLI bulk case creation, run watcher, attachment pagination
+
+### Added
+
+- **`case add-bulk` CLI action + `addCases()` programmatic method** for
+  bulk-creating cases under a section in one API call (TestRail 7.5+).
+  Wraps `POST add_cases/{section_id}`; the `--data` body is a JSON array of
+  case payloads (each item the same shape as `AddCasePayload`). Empty arrays
+  and array items that fail `AddCasePayloadSchema` are rejected client-side
+  before any network call. **Version-aware error wrap:** older TestRail
+  servers return 400/404 with `"Invalid uri"` because the endpoint doesn't
+  exist; the module rethrows that as `TestRailApiError(status, 'TestRail
+server >= 7.5 required for add_cases bulk endpoint', <original response>)`
+  so callers can tell "your TestRail is too old" from "your payload is
+  malformed". `--dry-run` previews the parsed array with a `count` field.
+- **`run watch <run_id>` CLI action** — long-running command that polls
+  `GET get_run/{run_id}` on a configurable interval (default 30s;
+  `--interval N` where N is in `[5, 600]`; `--once` for single poll then
+  exit) and emits a compact JSON event line per poll. Diff detection runs
+  over a closed set of fields (`is_completed`, `untested_count`,
+  `passed_count`, `failed_count`, `retest_count`, `blocked_count`) so
+  mutable timestamps don't trigger noise. Exits 0 when TestRail flips
+  `is_completed=true`; exits 130 on SIGINT (writes a one-line `interrupted`
+  summary to stderr before the client's signal handler runs). Polling uses
+  recursive `setTimeout` (not `setInterval`) so a slow poll can't stack
+  pending timers; transient `getRun` rejections surface to stderr but don't
+  abort the watcher.
+- **Pagination on `attachment list-for-{case,run,test}` CLI actions and
+  the corresponding programmatic methods** — `getAttachmentsForCase` /
+  `getAttachmentsForRun` / `getAttachmentsForTest` now accept
+  `GetAttachmentsOptions { limit?, offset? }`. `--limit` and `--offset`
+  forward to TestRail's `&limit=` / `&offset=` query params (server
+  default page size 250). Plan-scoped variants (`list-for-plan`,
+  `list-for-plan-entry`) intentionally don't paginate — TestRail returns
+  the full tree.
+
+### Changed
+
+- New types exported from package root: `AddCasesBulkPayload`,
+  `AddCasesBulkPayloadSchema`, `GetAttachmentsOptions`.
+- New CLI flags: `--interval <seconds>`, `--once` (both consumed only by
+  `run watch`); attachment list actions now honor the existing `--limit` /
+  `--offset` flags.
+
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
 Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**

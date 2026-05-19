@@ -617,6 +617,20 @@ export const UpdateCasePayloadSchema = zObject({
 
 export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>;
 
+// ── Bulk add cases (TestRail 7.5+) ────────────────────────────────────────────
+// `POST add_cases/{section_id}` accepts a JSON array of case payloads — each
+// item has the same shape as `AddCasePayloadSchema`. Distinct from the single
+// `add_case/{section_id}` (object body) — the CLI exposes both as separate
+// actions so the agent surface stays explicit about array-vs-object intent.
+// Server-version gate: TestRail < 7.5 returns 400 "Invalid uri" or similar
+// because the endpoint does not exist; the module rethrows that as a clearer
+// "TestRail 7.5+ required" message. `z.array(...).min(1)` rejects empty arrays
+// client-side since TestRail treats them as 400 — surface the contract at the
+// CLI boundary instead of forcing a round-trip.
+export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1);
+
+export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>;
+
 // ── Bulk case payloads ────────────────────────────────────────────────────────
 // Inlined rather than `.extend(UpdateCasePayloadSchema)` so the passthrough()
 // behavior is unambiguous and the inferred type stays a plain object literal

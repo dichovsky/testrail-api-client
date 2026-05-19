@@ -36,6 +36,7 @@ import type {
 } from './types.js';
 import type {
     AddCasePayload,
+    AddCasesBulkPayload,
     UpdateCasePayload,
     UpdateCasesPayload,
     DeleteCasesPayload,
@@ -82,6 +83,7 @@ import type {
 } from './schemas.js';
 import type { GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
+import type { GetAttachmentsOptions } from './modules/attachments.js';
 import { TestRailClientCore } from './client-core.js';
 import { ProjectModule } from './modules/projects.js';
 import { SuiteModule } from './modules/suites.js';
@@ -367,6 +369,19 @@ export class TestRailClient extends TestRailClientCore {
      */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         return this.cases.addCase(sectionId, payload);
+    }
+
+    /**
+     * Bulk-create cases under a section in one API call (TestRail 7.5+).
+     * Wraps `POST add_cases/{section_id}`; the payload is an array of
+     * `AddCasePayload` objects.
+     * @throws {TestRailValidationError} When sectionId is invalid
+     * @throws {TestRailApiError} When the API request fails (or when the
+     *   TestRail server is older than 7.5 — rethrown with a clearer
+     *   "TestRail server >= 7.5 required" message).
+     */
+    async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
+        return this.cases.addCases(sectionId, payload);
     }
 
     /**
@@ -1118,36 +1133,39 @@ export class TestRailClient extends TestRailClientCore {
     // ── Attachments ───────────────────────────────────────────────────────────
 
     /**
-     * Get attachments for case.
+     * Get attachments for case (paginated; TestRail server default page size 250).
      *
      * @param caseId - Case identifier.
-     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
+     * @param options - Optional pagination (`limit`, `offset`).
+     * @throws {TestRailValidationError} When identifiers or pagination params are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getAttachmentsForCase(caseId: number): Promise<Attachment[]> {
-        return this.attachments.getAttachmentsForCase(caseId);
+    async getAttachmentsForCase(caseId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
+        return this.attachments.getAttachmentsForCase(caseId, options);
     }
 
     /**
-     * Get attachments for run.
+     * Get attachments for run (paginated; TestRail server default page size 250).
      *
      * @param runId - Run identifier.
-     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
+     * @param options - Optional pagination (`limit`, `offset`).
+     * @throws {TestRailValidationError} When identifiers or pagination params are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getAttachmentsForRun(runId: number): Promise<Attachment[]> {
-        return this.attachments.getAttachmentsForRun(runId);
+    async getAttachmentsForRun(runId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
+        return this.attachments.getAttachmentsForRun(runId, options);
     }
 
     /**
-     * Get attachments for test.
+     * Get attachments for test (paginated; TestRail server default page size 250).
      *
      * @param testId - Test identifier.
-     * @throws {TestRailValidationError} When identifiers or request parameters are invalid
+     * @param options - Optional pagination (`limit`, `offset`).
+     * @throws {TestRailValidationError} When identifiers or pagination params are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async getAttachmentsForTest(testId: number): Promise<Attachment[]> {
-        return this.attachments.getAttachmentsForTest(testId);
+    async getAttachmentsForTest(testId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
+        return this.attachments.getAttachmentsForTest(testId, options);
     }
 
     /**

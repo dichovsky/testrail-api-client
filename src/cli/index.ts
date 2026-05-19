@@ -29,6 +29,7 @@ Read actions:
   case     get <id> | list --project-id <id> [--suite-id <id>]
   case     history <case_id> [--limit N] [--offset N]
   run      get <id> | list --project-id <id> [--limit N] [--offset N]
+  run      watch <run_id> [--interval N] [--once]   (poll get_run; emit diffs; exit on is_completed)
   result   list --run-id <id> [--limit N] [--offset N]
   result   list-for-test <test_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]
   result   list-for-case <run_id> <case_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]
@@ -60,6 +61,7 @@ Metadata actions:
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
+  case   add-bulk <section_id>      --data '[{"title":"..."},{"title":"..."}]'  (TestRail 7.5+; body is a JSON array)
   case   update <case_id>           --data '{"title":"..."}'
   case   update-bulk <suite_id>     --data '{"case_ids":[1,2],"priority_id":3}'
   case   delete <case_id>           [--soft] --yes  (no body; destructive)
@@ -119,9 +121,9 @@ Configuration actions (project → config_groups → configs):
   configuration delete <config_id>              --yes  (no body; --soft NOT supported)
 
 Attachment actions (binary file I/O):
-  attachment list-for-case <case_id>
-  attachment list-for-run <run_id>
-  attachment list-for-test <test_id>
+  attachment list-for-case <case_id>            [--limit N] [--offset N]
+  attachment list-for-run <run_id>              [--limit N] [--offset N]
+  attachment list-for-test <test_id>            [--limit N] [--offset N]
   attachment list-for-plan <plan_id>
   attachment list-for-plan-entry <plan_id> <entry_id>
   attachment get <attachment_id>           --out <path> [--force]
@@ -175,6 +177,8 @@ Options:
                           plan delete-run-from-entry, variable delete,
                           group delete, dataset delete, shared-step delete,
                           configuration delete, configuration-group delete.
+  --interval <seconds>  run watch poll interval (default: 30; min: 5; max: 600)
+  --once                run watch: poll once and exit instead of running until is_completed
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
@@ -379,6 +383,8 @@ async function main(): Promise<number> {
         // the user get-by-email handler enforces non-empty before issuing
         // the call.
         ...(values['email'] !== undefined && { email: values['email'] as string }),
+        ...(values['interval'] !== undefined && { interval: values['interval'] as string }),
+        ...(values['once'] === true && { once: true }),
     };
 
     // Suppress stdin only when the dispatched action's ActionSpec marks it

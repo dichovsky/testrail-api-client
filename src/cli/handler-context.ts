@@ -41,6 +41,14 @@ export interface HandlerArgs {
      *  requires this to be a non-empty string; format is enforced client-side
      *  by `EMAIL_REGEX` in `src/modules/users.ts` before any network call. */
     email?: string;
+    /** Polling interval in seconds for `run watch` (`--interval N`). Bounds
+     *  (min 5, max 600) are enforced inside the handler so a typo doesn't
+     *  silently flood TestRail's rate budget (5s floor keeps headroom under
+     *  the default 100 req/60s sliding window). */
+    interval?: string;
+    /** Single-poll mode for `run watch` (`--once`). Skips scheduling the next
+     *  recursive setTimeout iteration. */
+    once?: boolean;
 }
 
 /**

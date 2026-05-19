@@ -72,6 +72,7 @@ on stderr. Never echo or log the API key.
 | case | history | `<case_id>` | — | List edit history for a test case (paginated; TestRail 7.5+) |
 | run | get | `<run_id>` | — | Fetch a single run by ID |
 | run | list | — | — | List runs in a project (paginated) |
+| run | watch | `<run_id>` | — | Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll) |
 | test | get | `<test_id>` | — | Fetch a single test (run instance of a case) by ID |
 | test | list | `<run_id>` | — | List tests in a run (optionally filtered by status, paginated) |
 | result | list | — | — | List results for a run (paginated) |
@@ -88,6 +89,7 @@ on stderr. Never echo or log the API key.
 | section | get | `<section_id>` | — | Fetch a single section by ID |
 | section | list | `<project_id>` | — | List sections in a project (optionally filtered by suite; paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
+| case | add-bulk | `<section_id>` | `AddCasesBulkPayloadSchema` | Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
 | case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
 | case | delete | `<case_id>` | — (no body, requires `--yes`) | Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting) |
@@ -232,6 +234,10 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "custom_fields": "Record<string, unknown>?"
 }
 ```
+
+### `AddCasesBulkPayloadSchema` (used by `case add-bulk`)
+
+_(schema shape not introspectable)_
 
 ### `UpdateCasePayloadSchema` (used by `case update`)
 
@@ -855,6 +861,24 @@ testrail attachment get "$LATEST_ID" --out ./fetched.bin
 
 `--out` is required. Refuses to overwrite an existing file; pass `--force`
 to overwrite. JSON ack on stdout includes `attachmentId`, `out`, and `size`.
+
+`attachment list-for-case` / `list-for-run` / `list-for-test` accept
+`--limit N` and `--offset N` for cases with hundreds of attachments
+(TestRail's server default page size is 250). The plan-scoped variants
+(`list-for-plan`, `list-for-plan-entry`) intentionally don't paginate —
+TestRail returns the full attachment tree under the plan.
+
+```bash
+# Page through every attachment on a long-lived case (50/request):
+offset=0
+while :; do
+    page=$(testrail attachment list-for-case 42 --limit 50 --offset $offset)
+    count=$(echo "$page" | jq 'length')
+    [ "$count" -eq 0 ] && break
+    echo "$page" | jq -c '.[]'
+    offset=$((offset + count))
+done
+```
 
 ### 18. Audit then delete attachments on a deprecated case
 
@@ -1504,6 +1528,96 @@ Notes:
   project is a different ID; always pair list/mutate calls with the
   project context (`variable list <project_id>` /
   `dataset list <project_id>`).
+
+### 30. Bulk-author cases under a section in one API call
+
+<!-- recipe-for: case:add-bulk -->
+
+Use `case add-bulk` to seed many cases at once (e.g. importing a CSV /
+generating cases from a spec document) without burning through the
+100 req/60s rate budget one POST at a time. The body is a **JSON array**
+of case payloads — each item has the same shape as `case add`.
+
+```bash
+# Author 3 cases under section 12 in one round-trip.
+testrail case add-bulk 12 --data '[
+    {"title": "Login form rejects invalid email", "type_id": 1, "priority_id": 3},
+    {"title": "Login form rejects empty password", "type_id": 1, "priority_id": 3},
+    {"title": "Login form respects redirect_to query param", "type_id": 1, "priority_id": 2}
+]'
+```
+
+```bash
+# Or from a file when the array is large.
+testrail case add-bulk 12 --data-file ./cases-to-import.json
+```
+
+`--dry-run` validates the array (and each item) against Zod **without**
+calling the API — useful for previewing the parsed payload before
+committing a multi-hundred-case import. The dry-run preview includes a
+`count` field so agents can confirm the array length matches their
+source data.
+
+**Server version gate:** TestRail 7.5+ is required — older instances
+return 400 / 404 with `"Invalid uri"` because the endpoint does not
+exist. The CLI rethrows that as a clearer "TestRail server >= 7.5
+required for add_cases bulk endpoint" message so you can distinguish
+"my TestRail is too old" from "my payload is malformed". On version
+mismatch, fall back to issuing N separate `case add` calls — slower
+(rate-limited), but works on any 6.x+ instance.
+
+### 31. Watch a run until completion (CI integration)
+
+<!-- recipe-for: run:watch -->
+
+`run watch` polls `get_run/{run_id}` on a fixed interval (default 30s)
+and emits a one-line JSON event to stdout each time one of the watched
+counters changes. The watcher exits with code 0 the moment TestRail
+flips `is_completed` to `true` — useful for CI pipelines that need to
+block until a manual / external run completes before publishing
+reports, sending notifications, or promoting a deploy.
+
+Watched fields (closed set; mutable timestamps like `completed_on` are
+intentionally ignored to avoid noisy events):
+
+- `is_completed`
+- `passed_count` / `failed_count` / `retest_count`
+- `blocked_count` / `untested_count`
+
+```bash
+# Block until run 42 completes; emit per-change diffs along the way.
+testrail run watch 42
+```
+
+```bash
+# Tight CI loop: poll every 10 seconds instead of the default 30.
+# Interval bounds are [5, 600] seconds — outside that range the CLI
+# exits 1 fail-fast before any API call. 5s is the floor to protect
+# the default 100 req/60s rate budget under fleet usage.
+testrail run watch 42 --interval 10
+```
+
+```bash
+# One-shot status check: poll once, emit the snapshot, exit 0
+# regardless of is_completed. Useful when you want the watcher's
+# rendering without a long-running process.
+testrail run watch 42 --once
+```
+
+Event stream (one JSON object per line):
+
+```json
+{"event": "snapshot", "runId": 42, "is_completed": false, "passed_count": 7, ...}
+{"event": "change", "runId": 42, "changes": [{"field": "passed_count", "from": 7, "to": 8}], ...}
+{"event": "completed", "runId": 42, "is_completed": true, ...}
+```
+
+SIGINT (Ctrl-C) is handled gracefully: the watcher cancels the pending
+timeout, writes a one-line `interrupted` summary with the last seen
+snapshot to **stderr**, and exits with code 130 (POSIX convention).
+Subsequent transient `getRun` failures (network blip, 5xx) surface on
+stderr but do not abort the watcher — only an unrecoverable rejection
+(e.g. auth lost mid-watch) propagates and triggers exit 1.
 
 ## Destructive actions
 

@@ -1,7 +1,9 @@
 import { TestRailClientCore } from '../client-core.js';
+import { TestRailApiError } from '../errors.js';
 import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
 import type {
     AddCasePayload,
+    AddCasesBulkPayload,
     UpdateCasePayload,
     UpdateCasesPayload,
     DeleteCasesPayload,
@@ -89,6 +91,53 @@ export class CaseModule {
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         this.client.validateId(sectionId, 'sectionId');
         return this.client.requestParsed<Case>('POST', `add_case/${sectionId}`, CaseSchema, payload);
+    }
+
+    /**
+     * Bulk-create cases under a section in one API call. The payload is an
+     * array of `AddCasePayload` objects (one per case). Returns the array of
+     * newly created cases.
+     *
+     * **Server version gate:** TestRail 7.5+ is required — older instances
+     * return 400 / 404 with messages like `"Invalid uri"` because the
+     * endpoint does not exist. When that shape is detected the error is
+     * rethrown as a clearer `TestRailApiError(status, statusText, 'TestRail
+     * server >= 7.5 required for add_cases bulk endpoint')` so callers can
+     * tell "your TestRail is too old" from "your payload is malformed".
+     *
+     * @testrail POST add_cases/{section_id}
+     */
+    async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
+        this.client.validateId(sectionId, 'sectionId');
+        try {
+            return await this.client.requestParsed<Case[]>(
+                'POST',
+                `add_cases/${sectionId}`,
+                z.array(CaseSchema),
+                payload,
+            );
+        } catch (e: unknown) {
+            if (e instanceof TestRailApiError && (e.status === 400 || e.status === 404)) {
+                const responseStr = typeof e.response === 'string' ? e.response : JSON.stringify(e.response ?? '');
+                // TestRail < 7.5 surfaces this as "Invalid uri" (404 / 400) or
+                // a message complaining about an unknown field/route. Match
+                // the marker strings used by the upstream Python reference
+                // client so the version gate triggers reliably across the
+                // versions we've sampled. The reclassified error embeds the
+                // version notice in `statusText` (NOT response) so it lands
+                // in `error.message` — callers commonly inspect `.message`,
+                // and the original server response is preserved verbatim in
+                // the new `response` field for programmatic inspection.
+                if (/Invalid uri|Field .* is not a valid field|No route/i.test(responseStr)) {
+                    throw new TestRailApiError(
+                        e.status,
+                        'TestRail server >= 7.5 required for add_cases bulk endpoint',
+                        e.response,
+                    );
+                }
+            }
+            throw e;
+        }
     }
 
     /** @testrail POST update_case/{case_id} */
