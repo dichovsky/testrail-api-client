@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "684a12029315bd49616dcd2be62966f602db4d4ec37ba1729e9d82e2705db475",
+  "sourceHash": "3c355c19fe842581fc0d11552581b0f5a086b27c2dc6ca53279143c5fe1ecab4",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3052,7 +3052,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 216,
+          "line": 222,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -3133,56 +3133,148 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/output.ts",
       "imports": [
+        "../constants.js",
         "./sanitize.js"
       ],
       "reExports": [],
       "symbols": [
         {
+          "name": "OutputFormat",
+          "kind": "type",
+          "line": 4,
+          "exported": true,
+          "signature": "export type OutputFormat = 'json' | 'table' | 'yaml' | 'csv'"
+        },
+        {
           "name": "OutputOptions",
           "kind": "interface",
-          "line": 3,
+          "line": 6,
           "exported": true,
-          "signature": "export interface OutputOptions { quiet: boolean; format: 'json' | 'table'; }"
+          "signature": "export interface OutputOptions { quiet: boolean; format: OutputFormat; }"
         },
         {
           "name": "Output",
           "kind": "interface",
-          "line": 8,
+          "line": 11,
           "exported": true,
           "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; }"
         },
         {
           "name": "valueToString",
           "kind": "function",
-          "line": 13,
+          "line": 16,
           "exported": true,
           "signature": "export function valueToString(v: unknown): string"
         },
         {
           "name": "getField",
           "kind": "function",
-          "line": 35,
+          "line": 38,
           "exported": false,
           "signature": "function getField(row: unknown, key: string): unknown"
         },
         {
           "name": "renderTable",
           "kind": "function",
-          "line": 40,
+          "line": 43,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 89,
+          "line": 92,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
+          "name": "SPECIAL_BARE_STRINGS",
+          "kind": "const",
+          "line": 124,
+          "exported": false,
+          "signature": "const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([ '', '~', 'null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'false', 'False', 'FALSE', 'yes', 'Yes', 'YES', 'no', 'No', 'NO', 'on', 'On', 'ON',…"
+        },
+        {
+          "name": "needsQuoting",
+          "kind": "function",
+          "line": 161,
+          "exported": false,
+          "signature": "function needsQuoting(s: string): boolean"
+        },
+        {
+          "name": "escapeDoubleQuoted",
+          "kind": "function",
+          "line": 192,
+          "exported": false,
+          "signature": "function escapeDoubleQuoted(s: string): string"
+        },
+        {
+          "name": "renderYamlScalar",
+          "kind": "function",
+          "line": 235,
+          "exported": false,
+          "signature": "function renderYamlScalar(v: unknown): string"
+        },
+        {
+          "name": "isPlainObject",
+          "kind": "function",
+          "line": 257,
+          "exported": false,
+          "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
+        },
+        {
+          "name": "renderYamlNode",
+          "kind": "function",
+          "line": 266,
+          "exported": false,
+          "signature": "function renderYamlNode(v: unknown, depth: number): string"
+        },
+        {
+          "name": "renderYaml",
+          "kind": "function",
+          "line": 347,
+          "exported": true,
+          "signature": "export function renderYaml(value: unknown): string"
+        },
+        {
+          "name": "CSV_LINE_TERMINATOR",
+          "kind": "const",
+          "line": 367,
+          "exported": false,
+          "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
+        },
+        {
+          "name": "csvCellRequiresQuoting",
+          "kind": "function",
+          "line": 369,
+          "exported": false,
+          "signature": "function csvCellRequiresQuoting(cell: string): boolean"
+        },
+        {
+          "name": "csvEscapeCell",
+          "kind": "function",
+          "line": 373,
+          "exported": false,
+          "signature": "function csvEscapeCell(cell: string): string"
+        },
+        {
+          "name": "csvCellFromValue",
+          "kind": "function",
+          "line": 380,
+          "exported": false,
+          "signature": "function csvCellFromValue(v: unknown): string"
+        },
+        {
+          "name": "renderCsv",
+          "kind": "function",
+          "line": 411,
+          "exported": true,
+          "signature": "export function renderCsv(value: unknown): string"
+        },
+        {
           "name": "createOutput",
           "kind": "function",
-          "line": 104,
+          "line": 465,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -4447,6 +4539,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 69,
           "exported": true,
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
+        },
+        {
+          "name": "YAML_INDENT_SPACES",
+          "kind": "const",
+          "line": 77,
+          "exported": true,
+          "signature": "export const YAML_INDENT_SPACES = 2"
         }
       ]
     },

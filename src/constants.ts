@@ -67,3 +67,11 @@ export const DEFAULT_BODY_TIMEOUT_MS: number | undefined = undefined;
  * orders of magnitude beyond any sensible API key).
  */
 export const MAX_STDIN_BYTES = 1024 * 1024;
+
+/**
+ * Indent width (in spaces) for the CLI YAML renderer. Two-space indent is the
+ * de-facto standard across major YAML libraries (PyYAML, js-yaml, ruamel) and
+ * matches the project's prettier config for JSON output. Centralized here so
+ * the renderer doesn't carry a hardcoded literal.
+ */
+export const YAML_INDENT_SPACES = 2;

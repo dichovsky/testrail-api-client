@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
-import { createOutput } from './output.js';
+import { createOutput, type OutputFormat } from './output.js';
 import { dispatch } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
@@ -155,7 +155,13 @@ Options:
   --data <json>         Inline JSON body for write actions
   --data-file <path>    Read JSON body from file
   --dry-run             Validate payload but don't call the API
-  --format json|table   Output format (default: json)
+  --format json|table|yaml|csv
+                        Output format (default: json). yaml emits a YAML 1.2
+                        document with 2-space indent and double-quoted strings
+                        where ambiguity demands it; csv emits RFC 4180 with
+                        CRLF line terminators, sorted union of top-level keys
+                        as headers, and nested objects/arrays JSON-stringified
+                        into the cell (no dot-path flattening).
   --quiet               Suppress output; use exit code 0/1
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
@@ -245,8 +251,26 @@ async function main(): Promise<number> {
     // process.stderr.write calls.
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];
-    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
+    // Resolve --format to a known OutputFormat. parseArgs declares the flag
+    // as a string with default 'json' so an unknown value (e.g. `--format
+    // xml`) reaches this gate as a free-form string and must be rejected
+    // explicitly — otherwise the renderer would silently fall through to
+    // the JSON path, masking the user's typo.
+    const VALID_FORMATS: ReadonlySet<OutputFormat> = new Set(['json', 'table', 'yaml', 'csv']);
+    const format: OutputFormat =
+        typeof formatRaw === 'string' && VALID_FORMATS.has(formatRaw as OutputFormat)
+            ? (formatRaw as OutputFormat)
+            : 'json';
     const { out, err } = createOutput({ quiet, format });
+
+    // Reject unknown --format values with a clear, quiet-aware error. The
+    // assignment above defaults invalid values to 'json' so createOutput
+    // always gets a valid format (defense-in-depth); the error path below
+    // surfaces the typo before any handler runs.
+    if (typeof formatRaw === 'string' && !VALID_FORMATS.has(formatRaw as OutputFormat)) {
+        err(`unknown --format '${formatRaw}'. Valid values: json, table, yaml, csv.`);
+        return 1;
+    }
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
