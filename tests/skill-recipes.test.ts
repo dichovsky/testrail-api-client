@@ -21,8 +21,10 @@ import { dirname, join } from 'node:path';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SKILL_PATH = join(HERE, '..', 'skill', 'SKILL.md');
 
-/** Slice the markdown subsection that begins at the heading containing
- *  `headingNeedle` and ends at the next `### ` heading (or end of file).
+/** Slice the markdown subsection starting at the first occurrence of
+ *  `headingNeedle` (which is expected to fall inside an `### ` heading)
+ *  and ending at the next `### ` heading; if none follows, falls back to
+ *  the next `## ` heading; if neither is found, runs to end of file.
  *  Pure substring search — no regex DSL — so changes to surrounding markup
  *  don't accidentally widen the slice. */
 function extractSection(md: string, headingNeedle: string): string {
