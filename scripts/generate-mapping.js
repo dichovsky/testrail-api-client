@@ -181,12 +181,15 @@ function loadCliActions() {
 // ── Cross-validation gates ───────────────────────────────────────────────────
 
 /**
- * Gate B: every `@testrail` tag must reference an endpoint in the JSON.
- * Gate C: every `ActionSpec.apiEndpoint` must reference an endpoint that has
- *         a `@testrail` tag (i.e., the client actually implements it).
+ * Gate B:  every `@testrail` tag must reference an endpoint in the JSON.
+ * Gate C:  every `ActionSpec.apiEndpoint` must reference an endpoint that has
+ *          a `@testrail` tag (i.e., the client actually implements it).
+ * Gate C2: every `<!-- recipe-for: resource:action -->` HTML comment in
+ *          `skill/SKILL.md` must reference an existing entry in `ACTIONS`.
+ *          Catches stale recipe tags after an action is renamed or removed.
  *
- * Both gates produce error lists; the generator exits non-zero if either is
- * non-empty.
+ * All three gates produce error lists; the generator exits non-zero if any
+ * is non-empty.
  */
 function validateGates(callSites, actions, endpoints, recipes) {
     const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
