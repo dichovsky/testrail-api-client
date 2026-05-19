@@ -106,7 +106,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 🐛 SEC #23: Identical GETs stampede into parallel upstream calls
 - [ ] 🟢 🐛 SEC #24: stdin wall-clock deadline still missing (size cap shipped)
 - [ ] 🟢 🐛 SEC #26: `allowInsecure: true` lacks runtime warning / audit trail
-- [ ] 🟢 🐛 SEC #27: `parseId` accepts hex / binary / scientific forms
 - [ ] 🟢 🐛 SEC #28: throwing `destroy()` aborts cleanup of later clients
 - [ ] 🟡 🐛 SEC #29: `validateEntryId` accepts any non-empty string
 
@@ -127,4 +126,3 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 🧪 QA: separate CI job for skill-generation drift
 - [ ] 🟢 🧪 QA: coverage delta enforcement (98% floor)
 - [ ] 🟡 🧪 QA: CLI fuzz tests
-- [ ] 🟢 🐛 QA: stricter decimal-only parsing in `parseId` / `optInt`

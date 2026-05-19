@@ -13,6 +13,18 @@ export class IdParseError extends Error {
 // cannot smuggle through unexpected coercion.
 const POSITIVE_INT_RE = /^[1-9]\d*$/;
 
+// Non-negative integer pattern for optional pagination params (--limit /
+// --offset). Mirrors POSITIVE_INT_RE but additionally accepts "0" as its own
+// branch since `offset=0` is a valid pagination value; "01", "007", etc. are
+// rejected for the same reason POSITIVE_INT_RE rejects them — leading zeros
+// are not part of the canonical decimal form and would silently coerce.
+// Like parseId, the regex closes the holes Number() opens ("1e2", "0x1",
+// "  5  ", "+1", "01"); unlike parseId, optInt's contract is "silently drop
+// bad input → undefined" so downstream code can simply omit the param.
+// parseId is the strict variant for path-required ids; keeping the two
+// contracts distinct is intentional.
+const NON_NEG_INT_RE = /^(0|[1-9]\d*)$/;
+
 export function parseId(raw: string | undefined, name: string): number {
     if (raw === undefined || raw === '' || !POSITIVE_INT_RE.test(raw)) {
         throw new IdParseError(`${name} must be a positive integer (got: ${raw ?? '(none)'})`);
@@ -24,7 +36,7 @@ export function parseId(raw: string | undefined, name: string): number {
 }
 
 export function optInt(raw: string | undefined): number | undefined {
-    if (raw === undefined) return undefined;
+    if (raw === undefined || !NON_NEG_INT_RE.test(raw)) return undefined;
     const n = Number(raw);
-    return Number.isInteger(n) && n >= 0 ? n : undefined;
+    return Number.isSafeInteger(n) ? n : undefined;
 }

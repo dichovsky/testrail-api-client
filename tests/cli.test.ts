@@ -187,11 +187,18 @@ interface CliResult {
 /**
  * Runs a fresh CLI module with the given argv and environment.
  * fetchResponses are queued in order; excess fetch calls return 404.
+ *
+ * Pass `fetchRejection` to make *every* fetch call reject with the given
+ * error — used for network-error subprocess tests (the GET retry pipeline
+ * burns ≤ DEFAULT_MAX_RETRIES + 1 attempts before surfacing the failure,
+ * and any queued resolved responses would be skipped over by the
+ * `mockRejectedValue` persistent default anyway).
  */
 async function runCli(
     argv: string[],
     fetchResponses: Response[] = [],
     env: Record<string, string | undefined> = AUTH_ENV,
+    fetchRejection?: Error,
 ): Promise<CliResult> {
     vi.resetModules();
     // Fully reset between runs so queued mockResolvedValueOnce items from a
@@ -200,7 +207,11 @@ async function runCli(
     // than N — clearAllMocks() only resets call history, not pending `once`
     // implementations).
     mockFetch.mockReset();
-    mockFetch.mockResolvedValue(jsonResponse({ error: 'Not found' }, 404));
+    if (fetchRejection !== undefined) {
+        mockFetch.mockRejectedValue(fetchRejection);
+    } else {
+        mockFetch.mockResolvedValue(jsonResponse({ error: 'Not found' }, 404));
+    }
 
     process.argv = ['node', 'testrail', ...argv];
     setEnv(env);
@@ -221,14 +232,21 @@ async function runCli(
         stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
         return true;
     });
+    let exitResolve!: () => void;
+    const exitPromise = new Promise<void>((resolve) => {
+        exitResolve = resolve;
+    });
     const spyExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
         exitCodes.push(code ?? 0);
+        exitResolve();
     }) as never);
 
     try {
         await import('../src/cli.js');
-        // Allow run().then()/.catch() to settle
-        await new Promise<void>((resolve) => setTimeout(resolve, 30));
+        // Wait for main() to call process.exit (which our spy resolves the
+        // promise from), bounded by a generous timeout to cover GET retry
+        // chains (≤ DEFAULT_MAX_RETRIES exponential backoffs ≈ 7s).
+        await Promise.race([exitPromise, new Promise<void>((resolve) => setTimeout(resolve, 15_000))]);
     } catch {
         // When process.exit is a no-op, code may continue past an early exit() call
         // into states that were never meant to execute (e.g. new TestRailClient with
@@ -680,6 +698,34 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(1);
         });
+
+        it('section list propagates 403 as exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'list', '1'], [jsonResponse({ error: 'Forbidden' }, 403)]);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('section list propagates 404 as exit 1', async () => {
+            const { exitCodes } = await runCli(
+                ['section', 'list', '999'],
+                [jsonResponse({ error: 'Project not found' }, 404)],
+            );
+            expect(exitCodes).toContain(1);
+        });
+
+        it('section get surfaces network error as exit 1', async () => {
+            // GET retries the network error 3x before surfacing per the
+            // project retry pipeline (1s + 2s + 4s backoff = ~7s of sleep).
+            // `mockRejectedValue` (not Once) makes *every* attempt reject so
+            // the retry chain runs deterministically through to final
+            // failure. Test timeout bumped past the worst-case retry window.
+            const { exitCodes } = await runCli(['section', 'get', '1'], [], AUTH_ENV, new TypeError('fetch failed'));
+            expect(exitCodes).toContain(1);
+        }, 15_000);
+
+        it('section list surfaces network error as exit 1', async () => {
+            const { exitCodes } = await runCli(['section', 'list', '1'], [], AUTH_ENV, new TypeError('fetch failed'));
+            expect(exitCodes).toContain(1);
+        }, 15_000);
     });
 
     // ── case ──────────────────────────────────────────────────────────────────

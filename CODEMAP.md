@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "df80425c40d91d645a8f5694056725a656b929cb791b3544706c530ebcb2887c",
+  "sourceHash": "387bf80ed8adc07a2a2626438844183d4c49ac5e2aeb44efe6941aa805b352c5",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2344,16 +2344,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "const POSITIVE_INT_RE = /^[1-9]\\d*$/"
         },
         {
+          "name": "NON_NEG_INT_RE",
+          "kind": "const",
+          "line": 26,
+          "exported": false,
+          "signature": "const NON_NEG_INT_RE = /^(0|[1-9]\\d*)$/"
+        },
+        {
           "name": "parseId",
           "kind": "function",
-          "line": 16,
+          "line": 28,
           "exported": true,
           "signature": "export function parseId(raw: string | undefined, name: string): number"
         },
         {
           "name": "optInt",
           "kind": "function",
-          "line": 26,
+          "line": 38,
           "exported": true,
           "signature": "export function optInt(raw: string | undefined): number | undefined"
         }
