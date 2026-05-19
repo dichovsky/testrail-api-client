@@ -192,6 +192,25 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: false,
     },
     {
+        resource: 'result',
+        action: 'list-for-test',
+        summary: 'List results for a single test (paginated; --status-id / --defects-filter supported)',
+        pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
+        apiEndpoint: 'GET get_results/{test_id}',
+        isWrite: false,
+    },
+    {
+        resource: 'result',
+        action: 'list-for-case',
+        summary: 'List results for a case within a run (paginated; --status-id / --defects-filter supported)',
+        pathParams: [
+            { name: 'run_id', description: 'TestRail run ID' },
+            { name: 'case_id', description: 'TestRail case ID' },
+        ],
+        apiEndpoint: 'GET get_results_for_case/{run_id}/{case_id}',
+        isWrite: false,
+    },
+    {
         resource: 'milestone',
         action: 'get',
         summary: 'Fetch a single milestone by ID',

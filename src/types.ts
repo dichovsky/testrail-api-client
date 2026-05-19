@@ -579,6 +579,12 @@ export interface GetResultsOptions {
     created_by?: number[];
     /** Only return results with these status IDs */
     status_id?: number[];
+    /** Only return results whose `defects` field contains this string
+     *  (TestRail's `defects_filter` query param; e.g., a JIRA key like
+     *  `JIRA-123`). Passed through verbatim. Honored by `getResults()` and
+     *  `getResultsForCase()` only; `getResultsForRun()` ignores it for
+     *  backwards compatibility with the existing `result list` CLI shape. */
+    defects_filter?: string;
     /** Maximum number of results to return */
     limit?: number;
     /** Offset for pagination */

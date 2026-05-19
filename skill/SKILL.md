@@ -75,6 +75,8 @@ on stderr. Never echo or log the API key.
 | test | get | `<test_id>` | — | Fetch a single test (run instance of a case) by ID |
 | test | list | `<run_id>` | — | List tests in a run (optionally filtered by status, paginated) |
 | result | list | — | — | List results for a run (paginated) |
+| result | list-for-test | `<test_id>` | — | List results for a single test (paginated; --status-id / --defects-filter supported) |
+| result | list-for-case | `<run_id>` `<case_id>` | — | List results for a case within a run (paginated; --status-id / --defects-filter supported) |
 | milestone | get | `<milestone_id>` | — | Fetch a single milestone by ID |
 | milestone | list | — | — | List milestones in a project (paginated) |
 | user | get | `<user_id>` | — | Fetch a single user by ID |
@@ -808,6 +810,61 @@ testrail plan add-entry 50 --data '{
     "assignedto_id": 7
 }'
 ```
+
+### 24. Results pipeline — choosing per-test vs per-case vs bulk endpoints
+
+<!-- recipe-for: result:list-for-test -->
+<!-- recipe-for: result:list-for-case -->
+
+TestRail exposes four ways to fetch results; the right one depends on what
+IDs you already have and the granularity you need. Decision tree:
+
+1. **You have a `test_id`** (a test is the run-instance of a case in a
+   specific run) → `result list-for-test <test_id>`. Returns the full
+   result history for that one test. Cheapest call when you already
+   resolved the test from a previous `get_tests` / `get_test` lookup.
+
+    ```bash
+    testrail result list-for-test 4242 --limit 50 --status-id 1,5
+    ```
+
+2. **You have a `run_id` and `case_id` but no `test_id`** →
+   `result list-for-case <run_id> <case_id>`. TestRail resolves the
+   test internally. Use this from CI when the test runner only knows the
+   case ID (e.g. tagged in the test file) and the run it published to.
+
+    ```bash
+    # Find the most recent failure for case 87 in run 100, filtered by JIRA ticket
+    testrail result list-for-case 100 87 --limit 1 --status-id 5 --defects-filter JIRA-1234
+    ```
+
+3. **You want every result in the run** (audit, export, dashboard) →
+   `result list --run-id <id>`. Already-shipped batch read; paginate
+   through with `--limit` / `--offset`. Prefer this over N calls to
+   `list-for-test` when N is the size of the run.
+
+    ```bash
+    testrail result list --run-id 100 --limit 100 --offset 0
+    ```
+
+4. **You're writing, not reading** → `result add` (one), `result
+   add-bulk` (many by `case_id`), or `result add-bulk-by-test` (many by
+   `test_id`). Already shipped; mirror the per-test / per-case split on
+   the write side.
+
+Filter flags shared by `list-for-test` and `list-for-case`:
+
+- `--status-id 1,5` — comma-separated status IDs (1 = passed,
+  5 = failed; project-specific values via `case-status list`).
+- `--defects-filter JIRA-1234` — substring match on the result's
+  `defects` field.
+- `--limit N` / `--offset N` — pagination (TestRail caps `limit` at 250
+  server-side).
+
+Rule of thumb: prefer `list-for-test` when you already have a `test_id`
+(one fewer server-side join); fall back to `list-for-case` when CI only
+knows the case; reach for `list` only when you actually need every result
+in the run.
 
 ## Destructive actions
 

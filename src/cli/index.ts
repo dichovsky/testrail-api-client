@@ -30,6 +30,8 @@ Read actions:
   case     history <case_id> [--limit N] [--offset N]
   run      get <id> | list --project-id <id> [--limit N] [--offset N]
   result   list --run-id <id> [--limit N] [--offset N]
+  result   list-for-test <test_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]
+  result   list-for-case <run_id> <case_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]
   test     get <test_id>
   test     list <run_id> [--status-id 1,5] [--limit N] [--offset N]
   milestone  get <id> | list --project-id <id> [--limit N] [--offset N]
@@ -115,7 +117,8 @@ Options:
   --dry-run             Validate payload but don't call the API
   --format json|table   Output format (default: json)
   --quiet               Suppress output; use exit code 0/1
-  --status-id <ids>     Comma-separated TestRail status IDs (test list filter; e.g. 1,5)
+  --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
+  --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
   --file <path>         Binary file to upload (attachment add-to-* actions)
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
@@ -302,6 +305,7 @@ async function main(): Promise<number> {
         ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
         ...(values['status-id'] !== undefined && { statusId: values['status-id'] as string }),
+        ...(values['defects-filter'] !== undefined && { defectsFilter: values['defects-filter'] as string }),
         ...(values['file'] !== undefined && { file: values['file'] as string }),
         ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
         ...(values['out'] !== undefined && { out: values['out'] as string }),

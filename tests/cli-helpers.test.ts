@@ -645,6 +645,7 @@ describe('KNOWN_FLAGS inventory', () => {
             'limit',
             'offset',
             'status-id',
+            'defects-filter',
             'data',
             'data-file',
             'dry-run',

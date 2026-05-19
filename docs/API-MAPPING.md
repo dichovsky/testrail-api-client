@@ -28,7 +28,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Projects](#projects) | 5 | 5 | 5 | 2 |
 | [Reports](#reports) | 2 | 2 | 0 | 0 |
 | [Result Fields](#result-fields) | 1 | 1 | 0 | 0 |
-| [Results](#results) | 7 | 7 | 4 | 3 |
+| [Results](#results) | 7 | 7 | 6 | 5 |
 | [Roles](#roles) | 1 | 1 | 0 | 0 |
 | [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 2 | 1 |
 | [Variables](#variables) | 4 | 4 | 0 | 0 |
-| **Total** | **116** | **116** | **72** | **23** |
+| **Total** | **116** | **116** | **74** | **25** |
 
 ## Attachments
 
@@ -215,13 +215,13 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_results/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResults`](../src/modules/results.ts#L12) | — | — |
-| [`GET get_results_for_case/{run_id}/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultsForCase`](../src/modules/results.ts#L35) | — | — |
-| [`GET get_results_for_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultsForRun`](../src/modules/results.ts#L59) | `result list` | [recipe #8](../skill/SKILL.md#8-page-through-a-large-result-list) |
-| [`POST add_result/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResult`](../src/modules/results.ts#L82) | — | — |
-| [`POST add_result_for_case/{run_id}/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResultForCase`](../src/modules/results.ts#L88) | `result add` | [recipe #14](../skill/SKILL.md#14-validate-a-payload-before-sending---dry-run) |
-| [`POST add_results/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResults`](../src/modules/results.ts#L111) | `result add-bulk-by-test` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_results_for_cases/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResultsForCases`](../src/modules/results.ts#L100) | `result add-bulk` | [recipe #12](../skill/SKILL.md#12-publish-bulk-results-from-a-ci-run) |
+| [`GET get_results/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResults`](../src/modules/results.ts#L12) | `result list-for-test` | [recipe #24](../skill/SKILL.md#24-results-pipeline--choosing-per-test-vs-per-case-vs-bulk-endpoints) |
+| [`GET get_results_for_case/{run_id}/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultsForCase`](../src/modules/results.ts#L36) | `result list-for-case` | [recipe #24](../skill/SKILL.md#24-results-pipeline--choosing-per-test-vs-per-case-vs-bulk-endpoints) |
+| [`GET get_results_for_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultsForRun`](../src/modules/results.ts#L61) | `result list` | [recipe #8](../skill/SKILL.md#8-page-through-a-large-result-list) |
+| [`POST add_result/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResult`](../src/modules/results.ts#L84) | — | — |
+| [`POST add_result_for_case/{run_id}/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResultForCase`](../src/modules/results.ts#L90) | `result add` | [recipe #14](../skill/SKILL.md#14-validate-a-payload-before-sending---dry-run) |
+| [`POST add_results/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResults`](../src/modules/results.ts#L113) | `result add-bulk-by-test` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_results_for_cases/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResultsForCases`](../src/modules/results.ts#L102) | `result add-bulk` | [recipe #12](../skill/SKILL.md#12-publish-bulk-results-from-a-ci-run) |
 
 ## Roles
 

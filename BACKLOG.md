@@ -29,26 +29,14 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 #### 🔴 P0 — daily-use endpoints
 
-<<<<<<< HEAD
-- [ ] 🔴 📦 CLI: `test get` (GET `get_test/{test_id}`)
-- [ ] 🔴 📦 CLI: `test list` (GET `get_tests/{run_id}`)
-=======
-- [ ] 🔴 📦 CLI: `section get` (GET `get_section/{section_id}`)
-- [ ] 🔴 📦 CLI: `section list` (GET `get_sections/{project_id}`)
-- [ ] 🔴 📦 CLI: `run update` (POST `update_run/{run_id}`)
->>>>>>> 25485c0 (feat: add CLI test get/list commands)
-- [ ] 🔴 📦 CLI: `result list-for-test` (GET `get_results/{test_id}`)
-- [ ] 🔴 📦 CLI: `result list-for-case` (GET `get_results_for_case/{run_id}/{case_id}`)
 <!-- `get_results_for_run/{run_id}` is already covered by the existing `result list` CLI command.
-     `add_result_for_case/{run_id}/{case_id}` is already covered by the existing `result add` CLI command.
-     See docs/API-MAPPING.md (Results section) for the binding. -->
+     `add_result_for_case/{run_id}/{case_id}` is already covered by the existing `result add` CLI command. -->
 
 - [ ] 🔴 📦 ⚠️ CLI: `plan close` (POST `close_plan/{plan_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan delete` (POST `delete_plan/{plan_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan delete-entry` (POST `delete_plan_entry/{plan_id}/{entry_id}`)
 - [ ] 🔴 📦 ⚠️ CLI: `plan delete-run-from-entry` (POST `delete_run_from_plan_entry/{run_id}`)
 - [ ] 🔴 📦 SKILL recipe: Plan entries lifecycle (add → add-run → update → delete cascade)
-- [ ] 🔴 📦 SKILL recipe: Results pipeline — choosing per-test vs per-case vs bulk endpoints
 
 #### 🟡 P1 — common metadata & admin
 

@@ -14,7 +14,7 @@ import {
 import { handleRunGet, handleRunList } from './handlers/run.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from './handlers/run-write.js';
 import { handleTestGet, handleTestList } from './handlers/test.js';
-import { handleResultList } from './handlers/result.js';
+import { handleResultList, handleResultListForCase, handleResultListForTest } from './handlers/result.js';
 import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList } from './handlers/user.js';
@@ -99,6 +99,8 @@ const HANDLERS: Record<string, Handler> = {
     'test:get': handleTestGet,
     'test:list': handleTestList,
     'result:list': handleResultList,
+    'result:list-for-test': handleResultListForTest,
+    'result:list-for-case': handleResultListForCase,
     'result:add': handleResultAdd,
     'result:add-bulk': handleResultAddBulk,
     'result:add-bulk-by-test': handleResultAddBulkByTest,

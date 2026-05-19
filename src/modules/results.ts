@@ -17,6 +17,7 @@ export class ResultModule {
             created_before: options?.created_before,
             created_by: serializeIdList(options?.created_by),
             status_id: serializeIdList(options?.status_id),
+            defects_filter: options?.defects_filter,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -41,6 +42,7 @@ export class ResultModule {
             created_before: options?.created_before,
             created_by: serializeIdList(options?.created_by),
             status_id: serializeIdList(options?.status_id),
+            defects_filter: options?.defects_filter,
             limit: options?.limit,
             offset: options?.offset,
         });
