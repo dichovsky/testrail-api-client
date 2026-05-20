@@ -94,15 +94,15 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | --- | --- | --- | --- |
 | [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L36) | `case get` | [command-table](../skill/SKILL.md#command-surface) |
 | [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L42) | `case list` | [recipe #5](../skill/SKILL.md#5-list-cases-in-a-specific-suite) |
-| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L268) | `case history` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L270) | `case history` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L91) | `case add` | [recipe #9](../skill/SKILL.md#9-author-a-new-test-case) |
 | [`POST add_cases/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCases`](../src/modules/cases.ts#L110) | `case add-bulk` | [recipe #30](../skill/SKILL.md#30-bulk-author-cases-under-a-section-in-one-api-call) |
-| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L245) | `case copy-to-section` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L158) | `case delete` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L203) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
-| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L262) | `case move-to-section` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L144) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
-| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L190) | `case update-bulk` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L247) | `case copy-to-section` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L160) | `case delete` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L205) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
+| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L264) | `case move-to-section` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L146) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
+| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L192) | `case update-bulk` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Configurations
 
