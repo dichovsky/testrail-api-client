@@ -9,6 +9,29 @@ A comprehensive, type-safe TypeScript/JavaScript client for the [TestRail API](h
 
 **Covers the complete TestRail REST API** — all 101 methods across every resource: projects, suites, sections, cases, plans, runs, tests, results, milestones, users, attachments, configurations, datasets, groups, shared steps, variables, reports, and more.
 
+## What's new in 4.0.0
+
+First npm publish since `2.1.0`. Major-version bump driven by the `testrail`
+CLI hardening cluster and one library-API breaker. Highlights:
+
+- **CLI safety** — destructive actions now require `TESTRAIL_ALLOW_DESTRUCTIVE=1`
+  in addition to `--yes`; `--api-key` removed in favor of `--api-key-stdin`
+  to keep secrets out of process tables; unknown flags rejected;
+  `run close` gated by `--yes`; stdin body reads capped at 1 MiB.
+- **Library API** — process signal handlers are now opt-in via
+  `registerProcessHandlers: true` (default `false`). The client no longer
+  hijacks the host's `SIGINT`/`SIGTERM` chain. The bundled CLI opts in on
+  your behalf — no action needed for `testrail` users.
+- **New CLI surface** — `--format yaml|csv`, binary stdio (`--file -` /
+  `--out -`), `case add-bulk`, `run watch`, attachment pagination,
+  `uninstall-skill`, Cursor/Continue/AGENTS.md rule generators.
+- **Streaming uploads** — `requestMultipart` now streams from disk via
+  `node:fs.openAsBlob` (heap +175 MiB → +0.02 MiB on a 100 MiB attachment).
+
+See [CHANGELOG.md](CHANGELOG.md) for the full release notes and migration
+guidance. Per-version chronology for the unpublished 3.x line is preserved
+under [3.0.0]–[3.5.0] for breaker-by-breaker auditability.
+
 ## Features
 
 🚀 **Performance & Reliability**

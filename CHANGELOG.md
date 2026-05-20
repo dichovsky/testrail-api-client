@@ -7,6 +7,36 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+_No changes yet — next release in flight._
+
+## [4.0.0] — 2026-05-20 — CLI hardening release
+
+First npm publish since `2.1.0` (2026-05-13). Closes the CLI/library safety
+cluster opened across the unpublished 3.x line and ships every additive
+feature accumulated since the last release in a single major bump.
+
+**Why a major version jump from 2.1.0?** Seven `!`-tagged commits land
+breaking changes across the `testrail` CLI binary — which is part of the
+package surface and thus governed by SemVer. The library API also gains
+one breaker: process signal handlers are now opt-in
+(`registerProcessHandlers: true`, default `false`) so the client no longer
+hijacks the host process's shutdown chain (SEC #8). Two distinct waves of
+breakage justify the gap from `2.1.0`:
+
+- **Wave 1 (would have been 3.x):** CLI security cluster — `--api-key`
+  removed in favor of `--api-key-stdin`, unknown-flag rejection, `--yes`
+  gate on `run close` and single-entity destructive deletes, stdin body
+  cap at 1 MiB, terminal-control-char stripping, SSRF/3xx-redirect block,
+  retry policy tightened on writes, response-body byte + wall-clock caps.
+- **Wave 2 (this 4.0):** destructive-ops env-var gate
+  (`TESTRAIL_ALLOW_DESTRUCTIVE=1`) — every destructive CLI action now
+  requires the env var **in addition to** `--yes`. New exit code `2` to
+  let CI branch on "missing env var" vs other failures.
+
+Nothing 3.x was ever published to npm; consumers leap `2.1.0` → `4.0.0` in
+one hop. Per-version chronology preserved in [3.0.0]–[3.5.0] entries below
+so the breaker timeline is auditable.
+
 ### Added
 
 - **CLI binary stdio (`-` sentinel) for attachments and BDD.** `--file -`
@@ -187,7 +217,7 @@ not introduce a parallel hazard but does not fix the existing one.
 - The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).
 - Upload invariants are preserved: no retry on 5xx/429/network errors, `AbortSignal` honored throughout the body upload, DNS-pin/SSRF guard still applied before fetch, 3xx still rejected by `assertNotRedirect`.
 
-## [4.0.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
+### Changed (BREAKING) — Destructive-ops env-var gate
 
 Closes [BACKLOG CLI: destructive env-var gate](BACKLOG-ARCHIVE.md). Adds a
 **second gate** for destructive CLI actions (`*:delete`, `run close`,
@@ -196,8 +226,6 @@ must be set **in addition to** the existing `--yes` flag. The check runs in
 the dispatcher (`src/cli/dispatch.ts`) before the handler is invoked — so
 even a future destructive handler added without an `if (!confirmDestructive)`
 check cannot escape the env-var gate (defense-in-depth).
-
-### Changed
 
 - **BREAKING — Destructive CLI actions now require `TESTRAIL_ALLOW_DESTRUCTIVE=1`
   in addition to `--yes`.** Existing CI users must set this environment
@@ -211,7 +239,13 @@ check cannot escape the env-var gate (defense-in-depth).
   definition; no API call leaves the process). Use `--dry-run` for safe CI
   preview without setting up the gates.
 
-### Migration
+### Migration (env-var gate)
+
+> Migration guidance for the **other** Wave-1 breakers (`--api-key`
+> removal, `--yes` on `run close`, unknown-flag rejection, stdin body cap,
+> `registerProcessHandlers` opt-in) lives in the [3.0.0]–[3.5.0] entries
+> below — each unpublished 3.x section retains its own migration notes
+> intact for auditability.
 
 **For CI users running destructive `testrail` commands:**
 
@@ -263,7 +297,7 @@ The strict `'1'` comparison (no `'true'` / `'yes'` aliasing) keeps the
 audit trail unambiguous: in CI logs you can tell `unset` from `set-to-wrong-value`
 from `set-to-allow` at a glance.
 
-### Unchanged
+### Unchanged (env-var gate)
 
 - Per-handler `--yes` semantics and exit-1 behavior on missing `--yes`.
 - `--dry-run` wins-over-`--yes` precedence (preview without API call).
