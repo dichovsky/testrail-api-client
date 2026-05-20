@@ -3,7 +3,8 @@
  *
  * resolveFile mirrors resolveBody's resolution-tuple shape; tests assert the
  * shape contract end-to-end (missing flag → typed error, missing file → typed
- * error, stat-only mode skips contents, read mode populates Uint8Array,
+ * error, both `read` modes stat-only — the bytes are no longer read into the
+ * CLI heap because the multipart pipeline streams them from disk — and
  * --filename override wins over basename).
  *
  * PR3a additions: `--file -` stdin sentinel. The resolver becomes async so
@@ -55,7 +56,7 @@ describe('resolveFile', () => {
         if (!r.ok) expect(r.error).toContain('not a regular file');
     });
 
-    it('stat-only mode returns path/filename/size without contents', async () => {
+    it('stat-only mode returns path/filename/size without contents (source=file)', async () => {
         const p = join(tmp, 'foo.png');
         writeFileSync(p, Buffer.from([1, 2, 3, 4, 5]));
         const r = await resolveFile({ fileFlag: p }, { read: false });
@@ -69,19 +70,22 @@ describe('resolveFile', () => {
         }
     });
 
-    it('read mode populates Uint8Array contents matching disk', async () => {
+    it('read mode also returns stat-only (file streamed lazily by HTTP pipeline)', async () => {
+        // For filesystem paths, both `read: true` and `read: false` stat-only.
+        // The `read` flag is retained for API compatibility but no longer loads
+        // bytes into memory — uploads stream from disk via `node:fs.openAsBlob`
+        // inside `requestMultipart`. `source` is still set to 'file'.
         const p = join(tmp, 'bar.bin');
         const bytes = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
         writeFileSync(p, bytes);
         const r = await resolveFile({ fileFlag: p }, { read: true });
         expect(r.ok).toBe(true);
-        if (r.ok && r.contents !== undefined) {
-            expect(r.contents).toBeInstanceOf(Uint8Array);
-            expect(Array.from(r.contents)).toEqual([0xde, 0xad, 0xbe, 0xef]);
+        if (r.ok) {
+            expect(r.path).toBe(p);
             expect(r.size).toBe(4);
             expect(r.source).toBe('file');
         } else {
-            expect.fail('expected ok=true with contents populated');
+            expect.fail('expected ok=true');
         }
     });
 

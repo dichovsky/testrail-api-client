@@ -57,7 +57,11 @@ npm install @dichovsky/testrail-api-client
 
 ## Using with AI Coding Agents
 
-This package ships a Claude Code skill at `skill/SKILL.md` that teaches coding agents how to use the bundled `testrail` CLI. Install it into your project (or globally) so Claude Code auto-loads it whenever you ask the agent to query or write TestRail entities.
+This package ships first-class instructions for several agent harnesses. All artifacts are generated from the same source (`src/cli/metadata.ts` + `scripts/rules-content.mjs`) so they stay in sync; CI drift gates fail the build if any committed copy diverges from generator output.
+
+### Claude Code (skill)
+
+`skill/SKILL.md` is a Claude Code skill. Install it into your project (or globally) so Claude Code auto-loads it whenever you ask the agent to query or write TestRail entities:
 
 ```bash
 # Install into the current project: ./.claude/skills/testrail-cli/SKILL.md
@@ -71,9 +75,117 @@ npx testrail install-skill --force
 
 # Just print the bundled SKILL.md path (for scripting / vendoring)
 npx testrail install-skill --print-path
+
+# Symmetric reverse — remove a previously-installed skill
+npx testrail uninstall-skill            # project-scoped
+npx testrail uninstall-skill --global   # global-scoped
 ```
 
-The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface and recipes.
+`uninstall-skill` removes ONLY the skill file (and its empty parent directory). It deliberately does NOT touch `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md` — those artifacts have an independent lifecycle (they are generated from `src/cli/metadata.ts` and live alongside other agent-tool configuration). Remove them manually if you want to fully decouple.
+
+The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface, recipes, and a parallel "Programmatic TypeScript API" section with copy-paste examples for using `TestRailClient` directly.
+
+### Cursor
+
+`.cursor/rules/testrail.mdc` is a [Cursor rule](https://docs.cursor.com/context/rules-for-ai) generated from the same source. It is committed at the repo root so contributors who clone the repo get the rule automatically. To install it into your own project:
+
+```bash
+mkdir -p .cursor/rules
+curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/.cursor/rules/testrail.mdc \
+    > .cursor/rules/testrail.mdc
+```
+
+### Continue (continue.dev)
+
+`.continue/rules/testrail.md` is a [Continue workspace rule](https://docs.continue.dev/customization/rules). Installation mirrors Cursor:
+
+```bash
+mkdir -p .continue/rules
+curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/.continue/rules/testrail.md \
+    > .continue/rules/testrail.md
+```
+
+### Generic AGENTS.md
+
+`AGENTS.md` at the repo root follows the vendor-neutral [agents.md](https://agents.md/) convention — a single markdown file any AI coding agent or harness can read for project conventions, build commands, and "what to know" pointers. No installation required; agents that honour the spec pick it up automatically when working in this repository.
+
+### CLI output formats
+
+Every read / list / write action accepts `--format <json|table|yaml|csv>` (default: `json`). Pick the format that matches your downstream pipeline:
+
+| Format  | Best for                                                                                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `json`  | Default. Pretty-printed JSON, safe to pipe into `jq` and any JSON-aware tool.                                                                                         |
+| `table` | Human-readable ASCII table with sanitized cell values (control chars stripped, CTF #18). Good for terminal inspection.                                                |
+| `yaml`  | Zero-dependency YAML 1.2 emitter. 2-space indent, double-quoted strings where ambiguity demands it. Good for piping into `yq`, embedding in Helm/Ansible/K8s configs. |
+| `csv`   | RFC 4180. CRLF row terminators, deterministic header order (sorted union of top-level keys). Nested objects/arrays are JSON-stringified into a single cell.           |
+
+```bash
+# Pipe a project list into yq for further filtering
+testrail project list --format yaml | yq '.[] | select(.suite_mode == 1)'
+
+# Export a run's results as a spreadsheet
+testrail result list --run-id 42 --format csv > results.csv
+
+# Inspect a single case as a table
+testrail case get 1234 --format table
+```
+
+`--format csv` keeps nested values as JSON in-cell (no dot-path flattening) so the CSV column count is stable regardless of payload shape. Header order in CSV mode is the sorted union of top-level keys across all rows, so two CSV exports of the same endpoint always produce the same header.
+
+### Destructive operations
+
+Every destructive CLI action (any `delete` plus `run close` / `plan close`) is protected by a **two-gate model**. Both gates must be satisfied before a destructive call reaches the API:
+
+1. **`--yes` flag** — per-invocation explicit confirmation. Required on every destructive command.
+2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable** — process-wide unlock. Set this in your shell / CI step before invoking destructive commands.
+
+Either gate alone is insufficient. The env var must be **exactly** the string `'1'` — `'true'`, `'yes'`, `'on'`, `'1 '` (whitespace), or any other value is rejected. The strict comparison keeps `set | unset | wrong-value` unambiguous in `printenv` output and CI definitions.
+
+```bash
+# Blocked: --yes set, but env var missing → exit code 2
+testrail run delete 5 --yes
+
+# Blocked: env var set, but --yes missing → exit code 1
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5
+
+# Proceeds: both gates satisfied
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
+
+# Recommended CI pattern: export once at the top of the destructive step,
+# then run any number of destructive commands within that step.
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail run delete 5 --yes
+testrail case delete 10 --yes
+```
+
+**Exit codes:**
+
+- `0` — success (or successful `--dry-run` preview).
+- `1` — generic failure (invalid argv, missing auth, 4xx/5xx, validation error, missing `--yes`).
+- `2` — destructive action blocked by the env-var gate. Distinct from `1` so CI can branch on "needs `TESTRAIL_ALLOW_DESTRUCTIVE`" vs everything else.
+
+**`--dry-run` semantics:**
+
+`--dry-run` is **client-side**: no HTTP request leaves the process. It bypasses **both** gates (the env var AND the `--yes` flag) because preview is non-destructive by definition. This lets CI agents safely preview a destructive command without setting up the gates:
+
+```bash
+# Safe in any environment — no gates required, no API call made
+testrail run delete 5 --dry-run
+```
+
+**`--soft` semantics (case / run / section / suite delete only):**
+
+`--soft` is **server-side**: TestRail returns affected-entity counts without performing the deletion. The HTTP request is still made (and still gated by both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`). Distinct from `--dry-run` which makes no API call at all.
+
+```bash
+# Server-side preview — hits the API, returns counts, deletes nothing
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail case delete 10 --soft --yes
+```
+
+**Why two gates?** The env var is a process-wide audit-friendly switch (visible in `printenv`, CI step logs, dump output). The `--yes` flag is per-invocation explicit intent. Together they make accidental destructive operations meaningfully harder — a script run with a stale env still needs `--yes`, and a typo with `--yes` still needs the env var. The dispatch-level check runs in `src/cli/dispatch.ts` before the handler is invoked, so it cannot be bypassed by a regression in any single handler.
+
+**Migration note (v3.6+):** Before v3.6, only `--yes` was required. Existing CI users must add `export TESTRAIL_ALLOW_DESTRUCTIVE=1` (or set the variable in their CI step definition) before any destructive command. See [CHANGELOG.md](CHANGELOG.md) for the full migration guide.
 
 ## Quick Start
 
@@ -290,9 +402,22 @@ await client.addResultsForCases(run.id, {
 ```typescript
 import { readFileSync } from 'node:fs';
 
-const attachment = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+// Streaming-from-disk (recommended for large files — heap stays flat):
+const attachment = await client.addAttachmentToResult(resultId, { path: './screenshot.png' }, 'screenshot.png');
+
+// In-memory (Blob / Uint8Array / File) still supported:
+const inMemory = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+
 const blob = await client.getAttachment(attachment.attachment_id);
 ```
+
+Uploads accept either an in-memory variant (`Blob`, `Uint8Array`, or `File`) or
+a `{ path: string; type?: string }` descriptor. When a descriptor is supplied
+the bytes are read from disk on demand via Node's `fs.openAsBlob`, so a
+100 MB attachment grows heap by ~0 MB instead of fully buffering the file.
+The CLI (`testrail attachment add-to-* --file`) uses this path by default;
+programmatic callers that already hold the bytes in memory may continue to
+pass them directly.
 
 #### CLI binary stdio (`-` sentinel)
 
@@ -320,7 +445,7 @@ cat features/login.feature | testrail bdd add 42 --file - --filename login.featu
 testrail bdd get 42 --out - > local-copy.feature
 ```
 
-Safeguards (PR3a):
+Safeguards:
 
 - **`--file -`** caps the read at 100 MiB and aborts if the producer holds
   the pipe open for more than 30 s (slowloris defense). Rejected when stdin

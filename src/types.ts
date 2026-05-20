@@ -82,6 +82,13 @@ export interface TestRailConfig {
     registerProcessHandlers?: boolean;
 }
 
+export interface UploadFilePathInput {
+    path: string;
+    type?: string;
+}
+
+export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput;
+
 export interface Case {
     id: number;
     title: string;

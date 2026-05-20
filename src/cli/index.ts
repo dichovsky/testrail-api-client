@@ -4,10 +4,11 @@ import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
-import { createOutput } from './output.js';
-import { dispatch } from './dispatch.js';
+import { createOutput, type OutputFormat } from './output.js';
+import { dispatch, checkDestructiveEnvGate } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
+import { runUninstallSkill } from './uninstall-skill.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
@@ -156,12 +157,26 @@ Meta:
                                     Install the testrail-cli skill to
                                     ./.claude/skills/testrail-cli (default)
                                     or ~/.claude/skills/testrail-cli (--global)
+  uninstall-skill [--global]        Remove a previously-installed testrail-cli
+                                    skill. ONLY removes the skill file (and
+                                    its empty parent dir); does NOT touch
+                                    .cursor/rules/testrail.mdc,
+                                    .continue/rules/testrail.md, or AGENTS.md
+                                    (separate lifecycle — remove manually).
 
 Auth (env var preferred — argv is visible to other processes):
   TESTRAIL_BASE_URL / --base-url <url>
   TESTRAIL_EMAIL    / --email <email>
   TESTRAIL_API_KEY  (recommended) | echo "$KEY" | testrail ... --api-key-stdin
                     NOTE: --api-key (argv) was removed in v3.0 — see CHANGELOG.
+  TESTRAIL_ALLOW_DESTRUCTIVE=1
+                    REQUIRED (in addition to --yes) to execute destructive
+                    actions (see the destructive list under --yes below).
+                    Accepts EXACTLY the string '1' — not 'true' / 'yes' /
+                    'on'. Failure exits with code 2 (distinct from the
+                    generic exit code 1) so CI can branch on "blocked by
+                    env gate" vs "invalid argv / auth / 4xx". --dry-run
+                    bypasses this gate (preview hits no API).
 
 Options:
   --api-key-stdin       Read API key from stdin (single line; mutually
@@ -170,7 +185,13 @@ Options:
   --data <json>         Inline JSON body for write actions
   --data-file <path>    Read JSON body from file
   --dry-run             Validate payload but don't call the API
-  --format json|table   Output format (default: json)
+  --format json|table|yaml|csv
+                        Output format (default: json). yaml emits a YAML 1.2
+                        document with 2-space indent and double-quoted strings
+                        where ambiguity demands it; csv emits RFC 4180 with
+                        CRLF line terminators, sorted union of top-level keys
+                        as headers, and nested objects/arrays JSON-stringified
+                        into the cell (no dot-path flattening).
   --quiet               Suppress output; use exit code 0/1
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
@@ -212,11 +233,16 @@ run delete, section delete, suite delete, milestone delete, project delete,
 plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
 variable delete, group delete, dataset delete, shared-step delete,
 configuration delete, configuration-group delete)
-require --yes; pass --dry-run together with --yes to preview without making the
-API call (dry-run wins). 'run close' and 'plan close' are irreversible —
-TestRail offers no reopen for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
+alone is insufficient — this two-gate model is intentional (env var is
+process-wide audit-friendly; --yes is per-invocation explicit). Pass
+--dry-run to preview without making the API call; --yes is optional in
+dry-run mode (dry-run wins; the env var is NOT required for preview).
+'run close' and 'plan close' are irreversible — TestRail offers no reopen
+for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
 pass --soft for a server-side preview that returns affected-entity counts
-without deleting; this still hits the API and remains gated by --yes.
+without deleting; this still hits the API and remains gated by --yes
+AND TESTRAIL_ALLOW_DESTRUCTIVE=1.
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -260,8 +286,26 @@ async function main(): Promise<number> {
     // process.stderr.write calls.
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];
-    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
+    // Resolve --format to a known OutputFormat. parseArgs declares the flag
+    // as a string with default 'json' so an unknown value (e.g. `--format
+    // xml`) reaches this gate as a free-form string and must be rejected
+    // explicitly — otherwise the renderer would silently fall through to
+    // the JSON path, masking the user's typo.
+    const VALID_FORMATS: ReadonlySet<OutputFormat> = new Set(['json', 'table', 'yaml', 'csv']);
+    const format: OutputFormat =
+        typeof formatRaw === 'string' && VALID_FORMATS.has(formatRaw as OutputFormat)
+            ? (formatRaw as OutputFormat)
+            : 'json';
     const { out, err, errRaw } = createOutput({ quiet, format });
+
+    // Reject unknown --format values with a clear, quiet-aware error. The
+    // assignment above defaults invalid values to 'json' so createOutput
+    // always gets a valid format (defense-in-depth); the error path below
+    // surfaces the typo before any handler runs.
+    if (typeof formatRaw === 'string' && !VALID_FORMATS.has(formatRaw as OutputFormat)) {
+        err(`unknown --format '${formatRaw}'. Valid values: json, table, yaml, csv.`);
+        return 1;
+    }
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
@@ -301,6 +345,17 @@ async function main(): Promise<number> {
         );
     }
 
+    // `uninstall-skill` is the symmetric reverse of `install-skill`. Same
+    // meta-command rationale: no API call, no resource:action dispatch.
+    // Only removes the skill file (and its empty parent dir); does NOT
+    // touch .cursor / .continue / AGENTS.md (separate lifecycle).
+    if (positionals[0] === 'uninstall-skill') {
+        return runUninstallSkill({
+            global: values['global'] === true,
+            quiet,
+        });
+    }
+
     const [resource, action, ...rest] = positionals;
     const pathParams: readonly string[] = rest;
 
@@ -316,6 +371,21 @@ async function main(): Promise<number> {
     if (!dispatched.ok) {
         err(dispatched.error);
         return 1;
+    }
+
+    // Defense-in-depth env-var gate for destructive actions. Runs before
+    // auth resolution and before the handler is invoked so an unset env var
+    // surfaces as a deterministic argv-shape failure (exit code 2) rather
+    // than burning an API call or leaking timing about credential validity.
+    // `--dry-run` bypasses this gate because preview is non-destructive by
+    // definition (no API call leaves the process). The gate runs IN ADDITION
+    // TO the per-handler `--yes` check — both must be satisfied. See SEC
+    // notes in CHANGELOG.md for the breaking-change rationale.
+    const dryRun = values['dry-run'] === true;
+    const envGate = checkDestructiveEnvGate(getActionSpec(resource, action), process.env, dryRun);
+    if (!envGate.ok) {
+        err(envGate.error);
+        return 2;
     }
 
     // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
@@ -459,7 +529,6 @@ async function main(): Promise<number> {
             !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
 
-    const dryRun = values['dry-run'] === true;
     const force = values['force'] === true;
     const confirmDestructive = values['yes'] === true;
 

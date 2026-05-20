@@ -173,7 +173,7 @@ describe('handleBddAdd', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath });
         await handleBddAdd(ctx);
-        expect(client.addBdd).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'login.feature');
+        expect(client.addBdd).toHaveBeenCalledWith(42, { path: filePath }, 'login.feature');
         expect(out).toHaveBeenCalledWith({ id: 42, title: 'BDD case' });
     });
 
@@ -185,7 +185,7 @@ describe('handleBddAdd', () => {
             filename: 'renamed.feature',
         });
         await handleBddAdd(ctx);
-        expect(client.addBdd).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'renamed.feature');
+        expect(client.addBdd).toHaveBeenCalledWith(42, { path: filePath }, 'renamed.feature');
     });
 
     it('rejects missing --file', async () => {

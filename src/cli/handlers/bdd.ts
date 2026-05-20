@@ -63,10 +63,10 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
 /**
  * Upload a `.feature` file to a case as its BDD content. Mirrors the
  * `attachment add-to-case` flow exactly: stat the `--file`, emit dry-run
- * preview if requested, otherwise read bytes and POST multipart.
- *
- * Supports `--file -` (stdin) under the same byte cap and wall-clock
- * deadline as attachment uploads (`MAX_STDIN_UPLOAD_BYTES`,
+ * preview if requested, otherwise hand the path to the streaming multipart
+ * pipeline (bytes are read from disk via `node:fs.openAsBlob` — never loaded
+ * into the CLI's heap). Supports `--file -` (stdin) under the same byte cap
+ * and wall-clock deadline as attachment uploads (`MAX_STDIN_UPLOAD_BYTES`,
  * `STDIN_READ_TIMEOUT_MS`). Async because `resolveFile` may drain stdin.
  */
 export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
@@ -93,9 +93,5 @@ export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
         return;
     }
 
-    if (resolved.contents === undefined) {
-        // resolveFile with read:true guarantees `contents`; defensive only.
-        throw new Error('file contents missing after read');
-    }
-    ctx.out(await ctx.client.addBdd(caseId, resolved.contents, resolved.filename));
+    ctx.out(await ctx.client.addBdd(caseId, { path: resolved.path }, resolved.filename));
 }

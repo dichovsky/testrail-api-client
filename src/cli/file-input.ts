@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { basename } from 'node:path';
 import { MAX_STDIN_UPLOAD_BYTES, STDIN_READ_TIMEOUT_MS } from '../constants.js';
 
@@ -30,11 +30,12 @@ export interface FileInput {
 }
 
 /**
- * Resolution outcome. `contents` is populated only when `opts.read` is true
- * (execute path); the dry-run path stops after stat to keep dry-run cheap
- * for large files (TestRail accepts up to 256 MB). For the stdin source,
- * dry-run does NOT drain stdin (the consumer cannot rewind a pipe) — the
- * preview reports size `0` and `source: 'stdin'`.
+ * Resolution outcome. For filesystem paths, only the validated `path`,
+ * `filename`, and `size` are returned — the actual bytes are streamed from
+ * disk inside `requestMultipart` via `node:fs.openAsBlob`. For stdin
+ * (`source: 'stdin'`), the bytes are eagerly read into `contents` because a
+ * pipe cannot be rewound. Dry-run for stdin reports `size: 0` and no
+ * `contents` (preview-without-drain).
  */
 export type FileResolution =
     | {
@@ -50,7 +51,13 @@ export type FileResolution =
     | { ok: false; error: string };
 
 export interface ResolveFileOptions {
-    /** True for execute path (reads bytes into Uint8Array); false for dry-run (stat only). */
+    /**
+     * Retained for API compatibility but no longer meaningful for filesystem
+     * paths — the execute path performs a `statSync` only, and bytes are
+     * streamed from disk inside the HTTP pipeline. For stdin, `read: true`
+     * drains stdin into memory (required for upload); `read: false` skips
+     * the drain so dry-run is side-effect-free.
+     */
     read: boolean;
 }
 
@@ -58,8 +65,9 @@ export interface ResolveFileOptions {
  * Resolve a `--file <path>` upload input. Async because the stdin source
  * (`--file -`) must drain `process.stdin` to read the upload payload.
  *
- * - Filesystem path: stats first; reads bytes only when `opts.read` is true.
- *   Filename derives from `basename(path)` unless `filenameFlag` is provided.
+ * - Filesystem path: stats first; never reads bytes into memory (streaming
+ *   upload pipeline). Filename derives from `basename(path)` unless
+ *   `filenameFlag` is provided.
  * - Stdin (`-`): rejects when `process.stdin.isTTY` is true (no piped input);
  *   reads under a byte cap (`MAX_STDIN_UPLOAD_BYTES`) and a wall-clock
  *   deadline (`STDIN_READ_TIMEOUT_MS`) to defend against memory exhaustion
@@ -67,9 +75,9 @@ export interface ResolveFileOptions {
  *   `stdin`; callers should pass `--filename` for a meaningful value.
  *
  * Rejects with structured `{ ok: false }` for: missing flag, missing file,
- * non-regular file (directory, fifo, socket, broken symlink), unreadable
- * file contents when reading is requested, TTY-attached stdin, stdin
- * exceeding the byte cap, and stdin not closing within the deadline.
+ * non-regular file (directory, fifo, socket, broken symlink), TTY-attached
+ * stdin, stdin exceeding the byte cap, and stdin not closing within the
+ * deadline.
  */
 export async function resolveFile(input: FileInput, opts: ResolveFileOptions): Promise<FileResolution> {
     if (input.fileFlag === undefined || input.fileFlag === '') {
@@ -99,22 +107,7 @@ export async function resolveFile(input: FileInput, opts: ResolveFileOptions): P
     const filename =
         input.filenameFlag !== undefined && input.filenameFlag !== '' ? input.filenameFlag : basename(path);
 
-    if (!opts.read) {
-        return { ok: true, path, filename, size, source: 'file' };
-    }
-
-    let contents: Uint8Array;
-    try {
-        const buf = readFileSync(path);
-        contents = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-    } catch (e) {
-        return {
-            ok: false,
-            error: `Cannot read --file '${path}': ${e instanceof Error ? e.message : String(e)}`,
-        };
-    }
-
-    return { ok: true, path, filename, size, contents, source: 'file' };
+    return { ok: true, path, filename, size, source: 'file' };
 }
 
 /**

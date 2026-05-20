@@ -1,8 +1,11 @@
+import { YAML_INDENT_SPACES } from '../constants.js';
 import { sanitizeForTerminal } from './sanitize.js';
+
+export type OutputFormat = 'json' | 'table' | 'yaml' | 'csv';
 
 export interface OutputOptions {
     quiet: boolean;
-    format: 'json' | 'table';
+    format: OutputFormat;
 }
 
 export interface Output {
@@ -106,13 +109,394 @@ export function safeJsonStringify(data: unknown): string {
     }
 }
 
+// ── YAML renderer ────────────────────────────────────────────────────────────
+//
+// Zero-dependency YAML 1.2-compatible emitter for the CLI `--format yaml`
+// path. The CLI ships with zero runtime deps by policy (see CLAUDE.md "DO
+// NOT"), so a hand-rolled emitter is preferable to depending on `js-yaml` or
+// `yaml`. Scope is intentionally narrow: emit a fresh tree of plain JSON-like
+// values (objects, arrays, strings, numbers, booleans, null) — no anchors,
+// aliases, tags, or custom types.
+//
+// Strings are emitted in **double-quoted form whenever any character would
+// make the bare form ambiguous** to a YAML 1.2 parser. The double-quoted form
+// is the only safe path because it supports the full standard escape table.
+// This deliberately quotes more than strictly necessary (e.g. all strings
+// containing `:` get quoted, even where context would allow a bare form) so
+// that the emitted document round-trips through any conforming YAML parser
+// without surprises.
+
+const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([
+    // YAML 1.2 plain-scalar reserved tokens that would otherwise be parsed as
+    // booleans, null, or special numerics. Quoting these prevents collision.
+    '',
+    '~',
+    'null',
+    'Null',
+    'NULL',
+    'true',
+    'True',
+    'TRUE',
+    'false',
+    'False',
+    'FALSE',
+    'yes',
+    'Yes',
+    'YES',
+    'no',
+    'No',
+    'NO',
+    'on',
+    'On',
+    'ON',
+    'off',
+    'Off',
+    'OFF',
+    '.nan',
+    '.NaN',
+    '.NAN',
+    '.inf',
+    '.Inf',
+    '.INF',
+    '-.inf',
+    '-.Inf',
+    '-.INF',
+]);
+
+function needsQuoting(s: string): boolean {
+    if (SPECIAL_BARE_STRINGS.has(s)) return true;
+    // Leading or trailing whitespace would be lost in plain form.
+    if (s !== s.trim()) return true;
+    // A purely numeric / scientific / hex / octal literal would parse as a
+    // number; force quoting so it stays a string.
+    if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(s)) return true;
+    if (/^0x[0-9a-fA-F]+$/.test(s)) return true;
+    if (/^0o[0-7]+$/.test(s)) return true;
+    // Reserved leading indicators per YAML 1.2 §5.3. A leading `-` followed
+    // by space or end-of-string would start a block sequence; `?`/`:` start
+    // a mapping key/value; `#` starts a comment. Quote any leading occurrence
+    // for safety. Also block-style indicators (`|`, `>`, `*`, `&`, `!`,
+    // `@`, backtick, `,`, `[`, `]`, `{`, `}`, `%`) at the start.
+    if (/^[-?:#|>*&!@`,[\]{}%]/.test(s)) return true;
+    // Any inline `:` followed by space, or trailing `:`, would terminate a
+    // mapping key. Any ` #` would start an inline comment. Both unsafe in
+    // plain form.
+    if (/:\s/.test(s) || /:$/.test(s) || /\s#/.test(s)) return true;
+    // Control chars / non-printables — must be quoted (and escaped).
+    // eslint-disable-next-line no-control-regex
+    if (/[\x00-\x1f\x7f-\x9f]/.test(s)) return true;
+    // Multi-line — block scalars are out of scope; double-quote with \n escapes.
+    if (s.includes('\n') || s.includes('\r')) return true;
+    // Embedded double-quote or backslash: plain form would round-trip but
+    // double-quoted form is more readable and avoids any single-quote/
+    // double-quote ambiguity downstream tooling might introduce.
+    if (s.includes('"') || s.includes('\\')) return true;
+    return false;
+}
+
+function escapeDoubleQuoted(s: string): string {
+    let out = '';
+    for (const ch of s) {
+        const code = ch.codePointAt(0) ?? 0;
+        switch (ch) {
+            case '\\':
+                out += '\\\\';
+                continue;
+            case '"':
+                out += '\\"';
+                continue;
+            case '\n':
+                out += '\\n';
+                continue;
+            case '\r':
+                out += '\\r';
+                continue;
+            case '\t':
+                out += '\\t';
+                continue;
+            case '\b':
+                out += '\\b';
+                continue;
+            case '\f':
+                out += '\\f';
+                continue;
+            case '\0':
+                out += '\\0';
+                continue;
+        }
+        if (code < 0x20 || (code >= 0x7f && code <= 0x9f)) {
+            // C0 / DEL / C1 — emit as \xNN.
+            out += `\\x${code.toString(16).padStart(2, '0')}`;
+            continue;
+        }
+        // Printable (including non-ASCII Unicode) — pass through. YAML 1.2
+        // permits non-ASCII characters inside double-quoted scalars without
+        // escaping.
+        out += ch;
+    }
+    return out;
+}
+
+function renderYamlScalar(v: unknown): string {
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    if (typeof v === 'number') {
+        if (!Number.isFinite(v)) {
+            // NaN → .nan, Infinity → .inf, -Infinity → -.inf per YAML 1.2.
+            if (Number.isNaN(v)) return '.nan';
+            return v > 0 ? '.inf' : '-.inf';
+        }
+        return String(v);
+    }
+    if (typeof v === 'bigint') return v.toString();
+    if (typeof v === 'string') {
+        if (needsQuoting(v)) return `"${escapeDoubleQuoted(v)}"`;
+        return v;
+    }
+    // Symbols / functions are not valid YAML; coerce to a null literal so the
+    // document stays parseable. Matches the JSON path's `safeJsonStringify`
+    // behavior for non-serializable inputs.
+    return 'null';
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+    return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Recursive emitter. `depth` is the indent level (0 at the document root).
+ * Returns a string with no leading or trailing newline; the caller composes
+ * the final document and adds the trailing newline at the stdout boundary.
+ */
+function renderYamlNode(v: unknown, depth: number): string {
+    const indent = ' '.repeat(depth * YAML_INDENT_SPACES);
+    if (Array.isArray(v)) {
+        if (v.length === 0) return '[]';
+        const lines: string[] = [];
+        for (const item of v) {
+            // Empty-container short-circuits first so the recursive descent
+            // is avoided for `[]` / `{}` elements — purely a perf and
+            // readability win; the inline-flow form is what we'd emit anyway.
+            if (Array.isArray(item) && item.length === 0) {
+                lines.push(`${indent}- []`);
+                continue;
+            }
+            if (isPlainObject(item) && Object.keys(item).length === 0) {
+                lines.push(`${indent}- {}`);
+                continue;
+            }
+            if (Array.isArray(item) || isPlainObject(item)) {
+                // Sequence-of-sequence / sequence-of-mapping: emit the `- `
+                // marker on its own line indent, then the nested block on
+                // the next indent level. Inline the first key/element on
+                // the `- ` line for compactness; deeper nesting recurses.
+                const nested = renderYamlNode(item, depth + 1);
+                const nestedLines = nested.split('\n');
+                const [firstNested, ...rest] = nestedLines;
+                // firstNested starts with whitespace at depth+1; we
+                // replace the leading whitespace with `- `.
+                const inlinePrefix = `${indent}- `;
+                lines.push(`${inlinePrefix}${(firstNested ?? '').trimStart()}`);
+                for (const line of rest) {
+                    lines.push(line);
+                }
+            } else {
+                lines.push(`${indent}- ${renderYamlScalar(item)}`);
+            }
+        }
+        return lines.join('\n');
+    }
+    if (isPlainObject(v)) {
+        const keys = Object.keys(v);
+        if (keys.length === 0) return '{}';
+        const lines: string[] = [];
+        for (const key of keys) {
+            const val = v[key];
+            // YAML keys themselves obey the same quoting rules as string
+            // scalars (the parser must not interpret the key as a number,
+            // bool, or null).
+            const renderedKey = needsQuoting(key) ? `"${escapeDoubleQuoted(key)}"` : key;
+            if (Array.isArray(val)) {
+                if (val.length === 0) {
+                    lines.push(`${indent}${renderedKey}: []`);
+                    continue;
+                }
+                lines.push(`${indent}${renderedKey}:`);
+                lines.push(renderYamlNode(val, depth + 1));
+                continue;
+            }
+            if (isPlainObject(val)) {
+                if (Object.keys(val).length === 0) {
+                    lines.push(`${indent}${renderedKey}: {}`);
+                    continue;
+                }
+                lines.push(`${indent}${renderedKey}:`);
+                lines.push(renderYamlNode(val, depth + 1));
+                continue;
+            }
+            lines.push(`${indent}${renderedKey}: ${renderYamlScalar(val)}`);
+        }
+        return lines.join('\n');
+    }
+    // Scalar at the root: emit on its own line with no indent.
+    return `${indent}${renderYamlScalar(v)}`;
+}
+
+/**
+ * Render a JSON-like value as a YAML 1.2 document (no leading/trailing
+ * newline). The caller adds the trailing newline at the stdout boundary so
+ * the spacing matches the existing JSON/table outputs.
+ *
+ * Exported for unit-test access without spawning a subprocess.
+ */
+export function renderYaml(value: unknown): string {
+    try {
+        return renderYamlNode(value, 0);
+    } catch (e) {
+        // Circular references / unsupported nesting → emit a structured
+        // YAML error document so downstream tooling sees a parseable result
+        // instead of an empty / partial doc. Mirrors safeJsonStringify.
+        const message = e instanceof Error ? e.message : String(e);
+        return `error: unserializable\nmessage: ${renderYamlScalar(message)}`;
+    }
+}
+
+// ── CSV renderer ─────────────────────────────────────────────────────────────
+//
+// RFC 4180-style CSV. Top-level keys become columns; nested objects/arrays
+// are JSON-stringified into a single cell (no dot-path flattening). Each row
+// is terminated with CRLF as specified by RFC 4180 §2.1; the final row also
+// ends with CRLF for parser consistency. Single-object responses render as
+// a one-row CSV with the object's own keys as headers.
+
+const CSV_LINE_TERMINATOR = '\r\n';
+
+function csvCellRequiresQuoting(cell: string): boolean {
+    return cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r');
+}
+
+function csvEscapeCell(cell: string): string {
+    if (csvCellRequiresQuoting(cell)) {
+        return `"${cell.replace(/"/g, '""')}"`;
+    }
+    return cell;
+}
+
+function sanitizeForCsv(cell: string): string {
+    // Strip terminal-control bytes while preserving CR/LF used by CSV itself.
+    // eslint-disable-next-line no-control-regex
+    return cell.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+}
+
+function csvCellFromValue(v: unknown): string {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') return sanitizeForCsv(v);
+    if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
+    if (typeof v === 'object') {
+        try {
+            return sanitizeForCsv(JSON.stringify(v));
+        } catch {
+            return '';
+        }
+    }
+    // Functions / symbols: drop to empty for CSV (matches the JSON path's
+    // safeJsonStringify("null") rationale — nothing meaningful to emit in a
+    // tabular cell).
+    return '';
+    // Note: CSV cells are sanitized with a narrower policy than
+    // sanitizeForTerminal: strip terminal-control bytes (including ESC/OSC
+    // introducers and C1 controls), but preserve CR/LF so RFC 4180 multi-line
+    // fields remain representable.
+}
+
+/**
+ * Render a JSON-like value as CSV (RFC 4180). The output uses CRLF line
+ * terminators and standard double-quote escaping.
+ *
+ * - Top-level arrays: header row = sorted union of top-level keys across
+ *   every object row. Primitive rows in mixed-shape arrays are emitted under
+ *   the first existing header column.
+ * - Top-level objects: 1-row CSV with the object's own keys as headers
+ *   (preserving insertion order, matching `JSON.stringify`).
+ * - Empty arrays: empty string (no header, no rows) — mirrors `renderTable`'s
+ *   `(empty)` semantics in spirit but stays parseable as CSV.
+ * - Nested objects/arrays in a cell: JSON-stringified into the cell.
+ *
+ * Exported for unit-test access without spawning a subprocess.
+ */
+export function renderCsv(value: unknown): string {
+    // Array path.
+    if (Array.isArray(value)) {
+        if (value.length === 0) return '';
+        // Determine whether any row is object-shaped. Mixed primitive +
+        // object rows are coerced to the object-shaped path with the
+        // primitive row contributing one column (`value`).
+        const anyObject = value.some((row) => isPlainObject(row));
+        if (!anyObject) {
+            // Primitive-only array → single 'value' column.
+            const lines = [csvEscapeCell('value')];
+            for (const row of value) {
+                lines.push(csvEscapeCell(csvCellFromValue(row)));
+            }
+            return lines.join(CSV_LINE_TERMINATOR);
+        }
+        // Object-shaped (possibly mixed) array → union of keys, sorted.
+        const keySet = new Set<string>();
+        for (const row of value) {
+            if (isPlainObject(row)) {
+                for (const k of Object.keys(row)) keySet.add(k);
+            }
+        }
+        const keys = Array.from(keySet).sort();
+        const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
+        const lines = [header];
+        for (const row of value) {
+            if (isPlainObject(row)) {
+                lines.push(keys.map((k) => csvEscapeCell(csvCellFromValue(row[k]))).join(','));
+            } else {
+                // Primitive in an object-shaped array: every cell empty
+                // except a synthetic last column would mis-align headers,
+                // so emit a single-cell row under the first header. This
+                // is documented behavior — callers wanting strict CSV
+                // should not mix shapes.
+                const cells = keys.map(() => '');
+                cells[0] = csvEscapeCell(csvCellFromValue(row));
+                lines.push(cells.join(','));
+            }
+        }
+        return lines.join(CSV_LINE_TERMINATOR);
+    }
+    // Single object → 1-row CSV.
+    if (isPlainObject(value)) {
+        const keys = Object.keys(value);
+        if (keys.length === 0) return '';
+        const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
+        const row = keys.map((k) => csvEscapeCell(csvCellFromValue(value[k]))).join(',');
+        return [header, row].join(CSV_LINE_TERMINATOR);
+    }
+    // Top-level scalar → emit a one-row, one-column CSV under 'value'.
+    return [csvEscapeCell('value'), csvEscapeCell(csvCellFromValue(value))].join(CSV_LINE_TERMINATOR);
+}
+
 export function createOutput(opts: OutputOptions): Output {
     const out = (data: unknown): void => {
         if (opts.quiet) return;
-        if (opts.format === 'table') {
-            process.stdout.write(`${renderTable(data)}\n`);
-        } else {
-            process.stdout.write(`${safeJsonStringify(data)}\n`);
+        switch (opts.format) {
+            case 'table':
+                process.stdout.write(`${renderTable(data)}\n`);
+                return;
+            case 'yaml':
+                process.stdout.write(`${renderYaml(data)}\n`);
+                return;
+            case 'csv': {
+                const csvOutput = renderCsv(data);
+                process.stdout.write(csvOutput === '' ? '' : `${csvOutput}${CSV_LINE_TERMINATOR}`);
+                return;
+            }
+            case 'json':
+            default:
+                process.stdout.write(`${safeJsonStringify(data)}\n`);
+                return;
         }
     };
     const err = (message: string): void => {

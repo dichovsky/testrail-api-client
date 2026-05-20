@@ -97,3 +97,11 @@ export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024;
  * and cancellation propagates cleanly through `for await (chunk of stdin)`.
  */
 export const STDIN_READ_TIMEOUT_MS = 30000;
+
+/**
+ * Indent width (in spaces) for the CLI YAML renderer. Two-space indent is the
+ * de-facto standard across major YAML libraries (PyYAML, js-yaml, ruamel) and
+ * matches the project's prettier config for JSON output. Centralized here so
+ * the renderer doesn't carry a hardcoded literal.
+ */
+export const YAML_INDENT_SPACES = 2;
