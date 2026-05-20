@@ -2562,7 +2562,7 @@ describe('TestRailClient', () => {
         it('should add a new user', async () => {
             const newUser = { id: 5, email: 'new@example.com', name: 'New User', is_active: true };
             mockFetch.mockResolvedValueOnce(mockOk(newUser));
-            const result = await client.addUser({ email: 'new@example.com', name: 'New User' });
+            const result = await client.addUser({ email: 'new@example.com', name: 'New User', password: 's3cr3t' });
             expect(result).toEqual(newUser);
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('add_user'),
@@ -2576,6 +2576,7 @@ describe('TestRailClient', () => {
             const result = await client.addUser({
                 email: 'role@example.com',
                 name: 'Role User',
+                password: 'p@ssword',
                 is_active: true,
                 role_id: 2,
             });

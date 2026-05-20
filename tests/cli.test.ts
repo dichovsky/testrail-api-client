@@ -1733,6 +1733,85 @@ describe('CLI', () => {
             const { exitCodes } = await runCli(['user', 'get-current'], [], AUTH_ENV, new Error('ECONNREFUSED'));
             expect(exitCodes).toContain(1);
         });
+
+        // ── user add ──────────────────────────────────────────────────────────
+
+        it('user add --dry-run exits 0 and emits preview without calling the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'user',
+                'add',
+                '--data',
+                '{"name":"Bob","email":"bob@example.com","password":"s3cr3t"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            const parsed = JSON.parse(stdout) as Record<string, unknown>;
+            expect(parsed['dryRun']).toBe(true);
+            expect(parsed['action']).toBe('user add');
+        });
+
+        it('user add exits 0 and calls add_user', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'add', '--data', '{"name":"Bob","email":"bob@example.com","password":"s3cr3t"}'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_user'), expect.anything());
+        });
+
+        it('user add exits 1 when body is missing required email', async () => {
+            const { exitCodes } = await runCli(['user', 'add', '--data', '{"name":"Bob","password":"x"}']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('user add exits 1 when --data is missing', async () => {
+            const { exitCodes } = await runCli(['user', 'add']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // ── user update ───────────────────────────────────────────────────────
+
+        it('user update --dry-run exits 0 and emits preview without calling the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'user',
+                'update',
+                '42',
+                '--data',
+                '{"is_active":false}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            const parsed = JSON.parse(stdout) as Record<string, unknown>;
+            expect(parsed['dryRun']).toBe(true);
+            expect(parsed['action']).toBe('user update');
+            expect(parsed['userId']).toBe(42);
+        });
+
+        it('user update exits 0 and calls update_user/{id}', async () => {
+            const { exitCodes } = await runCli(
+                ['user', 'update', '42', '--data', '{"name":"Bob Updated"}'],
+                [jsonResponse(MOCK_USER)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('update_user/42'), expect.anything());
+        });
+
+        it('user update exits 1 when user_id is not a positive integer', async () => {
+            const { exitCodes, stderr } = await runCli(['user', 'update', 'abc', '--data', '{"name":"Bob"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('user_id');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('user update exits 1 when --data is missing', async () => {
+            const { exitCodes } = await runCli(['user', 'update', '42']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     // ── shared-step ───────────────────────────────────────────────────────────

@@ -26,6 +26,7 @@ import {
 } from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList, handleUserGetByEmail, handleUserGetCurrent } from './handlers/user.js';
+import { handleUserAdd, handleUserUpdate } from './handlers/user-write.js';
 import { handlePlanGet, handlePlanList } from './handlers/plan.js';
 import {
     handlePlanAdd,
@@ -152,6 +153,8 @@ const HANDLERS: Record<string, Handler> = {
     'user:list': handleUserList,
     'user:get-by-email': handleUserGetByEmail,
     'user:get-current': handleUserGetCurrent,
+    'user:add': handleUserAdd,
+    'user:update': handleUserUpdate,
     'plan:get': handlePlanGet,
     'plan:list': handlePlanList,
     'plan:add': handlePlanAdd,

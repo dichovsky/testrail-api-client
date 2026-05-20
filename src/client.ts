@@ -24,8 +24,6 @@ import type {
     Template,
     ConfigurationGroup,
     Configuration,
-    AddUserPayload,
-    UpdateUserPayload,
     Role,
     Attachment,
     Report,
@@ -81,6 +79,8 @@ import type {
     UpdateConfigurationGroupPayload,
     AddConfigurationPayload,
     UpdateConfigurationPayload,
+    UserAddPayload,
+    UserUpdatePayload,
 } from './schemas.js';
 import type { GetHistoryForCaseOptions } from './modules/cases.js';
 import type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
@@ -875,7 +875,7 @@ export class TestRailClient extends TestRailClientCore {
      * @param payload - Request payload for this operation.
      * @throws {TestRailApiError} When the API request fails
      */
-    async addUser(payload: AddUserPayload): Promise<User> {
+    async addUser(payload: UserAddPayload): Promise<User> {
         return this.users.addUser(payload);
     }
 
@@ -887,7 +887,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
+    async updateUser(userId: number, payload: UserUpdatePayload): Promise<User> {
         return this.users.updateUser(userId, payload);
     }
 

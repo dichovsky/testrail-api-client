@@ -78,6 +78,7 @@ import {
     handleConfigurationUpdate,
     handleConfigurationDelete,
 } from '../src/cli/handlers/configuration-write.js';
+import { handleUserAdd, handleUserUpdate } from '../src/cli/handlers/user-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
@@ -140,6 +141,8 @@ interface MockedClient {
     addConfiguration: ReturnType<typeof vi.fn>;
     updateConfiguration: ReturnType<typeof vi.fn>;
     deleteConfiguration: ReturnType<typeof vi.fn>;
+    addUser: ReturnType<typeof vi.fn>;
+    updateUser: ReturnType<typeof vi.fn>;
 }
 
 function buildClient(): MockedClient {
@@ -207,6 +210,10 @@ function buildClient(): MockedClient {
         addConfiguration: vi.fn().mockResolvedValue({ id: 66, name: 'Chrome', group_id: 55 }),
         updateConfiguration: vi.fn().mockResolvedValue({ id: 66, name: 'Chrome (stable)', group_id: 55 }),
         deleteConfiguration: vi.fn().mockResolvedValue(undefined),
+        addUser: vi.fn().mockResolvedValue({ id: 88, name: 'Alice', email: 'alice@example.com', is_active: true }),
+        updateUser: vi
+            .fn()
+            .mockResolvedValue({ id: 88, name: 'Alice Updated', email: 'alice@example.com', is_active: false }),
     };
 }
 
@@ -3333,4 +3340,114 @@ describe('handleDatasetDelete', () => {
             expect(client.deleteDataset).not.toHaveBeenCalled();
         },
     );
+});
+
+// ── user add ──────────────────────────────────────────────────────────────
+
+describe('handleUserAdd', () => {
+    const VALID_BODY = '{"name":"Alice","email":"alice@example.com","password":"s3cr3t"}';
+
+    it('calls client.addUser with parsed payload and outputs result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: VALID_BODY });
+        await handleUserAdd(ctx);
+        expect(client.addUser).toHaveBeenCalledWith(
+            expect.objectContaining({ name: 'Alice', email: 'alice@example.com', password: 's3cr3t' }),
+        );
+        expect(out).toHaveBeenCalledWith({ id: 88, name: 'Alice', email: 'alice@example.com', is_active: true });
+    });
+
+    it('dry-run does not call the client and emits a preview', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: VALID_BODY, dryRun: true });
+        await handleUserAdd(ctx);
+        expect(client.addUser).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'user add' }));
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient());
+        await expect(handleUserAdd(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required email field', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":"Alice","password":"x"}' });
+        await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body with invalid email format', async () => {
+        const { ctx } = buildCtx(buildClient(), {
+            dataFlag: '{"name":"Alice","email":"not-an-email","password":"x"}',
+        });
+        await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body missing required password field', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":"Alice","email":"alice@example.com"}' });
+        await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('passes through unknown fields via .passthrough()', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            dataFlag: '{"name":"Alice","email":"alice@example.com","password":"x","custom_field":"val"}',
+        });
+        await handleUserAdd(ctx);
+        expect(client.addUser).toHaveBeenCalledWith(expect.objectContaining({ custom_field: 'val' }));
+    });
+});
+
+// ── user update ───────────────────────────────────────────────────────────
+
+describe('handleUserUpdate', () => {
+    it('calls client.updateUser with parsed payload and outputs result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['88'], dataFlag: '{"is_active":false}' });
+        await handleUserUpdate(ctx);
+        expect(client.updateUser).toHaveBeenCalledWith(88, expect.objectContaining({ is_active: false }));
+        expect(out).toHaveBeenCalledWith({
+            id: 88,
+            name: 'Alice Updated',
+            email: 'alice@example.com',
+            is_active: false,
+        });
+    });
+
+    it('dry-run does not call the client and emits a preview with userId', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['88'], dataFlag: '{"name":"Bob"}', dryRun: true });
+        await handleUserUpdate(ctx);
+        expect(client.updateUser).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'user update', userId: 88 }));
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['88'] });
+        await expect(handleUserUpdate(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body with invalid email format', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['88'], dataFlag: '{"email":"not-an-email"}' });
+        await expect(handleUserUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(
+        'rejects non-positive-integer user_id (%s)',
+        async (raw) => {
+            const client = buildClient();
+            const { ctx } = buildCtx(client, { pathParams: [raw], dataFlag: '{"name":"Bob"}' });
+            await expect(handleUserUpdate(ctx)).rejects.toThrow(/user_id/);
+            expect(client.updateUser).not.toHaveBeenCalled();
+        },
+    );
+
+    it('passes through unknown fields via .passthrough()', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['88'],
+            dataFlag: '{"name":"Bob","custom_role":"admin"}',
+        });
+        await handleUserUpdate(ctx);
+        expect(client.updateUser).toHaveBeenCalledWith(88, expect.objectContaining({ custom_role: 'admin' }));
+    });
 });

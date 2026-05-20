@@ -758,7 +758,7 @@ describe('metadata vs dispatch consistency', () => {
         // project (no parent ID exists in the URL because the project itself is
         // the top-level entity). `group:add` (TestRail 7.5+) also creates an
         // instance-wide entity — user groups are global, not project-scoped.
-        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add', 'project:add', 'group:add']);
+        const PAYLOAD_ONLY_WRITES = new Set<string>(['case-field:add', 'project:add', 'group:add', 'user:add']);
         // Flag-driven / zero-arg reads: the endpoint takes no path param.
         // `user:get-by-email` is driven by the shared `--email` flag (also
         // consumed by resolveAuth for the credential); `user:get-current`

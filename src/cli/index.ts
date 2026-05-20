@@ -115,6 +115,8 @@ Write actions (body via --data | --data-file | stdin):
   shared-step add <project_id>        --data '{"title":"..."}'  (TestRail 7.0+)
   shared-step update <shared_step_id> --data '{"title":"..."}'  (TestRail 7.0+)
   shared-step delete <shared_step_id> --yes  (no body; --soft NOT supported by TestRail; TestRail 7.0+)
+  user add                            --data '{"name":"...","email":"...","password":"..."}' (TestRail 7.3+; use --data-file or stdin pipe to avoid leaking password in shell history)
+  user update <user_id>               --data '{"name":"...","is_active":true}'               (TestRail 7.3+; partial update, all fields optional)
 
 Configuration actions (project → config_groups → configs):
   configuration-group add <project_id>          --data '{"name":"Browsers"}'
