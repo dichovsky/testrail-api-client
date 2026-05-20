@@ -457,6 +457,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: true,
     },
     {
+        resource: 'result',
+        action: 'add-by-test',
+        summary: 'Add a single test result by test ID',
+        pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
+        apiEndpoint: 'POST add_result/{test_id}',
+        bodySchema: AddResultPayloadSchema,
+        isWrite: true,
+    },
+    {
         resource: 'plan',
         action: 'add',
         summary: 'Create a new test plan in a project (optionally with nested entries)',

@@ -5200,6 +5200,25 @@ describe('CLI', () => {
         });
     });
 
+    describe('result add-by-test', () => {
+        it('POSTs a single result to add_result/{test_id}', async () => {
+            const { exitCodes } = await runCli(
+                ['result', 'add-by-test', '42', '--data', '{"status_id":1}'],
+                [jsonResponse({ id: 100, status_id: 1 })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('add_result/42'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('exits 1 when test_id is missing', async () => {
+            const { exitCodes } = await runCli(['result', 'add-by-test', '--data', '{"status_id":1}']);
+            expect(exitCodes).toContain(1);
+        });
+    });
+
     describe('attachment', () => {
         let tmp: string;
         beforeEach(() => {
