@@ -1,8 +1,10 @@
 /**
  * Shared source-of-truth content for all generated agent-instruction
- * artifacts: `.continue/rules/testrail.md` and `AGENTS.md`. The body
- * sections (`renderRulesBody`) are identical across both formats; only
- * the header differs.
+ * artifacts: `.continue/rules/testrail.md` and `AGENTS.md`. The shared
+ * body (`renderRulesBody`) is identical across both formats; wrappers
+ * and extra sections differ — `renderContinueRules` just prepends a
+ * heading, while `renderAgentsMd` adds a different header plus a
+ * trailing "Build / verify commands" section.
  *
  * Determinism: every helper here is pure and order-stable. ACTIONS is
  * iterated in declaration order (matches metadata.ts insertion order,
