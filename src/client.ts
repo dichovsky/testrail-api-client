@@ -1194,11 +1194,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToCase(
-        caseId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToCase(caseId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         return this.attachments.addAttachmentToCase(caseId, file, filename);
     }
 
@@ -1211,11 +1207,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToResult(
-        resultId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToResult(resultId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         return this.attachments.addAttachmentToResult(resultId, file, filename);
     }
 
@@ -1228,11 +1220,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToRun(
-        runId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToRun(runId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         return this.attachments.addAttachmentToRun(runId, file, filename);
     }
 
@@ -1245,11 +1233,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When identifiers or request parameters are invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addAttachmentToPlan(
-        planId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToPlan(planId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         return this.attachments.addAttachmentToPlan(planId, file, filename);
     }
 
@@ -1309,11 +1293,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailValidationError} When caseId is invalid
      * @throws {TestRailApiError} When the API request fails
      */
-    async addBdd(
-        caseId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Case> {
+    async addBdd(caseId: number, file: UploadFileInput, filename: string): Promise<Case> {
         return this.bdd.addBdd(caseId, file, filename);
     }
 

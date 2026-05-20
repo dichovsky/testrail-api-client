@@ -84,41 +84,25 @@ export class AttachmentModule {
     }
 
     /** @testrail POST add_attachment_to_case/{case_id} */
-    async addAttachmentToCase(
-        caseId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToCase(caseId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(caseId, 'caseId');
         return this.client.requestMultipart<Attachment>(`add_attachment_to_case/${caseId}`, file, filename);
     }
 
     /** @testrail POST add_attachment_to_result/{result_id} */
-    async addAttachmentToResult(
-        resultId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToResult(resultId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(resultId, 'resultId');
         return this.client.requestMultipart<Attachment>(`add_attachment_to_result/${resultId}`, file, filename);
     }
 
     /** @testrail POST add_attachment_to_run/{run_id} */
-    async addAttachmentToRun(
-        runId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToRun(runId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(runId, 'runId');
         return this.client.requestMultipart<Attachment>(`add_attachment_to_run/${runId}`, file, filename);
     }
 
     /** @testrail POST add_attachment_to_plan/{plan_id} */
-    async addAttachmentToPlan(
-        planId: number,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<Attachment> {
+    async addAttachmentToPlan(planId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(planId, 'planId');
         return this.client.requestMultipart<Attachment>(`add_attachment_to_plan/${planId}`, file, filename);
     }
