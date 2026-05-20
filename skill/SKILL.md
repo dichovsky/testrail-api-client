@@ -1859,514 +1859,261 @@ testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Fail
 testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
 ```
 
-<<<<<<< HEAD
-### 60. Plan entry extensions — add/update runs within existing entries
+### 35. Attachment lifecycle (entry types: plan, plan-entry, run, test)
 
-<!-- recipe-for: plan:add-run-to-entry -->
-<!-- recipe-for: plan:update-entry -->
-<!-- recipe-for: plan:update-run-in-entry -->
+<!-- recipe-for: attachment:list-for-plan -->
+<!-- recipe-for: attachment:list-for-plan-entry -->
+<!-- recipe-for: attachment:list-for-run -->
+<!-- recipe-for: attachment:list-for-test -->
+<!-- recipe-for: attachment:add-to-plan -->
+<!-- recipe-for: attachment:add-to-plan-entry -->
+<!-- recipe-for: attachment:add-to-run -->
 
-Once a plan entry exists (created with `plan add-entry`), extend it by adding new config-specific runs (when
-you add support for a new platform mid-cycle) and by mutating the entry's metadata (name, assignee, case
-selection) across all its runs.
+Attachments can be stored on four entry types beyond cases and results:
+test plans, plan entries, test runs, and individual tests. This recipe
+covers the listing and upload workflows for each. Like recipe 16/17/18,
+uploads use `--file <path>` (or `--file -` for stdin) and `--filename`
+overrides the basename.
 
-**Add a fresh run to an entry (new platform):**
+**Upload workflow — add attachments to a plan and plan entry:**
 
 ```bash
-# Plan 100, entry a1b2c3d4e5f6... already has runs for Chrome & Firefox.
-# Add a fresh run for Safari.
-RESULT=$(testrail plan add-run-to-entry 100 a1b2c3d4e5f6 --data '{
-    "config_ids": [3],
-    "assignedto_id": 9
-}')
-echo "$RESULT" | jq '.id'  # New run_id, can be used in `result add` or `run watch`
+# Upload a requirements document to a test plan.
+testrail attachment add-to-plan 100 --file ./requirements.pdf
+
+# Upload a config matrix reference to a plan entry
+# (entry_id is a UUID-style string, NOT an integer).
+testrail attachment add-to-plan-entry 100 'a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6' \
+  --file ./config-matrix.xlsx
 ```
 
-Payload keys:
-
-- `config_ids` (required) — TestRail configuration IDs for this run (array of integers).
-- `assignedto_id` (optional) — User ID to assign the run to.
-- `include_all` (optional) — If `true`, include all cases in the suite; if `false`, include only
-  cases specified by `case_ids`.
-- `case_ids` (optional) — Array of case IDs to include (ignored if `include_all: true`).
-
-**Update entry metadata across all its runs:**
+**Upload workflow — add attachments to a run and individual tests:**
 
 ```bash
-# Rename the entry & swap assignee (applies to every run in the entry)
-testrail plan update-entry 100 a1b2c3d4e5f6 --data '{
-    "name": "Smoke tests (renamed)",
-    "assignedto_id": 10,
-    "include_all": false,
-    "case_ids": [1, 2, 3, 5]
-}'
+# Upload a build log to the entire run.
+testrail attachment add-to-run 42 --file ./build.log
+
+# Upload a screenshot to a single test (run instance of a case).
+testrail attachment add-to-test 1337 --file ./screenshot.png
 ```
 
-Payload keys:
-
-- `name` (optional) — New entry name.
-- `assignedto_id` (optional) — New assignee user ID.
-- `include_all` (optional) — Toggle case selection mode (`true` = all; `false` = selection).
-- `case_ids` (optional) — If `include_all: false`, which cases to include.
-
-**Update a single run inside an entry (swap assignee, refine case selection):**
+**Listing workflow — pagination support varies:**
 
 ```bash
-# Reassign Safari run to user 11 and include only specific cases
-SAFARI_RUN_ID=42
-testrail plan update-run-in-entry "$SAFARI_RUN_ID" --data '{
-    "description": "Safari smoke suite",
-    "assignedto_id": 11,
-    "include_all": false,
-    "case_ids": [1, 2, 3, 5]
-}'
+# List all attachments on a plan (no pagination — TestRail returns
+# the full tree; if it's unwieldy, filter on the CLI side).
+testrail attachment list-for-plan 100 | jq '.[] | {id, filename, size}'
+
+# List all attachments on a plan entry (also full tree, no pagination).
+testrail attachment list-for-plan-entry 100 'a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6' \
+  | jq '.[] | {id, filename, size}'
+
+# List attachments on a run (supports --limit / --offset pagination).
+testrail attachment list-for-run 42 --limit 50 --offset 0
+
+# List attachments on a test (also supports --limit / --offset).
+testrail attachment list-for-test 1337 --limit 50
 ```
 
-Payload keys (only these fields are mutable for runs inside entries):
-
-- `description` (optional) — Run description.
-- `assignedto_id` (optional) — Assignee user ID.
-- `include_all` (optional) — Case selection mode toggle.
-- `case_ids` (optional) — Case IDs if `include_all: false`.
-
-**Dry-run preview:**
+**Dry-run preview — validate the upload path before committing:**
 
 ```bash
-testrail plan update-entry 100 a1b2c3d4e5f6 --dry-run --data '{"name": "New name"}'
+testrail attachment add-to-plan 100 --file ./doc.pdf --dry-run
 ```
 
-See also recipe #25 for the full plan lifecycle (add → entry → runs → close/delete cascade).
+**Destructive gate — delete attachments from any entry type:**
 
-### 61. Run lifecycle — list active runs, update metadata, close and delete
-
-<!-- recipe-for: run:list -->
-<!-- recipe-for: run:update -->
-<!-- recipe-for: run:delete -->
-
-Runs are the execution containers for test cases. Typical workflows: enumerate active runs for a project,
-update run metadata (milestone, assignee), and eventually close or delete the run and its associated results.
-
-**List all runs in a project (with pagination):**
+Deletion is the same across all entry types (there is no per-entry-type
+delete command):
 
 ```bash
-# Page 1: first 250 (default limit)
-testrail run list 5 | jq '.[] | {id, name, is_completed, passed_count, failed_count}'
+# Retrieve attachment IDs first.
+PLAN_ATTACHMENTS=$(testrail attachment list-for-plan 100)
+ATTACH_ID=$(echo "$PLAN_ATTACHMENTS" | jq '.[0].id')
 
-# Page 2 with custom limit
-testrail run list 5 --offset 250 --limit 100 | jq '.[] | select(.is_completed == false)'
+# Dry-run.
+testrail attachment delete "$ATTACH_ID" --yes --dry-run
 
-# Filter by status using jq post-processing
-testrail run list 5 | jq '.[] | select(.is_completed == false) | {id, name}'
+# Real delete.
+testrail attachment delete "$ATTACH_ID" --yes
 ```
 
-`run list` returns an array of run objects with:
+Notes:
 
-- `id` (number) — Run ID.
-- `name` (string) — Run name.
-- `is_completed` (boolean) — Whether the run is closed.
-- `passed_count`, `failed_count`, `blocked_count`, `untested_count` (numbers) — Result summary.
-- `completed_on` (number | null) — Timestamp if closed.
-- `milestone_id` (number | null) — Associated milestone ID.
-- `assignedto_id` (number | null) — Assigned user ID.
+- **Entry types and scope.** Cases and results are the most common
+  attachment targets (`attachment add-to-case`, `add-to-result` from
+  recipes 16–18). Plan-scoped attachment listing
+  (`list-for-plan`, `list-for-plan-entry`) is useful for attaching
+  requirements matrices or config docs that apply to the whole plan or
+  a specific plan entry. Run and test attachments are less common but
+  mirror the case/result patterns: use `add-to-run` for run-wide
+  artifacts and `add-to-test` for test-specific logs or media.
+- **Pagination on listing.** `list-for-plan` and `list-for-plan-entry`
+  do not paginate (TestRail returns the full attachment tree). All four
+  listing actions accept `--format json` (default) or `--format table`.
+  `list-for-run` and `list-for-test` support `--limit` and `--offset`
+  for pagination (TestRail's server default page size is 250).
+- **Upload options.** Both `--file <path>` (local file) and
+  `--file -` (stdin) are supported. `--filename <name>` overrides the
+  basename; omit it to use the local filename. See recipe 16 for the
+  `--filename` pattern.
+- **Dry-run and destructive gates.** All write actions (`add-to-*`)
+  support `--dry-run` (client-side validation, no API call). Delete
+  requires `--yes`; `--dry-run --yes` emits a preview.
 
-**Update run metadata:**
+### 36. Variable CRUD lifecycle
+
+<!-- recipe-for: variable:list -->
+<!-- recipe-for: variable:add -->
+<!-- recipe-for: variable:update -->
+<!-- recipe-for: variable:delete -->
+
+Variables are project-scoped named placeholders for data-driven testing
+(see recipe 29 for the full workflow with datasets). This recipe covers
+the metadata-only variable CRUD — renaming and lifecycle.
+
+**Create variables:**
 
 ```bash
-# Re-assign, add milestone, update description
-testrail run update 42 --data '{
-    "name": "Chrome desktop @ v2.0",
-    "milestone_id": 7,
-    "assignedto_id": 9,
-    "description": "Updated to cover 2.0 release"
-}'
+# Add a variable to a project (name is required; custom_* extras passthrough).
+ENV=$(testrail variable add 5 --data '{"name":"env"}')
+ENV_ID=$(echo "$ENV" | jq '.id')
 
-# Dry-run (no API call)
-testrail run update 42 --dry-run --data '{"milestone_id": 8}'
+# With custom fields.
+REGION=$(testrail variable add 5 --data '{"name":"region","custom_owner":"qa-team"}')
+REGION_ID=$(echo "$REGION" | jq '.id')
 ```
 
-Payload keys (all optional):
-
-- `name` — New run name.
-- `description` — Run description.
-- `milestone_id` — Milestone to associate (or `null` to clear).
-- `assignedto_id` — Assignee user ID (or `null` to clear).
-- `include_all` — Redefine case selection (rarely done post-creation).
-- `case_ids` — Case selection if `include_all: false`.
-
-**Close a run (irreversible — preferred when preserving results):**
+**List variables in a project:**
 
 ```bash
-# Close the run — results stay queryable, but no new results can be added
-testrail run close 42 --yes
+# All variables in the project.
+testrail variable list 5
 
-# Dry-run preview
-testrail run close 42 --yes --dry-run
+# Extract IDs for downstream operations.
+testrail variable list 5 | jq '.[] | {id, name}'
 ```
 
-A closed run's `is_completed` flag becomes `true` and `completed_on` is set to the current timestamp.
-TestRail has no `open_run` endpoint; closing is not reversible.
-
-**Delete a run (irreversible — removes run and all results):**
+**Update (rename) a variable:**
 
 ```bash
-# Delete the run and every result in it
-testrail run delete 42 --yes
-
-# Server-side preview (TestRail returns affected-test count without deleting)
-testrail run delete 42 --yes --soft
-
-# Dry-run (client-side preview, no API call)
-testrail run delete 42 --yes --dry-run
+# The `update` endpoint only accepts `name` (and custom_* fields).
+testrail variable update "$ENV_ID" --data '{"name":"environment"}'
 ```
 
-Differences:
-
-- `--soft` — Test TestRail's soft-delete preview (API call made, no deletion).
-- `--dry-run` — Client-side prediction only (no API call); overrides `--yes`.
-- `--yes` — Required gate for destructive operation.
-
-**Status check from `run list` output:**
+**Delete variables (destructive):**
 
 ```bash
-# Count active vs closed runs
-RUNS=$(testrail run list 5)
-ACTIVE=$(echo "$RUNS" | jq '[.[] | select(.is_completed == false)] | length')
-CLOSED=$(echo "$RUNS" | jq '[.[] | select(.is_completed == true)] | length')
-echo "Active: $ACTIVE, Closed: $CLOSED"
+# Dry-run — no API call, just validate the shape.
+testrail variable delete "$ENV_ID" --yes --dry-run
+
+# Real delete — irreversible.
+testrail variable delete "$ENV_ID" --yes
 ```
 
-See recipe #31 for polling a run until completion with `run watch`.
-
-### 62. Milestone lifecycle — read, list, create, update, close and delete
-
-<!-- recipe-for: milestone:get -->
-<!-- recipe-for: milestone:list -->
-<!-- recipe-for: milestone:add -->
-<!-- recipe-for: milestone:update -->
-<!-- recipe-for: milestone:delete -->
-
-Milestones group runs and plans into named release checkpoints. This recipe covers the complete CRUD
-lifecycle: fetch individual milestones, list them per project, create new ones, update metadata
-(including `is_completed` / `is_started` toggles), and delete old milestones.
-
-**Fetch a single milestone:**
+**Example — data-driven test provisioning:**
 
 ```bash
-testrail milestone get 7 | jq '{id, name, description, is_completed, is_started}'
+# Provision variables for a staging test matrix.
+ENVS=$(testrail variable add 5 --data '{"name":"env"}' | jq '.id')
+REGIONS=$(testrail variable add 5 --data '{"name":"region"}' | jq '.id')
+
+# Reference them in case steps with ${env}, ${region}.
+# (The web UI or API step-insertion workflow adds the case content.)
+
+# Tear down at end of test cycle.
+testrail variable delete "$ENVS" --yes
+testrail variable delete "$REGIONS" --yes
 ```
 
-Returns a milestone object with:
+Notes:
 
-- `id` (number) — Milestone ID.
-- `name` (string) — Milestone name.
-- `description` (string) — Milestone description.
-- `due_on` (number | null) — Unix timestamp of deadline.
-- `is_completed` (boolean) — Whether marked complete.
-- `is_started` (boolean) — Whether marked started (TestRail 7.5+).
-- `completed_on` (number | null) — Timestamp when completed.
-- `project_id` (number) — Parent project ID.
+- **Project-scoped IDs.** Each variable's ID is global but the variable
+  is scoped to a project. The same `name` in a different project is a
+  different ID. Always pair list/mutate calls with the project context
+  (`variable list <project_id>`).
+- **Metadata-only on CLI.** The CLI `add/update` operations accept
+  `name` and `custom_*` fields only. Actual variable values are
+  managed through plan entry datasets in the web UI or API (row-level
+  CRUD is not yet part of the documented public API surface).
+- **Destructive gate.** `variable delete` is irreversible — requires
+  `--yes` and does not support `--soft` server-side preview (TestRail's
+  `delete_variable` endpoint does not expose a soft mode). Use
+  `--dry-run` to validate intent before committing.
+- **Linked to datasets.** Variables are referenced by name inside
+  dataset rows (the binding happens in the web UI or via row-CRUD
+  endpoints on the API). Deleting a variable does not invalidate
+  existing dataset rows — they retain the literal `${var_name}` text
+  and fail to substitute at run time if the variable is missing.
 
-**List all milestones in a project (paginated):**
+### 37. Configuration mutation: update configuration & configuration-group
+
+<!-- recipe-for: configuration:update -->
+<!-- recipe-for: configuration-group:update -->
+
+This recipe covers the update (rename) path for configurations and
+configuration groups. For the full hierarchy lifecycle (add, list, delete),
+see recipe 27. Updates are the narrow case — partial field mutations
+on existing configs/groups.
+
+**Update a configuration group (rename):**
 
 ```bash
-# All milestones, any status
-testrail milestone list 5 | jq '.[] | {id, name, is_completed}'
-
-# Filter to active milestones (not completed)
-testrail milestone list 5 | jq '.[] | select(.is_completed == false)'
-
-# Pagination example
-testrail milestone list 5 --offset 250 --limit 50
+# Fetch the ID (from configuration list or earlier add).
+testrail configuration-group update 7 --data '{"name":"Desktop Browsers"}'
 ```
 
-**Create a new milestone:**
+**Update a configuration (leaf; rename):**
 
 ```bash
-MILESTONE=$(testrail milestone add 5 --data '{
-    "name": "Release 2.0",
-    "description": "Q2 2025 feature release",
-    "due_on": 1718736000
-}')
-MILESTONE_ID=$(echo "$MILESTONE" | jq '.id')
-echo "Created milestone $MILESTONE_ID"
+# Configuration update takes a config_id (NOT a config_group_id).
+testrail configuration update 12 --data '{"name":"Chrome (v120+)"}'
 ```
 
-Payload keys:
-
-- `name` (required) — Milestone name.
-- `description` (optional) — Milestone description.
-- `due_on` (optional) — Unix timestamp deadline.
-- `parent_id` (optional) — Parent milestone ID for hierarchy (TestRail 6.5+).
-- `is_started` (optional) — Mark as started (TestRail 7.5+).
-
-**Update milestone metadata:**
+**Verify changes:**
 
 ```bash
-# Rename, adjust deadline, or mark as started
-testrail milestone update 7 --data '{
-    "name": "Release 2.0 (delayed)",
-    "due_on": 1725312000,
-    "is_started": true
-}'
-
-# Mark complete
-testrail milestone update 7 --data '{"is_completed": true}'
-
-# Dry-run preview
-testrail milestone update 7 --dry-run --data '{"is_completed": true}'
+# List the entire tree to confirm the rename propagated.
+testrail configuration list 5 | jq '.[] | {id, name, configs: [.configs[].name]}'
 ```
 
-Payload keys (all optional):
-
-- `name` — New milestone name.
-- `description` — New description.
-- `due_on` — New deadline (Unix timestamp, or `null` to clear).
-- `is_completed` — Mark as complete (`true`) or reopen (`false`).
-- `is_started` — Mark as started (TestRail 7.5+).
-
-**Delete a milestone (irreversible):**
-
-```bash
-# Delete the milestone (associated runs/plans are unaffected)
-testrail milestone delete 7 --yes
-
-# Server-side soft-preview (TestRail returns referencing-run count without deleting)
-testrail milestone delete 7 --yes --soft
-
-# Dry-run (client-side prediction, no API call)
-testrail milestone delete 7 --yes --dry-run
-```
-
-When a milestone is deleted, runs/plans that reference it keep their `milestone_id` field but the
-milestone record itself is removed. A subsequent `milestone list` will not include it.
-
-**Workflow example — release versioning:**
-
-```bash
-# Create milestones for the quarter
-M1=$(testrail milestone add 5 --data '{"name":"2.0 alpha","due_on":1718736000}' | jq -r '.id')
-M2=$(testrail milestone add 5 --data '{"name":"2.0 beta","due_on":1721328000}' | jq -r '.id')
-M3=$(testrail milestone add 5 --data '{"name":"2.0 GA","due_on":1723920000}' | jq -r '.id')
-
-# As work progresses, mark milestones started/complete
-testrail milestone update "$M1" --data '{"is_started":true}'
-testrail milestone update "$M1" --data '{"is_completed":true}'   # alpha done
-testrail milestone update "$M2" --data '{"is_started":true}'     # beta starts
-
-# Clean up old milestones from previous quarter
-OLD_MILESTONE=$(testrail milestone list 5 | jq -r '.[] | select(.name == "1.9 GA") | .id')
-test -n "$OLD_MILESTONE" && testrail milestone delete "$OLD_MILESTONE" --yes
-=======
-### 77. User lookups: current session, by ID, by email
-
-<!-- recipe-for: user:get-current -->
-<!-- recipe-for: user:get -->
-<!-- recipe-for: user:get-by-email -->
-
-The three user lookups serve distinct use cases. All return a single `User` object
-with fields like `id`, `name`, `email`, `role_id`, `group_ids`, `is_active`.
-
-**Get current session user** (auth-bound; TestRail 6.6+):
-
-`user get-current` calls `GET get_current_user` and returns the user identified by
-the API key you authenticated with. Requires no path args and always reflects your
-own account. Useful to bootstrap a session or verify permissions:
-
-```bash
-testrail user get-current
-# → {"id":5,"name":"Alice Smith","email":"alice@example.com","role_id":3,"is_active":true,...}
-```
-
-```bash
-# Check your own role to determine what you can do
-testrail user get-current | jq '.role_id'
-```
-
-**Get user by ID** (any user, universal):
-
-`user get <user_id>` calls `GET get_user/{user_id}` and returns a user by their
-numeric ID. Works for any user on the instance:
-
-```bash
-testrail user get 5
-# → {"id":5,"name":"Alice Smith","email":"alice@example.com",...}
-```
-
-**Get user by email** (email-based lookup):
-
-`user get-by-email` calls `GET get_user_by_email` and finds a user by their
-email address. Takes no path args; requires `--email <address>` flag:
-
-```bash
-testrail user get-by-email --email alice@example.com
-# → {"id":5,"name":"Alice Smith","email":"alice@example.com",...}
-```
-
-```bash
-# Combine with jq to extract just the user ID
-testrail user get-by-email --email alice@example.com | jq '.id'
-```
-
-**When to use each:**
-
-- `user get-current` — you want info about your own account (always works,
-  bound to auth credentials).
-- `user get <user_id>` — you already know the numeric ID (direct, fast).
-- `user get-by-email <email>` — you have an email address and need to find
-  the user's ID or other metadata (e.g. provisioning workflows that resolve
-  email → user_id before assigning to a group).
-
-**Programmatic equivalents:**
+**Programmatic perspective — TypeScript:**
 
 ```typescript
-const current = await client.getCurrentUser();
-const user = await client.getUser(5);
-const userByEmail = await client.getUserByEmail('alice@example.com');
+import { TestRailClient } from '@dichovsky/testrail-api-client';
+
+const client = new TestRailClient({...});
+
+// Rename a configuration group.
+await client.updateConfigGroup(7, { name: 'Desktop Browsers' });
+
+// Rename a leaf configuration.
+await client.updateConfig(12, { name: 'Chrome (v120+)' });
+
+// List the tree to verify.
+const groups = await client.getConfigs(5);
+groups.forEach((g) => console.log(g.name, g.configs.map((c) => c.name)));
 ```
 
-### 78. Group CRUD lifecycle (TestRail 7.5+)
+Notes:
 
-<!-- recipe-for: group:get -->
-<!-- recipe-for: group:list -->
-<!-- recipe-for: group:add -->
-<!-- recipe-for: group:update -->
-<!-- recipe-for: group:delete -->
-
-User groups are instance-level resources that organize users into permission sets.
-All group actions require TestRail 7.5+. The CRUD shape mirrors suites/milestones:
-`get` and `list` are reads; `add`, `update`, `delete` are writes. `delete`
-is destructive and requires `--yes`.
-
-**Get a single group by ID:**
-
-`group get <group_id>` calls `GET get_group/{group_id}` and returns the group
-object with `id`, `name`, `user_ids` (array of user IDs in the group).
-
-```bash
-testrail group get 12
-# → {"id":12,"name":"QA Team","user_ids":[5,6,7]}
-```
-
-**List all groups on the instance:**
-
-`group list` calls `GET get_groups` (no path args) and returns an array of
-all user groups defined on the TestRail instance:
-
-```bash
-testrail group list
-# → [{"id":1,"name":"Admins","user_ids":[1,2]},{"id":12,"name":"QA Team","user_ids":[5,6,7]}]
-```
-
-```bash
-# Count groups
-testrail group list | jq 'length'
-```
-
-**Create a new group (payload-only):**
-
-`group add` calls `POST add_group` and takes no path args. Body requires `name`
-(string) and optional `user_ids` (array of numeric user IDs to add on creation).
-Returns the created group object with assigned `id`:
-
-```bash
-testrail group add --data '{"name":"QA West","user_ids":[5,6]}'
-# → {"id":12,"name":"QA West","user_ids":[5,6]}
-```
-
-```bash
-# Dry-run: validate the payload without creating the group
-testrail group add --data '{"name":"QA West"}' --dry-run
-# → {"dryRun":true,"action":"group add","payload":{"name":"QA West"},"source":"data"}
-```
-
-**Update an existing group (partial fields):**
-
-`group update <group_id>` calls `POST update_group/{group_id}` and allows
-partial updates. You can change `name`, `user_ids`, or both. An empty `{}`
-body is accepted and returns the group unchanged (PATCH semantics):
-
-```bash
-# Rename a group
-testrail group update 12 --data '{"name":"QA West + Central"}'
-```
-
-```bash
-# Replace the group membership (all users in one call)
-testrail group update 12 --data '{"user_ids":[5,6,8,10]}'
-```
-
-```bash
-# Change both name and members
-testrail group update 12 --data '{"name":"QA","user_ids":[5,6]}'
-```
-
-**Delete a group (requires `--yes`):**
-
-`group delete <group_id>` calls `POST delete_group/{group_id}` and is destructive.
-Pass `--yes` to confirm:
-
-```bash
-testrail group delete 12 --yes
-# → (empty response; group is gone)
-```
-
-```bash
-# Dry-run: preview what would be deleted without making the API call
-testrail group delete 12 --dry-run
-# → {"destructive":true,"dryRun":true,"action":"group delete","groupId":12}
-```
-
-**Programmatic equivalents:**
-
-```typescript
-const group = await client.getGroup(12);
-const allGroups = await client.getGroups();
-const created = await client.addGroup({ name: 'QA West', user_ids: [5, 6] });
-const updated = await client.updateGroup(12, { name: 'QA West + Central' });
-await client.deleteGroup(12);
-```
-
-### 79. Role list (TestRail permission roles)
-
-<!-- recipe-for: role:list -->
-
-`role list` calls `GET get_roles` (no path args) and returns an array of all
-user roles defined on the TestRail instance. Each role has an `id` (numeric),
-`name` (string), and `is_admin` (boolean) flag.
-
-Standard TestRail roles (instance-specific IDs may vary; query to be sure):
-
-```bash
-testrail role list
-# → [{"id":1,"name":"Admin","is_admin":true},{"id":2,"name":"Analyst","is_admin":false},...]
-```
-
-```bash
-# Extract role IDs and names as a lookup table
-testrail role list | jq 'map({id, name}) | from_entries'
-# → {"Admin":"1","Analyst":"2",...}
-```
-
-```bash
-# Find the admin role
-testrail role list | jq '.[] | select(.is_admin == true)'
-# → {"id":1,"name":"Admin","is_admin":true}
-```
-
-Use role IDs when creating or updating users (`user add`, `user update`)
-to assign a specific permission level:
-
-```bash
-# Assign admin role (assuming role_id=1) when creating a user
-testrail user add --data '{"name":"Charlie","email":"charlie@example.com","password":"secret","role_id":1}'
-```
-
-**Programmatic equivalent:**
-
-```typescript
-const roles = await client.getRoles();
->>>>>>> df539e4 (docs(skill): recipes for Identity (Users, Groups, Roles) — cluster C5)
-```
+- **Update is rename-only (on CLI).** The `update_config` and
+  `update_config_group` endpoints accept only the `name` field.
+  Custom fields are NOT supported (the configuration API does not
+  expose a `custom_*` passthrough). If you need to reorder or manage
+  other metadata, use the TestRail web UI.
+- **Leaf vs parent scope.** Configuration groups (`configuration-group`)
+  and individual configs (`configuration`) are separate resources with
+  different ID spaces. Renaming a group does not affect its children;
+  renaming a config does not affect its siblings.
+- **Impact on plan entries.** Renaming a config invalidates the human-
+  readable shortlist in plan-entry UIs (the config remains functional —
+  the ID is stable, only the display name changes). Existing runs and
+  results that reference the old name survive unchanged; the new name
+  applies to future selections.
+- **Non-destructive.** Updates are safe — TestRail keeps the ID and
+  does not cascade or require `--yes` confirmation. Pair with
+  `configuration list <project_id>` to inspect the tree before renaming.
 
 ## Programmatic TypeScript API
 
