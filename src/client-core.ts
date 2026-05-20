@@ -1027,11 +1027,7 @@ export class TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails or network error occurs
      * @throws {Error} When called after `destroy()`
      */
-    public async requestMultipart<T>(
-        endpoint: string,
-        file: UploadFileInput,
-        filename: string,
-    ): Promise<T> {
+    public async requestMultipart<T>(endpoint: string, file: UploadFileInput, filename: string): Promise<T> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }

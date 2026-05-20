@@ -101,6 +101,7 @@ not introduce a parallel hazard but does not fix the existing one.
 - Public API is backwards compatible. `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` accept the existing `Blob | Uint8Array | File` inputs plus the new `{ path }` descriptor. In-memory inputs are unchanged.
 - The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).
 - Upload invariants are preserved: no retry on 5xx/429/network errors, `AbortSignal` honored throughout the body upload, DNS-pin/SSRF guard still applied before fetch, 3xx still rejected by `assertNotRedirect`.
+
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
 Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**

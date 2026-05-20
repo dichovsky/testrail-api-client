@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "3.5.0"
   },
-  "sourceHash": "fc655a3d292746aa7711151e750750b526aaef497fead52f17f8d0018b0c8a52",
+  "sourceHash": "45df320679edcc4a32bfde1db83bcee09bf83bfd260f17fa442b5b9fab6544a9",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3585,22 +3585,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1141
+              "line": 1137
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1247
+              "line": 1243
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1256
+              "line": 1252
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1289
+              "line": 1285
             }
           ]
         }
@@ -4275,122 +4275,122 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 1214
+              "line": 1210
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 1231
+              "line": 1223
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 1248
+              "line": 1236
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 1266
+              "line": 1250
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 1282
+              "line": 1266
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 1299
+              "line": 1283
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 1312
+              "line": 1296
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 1329
+              "line": 1309
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 1340
+              "line": 1320
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 1352
+              "line": 1332
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 1364
+              "line": 1344
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 1375
+              "line": 1355
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 1384
+              "line": 1364
             },
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 1397
+              "line": 1377
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 1409
+              "line": 1389
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 1421
+              "line": 1401
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 1432
+              "line": 1412
             },
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 1445
+              "line": 1425
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 1456
+              "line": 1436
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 1468
+              "line": 1448
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 1480
+              "line": 1460
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 1491
+              "line": 1471
             },
             {
               "name": "getReports",
               "kind": "method",
-              "line": 1504
+              "line": 1484
             },
             {
               "name": "runReport",
               "kind": "method",
-              "line": 1515
+              "line": 1495
             }
           ]
         }
@@ -4625,27 +4625,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 97
+              "line": 93
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 107
+              "line": 99
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 117
+              "line": 105
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 127
+              "line": 111
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 143
+              "line": 127
             }
           ]
         }
