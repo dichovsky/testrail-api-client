@@ -7,7 +7,16 @@
  * SKILL.md so we don't depend on the package's actual bundled file.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import {
+    mkdtempSync,
+    writeFileSync,
+    readFileSync,
+    existsSync,
+    rmSync,
+    symlinkSync,
+    lstatSync,
+    mkdirSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInstallSkill, getBundledSkillPath } from '../src/cli/install-skill.js';
@@ -219,6 +228,58 @@ describe('runInstallSkill', () => {
         );
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('bundled SKILL.md not found');
+    });
+
+    it('refuses to clobber target via a symlink (breaks link and creates regular file)', () => {
+        const project = join(tmp, 'proj');
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(skillDir, { recursive: true });
+
+        const target = join(skillDir, 'SKILL.md');
+        const decoy = join(tmp, 'decoy-sensitive-file.txt');
+        const decoyContent = 'sensitive system configuration';
+        writeFileSync(decoy, decoyContent, 'utf-8');
+
+        // Create symlink at target pointing to decoy
+        symlinkSync(decoy, target);
+
+        // Run install without force -> should refuse overwrite
+        let code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(1);
+        expect(lstatSync(target).isSymbolicLink()).toBe(true);
+        expect(readFileSync(decoy, 'utf-8')).toBe(decoyContent); // Decoy untouched
+
+        // Run install WITH force -> should break symlink and write standard regular file without overwriting decoy
+        code = runInstallSkill(
+            {
+                global: false,
+                force: true,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(0);
+
+        // Target is now a regular file, not a symlink
+        expect(lstatSync(target).isSymbolicLink()).toBe(false);
+        expect(lstatSync(target).isFile()).toBe(true);
+        expect(readFileSync(target, 'utf-8')).toBe(SKILL_CONTENT);
+
+        // Crucially, the decoy file was NOT followed/clobbered!
+        expect(readFileSync(decoy, 'utf-8')).toBe(decoyContent);
     });
 });
 
