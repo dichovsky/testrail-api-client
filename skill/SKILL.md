@@ -1812,6 +1812,53 @@ testrail user update 42 --data '{"name":"Preview Name"}' --dry-run
 const updated = await client.updateUser(42, { name: 'Alice Smith-Jones', role_id: 5 });
 ```
 
+### 34. Add a single test result by test ID
+
+<!-- recipe-for: result:add-by-test -->
+
+`result add-by-test` wraps `POST add_result/{test_id}` — the lightest write
+path when you already hold a `test_id` (the run-scoped instance of a case).
+Unlike the per-case endpoint (`result add`), this path does not require a
+`run_id`; the `test_id` alone identifies the target unambiguously.
+
+```bash
+testrail result add-by-test 123 --data '{"status_id":1,"comment":"PASS — verified","elapsed":"45s","version":"2.4.1"}'
+```
+
+Default `status_id` mapping (project-specific values may differ — verify with
+`testrail status list`):
+
+| ID | Meaning   |
+|----|-----------|
+| 1  | Passed    |
+| 2  | Blocked   |
+| 3  | Untested  |
+| 4  | Retest    |
+| 5  | Failed    |
+
+**When to use per-test vs alternatives:**
+
+- `result add-by-test <test_id>` — one result, you already have the `test_id`
+  (e.g. captured from `testrail test list --run-id <id>`). Fewest API calls.
+- `result add <run_id> <case_id>` — one result, you have `run_id` + `case_id`
+  but no `test_id`. TestRail resolves the test internally.
+- `result add-bulk-by-case <run_id>` — many results, identified by `case_id`.
+  Prefer this for CI pipelines that report by case, not by test instance.
+- `result add-bulk-by-test <run_id>` — many results, identified by `test_id`.
+  Use when you have the full test-instance list (e.g. from `test list`).
+
+**Dry-run preview (no API call):**
+
+```bash
+testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Failed on step 3"}'
+```
+
+**Custom fields** pass through transparently (`.passthrough()` schema):
+
+```bash
+testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
+```
+
 ## Programmatic TypeScript API
 
 The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
