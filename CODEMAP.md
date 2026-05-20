@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.0.0"
   },
-  "sourceHash": "fb07a03e60ce00f12c30c99735ea39261c0aa2707e7f5a5a8ecc96b3d33b33a7",
+  "sourceHash": "f24a4b7cfe961471729e5c8b6d65122170f882f5d0a05b8fd7721d414837f459",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1769,56 +1769,63 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ResolvedUpload",
           "kind": "interface",
-          "line": 15,
+          "line": 19,
           "exported": false,
-          "signature": "interface ResolvedUpload { filename: string; path: string; }"
+          "signature": "interface ResolvedUpload { filename: string; path: string; contents?: Uint8Array; source: 'file' | 'stdin'; }"
         },
         {
           "name": "setupUpload",
           "kind": "function",
-          "line": 33,
+          "line": 41,
           "exported": false,
           "signature": "async function setupUpload( ctx: HandlerContext, action: string, idFields: Record<string, number>, ): Promise<ResolvedUpload | null>"
         },
         {
+          "name": "uploadPayload",
+          "kind": "function",
+          "line": 85,
+          "exported": false,
+          "signature": "function uploadPayload(upload: ResolvedUpload): { path: string } | Uint8Array"
+        },
+        {
           "name": "handleAttachmentAddToCase",
           "kind": "function",
-          "line": 66,
+          "line": 92,
           "exported": true,
           "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToResult",
           "kind": "function",
-          "line": 73,
+          "line": 99,
           "exported": true,
           "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToRun",
           "kind": "function",
-          "line": 80,
+          "line": 106,
           "exported": true,
           "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlan",
           "kind": "function",
-          "line": 87,
+          "line": 113,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlanEntry",
           "kind": "function",
-          "line": 94,
+          "line": 120,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentDelete",
           "kind": "function",
-          "line": 107,
+          "line": 133,
           "exported": true,
           "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
         }

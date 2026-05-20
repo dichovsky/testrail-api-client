@@ -474,6 +474,7 @@ async function main(): Promise<number> {
     // ignored flag.
     const actionSpec = getActionSpec(resource, action);
     const isFileInputAction = actionSpec?.fileInput === true;
+    const isFileOutputAction = actionSpec?.fileOutput === true;
 
     // PR3a: `--file -` (binary stdin upload) and `--out -` (binary stdout
     // download) mutual-exclusion + safety gates. Enforced here, before
@@ -488,7 +489,11 @@ async function main(): Promise<number> {
     //   3. `--file -` is incompatible with `--api-key-stdin` — both want to
     //      own fd 0. Catch the conflict here rather than letting the upload
     //      reader read a credential.
-    //   4. `--out -` with `--format table` is rejected — table is a
+    //   4. `--out -` requires a file-output action — for read/write actions
+    //      that don't download binary content the flag is silently ignored,
+    //      which would leave the user confused about where their output went.
+    //      (SEC M1 / security-review note)
+    //   5. `--out -` with `--format table` is rejected — table is a
     //      text-format hint that has no meaning for raw binary output.
     const fileFlagIsStdin = values['file'] === STDIN_SENTINEL;
     const outFlagIsStdout = values['out'] === STDOUT_SENTINEL;
@@ -508,9 +513,15 @@ async function main(): Promise<number> {
         }
     }
 
-    if (outFlagIsStdout && formatRaw === 'table') {
-        err("--out '-' streams raw binary; --format table is meaningless and was rejected.");
-        return 1;
+    if (outFlagIsStdout) {
+        if (!isFileOutputAction) {
+            err("--out '-' is only valid for actions that download binary content (attachment get, bdd get).");
+            return 1;
+        }
+        if (formatRaw === 'table') {
+            err("--out '-' streams raw binary; --format table is meaningless and was rejected.");
+            return 1;
+        }
     }
 
     const bodyInput: BodyInput = {

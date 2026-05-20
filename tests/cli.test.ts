@@ -5351,6 +5351,15 @@ describe('CLI', () => {
             expect(stderr).toMatch(/--format table is meaningless/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
+
+        it("--out '-' on a non-fileOutput action is rejected (M1 gate)", async () => {
+            // `attachment list-for-run` does not produce binary output; `--out -`
+            // should be rejected before any API call, not silently ignored.
+            const { exitCodes, stderr } = await runCli(['attachment', 'list-for-run', '1', '--out', '-']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/only valid for actions that download binary content/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     describe('bdd', () => {
