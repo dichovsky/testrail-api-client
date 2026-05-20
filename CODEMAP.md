@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.0.0"
   },
-  "sourceHash": "8d331ff85f99694a2a8f118376361b512cfb538f23a88e2e82b35bc15f3177ae",
+  "sourceHash": "56ddc2b097720f563dd54d9bdc3743d554e76d13cc4a7d141e041a53a9ae3ff5",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3098,7 +3098,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 236,
+          "line": 242,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -3179,56 +3179,155 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/output.ts",
       "imports": [
+        "../constants.js",
         "./sanitize.js"
       ],
       "reExports": [],
       "symbols": [
         {
+          "name": "OutputFormat",
+          "kind": "type",
+          "line": 4,
+          "exported": true,
+          "signature": "export type OutputFormat = 'json' | 'table' | 'yaml' | 'csv'"
+        },
+        {
           "name": "OutputOptions",
           "kind": "interface",
-          "line": 3,
+          "line": 6,
           "exported": true,
-          "signature": "export interface OutputOptions { quiet: boolean; format: 'json' | 'table'; }"
+          "signature": "export interface OutputOptions { quiet: boolean; format: OutputFormat; }"
         },
         {
           "name": "Output",
           "kind": "interface",
-          "line": 8,
+          "line": 11,
           "exported": true,
           "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; }"
         },
         {
           "name": "valueToString",
           "kind": "function",
-          "line": 13,
+          "line": 16,
           "exported": true,
           "signature": "export function valueToString(v: unknown): string"
         },
         {
           "name": "getField",
           "kind": "function",
-          "line": 35,
+          "line": 38,
           "exported": false,
           "signature": "function getField(row: unknown, key: string): unknown"
         },
         {
           "name": "renderTable",
           "kind": "function",
-          "line": 40,
+          "line": 43,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 89,
+          "line": 92,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
+          "name": "SPECIAL_BARE_STRINGS",
+          "kind": "const",
+          "line": 124,
+          "exported": false,
+          "signature": "const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([ '', '~', 'null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'false', 'False', 'FALSE', 'yes', 'Yes', 'YES', 'no', 'No', 'NO', 'on', 'On', 'ON',…"
+        },
+        {
+          "name": "needsQuoting",
+          "kind": "function",
+          "line": 161,
+          "exported": false,
+          "signature": "function needsQuoting(s: string): boolean"
+        },
+        {
+          "name": "escapeDoubleQuoted",
+          "kind": "function",
+          "line": 192,
+          "exported": false,
+          "signature": "function escapeDoubleQuoted(s: string): string"
+        },
+        {
+          "name": "renderYamlScalar",
+          "kind": "function",
+          "line": 235,
+          "exported": false,
+          "signature": "function renderYamlScalar(v: unknown): string"
+        },
+        {
+          "name": "isPlainObject",
+          "kind": "function",
+          "line": 257,
+          "exported": false,
+          "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
+        },
+        {
+          "name": "renderYamlNode",
+          "kind": "function",
+          "line": 266,
+          "exported": false,
+          "signature": "function renderYamlNode(v: unknown, depth: number): string"
+        },
+        {
+          "name": "renderYaml",
+          "kind": "function",
+          "line": 347,
+          "exported": true,
+          "signature": "export function renderYaml(value: unknown): string"
+        },
+        {
+          "name": "CSV_LINE_TERMINATOR",
+          "kind": "const",
+          "line": 367,
+          "exported": false,
+          "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
+        },
+        {
+          "name": "csvCellRequiresQuoting",
+          "kind": "function",
+          "line": 369,
+          "exported": false,
+          "signature": "function csvCellRequiresQuoting(cell: string): boolean"
+        },
+        {
+          "name": "csvEscapeCell",
+          "kind": "function",
+          "line": 373,
+          "exported": false,
+          "signature": "function csvEscapeCell(cell: string): string"
+        },
+        {
+          "name": "sanitizeForCsv",
+          "kind": "function",
+          "line": 380,
+          "exported": false,
+          "signature": "function sanitizeForCsv(cell: string): string"
+        },
+        {
+          "name": "csvCellFromValue",
+          "kind": "function",
+          "line": 386,
+          "exported": false,
+          "signature": "function csvCellFromValue(v: unknown): string"
+        },
+        {
+          "name": "renderCsv",
+          "kind": "function",
+          "line": 422,
+          "exported": true,
+          "signature": "export function renderCsv(value: unknown): string"
+        },
+        {
           "name": "createOutput",
           "kind": "function",
-          "line": 104,
+          "line": 476,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -3614,22 +3713,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1141
+              "line": 1137
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1247
+              "line": 1243
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1256
+              "line": 1252
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1289
+              "line": 1285
             }
           ]
         }
@@ -4304,122 +4403,122 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 1214
+              "line": 1210
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 1231
+              "line": 1223
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 1248
+              "line": 1236
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 1266
+              "line": 1250
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 1282
+              "line": 1266
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 1299
+              "line": 1283
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 1312
+              "line": 1296
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 1329
+              "line": 1309
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 1340
+              "line": 1320
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 1352
+              "line": 1332
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 1364
+              "line": 1344
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 1375
+              "line": 1355
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 1384
+              "line": 1364
             },
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 1397
+              "line": 1377
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 1409
+              "line": 1389
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 1421
+              "line": 1401
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 1432
+              "line": 1412
             },
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 1445
+              "line": 1425
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 1456
+              "line": 1436
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 1468
+              "line": 1448
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 1480
+              "line": 1460
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 1491
+              "line": 1471
             },
             {
               "name": "getReports",
               "kind": "method",
-              "line": 1504
+              "line": 1484
             },
             {
               "name": "runReport",
               "kind": "method",
-              "line": 1515
+              "line": 1495
             }
           ]
         }
@@ -4534,6 +4633,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 69,
           "exported": true,
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
+        },
+        {
+          "name": "YAML_INDENT_SPACES",
+          "kind": "const",
+          "line": 77,
+          "exported": true,
+          "signature": "export const YAML_INDENT_SPACES = 2"
         }
       ]
     },
@@ -4654,27 +4760,27 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 97
+              "line": 93
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 107
+              "line": 99
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 117
+              "line": 105
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 127
+              "line": 111
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 143
+              "line": 127
             }
           ]
         }

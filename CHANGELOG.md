@@ -5,14 +5,30 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Skill expansion: programmatic recipes + multi-harness rules + uninstall-skill
-
-Five-deliverable package broadening the agent-instruction surface so this
-package is first-class on Cursor, Continue, and any harness honouring the
-[agents.md](https://agents.md/) convention — not just Claude Code.
+## [Unreleased]
 
 ### Added
 
+- **CLI: `--format yaml` and `--format csv` output formats.** Closes [BACKLOG CLI
+  format yaml/csv](BACKLOG-ARCHIVE.md). Every read, list, and write action now
+  accepts `--format <json|table|yaml|csv>` (default unchanged: `json`).
+    - `yaml` emits a zero-dependency YAML 1.2 document with 2-space indent.
+      Strings that could parse as numbers, booleans, null tokens, or carry
+      reserved YAML leaders (`-`, `?`, `:`, `#`, `|`, `>`, etc.) are
+      force-quoted in double-quoted form with full C-style escapes. NaN /
+      Infinity are emitted as the YAML 1.2 sentinels (`.nan`, `.inf`,
+      `-.inf`). No new runtime dependency — the emitter is hand-rolled to
+      respect the project's zero-runtime-dep policy.
+    - `csv` emits RFC 4180 with CRLF line terminators. Headers are the
+      sorted union of top-level keys across rows (deterministic output for
+      diff-friendly exports). Nested objects/arrays are JSON-stringified
+      into a single cell (no dot-path flattening) so the column count is
+      stable regardless of payload shape. Single-object responses become a
+      1-row CSV preserving insertion order.
+    - Unknown `--format` values now exit 1 with a clear error listing the
+      valid values, instead of silently falling through to JSON.
+    - See `README.md` for the format matrix and pipeline examples
+      (`yq`-piping for YAML, spreadsheet exports for CSV).
 - **Programmatic TypeScript API recipes** in `skill/SKILL.md`. A new
   `## Programmatic TypeScript API` section gives copy-paste-runnable
   snippets for every major resource (projects, suites, sections, cases,
