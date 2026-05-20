@@ -21,7 +21,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Cases](#cases) | 11 | 11 | 11 | 11 |
 | [Configurations](#configurations) | 7 | 7 | 7 | 5 |
 | [Datasets](#datasets) | 5 | 5 | 5 | 5 |
-| [Groups](#groups) | 5 | 5 | 5 | 0 |
+| [Groups](#groups) | 5 | 5 | 5 | 5 |
 | [Milestones](#milestones) | 5 | 5 | 5 | 5 |
 | [Plans](#plans) | 12 | 12 | 12 | 12 |
 | [Priorities](#priorities) | 1 | 1 | 1 | 0 |
@@ -29,7 +29,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Reports](#reports) | 2 | 2 | 2 | 0 |
 | [Result Fields](#result-fields) | 1 | 1 | 1 | 0 |
 | [Results](#results) | 7 | 7 | 7 | 6 |
-| [Roles](#roles) | 1 | 1 | 1 | 0 |
+| [Roles](#roles) | 1 | 1 | 1 | 1 |
 | [Runs](#runs) | 6 | 6 | 6 | 6 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
 | [Shared Steps](#shared-steps) | 6 | 6 | 6 | 4 |
@@ -37,9 +37,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
 | [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
-| [Users](#users) | 6 | 6 | 6 | 3 |
+| [Users](#users) | 6 | 6 | 6 | 6 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **117** | **117** | **117** | **69** |
+| **Total** | **117** | **117** | **117** | **78** |
 
 ## Attachments
 
@@ -136,11 +136,11 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroup`](../src/modules/users.ts#L69) | `group get` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_groups`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroups`](../src/modules/users.ts#L75) | `group list` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_group`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addGroup`](../src/modules/users.ts#L80) | `group add` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteGroup`](../src/modules/users.ts#L91) | `group delete` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST update_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateGroup`](../src/modules/users.ts#L85) | `group update` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroup`](../src/modules/users.ts#L69) | `group get` | [recipe #78](../skill/SKILL.md#78-group-crud-lifecycle-testrail-75) |
+| [`GET get_groups`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getGroups`](../src/modules/users.ts#L75) | `group list` | [recipe #78](../skill/SKILL.md#78-group-crud-lifecycle-testrail-75) |
+| [`POST add_group`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addGroup`](../src/modules/users.ts#L80) | `group add` | [recipe #78](../skill/SKILL.md#78-group-crud-lifecycle-testrail-75) |
+| [`POST delete_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteGroup`](../src/modules/users.ts#L91) | `group delete` | [recipe #78](../skill/SKILL.md#78-group-crud-lifecycle-testrail-75) |
+| [`POST update_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateGroup`](../src/modules/users.ts#L85) | `group update` | [recipe #78](../skill/SKILL.md#78-group-crud-lifecycle-testrail-75) |
 
 ## Milestones
 
@@ -230,7 +230,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_roles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRoles`](../src/modules/metadata.ts#L75) | `role list` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_roles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRoles`](../src/modules/metadata.ts#L75) | `role list` | [recipe #79](../skill/SKILL.md#79-role-list-testrail-permission-roles) |
 
 ## Runs
 
@@ -315,9 +315,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L53) | `user get-current` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUser`](../src/modules/users.ts#L14) | `user get` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L20) | `user get-by-email` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_current_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCurrentUser`](../src/modules/users.ts#L53) | `user get-current` | [recipe #77](../skill/SKILL.md#77-user-lookups-current-session-by-id-by-email) |
+| [`GET get_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUser`](../src/modules/users.ts#L14) | `user get` | [recipe #77](../skill/SKILL.md#77-user-lookups-current-session-by-id-by-email) |
+| [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L20) | `user get-by-email` | [recipe #77](../skill/SKILL.md#77-user-lookups-current-session-by-id-by-email) |
 | [`GET get_users`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUsers`](../src/modules/users.ts#L30) | `user list` | [recipe #1](../skill/SKILL.md#1-smoke-test-auth--connectivity) |
 | [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L58) | `user add` | [recipe #32](../skill/SKILL.md#32-create-a-user-testrail-73) |
 | [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L63) | `user update` | [recipe #33](../skill/SKILL.md#33-update-a-user-testrail-73) |
