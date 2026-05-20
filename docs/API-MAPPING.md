@@ -16,9 +16,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | --- | ---: | ---: | ---: | ---: |
 | [Attachments](#attachments) | 12 | 12 | 12 | 5 |
 | [BDD](#bdd) | 2 | 2 | 2 | 0 |
-| [Case Fields](#case-fields) | 2 | 2 | 2 | 0 |
-| [Case Types](#case-types) | 1 | 1 | 1 | 0 |
-| [Cases](#cases) | 11 | 11 | 11 | 5 |
+| [Case Fields](#case-fields) | 2 | 2 | 2 | 2 |
+| [Case Types](#case-types) | 1 | 1 | 1 | 1 |
+| [Cases](#cases) | 11 | 11 | 11 | 11 |
 | [Configurations](#configurations) | 7 | 7 | 7 | 5 |
 | [Datasets](#datasets) | 5 | 5 | 5 | 5 |
 | [Groups](#groups) | 5 | 5 | 5 | 0 |
@@ -33,13 +33,13 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
 | [Shared Steps](#shared-steps) | 6 | 6 | 6 | 4 |
-| [Statuses](#statuses) | 2 | 2 | 2 | 0 |
+| [Statuses](#statuses) | 2 | 2 | 2 | 1 |
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
 | [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 6 | 3 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **117** | **117** | **117** | **48** |
+| **Total** | **117** | **117** | **117** | **58** |
 
 ## Attachments
 
@@ -75,8 +75,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseFields`](../src/modules/metadata.ts#L40) | `case-field list` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_case_field`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCaseField`](../src/modules/metadata.ts#L59) | `case-field add` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_case_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseFields`](../src/modules/metadata.ts#L40) | `case-field list` | [recipe #36](../skill/SKILL.md#36-case-field-configuration-and-discovery) |
+| [`POST add_case_field`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCaseField`](../src/modules/metadata.ts#L59) | `case-field add` | [recipe #36](../skill/SKILL.md#36-case-field-configuration-and-discovery) |
 
 ## Case Types
 
@@ -84,7 +84,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_types`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTypes`](../src/modules/metadata.ts#L64) | `case-type list` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_case_types`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTypes`](../src/modules/metadata.ts#L64) | `case-type list` | [recipe #37](../skill/SKILL.md#37-case-metadata-lookups-types-and-statuses) |
 
 ## Cases
 
@@ -92,17 +92,17 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L36) | `case get` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L36) | `case get` | [recipe #35](../skill/SKILL.md#35-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 | [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L42) | `case list` | [recipe #5](../skill/SKILL.md#5-list-cases-in-a-specific-suite) |
-| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L270) | `case history` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L270) | `case history` | [recipe #35](../skill/SKILL.md#35-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 | [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L91) | `case add` | [recipe #9](../skill/SKILL.md#9-author-a-new-test-case) |
 | [`POST add_cases/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCases`](../src/modules/cases.ts#L110) | `case add-bulk` | [recipe #30](../skill/SKILL.md#30-bulk-author-cases-under-a-section-in-one-api-call) |
-| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L247) | `case copy-to-section` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L160) | `case delete` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L247) | `case copy-to-section` | [recipe #35](../skill/SKILL.md#35-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L160) | `case delete` | [recipe #38](../skill/SKILL.md#38-delete-a-single-test-case-with-safety-gates) |
 | [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L205) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
-| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L264) | `case move-to-section` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L264) | `case move-to-section` | [recipe #35](../skill/SKILL.md#35-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 | [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L146) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
-| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L192) | `case update-bulk` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L192) | `case update-bulk` | [recipe #35](../skill/SKILL.md#35-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 
 ## Configurations
 
@@ -277,7 +277,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseStatuses`](../src/modules/metadata.ts#L25) | `case-status list` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_case_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseStatuses`](../src/modules/metadata.ts#L25) | `case-status list` | [recipe #37](../skill/SKILL.md#37-case-metadata-lookups-types-and-statuses) |
 | [`GET get_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getStatuses`](../src/modules/metadata.ts#L20) | `status list` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Suites

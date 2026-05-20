@@ -1859,6 +1859,386 @@ testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Fail
 testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
 ```
 
+### 35. Case lifecycle: read, edit history, copy, move, and bulk update
+
+<!-- recipe-for: case:get -->
+<!-- recipe-for: case:history -->
+<!-- recipe-for: case:copy-to-section -->
+<!-- recipe-for: case:move-to-section -->
+<!-- recipe-for: case:update-bulk -->
+
+This recipe combines the main case read and mutation patterns: fetch a single
+case, audit its edit history, duplicate it to another section, move a batch
+into a new home, and bulk-update many cases in a suite to the same field values.
+
+**Fetch a single case by ID:**
+
+```bash
+testrail case get 1337 | jq '{id, title, section_id, type_id, priority_id, assigned_to_id}'
+```
+
+The response includes every custom field defined on the TestRail instance
+(those starting with `custom_`). Pipe to `jq` to extract fields of interest.
+
+**Audit edit history (TestRail 7.5+):**
+
+History is paginated; use `--limit` and `--offset` to page through large changelogs:
+
+```bash
+# Fetch the 50 most recent edits to case 1337.
+testrail case history 1337 --limit 50
+
+# Page backward through 500 edits (10 pages of 50).
+for offset in 0 50 100 150 200 250 300 350 400 450; do
+    testrail case history 1337 --limit 50 --offset "$offset" | jq -c '.[]'
+done
+```
+
+Each history entry includes: `id`, `created_by`, `created_on` (Unix timestamp),
+`action` (e.g., "created", "updated"), and `changes` (list of field mutations).
+Use this before any destructive update or delete to confirm no other user
+has modified the case recently.
+
+**Copy a case (or batch) to a new section:**
+
+`case copy-to-section` creates independent clones in the destination; the
+original case remains in its source section. Useful for duplicating a case
+across multiple test suites or sections without disturbing the original.
+
+```bash
+# Copy case 1337 into section 99. Specify the target section in the path;
+# the payload identifies the source case(s).
+testrail case copy-to-section 99 --data '{
+    "case_ids": [1337, 1338]
+}'
+```
+
+The response is the array of newly created case objects. Each has a fresh `id`
+and inherits custom fields from the source.
+
+**Move a batch of cases to a new section (requires suite context):**
+
+Unlike copy, move is destructive — the cases leave their source section and
+land in the destination (same suite only). The `suite_id` in the payload tells
+TestRail which suite contains both source and destination sections.
+
+```bash
+# Move cases 1337, 1338 from their current section into section 99.
+# suite_id identifies the suite scope (both sections must be in the same suite).
+testrail case move-to-section 99 --data '{
+    "case_ids": [1337, 1338],
+    "suite_id": 12
+}'
+```
+
+**Bulk-update many cases to the same field values:**
+
+`case update-bulk` is a mass-mutation tool: update `priority_id`, `assigned_to_id`,
+`custom_*` fields, etc. across a suite's cases in a single API call. Apply the
+same logic to a list of case IDs without burning rate budget on N individual
+`case update` calls.
+
+```bash
+# Promote the priority on three cases at once.
+testrail case update-bulk 12 --data '{
+    "case_ids": [1337, 1338, 1339],
+    "priority_id": 2
+}'
+```
+
+Bulk updates can include custom fields (pass them as top-level keys in the
+payload, using the field ID as the key — e.g., `"custom_rfc": "RFC-5678"`).
+
+**CI/scripting pattern — list all cases in a suite, then bulk-promote by priority:**
+
+```bash
+# Extract case IDs where assigned_to_id is null (unassigned).
+CASES=$(testrail case list --project-id 5 --suite-id 12 | \
+    jq -r '.[] | select(.assigned_to_id == null) | .id')
+
+# Convert to a JSON array and bulk-update.
+CASE_IDS=$(echo "$CASES" | jq -Rs 'split("\n") | map(select(. != "") | tonumber)')
+
+testrail case update-bulk 12 --data "$(jq -n --argjson ids "$CASE_IDS" '{
+    "case_ids": $ids,
+    "priority_id": 4
+}')"
+```
+
+### 36. Case field configuration and discovery
+
+<!-- recipe-for: case-field:list -->
+<!-- recipe-for: case-field:add -->
+
+Custom case fields are instance-level metadata: once defined, they appear
+on every case in every project and persist across suite/section mutations.
+Use `case-field list` to discover fields and their type/config; use `case-field add`
+(admin-only) to define new fields.
+
+**List all custom case fields on the instance:**
+
+```bash
+testrail case-field list | jq '.[] | {id, label, type_id, configs}'
+```
+
+Each entry has:
+- `id` — numeric field ID (use this when writing payloads)
+- `label` — display name
+- `type_id` — field type (see below)
+- `configs` — if a dropdown/checkbox field, the list of valid option IDs
+- `is_global` — whether the field is instance-wide (true) or project-scoped (false)
+
+Common type IDs:
+
+| type_id | Meaning      | Payload shape              |
+|---------|--------------|----------------------------|
+| 1       | String       | `"custom_myfield": "value"`|
+| 2       | Integer      | `"custom_myfield": 42`     |
+| 3       | Text (multi) | `"custom_myfield": "text"` |
+| 4       | URL          | `"custom_myfield": "http..."`|
+| 5       | Checkbox     | `"custom_myfield": true`   |
+| 6       | Dropdown     | `"custom_myfield": "opt_id"` or array `[id1, id2]` for multi-select|
+| 7       | User         | `"custom_myfield": user_id` (or null)|
+| 8       | Date         | `"custom_myfield": "2025-05-20"` (RFC 3339 or YYYY-MM-DD)|
+
+**Create a new custom case field (admin-only):**
+
+```bash
+# Add a string field named "RFC Reference".
+testrail case-field add --data '{
+    "type_id": 1,
+    "label": "RFC Reference",
+    "description": "Link to design RFC in internal wiki"
+}'
+```
+
+On success, TestRail returns the new field object with an assigned `id`.
+You can then use `"custom_<id>": "value"` in case payloads going forward.
+
+Common field creation options:
+
+```bash
+# A dropdown field with options (e.g., environment tier).
+testrail case-field add --data '{
+    "type_id": 6,
+    "label": "Environment Tier",
+    "configs": [
+        {"id": "opt_1", "name": "dev"},
+        {"id": "opt_2", "name": "staging"},
+        {"id": "opt_3", "name": "prod"}
+    ]
+}'
+
+# A date field.
+testrail case-field add --data '{
+    "type_id": 8,
+    "label": "Target Release Date"
+}'
+```
+
+Note: field IDs are instance-global; once created, they exist across all
+projects. Always `case-field list` first to avoid duplicate definitions.
+
+### 37. Case metadata lookups: types and statuses
+
+<!-- recipe-for: case-type:list -->
+<!-- recipe-for: case-status:list -->
+
+`case-type list` and `case-status list` are reference-data queries: discover
+the built-in and custom case types and statuses available in your TestRail
+instance. These are typically used at startup to seed a mapping or in
+validation logic before writing cases.
+
+**List all case types (readonly):**
+
+Case types categorize the intent of a case (e.g., Automated, Manual, Exploratory).
+
+```bash
+testrail case-type list
+```
+
+Output:
+
+```json
+[
+    {"id": 1, "name": "Automated", "is_builtin": true},
+    {"id": 2, "name": "Manual", "is_builtin": true},
+    {"id": 3, "name": "Exploratory", "is_builtin": true},
+    {"id": 4, "name": "Performance", "is_builtin": false}
+]
+```
+
+Use these IDs in `type_id` when creating or updating cases:
+
+```bash
+testrail case add 42 --data '{"title": "Login flow", "type_id": 1}'
+```
+
+**List all case-level statuses (TestRail 7.5+):**
+
+Case-level statuses (distinct from result statuses) model the lifecycle of
+a case itself: Draft, Active, Deprecated, etc. This is different from a
+result status (Passed/Failed) and is rarely used on cloud instances; more
+common in on-premise with custom lifecycle policies.
+
+```bash
+testrail case-status list
+```
+
+If the instance supports case-level statuses, the response is an array with
+`id`, `name`, `color` (hex code for UI rendering), and metadata. If not
+supported (cloud instances < 7.5), the API returns an empty array or 400.
+
+Compatibility note: always check the length of the response before assuming
+the feature is available — do not hardcode status IDs.
+
+### 38. Delete a single test case with safety gates
+
+<!-- recipe-for: case:delete -->
+
+`case delete` removes a single case and all its associated history, results,
+and attachments. It is **irreversible** — TestRail does not provide soft-delete
+or transaction rollback. The CLI gates deletion behind two safety layers:
+`--yes` (client-side) and `--soft` (server-side preview).
+
+**Destructive-action gate (`--yes` + env var):**
+
+All destructive CLI actions (case delete, run delete, suite delete, etc.)
+require both:
+1. The `--yes` flag (client-side gate)
+2. The `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable (second layer)
+
+Omitting either prevents the API call:
+
+```bash
+# Without --yes: exits 1.
+testrail case delete 1337
+# Error: Destructive action; pass --yes to confirm.
+
+# Without env var: exits 1.
+testrail case delete 1337 --yes
+# Error: Destructive action requires TESTRAIL_ALLOW_DESTRUCTIVE=1.
+```
+
+Both must be present:
+
+```bash
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail case delete 1337 --yes
+```
+
+**Server-side preview with `--soft` (hits API, no deletion):**
+
+The `--soft` flag (independent of `--yes`) tells TestRail to return a preview
+of affected entities without actually deleting. This is distinct from `--dry-run`
+(client-side, no API call):
+
+```bash
+# Server-side preview: hit the API, receive affected-entity count, no deletion.
+# Still requires --yes gate; still consumes one API request.
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail case delete 1337 --yes --soft
+```
+
+Response (no deletion occurred):
+
+```json
+{
+    "caseId": 1337,
+    "soft": true,
+    "deleted": false,
+    "preview": {
+        "cases_affected": 1,
+        "results_affected": 42,
+        "attachments_affected": 3
+    }
+}
+```
+
+**Client-side preview with `--dry-run` (no API call):**
+
+`--dry-run` short-circuits before any request and emits a client-side validation
+preview. Useful for CI pipelines to confirm the ID parses before consuming rate
+budget:
+
+```bash
+testrail case delete 1337 --dry-run --yes
+```
+
+Output:
+
+```json
+{
+    "caseId": 1337,
+    "destructive": true,
+    "dry_run": true,
+    "soft": false
+}
+```
+
+**Three safety layers in order of precedence (from highest to lowest):**
+
+| Flag         | Side       | API call? | Effect                              |
+|--------------|------------|-----------|------------------------------------|
+| `--dry-run`  | client     | no        | Parses ID, emits preview, exits 0  |
+| `--soft`     | server     | yes       | TestRail returns preview, no delete|
+| `--yes`      | client     | n/a       | Gate; without it, exits 1          |
+
+`--dry-run` always wins: if present, neither `--soft` nor any API happens.
+
+**Recommended CI pattern — audit before commit:**
+
+```bash
+# Step 1: Client-side validation (no API call, no rate-limit impact).
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail case delete 1337 --yes --dry-run
+
+# Step 2: Server-side preview (costs 1 API request, returns counts).
+PREVIEW=$(testrail case delete 1337 --yes --soft)
+RESULTS_AFFECTED=$(echo "$PREVIEW" | jq '.preview.results_affected')
+
+if [ "$RESULTS_AFFECTED" -gt 100 ]; then
+    echo "Too many results affected; aborting." >&2
+    exit 1
+fi
+
+# Step 3: Real delete (irreversible).
+testrail case delete 1337 --yes
+```
+
+**Recovery if a delete fires by mistake:**
+
+- **No client-side recovery.** Once `--yes --soft` is omitted and the CLI
+  sends the request, TestRail deletes the case server-side immediately.
+- **TestRail audit log** (admin panel, Web UI) records the deletion with
+  the acting user and timestamp. Use this to identify when the case was
+  removed and by whom.
+- **TestRail support recovery** (Cloud/on-premise) depends on backup
+  cadence. Open a support ticket immediately; backups roll off after
+  7–30 days depending on your plan.
+
+**Idempotence and race conditions:**
+
+If the case ID does not exist, TestRail returns 404 / "Case not found".
+The CLI exits 1 with that error; it does not "succeed" on missing IDs.
+In CI pipelines, account for this:
+
+```bash
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+
+if testrail case delete 1337 --yes; then
+    echo "Case 1337 deleted."
+elif [ $? -eq 1 ]; then
+    # Could be 404 (not found) or a network error — check stderr
+    if testrail case delete 1337 --dry-run 2>&1 | grep -q "not found"; then
+        echo "Case 1337 does not exist; skipping."
+    else
+        echo "Delete failed; aborting." >&2
+        exit 1
+    fi
+fi
+```
+
 ## Programmatic TypeScript API
 
 The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
