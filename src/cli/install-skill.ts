@@ -93,17 +93,13 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         return 1;
     }
 
+    let tempPath: string | undefined;
     try {
         const dir = dirname(target);
         mkdirSync(dir, { recursive: true });
 
-        // If it exists (even if it's a symlink), unlink it first to ensure we don't follow any existing link.
-        if (targetExists) {
-            unlinkSync(target);
-        }
-
-        // Create a secure sibling temp file.
-        const tempPath = join(dir, `SKILL.md.tmp.${Math.random().toString(36).substring(2, 9)}`);
+        // Create a secure sibling temp file first.
+        tempPath = join(dir, `SKILL.md.tmp.${Math.random().toString(36).substring(2, 9)}`);
         const fd = openSync(tempPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW);
 
         try {
@@ -119,13 +115,26 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
             throw new Error('temporary file is not a regular file');
         }
 
+        // If it exists (even if it's a symlink), unlink it first to ensure we don't follow any existing link.
+        if (targetExists) {
+            unlinkSync(target);
+        }
+
         // Atomically place it at target
         renameSync(tempPath, target);
+        tempPath = undefined;
         /* v8 ignore start -- defensive: triggered only by filesystem failures
            (permission denied, full disk, etc.) that are flaky to simulate in
            CI. The error path is exercised manually if invoked under an
            unwritable HOME. */
     } catch (e: unknown) {
+        if (tempPath !== undefined) {
+            try {
+                unlinkSync(tempPath);
+            } catch {
+                // Best-effort cleanup
+            }
+        }
         writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }

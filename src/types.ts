@@ -85,6 +85,14 @@ export interface TestRailConfig {
 export interface UploadFilePathInput {
     path: string;
     type?: string;
+    /**
+     * Optional open file descriptor to read the upload content from.
+     * When provided on POSIX systems (macOS, Linux), the client will stream the
+     * file content directly from this descriptor (protecting against TOCTOU symlink
+     * swap attacks) and will automatically close the descriptor after upload.
+     *
+     * Union contains `| undefined` to remain compatible with TS exactOptionalPropertyTypes.
+     */
     fd?: number | undefined;
 }
 
