@@ -133,7 +133,6 @@ testrail case get 1234 --format table
 
 `--format csv` keeps nested values as JSON in-cell (no dot-path flattening) so the CSV column count is stable regardless of payload shape. Header order in CSV mode is the sorted union of top-level keys across all rows, so two CSV exports of the same endpoint always produce the same header.
 
-
 ### Destructive operations
 
 Every destructive CLI action (any `delete` plus `run close` / `plan close`) is protected by a **two-gate model**. Both gates must be satisfied before a destructive call reaches the API:
