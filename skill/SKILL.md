@@ -1859,6 +1859,302 @@ testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Fail
 testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
 ```
 
+### 35. Section CRUD lifecycle (get → list → add → move → update → delete)
+
+<!-- recipe-for: section:get -->
+<!-- recipe-for: section:list -->
+<!-- recipe-for: section:add -->
+<!-- recipe-for: section:move -->
+<!-- recipe-for: section:update -->
+<!-- recipe-for: section:delete -->
+
+Sections are containers for test cases within a suite. This walkthrough
+shows the full lifecycle: discover sections, create new ones, reorder
+them, update metadata, and delete when no longer needed.
+
+**1. Fetch a single section by ID:**
+
+```bash
+testrail section get 42
+```
+
+Returns `{ id: 42, project_id: 5, suite_id: 12, parent_id: null, name: "Login", depth: 0, display_order: 1 }` etc.
+
+**2. List all sections in a project (optionally filtered by suite):**
+
+```bash
+# All sections in the project
+testrail section list 5
+
+# Sections in a specific suite (multi-suite mode projects only)
+testrail section list 5 --suite-id 12
+```
+
+**3. Create a new section:**
+
+For multi-suite mode projects, `suite_id` is required. Single-suite mode
+projects will use their default suite if omitted.
+
+```bash
+testrail section add 5 --data '{
+    "name": "Authentication",
+    "suite_id": 12,
+    "description": "Login, SSO, session handling"
+}'
+```
+
+**4. Move a section to reorder or reparent (TestRail 6.5.2+):**
+
+```bash
+# Move to a different parent section or top-level position
+testrail section move 42 --data '{
+    "parent_id": 50,
+    "display_order": 2
+}'
+
+# Move to top level (no parent)
+testrail section move 42 --data '{
+    "parent_id": null,
+    "display_order": 1
+}'
+```
+
+The `move_section` endpoint accepts partial payloads — omit fields you
+don't want to change.
+
+**5. Update section metadata (name, description):**
+
+```bash
+testrail section update 42 --data '{
+    "name": "Authentication (renamed)",
+    "description": "Updated scope"
+}'
+```
+
+**6. Delete a section (destructive; requires --yes):**
+
+```bash
+testrail section delete 42 --yes
+```
+
+TestRail's `delete_section` cascade behavior:
+- Deletes the section and all child sections (if nested).
+- Deletes all cases under those sections.
+- **Does NOT** automatically reassign cases to a different section —
+  you must explicitly `case move-to-section` before deleting if you
+  want to preserve them.
+
+Use `--dry-run` to preview the call shape without deleting:
+
+```bash
+testrail section delete 42 --yes --dry-run
+```
+
+### 36. Suite CRUD lifecycle (get → add → update → delete)
+
+<!-- recipe-for: suite:get -->
+<!-- recipe-for: suite:add -->
+<!-- recipe-for: suite:update -->
+<!-- recipe-for: suite:delete -->
+
+Suites are the top-level test organization container. They separate test
+cases into independent test inventories within a project. This recipe
+covers the full lifecycle.
+
+**1. Fetch a single suite by ID:**
+
+```bash
+testrail suite get 12
+```
+
+Returns `{ id: 12, project_id: 5, name: "Web API", is_master: false, is_baseline: false, ... }` etc.
+
+**2. Create a new suite in a project:**
+
+```bash
+testrail suite add 5 --data '{
+    "name": "Mobile App",
+    "description": "iOS and Android test cases"
+}'
+```
+
+The `is_master` and `is_baseline` flags are read-only and cannot be set on
+creation — they are managed by TestRail internally.
+
+**3. Update suite metadata (name, description):**
+
+```bash
+testrail suite update 12 --data '{
+    "name": "Web API (renamed)",
+    "description": "REST and GraphQL endpoints"
+}'
+```
+
+**4. Delete a suite (destructive; requires --yes):**
+
+```bash
+testrail suite delete 12 --yes
+```
+
+TestRail's `delete_suite` removes:
+- The suite itself.
+- All sections and cases inside the suite.
+- All runs, tests, and results associated with cases in that suite.
+
+This is irreversible. Use `--dry-run` to validate the call before
+executing:
+
+```bash
+testrail suite delete 12 --yes --dry-run
+```
+
+**Gotcha:** If a project is in **multi-suite mode**, you cannot delete
+all suites. At least one suite must exist. Attempting to delete the
+last suite returns a 400 / `"Invalid request"` error.
+
+### 37. Shared steps (get → list)
+
+<!-- recipe-for: shared-step:get -->
+<!-- recipe-for: shared-step:list -->
+
+Shared steps are reusable step templates that appear in cases as
+single-instance references (TestRail 7.0+). This recipe covers
+discovering and fetching them. For creation/update/deletion, see
+the existing recipes for `shared-step:add`, `shared-step:update`,
+and `shared-step:delete`.
+
+**1. Fetch a single shared step set by ID:**
+
+```bash
+testrail shared-step get 100
+```
+
+Returns `{ id: 100, project_id: 5, name: "Navigate to login", steps: [...] }` etc. The `steps` array contains the step definitions.
+
+**2. List all shared step sets in a project:**
+
+```bash
+testrail shared-step list 5
+```
+
+Includes all shared step sets, paginated. Use `--limit` and `--offset` for pagination:
+
+```bash
+testrail shared-step list 5 --limit 50 --offset 100
+```
+
+**Example workflow:** Look up a shared step to verify its ID before
+embedding it in a case:
+
+```bash
+# Find the shared step ID
+STEP_ID=$(testrail shared-step list 5 | jq '.[] | select(.name == "Navigate to login") | .id')
+
+# Use it when adding a case
+testrail case add 42 --data "{
+    \"title\": \"Login flow\",
+    \"type_id\": 1,
+    \"custom_steps\": [
+        {\"content\": \"{step_id: ${STEP_ID}}\"}
+    ]
+}"
+```
+
+### 38. BDD scenarios (get → add)
+
+<!-- recipe-for: bdd:get -->
+<!-- recipe-for: bdd:add -->
+
+TestRail's BDD (Behavior-Driven Development) mode stores Gherkin
+.feature files as case content. This recipe covers downloading and
+uploading Gherkin scenarios.
+
+**1. Download a case's BDD (Gherkin .feature) content to a file:**
+
+```bash
+testrail bdd get 1337 --out scenario.feature
+```
+
+The output is UTF-8 plain text in Gherkin syntax:
+
+```gherkin
+Feature: Login
+  Scenario: Valid credentials
+    Given I am on the login page
+    When I enter email "user@example.com"
+    And I enter password "secret123"
+    Then I should see the dashboard
+```
+
+Use `--force` to overwrite an existing file:
+
+```bash
+testrail bdd get 1337 --out scenario.feature --force
+```
+
+**2. Upload a .feature file as the BDD content for a case:**
+
+```bash
+testrail bdd add 1337 --file scenario.feature
+```
+
+The file must be valid UTF-8 Gherkin. TestRail validates the syntax
+before accepting the upload. If the file is malformed, the CLI returns
+a 400 / validation error with details.
+
+**Dry-run preview:**
+
+```bash
+testrail bdd add 1337 --file scenario.feature --dry-run
+```
+
+Shows the parsed file size and mimetype without uploading.
+
+**Integration pattern:** Maintain scenarios in version control, then
+sync to TestRail:
+
+```bash
+for feature in features/*.feature; do
+    CASE_ID=$(echo "$feature" | sed 's/.*-\([0-9]*\)\.feature/\1/')
+    testrail bdd add "$CASE_ID" --file "$feature" --yes
+done
+```
+
+### 39. Test case templates (template list)
+
+<!-- recipe-for: template:list -->
+
+Test case templates define the default fields and custom-field layout
+when creating a new case. This recipe shows how to list available
+templates in a project — useful for understanding which custom fields
+are required or optional when authoring cases.
+
+```bash
+testrail template list 5
+```
+
+Returns an array of templates, each with:
+
+```json
+{
+    "id": 1,
+    "name": "Test Case",
+    "is_default": true
+}
+```
+
+**Use case:** Before bulk-creating cases with `case add-bulk`, inspect
+the templates to see which custom fields (`custom_*`) the project expects:
+
+```bash
+testrail template list 5 | jq '.[] | select(.is_default) | .id'
+```
+
+The default template (if any) is marked with `is_default: true`. Custom
+fields attached to the template are not exposed via the CLI's `template
+list` endpoint — to see them, use the programmatic API or the TestRail
+web UI.
+
 ## Programmatic TypeScript API
 
 The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
