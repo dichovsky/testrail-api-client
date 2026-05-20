@@ -552,7 +552,7 @@ describe('CLI', () => {
             expect(stderr).toContain('Unknown action');
         });
 
-        // ── --format yaml / csv (end-to-end subprocess) ───────────────────
+        // ── --format yaml / csv (end-to-end in-process CLI run) ──────────
         //
         // Both formats are exercised through unit tests on the renderers
         // directly (tests/cli-helpers.test.ts); these subprocess tests pin

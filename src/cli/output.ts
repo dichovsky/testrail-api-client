@@ -483,9 +483,11 @@ export function createOutput(opts: OutputOptions): Output {
             case 'yaml':
                 process.stdout.write(`${renderYaml(data)}\n`);
                 return;
-            case 'csv':
-                process.stdout.write(`${renderCsv(data)}${CSV_LINE_TERMINATOR}`);
+            case 'csv': {
+                const csvOutput = renderCsv(data);
+                process.stdout.write(csvOutput === '' ? '' : `${csvOutput}${CSV_LINE_TERMINATOR}`);
                 return;
+            }
             case 'json':
             default:
                 process.stdout.write(`${safeJsonStringify(data)}\n`);
