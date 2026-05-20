@@ -25,7 +25,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Milestones](#milestones) | 5 | 5 | 5 | 5 |
 | [Plans](#plans) | 12 | 12 | 12 | 12 |
 | [Priorities](#priorities) | 1 | 1 | 1 | 1 |
-| [Projects](#projects) | 5 | 5 | 5 | 2 |
+| [Projects](#projects) | 5 | 5 | 5 | 5 |
 | [Reports](#reports) | 2 | 2 | 2 | 2 |
 | [Result Fields](#result-fields) | 1 | 1 | 1 | 1 |
 | [Results](#results) | 7 | 7 | 7 | 7 |
@@ -36,10 +36,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Statuses](#statuses) | 2 | 2 | 2 | 2 |
 | [Suites](#suites) | 5 | 5 | 5 | 5 |
 | [Templates](#templates) | 1 | 1 | 1 | 1 |
-| [Tests](#tests) | 2 | 2 | 2 | 0 |
+| [Tests](#tests) | 2 | 2 | 2 | 2 |
 | [Users](#users) | 6 | 6 | 6 | 6 |
 | [Variables](#variables) | 4 | 4 | 4 | 4 |
-| **Total** | **117** | **117** | **117** | **112** |
+| **Total** | **117** | **117** | **117** | **117** |
 
 ## Attachments
 
@@ -189,9 +189,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | --- | --- | --- | --- |
 | [`GET get_project/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getProject`](../src/modules/projects.ts#L16) | `project get` | [recipe #2](../skill/SKILL.md#2-fetch-a-project) |
 | [`GET get_projects`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getProjects`](../src/modules/projects.ts#L27) | `project list` | [recipe #3](../skill/SKILL.md#3-list-projects-with-pagination) |
-| [`POST add_project`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addProject`](../src/modules/projects.ts#L46) | `project add` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_project/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteProject`](../src/modules/projects.ts#L67) | `project delete` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST update_project/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateProject`](../src/modules/projects.ts#L56) | `project update` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_project`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addProject`](../src/modules/projects.ts#L46) | `project add` | [recipe #56](../skill/SKILL.md#56-project-lifecycle-add-update-delete) |
+| [`POST delete_project/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteProject`](../src/modules/projects.ts#L67) | `project delete` | [recipe #56](../skill/SKILL.md#56-project-lifecycle-add-update-delete) |
+| [`POST update_project/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateProject`](../src/modules/projects.ts#L56) | `project update` | [recipe #56](../skill/SKILL.md#56-project-lifecycle-add-update-delete) |
 
 ## Reports
 
@@ -306,8 +306,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTest`](../src/modules/tests.ts#L11) | `test get` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_tests/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTests`](../src/modules/tests.ts#L17) | `test list` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTest`](../src/modules/tests.ts#L11) | `test get` | [recipe #57](../skill/SKILL.md#57-tests-fetch-by-id-and-list-per-run) |
+| [`GET get_tests/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTests`](../src/modules/tests.ts#L17) | `test list` | [recipe #57](../skill/SKILL.md#57-tests-fetch-by-id-and-list-per-run) |
 
 ## Users
 
