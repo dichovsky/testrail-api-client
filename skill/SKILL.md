@@ -1859,6 +1859,304 @@ testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Fail
 testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
 ```
 
+### 60. Plan entry extensions — add/update runs within existing entries
+
+<!-- recipe-for: plan:add-run-to-entry -->
+<!-- recipe-for: plan:update-entry -->
+<!-- recipe-for: plan:update-run-in-entry -->
+
+Once a plan entry exists (created with `plan add-entry`), extend it by adding new config-specific runs (when
+you add support for a new platform mid-cycle) and by mutating the entry's metadata (name, assignee, case
+selection) across all its runs.
+
+**Add a fresh run to an entry (new platform):**
+
+```bash
+# Plan 100, entry a1b2c3d4e5f6... already has runs for Chrome & Firefox.
+# Add a fresh run for Safari.
+RESULT=$(testrail plan add-run-to-entry 100 a1b2c3d4e5f6 --data '{
+    "config_ids": [3],
+    "assignedto_id": 9
+}')
+echo "$RESULT" | jq '.id'  # New run_id, can be used in `result add` or `run watch`
+```
+
+Payload keys:
+
+- `config_ids` (required) — TestRail configuration IDs for this run (array of integers).
+- `assignedto_id` (optional) — User ID to assign the run to.
+- `include_all` (optional) — If `true`, include all cases in the suite; if `false`, include only
+  cases specified by `case_ids`.
+- `case_ids` (optional) — Array of case IDs to include (ignored if `include_all: true`).
+
+**Update entry metadata across all its runs:**
+
+```bash
+# Rename the entry & swap assignee (applies to every run in the entry)
+testrail plan update-entry 100 a1b2c3d4e5f6 --data '{
+    "name": "Smoke tests (renamed)",
+    "assignedto_id": 10,
+    "include_all": false,
+    "case_ids": [1, 2, 3, 5]
+}'
+```
+
+Payload keys:
+
+- `name` (optional) — New entry name.
+- `assignedto_id` (optional) — New assignee user ID.
+- `include_all` (optional) — Toggle case selection mode (`true` = all; `false` = selection).
+- `case_ids` (optional) — If `include_all: false`, which cases to include.
+
+**Update a single run inside an entry (swap assignee, refine case selection):**
+
+```bash
+# Reassign Safari run to user 11 and include only specific cases
+SAFARI_RUN_ID=42
+testrail plan update-run-in-entry "$SAFARI_RUN_ID" --data '{
+    "description": "Safari smoke suite",
+    "assignedto_id": 11,
+    "include_all": false,
+    "case_ids": [1, 2, 3, 5]
+}'
+```
+
+Payload keys (only these fields are mutable for runs inside entries):
+
+- `description` (optional) — Run description.
+- `assignedto_id` (optional) — Assignee user ID.
+- `include_all` (optional) — Case selection mode toggle.
+- `case_ids` (optional) — Case IDs if `include_all: false`.
+
+**Dry-run preview:**
+
+```bash
+testrail plan update-entry 100 a1b2c3d4e5f6 --dry-run --data '{"name": "New name"}'
+```
+
+See also recipe #25 for the full plan lifecycle (add → entry → runs → close/delete cascade).
+
+### 61. Run lifecycle — list active runs, update metadata, close and delete
+
+<!-- recipe-for: run:list -->
+<!-- recipe-for: run:update -->
+<!-- recipe-for: run:delete -->
+
+Runs are the execution containers for test cases. Typical workflows: enumerate active runs for a project,
+update run metadata (milestone, assignee), and eventually close or delete the run and its associated results.
+
+**List all runs in a project (with pagination):**
+
+```bash
+# Page 1: first 250 (default limit)
+testrail run list 5 | jq '.[] | {id, name, is_completed, passed_count, failed_count}'
+
+# Page 2 with custom limit
+testrail run list 5 --offset 250 --limit 100 | jq '.[] | select(.is_completed == false)'
+
+# Filter by status using jq post-processing
+testrail run list 5 | jq '.[] | select(.is_completed == false) | {id, name}'
+```
+
+`run list` returns an array of run objects with:
+
+- `id` (number) — Run ID.
+- `name` (string) — Run name.
+- `is_completed` (boolean) — Whether the run is closed.
+- `passed_count`, `failed_count`, `blocked_count`, `untested_count` (numbers) — Result summary.
+- `completed_on` (number | null) — Timestamp if closed.
+- `milestone_id` (number | null) — Associated milestone ID.
+- `assignedto_id` (number | null) — Assigned user ID.
+
+**Update run metadata:**
+
+```bash
+# Re-assign, add milestone, update description
+testrail run update 42 --data '{
+    "name": "Chrome desktop @ v2.0",
+    "milestone_id": 7,
+    "assignedto_id": 9,
+    "description": "Updated to cover 2.0 release"
+}'
+
+# Dry-run (no API call)
+testrail run update 42 --dry-run --data '{"milestone_id": 8}'
+```
+
+Payload keys (all optional):
+
+- `name` — New run name.
+- `description` — Run description.
+- `milestone_id` — Milestone to associate (or `null` to clear).
+- `assignedto_id` — Assignee user ID (or `null` to clear).
+- `include_all` — Redefine case selection (rarely done post-creation).
+- `case_ids` — Case selection if `include_all: false`.
+
+**Close a run (irreversible — preferred when preserving results):**
+
+```bash
+# Close the run — results stay queryable, but no new results can be added
+testrail run close 42 --yes
+
+# Dry-run preview
+testrail run close 42 --yes --dry-run
+```
+
+A closed run's `is_completed` flag becomes `true` and `completed_on` is set to the current timestamp.
+TestRail has no `open_run` endpoint; closing is not reversible.
+
+**Delete a run (irreversible — removes run and all results):**
+
+```bash
+# Delete the run and every result in it
+testrail run delete 42 --yes
+
+# Server-side preview (TestRail returns affected-test count without deleting)
+testrail run delete 42 --yes --soft
+
+# Dry-run (client-side preview, no API call)
+testrail run delete 42 --yes --dry-run
+```
+
+Differences:
+
+- `--soft` — Test TestRail's soft-delete preview (API call made, no deletion).
+- `--dry-run` — Client-side prediction only (no API call); overrides `--yes`.
+- `--yes` — Required gate for destructive operation.
+
+**Status check from `run list` output:**
+
+```bash
+# Count active vs closed runs
+RUNS=$(testrail run list 5)
+ACTIVE=$(echo "$RUNS" | jq '[.[] | select(.is_completed == false)] | length')
+CLOSED=$(echo "$RUNS" | jq '[.[] | select(.is_completed == true)] | length')
+echo "Active: $ACTIVE, Closed: $CLOSED"
+```
+
+See recipe #31 for polling a run until completion with `run watch`.
+
+### 62. Milestone lifecycle — read, list, create, update, close and delete
+
+<!-- recipe-for: milestone:get -->
+<!-- recipe-for: milestone:list -->
+<!-- recipe-for: milestone:add -->
+<!-- recipe-for: milestone:update -->
+<!-- recipe-for: milestone:delete -->
+
+Milestones group runs and plans into named release checkpoints. This recipe covers the complete CRUD
+lifecycle: fetch individual milestones, list them per project, create new ones, update metadata
+(including `is_completed` / `is_started` toggles), and delete old milestones.
+
+**Fetch a single milestone:**
+
+```bash
+testrail milestone get 7 | jq '{id, name, description, is_completed, is_started}'
+```
+
+Returns a milestone object with:
+
+- `id` (number) — Milestone ID.
+- `name` (string) — Milestone name.
+- `description` (string) — Milestone description.
+- `due_on` (number | null) — Unix timestamp of deadline.
+- `is_completed` (boolean) — Whether marked complete.
+- `is_started` (boolean) — Whether marked started (TestRail 7.5+).
+- `completed_on` (number | null) — Timestamp when completed.
+- `project_id` (number) — Parent project ID.
+
+**List all milestones in a project (paginated):**
+
+```bash
+# All milestones, any status
+testrail milestone list 5 | jq '.[] | {id, name, is_completed}'
+
+# Filter to active milestones (not completed)
+testrail milestone list 5 | jq '.[] | select(.is_completed == false)'
+
+# Pagination example
+testrail milestone list 5 --offset 250 --limit 50
+```
+
+**Create a new milestone:**
+
+```bash
+MILESTONE=$(testrail milestone add 5 --data '{
+    "name": "Release 2.0",
+    "description": "Q2 2025 feature release",
+    "due_on": 1718736000
+}')
+MILESTONE_ID=$(echo "$MILESTONE" | jq '.id')
+echo "Created milestone $MILESTONE_ID"
+```
+
+Payload keys:
+
+- `name` (required) — Milestone name.
+- `description` (optional) — Milestone description.
+- `due_on` (optional) — Unix timestamp deadline.
+- `parent_id` (optional) — Parent milestone ID for hierarchy (TestRail 6.5+).
+- `is_started` (optional) — Mark as started (TestRail 7.5+).
+
+**Update milestone metadata:**
+
+```bash
+# Rename, adjust deadline, or mark as started
+testrail milestone update 7 --data '{
+    "name": "Release 2.0 (delayed)",
+    "due_on": 1725312000,
+    "is_started": true
+}'
+
+# Mark complete
+testrail milestone update 7 --data '{"is_completed": true}'
+
+# Dry-run preview
+testrail milestone update 7 --dry-run --data '{"is_completed": true}'
+```
+
+Payload keys (all optional):
+
+- `name` — New milestone name.
+- `description` — New description.
+- `due_on` — New deadline (Unix timestamp, or `null` to clear).
+- `is_completed` — Mark as complete (`true`) or reopen (`false`).
+- `is_started` — Mark as started (TestRail 7.5+).
+
+**Delete a milestone (irreversible):**
+
+```bash
+# Delete the milestone (associated runs/plans are unaffected)
+testrail milestone delete 7 --yes
+
+# Server-side soft-preview (TestRail returns referencing-run count without deleting)
+testrail milestone delete 7 --yes --soft
+
+# Dry-run (client-side prediction, no API call)
+testrail milestone delete 7 --yes --dry-run
+```
+
+When a milestone is deleted, runs/plans that reference it keep their `milestone_id` field but the
+milestone record itself is removed. A subsequent `milestone list` will not include it.
+
+**Workflow example — release versioning:**
+
+```bash
+# Create milestones for the quarter
+M1=$(testrail milestone add 5 --data '{"name":"2.0 alpha","due_on":1718736000}' | jq -r '.id')
+M2=$(testrail milestone add 5 --data '{"name":"2.0 beta","due_on":1721328000}' | jq -r '.id')
+M3=$(testrail milestone add 5 --data '{"name":"2.0 GA","due_on":1723920000}' | jq -r '.id')
+
+# As work progresses, mark milestones started/complete
+testrail milestone update "$M1" --data '{"is_started":true}'
+testrail milestone update "$M1" --data '{"is_completed":true}'   # alpha done
+testrail milestone update "$M2" --data '{"is_started":true}'     # beta starts
+
+# Clean up old milestones from previous quarter
+OLD_MILESTONE=$(testrail milestone list 5 | jq -r '.[] | select(.name == "1.9 GA") | .id')
+test -n "$OLD_MILESTONE" && testrail milestone delete "$OLD_MILESTONE" --yes
+```
+
 ## Programmatic TypeScript API
 
 The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
