@@ -14,6 +14,5 @@ export interface RuleAction {
 
 export function resourceList(actions: readonly RuleAction[]): string[];
 export function renderRulesBody(actions: readonly RuleAction[]): string;
-export function renderCursorMdc(actions: readonly RuleAction[]): string;
 export function renderContinueRules(actions: readonly RuleAction[]): string;
 export function renderAgentsMd(actions: readonly RuleAction[]): string;

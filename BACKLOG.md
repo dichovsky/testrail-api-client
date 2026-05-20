@@ -9,11 +9,7 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 📦 CLI: `user add` / `user update` (7.3+; password UX unresolved — superseded by endpoint items below)
 - [ ] 🟡 ♻️ CLI: streaming upload for large files
 - [ ] 🟡 📦 SKILL: programmatic TS API recipes
-- [ ] 🟢 📦 SKILL: `.cursor/rules/testrail.mdc`
-- [ ] 🟢 📦 SKILL: Continue rules
-- [ ] 🟢 📦 SKILL: generic `AGENTS.md`
 - [ ] 🔴 📦 SKILL: localization (non-English)
-- [ ] 🟢 📦 SKILL: `testrail uninstall-skill`
 - [ ] 🟡 📦 SKILL: multi-version skill management
 - [ ] 🟡 📦 SKILL: Claude Code marketplace publish
 
