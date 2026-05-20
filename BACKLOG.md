@@ -6,9 +6,82 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 ## 🖥️ CLI / Skill
 
-- [ ] 🟢 📦 CLI: `user add` / `user update` (7.3+; password UX unresolved — superseded by endpoint items below)
+- [ ] 🟢 📦 CLI: expose `POST add_result/{test_id}` in CLI
+- [ ] 🟢 📦 CLI: `user add` (`POST add_user`)
+- [ ] 🟢 📦 CLI: `user update` (`POST update_user/{user_id}`)
 - [ ] 🟡 ♻️ CLI: streaming upload for large files
-- [ ] 🟡 📦 SKILL: programmatic TS API recipes
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment list-for-plan`
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment list-for-plan-entry`
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment list-for-run`
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment list-for-test`
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment add-to-plan`
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment add-to-plan-entry`
+- [ ] 🟢 📦 SKILL: curated recipe for `attachment add-to-run`
+- [ ] 🟢 📦 SKILL: curated recipe for `bdd get`
+- [ ] 🟢 📦 SKILL: curated recipe for `bdd add`
+- [ ] 🟢 📦 SKILL: curated recipe for `case-field list`
+- [ ] 🟢 📦 SKILL: curated recipe for `case-field add`
+- [ ] 🟢 📦 SKILL: curated recipe for `case-type list`
+- [ ] 🟢 📦 SKILL: curated recipe for `case get`
+- [ ] 🟢 📦 SKILL: curated recipe for `case history`
+- [ ] 🟢 📦 SKILL: curated recipe for `case copy-to-section`
+- [ ] 🟢 📦 SKILL: curated recipe for `case delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `case move-to-section`
+- [ ] 🟢 📦 SKILL: curated recipe for `case update-bulk`
+- [ ] 🟢 📦 SKILL: curated recipe for `configuration update`
+- [ ] 🟢 📦 SKILL: curated recipe for `configuration-group update`
+- [ ] 🟢 📦 SKILL: curated recipe for `group get`
+- [ ] 🟢 📦 SKILL: curated recipe for `group list`
+- [ ] 🟢 📦 SKILL: curated recipe for `group add`
+- [ ] 🟢 📦 SKILL: curated recipe for `group delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `group update`
+- [ ] 🟢 📦 SKILL: curated recipe for `milestone get`
+- [ ] 🟢 📦 SKILL: curated recipe for `milestone list`
+- [ ] 🟢 📦 SKILL: curated recipe for `milestone add`
+- [ ] 🟢 📦 SKILL: curated recipe for `milestone delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `milestone update`
+- [ ] 🟢 📦 SKILL: curated recipe for `plan add-run-to-entry`
+- [ ] 🟢 📦 SKILL: curated recipe for `plan update-entry`
+- [ ] 🟢 📦 SKILL: curated recipe for `plan update-run-in-entry`
+- [ ] 🟢 📦 SKILL: curated recipe for `priority list`
+- [ ] 🟢 📦 SKILL: curated recipe for `project add`
+- [ ] 🟢 📦 SKILL: curated recipe for `project delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `project update`
+- [ ] 🟢 📦 SKILL: curated recipe for `report list`
+- [ ] 🟢 📦 SKILL: curated recipe for `report run`
+- [ ] 🟢 📦 SKILL: curated recipe for `result-field list`
+- [ ] 🟢 📦 SKILL: curated recipe for `POST add_result/{test_id}`
+- [ ] 🟢 📦 SKILL: curated recipe for `result add-bulk-by-test`
+- [ ] 🟢 📦 SKILL: curated recipe for `role list`
+- [ ] 🟢 📦 SKILL: curated recipe for `run list`
+- [ ] 🟢 📦 SKILL: curated recipe for `run delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `run update`
+- [ ] 🟢 📦 SKILL: curated recipe for `section get`
+- [ ] 🟢 📦 SKILL: curated recipe for `section list`
+- [ ] 🟢 📦 SKILL: curated recipe for `section add`
+- [ ] 🟢 📦 SKILL: curated recipe for `section delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `section move`
+- [ ] 🟢 📦 SKILL: curated recipe for `section update`
+- [ ] 🟢 📦 SKILL: curated recipe for `shared-step get`
+- [ ] 🟢 📦 SKILL: curated recipe for `shared-step list`
+- [ ] 🟢 📦 SKILL: curated recipe for `case-status list`
+- [ ] 🟢 📦 SKILL: curated recipe for `status list`
+- [ ] 🟢 📦 SKILL: curated recipe for `suite get`
+- [ ] 🟢 📦 SKILL: curated recipe for `suite add`
+- [ ] 🟢 📦 SKILL: curated recipe for `suite delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `suite update`
+- [ ] 🟢 📦 SKILL: curated recipe for `template list`
+- [ ] 🟢 📦 SKILL: curated recipe for `test get`
+- [ ] 🟢 📦 SKILL: curated recipe for `test list`
+- [ ] 🟢 📦 SKILL: curated recipe for `user get-current`
+- [ ] 🟢 📦 SKILL: curated recipe for `user get`
+- [ ] 🟢 📦 SKILL: curated recipe for `user get-by-email`
+- [ ] 🟢 📦 SKILL: curated recipe for `user add`
+- [ ] 🟢 📦 SKILL: curated recipe for `user update`
+- [ ] 🟢 📦 SKILL: curated recipe for `variable list`
+- [ ] 🟢 📦 SKILL: curated recipe for `variable add`
+- [ ] 🟢 📦 SKILL: curated recipe for `variable delete`
+- [ ] 🟢 📦 SKILL: curated recipe for `variable update`
 - [ ] 🔴 📦 SKILL: localization (non-English)
 - [ ] 🟡 📦 SKILL: multi-version skill management
 - [ ] 🟡 📦 SKILL: Claude Code marketplace publish
