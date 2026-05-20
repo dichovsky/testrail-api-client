@@ -31,7 +31,12 @@ import {
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
-import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from '../src/cli/handlers/result-write.js';
+import {
+    handleResultAdd,
+    handleResultAddBulk,
+    handleResultAddBulkByTest,
+    handleResultAddByTest,
+} from '../src/cli/handlers/result-write.js';
 import {
     handlePlanAdd,
     handlePlanUpdate,
@@ -91,6 +96,7 @@ interface MockedClient {
     updateRun: ReturnType<typeof vi.fn>;
     closeRun: ReturnType<typeof vi.fn>;
     deleteRun: ReturnType<typeof vi.fn>;
+    addResult: ReturnType<typeof vi.fn>;
     addResultForCase: ReturnType<typeof vi.fn>;
     addResultsForCases: ReturnType<typeof vi.fn>;
     addResults: ReturnType<typeof vi.fn>;
@@ -155,6 +161,7 @@ function buildClient(): MockedClient {
         updateRun: vi.fn().mockResolvedValue({ id: 10, name: 'r2' }),
         closeRun: vi.fn().mockResolvedValue({ id: 10, name: 'r', is_completed: true }),
         deleteRun: vi.fn().mockResolvedValue(undefined),
+        addResult: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
         addResultForCase: vi.fn().mockResolvedValue({ id: 100, status_id: 1 }),
         addResultsForCases: vi.fn().mockResolvedValue([{ id: 100 }, { id: 101 }]),
         addResults: vi.fn().mockResolvedValue([{ id: 200 }, { id: 201 }]),
@@ -966,6 +973,43 @@ describe('handleResultAddBulkByTest', () => {
         expect(client.addResults).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'result add-bulk-by-test', runId: 11 }),
+        );
+    });
+});
+
+// ── result add-by-test ────────────────────────────────────────────────────
+
+describe('handleResultAddByTest', () => {
+    it('calls client.addResult with the test_id and parsed body', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], dataFlag: '{"status_id":1}' });
+        await handleResultAddByTest(ctx);
+        expect(client.addResult).toHaveBeenCalledWith(42, expect.objectContaining({ status_id: 1 }));
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('rejects when test_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{"status_id":1}' });
+        await expect(handleResultAddByTest(ctx)).rejects.toThrow();
+    });
+
+    it('rejects body missing required status_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['42'], dataFlag: '{"comment":"no status"}' });
+        await expect(handleResultAddByTest(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when body is absent', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['42'] });
+        await expect(handleResultAddByTest(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('dry-run does not call client and includes testId + payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], dataFlag: '{"status_id":5}', dryRun: true });
+        await handleResultAddByTest(ctx);
+        expect(client.addResult).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'result add-by-test', testId: 42 }),
         );
     });
 });

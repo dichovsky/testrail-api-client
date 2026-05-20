@@ -18,7 +18,12 @@ import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '
 import { handleRunWatch } from './handlers/run-watch.js';
 import { handleTestGet, handleTestList } from './handlers/test.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from './handlers/result.js';
-import { handleResultAdd, handleResultAddBulk, handleResultAddBulkByTest } from './handlers/result-write.js';
+import {
+    handleResultAdd,
+    handleResultAddBulk,
+    handleResultAddBulkByTest,
+    handleResultAddByTest,
+} from './handlers/result-write.js';
 import { handleMilestoneGet, handleMilestoneList } from './handlers/milestone.js';
 import { handleUserGet, handleUserList, handleUserGetByEmail, handleUserGetCurrent } from './handlers/user.js';
 import { handlePlanGet, handlePlanList } from './handlers/plan.js';
@@ -137,6 +142,7 @@ const HANDLERS: Record<string, Handler> = {
     'result:add': handleResultAdd,
     'result:add-bulk': handleResultAddBulk,
     'result:add-bulk-by-test': handleResultAddBulkByTest,
+    'result:add-by-test': handleResultAddByTest,
     'milestone:get': handleMilestoneGet,
     'milestone:list': handleMilestoneList,
     'milestone:add': handleMilestoneAdd,

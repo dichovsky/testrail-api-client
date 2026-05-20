@@ -103,6 +103,7 @@ on stderr. Never echo or log the API key.
 | result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
 | result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
 | result | add-bulk-by-test | `<run_id>` | `AddResultsPayloadSchema` | Record multiple results for tests (by test_id) in one API call |
+| result | add-by-test | `<test_id>` | `AddResultPayloadSchema` | Add a single test result by test ID |
 | plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
 | plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
 | plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
@@ -405,6 +406,20 @@ _(schema shape not introspectable)_
 ```jsonc
 {
     "results": "object[] (required)"
+}
+```
+
+### `AddResultPayloadSchema` (used by `result add-by-test`)
+
+```jsonc
+{
+    "status_id": "number (required)",
+    "comment": "string?",
+    "version": "string?",
+    "elapsed": "string?",
+    "defects": "string?",
+    "assignedto_id": "number?",
+    "custom_fields": "Record<string, unknown>?"
 }
 ```
 
@@ -1686,6 +1701,53 @@ snapshot to **stderr**, and exits with code 130 (POSIX convention).
 Subsequent transient `getRun` failures (network blip, 5xx) surface on
 stderr but do not abort the watcher — only an unrecoverable rejection
 (e.g. auth lost mid-watch) propagates and triggers exit 1.
+
+### 34. Add a single test result by test ID
+
+<!-- recipe-for: result:add-by-test -->
+
+`result add-by-test` wraps `POST add_result/{test_id}` — the lightest write
+path when you already hold a `test_id` (the run-scoped instance of a case).
+Unlike the per-case endpoint (`result add`), this path does not require a
+`run_id`; the `test_id` alone identifies the target unambiguously.
+
+```bash
+testrail result add-by-test 123 --data '{"status_id":1,"comment":"PASS — verified","elapsed":"45s","version":"2.4.1"}'
+```
+
+Default `status_id` mapping (project-specific values may differ — verify with
+`testrail status list`):
+
+| ID | Meaning   |
+|----|-----------|
+| 1  | Passed    |
+| 2  | Blocked   |
+| 3  | Untested  |
+| 4  | Retest    |
+| 5  | Failed    |
+
+**When to use per-test vs alternatives:**
+
+- `result add-by-test <test_id>` — one result, you already have the `test_id`
+  (e.g. captured from `testrail test list --run-id <id>`). Fewest API calls.
+- `result add <run_id> <case_id>` — one result, you have `run_id` + `case_id`
+  but no `test_id`. TestRail resolves the test internally.
+- `result add-bulk-by-case <run_id>` — many results, identified by `case_id`.
+  Prefer this for CI pipelines that report by case, not by test instance.
+- `result add-bulk-by-test <run_id>` — many results, identified by `test_id`.
+  Use when you have the full test-instance list (e.g. from `test list`).
+
+**Dry-run preview (no API call):**
+
+```bash
+testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Failed on step 3"}'
+```
+
+**Custom fields** pass through transparently (`.passthrough()` schema):
+
+```bash
+testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
+```
 
 ## Programmatic TypeScript API
 

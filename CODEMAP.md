@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.0.0"
   },
-  "sourceHash": "9d35a34ff4da139babc5ee63afc1b3efabcb87ad82084890eac565639d33dc98",
+  "sourceHash": "38e19ca107d08bc7395b6973a111b782c93cb464012d1184d3e002f77d6c6448",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1558,63 +1558,63 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 103,
+          "line": 108,
           "exported": false,
           "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 221,
+          "line": 227,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 236,
+          "line": 242,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 243,
+          "line": 249,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "DESTRUCTIVE_ENV_VAR",
           "kind": "const",
-          "line": 259,
+          "line": 265,
           "exported": true,
           "signature": "export const DESTRUCTIVE_ENV_VAR = 'TESTRAIL_ALLOW_DESTRUCTIVE'"
         },
         {
           "name": "DESTRUCTIVE_ENV_ALLOW_VALUE",
           "kind": "const",
-          "line": 265,
+          "line": 271,
           "exported": true,
           "signature": "export const DESTRUCTIVE_ENV_ALLOW_VALUE = '1'"
         },
         {
           "name": "EnvGateResult",
           "kind": "type",
-          "line": 267,
+          "line": 273,
           "exported": true,
           "signature": "export type EnvGateResult = { ok: true } | { ok: false; error: string }"
         },
         {
           "name": "checkDestructiveEnvGate",
           "kind": "function",
-          "line": 291,
+          "line": 297,
           "exported": true,
           "signature": "export function checkDestructiveEnvGate( spec: ActionSpec | undefined, env: Readonly<Record<string, string | undefined>>, dryRun: boolean, ): EnvGateResult"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 316,
+          "line": 322,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -2588,23 +2588,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "handleResultAdd",
+          "name": "handleResultAddByTest",
           "kind": "function",
           "line": 6,
+          "exported": true,
+          "signature": "export async function handleResultAddByTest(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleResultAdd",
+          "kind": "function",
+          "line": 23,
           "exported": true,
           "signature": "export async function handleResultAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleResultAddBulk",
           "kind": "function",
-          "line": 25,
+          "line": 42,
           "exported": true,
           "signature": "export async function handleResultAddBulk(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleResultAddBulkByTest",
           "kind": "function",
-          "line": 42,
+          "line": 59,
           "exported": true,
           "signature": "export async function handleResultAddBulkByTest(ctx: HandlerContext): Promise<void>"
         }
@@ -3274,7 +3281,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "main",
           "kind": "function",
-          "line": 260,
+          "line": 261,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -3346,7 +3353,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 1178,
+          "line": 1187,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
