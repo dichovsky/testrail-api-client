@@ -5,14 +5,61 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Skill expansion: programmatic recipes + multi-harness rules + uninstall-skill
-
-Five-deliverable package broadening the agent-instruction surface so this
-package is first-class on Cursor, Continue, and any harness honouring the
-[agents.md](https://agents.md/) convention — not just Claude Code.
+## [Unreleased]
 
 ### Added
 
+- **CLI binary stdio (`-` sentinel) for attachments and BDD.** `--file -`
+  streams a binary upload from `process.stdin`; `--out -` streams the
+  download to `process.stdout` while the JSON ack is rerouted to stderr.
+  Enables pipeline composition without temp files
+  (e.g. `curl … | testrail attachment add-to-case 42 --file -`,
+  `testrail attachment get 17 --out - | xxd`).
+- **`MAX_STDIN_UPLOAD_BYTES`** (100 MiB) and **`STDIN_READ_TIMEOUT_MS`**
+  (30 s) constants gate the stdin reader. The byte cap defends against
+  memory exhaustion; the wall-clock deadline (via `stream.destroy()`
+  surfaced through the async iterator) defends against slowloris-style
+  producers that never EOF — partial mitigation of `SEC #24` for the
+  binary-upload path. `readBoundedStdin` (text body / `--api-key-stdin`)
+  still has no deadline; that follow-up remains open.
+- **`HandlerContext.err` / `HandlerContext.errRaw`** — quiet-aware stderr
+  writers passed to handlers so the `--out -` JSON ack can land on stderr
+  without bypassing `--quiet`.
+
+### Security
+
+- **`--file -` mutex gates:** rejected on non-upload actions, alongside
+  `--data` / `--data-file`, alongside `--api-key-stdin`, or when stdin is
+  a TTY. Each conflict surfaces a structured stderr error before any API
+  call is issued.
+- **`--out -` rejects `--format table`** (binary is binary; the format
+  hint is meaningless and was previously a silent foot-gun).
+- **TTY warning on `--out -`** when stdout is a terminal — emitted to
+  stderr, not blocking, so intentional pipelines to `xxd` / `hexdump`
+  still work.
+
+### Added (continued)
+
+- **CLI: `--format yaml` and `--format csv` output formats.** Closes [BACKLOG CLI
+  format yaml/csv](BACKLOG-ARCHIVE.md). Every read, list, and write action now
+  accepts `--format <json|table|yaml|csv>` (default unchanged: `json`).
+    - `yaml` emits a zero-dependency YAML 1.2 document with 2-space indent.
+      Strings that could parse as numbers, booleans, null tokens, or carry
+      reserved YAML leaders (`-`, `?`, `:`, `#`, `|`, `>`, etc.) are
+      force-quoted in double-quoted form with full C-style escapes. NaN /
+      Infinity are emitted as the YAML 1.2 sentinels (`.nan`, `.inf`,
+      `-.inf`). No new runtime dependency — the emitter is hand-rolled to
+      respect the project's zero-runtime-dep policy.
+    - `csv` emits RFC 4180 with CRLF line terminators. Headers are the
+      sorted union of top-level keys across rows (deterministic output for
+      diff-friendly exports). Nested objects/arrays are JSON-stringified
+      into a single cell (no dot-path flattening) so the column count is
+      stable regardless of payload shape. Single-object responses become a
+      1-row CSV preserving insertion order.
+    - Unknown `--format` values now exit 1 with a clear error listing the
+      valid values, instead of silently falling through to JSON.
+    - See `README.md` for the format matrix and pipeline examples
+      (`yq`-piping for YAML, spreadsheet exports for CSV).
 - **Programmatic TypeScript API recipes** in `skill/SKILL.md`. A new
   `## Programmatic TypeScript API` section gives copy-paste-runnable
   snippets for every major resource (projects, suites, sections, cases,
@@ -135,6 +182,10 @@ not introduce a parallel hazard but does not fix the existing one.
 - New CLI flags: `--interval <seconds>`, `--once` (both consumed only by
   `run watch`); attachment list actions now honor the existing `--limit` /
   `--offset` flags.
+- **`requestMultipart` now streams file uploads from disk** instead of buffering the entire payload into the heap. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) and any programmatic caller using the new `{ path: string; type?: string }` input shape pull bytes via `node:fs.openAsBlob`, so `fetch` reads the file on demand and the process never materializes the whole attachment in memory. Benchmark on a 100 MB file: heap +2.30 MB / RSS +175.61 MB before → heap +0.00 MB / RSS +0.02 MB after.
+- Public API is backwards compatible. `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` accept the existing `Blob | Uint8Array | File` inputs plus the new `{ path }` descriptor. In-memory inputs are unchanged.
+- The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).
+- Upload invariants are preserved: no retry on 5xx/429/network errors, `AbortSignal` honored throughout the body upload, DNS-pin/SSRF guard still applied before fetch, 3xx still rejected by `assertNotRedirect`.
 
 ## [4.0.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
 

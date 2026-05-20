@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
-import { createOutput } from './output.js';
+import { createOutput, type OutputFormat } from './output.js';
 import { dispatch, checkDestructiveEnvGate } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
@@ -12,6 +12,8 @@ import { runUninstallSkill } from './uninstall-skill.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
+import { STDIN_SENTINEL } from './file-input.js';
+import { STDOUT_SENTINEL } from './file-output.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -127,17 +129,30 @@ Attachment actions (binary file I/O):
   attachment list-for-test <test_id>            [--limit N] [--offset N]
   attachment list-for-plan <plan_id>
   attachment list-for-plan-entry <plan_id> <entry_id>
-  attachment get <attachment_id>           --out <path> [--force]
-  attachment add-to-case <case_id>         --file <path> [--filename <name>]
-  attachment add-to-result <result_id>     --file <path> [--filename <name>]
-  attachment add-to-run <run_id>           --file <path> [--filename <name>]
-  attachment add-to-plan <plan_id>         --file <path> [--filename <name>]
-  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path> [--filename <name>]
+  attachment get <attachment_id>           --out <path|-> [--force]
+  attachment add-to-case <case_id>         --file <path|-> [--filename <name>]
+  attachment add-to-result <result_id>     --file <path|-> [--filename <name>]
+  attachment add-to-run <run_id>           --file <path|-> [--filename <name>]
+  attachment add-to-plan <plan_id>         --file <path|-> [--filename <name>]
+  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path|-> [--filename <name>]
   attachment delete <attachment_id>        --yes
 
 BDD actions (Gherkin .feature text I/O):
-  bdd get <case_id>                        --out <path> [--force]
-  bdd add <case_id>                        --file <path> [--filename <name>]
+  bdd get <case_id>                        --out <path|-> [--force]
+  bdd add <case_id>                        --file <path|-> [--filename <name>]
+
+Binary stdio (Unix-convention '-' sentinel):
+  --file -    Read binary upload payload from stdin (must be piped; not a TTY).
+              Capped at 100 MiB with a 30s wall-clock deadline so a stalled
+              producer cannot hold the pipe open. Cannot be combined with
+              --data, --data-file, or --api-key-stdin (each owns stdin).
+              Pass --filename to label the upload (default: 'stdin').
+              Example: curl -s https://… | testrail attachment add-to-case 42 --file - --filename crash.png
+  --out -     Stream the downloaded payload to stdout as raw bytes; the JSON
+              ack is routed to stderr so stdout stays pure binary. Rejects
+              --format table (binary is binary). Emits a TTY warning to
+              stderr if stdout is a terminal — use 'xxd' or '> file' instead.
+              Example: testrail attachment get 17 --out - | hexdump -C
 
 Meta:
   install-skill [--global] [--force] [--print-path]
@@ -172,7 +187,13 @@ Options:
   --data <json>         Inline JSON body for write actions
   --data-file <path>    Read JSON body from file
   --dry-run             Validate payload but don't call the API
-  --format json|table   Output format (default: json)
+  --format json|table|yaml|csv
+                        Output format (default: json). yaml emits a YAML 1.2
+                        document with 2-space indent and double-quoted strings
+                        where ambiguity demands it; csv emits RFC 4180 with
+                        CRLF line terminators, sorted union of top-level keys
+                        as headers, and nested objects/arrays JSON-stringified
+                        into the cell (no dot-path flattening).
   --quiet               Suppress output; use exit code 0/1
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
@@ -269,8 +290,26 @@ async function main(): Promise<number> {
     // process.stderr.write calls.
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];
-    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
-    const { out, err } = createOutput({ quiet, format });
+    // Resolve --format to a known OutputFormat. parseArgs declares the flag
+    // as a string with default 'json' so an unknown value (e.g. `--format
+    // xml`) reaches this gate as a free-form string and must be rejected
+    // explicitly — otherwise the renderer would silently fall through to
+    // the JSON path, masking the user's typo.
+    const VALID_FORMATS: ReadonlySet<OutputFormat> = new Set(['json', 'table', 'yaml', 'csv']);
+    const format: OutputFormat =
+        typeof formatRaw === 'string' && VALID_FORMATS.has(formatRaw as OutputFormat)
+            ? (formatRaw as OutputFormat)
+            : 'json';
+    const { out, err, errRaw } = createOutput({ quiet, format });
+
+    // Reject unknown --format values with a clear, quiet-aware error. The
+    // assignment above defaults invalid values to 'json' so createOutput
+    // always gets a valid format (defense-in-depth); the error path below
+    // surfaces the typo before any handler runs.
+    if (typeof formatRaw === 'string' && !VALID_FORMATS.has(formatRaw as OutputFormat)) {
+        err(`unknown --format '${formatRaw}'. Valid values: json, table, yaml, csv.`);
+        return 1;
+    }
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
@@ -441,6 +480,55 @@ async function main(): Promise<number> {
     // ignored flag.
     const actionSpec = getActionSpec(resource, action);
     const isFileInputAction = actionSpec?.fileInput === true;
+    const isFileOutputAction = actionSpec?.fileOutput === true;
+
+    // PR3a: `--file -` (binary stdin upload) and `--out -` (binary stdout
+    // download) mutual-exclusion + safety gates. Enforced here, before
+    // dispatch, so handlers receive a guaranteed-consistent ctx:
+    //   1. `--file -` requires a file-input action — for non-upload actions
+    //      the dash would be parsed as a filesystem path and stat would
+    //      fail with a confusing 'ENOENT' error.
+    //   2. `--file -` cannot coexist with `--data` / `--data-file` — a
+    //      single handler cannot consume both a JSON body and a binary
+    //      stdin payload; the conflicting flags would silently pick one
+    //      (today: stdin) and surprise the caller.
+    //   3. `--file -` is incompatible with `--api-key-stdin` — both want to
+    //      own fd 0. Catch the conflict here rather than letting the upload
+    //      reader read a credential.
+    //   4. `--out -` requires a file-output action — for read/write actions
+    //      that don't download binary content the flag is silently ignored,
+    //      which would leave the user confused about where their output went.
+    //      (SEC M1 / security-review note)
+    //   5. `--out -` with `--format table` is rejected — table is a
+    //      text-format hint that has no meaning for raw binary output.
+    const fileFlagIsStdin = values['file'] === STDIN_SENTINEL;
+    const outFlagIsStdout = values['out'] === STDOUT_SENTINEL;
+
+    if (fileFlagIsStdin) {
+        if (!isFileInputAction) {
+            err("--file '-' is only valid for attachment upload actions and 'bdd add'.");
+            return 1;
+        }
+        if (values['data'] !== undefined || values['data-file'] !== undefined) {
+            err("--file '-' cannot be combined with --data or --data-file (stdin has one source).");
+            return 1;
+        }
+        if (apiKeyStdin) {
+            err("--file '-' cannot be combined with --api-key-stdin (stdin has one consumer).");
+            return 1;
+        }
+    }
+
+    if (outFlagIsStdout) {
+        if (!isFileOutputAction) {
+            err("--out '-' is only valid for actions that download binary content (attachment get, bdd get).");
+            return 1;
+        }
+        if (formatRaw === 'table') {
+            err("--out '-' streams raw binary; --format table is meaningless and was rejected.");
+            return 1;
+        }
+    }
 
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
@@ -467,7 +555,7 @@ async function main(): Promise<number> {
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
         client = new TestRailClient({ ...auth.config, registerProcessHandlers: true });
-        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
+        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out, err, errRaw });
         return 0;
     } catch (e: unknown) {
         // err() already sanitizes; passing the raw message is safe.

@@ -18,7 +18,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [BDD](#bdd) | 2 | 2 | 2 | 0 |
 | [Case Fields](#case-fields) | 2 | 2 | 2 | 0 |
 | [Case Types](#case-types) | 1 | 1 | 1 | 0 |
-| [Cases](#cases) | 11 | 11 | 11 | 5 |
+| [Cases](#cases) | 10 | 10 | 10 | 4 |
 | [Configurations](#configurations) | 7 | 7 | 7 | 5 |
 | [Datasets](#datasets) | 5 | 5 | 5 | 5 |
 | [Groups](#groups) | 5 | 5 | 5 | 0 |
@@ -39,7 +39,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
 | [Users](#users) | 6 | 6 | 4 | 1 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **117** | **117** | **114** | **45** |
+| **Total** | **116** | **116** | **113** | **44** |
 
 ## Attachments
 
@@ -47,18 +47,18 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_attachment/{attachment_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachment`](../src/modules/attachments.ts#L111) | `attachment get` | [recipe #17](../skill/SKILL.md#17-download-the-latest-attachment-on-a-case-to-inspect-locally) |
-| [`GET get_attachments_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForCase`](../src/modules/attachments.ts#L25) | `attachment list-for-case` | [recipe #17](../skill/SKILL.md#17-download-the-latest-attachment-on-a-case-to-inspect-locally) |
-| [`GET get_attachments_for_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForPlan`](../src/modules/attachments.ts#L82) | `attachment list-for-plan` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_attachments_for_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForPlanEntry`](../src/modules/attachments.ts#L96) | `attachment list-for-plan-entry` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_attachments_for_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForRun`](../src/modules/attachments.ts#L44) | `attachment list-for-run` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_attachments_for_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForTest`](../src/modules/attachments.ts#L63) | `attachment list-for-test` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_attachment_to_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToCase`](../src/modules/attachments.ts#L117) | `attachment add-to-case` | [recipe #16](../skill/SKILL.md#16-attach-a-repro-file-to-a-test-case) |
-| [`POST add_attachment_to_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToPlan`](../src/modules/attachments.ts#L147) | `attachment add-to-plan` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_attachment_to_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToPlanEntry`](../src/modules/attachments.ts#L157) | `attachment add-to-plan-entry` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_attachment_to_result/{result_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToResult`](../src/modules/attachments.ts#L127) | `attachment add-to-result` | [recipe #15](../skill/SKILL.md#15-attach-a-playwright-screenshot-to-a-test-result) |
-| [`POST add_attachment_to_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToRun`](../src/modules/attachments.ts#L137) | `attachment add-to-run` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_attachment/{attachment_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteAttachment`](../src/modules/attachments.ts#L173) | `attachment delete` | [recipe #18](../skill/SKILL.md#18-audit-then-delete-attachments-on-a-deprecated-case) |
+| [`GET get_attachment/{attachment_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachment`](../src/modules/attachments.ts#L81) | `attachment get` | [recipe #17](../skill/SKILL.md#17-download-the-latest-attachment-on-a-case-to-inspect-locally) |
+| [`GET get_attachments_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForCase`](../src/modules/attachments.ts#L10) | `attachment list-for-case` | [recipe #17](../skill/SKILL.md#17-download-the-latest-attachment-on-a-case-to-inspect-locally) |
+| [`GET get_attachments_for_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForPlan`](../src/modules/attachments.ts#L52) | `attachment list-for-plan` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_attachments_for_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForPlanEntry`](../src/modules/attachments.ts#L66) | `attachment list-for-plan-entry` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_attachments_for_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForRun`](../src/modules/attachments.ts#L24) | `attachment list-for-run` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_attachments_for_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getAttachmentsForTest`](../src/modules/attachments.ts#L38) | `attachment list-for-test` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_attachment_to_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToCase`](../src/modules/attachments.ts#L87) | `attachment add-to-case` | [recipe #16](../skill/SKILL.md#16-attach-a-repro-file-to-a-test-case) |
+| [`POST add_attachment_to_plan/{plan_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToPlan`](../src/modules/attachments.ts#L105) | `attachment add-to-plan` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_attachment_to_plan_entry/{plan_id}/{entry_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToPlanEntry`](../src/modules/attachments.ts#L111) | `attachment add-to-plan-entry` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_attachment_to_result/{result_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToResult`](../src/modules/attachments.ts#L93) | `attachment add-to-result` | [recipe #15](../skill/SKILL.md#15-attach-a-playwright-screenshot-to-a-test-result) |
+| [`POST add_attachment_to_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addAttachmentToRun`](../src/modules/attachments.ts#L99) | `attachment add-to-run` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST delete_attachment/{attachment_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteAttachment`](../src/modules/attachments.ts#L127) | `attachment delete` | [recipe #18](../skill/SKILL.md#18-audit-then-delete-attachments-on-a-deprecated-case) |
 
 ## BDD
 
@@ -92,17 +92,16 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L36) | `case get` | [command-table](../skill/SKILL.md#command-surface) |
-| [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L42) | `case list` | [recipe #5](../skill/SKILL.md#5-list-cases-in-a-specific-suite) |
-| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L268) | `case history` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L91) | `case add` | [recipe #9](../skill/SKILL.md#9-author-a-new-test-case) |
-| [`POST add_cases/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCases`](../src/modules/cases.ts#L110) | `case add-bulk` | [recipe #30](../skill/SKILL.md#30-bulk-author-cases-under-a-section-in-one-api-call) |
-| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L245) | `case copy-to-section` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L158) | `case delete` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L203) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
-| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L262) | `case move-to-section` | [command-table](../skill/SKILL.md#command-surface) |
-| [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L144) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
-| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L190) | `case update-bulk` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L34) | `case get` | [command-table](../skill/SKILL.md#command-surface) |
+| [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L40) | `case list` | [recipe #5](../skill/SKILL.md#5-list-cases-in-a-specific-suite) |
+| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L219) | `case history` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L89) | `case add` | [recipe #9](../skill/SKILL.md#9-author-a-new-test-case) |
+| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L196) | `case copy-to-section` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L109) | `case delete` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L154) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
+| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L213) | `case move-to-section` | [command-table](../skill/SKILL.md#command-surface) |
+| [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L95) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
+| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L141) | `case update-bulk` | [command-table](../skill/SKILL.md#command-surface) |
 
 ## Configurations
 

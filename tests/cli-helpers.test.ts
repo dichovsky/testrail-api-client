@@ -7,7 +7,7 @@
  * resolveAuth precedence between flags and env.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { valueToString, renderTable, safeJsonStringify } from '../src/cli/output.js';
+import { valueToString, renderTable, safeJsonStringify, renderYaml, renderCsv } from '../src/cli/output.js';
 import { parseId, optInt, parseEntryId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import {
@@ -961,5 +961,411 @@ describe('readBoundedStdin', () => {
         const payload = unit.repeat(20000); // ~280 KiB
         const result = withFd(payload, (fd) => readBoundedStdin(MAX_STDIN_BYTES, fd));
         expect(result).toBe(payload);
+    });
+});
+
+// ── renderYaml (--format yaml) ───────────────────────────────────────────────
+//
+// Zero-dependency YAML 1.2 emitter for the CLI's `--format yaml` path. The
+// emitter is intentionally strict about quoting: anything that could parse
+// as something other than a plain string (numbers, booleans, null tokens,
+// leading-indicator characters, embedded `:` or `#`, control chars,
+// newlines) is forced into double-quoted form.
+
+describe('renderYaml — primitives', () => {
+    it('renders null as the YAML null literal', () => {
+        expect(renderYaml(null)).toBe('null');
+    });
+
+    it('renders undefined as the YAML null literal', () => {
+        expect(renderYaml(undefined)).toBe('null');
+    });
+
+    it('renders booleans as true / false', () => {
+        expect(renderYaml(true)).toBe('true');
+        expect(renderYaml(false)).toBe('false');
+    });
+
+    it('renders integers and floats unquoted', () => {
+        expect(renderYaml(42)).toBe('42');
+        expect(renderYaml(-0.5)).toBe('-0.5');
+        expect(renderYaml(0)).toBe('0');
+    });
+
+    it('renders NaN / Infinity as YAML 1.2 sentinels', () => {
+        expect(renderYaml(Number.NaN)).toBe('.nan');
+        expect(renderYaml(Number.POSITIVE_INFINITY)).toBe('.inf');
+        expect(renderYaml(Number.NEGATIVE_INFINITY)).toBe('-.inf');
+    });
+
+    it('renders bigint as the integer literal', () => {
+        expect(renderYaml(10n)).toBe('10');
+    });
+
+    it('renders an unambiguous string without quotes', () => {
+        expect(renderYaml('hello')).toBe('hello');
+        expect(renderYaml('hello-world')).toBe('hello-world');
+        expect(renderYaml('alpha_BETA-1')).toBe('alpha_BETA-1');
+    });
+
+    it('quotes empty strings', () => {
+        expect(renderYaml('')).toBe('""');
+    });
+
+    it('quotes special reserved YAML tokens (null/true/false/yes/no/on/off, all cases)', () => {
+        for (const token of ['null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'yes', 'No', 'on', 'OFF']) {
+            expect(renderYaml(token)).toBe(`"${token}"`);
+        }
+    });
+
+    it('quotes strings that look like numbers (preserves string semantics)', () => {
+        expect(renderYaml('42')).toBe('"42"');
+        expect(renderYaml('-3.14')).toBe('"-3.14"');
+        expect(renderYaml('1e10')).toBe('"1e10"');
+        expect(renderYaml('0x1A')).toBe('"0x1A"');
+    });
+
+    it('quotes strings with a leading reserved indicator', () => {
+        expect(renderYaml('- leading dash')).toBe('"- leading dash"');
+        expect(renderYaml('? leading question')).toBe('"? leading question"');
+        expect(renderYaml('# leading hash')).toBe('"# leading hash"');
+        expect(renderYaml('| leading pipe')).toBe('"| leading pipe"');
+        expect(renderYaml('@ leading at')).toBe('"@ leading at"');
+        expect(renderYaml(': leading colon')).toBe('": leading colon"');
+    });
+
+    it('quotes strings with embedded ": " (mapping ambiguity)', () => {
+        expect(renderYaml('foo: bar')).toBe('"foo: bar"');
+    });
+
+    it('quotes strings with trailing colon', () => {
+        expect(renderYaml('trailing:')).toBe('"trailing:"');
+    });
+
+    it('quotes strings with " #" (inline-comment ambiguity)', () => {
+        expect(renderYaml('inline #comment')).toBe('"inline #comment"');
+    });
+
+    it('quotes strings with surrounding whitespace', () => {
+        expect(renderYaml('  padded  ')).toBe('"  padded  "');
+    });
+
+    it('quotes and escapes control chars and newlines', () => {
+        expect(renderYaml('line1\nline2')).toBe('"line1\\nline2"');
+        expect(renderYaml('tab\there')).toBe('"tab\\there"');
+        expect(renderYaml('\x07bell')).toBe('"\\x07bell"');
+        expect(renderYaml('\x00\x1f')).toBe('"\\0\\x1f"');
+        expect(renderYaml('\x7f\x85\x9f')).toBe('"\\x7f\\x85\\x9f"');
+    });
+
+    it('escapes CR, backspace, and form-feed via their named escapes', () => {
+        // The double-quoted form supports all standard C-style escapes;
+        // these are uncommon in TestRail data but the emitter must handle
+        // them for fidelity with arbitrary JSON-shaped payloads.
+        expect(renderYaml('a\rb')).toBe('"a\\rb"');
+        expect(renderYaml('a\bb')).toBe('"a\\bb"');
+        expect(renderYaml('a\fb')).toBe('"a\\fb"');
+    });
+
+    it('escapes embedded double-quotes and backslashes', () => {
+        expect(renderYaml('say "hi"')).toBe('"say \\"hi\\""');
+        expect(renderYaml('back\\slash')).toBe('"back\\\\slash"');
+    });
+
+    it('preserves printable Unicode without escaping', () => {
+        expect(renderYaml('日本語')).toBe('日本語');
+        expect(renderYaml('emoji 🔥')).toBe('emoji 🔥');
+    });
+
+    it('renders symbol / function values as null (no JSON-incompatible scalars)', () => {
+        expect(renderYaml(Symbol('s'))).toBe('null');
+        expect(renderYaml(() => 1)).toBe('null');
+    });
+});
+
+describe('renderYaml — collections', () => {
+    it('renders an empty object as the inline {} flow form', () => {
+        expect(renderYaml({})).toBe('{}');
+    });
+
+    it('renders an empty array as the inline [] flow form', () => {
+        expect(renderYaml([])).toBe('[]');
+    });
+
+    it('renders a flat object as block mapping with 2-space indent', () => {
+        expect(renderYaml({ id: 1, name: 'Demo' })).toBe('id: 1\nname: Demo');
+    });
+
+    it('renders a flat array of primitives as block sequence', () => {
+        expect(renderYaml([1, 2, 3])).toBe('- 1\n- 2\n- 3');
+    });
+
+    it('renders nested objects with deeper indent (2 spaces per level)', () => {
+        const out = renderYaml({ outer: { inner: { leaf: 'v' } } });
+        expect(out).toBe('outer:\n  inner:\n    leaf: v');
+    });
+
+    it('renders nested arrays inside objects', () => {
+        const out = renderYaml({ tags: ['a', 'b'] });
+        expect(out).toBe('tags:\n  - a\n  - b');
+    });
+
+    it('renders objects nested in array items with inline first key', () => {
+        const out = renderYaml([
+            { id: 1, name: 'a' },
+            { id: 2, name: 'b' },
+        ]);
+        expect(out).toBe('- id: 1\n  name: a\n- id: 2\n  name: b');
+    });
+
+    it('renders deeply nested arrays inside arrays', () => {
+        const out = renderYaml([
+            [1, 2],
+            [3, 4],
+        ]);
+        // Outer `- ` marker absorbs the first inner element; the rest indent
+        // one level deeper from the marker.
+        expect(out).toContain('- - 1');
+        expect(out).toContain('- 3');
+        expect(out).toContain('- 4');
+    });
+
+    it('renders a key with empty-array value inline', () => {
+        expect(renderYaml({ tags: [] })).toBe('tags: []');
+    });
+
+    it('renders a key with empty-object value inline', () => {
+        expect(renderYaml({ meta: {} })).toBe('meta: {}');
+    });
+
+    it('renders an empty-object element inside a sequence', () => {
+        expect(renderYaml([{}, { a: 1 }])).toBe('- {}\n- a: 1');
+    });
+
+    it('renders an empty-array element inside a sequence', () => {
+        expect(renderYaml([[], [1]])).toBe('- []\n- - 1');
+    });
+
+    it('quotes mapping keys that look like numbers or reserved tokens', () => {
+        // A bare `42:` would parse as the integer key 42 — quote to preserve
+        // string semantics on round-trip.
+        const out = renderYaml({ '42': 'numeric-key', true: 'reserved-key' });
+        expect(out).toContain('"42": numeric-key');
+        expect(out).toContain('"true": reserved-key');
+    });
+
+    it('quotes mapping keys with embedded colon-space', () => {
+        const out = renderYaml({ 'a: b': 1 });
+        expect(out).toContain('"a: b": 1');
+    });
+
+    it('handles a TestRail-shaped project object', () => {
+        const project = {
+            id: 1,
+            name: 'Demo',
+            suite_mode: 1,
+            url: 'https://example.testrail.io/projects/view/1',
+        };
+        const out = renderYaml(project);
+        expect(out).toContain('id: 1');
+        expect(out).toContain('name: Demo');
+        expect(out).toContain('suite_mode: 1');
+        expect(out).toContain('url: https://example.testrail.io/projects/view/1');
+        // No leading/trailing newline (caller adds the trailing one).
+        expect(out.startsWith('\n')).toBe(false);
+        expect(out.endsWith('\n')).toBe(false);
+    });
+
+    it('handles a TestRail-shaped list response (array of objects)', () => {
+        const list = [
+            { id: 1, name: 'A' },
+            { id: 2, name: 'B' },
+        ];
+        const out = renderYaml(list);
+        expect(out).toBe('- id: 1\n  name: A\n- id: 2\n  name: B');
+    });
+
+    it('returns a structured YAML error document on a circular reference', () => {
+        const circular: Record<string, unknown> = {};
+        circular['self'] = circular;
+        const out = renderYaml(circular);
+        // The recursive emitter throws RangeError on circular refs; the
+        // outer try/catch must surface a parseable YAML doc.
+        expect(out).toContain('error: unserializable');
+        expect(out).toContain('message:');
+    });
+});
+
+// ── renderCsv (--format csv) ─────────────────────────────────────────────────
+//
+// RFC 4180-compliant CSV. Top-level keys are columns; nested values are
+// JSON-stringified into a single cell (no dot-path flattening). CRLF line
+// terminators per §2.1. Header row = sorted union of top-level keys across
+// all rows so the output is deterministic.
+
+describe('renderCsv — empty / edge cases', () => {
+    it('returns empty string for an empty array', () => {
+        expect(renderCsv([])).toBe('');
+    });
+
+    it('returns empty string for an empty object (no keys)', () => {
+        expect(renderCsv({})).toBe('');
+    });
+
+    it('renders a top-level scalar as a 1-column, 1-row CSV under "value"', () => {
+        expect(renderCsv('hello')).toBe('value\r\nhello');
+        expect(renderCsv(42)).toBe('value\r\n42');
+        expect(renderCsv(null)).toBe('value\r\n');
+    });
+});
+
+describe('renderCsv — single object', () => {
+    it('renders a single object as a 1-row CSV preserving insertion order', () => {
+        const out = renderCsv({ id: 1, name: 'Demo', suite_mode: 1 });
+        expect(out).toBe('id,name,suite_mode\r\n1,Demo,1');
+    });
+
+    it('renders null and undefined cells as empty strings', () => {
+        const out = renderCsv({ a: 1, b: null, c: undefined });
+        expect(out).toBe('a,b,c\r\n1,,');
+    });
+
+    it('renders boolean and bigint cells as their string form', () => {
+        const out = renderCsv({ a: true, b: false, c: 10n });
+        expect(out).toBe('a,b,c\r\ntrue,false,10');
+    });
+});
+
+describe('renderCsv — array of objects', () => {
+    it('renders an array of objects with the union of keys, sorted', () => {
+        const out = renderCsv([
+            { id: 1, name: 'A' },
+            { id: 2, name: 'B', extra: 'x' },
+        ]);
+        // Headers sorted: extra, id, name
+        expect(out).toBe('extra,id,name\r\n,1,A\r\nx,2,B');
+    });
+
+    it('header order is deterministic regardless of input row order', () => {
+        const a = renderCsv([
+            { id: 1, name: 'A' },
+            { id: 2, status: 'ok' },
+        ]);
+        const b = renderCsv([
+            { id: 2, status: 'ok' },
+            { id: 1, name: 'A' },
+        ]);
+        // Header lines must match (rows reorder, but keys are sorted).
+        const aHeader = a.split('\r\n')[0];
+        const bHeader = b.split('\r\n')[0];
+        expect(aHeader).toBe(bHeader);
+        expect(aHeader).toBe('id,name,status');
+    });
+
+    it('renders rows separated by CRLF (RFC 4180 §2.1)', () => {
+        const out = renderCsv([{ id: 1 }, { id: 2 }]);
+        expect(out.split('\r\n')).toHaveLength(3); // header + 2 rows
+    });
+
+    it('renders a primitive-only array under a single "value" column', () => {
+        expect(renderCsv([1, 2, 3])).toBe('value\r\n1\r\n2\r\n3');
+    });
+
+    it('renders a mixed object / primitive array with the primitive in column[0] and others empty', () => {
+        // Documented behavior: shape-mixing produces best-effort CSV.
+        const out = renderCsv([{ id: 1, name: 'A' }, 42]);
+        const lines = out.split('\r\n');
+        expect(lines[0]).toBe('id,name');
+        expect(lines[1]).toBe('1,A');
+        expect(lines[2]).toBe('42,');
+    });
+});
+
+describe('renderCsv — quoting and escaping', () => {
+    it('wraps cells containing a comma in double quotes', () => {
+        const out = renderCsv({ name: 'Smith, John' });
+        expect(out).toBe('name\r\n"Smith, John"');
+    });
+
+    it('wraps cells containing double-quotes and escapes them by doubling', () => {
+        const out = renderCsv({ q: 'say "hi"' });
+        expect(out).toBe('q\r\n"say ""hi"""');
+    });
+
+    it('wraps cells containing newlines (LF) in double quotes (raw newlines preserved)', () => {
+        const out = renderCsv({ msg: 'line1\nline2' });
+        expect(out).toBe('msg\r\n"line1\nline2"');
+    });
+
+    it('wraps cells containing CR in double quotes', () => {
+        const out = renderCsv({ msg: 'a\rb' });
+        expect(out).toBe('msg\r\n"a\rb"');
+    });
+
+    it('does NOT quote cells without special chars (round-trip parsers will see bare values)', () => {
+        const out = renderCsv({ id: 1, name: 'plain' });
+        expect(out).toBe('id,name\r\n1,plain');
+    });
+
+    it('quotes header cells when the key contains special chars', () => {
+        const out = renderCsv({ 'with,comma': 1 });
+        expect(out).toBe('"with,comma"\r\n1');
+    });
+});
+
+describe('renderCsv — nested objects / arrays', () => {
+    it('JSON-stringifies a nested object into a single cell (no dot-path flattening)', () => {
+        const out = renderCsv({ id: 1, meta: { a: 1, b: 2 } });
+        // The cell contains commas + double-quotes → must be CSV-quoted with
+        // internal quotes doubled.
+        expect(out).toBe('id,meta\r\n1,"{""a"":1,""b"":2}"');
+    });
+
+    it('JSON-stringifies a nested array into a single cell', () => {
+        const out = renderCsv({ id: 1, tags: ['a', 'b'] });
+        expect(out).toBe('id,tags\r\n1,"[""a"",""b""]"');
+    });
+
+    it('handles an empty nested array as "[]" in the cell', () => {
+        const out = renderCsv({ id: 1, tags: [] });
+        expect(out).toBe('id,tags\r\n1,[]');
+    });
+
+    it('handles an empty nested object as "{}" in the cell', () => {
+        const out = renderCsv({ id: 1, meta: {} });
+        expect(out).toBe('id,meta\r\n1,{}');
+    });
+
+    it('JSON-stringifies an unserializable nested object to an empty cell', () => {
+        const circular: Record<string, unknown> = {};
+        circular['self'] = circular;
+        const out = renderCsv({ id: 1, ref: circular });
+        // Circular ref → JSON.stringify throws → cell becomes ''.
+        expect(out).toBe('id,ref\r\n1,');
+    });
+});
+
+describe('renderCsv — Unicode and special chars', () => {
+    it('preserves multi-byte UTF-8 (日本語, emoji)', () => {
+        const out = renderCsv({ label: '日本語 🔥' });
+        expect(out).toBe('label\r\n日本語 🔥');
+    });
+
+    it('drops symbol and function cells to empty (no CSV-safe representation)', () => {
+        // CSV has no meaningful representation for symbols or functions;
+        // emit an empty cell so the column stays aligned.
+        const out = renderCsv({ id: 1, sym: Symbol('s'), fn: (): number => 1 });
+        expect(out).toBe('id,sym,fn\r\n1,,');
+    });
+
+    it('strips terminal-control bytes from CSV cells while preserving CSV-safe content', () => {
+        const out = renderCsv({ id: 1, title: '\x1b[31mRED\x1b[0m' });
+        expect(out).toBe('id,title\r\n1,[31mRED[0m');
+        expect(out).not.toContain('\x1b');
+    });
+
+    it('strips terminal-control bytes from CSV headers', () => {
+        const out = renderCsv({ 'safe\x9dheader': 'ok' });
+        expect(out).toBe('safeheader\r\nok');
     });
 });

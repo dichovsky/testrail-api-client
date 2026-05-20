@@ -7,10 +7,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 ## 🖥️ CLI / Skill
 
 - [ ] 🟢 📦 CLI: `user add` / `user update` (7.3+; password UX unresolved — superseded by endpoint items below)
-- [ ] 🟢 📦 CLI: `--format yaml`
-- [ ] 🟢 📦 CLI: `--format csv`
-- [ ] 🟢 📦 CLI: binary stdin upload
-- [ ] 🟢 📦 CLI: binary stdout download
 - [ ] 🟡 ♻️ CLI: streaming upload for large files
 - [ ] 🟡 📦 SKILL: programmatic TS API recipes
 - [ ] 🟢 📦 SKILL: `.cursor/rules/testrail.mdc`

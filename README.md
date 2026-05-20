@@ -109,6 +109,31 @@ curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/
 
 `AGENTS.md` at the repo root follows the vendor-neutral [agents.md](https://agents.md/) convention — a single markdown file any AI coding agent or harness can read for project conventions, build commands, and "what to know" pointers. No installation required; agents that honour the spec pick it up automatically when working in this repository.
 
+### CLI output formats
+
+Every read / list / write action accepts `--format <json|table|yaml|csv>` (default: `json`). Pick the format that matches your downstream pipeline:
+
+| Format  | Best for                                                                                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `json`  | Default. Pretty-printed JSON, safe to pipe into `jq` and any JSON-aware tool.                                                                                         |
+| `table` | Human-readable ASCII table with sanitized cell values (control chars stripped, CTF #18). Good for terminal inspection.                                                |
+| `yaml`  | Zero-dependency YAML 1.2 emitter. 2-space indent, double-quoted strings where ambiguity demands it. Good for piping into `yq`, embedding in Helm/Ansible/K8s configs. |
+| `csv`   | RFC 4180. CRLF row terminators, deterministic header order (sorted union of top-level keys). Nested objects/arrays are JSON-stringified into a single cell.           |
+
+```bash
+# Pipe a project list into yq for further filtering
+testrail project list --format yaml | yq '.[] | select(.suite_mode == 1)'
+
+# Export a run's results as a spreadsheet
+testrail result list --run-id 42 --format csv > results.csv
+
+# Inspect a single case as a table
+testrail case get 1234 --format table
+```
+
+`--format csv` keeps nested values as JSON in-cell (no dot-path flattening) so the CSV column count is stable regardless of payload shape. Header order in CSV mode is the sorted union of top-level keys across all rows, so two CSV exports of the same endpoint always produce the same header.
+
+
 ### Destructive operations
 
 Every destructive CLI action (any `delete` plus `run close` / `plan close`) is protected by a **two-gate model**. Both gates must be satisfied before a destructive call reaches the API:
@@ -386,9 +411,59 @@ await client.addResultsForCases(run.id, {
 ```typescript
 import { readFileSync } from 'node:fs';
 
-const attachment = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+// Streaming-from-disk (recommended for large files — heap stays flat):
+const attachment = await client.addAttachmentToResult(resultId, { path: './screenshot.png' }, 'screenshot.png');
+
+// In-memory (Blob / Uint8Array / File) still supported:
+const inMemory = await client.addAttachmentToResult(resultId, readFileSync('./screenshot.png'), 'screenshot.png');
+
 const blob = await client.getAttachment(attachment.attachment_id);
 ```
+
+Uploads accept either an in-memory variant (`Blob`, `Uint8Array`, or `File`) or
+a `{ path: string; type?: string }` descriptor. When a descriptor is supplied
+the bytes are read from disk on demand via Node's `fs.openAsBlob`, so a
+100 MB attachment grows heap by ~0 MB instead of fully buffering the file.
+The CLI (`testrail attachment add-to-* --file`) uses this path by default;
+programmatic callers that already hold the bytes in memory may continue to
+pass them directly.
+
+#### CLI binary stdio (`-` sentinel)
+
+The bundled CLI follows the Unix `-` convention for streaming binary in or out
+without touching the filesystem. Useful for ephemeral pipelines (CI artifacts,
+crash dumps, on-the-fly screenshots) where writing to a temp file is wasteful.
+
+```bash
+# Pipe an upload from another process — no temp file
+curl -s https://ci.example.com/build/42/screenshot.png \
+  | testrail attachment add-to-case 1234 --file - --filename screenshot.png
+
+# Generate and upload a synthetic payload
+hexdump -C /etc/hostname | testrail attachment add-to-result 99 --file - --filename hostname.dump
+
+# Download an attachment straight into hexdump (binary stays on stdout; JSON ack goes to stderr)
+testrail attachment get 17 --out - | xxd | head -20
+
+# Chain two operations: fetch an attachment from one case, re-upload to another
+testrail attachment get 17 --out - 2>/dev/null \
+  | testrail attachment add-to-case 5678 --file - --filename forwarded.bin
+
+# BDD (Gherkin text) — same pattern
+cat features/login.feature | testrail bdd add 42 --file - --filename login.feature
+testrail bdd get 42 --out - > local-copy.feature
+```
+
+Safeguards:
+
+- **`--file -`** caps the read at 100 MiB and aborts if the producer holds
+  the pipe open for more than 30 s (slowloris defense). Rejected when stdin
+  is a TTY, when combined with `--data` / `--data-file` / `--api-key-stdin`,
+  or for non-upload actions.
+- **`--out -`** streams raw bytes to stdout and reroutes the JSON ack to
+  stderr so the binary stream stays uncontaminated. Rejected with
+  `--format table`. A TTY warning is printed (not blocking) if stdout is
+  a terminal — pipe to `xxd`, `hexdump`, or a file instead.
 
 ### Users & metadata
 

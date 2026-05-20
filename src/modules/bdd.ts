@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Case } from '../types.js';
+import type { Case, UploadFileInput } from '../types.js';
 import { CaseSchema } from '../schemas.js';
 
 /**
@@ -32,11 +32,7 @@ export class BddModule {
      * updated `Case` object reflecting the newly attached BDD.
      * @testrail POST add_bdd/{case_id}
      */
-    async addBdd(
-        caseId: number,
-        file: globalThis.Blob | Uint8Array | globalThis.File,
-        filename: string,
-    ): Promise<Case> {
+    async addBdd(caseId: number, file: UploadFileInput, filename: string): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
         return this.client.parse<Case>(
             CaseSchema,

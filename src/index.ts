@@ -174,4 +174,6 @@ export type {
     HistoryChange,
     CaseStatus,
     SoftDeleteOptions,
+    UploadFileInput,
+    UploadFilePathInput,
 } from './types.js';

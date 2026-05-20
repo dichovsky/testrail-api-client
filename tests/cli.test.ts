@@ -551,6 +551,81 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
         });
+
+        // ── --format yaml / csv (end-to-end in-process CLI run) ──────────
+        //
+        // Both formats are exercised through unit tests on the renderers
+        // directly (tests/cli-helpers.test.ts); these subprocess tests pin
+        // the end-to-end wiring: createOutput dispatches on the validated
+        // format string, stdout receives exactly one trailing newline, and
+        // the unknown-format path exits 1 with a clear error.
+
+        it('project list with --format yaml renders a YAML document', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'list', '--format', 'yaml'],
+                [jsonResponse({ projects: [MOCK_PROJECT] })],
+            );
+            expect(exitCodes).toContain(0);
+            // Block-sequence shape: each project starts with `- id:`.
+            expect(stdout).toContain('- id: 1');
+            expect(stdout).toContain('name: Demo');
+            expect(stdout).toContain('suite_mode: 1');
+            // URL is a plain string that does not need quoting (no `: `,
+            // no embedded `#`, no reserved leader).
+            expect(stdout).toContain('url: https://example.testrail.io/projects/view/1');
+            // Exactly one trailing newline at the stdout boundary, matching
+            // the JSON / table writers' contract.
+            expect(stdout.endsWith('\n')).toBe(true);
+            expect(stdout.endsWith('\n\n')).toBe(false);
+        });
+
+        it('project get with --format yaml renders a single mapping (not a sequence)', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'yaml'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            // Single-object response: starts with `id:`, not `- id:`.
+            expect(stdout.startsWith('id: 1\n')).toBe(true);
+            expect(stdout).not.toContain('- id:');
+        });
+
+        it('project list with --format csv renders RFC 4180 CSV with sorted headers and CRLF rows', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'list', '--format', 'csv'],
+                [jsonResponse({ projects: [MOCK_PROJECT] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout.endsWith('\r\n')).toBe(true);
+            expect(stdout.endsWith('\n') && !stdout.endsWith('\r\n')).toBe(false);
+            const lines = stdout.split('\r\n');
+            expect(lines).toHaveLength(3); // header + 1 row + trailing terminator
+            // Headers sorted: id, name, suite_mode, url (alphabetical).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+            // Cell content: id=1, name=Demo, suite_mode=1, url unquoted.
+            expect(lines[1]).toBe('1,Demo,1,https://example.testrail.io/projects/view/1');
+        });
+
+        it('project get with --format csv renders a 1-row CSV preserving insertion order', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'csv'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout.endsWith('\r\n')).toBe(true);
+            const lines = stdout.split('\r\n');
+            expect(lines).toHaveLength(3);
+            // Single-object path preserves insertion order (not sorted).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+        });
+
+        it('--format with an unknown value exits 1 before any API call', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--format', 'xml']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown --format 'xml'/);
+            expect(stderr).toContain('json, table, yaml, csv');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     // ── suite ─────────────────────────────────────────────────────────────────
@@ -5271,6 +5346,124 @@ describe('CLI', () => {
             const { exitCodes, stdout } = await runCli(['attachment', 'delete', '42', '--yes', '--dry-run']);
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('"destructive": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // ── PR3a: --file - (stdin binary upload) ─────────────────────────
+
+        it('add-to-case --file - uploads bytes piped from stdin', async () => {
+            const ORIG_STDIN = process.stdin;
+            const stream = (await import('node:stream')).Readable.from(Buffer.from([1, 2, 3, 4]));
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            try {
+                const { exitCodes, stdout } = await runCli(
+                    ['attachment', 'add-to-case', '42', '--file', '-', '--filename', 'piped.bin'],
+                    [jsonResponse({ attachment_id: 999 })],
+                );
+                expect(exitCodes).toContain(0);
+                expect(stdout).toContain('999');
+            } finally {
+                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+            }
+        });
+
+        it('add-to-case --file - --dry-run does not consume stdin', async () => {
+            const ORIG_STDIN = process.stdin;
+            let chunksRead = 0;
+            const { Readable } = await import('node:stream');
+            const stream = new Readable({
+                read() {
+                    chunksRead += 1;
+                    this.push(Buffer.from('x'));
+                    this.push(null);
+                },
+            });
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            try {
+                const { exitCodes, stdout } = await runCli([
+                    'attachment',
+                    'add-to-case',
+                    '42',
+                    '--file',
+                    '-',
+                    '--dry-run',
+                ]);
+                expect(exitCodes).toContain(0);
+                expect(stdout).toContain('"source": "stdin"');
+                expect(chunksRead).toBe(0);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+            }
+        });
+
+        it('add-to-case --file - rejected when stdin is a TTY', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { exitCodes, stderr } = await runCli(['attachment', 'add-to-case', '42', '--file', '-']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/stdin to be piped/);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('add-to-case --file - rejects --data combination at index.ts gate', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'attachment',
+                'add-to-case',
+                '42',
+                '--file',
+                '-',
+                '--data',
+                '{}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/cannot be combined with --data/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('--file - rejected on non-upload actions', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--file', '-']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/only valid for attachment upload actions/);
+        });
+
+        // ── PR3a: --out - (stdout binary download) ───────────────────────
+
+        it('get --out - streams binary to stdout and JSON ack to stderr', async () => {
+            // runCli stringifies chunks via `String(chunk)` which renders a
+            // Uint8Array as its comma-joined byte list (e.g. "171,205,239").
+            // Assert against that representation — the byte order is what
+            // matters, not the encoding round-trip.
+            const { exitCodes, stdout, stderr } = await runCli(
+                ['attachment', 'get', '42', '--out', '-'],
+                [binaryResponse(new Uint8Array([0xab, 0xcd, 0xef]))],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('171,205,239');
+            // JSON ack rerouted to stderr.
+            expect(stderr).toContain('"attachmentId": 42');
+            expect(stderr).toContain('"out": "<stdout>"');
+            expect(stderr).toContain('"size": 3');
+        });
+
+        it('--out - --format table is rejected at index.ts gate', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'get', '42', '--out', '-', '--format', 'table']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--format table is meaningless/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it("--out '-' on a non-fileOutput action is rejected (M1 gate)", async () => {
+            // `attachment list-for-run` does not produce binary output; `--out -`
+            // should be rejected before any API call, not silently ignored.
+            const { exitCodes, stderr } = await runCli(['attachment', 'list-for-run', '1', '--out', '-']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/only valid for actions that download binary content/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });
