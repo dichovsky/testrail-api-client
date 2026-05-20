@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { TestRailValidationError } from '../errors.js';
 import { UserSchema, GroupSchema } from '../schemas.js';
-import type { AddGroupPayload, Group, UpdateGroupPayload } from '../schemas.js';
+import type { AddGroupPayload, Group, UpdateGroupPayload, UserAddPayload, UserUpdatePayload } from '../schemas.js';
 import { TestRailClientCore } from '../client-core.js';
-import type { AddUserPayload, UpdateUserPayload, User } from '../types.js';
+import type { User } from '../types.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -55,12 +55,12 @@ export class UsersModule {
     }
 
     /** @testrail POST add_user */
-    async addUser(payload: AddUserPayload): Promise<User> {
+    async addUser(payload: UserAddPayload): Promise<User> {
         return this.client.requestParsed<User>('POST', 'add_user', UserSchema, payload);
     }
 
     /** @testrail POST update_user/{user_id} */
-    async updateUser(userId: number, payload: UpdateUserPayload): Promise<User> {
+    async updateUser(userId: number, payload: UserUpdatePayload): Promise<User> {
         this.client.validateId(userId, 'userId');
         return this.client.requestParsed<User>('POST', `update_user/${userId}`, UserSchema, payload);
     }

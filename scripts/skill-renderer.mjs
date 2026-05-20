@@ -47,6 +47,8 @@ const SCHEMA_NAMES = new Map([
     ['configuration-group:update', 'UpdateConfigurationGroupPayloadSchema'],
     ['configuration:add', 'AddConfigurationPayloadSchema'],
     ['configuration:update', 'UpdateConfigurationPayloadSchema'],
+    ['user:add', 'UserAddPayloadSchema'],
+    ['user:update', 'UserUpdatePayloadSchema'],
 ]);
 
 export function schemaNameFor(spec) {

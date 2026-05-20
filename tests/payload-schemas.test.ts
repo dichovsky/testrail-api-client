@@ -55,6 +55,8 @@ import {
     UpdateConfigurationGroupPayloadSchema,
     AddConfigurationPayloadSchema,
     UpdateConfigurationPayloadSchema,
+    UserAddPayloadSchema,
+    UserUpdatePayloadSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -1309,5 +1311,109 @@ describe('UpdateConfigurationPayloadSchema', () => {
     it('lets custom_* fields pass through', () => {
         const parsed = UpdateConfigurationPayloadSchema.parse({ custom_version: '120' }) as Record<string, unknown>;
         expect(parsed['custom_version']).toBe('120');
+    });
+});
+
+describe('UserAddPayloadSchema', () => {
+    it('parses a minimal valid payload (name + email + password)', () => {
+        const parsed = UserAddPayloadSchema.parse({
+            name: 'Alice',
+            email: 'alice@example.com',
+            password: 's3cr3t',
+        });
+        expect(parsed.name).toBe('Alice');
+        expect(parsed.email).toBe('alice@example.com');
+        expect(parsed.password).toBe('s3cr3t');
+    });
+
+    it('parses a fully-populated payload', () => {
+        const parsed = UserAddPayloadSchema.parse({
+            name: 'Bob',
+            email: 'bob@example.com',
+            password: 'hunter2',
+            is_active: true,
+            role_id: 3,
+            group_ids: [1, 2],
+            mfa_required: false,
+            language: 'en',
+            email_notifications: true,
+        });
+        expect(parsed.role_id).toBe(3);
+        expect(parsed.group_ids).toEqual([1, 2]);
+    });
+
+    it('rejects missing name', () => {
+        expect(() => UserAddPayloadSchema.parse({ email: 'a@b.com', password: 'x' })).toThrow();
+    });
+
+    it('rejects empty name', () => {
+        expect(() => UserAddPayloadSchema.parse({ name: '', email: 'a@b.com', password: 'x' })).toThrow();
+    });
+
+    it('rejects missing email', () => {
+        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', password: 'x' })).toThrow();
+    });
+
+    it('rejects invalid email format', () => {
+        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'not-an-email', password: 'x' })).toThrow();
+    });
+
+    it('rejects missing password', () => {
+        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'a@b.com' })).toThrow();
+    });
+
+    it('rejects empty password', () => {
+        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'a@b.com', password: '' })).toThrow();
+    });
+
+    it('rejects non-string name (no coercion)', () => {
+        expect(() => UserAddPayloadSchema.parse({ name: 42, email: 'a@b.com', password: 'x' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UserAddPayloadSchema.parse({
+            name: 'Alice',
+            email: 'alice@example.com',
+            password: 's3cr3t',
+            custom_attr: 'value',
+        }) as Record<string, unknown>;
+        expect(parsed['custom_attr']).toBe('value');
+    });
+});
+
+describe('UserUpdatePayloadSchema', () => {
+    it('parses an empty body (all fields optional; PATCH semantics)', () => {
+        expect(UserUpdatePayloadSchema.parse({})).toEqual({});
+    });
+
+    it('parses a partial update (name only)', () => {
+        const parsed = UserUpdatePayloadSchema.parse({ name: 'Alice Smith' });
+        expect(parsed.name).toBe('Alice Smith');
+    });
+
+    it('parses a deactivation payload', () => {
+        const parsed = UserUpdatePayloadSchema.parse({ is_active: false });
+        expect(parsed.is_active).toBe(false);
+    });
+
+    it('rejects invalid email format on update', () => {
+        expect(() => UserUpdatePayloadSchema.parse({ email: 'not-an-email' })).toThrow();
+    });
+
+    it('rejects empty name (min 1)', () => {
+        expect(() => UserUpdatePayloadSchema.parse({ name: '' })).toThrow();
+    });
+
+    it('rejects empty password (min 1)', () => {
+        expect(() => UserUpdatePayloadSchema.parse({ password: '' })).toThrow();
+    });
+
+    it('rejects non-boolean is_active (no coercion)', () => {
+        expect(() => UserUpdatePayloadSchema.parse({ is_active: 'true' })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UserUpdatePayloadSchema.parse({ custom_attr: 'value' }) as Record<string, unknown>;
+        expect(parsed['custom_attr']).toBe('value');
     });
 });

@@ -79,6 +79,8 @@ export {
     UpdateConfigurationGroupPayloadSchema,
     AddConfigurationPayloadSchema,
     UpdateConfigurationPayloadSchema,
+    UserAddPayloadSchema,
+    UserUpdatePayloadSchema,
 } from './schemas.js';
 export type {
     AddCasePayload,
@@ -130,6 +132,8 @@ export type {
     UpdateConfigurationGroupPayload,
     AddConfigurationPayload,
     UpdateConfigurationPayload,
+    UserAddPayload,
+    UserUpdatePayload,
 } from './schemas.js';
 export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';

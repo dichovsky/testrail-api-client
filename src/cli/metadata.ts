@@ -40,6 +40,8 @@ import {
     UpdateConfigurationGroupPayloadSchema,
     AddConfigurationPayloadSchema,
     UpdateConfigurationPayloadSchema,
+    UserAddPayloadSchema,
+    UserUpdatePayloadSchema,
 } from '../schemas.js';
 
 /**
@@ -605,10 +607,9 @@ export const ACTIONS: readonly ActionSpec[] = [
         destructive: true,
     },
     // ── Structural-setup write actions ────────────────────────────────────
-    // `project`, `suite`, and `milestone` add/update. Programmatic methods
-    // already exist; these expose them via the CLI for agent provisioning
-    // workflows. `user add/update` is intentionally deferred (TestRail 7.3+
-    // version gate + password-handling design questions).
+    // `project`, `suite`, `milestone`, and `user` add/update. Programmatic
+    // methods already exist; these expose them via the CLI for agent
+    // provisioning workflows. `user add` requires TestRail 7.3+.
     {
         resource: 'project',
         action: 'add',
@@ -691,6 +692,25 @@ export const ACTIONS: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_milestone/{milestone_id}',
         isWrite: true,
         destructive: true,
+    },
+    // ── User write actions (TestRail 7.3+) ────────────────────────────────
+    {
+        resource: 'user',
+        action: 'add',
+        summary: 'Create a new user (no path param, payload-only; TestRail 7.3+)',
+        pathParams: [],
+        apiEndpoint: 'POST add_user',
+        bodySchema: UserAddPayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'user',
+        action: 'update',
+        summary: 'Update an existing user (partial fields; TestRail 7.3+)',
+        pathParams: [{ name: 'user_id', description: 'TestRail user ID' }],
+        apiEndpoint: 'POST update_user/{user_id}',
+        bodySchema: UserUpdatePayloadSchema,
+        isWrite: true,
     },
     // ── Shared-step read actions ──────────────────────────────────────────
     {

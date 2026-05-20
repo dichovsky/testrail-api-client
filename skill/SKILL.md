@@ -127,6 +127,8 @@ on stderr. Never echo or log the API key.
 | milestone | add | `<project_id>` | `AddMilestonePayloadSchema` | Create a new milestone in a project |
 | milestone | update | `<milestone_id>` | `UpdateMilestonePayloadSchema` | Update an existing milestone (partial fields, including is_completed/is_started toggles) |
 | milestone | delete | `<milestone_id>` | — (no body, requires `--yes`) | Delete a milestone (requires --yes; --soft NOT supported by TestRail) |
+| user | add | — | `UserAddPayloadSchema` | Create a new user (no path param, payload-only; TestRail 7.3+) |
+| user | update | `<user_id>` | `UserUpdatePayloadSchema` | Update an existing user (partial fields; TestRail 7.3+) |
 | shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
 | shared-step | list | — | — | List shared steps in a project |
 | shared-step | history | `<shared_step_id>` | — | List revision history for a shared step (paginated) |
@@ -593,6 +595,38 @@ _(schema shape not introspectable)_
     "refs": "string?",
     "is_completed": "boolean?",
     "is_started": "boolean?"
+}
+```
+
+### `UserAddPayloadSchema` (used by `user add`)
+
+```jsonc
+{
+    "name": "string (required)",
+    "email": "string (required)",
+    "password": "string (required)",
+    "is_active": "boolean?",
+    "role_id": "number?",
+    "group_ids": "number[]?",
+    "mfa_required": "boolean?",
+    "language": "string?",
+    "email_notifications": "boolean?"
+}
+```
+
+### `UserUpdatePayloadSchema` (used by `user update`)
+
+```jsonc
+{
+    "name": "string?",
+    "email": "string?",
+    "password": "string?",
+    "is_active": "boolean?",
+    "role_id": "number?",
+    "group_ids": "number[]?",
+    "mfa_required": "boolean?",
+    "language": "string?",
+    "email_notifications": "boolean?"
 }
 ```
 
@@ -1702,51 +1736,80 @@ Subsequent transient `getRun` failures (network blip, 5xx) surface on
 stderr but do not abort the watcher — only an unrecoverable rejection
 (e.g. auth lost mid-watch) propagates and triggers exit 1.
 
-### 34. Add a single test result by test ID
+### 32. Create a user (TestRail 7.3+)
 
-<!-- recipe-for: result:add-by-test -->
+<!-- recipe-for: user:add -->
 
-`result add-by-test` wraps `POST add_result/{test_id}` — the lightest write
-path when you already hold a `test_id` (the run-scoped instance of a case).
-Unlike the per-case endpoint (`result add`), this path does not require a
-`run_id`; the `test_id` alone identifies the target unambiguously.
+`user add` calls `POST add_user` and returns the created `User` object.
+Three fields are required: `name`, `email`, and `password`. All other
+fields (`is_active`, `role_id`, `group_ids`, `mfa_required`, `language`,
+`email_notifications`) are optional and pass through `.passthrough()` so
+future TestRail fields are preserved without a schema bump.
+
+**Security:** never pass `--data '{"password":"..."}` on the command line —
+the secret appears in shell history and `ps` output. Use `--data-file` or
+stdin pipe instead.
 
 ```bash
-testrail result add-by-test 123 --data '{"status_id":1,"comment":"PASS — verified","elapsed":"45s","version":"2.4.1"}'
+# Recommended: read the payload from a file (password stays off the command line)
+testrail user add --data-file ./new-user.json
+# new-user.json: {"name":"Alice Smith","email":"alice@example.com","password":"s3cr3t","role_id":3}
 ```
 
-Default `status_id` mapping (project-specific values may differ — verify with
-`testrail status list`):
-
-| ID | Meaning   |
-|----|-----------|
-| 1  | Passed    |
-| 2  | Blocked   |
-| 3  | Untested  |
-| 4  | Retest    |
-| 5  | Failed    |
-
-**When to use per-test vs alternatives:**
-
-- `result add-by-test <test_id>` — one result, you already have the `test_id`
-  (e.g. captured from `testrail test list --run-id <id>`). Fewest API calls.
-- `result add <run_id> <case_id>` — one result, you have `run_id` + `case_id`
-  but no `test_id`. TestRail resolves the test internally.
-- `result add-bulk-by-case <run_id>` — many results, identified by `case_id`.
-  Prefer this for CI pipelines that report by case, not by test instance.
-- `result add-bulk-by-test <run_id>` — many results, identified by `test_id`.
-  Use when you have the full test-instance list (e.g. from `test list`).
-
-**Dry-run preview (no API call):**
-
 ```bash
-testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Failed on step 3"}'
+# Pipe via stdin (also keeps password out of shell history)
+echo '{"name":"Bob","email":"bob@example.com","password":"hunter2"}' | testrail user add --data -
 ```
 
-**Custom fields** pass through transparently (`.passthrough()` schema):
+```bash
+# Dry-run: validate the payload without hitting the API
+testrail user add --data-file ./new-user.json --dry-run
+# → {"dryRun":true,"action":"user add","payload":{...},"source":"file"}
+```
+
+```typescript
+// Programmatic equivalent
+import { TestRailClient } from '@dichovsky/testrail-api-client';
+const client = new TestRailClient({ baseUrl, email, apiKey });
+const user = await client.addUser({ name: 'Alice Smith', email: 'alice@example.com', password: 's3cr3t', role_id: 3 });
+console.log(user.id); // assigned user ID
+```
+
+### 33. Update a user (TestRail 7.3+)
+
+<!-- recipe-for: user:update -->
+
+`user update <user_id>` calls `POST update_user/{user_id}` and returns the
+updated `User` object. All fields are optional (PATCH semantics): send only
+the fields you want to change. An empty `{}` body is accepted by TestRail
+and returns the user unchanged. Pass `password` via `--data-file` or stdin
+to avoid shell-history exposure.
 
 ```bash
-testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
+# Deactivate a user
+testrail user update 42 --data '{"is_active":false}'
+```
+
+```bash
+# Change display name and role
+testrail user update 42 --data '{"name":"Alice Smith-Jones","role_id":5}'
+```
+
+```bash
+# Change password safely (keeps secret off the command line)
+testrail user update 42 --data-file ./pw-update.json
+# pw-update.json: {"password":"newSecret99"}
+```
+
+```bash
+# Dry-run: verify what would be sent without making an API call
+testrail user update 42 --data '{"name":"Preview Name"}' --dry-run
+# → {"dryRun":true,"action":"user update","userId":42,"payload":{"name":"Preview Name"},"source":"data"}
+```
+
+```typescript
+// Programmatic equivalent
+const updated = await client.updateUser(42, { name: 'Alice Smith-Jones', role_id: 5 });
 ```
 
 ## Programmatic TypeScript API

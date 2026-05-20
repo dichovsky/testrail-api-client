@@ -28,7 +28,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Projects](#projects) | 5 | 5 | 5 | 2 |
 | [Reports](#reports) | 2 | 2 | 2 | 0 |
 | [Result Fields](#result-fields) | 1 | 1 | 1 | 0 |
-| [Results](#results) | 7 | 7 | 7 | 6 |
+| [Results](#results) | 7 | 7 | 7 | 5 |
 | [Roles](#roles) | 1 | 1 | 1 | 0 |
 | [Runs](#runs) | 6 | 6 | 6 | 3 |
 | [Sections](#sections) | 6 | 6 | 6 | 0 |
@@ -37,9 +37,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Suites](#suites) | 5 | 5 | 5 | 1 |
 | [Templates](#templates) | 1 | 1 | 1 | 0 |
 | [Tests](#tests) | 2 | 2 | 2 | 0 |
-| [Users](#users) | 6 | 6 | 4 | 1 |
+| [Users](#users) | 6 | 6 | 6 | 3 |
 | [Variables](#variables) | 4 | 4 | 4 | 0 |
-| **Total** | **117** | **117** | **115** | **46** |
+| **Total** | **117** | **117** | **117** | **47** |
 
 ## Attachments
 
@@ -219,7 +219,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`GET get_results/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResults`](../src/modules/results.ts#L12) | `result list-for-test` | [recipe #24](../skill/SKILL.md#24-results-pipeline--choosing-per-test-vs-per-case-vs-bulk-endpoints) |
 | [`GET get_results_for_case/{run_id}/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultsForCase`](../src/modules/results.ts#L36) | `result list-for-case` | [recipe #24](../skill/SKILL.md#24-results-pipeline--choosing-per-test-vs-per-case-vs-bulk-endpoints) |
 | [`GET get_results_for_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultsForRun`](../src/modules/results.ts#L61) | `result list` | [recipe #8](../skill/SKILL.md#8-page-through-a-large-result-list) |
-| [`POST add_result/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResult`](../src/modules/results.ts#L84) | `result add-by-test` | [recipe #34](../skill/SKILL.md#34-add-a-single-test-result-by-test-id) |
+| [`POST add_result/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResult`](../src/modules/results.ts#L84) | `result add-by-test` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST add_result_for_case/{run_id}/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResultForCase`](../src/modules/results.ts#L90) | `result add` | [recipe #14](../skill/SKILL.md#14-validate-a-payload-before-sending---dry-run) |
 | [`POST add_results/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResults`](../src/modules/results.ts#L113) | `result add-bulk-by-test` | [command-table](../skill/SKILL.md#command-surface) |
 | [`POST add_results_for_cases/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addResultsForCases`](../src/modules/results.ts#L102) | `result add-bulk` | [recipe #12](../skill/SKILL.md#12-publish-bulk-results-from-a-ci-run) |
@@ -319,8 +319,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`GET get_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUser`](../src/modules/users.ts#L14) | `user get` | [command-table](../skill/SKILL.md#command-surface) |
 | [`GET get_user_by_email`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUserByEmail`](../src/modules/users.ts#L20) | `user get-by-email` | [command-table](../skill/SKILL.md#command-surface) |
 | [`GET get_users`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getUsers`](../src/modules/users.ts#L30) | `user list` | [recipe #1](../skill/SKILL.md#1-smoke-test-auth--connectivity) |
-| [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L58) | — | — |
-| [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L63) | — | — |
+| [`POST add_user`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addUser`](../src/modules/users.ts#L58) | `user add` | [recipe #32](../skill/SKILL.md#32-create-a-user-testrail-73) |
+| [`POST update_user/{user_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateUser`](../src/modules/users.ts#L63) | `user update` | [recipe #33](../skill/SKILL.md#33-update-a-user-testrail-73) |
 
 ## Variables
 
