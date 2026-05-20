@@ -605,6 +605,45 @@ describe('TestRailClient', () => {
             updated_on: 0,
         };
 
+        describe('addCases (bulk)', () => {
+            it('POSTs to add_cases/{section_id} with the array payload and returns Case[]', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk([mockCase, { ...mockCase, id: 2, title: 'C2' }]));
+                const result = await client.addCases(12, [{ title: 'C' }, { title: 'C2' }]);
+                expect(result).toHaveLength(2);
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_cases/12'), expect.anything());
+                const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+                expect(init.method).toBe('POST');
+                const body = JSON.parse(init.body as string) as unknown;
+                expect(body).toEqual([{ title: 'C' }, { title: 'C2' }]);
+            });
+
+            it('rejects non-positive sectionId before calling the API', async () => {
+                await expect(client.addCases(0, [{ title: 'X' }])).rejects.toThrow(TestRailValidationError);
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+
+            it('rewraps "Invalid uri" 400 as a "TestRail >= 7.5 required" error', async () => {
+                mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', JSON.stringify({ error: 'Invalid uri' })));
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+            });
+
+            it('rewraps "Invalid uri" 404 as a "TestRail >= 7.5 required" error', async () => {
+                mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', JSON.stringify({ error: 'Invalid uri' })));
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+            });
+
+            it('passes through 4xx errors that do not match the version-gate fingerprint', async () => {
+                mockFetch.mockResolvedValueOnce(
+                    mockErr(
+                        400,
+                        'Bad Request',
+                        JSON.stringify({ error: 'Field title is required and cannot be empty' }),
+                    ),
+                );
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
+            });
+        });
+
         describe('updateCases', () => {
             it('POSTs to update_cases/{suite_id} with the payload', async () => {
                 mockFetch.mockResolvedValueOnce(mockOk([mockCase, { ...mockCase, id: 2 }]));
@@ -2677,6 +2716,24 @@ describe('TestRailClient', () => {
         it('should throw for invalid caseId', async () => {
             await expect(client.getAttachmentsForCase(0)).rejects.toThrow('caseId must be a positive integer');
         });
+
+        it('should append limit and offset query params when provided', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: [] }));
+            await client.getAttachmentsForCase(1, { limit: 25, offset: 50 });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('limit=25');
+            expect(url).toContain('offset=50');
+        });
+
+        it('should reject non-positive limit', async () => {
+            await expect(client.getAttachmentsForCase(1, { limit: 0 })).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should reject negative offset', async () => {
+            await expect(client.getAttachmentsForCase(1, { offset: -1 })).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     describe('getAttachmentsForRun', () => {
@@ -2695,6 +2752,14 @@ describe('TestRailClient', () => {
         it('should throw for invalid runId', async () => {
             await expect(client.getAttachmentsForRun(0)).rejects.toThrow('runId must be a positive integer');
         });
+
+        it('should append limit and offset query params when provided', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: [] }));
+            await client.getAttachmentsForRun(1, { limit: 10, offset: 5 });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('limit=10');
+            expect(url).toContain('offset=5');
+        });
     });
 
     describe('getAttachmentsForTest', () => {
@@ -2712,6 +2777,14 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid testId', async () => {
             await expect(client.getAttachmentsForTest(-1)).rejects.toThrow('testId must be a positive integer');
+        });
+
+        it('should append limit and offset query params when provided', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: [] }));
+            await client.getAttachmentsForTest(5, { limit: 100, offset: 200 });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('limit=100');
+            expect(url).toContain('offset=200');
         });
     });
 

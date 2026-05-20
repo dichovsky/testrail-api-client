@@ -7,6 +7,7 @@
 /** Maps a (resource, action) pair to its exported schema variable name. */
 const SCHEMA_NAMES = new Map([
     ['case:add', 'AddCasePayloadSchema'],
+    ['case:add-bulk', 'AddCasesBulkPayloadSchema'],
     ['case:update', 'UpdateCasePayloadSchema'],
     ['case:update-bulk', 'UpdateCasesPayloadSchema'],
     ['case:delete-bulk', 'DeleteCasesPayloadSchema'],

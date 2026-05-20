@@ -3158,6 +3158,54 @@ describe('CLI', () => {
         });
     });
 
+    describe('case add-bulk', () => {
+        it('POSTs the JSON array to add_cases/{section_id} and returns the created cases', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case', 'add-bulk', '12', '--data', '[{"title":"A"},{"title":"B"}]'],
+                [jsonResponse([MOCK_CASE, { ...MOCK_CASE, id: 2, title: 'B' }])],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_cases/12');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            expect(init.method).toBe('POST');
+            const body = JSON.parse(init.body as string) as unknown;
+            expect(body).toEqual([{ title: 'A' }, { title: 'B' }]);
+            const parsed = JSON.parse(stdout.trim()) as Array<{ id: number }>;
+            expect(parsed).toHaveLength(2);
+        });
+
+        it('exits 1 when the body is a non-array (Zod rejects object)', async () => {
+            const { stderr, exitCodes } = await runCli(['case', 'add-bulk', '12', '--data', '{"title":"A"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('--dry-run validates but does not POST and surfaces the array count', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'case',
+                'add-bulk',
+                '12',
+                '--data',
+                '[{"title":"A"},{"title":"B"},{"title":"C"}]',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"count": 3');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rewraps "Invalid uri" 400 as a "TestRail >= 7.5 required" error (version gate)', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['case', 'add-bulk', '12', '--data', '[{"title":"A"}]'],
+                [jsonResponse({ error: 'Invalid uri' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/TestRail server >= 7\.5/);
+        });
+    });
+
     describe('section move', () => {
         it('POSTs to move_section/{section_id} with parent_id=null body', async () => {
             const { exitCodes } = await runCli(
@@ -5168,6 +5216,64 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('"attachment_id"');
+        });
+
+        it('list-for-case forwards --limit and --offset to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-case', '42', '--limit', '25', '--offset', '50'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_attachments_for_case/42');
+            expect(url).toContain('limit=25');
+            expect(url).toContain('offset=50');
+        });
+
+        it('list-for-run forwards --limit and --offset to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-run', '7', '--limit', '5', '--offset', '10'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_attachments_for_run/7');
+            expect(url).toContain('limit=5');
+            expect(url).toContain('offset=10');
+        });
+
+        it('list-for-test forwards --limit and --offset to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-test', '8', '--limit', '100', '--offset', '0'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_attachments_for_test/8');
+            expect(url).toContain('limit=100');
+            expect(url).toContain('offset=0');
+        });
+
+        it('list-for-case rejects --limit 0 fail-fast (validatePaginationParams)', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'list-for-case', '42', '--limit', '0']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/limit must be a positive integer/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('list-for-case rejects --offset -1 fail-fast (regex prevents parse before client)', async () => {
+            // optInt drops `-1` (NON_NEG_INT_RE only accepts `0|[1-9]\d*`), so
+            // the handler simply omits offset from the request — no error.
+            // This test asserts that the CLI does NOT silently accept a
+            // malformed flag value as a request parameter — confirm by
+            // checking no `offset=` ends up in the query string.
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-case', '42', '--offset', '-1'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).not.toContain('offset=');
         });
 
         it('add-to-case uploads --file and returns attachment_id', async () => {

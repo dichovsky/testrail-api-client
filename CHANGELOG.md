@@ -142,8 +142,46 @@ not introduce a parallel hazard but does not fix the existing one.
   reachable via `--help` (full behaviour coverage lives in the unit
   test where the filesystem can be sandboxed).
 
+### Added (CLI bulk case creation, run watcher, attachment pagination)
+
+- **`case add-bulk` CLI action + `addCases()` programmatic method** for
+  bulk-creating cases under a section in one API call (TestRail 7.5+).
+  Wraps `POST add_cases/{section_id}`; the `--data` body is a JSON array of
+  case payloads (each item the same shape as `AddCasePayload`). Empty arrays
+  and array items that fail `AddCasePayloadSchema` are rejected client-side
+  before any network call. **Version-aware error wrap:** older TestRail
+  servers return 400/404 with `"Invalid uri"` because the endpoint doesn't
+  exist; the module rethrows that as `TestRailApiError(status, 'TestRail server >= 7.5 required for add_cases bulk endpoint', <original response>)`
+  so callers can tell "your TestRail is too old" from "your payload is
+  malformed". `--dry-run` previews the parsed array with a `count` field.
+- **`run watch <run_id>` CLI action** — long-running command that polls
+  `GET get_run/{run_id}` on a configurable interval (default 30s;
+  `--interval N` where N is in `[5, 600]`; `--once` for single poll then
+  exit) and emits a compact JSON event line per poll. Diff detection runs
+  over a closed set of fields (`is_completed`, `untested_count`,
+  `passed_count`, `failed_count`, `retest_count`, `blocked_count`) so
+  mutable timestamps don't trigger noise. Exits 0 when TestRail flips
+  `is_completed=true`; exits 130 on SIGINT (writes a one-line `interrupted`
+  summary to stderr before the client's signal handler runs). Polling uses
+  recursive `setTimeout` (not `setInterval`) so a slow poll can't stack
+  pending timers; transient `getRun` rejections surface to stderr but don't
+  abort the watcher.
+- **Pagination on `attachment list-for-{case,run,test}` CLI actions and
+  the corresponding programmatic methods** — `getAttachmentsForCase` /
+  `getAttachmentsForRun` / `getAttachmentsForTest` now accept
+  `GetAttachmentsOptions { limit?, offset? }`. `--limit` and `--offset`
+  forward to TestRail's `&limit=` / `&offset=` query params (server
+  default page size 250). Plan-scoped variants (`list-for-plan`,
+  `list-for-plan-entry`) intentionally don't paginate — TestRail returns
+  the full tree.
+
 ### Changed
 
+- New types exported from package root: `AddCasesBulkPayload`,
+  `AddCasesBulkPayloadSchema`, `GetAttachmentsOptions`.
+- New CLI flags: `--interval <seconds>`, `--once` (both consumed only by
+  `run watch`); attachment list actions now honor the existing `--limit` /
+  `--offset` flags.
 - **`requestMultipart` now streams file uploads from disk** instead of buffering the entire payload into the heap. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) and any programmatic caller using the new `{ path: string; type?: string }` input shape pull bytes via `node:fs.openAsBlob`, so `fetch` reads the file on demand and the process never materializes the whole attachment in memory. Benchmark on a 100 MB file: heap +2.30 MB / RSS +175.61 MB before → heap +0.00 MB / RSS +0.02 MB after.
 - Public API is backwards compatible. `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` accept the existing `Blob | Uint8Array | File` inputs plus the new `{ path }` descriptor. In-memory inputs are unchanged.
 - The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).

@@ -72,6 +72,8 @@ interface CtxOverrides {
     file?: string;
     filename?: string;
     out?: string;
+    limit?: string;
+    offset?: string;
     dryRun?: boolean;
     force?: boolean;
     confirmDestructive?: boolean;
@@ -95,6 +97,8 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
             ...(overrides.file !== undefined && { file: overrides.file }),
             ...(overrides.filename !== undefined && { filename: overrides.filename }),
             ...(overrides.out !== undefined && { out: overrides.out }),
+            ...(overrides.limit !== undefined && { limit: overrides.limit }),
+            ...(overrides.offset !== undefined && { offset: overrides.offset }),
         },
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
@@ -114,7 +118,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'] });
         await handleAttachmentListForCase(ctx);
-        expect(client.getAttachmentsForCase).toHaveBeenCalledWith(42);
+        expect(client.getAttachmentsForCase).toHaveBeenCalledWith(42, {});
         expect(out).toHaveBeenCalledWith([{ id: 1 }]);
     });
 
@@ -122,7 +126,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
         await handleAttachmentListForRun(ctx);
-        expect(client.getAttachmentsForRun).toHaveBeenCalledWith(7);
+        expect(client.getAttachmentsForRun).toHaveBeenCalledWith(7, {});
         expect(out).toHaveBeenCalledWith([{ id: 2 }]);
     });
 
@@ -130,7 +134,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['8'] });
         await handleAttachmentListForTest(ctx);
-        expect(client.getAttachmentsForTest).toHaveBeenCalledWith(8);
+        expect(client.getAttachmentsForTest).toHaveBeenCalledWith(8, {});
         expect(out).toHaveBeenCalledWith([{ id: 3 }]);
     });
 

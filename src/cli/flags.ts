@@ -48,6 +48,16 @@ export const CLI_OPTIONS = {
     out: { type: 'string' as const },
     yes: { type: 'boolean' as const, default: false },
     soft: { type: 'boolean' as const, default: false },
+    // `run watch` polling controls. `--interval <seconds>` (default 30, min 5,
+    // max 600) sets the recursive-setTimeout delay between `get_run/{run_id}`
+    // polls; the floor protects the TestRail default rate budget
+    // (100 req/60s = ~0.6s/req — a 5s minimum interval still leaves headroom
+    // for other concurrent client traffic). `--once` polls a single time and
+    // exits without scheduling the next iteration; useful for one-shot status
+    // checks in CI scripts that want the watcher's diff/render output without
+    // a long-running process.
+    interval: { type: 'string' as const },
+    once: { type: 'boolean' as const, default: false },
 };
 
 export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(CLI_OPTIONS));

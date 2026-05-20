@@ -129,6 +129,13 @@
     },
     {
         "resource": "Cases",
+        "operation": "add_cases",
+        "method": "POST",
+        "path": "add_cases/{section_id}",
+        "summary": "Bulk-creates test cases in a section in one request (TestRail 7.5+)."
+    },
+    {
+        "resource": "Cases",
         "operation": "copy_cases_to_section",
         "method": "POST",
         "path": "copy_cases_to_section/{section_id}",

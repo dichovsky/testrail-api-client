@@ -355,6 +355,14 @@ const newCase = await client.addCase(12, {
     type_id: 1,
     priority_id: 3,
 });
+// Bulk-create many cases under a section in one round-trip (TestRail 7.5+).
+// Pass an array of `AddCasePayload` items. On older servers the rejected
+// error message says "TestRail server >= 7.5 required" so the version gap
+// is unambiguous.
+const createdCases = await client.addCases(12, [
+    { title: 'Login form rejects invalid email', type_id: 1 },
+    { title: 'Login form rejects empty password', type_id: 1 },
+]);
 // Soft-preview delete: hits the API but doesn't delete; returns affected counts.
 // Same `{ soft: true }` overload exists on deleteRun / deleteSection / deleteSuite / deleteCases.
 const preview = await client.deleteCase(42, { soft: true });

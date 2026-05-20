@@ -828,6 +828,8 @@ describe('KNOWN_FLAGS inventory', () => {
             'out',
             'yes',
             'soft',
+            'interval',
+            'once',
         ]);
         expect(KNOWN_FLAGS).toEqual(expected);
     });

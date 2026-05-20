@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import {
     AddCasePayloadSchema,
+    AddCasesBulkPayloadSchema,
     UpdateCasePayloadSchema,
     UpdateCasesPayloadSchema,
     DeleteCasesPayloadSchema,
@@ -180,6 +181,15 @@ export const ACTIONS: readonly ActionSpec[] = [
         isWrite: false,
     },
     {
+        resource: 'run',
+        action: 'watch',
+        summary:
+            'Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll)',
+        pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
+        apiEndpoint: 'GET get_run/{run_id}',
+        isWrite: false,
+    },
+    {
         resource: 'test',
         action: 'get',
         summary: 'Fetch a single test (run instance of a case) by ID',
@@ -310,6 +320,16 @@ export const ACTIONS: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'Section to create the case under' }],
         apiEndpoint: 'POST add_case/{section_id}',
         bodySchema: AddCasePayloadSchema,
+        isWrite: true,
+    },
+    {
+        resource: 'case',
+        action: 'add-bulk',
+        summary:
+            'Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads',
+        pathParams: [{ name: 'section_id', description: 'Section to create the cases under' }],
+        apiEndpoint: 'POST add_cases/{section_id}',
+        bodySchema: AddCasesBulkPayloadSchema,
         isWrite: true,
     },
     {

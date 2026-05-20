@@ -35,6 +35,7 @@ export {
     ReportSchema,
     ReportResultSchema,
     AddCasePayloadSchema,
+    AddCasesBulkPayloadSchema,
     UpdateCasePayloadSchema,
     UpdateCasesPayloadSchema,
     DeleteCasesPayloadSchema,
@@ -81,6 +82,7 @@ export {
 } from './schemas.js';
 export type {
     AddCasePayload,
+    AddCasesBulkPayload,
     UpdateCasePayload,
     UpdateCasesPayload,
     DeleteCasesPayload,
@@ -131,6 +133,7 @@ export type {
 } from './schemas.js';
 export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
+export type { GetAttachmentsOptions } from './modules/attachments.js';
 export type {
     TestRailConfig,
     RateLimiterConfig,

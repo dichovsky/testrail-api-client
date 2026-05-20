@@ -3,17 +3,37 @@ import type { Attachment, UploadFileInput } from '../types.js';
 import { z } from 'zod';
 import { AttachmentSchema } from '../schemas.js';
 
+/**
+ * Optional pagination params shared by `getAttachmentsForCase`,
+ * `getAttachmentsForRun`, and `getAttachmentsForTest`. TestRail's
+ * `get_attachments_for_*` endpoints accept `limit`/`offset` query params
+ * (default page size 250). Plan-scoped endpoints (`get_attachments_for_plan`,
+ * `get_attachments_for_plan_entry`) intentionally don't accept these — they
+ * return every attachment under the plan tree.
+ */
+export interface GetAttachmentsOptions {
+    /** Maximum number of attachments to return (TestRail's server default is 250). */
+    limit?: number;
+    /** Pagination offset (TestRail's server default is 0). */
+    offset?: number;
+}
+
 export class AttachmentModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_attachments_for_case/{case_id} */
-    async getAttachmentsForCase(caseId: number): Promise<Attachment[]> {
+    async getAttachmentsForCase(caseId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         this.client.validateId(caseId, 'caseId');
+        this.client.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.client.buildEndpoint(`get_attachments_for_case/${caseId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         return (
             (
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
-                    `get_attachments_for_case/${caseId}`,
+                    endpoint,
                     z.object({ attachments: z.array(AttachmentSchema).optional() }),
                 )
             ).attachments ?? []
@@ -21,13 +41,18 @@ export class AttachmentModule {
     }
 
     /** @testrail GET get_attachments_for_run/{run_id} */
-    async getAttachmentsForRun(runId: number): Promise<Attachment[]> {
+    async getAttachmentsForRun(runId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         this.client.validateId(runId, 'runId');
+        this.client.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.client.buildEndpoint(`get_attachments_for_run/${runId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         return (
             (
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
-                    `get_attachments_for_run/${runId}`,
+                    endpoint,
                     z.object({ attachments: z.array(AttachmentSchema).optional() }),
                 )
             ).attachments ?? []
@@ -35,13 +60,18 @@ export class AttachmentModule {
     }
 
     /** @testrail GET get_attachments_for_test/{test_id} */
-    async getAttachmentsForTest(testId: number): Promise<Attachment[]> {
+    async getAttachmentsForTest(testId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         this.client.validateId(testId, 'testId');
+        this.client.validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = this.client.buildEndpoint(`get_attachments_for_test/${testId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
+        });
         return (
             (
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
-                    `get_attachments_for_test/${testId}`,
+                    endpoint,
                     z.object({ attachments: z.array(AttachmentSchema).optional() }),
                 )
             ).attachments ?? []
