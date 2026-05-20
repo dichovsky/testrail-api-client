@@ -1859,6 +1859,7 @@ testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Fail
 testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
 ```
 
+<<<<<<< HEAD
 ### 60. Plan entry extensions — add/update runs within existing entries
 
 <!-- recipe-for: plan:add-run-to-entry -->
@@ -2155,6 +2156,216 @@ testrail milestone update "$M2" --data '{"is_started":true}'     # beta starts
 # Clean up old milestones from previous quarter
 OLD_MILESTONE=$(testrail milestone list 5 | jq -r '.[] | select(.name == "1.9 GA") | .id')
 test -n "$OLD_MILESTONE" && testrail milestone delete "$OLD_MILESTONE" --yes
+=======
+### 77. User lookups: current session, by ID, by email
+
+<!-- recipe-for: user:get-current -->
+<!-- recipe-for: user:get -->
+<!-- recipe-for: user:get-by-email -->
+
+The three user lookups serve distinct use cases. All return a single `User` object
+with fields like `id`, `name`, `email`, `role_id`, `group_ids`, `is_active`.
+
+**Get current session user** (auth-bound; TestRail 6.6+):
+
+`user get-current` calls `GET get_current_user` and returns the user identified by
+the API key you authenticated with. Requires no path args and always reflects your
+own account. Useful to bootstrap a session or verify permissions:
+
+```bash
+testrail user get-current
+# → {"id":5,"name":"Alice Smith","email":"alice@example.com","role_id":3,"is_active":true,...}
+```
+
+```bash
+# Check your own role to determine what you can do
+testrail user get-current | jq '.role_id'
+```
+
+**Get user by ID** (any user, universal):
+
+`user get <user_id>` calls `GET get_user/{user_id}` and returns a user by their
+numeric ID. Works for any user on the instance:
+
+```bash
+testrail user get 5
+# → {"id":5,"name":"Alice Smith","email":"alice@example.com",...}
+```
+
+**Get user by email** (email-based lookup):
+
+`user get-by-email` calls `GET get_user_by_email` and finds a user by their
+email address. Takes no path args; requires `--email <address>` flag:
+
+```bash
+testrail user get-by-email --email alice@example.com
+# → {"id":5,"name":"Alice Smith","email":"alice@example.com",...}
+```
+
+```bash
+# Combine with jq to extract just the user ID
+testrail user get-by-email --email alice@example.com | jq '.id'
+```
+
+**When to use each:**
+
+- `user get-current` — you want info about your own account (always works,
+  bound to auth credentials).
+- `user get <user_id>` — you already know the numeric ID (direct, fast).
+- `user get-by-email <email>` — you have an email address and need to find
+  the user's ID or other metadata (e.g. provisioning workflows that resolve
+  email → user_id before assigning to a group).
+
+**Programmatic equivalents:**
+
+```typescript
+const current = await client.getCurrentUser();
+const user = await client.getUser(5);
+const userByEmail = await client.getUserByEmail('alice@example.com');
+```
+
+### 78. Group CRUD lifecycle (TestRail 7.5+)
+
+<!-- recipe-for: group:get -->
+<!-- recipe-for: group:list -->
+<!-- recipe-for: group:add -->
+<!-- recipe-for: group:update -->
+<!-- recipe-for: group:delete -->
+
+User groups are instance-level resources that organize users into permission sets.
+All group actions require TestRail 7.5+. The CRUD shape mirrors suites/milestones:
+`get` and `list` are reads; `add`, `update`, `delete` are writes. `delete`
+is destructive and requires `--yes`.
+
+**Get a single group by ID:**
+
+`group get <group_id>` calls `GET get_group/{group_id}` and returns the group
+object with `id`, `name`, `user_ids` (array of user IDs in the group).
+
+```bash
+testrail group get 12
+# → {"id":12,"name":"QA Team","user_ids":[5,6,7]}
+```
+
+**List all groups on the instance:**
+
+`group list` calls `GET get_groups` (no path args) and returns an array of
+all user groups defined on the TestRail instance:
+
+```bash
+testrail group list
+# → [{"id":1,"name":"Admins","user_ids":[1,2]},{"id":12,"name":"QA Team","user_ids":[5,6,7]}]
+```
+
+```bash
+# Count groups
+testrail group list | jq 'length'
+```
+
+**Create a new group (payload-only):**
+
+`group add` calls `POST add_group` and takes no path args. Body requires `name`
+(string) and optional `user_ids` (array of numeric user IDs to add on creation).
+Returns the created group object with assigned `id`:
+
+```bash
+testrail group add --data '{"name":"QA West","user_ids":[5,6]}'
+# → {"id":12,"name":"QA West","user_ids":[5,6]}
+```
+
+```bash
+# Dry-run: validate the payload without creating the group
+testrail group add --data '{"name":"QA West"}' --dry-run
+# → {"dryRun":true,"action":"group add","payload":{"name":"QA West"},"source":"data"}
+```
+
+**Update an existing group (partial fields):**
+
+`group update <group_id>` calls `POST update_group/{group_id}` and allows
+partial updates. You can change `name`, `user_ids`, or both. An empty `{}`
+body is accepted and returns the group unchanged (PATCH semantics):
+
+```bash
+# Rename a group
+testrail group update 12 --data '{"name":"QA West + Central"}'
+```
+
+```bash
+# Replace the group membership (all users in one call)
+testrail group update 12 --data '{"user_ids":[5,6,8,10]}'
+```
+
+```bash
+# Change both name and members
+testrail group update 12 --data '{"name":"QA","user_ids":[5,6]}'
+```
+
+**Delete a group (requires `--yes`):**
+
+`group delete <group_id>` calls `POST delete_group/{group_id}` and is destructive.
+Pass `--yes` to confirm:
+
+```bash
+testrail group delete 12 --yes
+# → (empty response; group is gone)
+```
+
+```bash
+# Dry-run: preview what would be deleted without making the API call
+testrail group delete 12 --dry-run
+# → {"destructive":true,"dryRun":true,"action":"group delete","groupId":12}
+```
+
+**Programmatic equivalents:**
+
+```typescript
+const group = await client.getGroup(12);
+const allGroups = await client.getGroups();
+const created = await client.addGroup({ name: 'QA West', user_ids: [5, 6] });
+const updated = await client.updateGroup(12, { name: 'QA West + Central' });
+await client.deleteGroup(12);
+```
+
+### 79. Role list (TestRail permission roles)
+
+<!-- recipe-for: role:list -->
+
+`role list` calls `GET get_roles` (no path args) and returns an array of all
+user roles defined on the TestRail instance. Each role has an `id` (numeric),
+`name` (string), and `is_admin` (boolean) flag.
+
+Standard TestRail roles (instance-specific IDs may vary; query to be sure):
+
+```bash
+testrail role list
+# → [{"id":1,"name":"Admin","is_admin":true},{"id":2,"name":"Analyst","is_admin":false},...]
+```
+
+```bash
+# Extract role IDs and names as a lookup table
+testrail role list | jq 'map({id, name}) | from_entries'
+# → {"Admin":"1","Analyst":"2",...}
+```
+
+```bash
+# Find the admin role
+testrail role list | jq '.[] | select(.is_admin == true)'
+# → {"id":1,"name":"Admin","is_admin":true}
+```
+
+Use role IDs when creating or updating users (`user add`, `user update`)
+to assign a specific permission level:
+
+```bash
+# Assign admin role (assuming role_id=1) when creating a user
+testrail user add --data '{"name":"Charlie","email":"charlie@example.com","password":"secret","role_id":1}'
+```
+
+**Programmatic equivalent:**
+
+```typescript
+const roles = await client.getRoles();
+>>>>>>> df539e4 (docs(skill): recipes for Identity (Users, Groups, Roles) — cluster C5)
 ```
 
 ## Programmatic TypeScript API
