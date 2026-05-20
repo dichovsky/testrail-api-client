@@ -2,8 +2,6 @@
 
 > **Agent Rules:** Keep descriptions brief. When a task is completed, REMOVE it from here and APPEND it to BACKLOG-ARCHIVE.md.
 
-Audit Report: [repository_audit_report.md](file:///Users/imagdich/.gemini/antigravity/brain/75268df7-de50-4197-8b52-7a5d0a349b39/repository_audit_report.md) — comprehensive security & architectural evaluation (May 20, 2026).
-
 Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form writeups and shipped-item history.
 
 ## 🖥️ CLI / Skill
