@@ -10,7 +10,13 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { valueToString, renderTable, safeJsonStringify, renderYaml, renderCsv } from '../src/cli/output.js';
 import { parseId, optInt, parseEntryId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
-import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
+import {
+    dispatch,
+    getRegisteredActions,
+    checkDestructiveEnvGate,
+    DESTRUCTIVE_ENV_VAR,
+    DESTRUCTIVE_ENV_ALLOW_VALUE,
+} from '../src/cli/dispatch.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from '../src/cli/flags.js';
 import { sanitizeForTerminal } from '../src/cli/sanitize.js';
@@ -441,6 +447,142 @@ describe('dispatch', () => {
         if (!result.ok) {
             expect(result.error).toContain("Unknown action 'get' for result");
         }
+    });
+});
+
+describe('checkDestructiveEnvGate', () => {
+    /**
+     * Unit tests for the dispatch-level env gate. The gate is the second
+     * layer of defense-in-depth (the per-handler `--yes` check is the
+     * first). These tests cover the truth table for
+     * `(destructive?, dryRun, env value)` → `ok | error`.
+     */
+    const destructiveSpec = getActionSpec('run', 'delete');
+    const nonDestructiveSpec = getActionSpec('project', 'get');
+    const writeNonDestructiveSpec = getActionSpec('case', 'add');
+
+    it('exposes the env var name as a constant', () => {
+        expect(DESTRUCTIVE_ENV_VAR).toBe('TESTRAIL_ALLOW_DESTRUCTIVE');
+    });
+
+    it('exposes the strict allow value as a constant', () => {
+        expect(DESTRUCTIVE_ENV_ALLOW_VALUE).toBe('1');
+    });
+
+    it('returns ok=true for non-destructive read action regardless of env', () => {
+        expect(checkDestructiveEnvGate(nonDestructiveSpec, {}, false).ok).toBe(true);
+        expect(checkDestructiveEnvGate(nonDestructiveSpec, {}, true).ok).toBe(true);
+    });
+
+    it('returns ok=true for non-destructive write action regardless of env', () => {
+        expect(checkDestructiveEnvGate(writeNonDestructiveSpec, {}, false).ok).toBe(true);
+    });
+
+    it('returns ok=true for an undefined spec (defensive — caller already validated dispatch)', () => {
+        expect(checkDestructiveEnvGate(undefined, {}, false).ok).toBe(true);
+    });
+
+    it('returns ok=false for destructive action without env var (env empty)', () => {
+        const result = checkDestructiveEnvGate(destructiveSpec, {}, false);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.error).toContain('TESTRAIL_ALLOW_DESTRUCTIVE');
+            expect(result.error).toContain("'run delete'");
+            expect(result.error).toContain('--yes');
+            expect(result.error).toContain('--dry-run');
+        }
+    });
+
+    it('returns ok=true for destructive action with env=1 and not dry-run', () => {
+        const result = checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: '1' }, false);
+        expect(result.ok).toBe(true);
+    });
+
+    it('returns ok=true for destructive action with dry-run=true (env var bypassed)', () => {
+        const result = checkDestructiveEnvGate(destructiveSpec, {}, true);
+        expect(result.ok).toBe(true);
+    });
+
+    it('returns ok=true for destructive action with dry-run=true even when env value is wrong', () => {
+        const result = checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: 'no' }, true);
+        expect(result.ok).toBe(true);
+    });
+
+    it('rejects env value "true" (strict — only "1" is accepted)', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: 'true' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value "yes"', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: 'yes' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value "on"', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: 'on' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value "0"', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: '0' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value "" (empty string is not "1")', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: '' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value "1 " (trailing whitespace; no implicit trim)', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: '1 ' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value " 1" (leading whitespace; no implicit trim)', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: ' 1' }, false).ok).toBe(false);
+    });
+
+    it('rejects env value "11" (no prefix-match leakage)', () => {
+        expect(checkDestructiveEnvGate(destructiveSpec, { TESTRAIL_ALLOW_DESTRUCTIVE: '11' }, false).ok).toBe(false);
+    });
+
+    it('fires the gate on EVERY destructive action in metadata', () => {
+        // Crash-canary: if any new destructive action is added with
+        // `destructive: true` but the gate is somehow not triggered (e.g.
+        // a regression in `checkDestructiveEnvGate`), this catches it.
+        const destructiveActions = ACTIONS.filter((a) => a.destructive === true);
+        expect(destructiveActions.length).toBeGreaterThan(0);
+        for (const spec of destructiveActions) {
+            const result = checkDestructiveEnvGate(spec, {}, false);
+            expect(result.ok, `${spec.resource}:${spec.action} should be gated by env var`).toBe(false);
+        }
+    });
+
+    it('clears the gate on EVERY destructive action when env=1', () => {
+        const destructiveActions = ACTIONS.filter((a) => a.destructive === true);
+        for (const spec of destructiveActions) {
+            const result = checkDestructiveEnvGate(spec, { TESTRAIL_ALLOW_DESTRUCTIVE: '1' }, false);
+            expect(result.ok, `${spec.resource}:${spec.action} should clear gate with env=1`).toBe(true);
+        }
+    });
+
+    it('clears the gate on EVERY destructive action when dry-run', () => {
+        const destructiveActions = ACTIONS.filter((a) => a.destructive === true);
+        for (const spec of destructiveActions) {
+            const result = checkDestructiveEnvGate(spec, {}, true);
+            expect(result.ok, `${spec.resource}:${spec.action} should clear gate with --dry-run`).toBe(true);
+        }
+    });
+
+    it('never gates a non-destructive action (read or write)', () => {
+        const nonDestructive = ACTIONS.filter((a) => a.destructive !== true);
+        for (const spec of nonDestructive) {
+            const result = checkDestructiveEnvGate(spec, {}, false);
+            expect(result.ok, `${spec.resource}:${spec.action} should never be gated`).toBe(true);
+        }
+    });
+
+    it('ignores unrelated env vars (e.g. only TESTRAIL_BASE_URL set)', () => {
+        const result = checkDestructiveEnvGate(
+            destructiveSpec,
+            { TESTRAIL_BASE_URL: 'https://x', TESTRAIL_EMAIL: 'a@b' },
+            false,
+        );
+        expect(result.ok).toBe(false);
     });
 });
 

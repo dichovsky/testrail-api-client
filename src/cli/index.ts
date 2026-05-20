@@ -5,7 +5,7 @@ import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
 import { createOutput, type OutputFormat } from './output.js';
-import { dispatch } from './dispatch.js';
+import { dispatch, checkDestructiveEnvGate } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
@@ -154,6 +154,14 @@ Auth (env var preferred — argv is visible to other processes):
   TESTRAIL_EMAIL    / --email <email>
   TESTRAIL_API_KEY  (recommended) | echo "$KEY" | testrail ... --api-key-stdin
                     NOTE: --api-key (argv) was removed in v3.0 — see CHANGELOG.
+  TESTRAIL_ALLOW_DESTRUCTIVE=1
+                    REQUIRED (in addition to --yes) to execute destructive
+                    actions (see the destructive list under --yes below).
+                    Accepts EXACTLY the string '1' — not 'true' / 'yes' /
+                    'on'. Failure exits with code 2 (distinct from the
+                    generic exit code 1) so CI can branch on "blocked by
+                    env gate" vs "invalid argv / auth / 4xx". --dry-run
+                    bypasses this gate (preview hits no API).
 
 Options:
   --api-key-stdin       Read API key from stdin (single line; mutually
@@ -210,11 +218,16 @@ run delete, section delete, suite delete, milestone delete, project delete,
 plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
 variable delete, group delete, dataset delete, shared-step delete,
 configuration delete, configuration-group delete)
-require --yes; pass --dry-run together with --yes to preview without making the
-API call (dry-run wins). 'run close' and 'plan close' are irreversible —
-TestRail offers no reopen for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
+alone is insufficient — this two-gate model is intentional (env var is
+process-wide audit-friendly; --yes is per-invocation explicit). Pass
+--dry-run to preview without making the API call; --yes is optional in
+dry-run mode (dry-run wins; the env var is NOT required for preview).
+'run close' and 'plan close' are irreversible — TestRail offers no reopen
+for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
 pass --soft for a server-side preview that returns affected-entity counts
-without deleting; this still hits the API and remains gated by --yes.
+without deleting; this still hits the API and remains gated by --yes
+AND TESTRAIL_ALLOW_DESTRUCTIVE=1.
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -345,6 +358,21 @@ async function main(): Promise<number> {
         return 1;
     }
 
+    // Defense-in-depth env-var gate for destructive actions. Runs before
+    // auth resolution and before the handler is invoked so an unset env var
+    // surfaces as a deterministic argv-shape failure (exit code 2) rather
+    // than burning an API call or leaking timing about credential validity.
+    // `--dry-run` bypasses this gate because preview is non-destructive by
+    // definition (no API call leaves the process). The gate runs IN ADDITION
+    // TO the per-handler `--yes` check — both must be satisfied. See SEC
+    // notes in CHANGELOG.md for the breaking-change rationale.
+    const dryRun = values['dry-run'] === true;
+    const envGate = checkDestructiveEnvGate(getActionSpec(resource, action), process.env, dryRun);
+    if (!envGate.ok) {
+        err(envGate.error);
+        return 2;
+    }
+
     // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
     // visible via /proc/<pid>/cmdline, shell history, CI step logs, and
     // crash dumps. Acceptable channels: TESTRAIL_API_KEY env var, or pipe
@@ -448,7 +476,6 @@ async function main(): Promise<number> {
             !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
 
-    const dryRun = values['dry-run'] === true;
     const force = values['force'] === true;
     const confirmDestructive = values['yes'] === true;
 

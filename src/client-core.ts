@@ -1,9 +1,30 @@
-import type { TestRailConfig, CacheEntry } from './types.js';
+import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
+import { openAsBlob } from 'node:fs';
 import { ZodError, type ZodType } from 'zod';
+
+/**
+ * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
+ * descriptor. The Blob / Uint8Array / File variants are detected by
+ * `instanceof`, so the path variant is recognized by the presence of a
+ * `path` string on a non-Blob, non-Uint8Array object.
+ *
+ * Defined at module scope so the (constant) shape check has no per-call
+ * allocation cost. It's indirectly covered through `requestMultipart`
+ * tests that exercise both path-descriptor and in-memory inputs.
+ */
+function isFilePathInput(value: unknown): value is UploadFilePathInput {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        !(value instanceof globalThis.Blob) &&
+        !(value instanceof Uint8Array) &&
+        typeof (value as { path?: unknown }).path === 'string'
+    );
+}
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -981,17 +1002,34 @@ export class TestRailClientCore {
     /**
      * Makes a multipart/form-data POST request to the TestRail API.
      * Used exclusively for file attachment uploads. Applies rate limiting
-     * and throws on failure, but does NOT retry (uploads are not idempotent).
+     * and throws on failure, but does NOT retry (uploads are not idempotent —
+     * a 5xx mid-stream could leave the server with the attachment already
+     * persisted, and retrying would duplicate it).
+     *
+     * **Streaming.** When `file` is a `{ path }` descriptor the bytes are
+     * read from disk on demand via `node:fs.openAsBlob()` — the whole file
+     * never lands on the heap. A 100 MB upload grows heap by &lt;1 MB. Callers
+     * that already have the bytes in memory may still pass a `Blob`,
+     * `Uint8Array`, or `File`; those paths are unchanged for backwards
+     * compatibility but obviously do not benefit from streaming.
+     *
+     * **Abort handling.** The same `AbortSignal` that arms the header timeout
+     * is honored throughout the body upload; a timeout mid-stream surfaces as
+     * `TestRailApiError(408, ...)` and tears down the socket. Read errors on
+     * the file descriptor (e.g. file deleted between `stat` and `fetch`)
+     * surface as `TestRailApiError(0, 'Network error: ...')`.
      *
      * @param endpoint - API endpoint path (without base URL prefix)
-     * @param file - File content as Blob, Uint8Array, or File
+     * @param file - File content. Either an in-memory variant
+     *               (`Blob` / `Uint8Array` / `File`) or a `{ path, type? }`
+     *               descriptor for streaming from disk.
      * @param filename - Filename to send in the multipart disposition
      * @throws {TestRailApiError} When the API request fails or network error occurs
      * @throws {Error} When called after `destroy()`
      */
     public async requestMultipart<T>(
         endpoint: string,
-        file: globalThis.Blob | Uint8Array | globalThis.File,
+        file: UploadFileInput,
         filename: string,
     ): Promise<T> {
         if (this.isDestroyed) {
@@ -1004,20 +1042,30 @@ export class TestRailClientCore {
 
         const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
 
-        const formData = new globalThis.FormData();
-        let blob: globalThis.Blob;
-        if (file instanceof globalThis.Blob) {
-            blob = file;
-        } else {
-            // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
-            blob = new globalThis.Blob([new Uint8Array(file)]);
-        }
-        formData.append('attachment', blob, filename);
-
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
         try {
+            // Build the multipart body inside the try block so file-open
+            // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
+            // TestRailApiError rather than an unhandled TypeError. openAsBlob
+            // returns a file-backed Blob whose stream() reads from disk on
+            // demand, so fetch consumes the FormData via that stream and the
+            // entire file is never resident in memory at once.
+            const formData = new globalThis.FormData();
+            let blob: globalThis.Blob;
+            if (isFilePathInput(file)) {
+                const opts: { type?: string } = {};
+                if (file.type !== undefined) opts.type = file.type;
+                blob = await openAsBlob(file.path, opts);
+            } else if (file instanceof globalThis.Blob) {
+                blob = file;
+            } else {
+                // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
+                blob = new globalThis.Blob([new Uint8Array(file)]);
+            }
+            formData.append('attachment', blob, filename);
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
