@@ -119,16 +119,18 @@ export class CaseModule {
         } catch (e: unknown) {
             if (e instanceof TestRailApiError && (e.status === 400 || e.status === 404)) {
                 const responseStr = typeof e.response === 'string' ? e.response : JSON.stringify(e.response ?? '');
-                // TestRail < 7.5 surfaces this as "Invalid uri" (404 / 400) or
-                // a message complaining about an unknown field/route. Match
-                // the marker strings used by the upstream Python reference
-                // client so the version gate triggers reliably across the
-                // versions we've sampled. The reclassified error embeds the
-                // version notice in `statusText` (NOT response) so it lands
-                // in `error.message` — callers commonly inspect `.message`,
-                // and the original server response is preserved verbatim in
-                // the new `response` field for programmatic inspection.
-                if (/Invalid uri|Field .* is not a valid field|No route/i.test(responseStr)) {
+                // TestRail < 7.5 returns 404 with "Invalid uri" (the
+                // endpoint simply doesn't exist) or 400 with "No route".
+                // Deliberately exclude "Field .* is not a valid field" — that
+                // error can occur on TestRail >= 7.5 for a genuinely invalid
+                // payload field and must not be misclassified as a version
+                // mismatch. Only match true endpoint-absent indicators.
+                // The reclassified error embeds the version notice in
+                // `statusText` (NOT response) so it lands in `error.message`
+                // — callers commonly inspect `.message`, and the original
+                // server response is preserved verbatim in `response` for
+                // programmatic inspection.
+                if (/Invalid uri|No route/i.test(responseStr)) {
                     throw new TestRailApiError(
                         e.status,
                         'TestRail server >= 7.5 required for add_cases bulk endpoint',
