@@ -15,11 +15,14 @@
  *     fail-fast (no API call)
  *   - SIGINT: pending timeout cleared, stderr summary written, loop resolved
  *   - dry-run: client not called; preview emitted
- *   - rejection: an unrecoverable getRun() failure propagates so main()
- *     exits 1
+ *   - transient error: 5xx / network-error polls log to stderr and continue;
+ *     watcher resolves when a subsequent poll returns is_completed=true
+ *   - rejection: an unrecoverable getRun() failure (4xx, plain Error)
+ *     propagates so main() exits 1
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { handleRunWatch } from '../src/cli/handlers/run-watch.js';
+import { TestRailApiError } from '../src/errors.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import type { Run } from '../src/types.js';
@@ -217,6 +220,97 @@ describe('handleRunWatch', () => {
         client.getRun.mockRejectedValueOnce(new Error('Auth lost mid-watch'));
         const { ctx } = buildCtx(client);
         await expect(handleRunWatch(ctx)).rejects.toThrow(/Auth lost mid-watch/);
+    });
+
+    it('propagates a 401 unrecoverable API error so main() exits 1', async () => {
+        const client = buildClient();
+        client.getRun.mockRejectedValueOnce(new TestRailApiError(401, 'Unauthorized'));
+        const { ctx } = buildCtx(client);
+        await expect(handleRunWatch(ctx)).rejects.toThrow(/401/);
+    });
+
+    it('logs a 5xx transient error to stderr and continues polling until completion', async () => {
+        const client = buildClient();
+        // First poll: 503 (transient). Second poll: completed.
+        client.getRun
+            .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+            .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
+
+        const stderrWrites: string[] = [];
+        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+            return true;
+        });
+
+        const { ctx, out } = buildCtx(client);
+        const promise = handleRunWatch(ctx);
+        // Advance past the retry timer (30s default interval).
+        await vi.advanceTimersByTimeAsync(30_000);
+        await promise;
+
+        expect(client.getRun).toHaveBeenCalledTimes(2);
+        // Transient error written to stderr.
+        expect(stderrWrites.join('')).toMatch(/transient error for runId=42/);
+        // Watcher continued and completed on the second poll.
+        const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
+        expect(events).toContain('snapshot');
+        expect(events).toContain('completed');
+
+        spyErr.mockRestore();
+    });
+
+    it('logs a network error (status 0) transiently and continues polling', async () => {
+        const client = buildClient();
+        client.getRun
+            .mockRejectedValueOnce(new TestRailApiError(0, 'Network error'))
+            .mockResolvedValueOnce(mockRun({ is_completed: false }))
+            .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 3, untested_count: 0 }));
+
+        const stderrWrites: string[] = [];
+        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+            return true;
+        });
+
+        const { ctx, out } = buildCtx(client);
+        const promise = handleRunWatch(ctx);
+        await vi.advanceTimersByTimeAsync(30_000); // retry after transient
+        await vi.advanceTimersByTimeAsync(30_000); // second successful poll
+        await promise;
+
+        expect(client.getRun).toHaveBeenCalledTimes(3);
+        expect(stderrWrites.join('')).toMatch(/transient error/);
+        const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
+        expect(events).toContain('completed');
+
+        spyErr.mockRestore();
+    });
+
+    it('SIGINT during transient-retry wait cancels the watcher cleanly', async () => {
+        const client = buildClient();
+        // First poll: transient 500. SIGINT fires during the retry wait.
+        client.getRun.mockRejectedValueOnce(new TestRailApiError(500, 'Internal Server Error'));
+
+        const stderrWrites: string[] = [];
+        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+            return true;
+        });
+
+        const { ctx } = buildCtx(client);
+        const promise = handleRunWatch(ctx);
+        // Let the transient poll settle.
+        await Promise.resolve();
+        await Promise.resolve();
+        // Fire SIGINT while we're waiting for the retry timer.
+        process.emit('SIGINT');
+        await vi.advanceTimersByTimeAsync(0);
+        await promise;
+
+        // Should resolve cleanly (not reject) — cancelled flag is checked.
+        expect(stderrWrites.join('')).toMatch(/transient error|interrupted/);
+
+        spyErr.mockRestore();
     });
 
     it('SIGINT prepends a listener that cancels the pending poll and writes a status summary', async () => {

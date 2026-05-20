@@ -1,6 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { sanitizeForTerminal } from '../sanitize.js';
+import { TestRailApiError } from '../../errors.js';
 import type { Run } from '../../types.js';
 
 /**
@@ -72,6 +73,20 @@ function diff(prev: Snapshot, next: Snapshot): readonly Diff[] {
         }
     }
     return changes;
+}
+
+/**
+ * Returns `true` for errors that are safe to log-and-continue (network blip,
+ * 5xx, 429 rate-limit). Returns `false` for errors that should abort the
+ * watcher (4xx auth/not-found, validation errors, or any non-API error).
+ */
+function isTransientError(e: unknown): boolean {
+    if (!(e instanceof TestRailApiError)) return false;
+    const s = e.status;
+    // 0 = network error (no HTTP response at all).
+    // 429 = rate-limited: back off and retry next interval.
+    // 5xx = server error: transient upstream issue.
+    return s === 0 || s === 429 || s >= 500;
 }
 
 /**
@@ -221,8 +236,27 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
                         pendingTimer = setTimeout(poll, intervalSeconds * 1000);
                     })
                     .catch((e: unknown) => {
-                        // Unrecoverable rejection propagates so main() exits 1.
-                        reject(e instanceof Error ? e : new Error(String(e)));
+                        if (cancelled) {
+                            resolve();
+                            return;
+                        }
+                        if (isTransientError(e)) {
+                            // Transient failure (network blip, 5xx, 429): log to
+                            // stderr and continue polling on the next interval.
+                            if (!process.argv.includes('--quiet')) {
+                                const msg = e instanceof Error ? e.message : String(e);
+                                process.stderr.write(
+                                    sanitizeForTerminal(
+                                        `run watch: transient error for runId=${runId}; retrying in ${intervalSeconds}s: ${msg}\n`,
+                                    ),
+                                );
+                            }
+                            pendingTimer = setTimeout(poll, intervalSeconds * 1000);
+                        } else {
+                            // Unrecoverable rejection (auth lost, 404, etc.)
+                            // propagates so main() exits 1.
+                            reject(e instanceof Error ? e : new Error(String(e)));
+                        }
                     });
             };
             poll();

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.0.0"
   },
-  "sourceHash": "2a7d2fa43e6f310bea3480941ad6fd1bcd32c40763321842f3c835500078c39c",
+  "sourceHash": "990630a83aa138db10c42772c568471f8fb4ca53d40c4c8a5069d2f8b1ec930c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2615,6 +2615,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/handlers/run-watch.ts",
       "imports": [
+        "../../errors.js",
         "../../types.js",
         "../handler-context.js",
         "../ids.js",
@@ -2625,77 +2626,84 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "DEFAULT_WATCH_INTERVAL_S",
           "kind": "const",
-          "line": 12,
+          "line": 13,
           "exported": true,
           "signature": "export const DEFAULT_WATCH_INTERVAL_S = 30"
         },
         {
           "name": "MIN_WATCH_INTERVAL_S",
           "kind": "const",
-          "line": 21,
+          "line": 22,
           "exported": true,
           "signature": "export const MIN_WATCH_INTERVAL_S = 5"
         },
         {
           "name": "MAX_WATCH_INTERVAL_S",
           "kind": "const",
-          "line": 30,
+          "line": 31,
           "exported": true,
           "signature": "export const MAX_WATCH_INTERVAL_S = 600"
         },
         {
           "name": "WATCHED_FIELDS",
           "kind": "const",
-          "line": 38,
+          "line": 39,
           "exported": false,
           "signature": "const WATCHED_FIELDS = [ 'is_completed', 'untested_count', 'passed_count', 'failed_count', 'retest_count', 'blocked_count', ] as const"
         },
         {
           "name": "WatchedField",
           "kind": "type",
-          "line": 47,
+          "line": 48,
           "exported": false,
           "signature": "type WatchedField = (typeof WATCHED_FIELDS)[number]"
         },
         {
           "name": "Snapshot",
           "kind": "type",
-          "line": 48,
+          "line": 49,
           "exported": false,
           "signature": "type Snapshot = Readonly<Pick<Run, WatchedField>>"
         },
         {
           "name": "snapshot",
           "kind": "function",
-          "line": 50,
+          "line": 51,
           "exported": false,
           "signature": "function snapshot(run: Run): Snapshot"
         },
         {
           "name": "Diff",
           "kind": "interface",
-          "line": 61,
+          "line": 62,
           "exported": false,
           "signature": "interface Diff { field: WatchedField; from: Run[WatchedField]; to: Run[WatchedField]; }"
         },
         {
           "name": "diff",
           "kind": "function",
-          "line": 67,
+          "line": 68,
           "exported": false,
           "signature": "function diff(prev: Snapshot, next: Snapshot): readonly Diff[]"
         },
         {
-          "name": "parseInterval",
+          "name": "isTransientError",
           "kind": "function",
           "line": 83,
+          "exported": false,
+          "signature": "function isTransientError(e: unknown): boolean"
+        },
+        {
+          "name": "parseInterval",
+          "kind": "function",
+          "line": 98,
           "exported": false,
           "signature": "function parseInterval(raw: string | undefined): number"
         },
         {
           "name": "handleRunWatch",
           "kind": "function",
-          "line": 127,
+          "line": 142,
           "exported": true,
           "signature": "export async function handleRunWatch(ctx: HandlerContext): Promise<void>"
         }
