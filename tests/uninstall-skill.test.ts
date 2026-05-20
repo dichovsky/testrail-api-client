@@ -205,7 +205,7 @@ describe('runUninstallSkill', () => {
         expect(readdirSync(parent)).toEqual(['NOTES.md']);
     });
 
-    it('mentions that .continue / AGENTS.md are NOT touched', () => {
+    it('mentions .continue / AGENTS.md as NOT touched and does not mention .cursor', () => {
         const project = join(tmp, 'proj');
         runInstallSkill(
             {
