@@ -3537,6 +3537,106 @@ curl -o report.html "$REPORT_URL"
 - **Dashboard refresh** — Periodically regenerate the same template on a
   schedule.
 
+### 56. Project lifecycle: add, update, delete
+
+<!-- recipe-for: project:add -->
+<!-- recipe-for: project:update -->
+<!-- recipe-for: project:delete -->
+
+The project resource sits at the root of every TestRail hierarchy
+(project → suite → section → case → run → result). Use `project add` to
+spin up a workspace, `project update` to rename or change suite-mode
+settings, and `project delete` to retire it. Both writes accept arbitrary
+`custom_*` fields through `.passthrough()`.
+
+```bash
+# Create a new project (single-suite mode = 1, multi-suite = 3)
+testrail project add --data '{"name":"Mobile App QA","announcement":"Pre-release suite for v3.0","show_announcement":true,"suite_mode":1}'
+```
+
+```bash
+# Rename + flip announcement flag
+testrail project update 5 --data '{"name":"Mobile QA (renamed)","show_announcement":false}'
+```
+
+```bash
+# Dry-run to preview the payload that would be sent
+testrail project update 5 --data '{"is_completed":true}' --dry-run
+```
+
+**Suite-mode reference (set once at creation, cannot be changed later
+without admin intervention):**
+
+| `suite_mode` | Meaning |
+|---|---|
+| 1 | Single-suite (project has exactly one suite) |
+| 2 | Single-suite + baselines (single suite with versioned baselines) |
+| 3 | Multi-suite (project can hold multiple independent suites) |
+
+**Destructive delete with safety gates** — `project delete` is irreversible.
+The CLI requires `--yes` to actually delete; `--dry-run` short-circuits
+client-side; `--soft` is **not** supported by TestRail for projects.
+
+```bash
+# Preview a delete with no API call
+testrail project delete 5 --dry-run
+
+# Hard delete (requires --yes; otherwise rejected)
+testrail project delete 5 --yes
+```
+
+```typescript
+// Programmatic equivalents
+const created = await client.addProject({ name: 'Mobile QA', suite_mode: 1 });
+const renamed = await client.updateProject(created.id, { name: 'Mobile QA v2' });
+await client.deleteProject(renamed.id);
+```
+
+### 57. Tests: fetch by ID and list per run
+
+<!-- recipe-for: test:get -->
+<!-- recipe-for: test:list -->
+
+A *test* in TestRail is the run-scoped instance of a case (one case + one
+run = one test). `test get` returns a single test by `test_id`;
+`test list` enumerates every test in a run (the canonical way to walk
+all cases assigned to a run, including their current `status_id`).
+
+```bash
+# Fetch a single test instance
+testrail test get 1337
+```
+
+```bash
+# List every test in a run
+testrail test list 42
+
+# Filter by current status (e.g. Failed=5)
+testrail test list 42 --status-id 5
+```
+
+```bash
+# Common pattern — extract test_ids ready for per-test result writes
+testrail test list 42 | jq '.[] | select(.status_id == 3) | .id'
+```
+
+**When you reach for `test:list` vs alternatives:**
+
+- `test list <run_id>` — enumerate every test in a run; canonical input
+  for per-test result loops (pair with `result add-by-test`)
+- `case list --project-id <id> --suite-id <id>` — enumerate the case
+  catalog (not run-scoped); use when designing a run, not executing one
+- `result list --run-id <id>` — enumerate results (not tests); use when
+  you want the latest verdict per test, not the test definitions
+
+```typescript
+// Programmatic equivalent — drive a per-test CI publisher
+const tests = await client.getTests(42, { status_id: '3' }); // 3 = Untested
+for (const t of tests) {
+  await client.addResult(t.id, { status_id: 1, comment: 'auto-passed' });
+}
+```
+
 
 ## Programmatic TypeScript API
 
