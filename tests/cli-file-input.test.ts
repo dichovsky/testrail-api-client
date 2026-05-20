@@ -13,7 +13,7 @@
  * known bytes; the TTY check is exercised by toggling `process.stdin.isTTY`.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -54,6 +54,24 @@ describe('resolveFile', () => {
         const r = await resolveFile({ fileFlag: sub }, { read: false });
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.error).toContain('not a regular file');
+    });
+
+    it('rejects a symbolic link', async () => {
+        const target = join(tmp, 'target.bin');
+        writeFileSync(target, Buffer.from('content'));
+        const sym = join(tmp, 'symlink.bin');
+        try {
+            symlinkSync(target, sym);
+        } catch {
+            // Windows fallback or permission issues: skip
+            return;
+        }
+
+        const r = await resolveFile({ fileFlag: sym }, { read: false });
+        expect(r.ok).toBe(false);
+        if (!r.ok) {
+            expect(r.error).toContain('Cannot stat --file');
+        }
     });
 
     it('stat-only mode returns path/filename/size without contents (source=file)', async () => {

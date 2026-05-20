@@ -1,4 +1,4 @@
-import { statSync } from 'node:fs';
+import { openSync, fstatSync, closeSync, constants } from 'node:fs';
 import { basename } from 'node:path';
 import { MAX_STDIN_UPLOAD_BYTES, STDIN_READ_TIMEOUT_MS } from '../constants.js';
 
@@ -45,6 +45,7 @@ export type FileResolution =
           filename: string;
           size: number;
           contents?: Uint8Array;
+          fd?: number | undefined;
           /** `'file'` for filesystem reads, `'stdin'` for the `--file -` sentinel. */
           source: 'file' | 'stdin';
       }
@@ -91,13 +92,30 @@ export async function resolveFile(input: FileInput, opts: ResolveFileOptions): P
     const path = input.fileFlag;
 
     let size: number;
+    let fd: number | undefined;
     try {
-        const stat = statSync(path);
+        const flags = constants.O_RDONLY | (constants.O_NOFOLLOW || 0);
+        fd = openSync(path, flags);
+
+        const stat = fstatSync(fd);
         if (!stat.isFile()) {
+            closeSync(fd);
             return { ok: false, error: `--file '${path}' is not a regular file.` };
         }
         size = stat.size;
+
+        if (!opts.read) {
+            closeSync(fd);
+            fd = undefined;
+        }
     } catch (e) {
+        if (fd !== undefined) {
+            try {
+                closeSync(fd);
+            } catch {
+                // Ignore close errors
+            }
+        }
         return {
             ok: false,
             error: `Cannot stat --file '${path}': ${e instanceof Error ? e.message : String(e)}`,
@@ -107,7 +125,14 @@ export async function resolveFile(input: FileInput, opts: ResolveFileOptions): P
     const filename =
         input.filenameFlag !== undefined && input.filenameFlag !== '' ? input.filenameFlag : basename(path);
 
-    return { ok: true, path, filename, size, source: 'file' };
+    return {
+        ok: true,
+        path,
+        filename,
+        size,
+        source: 'file',
+        ...(fd !== undefined && { fd }),
+    };
 }
 
 /**

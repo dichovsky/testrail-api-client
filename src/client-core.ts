@@ -3,7 +3,7 @@ import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
-import { openAsBlob } from 'node:fs';
+import { openAsBlob, closeSync } from 'node:fs';
 import { ZodError, type ZodType } from 'zod';
 
 /**
@@ -1053,7 +1053,26 @@ export class TestRailClientCore {
             if (isFilePathInput(file)) {
                 const opts: { type?: string } = {};
                 if (file.type !== undefined) opts.type = file.type;
-                blob = await openAsBlob(file.path, opts);
+
+                let uploadPath = file.path;
+                if (file.fd !== undefined) {
+                    if (process.platform === 'darwin') {
+                        uploadPath = `/dev/fd/${file.fd}`;
+                    } else if (process.platform === 'linux') {
+                        uploadPath = `/proc/self/fd/${file.fd}`;
+                    } else {
+                        // Fall back to original path, and close fd immediately since we aren't using it
+                        try {
+                            closeSync(file.fd);
+                        } catch {
+                            // Ignore close errors
+                        }
+                        // Prevent duplicate close in finally block
+                        file.fd = undefined;
+                    }
+                }
+
+                blob = await openAsBlob(uploadPath, opts);
             } else if (file instanceof globalThis.Blob) {
                 blob = file;
             } else {
@@ -1074,9 +1093,6 @@ export class TestRailClientCore {
                 // BACKLOG #4: never follow redirects automatically (see request<T>).
                 redirect: 'manual',
             });
-
-            // Body read is bounded by readBodyWithLimits (SEC #21).
-            clearTimeout(timeoutId);
 
             this.assertNotRedirect(response);
 
@@ -1111,8 +1127,6 @@ export class TestRailClientCore {
                 throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
             }
         } catch (error) {
-            clearTimeout(timeoutId);
-
             if (error instanceof TestRailApiError) {
                 throw error;
             }
@@ -1123,6 +1137,15 @@ export class TestRailClientCore {
             }
 
             throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+        } finally {
+            clearTimeout(timeoutId);
+            if (isFilePathInput(file) && file.fd !== undefined) {
+                try {
+                    closeSync(file.fd);
+                } catch {
+                    // Ignore close errors
+                }
+            }
         }
     }
 

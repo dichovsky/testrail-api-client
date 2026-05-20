@@ -13,7 +13,18 @@
  * Invoked directly from `index.ts` when positionals[0] === 'install-skill'.
  */
 
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    lstatSync,
+    openSync,
+    closeSync,
+    renameSync,
+    unlinkSync,
+    readFileSync,
+    writeFileSync,
+    constants,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,14 +80,47 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     const targetRoot = opts.global ? (opts.homeOverride ?? homedir()) : (opts.cwdOverride ?? process.cwd());
     const target = join(targetRoot, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
 
-    if (existsSync(target) && !opts.force) {
+    let targetExists = false;
+    try {
+        lstatSync(target);
+        targetExists = true;
+    } catch {
+        // Target does not exist
+    }
+
+    if (targetExists && !opts.force) {
         writeErr(`SKILL.md already exists at ${target}. Re-run with --force to overwrite.`);
         return 1;
     }
 
     try {
-        mkdirSync(dirname(target), { recursive: true });
-        copyFileSync(source, target);
+        const dir = dirname(target);
+        mkdirSync(dir, { recursive: true });
+
+        // If it exists (even if it's a symlink), unlink it first to ensure we don't follow any existing link.
+        if (targetExists) {
+            unlinkSync(target);
+        }
+
+        // Create a secure sibling temp file.
+        const tempPath = join(dir, `SKILL.md.tmp.${Math.random().toString(36).substring(2, 9)}`);
+        const fd = openSync(tempPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW);
+
+        try {
+            const content = readFileSync(source);
+            writeFileSync(fd, content);
+        } finally {
+            closeSync(fd);
+        }
+
+        // Verify the temp path is a regular file before atomic swap
+        const tempStat = lstatSync(tempPath);
+        if (tempStat.isSymbolicLink() || !tempStat.isFile()) {
+            throw new Error('temporary file is not a regular file');
+        }
+
+        // Atomically place it at target
+        renameSync(tempPath, target);
         /* v8 ignore start -- defensive: triggered only by filesystem failures
            (permission denied, full disk, etc.) that are flaky to simulate in
            CI. The error path is exercised manually if invoked under an

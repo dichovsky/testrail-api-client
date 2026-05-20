@@ -85,6 +85,7 @@ export interface TestRailConfig {
 export interface UploadFilePathInput {
     path: string;
     type?: string;
+    fd?: number | undefined;
 }
 
 export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput;

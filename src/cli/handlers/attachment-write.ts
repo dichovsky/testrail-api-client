@@ -22,6 +22,7 @@ interface ResolvedUpload {
     path: string;
     /** Drained bytes for `source: 'stdin'` uploads. Undefined for file sources. */
     contents?: Uint8Array;
+    fd?: number | undefined;
     source: 'file' | 'stdin';
 }
 
@@ -72,21 +73,22 @@ async function setupUpload(
         filename: resolved.filename,
         path: resolved.path,
         source: resolved.source,
+        ...(resolved.fd !== undefined && { fd: resolved.fd }),
         ...(resolved.contents !== undefined && { contents: resolved.contents }),
     };
 }
 
 /**
  * Resolve the actual upload payload for an API call. For filesystem sources,
- * returns `{ path }` so the multipart pipeline can stream bytes from disk via
+ * returns `{ path, fd }` so the multipart pipeline can stream bytes from disk via
  * `node:fs.openAsBlob`. For stdin sources, returns the drained `Uint8Array`
  * (a pipe cannot be `openAsBlob`'d — it must be passed in-memory).
  */
-function uploadPayload(upload: ResolvedUpload): { path: string } | Uint8Array {
+function uploadPayload(upload: ResolvedUpload): { path: string; fd?: number | undefined } | Uint8Array {
     if (upload.source === 'stdin' && upload.contents !== undefined) {
         return upload.contents;
     }
-    return { path: upload.path };
+    return { path: upload.path, fd: upload.fd };
 }
 
 export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void> {

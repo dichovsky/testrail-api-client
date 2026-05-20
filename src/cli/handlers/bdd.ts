@@ -96,6 +96,8 @@ export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
     // For stdin: pass drained bytes directly (a pipe cannot be openAsBlob'd).
     // For file: pass the descriptor so the multipart pipeline streams from disk.
     const payload =
-        resolved.source === 'stdin' && resolved.contents !== undefined ? resolved.contents : { path: resolved.path };
+        resolved.source === 'stdin' && resolved.contents !== undefined
+            ? resolved.contents
+            : { path: resolved.path, fd: resolved.fd };
     ctx.out(await ctx.client.addBdd(caseId, payload, resolved.filename));
 }
