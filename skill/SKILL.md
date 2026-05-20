@@ -1859,6 +1859,237 @@ testrail result add-by-test 123 --dry-run --data '{"status_id":5,"comment":"Fail
 testrail result add-by-test 123 --data '{"status_id":1,"custom_env":"staging","custom_browser":"chrome"}'
 ```
 
+### 35. Record multiple results for tests in one API call
+
+<!-- recipe-for: result:add-bulk-by-test -->
+
+`result add-bulk-by-test` wraps `POST add_results/{run_id}` and records
+multiple test results keyed by `test_id` in a single API call. Use this
+when you have the full list of test instances (e.g. from `testrail test list
+--run-id <id>`) and want to record outcomes for many tests at once.
+
+Recipe #24 already discusses choosing between bulk endpoints; this path is
+optimal when:
+
+- You already have `test_id` values (the run-scoped instance of a case).
+- You're publishing results from an environment that captures test instances
+  from a prior run query.
+- You want to minimize round-trips (one call for N results).
+
+**Single-file example — bulk write via stdin:**
+
+```bash
+# Fetch the test list, map to results, and publish all at once.
+testrail result add-bulk-by-test 42 --data '[
+  {"test_id": 100, "status_id": 1, "comment": "✓ unit tests passed"},
+  {"test_id": 101, "status_id": 5, "comment": "✗ integration failed on step 2"},
+  {"test_id": 102, "status_id": 1, "elapsed": "2m15s", "version": "3.1.4"}
+]'
+```
+
+**Dry-run preview (validate payload structure without hitting the API):**
+
+```bash
+testrail result add-bulk-by-test 42 --dry-run --data '[
+  {"test_id": 100, "status_id": 1},
+  {"test_id": 101, "status_id": 5}
+]'
+```
+
+**Custom fields and optional fields pass through transparently:**
+
+```bash
+testrail result add-bulk-by-test 42 --data '[
+  {"test_id": 100, "status_id": 1, "custom_env": "prod", "custom_browser": "safari"},
+  {"test_id": 101, "status_id": 5, "defects": "BUG-123"}
+]'
+```
+
+**When to choose alternatives:**
+
+- One result, you have `test_id` → `result add-by-test <test_id>` (lighter).
+- Many results, you have `run_id` + `case_id` pairs → `result add-bulk <run_id>`
+  (per-case keying).
+- You're unsure of status ID values → `testrail status list` (below in recipe 36).
+
+### 36. Reference data and metadata lookups
+
+<!-- recipe-for: result-field:list -->
+<!-- recipe-for: status:list -->
+<!-- recipe-for: priority:list -->
+
+TestRail exposes three read-only reference-data endpoints that return
+instance-wide metadata for use in dropdowns, validation, and result/case
+payloads. All three take no positional arguments and return a JSON array of
+small objects.
+
+**List all custom result fields (instance-level metadata):**
+
+```bash
+testrail result-field list --format json
+```
+
+Output structure:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Environment",
+    "system_name": "custom_env",
+    "type_id": 1,
+    "configs": [1, 2, 3]
+  },
+  {
+    "id": 2,
+    "name": "Browser",
+    "system_name": "custom_browser",
+    "type_id": 2,
+    "configs": [1]
+  }
+]
+```
+
+Use the `system_name` (e.g. `custom_env`) as the key when writing results:
+
+```bash
+testrail result add-by-test 123 --data '{"status_id": 1, "custom_env": "staging"}'
+```
+
+**List all result statuses (used in `result add*` payloads):**
+
+```bash
+testrail status list --format json | jq '.[] | {id, label}'
+```
+
+Output:
+
+```json
+[
+  { "id": 1, "label": "Passed" },
+  { "id": 2, "label": "Blocked" },
+  { "id": 3, "label": "Untested" },
+  { "id": 4, "label": "Retest" },
+  { "id": 5, "label": "Failed" }
+]
+```
+
+These IDs (e.g. `1` for "Passed", `5` for "Failed") are required in
+`result add` / `result add-bulk` / `result add-bulk-by-test` payloads.
+Instance configuration may differ, so always query the endpoint to validate
+before hardcoding values in CI.
+
+**List all case priorities (used in case and plan payloads):**
+
+```bash
+testrail priority list --format json | jq '.[] | {id, name}'
+```
+
+Output:
+
+```json
+[
+  { "id": 1, "name": "None" },
+  { "id": 2, "name": "Low" },
+  { "id": 3, "name": "Medium" },
+  { "id": 4, "name": "High" },
+  { "id": 5, "name": "Critical" }
+]
+```
+
+Use these IDs in `case add` / `case update` / `plan add` payloads:
+
+```bash
+testrail case add 456 --data '{"title": "Critical path test", "priority_id": 5}'
+```
+
+**Programmatic access (TypeScript/JavaScript):**
+
+All three return typed arrays from the client:
+
+```typescript
+const resultFields = await client.getResultFields();
+const statuses = await client.getStatuses();
+const priorities = await client.getPriorities();
+
+// Find status ID for "Failed"
+const failedStatus = statuses.find(s => s.label === 'Failed');
+console.log(failedStatus?.id); // 5 (typically)
+```
+
+### 37. Reports — list templates and trigger generation
+
+<!-- recipe-for: report:list -->
+<!-- recipe-for: report:run -->
+
+TestRail exposes pre-configured report templates. You can list the templates
+available in a project and trigger an async generation job that returns
+downloadable report URLs.
+
+**List report templates in a project:**
+
+```bash
+testrail report list 5 --format json | jq '.[] | {id, name, is_global}'
+```
+
+Output:
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Test Results Summary",
+    "is_global": true
+  },
+  {
+    "id": 8,
+    "name": "Custom Defect Report",
+    "is_global": false
+  }
+]
+```
+
+**Trigger a report generation:**
+
+`report run` wraps `GET run_report/{report_template_id}` and initiates an
+async report-generation job. The endpoint returns a JSON object containing
+URLs for both HTML and PDF versions (generation may take a few seconds).
+
+```bash
+testrail report run 8
+```
+
+Output:
+
+```json
+{
+  "report_url": "https://instance.testrail.io/reports/index.html?user_id=1",
+  "report_url_pdf": "https://instance.testrail.io/reports/index.pdf?user_id=1"
+}
+```
+
+**Saving a report to a file:**
+
+Use `--out <path>` to download the HTML report directly (if your TestRail
+instance supports direct binary downloads; consult your admin):
+
+```bash
+# Note: The API returns URLs; to download, use curl or wget
+URLS=$(testrail report run 8)
+REPORT_URL=$(echo "$URLS" | jq -r '.report_url')
+curl -o report.html "$REPORT_URL"
+```
+
+**When to use reports in automation:**
+
+- **CI integration** — Trigger a report at the end of a test run so
+  stakeholders have a snapshot. Embed the report URL in Slack, email, or a
+  build artifact.
+- **Test result audit** — Generate a compliance report after a critical
+  release.
+- **Dashboard refresh** — Periodically regenerate the same template on a
+  schedule.
+
 ## Programmatic TypeScript API
 
 The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
