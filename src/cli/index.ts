@@ -4,13 +4,16 @@ import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
-import { createOutput } from './output.js';
-import { dispatch } from './dispatch.js';
+import { createOutput, type OutputFormat } from './output.js';
+import { dispatch, checkDestructiveEnvGate } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
+import { runUninstallSkill } from './uninstall-skill.js';
 import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
+import { STDIN_SENTINEL } from './file-input.js';
+import { STDOUT_SENTINEL } from './file-output.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -29,6 +32,7 @@ Read actions:
   case     get <id> | list --project-id <id> [--suite-id <id>]
   case     history <case_id> [--limit N] [--offset N]
   run      get <id> | list --project-id <id> [--limit N] [--offset N]
+  run      watch <run_id> [--interval N] [--once]   (poll get_run; emit diffs; exit on is_completed)
   result   list --run-id <id> [--limit N] [--offset N]
   result   list-for-test <test_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]
   result   list-for-case <run_id> <case_id> [--limit N] [--offset N] [--status-id 1,5] [--defects-filter STR]
@@ -60,6 +64,7 @@ Metadata actions:
 
 Write actions (body via --data | --data-file | stdin):
   case   add <section_id>           --data '{"title":"..."}'
+  case   add-bulk <section_id>      --data '[{"title":"..."},{"title":"..."}]'  (TestRail 7.5+; body is a JSON array)
   case   update <case_id>           --data '{"title":"..."}'
   case   update-bulk <suite_id>     --data '{"case_ids":[1,2],"priority_id":3}'
   case   delete <case_id>           [--soft] --yes  (no body; destructive)
@@ -119,34 +124,61 @@ Configuration actions (project → config_groups → configs):
   configuration delete <config_id>              --yes  (no body; --soft NOT supported)
 
 Attachment actions (binary file I/O):
-  attachment list-for-case <case_id>
-  attachment list-for-run <run_id>
-  attachment list-for-test <test_id>
+  attachment list-for-case <case_id>            [--limit N] [--offset N]
+  attachment list-for-run <run_id>              [--limit N] [--offset N]
+  attachment list-for-test <test_id>            [--limit N] [--offset N]
   attachment list-for-plan <plan_id>
   attachment list-for-plan-entry <plan_id> <entry_id>
-  attachment get <attachment_id>           --out <path> [--force]
-  attachment add-to-case <case_id>         --file <path> [--filename <name>]
-  attachment add-to-result <result_id>     --file <path> [--filename <name>]
-  attachment add-to-run <run_id>           --file <path> [--filename <name>]
-  attachment add-to-plan <plan_id>         --file <path> [--filename <name>]
-  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path> [--filename <name>]
+  attachment get <attachment_id>           --out <path|-> [--force]
+  attachment add-to-case <case_id>         --file <path|-> [--filename <name>]
+  attachment add-to-result <result_id>     --file <path|-> [--filename <name>]
+  attachment add-to-run <run_id>           --file <path|-> [--filename <name>]
+  attachment add-to-plan <plan_id>         --file <path|-> [--filename <name>]
+  attachment add-to-plan-entry <plan_id> <entry_id>  --file <path|-> [--filename <name>]
   attachment delete <attachment_id>        --yes
 
 BDD actions (Gherkin .feature text I/O):
-  bdd get <case_id>                        --out <path> [--force]
-  bdd add <case_id>                        --file <path> [--filename <name>]
+  bdd get <case_id>                        --out <path|-> [--force]
+  bdd add <case_id>                        --file <path|-> [--filename <name>]
+
+Binary stdio (Unix-convention '-' sentinel):
+  --file -    Read binary upload payload from stdin (must be piped; not a TTY).
+              Capped at 100 MiB with a 30s wall-clock deadline so a stalled
+              producer cannot hold the pipe open. Cannot be combined with
+              --data, --data-file, or --api-key-stdin (each owns stdin).
+              Pass --filename to label the upload (default: 'stdin').
+              Example: curl -s https://… | testrail attachment add-to-case 42 --file - --filename crash.png
+  --out -     Stream the downloaded payload to stdout as raw bytes; the JSON
+              ack is routed to stderr so stdout stays pure binary. Rejects
+              --format table (binary is binary). Emits a TTY warning to
+              stderr if stdout is a terminal — use 'xxd' or '> file' instead.
+              Example: testrail attachment get 17 --out - | hexdump -C
 
 Meta:
   install-skill [--global] [--force] [--print-path]
                                     Install the testrail-cli skill to
                                     ./.claude/skills/testrail-cli (default)
                                     or ~/.claude/skills/testrail-cli (--global)
+  uninstall-skill [--global]        Remove a previously-installed testrail-cli
+                                    skill. ONLY removes the skill file (and
+                                    its empty parent dir); does NOT touch
+                                    .cursor/rules/testrail.mdc,
+                                    .continue/rules/testrail.md, or AGENTS.md
+                                    (separate lifecycle — remove manually).
 
 Auth (env var preferred — argv is visible to other processes):
   TESTRAIL_BASE_URL / --base-url <url>
   TESTRAIL_EMAIL    / --email <email>
   TESTRAIL_API_KEY  (recommended) | echo "$KEY" | testrail ... --api-key-stdin
                     NOTE: --api-key (argv) was removed in v3.0 — see CHANGELOG.
+  TESTRAIL_ALLOW_DESTRUCTIVE=1
+                    REQUIRED (in addition to --yes) to execute destructive
+                    actions (see the destructive list under --yes below).
+                    Accepts EXACTLY the string '1' — not 'true' / 'yes' /
+                    'on'. Failure exits with code 2 (distinct from the
+                    generic exit code 1) so CI can branch on "blocked by
+                    env gate" vs "invalid argv / auth / 4xx". --dry-run
+                    bypasses this gate (preview hits no API).
 
 Options:
   --api-key-stdin       Read API key from stdin (single line; mutually
@@ -155,7 +187,13 @@ Options:
   --data <json>         Inline JSON body for write actions
   --data-file <path>    Read JSON body from file
   --dry-run             Validate payload but don't call the API
-  --format json|table   Output format (default: json)
+  --format json|table|yaml|csv
+                        Output format (default: json). yaml emits a YAML 1.2
+                        document with 2-space indent and double-quoted strings
+                        where ambiguity demands it; csv emits RFC 4180 with
+                        CRLF line terminators, sorted union of top-level keys
+                        as headers, and nested objects/arrays JSON-stringified
+                        into the cell (no dot-path flattening).
   --quiet               Suppress output; use exit code 0/1
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
@@ -175,6 +213,8 @@ Options:
                           plan delete-run-from-entry, variable delete,
                           group delete, dataset delete, shared-step delete,
                           configuration delete, configuration-group delete.
+  --interval <seconds>  run watch poll interval (default: 30; min: 5; max: 600)
+  --once                run watch: poll once and exit instead of running until is_completed
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
   --print-path          install-skill: print bundled SKILL.md path and exit
   --help                Show this help
@@ -197,11 +237,16 @@ run delete, section delete, suite delete, milestone delete, project delete,
 plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
 variable delete, group delete, dataset delete, shared-step delete,
 configuration delete, configuration-group delete)
-require --yes; pass --dry-run together with --yes to preview without making the
-API call (dry-run wins). 'run close' and 'plan close' are irreversible —
-TestRail offers no reopen for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
+alone is insufficient — this two-gate model is intentional (env var is
+process-wide audit-friendly; --yes is per-invocation explicit). Pass
+--dry-run to preview without making the API call; --yes is optional in
+dry-run mode (dry-run wins; the env var is NOT required for preview).
+'run close' and 'plan close' are irreversible — TestRail offers no reopen
+for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
 pass --soft for a server-side preview that returns affected-entity counts
-without deleting; this still hits the API and remains gated by --yes.
+without deleting; this still hits the API and remains gated by --yes
+AND TESTRAIL_ALLOW_DESTRUCTIVE=1.
 `.trim();
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
@@ -245,8 +290,26 @@ async function main(): Promise<number> {
     // process.stderr.write calls.
     const quiet = values['quiet'] === true;
     const formatRaw = values['format'];
-    const format: 'json' | 'table' = formatRaw === 'table' ? 'table' : 'json';
-    const { out, err } = createOutput({ quiet, format });
+    // Resolve --format to a known OutputFormat. parseArgs declares the flag
+    // as a string with default 'json' so an unknown value (e.g. `--format
+    // xml`) reaches this gate as a free-form string and must be rejected
+    // explicitly — otherwise the renderer would silently fall through to
+    // the JSON path, masking the user's typo.
+    const VALID_FORMATS: ReadonlySet<OutputFormat> = new Set(['json', 'table', 'yaml', 'csv']);
+    const format: OutputFormat =
+        typeof formatRaw === 'string' && VALID_FORMATS.has(formatRaw as OutputFormat)
+            ? (formatRaw as OutputFormat)
+            : 'json';
+    const { out, err, errRaw } = createOutput({ quiet, format });
+
+    // Reject unknown --format values with a clear, quiet-aware error. The
+    // assignment above defaults invalid values to 'json' so createOutput
+    // always gets a valid format (defense-in-depth); the error path below
+    // surfaces the typo before any handler runs.
+    if (typeof formatRaw === 'string' && !VALID_FORMATS.has(formatRaw as OutputFormat)) {
+        err(`unknown --format '${formatRaw}'. Valid values: json, table, yaml, csv.`);
+        return 1;
+    }
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
@@ -286,6 +349,17 @@ async function main(): Promise<number> {
         );
     }
 
+    // `uninstall-skill` is the symmetric reverse of `install-skill`. Same
+    // meta-command rationale: no API call, no resource:action dispatch.
+    // Only removes the skill file (and its empty parent dir); does NOT
+    // touch .cursor / .continue / AGENTS.md (separate lifecycle).
+    if (positionals[0] === 'uninstall-skill') {
+        return runUninstallSkill({
+            global: values['global'] === true,
+            quiet,
+        });
+    }
+
     const [resource, action, ...rest] = positionals;
     const pathParams: readonly string[] = rest;
 
@@ -301,6 +375,21 @@ async function main(): Promise<number> {
     if (!dispatched.ok) {
         err(dispatched.error);
         return 1;
+    }
+
+    // Defense-in-depth env-var gate for destructive actions. Runs before
+    // auth resolution and before the handler is invoked so an unset env var
+    // surfaces as a deterministic argv-shape failure (exit code 2) rather
+    // than burning an API call or leaking timing about credential validity.
+    // `--dry-run` bypasses this gate because preview is non-destructive by
+    // definition (no API call leaves the process). The gate runs IN ADDITION
+    // TO the per-handler `--yes` check — both must be satisfied. See SEC
+    // notes in CHANGELOG.md for the breaking-change rationale.
+    const dryRun = values['dry-run'] === true;
+    const envGate = checkDestructiveEnvGate(getActionSpec(resource, action), process.env, dryRun);
+    if (!envGate.ok) {
+        err(envGate.error);
+        return 2;
     }
 
     // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
@@ -379,6 +468,8 @@ async function main(): Promise<number> {
         // the user get-by-email handler enforces non-empty before issuing
         // the call.
         ...(values['email'] !== undefined && { email: values['email'] as string }),
+        ...(values['interval'] !== undefined && { interval: values['interval'] as string }),
+        ...(values['once'] === true && { once: true }),
     };
 
     // Suppress stdin only when the dispatched action's ActionSpec marks it
@@ -389,6 +480,55 @@ async function main(): Promise<number> {
     // ignored flag.
     const actionSpec = getActionSpec(resource, action);
     const isFileInputAction = actionSpec?.fileInput === true;
+    const isFileOutputAction = actionSpec?.fileOutput === true;
+
+    // PR3a: `--file -` (binary stdin upload) and `--out -` (binary stdout
+    // download) mutual-exclusion + safety gates. Enforced here, before
+    // dispatch, so handlers receive a guaranteed-consistent ctx:
+    //   1. `--file -` requires a file-input action — for non-upload actions
+    //      the dash would be parsed as a filesystem path and stat would
+    //      fail with a confusing 'ENOENT' error.
+    //   2. `--file -` cannot coexist with `--data` / `--data-file` — a
+    //      single handler cannot consume both a JSON body and a binary
+    //      stdin payload; the conflicting flags would silently pick one
+    //      (today: stdin) and surprise the caller.
+    //   3. `--file -` is incompatible with `--api-key-stdin` — both want to
+    //      own fd 0. Catch the conflict here rather than letting the upload
+    //      reader read a credential.
+    //   4. `--out -` requires a file-output action — for read/write actions
+    //      that don't download binary content the flag is silently ignored,
+    //      which would leave the user confused about where their output went.
+    //      (SEC M1 / security-review note)
+    //   5. `--out -` with `--format table` is rejected — table is a
+    //      text-format hint that has no meaning for raw binary output.
+    const fileFlagIsStdin = values['file'] === STDIN_SENTINEL;
+    const outFlagIsStdout = values['out'] === STDOUT_SENTINEL;
+
+    if (fileFlagIsStdin) {
+        if (!isFileInputAction) {
+            err("--file '-' is only valid for attachment upload actions and 'bdd add'.");
+            return 1;
+        }
+        if (values['data'] !== undefined || values['data-file'] !== undefined) {
+            err("--file '-' cannot be combined with --data or --data-file (stdin has one source).");
+            return 1;
+        }
+        if (apiKeyStdin) {
+            err("--file '-' cannot be combined with --api-key-stdin (stdin has one consumer).");
+            return 1;
+        }
+    }
+
+    if (outFlagIsStdout) {
+        if (!isFileOutputAction) {
+            err("--out '-' is only valid for actions that download binary content (attachment get, bdd get).");
+            return 1;
+        }
+        if (formatRaw === 'table') {
+            err("--out '-' streams raw binary; --format table is meaningless and was rejected.");
+            return 1;
+        }
+    }
 
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
@@ -406,7 +546,6 @@ async function main(): Promise<number> {
             !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
 
-    const dryRun = values['dry-run'] === true;
     const force = values['force'] === true;
     const confirmDestructive = values['yes'] === true;
 
@@ -416,7 +555,7 @@ async function main(): Promise<number> {
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
         client = new TestRailClient({ ...auth.config, registerProcessHandlers: true });
-        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out });
+        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out, err, errRaw });
         return 0;
     } catch (e: unknown) {
         // err() already sanitizes; passing the raw message is safe.

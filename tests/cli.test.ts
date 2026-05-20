@@ -165,6 +165,11 @@ const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
     TESTRAIL_EMAIL: 'test@example.com',
     TESTRAIL_API_KEY: 'test-api-key',
+    // PR4: destructive-ops env gate. Set for the default test env so every
+    // pre-existing destructive subprocess test (`--yes` happy path) keeps
+    // passing. Tests that exercise the gate itself override this via the
+    // 3rd argument to `runCli()` (omit the key or set a wrong value).
+    TESTRAIL_ALLOW_DESTRUCTIVE: '1',
 };
 
 // ── Fetch mock ────────────────────────────────────────────────────────────────
@@ -545,6 +550,81 @@ describe('CLI', () => {
             const { stderr, exitCodes } = await runCli(['project', 'nope', '1']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
+        });
+
+        // ── --format yaml / csv (end-to-end in-process CLI run) ──────────
+        //
+        // Both formats are exercised through unit tests on the renderers
+        // directly (tests/cli-helpers.test.ts); these subprocess tests pin
+        // the end-to-end wiring: createOutput dispatches on the validated
+        // format string, stdout receives exactly one trailing newline, and
+        // the unknown-format path exits 1 with a clear error.
+
+        it('project list with --format yaml renders a YAML document', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'list', '--format', 'yaml'],
+                [jsonResponse({ projects: [MOCK_PROJECT] })],
+            );
+            expect(exitCodes).toContain(0);
+            // Block-sequence shape: each project starts with `- id:`.
+            expect(stdout).toContain('- id: 1');
+            expect(stdout).toContain('name: Demo');
+            expect(stdout).toContain('suite_mode: 1');
+            // URL is a plain string that does not need quoting (no `: `,
+            // no embedded `#`, no reserved leader).
+            expect(stdout).toContain('url: https://example.testrail.io/projects/view/1');
+            // Exactly one trailing newline at the stdout boundary, matching
+            // the JSON / table writers' contract.
+            expect(stdout.endsWith('\n')).toBe(true);
+            expect(stdout.endsWith('\n\n')).toBe(false);
+        });
+
+        it('project get with --format yaml renders a single mapping (not a sequence)', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'yaml'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            // Single-object response: starts with `id:`, not `- id:`.
+            expect(stdout.startsWith('id: 1\n')).toBe(true);
+            expect(stdout).not.toContain('- id:');
+        });
+
+        it('project list with --format csv renders RFC 4180 CSV with sorted headers and CRLF rows', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'list', '--format', 'csv'],
+                [jsonResponse({ projects: [MOCK_PROJECT] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout.endsWith('\r\n')).toBe(true);
+            expect(stdout.endsWith('\n') && !stdout.endsWith('\r\n')).toBe(false);
+            const lines = stdout.split('\r\n');
+            expect(lines).toHaveLength(3); // header + 1 row + trailing terminator
+            // Headers sorted: id, name, suite_mode, url (alphabetical).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+            // Cell content: id=1, name=Demo, suite_mode=1, url unquoted.
+            expect(lines[1]).toBe('1,Demo,1,https://example.testrail.io/projects/view/1');
+        });
+
+        it('project get with --format csv renders a 1-row CSV preserving insertion order', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'csv'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout.endsWith('\r\n')).toBe(true);
+            const lines = stdout.split('\r\n');
+            expect(lines).toHaveLength(3);
+            // Single-object path preserves insertion order (not sorted).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+        });
+
+        it('--format with an unknown value exits 1 before any API call', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--format', 'xml']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/unknown --format 'xml'/);
+            expect(stderr).toContain('json, table, yaml, csv');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 
@@ -3078,6 +3158,54 @@ describe('CLI', () => {
         });
     });
 
+    describe('case add-bulk', () => {
+        it('POSTs the JSON array to add_cases/{section_id} and returns the created cases', async () => {
+            const { stdout, exitCodes } = await runCli(
+                ['case', 'add-bulk', '12', '--data', '[{"title":"A"},{"title":"B"}]'],
+                [jsonResponse([MOCK_CASE, { ...MOCK_CASE, id: 2, title: 'B' }])],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('add_cases/12');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            expect(init.method).toBe('POST');
+            const body = JSON.parse(init.body as string) as unknown;
+            expect(body).toEqual([{ title: 'A' }, { title: 'B' }]);
+            const parsed = JSON.parse(stdout.trim()) as Array<{ id: number }>;
+            expect(parsed).toHaveLength(2);
+        });
+
+        it('exits 1 when the body is a non-array (Zod rejects object)', async () => {
+            const { stderr, exitCodes } = await runCli(['case', 'add-bulk', '12', '--data', '{"title":"A"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+        });
+
+        it('--dry-run validates but does not POST and surfaces the array count', async () => {
+            const { stdout, exitCodes } = await runCli([
+                'case',
+                'add-bulk',
+                '12',
+                '--data',
+                '[{"title":"A"},{"title":"B"},{"title":"C"}]',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(stdout).toContain('"count": 3');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rewraps "Invalid uri" 400 as a "TestRail >= 7.5 required" error (version gate)', async () => {
+            const { stderr, exitCodes } = await runCli(
+                ['case', 'add-bulk', '12', '--data', '[{"title":"A"}]'],
+                [jsonResponse({ error: 'Invalid uri' }, 400)],
+            );
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/TestRail server >= 7\.5/);
+        });
+    });
+
     describe('section move', () => {
         it('POSTs to move_section/{section_id} with parent_id=null body', async () => {
             const { exitCodes } = await runCli(
@@ -4280,6 +4408,18 @@ describe('CLI', () => {
         });
     });
 
+    describe('uninstall-skill', () => {
+        it('is wired into the CLI surface (HELP text mentions the command)', async () => {
+            // Full-behaviour coverage lives in tests/uninstall-skill.test.ts
+            // (where we can sandbox the filesystem via cwdOverride / homeOverride).
+            // This subprocess smoke-test just confirms the dispatch path is wired
+            // up — `--help` doesn't touch any filesystem path.
+            const { stdout, exitCodes } = await runCli(['--help']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('uninstall-skill');
+        });
+    });
+
     describe('plan', () => {
         it('plan get <id> should exit 0', async () => {
             const { exitCodes } = await runCli(['plan', 'get', '50'], [jsonResponse(MOCK_PLAN)]);
@@ -5078,6 +5218,64 @@ describe('CLI', () => {
             expect(stdout).toContain('"attachment_id"');
         });
 
+        it('list-for-case forwards --limit and --offset to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-case', '42', '--limit', '25', '--offset', '50'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_attachments_for_case/42');
+            expect(url).toContain('limit=25');
+            expect(url).toContain('offset=50');
+        });
+
+        it('list-for-run forwards --limit and --offset to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-run', '7', '--limit', '5', '--offset', '10'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_attachments_for_run/7');
+            expect(url).toContain('limit=5');
+            expect(url).toContain('offset=10');
+        });
+
+        it('list-for-test forwards --limit and --offset to the query string', async () => {
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-test', '8', '--limit', '100', '--offset', '0'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_attachments_for_test/8');
+            expect(url).toContain('limit=100');
+            expect(url).toContain('offset=0');
+        });
+
+        it('list-for-case rejects --limit 0 fail-fast (validatePaginationParams)', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'list-for-case', '42', '--limit', '0']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/limit must be a positive integer/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('list-for-case rejects --offset -1 fail-fast (regex prevents parse before client)', async () => {
+            // optInt drops `-1` (NON_NEG_INT_RE only accepts `0|[1-9]\d*`), so
+            // the handler simply omits offset from the request — no error.
+            // This test asserts that the CLI does NOT silently accept a
+            // malformed flag value as a request parameter — confirm by
+            // checking no `offset=` ends up in the query string.
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-case', '42', '--offset', '-1'],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).not.toContain('offset=');
+        });
+
         it('add-to-case uploads --file and returns attachment_id', async () => {
             const filePath = join(tmp, 'shot.png');
             writeFileSync(filePath, Buffer.from([1, 2, 3]));
@@ -5148,6 +5346,124 @@ describe('CLI', () => {
             const { exitCodes, stdout } = await runCli(['attachment', 'delete', '42', '--yes', '--dry-run']);
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('"destructive": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        // ── PR3a: --file - (stdin binary upload) ─────────────────────────
+
+        it('add-to-case --file - uploads bytes piped from stdin', async () => {
+            const ORIG_STDIN = process.stdin;
+            const stream = (await import('node:stream')).Readable.from(Buffer.from([1, 2, 3, 4]));
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            try {
+                const { exitCodes, stdout } = await runCli(
+                    ['attachment', 'add-to-case', '42', '--file', '-', '--filename', 'piped.bin'],
+                    [jsonResponse({ attachment_id: 999 })],
+                );
+                expect(exitCodes).toContain(0);
+                expect(stdout).toContain('999');
+            } finally {
+                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+            }
+        });
+
+        it('add-to-case --file - --dry-run does not consume stdin', async () => {
+            const ORIG_STDIN = process.stdin;
+            let chunksRead = 0;
+            const { Readable } = await import('node:stream');
+            const stream = new Readable({
+                read() {
+                    chunksRead += 1;
+                    this.push(Buffer.from('x'));
+                    this.push(null);
+                },
+            });
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', { value: stream, configurable: true });
+            try {
+                const { exitCodes, stdout } = await runCli([
+                    'attachment',
+                    'add-to-case',
+                    '42',
+                    '--file',
+                    '-',
+                    '--dry-run',
+                ]);
+                expect(exitCodes).toContain(0);
+                expect(stdout).toContain('"source": "stdin"');
+                expect(chunksRead).toBe(0);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                Object.defineProperty(process, 'stdin', { value: ORIG_STDIN, configurable: true });
+            }
+        });
+
+        it('add-to-case --file - rejected when stdin is a TTY', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { exitCodes, stderr } = await runCli(['attachment', 'add-to-case', '42', '--file', '-']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/stdin to be piped/);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('add-to-case --file - rejects --data combination at index.ts gate', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'attachment',
+                'add-to-case',
+                '42',
+                '--file',
+                '-',
+                '--data',
+                '{}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/cannot be combined with --data/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('--file - rejected on non-upload actions', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--file', '-']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/only valid for attachment upload actions/);
+        });
+
+        // ── PR3a: --out - (stdout binary download) ───────────────────────
+
+        it('get --out - streams binary to stdout and JSON ack to stderr', async () => {
+            // runCli stringifies chunks via `String(chunk)` which renders a
+            // Uint8Array as its comma-joined byte list (e.g. "171,205,239").
+            // Assert against that representation — the byte order is what
+            // matters, not the encoding round-trip.
+            const { exitCodes, stdout, stderr } = await runCli(
+                ['attachment', 'get', '42', '--out', '-'],
+                [binaryResponse(new Uint8Array([0xab, 0xcd, 0xef]))],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('171,205,239');
+            // JSON ack rerouted to stderr.
+            expect(stderr).toContain('"attachmentId": 42');
+            expect(stderr).toContain('"out": "<stdout>"');
+            expect(stderr).toContain('"size": 3');
+        });
+
+        it('--out - --format table is rejected at index.ts gate', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'get', '42', '--out', '-', '--format', 'table']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--format table is meaningless/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it("--out '-' on a non-fileOutput action is rejected (M1 gate)", async () => {
+            // `attachment list-for-run` does not produce binary output; `--out -`
+            // should be rejected before any API call, not silently ignored.
+            const { exitCodes, stderr } = await runCli(['attachment', 'list-for-run', '1', '--out', '-']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/only valid for actions that download binary content/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });
@@ -5612,6 +5928,185 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/configuration delete does not support --soft/);
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    // ── PR4: TESTRAIL_ALLOW_DESTRUCTIVE env-var gate ──────────────────────
+    //
+    // Defense-in-depth gate for destructive actions. The gate runs in
+    // `src/cli/dispatch.ts` BEFORE the handler is invoked — so even if a
+    // destructive handler were added without an `if (!confirmDestructive)`
+    // check, the env var would still block the call. Exit code 2 (distinct
+    // from the generic exit code 1 used for argv / auth / handler failures)
+    // lets CI branch on "blocked by env gate" vs everything else.
+    //
+    // The 3rd argument to `runCli()` overrides the default AUTH_ENV (which
+    // includes `TESTRAIL_ALLOW_DESTRUCTIVE: '1'`); these tests pass an env
+    // with the destructive key omitted or set to a wrong value.
+    describe('destructive env-var gate (TESTRAIL_ALLOW_DESTRUCTIVE)', () => {
+        const ENV_WITHOUT_DESTRUCTIVE = {
+            TESTRAIL_BASE_URL: 'https://example.testrail.io',
+            TESTRAIL_EMAIL: 'test@example.com',
+            TESTRAIL_API_KEY: 'test-api-key',
+            // TESTRAIL_ALLOW_DESTRUCTIVE intentionally omitted
+        };
+
+        it('blocks destructive action when env var is unset (exit 2)', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'delete', '5', '--yes'], [], ENV_WITHOUT_DESTRUCTIVE);
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain('TESTRAIL_ALLOW_DESTRUCTIVE');
+            expect(stderr).toContain("Destructive action 'run delete'");
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('blocks destructive action when env var is unset and --yes also missing (env gate fires first, exit 2)', async () => {
+            // Env gate runs before the per-handler --yes check, so its exit
+            // code (2) takes precedence over the handler's exit-1 message.
+            // This ordering is intentional: deterministic argv-shape failure
+            // before any auth / handler work.
+            const { exitCodes, stderr } = await runCli(['run', 'delete', '5'], [], ENV_WITHOUT_DESTRUCTIVE);
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain('TESTRAIL_ALLOW_DESTRUCTIVE');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('blocks destructive action when env var set to wrong value "true" (strict "1" required, exit 2)', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'delete', '5', '--yes'], [], {
+                ...ENV_WITHOUT_DESTRUCTIVE,
+                TESTRAIL_ALLOW_DESTRUCTIVE: 'true',
+            });
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain('TESTRAIL_ALLOW_DESTRUCTIVE');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('blocks destructive action when env var set to wrong value "yes" (exit 2)', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'delete', '5', '--yes'], [], {
+                ...ENV_WITHOUT_DESTRUCTIVE,
+                TESTRAIL_ALLOW_DESTRUCTIVE: 'yes',
+            });
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain('TESTRAIL_ALLOW_DESTRUCTIVE');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('blocks destructive action when env var set to "0" (exit 2)', async () => {
+            const { exitCodes } = await runCli(['run', 'delete', '5', '--yes'], [], {
+                ...ENV_WITHOUT_DESTRUCTIVE,
+                TESTRAIL_ALLOW_DESTRUCTIVE: '0',
+            });
+            expect(exitCodes).toContain(2);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('blocks destructive action when env var set to whitespace-padded "1 " (strict comparison, exit 2)', async () => {
+            const { exitCodes } = await runCli(['run', 'delete', '5', '--yes'], [], {
+                ...ENV_WITHOUT_DESTRUCTIVE,
+                TESTRAIL_ALLOW_DESTRUCTIVE: '1 ',
+            });
+            expect(exitCodes).toContain(2);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('still requires --yes even when env var is set (exit 1; handler-level gate)', async () => {
+            // Env var alone is insufficient — the per-invocation --yes flag
+            // is also required. The handler's `!confirmDestructive` check
+            // surfaces as the standard exit-1 'pass --yes to confirm.' error.
+            const { exitCodes, stderr } = await runCli(['run', 'delete', '5'], [], {
+                ...ENV_WITHOUT_DESTRUCTIVE,
+                TESTRAIL_ALLOW_DESTRUCTIVE: '1',
+            });
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/--yes to confirm/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('proceeds when BOTH --yes AND env var=1 are set (happy path)', async () => {
+            const { exitCodes } = await runCli(['run', 'delete', '5', '--yes'], [jsonResponse({})], {
+                ...ENV_WITHOUT_DESTRUCTIVE,
+                TESTRAIL_ALLOW_DESTRUCTIVE: '1',
+            });
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('delete_run/5');
+        });
+
+        it('--dry-run bypasses env gate (no env var needed; preview hits no API)', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['run', 'delete', '5', '--yes', '--dry-run'],
+                [],
+                ENV_WITHOUT_DESTRUCTIVE,
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+            expect(stdout).toContain('destructive');
+        });
+
+        it('--dry-run alone bypasses env gate AND handler --yes gate (CI preview path)', async () => {
+            // The canonical CI preview path: an agent inspecting "what would
+            // this do?" without setting up destructive env or --yes.
+            const { exitCodes, stdout } = await runCli(
+                ['run', 'delete', '5', '--dry-run'],
+                [],
+                ENV_WITHOUT_DESTRUCTIVE,
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(stdout).toContain('dryRun');
+        });
+
+        it('non-destructive read action is unaffected by env var (no gate)', async () => {
+            const { exitCodes } = await runCli(
+                ['project', 'get', '1'],
+                [jsonResponse(MOCK_PROJECT)],
+                ENV_WITHOUT_DESTRUCTIVE,
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('non-destructive write action (case add) is unaffected by env var (no gate)', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'add', '7', '--data', '{"title":"X"}'],
+                [jsonResponse({ ...MOCK_CASE, title: 'X' })],
+                ENV_WITHOUT_DESTRUCTIVE,
+            );
+            expect(exitCodes).toContain(0);
+        });
+
+        it('env gate fires for project delete (highest blast-radius destructive)', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['project', 'delete', '1', '--yes'],
+                [],
+                ENV_WITHOUT_DESTRUCTIVE,
+            );
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain("Destructive action 'project delete'");
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('env gate fires for attachment delete', async () => {
+            const { exitCodes, stderr } = await runCli(
+                ['attachment', 'delete', 'abc-123', '--yes'],
+                [],
+                ENV_WITHOUT_DESTRUCTIVE,
+            );
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain("Destructive action 'attachment delete'");
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('env gate fires for run close (irreversible, destructive: true)', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'close', '5', '--yes'], [], ENV_WITHOUT_DESTRUCTIVE);
+            expect(exitCodes).toContain(2);
+            expect(stderr).toContain("Destructive action 'run close'");
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('env gate suggests both the env var and --dry-run as remediation', async () => {
+            const { stderr } = await runCli(['run', 'delete', '5', '--yes'], [], ENV_WITHOUT_DESTRUCTIVE);
+            expect(stderr).toContain('TESTRAIL_ALLOW_DESTRUCTIVE=1');
+            expect(stderr).toContain('--dry-run');
         });
     });
 });

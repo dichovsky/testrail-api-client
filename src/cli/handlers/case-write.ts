@@ -3,6 +3,7 @@ import { parseId } from '../ids.js';
 import { resolveBody } from '../body.js';
 import {
     AddCasePayloadSchema,
+    AddCasesBulkPayloadSchema,
     UpdateCasePayloadSchema,
     UpdateCasesPayloadSchema,
     DeleteCasesPayloadSchema,
@@ -19,6 +20,32 @@ export async function handleCaseAdd(ctx: HandlerContext): Promise<void> {
         return;
     }
     ctx.out(await ctx.client.addCase(sectionId, body.payload));
+}
+
+/**
+ * Bulk-create cases under a section in one API call (TestRail 7.5+). The
+ * `--data` / `--data-file` / stdin payload is a JSON **array** of case
+ * payloads (each item the same shape as `case add`). A non-array body is
+ * rejected by Zod before any API call. Server-version errors (TestRail < 7.5)
+ * are rethrown inside the module as a clearer "TestRail 7.5+ required"
+ * message; the handler does not need to repeat that logic.
+ */
+export async function handleCaseAddBulk(ctx: HandlerContext): Promise<void> {
+    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
+    const body = resolveBody(ctx.bodyInput, AddCasesBulkPayloadSchema);
+    if (!body.ok) throw new Error(body.error);
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: 'case add-bulk',
+            sectionId,
+            count: body.payload.length,
+            payload: body.payload,
+            source: body.source,
+        });
+        return;
+    }
+    ctx.out(await ctx.client.addCases(sectionId, body.payload));
 }
 
 export async function handleCaseUpdate(ctx: HandlerContext): Promise<void> {

@@ -6,20 +6,44 @@ import { resolveFile } from '../file-input.js';
  * Resolved file ready for upload. Returned by `setupUpload` only on the
  * execute path; the dry-run path returns `null` after emitting a preview to
  * stdout, signaling the caller to short-circuit.
+ *
+ * For filesystem sources: `path` is forwarded to the multipart pipeline which
+ * streams bytes from disk via `node:fs.openAsBlob` — the CLI never buffers
+ * the file in memory, keeping heap usage flat regardless of attachment size.
+ *
+ * For stdin (`source: 'stdin'`): `contents` holds the drained bytes. A pipe
+ * cannot be `openAsBlob`'d (it's not a real filesystem path) so the bytes
+ * must be passed in-memory. The 100 MiB cap (`MAX_STDIN_UPLOAD_BYTES`) keeps
+ * this safe.
  */
 interface ResolvedUpload {
     filename: string;
-    contents: Uint8Array;
+    /** Filesystem path for `source: 'file'` uploads (streamed via openAsBlob). */
+    path: string;
+    /** Drained bytes for `source: 'stdin'` uploads. Undefined for file sources. */
+    contents?: Uint8Array;
+    source: 'file' | 'stdin';
 }
 
 /**
- * Shared upload setup: stat-or-read the `--file` input, emit the dry-run
- * preview when applicable, otherwise return the resolved bytes and filename.
- * Returns `null` after handling the dry-run path so callers can early-return
+ * Shared upload setup: stat the `--file` input, emit the dry-run preview
+ * when applicable, otherwise return the resolved path and filename. Returns
+ * `null` after handling the dry-run path so callers can early-return
  * without re-checking `ctx.dryRun`.
+ *
+ * Async because `resolveFile` may drain `process.stdin` for `--file -`
+ * (PR3a). The wall-clock deadline and byte cap live inside `resolveFile` so
+ * every call site inherits the same SEC #24 protection without duplicating
+ * the AbortController plumbing. For filesystem paths the `read` flag is a
+ * no-op — bytes stream from disk inside the HTTP pipeline so the CLI never
+ * buffers the file in memory (OOM guard for 50 MB+ uploads).
  */
-function setupUpload(ctx: HandlerContext, action: string, idFields: Record<string, number>): ResolvedUpload | null {
-    const resolved = resolveFile(
+async function setupUpload(
+    ctx: HandlerContext,
+    action: string,
+    idFields: Record<string, number>,
+): Promise<ResolvedUpload | null> {
+    const resolved = await resolveFile(
         {
             ...(ctx.args.file !== undefined && { fileFlag: ctx.args.file }),
             ...(ctx.args.filename !== undefined && { filenameFlag: ctx.args.filename }),
@@ -36,51 +60,69 @@ function setupUpload(ctx: HandlerContext, action: string, idFields: Record<strin
             file: resolved.path,
             filename: resolved.filename,
             size: resolved.size,
+            // Source surfaced for stdin uploads so dry-run callers can spot
+            // that no real preview-size is available (a pipe cannot be
+            // statted without draining it).
+            ...(resolved.source === 'stdin' && { source: 'stdin' }),
         });
         return null;
     }
 
-    if (resolved.contents === undefined) {
-        // resolveFile with read:true guarantees `contents`; defensive only.
-        throw new Error('file contents missing after read');
+    return {
+        filename: resolved.filename,
+        path: resolved.path,
+        source: resolved.source,
+        ...(resolved.contents !== undefined && { contents: resolved.contents }),
+    };
+}
+
+/**
+ * Resolve the actual upload payload for an API call. For filesystem sources,
+ * returns `{ path }` so the multipart pipeline can stream bytes from disk via
+ * `node:fs.openAsBlob`. For stdin sources, returns the drained `Uint8Array`
+ * (a pipe cannot be `openAsBlob`'d — it must be passed in-memory).
+ */
+function uploadPayload(upload: ResolvedUpload): { path: string } | Uint8Array {
+    if (upload.source === 'stdin' && upload.contents !== undefined) {
+        return upload.contents;
     }
-    return { filename: resolved.filename, contents: resolved.contents };
+    return { path: upload.path };
 }
 
 export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    const upload = setupUpload(ctx, 'attachment add-to-case', { caseId });
+    const upload = await setupUpload(ctx, 'attachment add-to-case', { caseId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToCase(caseId, upload.contents, upload.filename));
+    ctx.out(await ctx.client.addAttachmentToCase(caseId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void> {
     const resultId = parseId(ctx.args.pathParams[0], 'result_id');
-    const upload = setupUpload(ctx, 'attachment add-to-result', { resultId });
+    const upload = await setupUpload(ctx, 'attachment add-to-result', { resultId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToResult(resultId, upload.contents, upload.filename));
+    ctx.out(await ctx.client.addAttachmentToResult(resultId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    const upload = setupUpload(ctx, 'attachment add-to-run', { runId });
+    const upload = await setupUpload(ctx, 'attachment add-to-run', { runId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToRun(runId, upload.contents, upload.filename));
+    ctx.out(await ctx.client.addAttachmentToRun(runId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const upload = setupUpload(ctx, 'attachment add-to-plan', { planId });
+    const upload = await setupUpload(ctx, 'attachment add-to-plan', { planId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToPlan(planId, upload.contents, upload.filename));
+    ctx.out(await ctx.client.addAttachmentToPlan(planId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
     const entryId = parseId(ctx.args.pathParams[1], 'entry_id');
-    const upload = setupUpload(ctx, 'attachment add-to-plan-entry', { planId, entryId });
+    const upload = await setupUpload(ctx, 'attachment add-to-plan-entry', { planId, entryId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToPlanEntry(planId, entryId, upload.contents, upload.filename));
+    ctx.out(await ctx.client.addAttachmentToPlanEntry(planId, entryId, uploadPayload(upload), upload.filename));
 }
 
 /**

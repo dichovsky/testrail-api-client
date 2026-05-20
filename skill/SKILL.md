@@ -72,6 +72,7 @@ on stderr. Never echo or log the API key.
 | case | history | `<case_id>` | — | List edit history for a test case (paginated; TestRail 7.5+) |
 | run | get | `<run_id>` | — | Fetch a single run by ID |
 | run | list | — | — | List runs in a project (paginated) |
+| run | watch | `<run_id>` | — | Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll) |
 | test | get | `<test_id>` | — | Fetch a single test (run instance of a case) by ID |
 | test | list | `<run_id>` | — | List tests in a run (optionally filtered by status, paginated) |
 | result | list | — | — | List results for a run (paginated) |
@@ -88,6 +89,7 @@ on stderr. Never echo or log the API key.
 | section | get | `<section_id>` | — | Fetch a single section by ID |
 | section | list | `<project_id>` | — | List sections in a project (optionally filtered by suite; paginated) |
 | case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
+| case | add-bulk | `<section_id>` | `AddCasesBulkPayloadSchema` | Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads |
 | case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
 | case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
 | case | delete | `<case_id>` | — (no body, requires `--yes`) | Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting) |
@@ -210,6 +212,60 @@ payload shape before consuming TestRail rate limit.
 testrail case add 5 --data '{"title":"x"}' --dry-run
 ```
 
+## Destructive operations
+
+Every destructive CLI action (any `delete` plus `run close` / `plan close`) is
+protected by a **two-gate model** as of v4.0.0. Both gates must be satisfied
+before a destructive call reaches the API:
+
+1. **`--yes` flag** — per-invocation explicit confirmation. Required on every
+   destructive command. Missing `--yes` exits with code `1` and the message
+   `Destructive action; pass --yes to confirm.`
+2. **`TESTRAIL_ALLOW_DESTRUCTIVE=1` env var** — process-wide unlock. Must be
+   set in the environment before invoking destructive commands. The env var
+   must be **exactly** the string `'1'` — `'true'`, `'yes'`, `'on'`, `'1 '`
+   (whitespace) are all rejected. Missing/wrong env value exits with code
+   `2` (distinct from the generic `1`) so CI can distinguish "blocked by
+   env gate" from "wrong flag / bad JSON / 4xx".
+
+Either gate alone is insufficient.
+
+```bash
+# Blocked: --yes set, env var missing → exit code 2
+testrail run delete 5 --yes
+
+# Blocked: env var set, --yes missing → exit code 1
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5
+
+# Proceeds: both gates satisfied
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
+```
+
+**`--dry-run` bypasses BOTH gates.** Preview is non-destructive by definition
+(no API call leaves the process), so CI agents can safely preview destructive
+commands without unlocking either gate:
+
+```bash
+# Safe in any environment — no gates required, no API call made
+testrail run delete 5 --dry-run
+```
+
+**Recommended CI pattern** — export the env var once at the top of the
+destructive step, then run any number of destructive commands within that
+step:
+
+```bash
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail run delete 5 --yes
+testrail case delete 10 --yes
+```
+
+**`--soft` (server-side preview)** on soft-capable deletes (`case delete`,
+`case delete-bulk`, `run delete`, `section delete`, `suite delete`) still
+hits the API and remains gated by both `--yes` and
+`TESTRAIL_ALLOW_DESTRUCTIVE=1`. Distinct from `--dry-run` which makes no
+API call at all.
+
 ## Payload schemas
 
 Each write action validates its body against a Zod schema with
@@ -232,6 +288,10 @@ coercion; `"5"` is rejected where `5` is expected), and TestRail
     "custom_fields": "Record<string, unknown>?"
 }
 ```
+
+### `AddCasesBulkPayloadSchema` (used by `case add-bulk`)
+
+_(schema shape not introspectable)_
 
 ### `UpdateCasePayloadSchema` (used by `case update`)
 
@@ -855,6 +915,24 @@ testrail attachment get "$LATEST_ID" --out ./fetched.bin
 
 `--out` is required. Refuses to overwrite an existing file; pass `--force`
 to overwrite. JSON ack on stdout includes `attachmentId`, `out`, and `size`.
+
+`attachment list-for-case` / `list-for-run` / `list-for-test` accept
+`--limit N` and `--offset N` for cases with hundreds of attachments
+(TestRail's server default page size is 250). The plan-scoped variants
+(`list-for-plan`, `list-for-plan-entry`) intentionally don't paginate —
+TestRail returns the full attachment tree under the plan.
+
+```bash
+# Page through every attachment on a long-lived case (50/request):
+offset=0
+while :; do
+    page=$(testrail attachment list-for-case 42 --limit 50 --offset $offset)
+    count=$(echo "$page" | jq 'length')
+    [ "$count" -eq 0 ] && break
+    echo "$page" | jq -c '.[]'
+    offset=$((offset + count))
+done
+```
 
 ### 18. Audit then delete attachments on a deprecated case
 
@@ -1504,6 +1582,419 @@ Notes:
   project is a different ID; always pair list/mutate calls with the
   project context (`variable list <project_id>` /
   `dataset list <project_id>`).
+
+
+### 30. Bulk-author cases under a section in one API call
+
+<!-- recipe-for: case:add-bulk -->
+
+Use `case add-bulk` to seed many cases at once (e.g. importing a CSV /
+generating cases from a spec document) without burning through the
+100 req/60s rate budget one POST at a time. The body is a **JSON array**
+of case payloads — each item has the same shape as `case add`.
+
+```bash
+# Author 3 cases under section 12 in one round-trip.
+testrail case add-bulk 12 --data '[
+    {"title": "Login form rejects invalid email", "type_id": 1, "priority_id": 3},
+    {"title": "Login form rejects empty password", "type_id": 1, "priority_id": 3},
+    {"title": "Login form respects redirect_to query param", "type_id": 1, "priority_id": 2}
+]'
+```
+
+```bash
+# Or from a file when the array is large.
+testrail case add-bulk 12 --data-file ./cases-to-import.json
+```
+
+`--dry-run` validates the array (and each item) against Zod **without**
+calling the API — useful for previewing the parsed payload before
+committing a multi-hundred-case import. The dry-run preview includes a
+`count` field so agents can confirm the array length matches their
+source data.
+
+**Server version gate:** TestRail 7.5+ is required — older instances
+return 400 / 404 with `"Invalid uri"` because the endpoint does not
+exist. The CLI rethrows that as a clearer "TestRail server >= 7.5
+required for add_cases bulk endpoint" message so you can distinguish
+"my TestRail is too old" from "my payload is malformed". On version
+mismatch, fall back to issuing N separate `case add` calls — slower
+(rate-limited), but works on any 6.x+ instance.
+
+### 31. Watch a run until completion (CI integration)
+
+<!-- recipe-for: run:watch -->
+
+`run watch` polls `get_run/{run_id}` on a fixed interval (default 30s)
+and emits an event each time one of the watched counters changes. With
+`--format json` the event is structured JSON; with `--format table` the
+same event object is rendered as a table row. The watcher exits with code 0 the moment TestRail
+flips `is_completed` to `true` — useful for CI pipelines that need to
+block until a manual / external run completes before publishing
+reports, sending notifications, or promoting a deploy.
+
+Watched fields (closed set; mutable timestamps like `completed_on` are
+intentionally ignored to avoid noisy events):
+
+- `is_completed`
+- `passed_count` / `failed_count` / `retest_count`
+- `blocked_count` / `untested_count`
+
+```bash
+# Block until run 42 completes; emit per-change diffs along the way.
+testrail run watch 42
+```
+
+```bash
+# Tight CI loop: poll every 10 seconds instead of the default 30.
+# Interval bounds are [5, 600] seconds — outside that range the CLI
+# exits 1 fail-fast before any API call. 5s is the floor to protect
+# the default 100 req/60s rate budget under fleet usage.
+testrail run watch 42 --interval 10
+```
+
+```bash
+# One-shot status check: poll once, emit the snapshot, exit 0
+# regardless of is_completed. Useful when you want the watcher's
+# rendering without a long-running process.
+testrail run watch 42 --once
+```
+
+Example event output (`--format json`):
+
+```json
+{
+  "event": "snapshot",
+  "runId": 42,
+  "is_completed": false
+}
+{
+  "event": "change",
+  "runId": 42,
+  "changes": [{ "field": "passed_count", "from": 7, "to": 8 }]
+}
+{
+  "event": "completed",
+  "runId": 42,
+  "is_completed": true
+}
+```
+
+SIGINT (Ctrl-C) is handled gracefully: the watcher cancels the pending
+timeout, writes a one-line `interrupted` summary with the last seen
+snapshot to **stderr**, and exits with code 130 (POSIX convention).
+Subsequent transient `getRun` failures (network blip, 5xx) surface on
+stderr but do not abort the watcher — only an unrecoverable rejection
+(e.g. auth lost mid-watch) propagates and triggers exit 1.
+
+## Programmatic TypeScript API
+
+The `testrail` CLI is a thin wrapper over `TestRailClient`. If you are
+writing TypeScript or JavaScript that needs typed responses, retry /
+rate-limit / cache reuse across many calls, or precise error handling,
+import the client directly instead of shelling out.
+
+```bash
+npm install @dichovsky/testrail-api-client
+```
+
+```typescript
+import {
+    TestRailClient,
+    TestRailApiError,
+    TestRailValidationError,
+} from '@dichovsky/testrail-api-client';
+
+const client = new TestRailClient({
+    baseUrl: process.env.TESTRAIL_BASE_URL!,
+    email: process.env.TESTRAIL_EMAIL!,
+    apiKey: process.env.TESTRAIL_API_KEY!,
+});
+
+try {
+    const project = await client.getProject(1);
+    console.log(project.name);
+} catch (e) {
+    if (e instanceof TestRailApiError) {
+        // HTTP/network errors carry .status / .statusText / .response.
+        console.error(`HTTP ${e.status}: ${e.statusText}`);
+    } else if (e instanceof TestRailValidationError) {
+        // Bad config or invalid args (caught before any network call).
+        console.error(`Invalid input: ${e.message}`);
+    }
+    throw e;
+} finally {
+    // Stops the cache cleanup timer, clears the cache, and zeroes the
+    // credential. Library callers MUST do this in their shutdown hook
+    // (the CLI does it automatically via `registerProcessHandlers: true`).
+    client.destroy();
+}
+```
+
+Each snippet below is self-contained and uses only published types — copy,
+paste, and adjust the IDs. All methods return `Promise<T>`; all errors
+inherit from `Error` (`TestRailApiError` for HTTP/network, `TestRailValidationError`
+for bad input).
+
+### Projects
+
+```typescript
+// List projects (paginated by TestRail; the client returns the full page).
+const projects = await client.getProjects();
+
+// Fetch one.
+const project = await client.getProject(1);
+
+// Create (Zod-validated against AddProjectPayloadSchema).
+const created = await client.addProject({ name: 'CI', suite_mode: 1 });
+
+// Update (partial fields).
+await client.updateProject(created.id, { name: 'CI (renamed)' });
+
+// Delete — destructive; the client method runs immediately, so wrap it
+// behind your own --yes equivalent.
+await client.deleteProject(created.id);
+```
+
+### Suites & sections
+
+```typescript
+const suites = await client.getSuites(1); // by project_id
+const suite = await client.addSuite(1, { name: 'Smoke' });
+
+const sections = await client.getSections(1, { suite_id: suite.id });
+const section = await client.addSection(1, {
+    suite_id: suite.id,
+    name: 'Login',
+});
+```
+
+### Cases
+
+```typescript
+const cases = await client.getCases(1, { suite_id: 5 });
+const c = await client.getCase(42);
+
+const created = await client.addCase(section.id, {
+    title: 'Login page accepts SSO redirect',
+    type_id: 1,
+    priority_id: 3,
+});
+
+// Bulk update many cases in a suite to the same field values.
+await client.updateCases(suite.id, {
+    case_ids: [1, 2, 3],
+    priority_id: 4,
+});
+
+// Edit history (TestRail 7.5+; paginated).
+const history = await client.getHistoryForCase(42, { limit: 100 });
+```
+
+### Runs
+
+```typescript
+const run = await client.addRun(1, {
+    name: `CI build ${process.env.CI_BUILD_NUMBER}`,
+    include_all: false,
+    case_ids: [42, 43, 44],
+});
+
+const runs = await client.getRuns(1, { limit: 25 });
+await client.updateRun(run.id, { milestone_id: 7 });
+
+// Close is irreversible — TestRail has no open_run.
+await client.closeRun(run.id);
+```
+
+### Results
+
+```typescript
+// One result at a time.
+const r1 = await client.addResultForCase(run.id, 42, {
+    status_id: 1,
+    comment: 'passed',
+});
+
+// Bulk by case_id.
+await client.addResultsForCases(run.id, {
+    results: [
+        { case_id: 42, status_id: 1 },
+        { case_id: 43, status_id: 5, comment: 'failed: timeout' },
+    ],
+});
+
+// Bulk by test_id (already-known test instances inside the run).
+await client.addResults(run.id, {
+    results: [{ test_id: 1001, status_id: 1 }],
+});
+
+// Read.
+const results = await client.getResultsForRun(run.id, { limit: 100 });
+const forCase = await client.getResultsForCase(run.id, 42);
+```
+
+### Milestones
+
+```typescript
+const m = await client.addMilestone(1, {
+    name: 'v2.0',
+    description: 'Q2 release',
+});
+await client.updateMilestone(m.id, { is_completed: true });
+const milestones = await client.getMilestones(1);
+```
+
+### Attachments
+
+```typescript
+import { readFileSync } from 'node:fs';
+
+// Upload — pass a Buffer (or a Blob) plus a filename.
+const buf = readFileSync('./screenshot.png');
+const ack = await client.addAttachmentToCase(42, buf, 'screenshot.png');
+console.log(ack.attachment_id);
+
+// Download — returns a Buffer; the caller writes to disk.
+const blob = await client.getAttachment(ack.attachment_id);
+// blob is Uint8Array | ArrayBuffer | Buffer depending on Node version;
+// see CODEMAP.md for the exact return type on your Node target.
+
+// Listings come from the case/run/test/plan/plan-entry the attachment is on.
+const list = await client.getAttachmentsForCase(42);
+
+// Destructive — no built-in --yes gate; guard yourself.
+await client.deleteAttachment(ack.attachment_id);
+```
+
+### Plans
+
+```typescript
+const plan = await client.addPlan(1, {
+    name: 'Release smoke',
+    entries: [{ suite_id: 5, include_all: true }],
+});
+
+// Add a config-specific run to an existing plan entry. Entry IDs are
+// UUID-style strings (NOT integers) — use the value from plan.entries[].id.
+await client.addRunToPlanEntry(plan.id, plan.entries[0].id, {
+    config_ids: [101, 102],
+});
+
+await client.updatePlanEntry(plan.id, plan.entries[0].id, {
+    name: 'Smoke (config matrix)',
+});
+
+// Close + delete are irreversible / destructive — guard with your own
+// confirmation step.
+await client.closePlan(plan.id);
+```
+
+### Users
+
+```typescript
+const me = await client.getCurrentUser(); // TestRail 6.6+
+const byEmail = await client.getUserByEmail('alice@example.com');
+const user = await client.getUser(7);
+const users = await client.getUsers({ limit: 100 });
+```
+
+### Datasets & variables (data-driven testing)
+
+```typescript
+// Variables live on the project; datasets reference them by name.
+const v = await client.addVariable(1, { name: 'env' });
+const d = await client.addDataset(1, { name: 'Staging matrix' });
+
+const datasets = await client.getDatasets(1);
+await client.updateDataset(d.id, { name: 'Production matrix' });
+```
+
+### Groups (TestRail 7.5+)
+
+```typescript
+// Instance-scoped — no project_id path param.
+const group = await client.addGroup({ name: 'QA', user_ids: [1, 2, 3] });
+const groups = await client.getGroups();
+await client.updateGroup(group.id, { name: 'QA (renamed)' });
+```
+
+### Shared steps (TestRail 7.0+)
+
+```typescript
+const step = await client.addSharedStep(1, {
+    title: 'Login as admin',
+    custom_steps_separated: [
+        { content: 'Open /login', expected: '200 OK' },
+        { content: 'Submit creds', expected: 'Redirect to /dashboard' },
+    ],
+});
+
+// Cases reference shared steps via the `custom_steps_separated[].shared_step_id`
+// field. Revising a shared step propagates to every referencing case on
+// the next read.
+await client.updateSharedStep(step.id, { title: 'Login as admin (v2)' });
+```
+
+### Configuration matrix (project → config_groups → configs)
+
+```typescript
+// Tree fetch — one call returns groups with nested configs.
+const groups = await client.getConfigs(1);
+
+// Create a group (e.g. "Browsers") then a leaf config (e.g. "Chrome").
+const browsers = await client.addConfigGroup(1, { name: 'Browsers' });
+const chrome = await client.addConfig(browsers.id, { name: 'Chrome' });
+
+// Wire into a plan entry's config matrix:
+//   plan_entry.config_ids = [chrome.id, ...]
+```
+
+### Configuration & client tuning
+
+```typescript
+// Override defaults from src/constants.ts. All values are optional.
+const tuned = new TestRailClient({
+    baseUrl: process.env.TESTRAIL_BASE_URL!,
+    email: process.env.TESTRAIL_EMAIL!,
+    apiKey: process.env.TESTRAIL_API_KEY!,
+    timeout: 60_000, // header timeout (ms)
+    bodyTimeout: 60_000, // body-read wall-clock deadline (ms)
+    maxRetries: 5,
+    rateLimiter: { maxRequests: 200, windowMs: 60_000 },
+    maxJsonResponseBytes: 20 * 1024 * 1024, // 20 MiB cap
+    // Library callers should leave this off and call destroy() from their
+    // own shutdown hook. The CLI opts in.
+    registerProcessHandlers: false,
+});
+```
+
+### Error narrowing pattern
+
+```typescript
+async function safelyDeleteCase(id: number) {
+    try {
+        await client.deleteCase(id);
+        return { ok: true as const };
+    } catch (e) {
+        if (e instanceof TestRailApiError) {
+            // HTTP layer: 4xx/5xx, network, rate limit, timeout, body cap,
+            // 3xx blocked redirects.
+            return { ok: false as const, kind: 'api', status: e.status, msg: e.statusText };
+        }
+        if (e instanceof TestRailValidationError) {
+            // Pre-flight: bad ID, missing config, schema rejection.
+            return { ok: false as const, kind: 'validation', msg: e.message };
+        }
+        throw e; // unexpected — re-throw
+    }
+}
+```
+
+See `CODEMAP.md` for the exhaustive list of methods (every public symbol
+indexed with `file:line` links). See `docs/API-MAPPING.md` for the
+endpoint ↔ method ↔ CLI command coverage matrix.
+
 
 ## Destructive actions
 

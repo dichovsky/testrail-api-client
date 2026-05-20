@@ -5,6 +5,272 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **CLI binary stdio (`-` sentinel) for attachments and BDD.** `--file -`
+  streams a binary upload from `process.stdin`; `--out -` streams the
+  download to `process.stdout` while the JSON ack is rerouted to stderr.
+  Enables pipeline composition without temp files
+  (e.g. `curl … | testrail attachment add-to-case 42 --file -`,
+  `testrail attachment get 17 --out - | xxd`).
+- **`MAX_STDIN_UPLOAD_BYTES`** (100 MiB) and **`STDIN_READ_TIMEOUT_MS`**
+  (30 s) constants gate the stdin reader. The byte cap defends against
+  memory exhaustion; the wall-clock deadline (via `stream.destroy()`
+  surfaced through the async iterator) defends against slowloris-style
+  producers that never EOF — partial mitigation of `SEC #24` for the
+  binary-upload path. `readBoundedStdin` (text body / `--api-key-stdin`)
+  still has no deadline; that follow-up remains open.
+- **`HandlerContext.err` / `HandlerContext.errRaw`** — quiet-aware stderr
+  writers passed to handlers so the `--out -` JSON ack can land on stderr
+  without bypassing `--quiet`.
+
+### Security
+
+- **`--file -` mutex gates:** rejected on non-upload actions, alongside
+  `--data` / `--data-file`, alongside `--api-key-stdin`, or when stdin is
+  a TTY. Each conflict surfaces a structured stderr error before any API
+  call is issued.
+- **`--out -` rejects `--format table`** (binary is binary; the format
+  hint is meaningless and was previously a silent foot-gun).
+- **TTY warning on `--out -`** when stdout is a terminal — emitted to
+  stderr, not blocking, so intentional pipelines to `xxd` / `hexdump`
+  still work.
+
+### Added (continued)
+
+- **CLI: `--format yaml` and `--format csv` output formats.** Closes [BACKLOG CLI
+  format yaml/csv](BACKLOG-ARCHIVE.md). Every read, list, and write action now
+  accepts `--format <json|table|yaml|csv>` (default unchanged: `json`).
+    - `yaml` emits a zero-dependency YAML 1.2 document with 2-space indent.
+      Strings that could parse as numbers, booleans, null tokens, or carry
+      reserved YAML leaders (`-`, `?`, `:`, `#`, `|`, `>`, etc.) are
+      force-quoted in double-quoted form with full C-style escapes. NaN /
+      Infinity are emitted as the YAML 1.2 sentinels (`.nan`, `.inf`,
+      `-.inf`). No new runtime dependency — the emitter is hand-rolled to
+      respect the project's zero-runtime-dep policy.
+    - `csv` emits RFC 4180 with CRLF line terminators. Headers are the
+      sorted union of top-level keys across rows (deterministic output for
+      diff-friendly exports). Nested objects/arrays are JSON-stringified
+      into a single cell (no dot-path flattening) so the column count is
+      stable regardless of payload shape. Single-object responses become a
+      1-row CSV preserving insertion order.
+    - Unknown `--format` values now exit 1 with a clear error listing the
+      valid values, instead of silently falling through to JSON.
+    - See `README.md` for the format matrix and pipeline examples
+      (`yq`-piping for YAML, spreadsheet exports for CSV).
+- **Programmatic TypeScript API recipes** in `skill/SKILL.md`. A new
+  `## Programmatic TypeScript API` section gives copy-paste-runnable
+  snippets for every major resource (projects, suites, sections, cases,
+  runs, results, milestones, attachments, plans, users, datasets,
+  variables, groups, shared steps, configurations) using `TestRailClient`
+  directly. Each snippet compiles against the published types — no
+  pseudo-code. Includes an `instanceof`-narrowing pattern for
+  `TestRailApiError` / `TestRailValidationError` and a tuning example
+  covering retries, rate limits, body caps, and `registerProcessHandlers`.
+- **Cursor rule** at `.cursor/rules/testrail.mdc`. Auto-generated from
+  the same source as `skill/SKILL.md`; includes the standard
+  `description` / `globs` / `alwaysApply` frontmatter per the
+  [Cursor rules spec](https://docs.cursor.com/context/rules-for-ai).
+  Regenerate via `npm run cursor-rules`. CI drift gate:
+  `npm run cursor-rules:check` (wired into `pretest`).
+- **Continue rule** at `.continue/rules/testrail.md`. Plain-markdown
+  format per [continue.dev rules spec](https://docs.continue.dev/customization/rules).
+  Regenerate via `npm run continue-rules`. CI drift gate:
+  `npm run continue-rules:check`.
+- **Vendor-neutral `AGENTS.md`** at the repo root, following the
+  [agents.md](https://agents.md/) convention. Acts as a "what every AI
+  agent should know" entry point that doesn't bind to a specific
+  harness. Regenerate via `npm run agents-md`. CI drift gate:
+  `npm run agents-md:check`.
+- **`testrail uninstall-skill`** — symmetric reverse of `install-skill`.
+  Removes a previously-installed skill from `./.claude/skills/testrail-cli/`
+  (default) or `~/.claude/skills/testrail-cli/` (`--global`). Best-effort
+  cleanup of the empty `testrail-cli/` directory after unlinking the
+  skill file. Does NOT touch `.cursor/rules/testrail.mdc`,
+  `.continue/rules/testrail.md`, or `AGENTS.md` — those have an
+  independent lifecycle (generated from `src/cli/metadata.ts` and live
+  alongside other agent-tool configuration). HELP text and README
+  document this boundary.
+- **Shared `scripts/rules-content.mjs` module** — single source of truth
+  for the body of the three rule artifacts. Each format wraps the shared
+  body in its own header/frontmatter so usage guidance lives in one
+  place.
+
+### Safety
+
+The new `uninstall-skill` command uses TOCTOU-aware filesystem checks
+that mirror the existing `install-skill` patterns:
+
+- `lstat` (not `stat`) so symlinks are detected without following.
+- Refuses to unlink anything that is a symlink — `install-skill` only
+  ever produces regular files via `copyFileSync`, so anything else
+  indicates either tampering or unrelated user-managed content.
+- Refuses to unlink non-files (e.g. a directory planted at the target
+  path).
+- After unlinking the skill, attempts to remove the parent
+  `testrail-cli/` directory ONLY if empty — never touches
+  `.claude/skills/` or higher.
+
+Related backlog: SEC #5 (TOCTOU symlink-clobber on `install-skill`
+target) remains open as a separate, pre-existing concern. This PR does
+not introduce a parallel hazard but does not fix the existing one.
+
+### Tooling / CI
+
+- Four new npm scripts plus `:check` drift-gate variants:
+  `cursor-rules`, `continue-rules`, `agents-md`, and the existing
+  `skill` script unchanged.
+- `pretest` now also runs `cursor-rules:check`, `continue-rules:check`,
+  and `agents-md:check`. PRs that update `src/cli/metadata.ts` without
+  regenerating fail in CI.
+- All generated files are deterministic (no timestamps, no random IDs,
+  stable iteration order). `tests/generate-rules.test.ts` asserts
+  byte-equality of committed vs. re-rendered output.
+
+### Tests
+
+- `tests/uninstall-skill.test.ts` (12 cases): happy paths (project +
+  global), missing-file, quiet semantics, install/uninstall round-trip,
+  TOCTOU defenses (symlink refusal + non-file refusal), sibling-file
+  preservation, lifecycle messaging.
+- `tests/generate-rules.test.ts` (13 cases): pure-renderer determinism,
+  frontmatter shape (cursor has YAML; continue does not),
+  `AGENTS.md` self-references, committed-output drift checks.
+- `tests/cli.test.ts` adds a smoke test confirming `uninstall-skill` is
+  reachable via `--help` (full behaviour coverage lives in the unit
+  test where the filesystem can be sandboxed).
+
+### Added (CLI bulk case creation, run watcher, attachment pagination)
+
+- **`case add-bulk` CLI action + `addCases()` programmatic method** for
+  bulk-creating cases under a section in one API call (TestRail 7.5+).
+  Wraps `POST add_cases/{section_id}`; the `--data` body is a JSON array of
+  case payloads (each item the same shape as `AddCasePayload`). Empty arrays
+  and array items that fail `AddCasePayloadSchema` are rejected client-side
+  before any network call. **Version-aware error wrap:** older TestRail
+  servers return 400/404 with `"Invalid uri"` because the endpoint doesn't
+  exist; the module rethrows that as `TestRailApiError(status, 'TestRail server >= 7.5 required for add_cases bulk endpoint', <original response>)`
+  so callers can tell "your TestRail is too old" from "your payload is
+  malformed". `--dry-run` previews the parsed array with a `count` field.
+- **`run watch <run_id>` CLI action** — long-running command that polls
+  `GET get_run/{run_id}` on a configurable interval (default 30s;
+  `--interval N` where N is in `[5, 600]`; `--once` for single poll then
+  exit) and emits a compact JSON event line per poll. Diff detection runs
+  over a closed set of fields (`is_completed`, `untested_count`,
+  `passed_count`, `failed_count`, `retest_count`, `blocked_count`) so
+  mutable timestamps don't trigger noise. Exits 0 when TestRail flips
+  `is_completed=true`; exits 130 on SIGINT (writes a one-line `interrupted`
+  summary to stderr before the client's signal handler runs). Polling uses
+  recursive `setTimeout` (not `setInterval`) so a slow poll can't stack
+  pending timers; transient `getRun` rejections surface to stderr but don't
+  abort the watcher.
+- **Pagination on `attachment list-for-{case,run,test}` CLI actions and
+  the corresponding programmatic methods** — `getAttachmentsForCase` /
+  `getAttachmentsForRun` / `getAttachmentsForTest` now accept
+  `GetAttachmentsOptions { limit?, offset? }`. `--limit` and `--offset`
+  forward to TestRail's `&limit=` / `&offset=` query params (server
+  default page size 250). Plan-scoped variants (`list-for-plan`,
+  `list-for-plan-entry`) intentionally don't paginate — TestRail returns
+  the full tree.
+
+### Changed
+
+- New types exported from package root: `AddCasesBulkPayload`,
+  `AddCasesBulkPayloadSchema`, `GetAttachmentsOptions`.
+- New CLI flags: `--interval <seconds>`, `--once` (both consumed only by
+  `run watch`); attachment list actions now honor the existing `--limit` /
+  `--offset` flags.
+- **`requestMultipart` now streams file uploads from disk** instead of buffering the entire payload into the heap. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) and any programmatic caller using the new `{ path: string; type?: string }` input shape pull bytes via `node:fs.openAsBlob`, so `fetch` reads the file on demand and the process never materializes the whole attachment in memory. Benchmark on a 100 MB file: heap +2.30 MB / RSS +175.61 MB before → heap +0.00 MB / RSS +0.02 MB after.
+- Public API is backwards compatible. `addAttachmentToCase`, `addAttachmentToResult`, `addAttachmentToRun`, `addAttachmentToPlan`, `addAttachmentToPlanEntry`, and `addBdd` accept the existing `Blob | Uint8Array | File` inputs plus the new `{ path }` descriptor. In-memory inputs are unchanged.
+- The CLI's `resolveFile()` no longer returns `contents`; the `read` option on `ResolveFileOptions` is preserved for source-compat but is now a no-op (the multipart pipeline reads from disk lazily).
+- Upload invariants are preserved: no retry on 5xx/429/network errors, `AbortSignal` honored throughout the body upload, DNS-pin/SSRF guard still applied before fetch, 3xx still rejected by `assertNotRedirect`.
+
+## [4.0.0] — 2026-05-20 — Destructive-ops env-var gate (BREAKING for CI users)
+
+Closes [BACKLOG CLI: destructive env-var gate](BACKLOG-ARCHIVE.md). Adds a
+**second gate** for destructive CLI actions (`*:delete`, `run close`,
+`plan close`): a `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable that
+must be set **in addition to** the existing `--yes` flag. The check runs in
+the dispatcher (`src/cli/dispatch.ts`) before the handler is invoked — so
+even a future destructive handler added without an `if (!confirmDestructive)`
+check cannot escape the env-var gate (defense-in-depth).
+
+### Changed
+
+- **BREAKING — Destructive CLI actions now require `TESTRAIL_ALLOW_DESTRUCTIVE=1`
+  in addition to `--yes`.** Existing CI users must set this environment
+  variable before any destructive command. The env var must be **exactly**
+  the string `'1'` (not `'true'` / `'yes'` / `'on'` / `'1 '` with whitespace).
+- **New exit code `2`** for "destructive action blocked by missing env var".
+  Distinct from the generic exit code `1` (used for argv / auth / validation
+  / HTTP failures) so CI can branch on "needs `TESTRAIL_ALLOW_DESTRUCTIVE`"
+  vs everything else.
+- `--dry-run` continues to bypass both gates (preview is non-destructive by
+  definition; no API call leaves the process). Use `--dry-run` for safe CI
+  preview without setting up the gates.
+
+### Migration
+
+**For CI users running destructive `testrail` commands:**
+
+Add the env var to your CI step (export it once; it applies to every
+subsequent destructive command in that step):
+
+```bash
+# Before (3.5.x):
+testrail run delete 5 --yes
+
+# After (4.0.0+):
+export TESTRAIL_ALLOW_DESTRUCTIVE=1
+testrail run delete 5 --yes
+```
+
+Or as a one-liner:
+
+```bash
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail run delete 5 --yes
+```
+
+**Affected actions** (all currently destructive resources): `case delete`,
+`case delete-bulk`, `run delete`, `run close`, `section delete`,
+`suite delete`, `milestone delete`, `project delete`, `plan close`,
+`plan delete`, `plan delete-entry`, `plan delete-run-from-entry`,
+`variable delete`, `group delete`, `dataset delete`, `shared-step delete`,
+`configuration delete`, `configuration-group delete`, `attachment delete`.
+
+**For agents / scripts using `--dry-run`:** No action required. `--dry-run`
+bypasses the env-var gate (and the `--yes` gate) so CI preview workflows
+continue to work without configuration.
+
+**For programmatic library users (`TestRailClient.deleteRun(…)` etc.):** No
+action required. The gate only applies to the CLI dispatcher — the
+programmatic API surface is unchanged.
+
+### Why two gates?
+
+The env var is a **process-wide, audit-friendly switch** (visible in
+`printenv`, CI step logs, crash dumps). The `--yes` flag is **per-invocation
+explicit intent**. Together they make accidental destructive operations
+meaningfully harder:
+
+- A script run with a stale env still needs `--yes`.
+- A typo with `--yes` still needs the env var.
+- A handler added without `--yes` validation still can't escape the dispatcher.
+
+The strict `'1'` comparison (no `'true'` / `'yes'` aliasing) keeps the
+audit trail unambiguous: in CI logs you can tell `unset` from `set-to-wrong-value`
+from `set-to-allow` at a glance.
+
+### Unchanged
+
+- Per-handler `--yes` semantics and exit-1 behavior on missing `--yes`.
+- `--dry-run` wins-over-`--yes` precedence (preview without API call).
+- `--soft` server-side preview semantics on soft-capable deletes.
+- Programmatic library API (`TestRailClient.deleteRun(…)`, etc.) — no env
+  var required for direct client calls.
+
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
 Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**

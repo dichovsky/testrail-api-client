@@ -41,6 +41,14 @@ export interface HandlerArgs {
      *  requires this to be a non-empty string; format is enforced client-side
      *  by `EMAIL_REGEX` in `src/modules/users.ts` before any network call. */
     email?: string;
+    /** Polling interval in seconds for `run watch` (`--interval N`). Bounds
+     *  (min 5, max 600) are enforced inside the handler so a typo doesn't
+     *  silently flood TestRail's rate budget (5s floor keeps headroom under
+     *  the default 100 req/60s sliding window). */
+    interval?: string;
+    /** Single-poll mode for `run watch` (`--once`). Skips scheduling the next
+     *  recursive setTimeout iteration. */
+    once?: boolean;
 }
 
 /**
@@ -73,6 +81,16 @@ export interface HandlerContext {
      *  passed, dry-run wins and the destructive call is not executed. */
     confirmDestructive: boolean;
     out: (data: unknown) => void;
+    /** Quiet-aware stderr writer with a sanitized 'Error: ' prefix. Used by
+     *  handlers for human-readable warnings (e.g., the `--out -` TTY guard).
+     *  Optional so existing handlers and tests that build a minimal ctx
+     *  remain valid without a stub. */
+    err?: (message: string) => void;
+    /** Quiet-aware raw stderr writer (no 'Error:' prefix, caller controls
+     *  the exact bytes written). Used by `attachment get --out -` to emit
+     *  the JSON ack on stderr so stdout stays pure binary. Optional so
+     *  existing handlers and minimal-ctx tests remain valid. */
+    errRaw?: (chunk: string) => void;
 }
 
 export type Handler = (ctx: HandlerContext) => Promise<void>;
