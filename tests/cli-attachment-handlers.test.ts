@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import {
     handleAttachmentListForCase,
     handleAttachmentListForRun,
@@ -76,11 +77,17 @@ interface CtxOverrides {
     confirmDestructive?: boolean;
 }
 
-function buildCtx(
-    client: MockedClient,
-    overrides: CtxOverrides = {},
-): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
+interface BuiltCtx {
+    ctx: HandlerContext;
+    out: ReturnType<typeof vi.fn>;
+    err: ReturnType<typeof vi.fn>;
+    errRaw: ReturnType<typeof vi.fn>;
+}
+
+function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx {
     const out = vi.fn();
+    const err = vi.fn();
+    const errRaw = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
         args: {
@@ -94,8 +101,10 @@ function buildCtx(
         force: overrides.force ?? false,
         confirmDestructive: overrides.confirmDestructive ?? false,
         out,
+        err,
+        errRaw,
     };
-    return { ctx, out };
+    return { ctx, out, err, errRaw };
 }
 
 // ── list-for-* ────────────────────────────────────────────────────────────
@@ -312,6 +321,162 @@ describe('attachment upload handlers', () => {
             file: filePath,
             filename: 'shot.png',
             size: 3,
+        });
+    });
+});
+
+// ── --file '-' (stdin upload) ──────────────────────────────────────────────
+
+describe("attachment upload handlers with --file '-'", () => {
+    const ORIG_STDIN = process.stdin;
+    const ORIG_IS_TTY = process.stdin.isTTY;
+
+    afterEach(() => {
+        Object.defineProperty(process, 'stdin', {
+            value: ORIG_STDIN,
+            configurable: true,
+            writable: false,
+        });
+        (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+    });
+
+    function stubStdin(bytes: Uint8Array | string): void {
+        const readable = Readable.from(typeof bytes === 'string' ? Buffer.from(bytes) : Buffer.from(bytes));
+        (readable as { isTTY?: boolean }).isTTY = false;
+        Object.defineProperty(process, 'stdin', {
+            value: readable,
+            configurable: true,
+            writable: false,
+        });
+    }
+
+    it('add-to-case reads bytes from stdin and uploads with default filename', async () => {
+        stubStdin(new Uint8Array([0xff, 0xee, 0xdd]));
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-' });
+        await handleAttachmentAddToCase(ctx);
+        const call = client.addAttachmentToCase.mock.calls[0];
+        expect(call).toBeDefined();
+        if (call === undefined) return;
+        expect(call[0]).toBe(42);
+        expect(Array.from(call[1] as Uint8Array)).toEqual([0xff, 0xee, 0xdd]);
+        expect(call[2]).toBe('stdin');
+    });
+
+    it("add-to-case --file - --filename overrides default 'stdin'", async () => {
+        stubStdin('hello');
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-', filename: 'crash.txt' });
+        await handleAttachmentAddToCase(ctx);
+        expect(client.addAttachmentToCase).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'crash.txt');
+    });
+
+    it('add-to-case --file - --dry-run does NOT drain stdin and reports source', async () => {
+        let drainedBytes = 0;
+        const readable = new Readable({
+            read() {
+                drainedBytes += 1;
+                this.push(Buffer.from('x'));
+                this.push(null);
+            },
+        });
+        (readable as { isTTY?: boolean }).isTTY = false;
+        Object.defineProperty(process, 'stdin', {
+            value: readable,
+            configurable: true,
+            writable: false,
+        });
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: '-', dryRun: true });
+        await handleAttachmentAddToCase(ctx);
+        expect(drainedBytes).toBe(0);
+        expect(client.addAttachmentToCase).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'attachment add-to-case',
+            caseId: 42,
+            file: '<stdin>',
+            filename: 'stdin',
+            size: 0,
+            source: 'stdin',
+        });
+    });
+
+    it('add-to-case --file - rejects when stdin is a TTY', async () => {
+        (process.stdin as { isTTY?: boolean }).isTTY = true;
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-' });
+        await expect(handleAttachmentAddToCase(ctx)).rejects.toThrow(/stdin to be piped/);
+        expect(client.addAttachmentToCase).not.toHaveBeenCalled();
+    });
+});
+
+// ── --out '-' (stdout download) ────────────────────────────────────────────
+
+describe("attachment get with --out '-'", () => {
+    const ORIG_IS_TTY = process.stdout.isTTY;
+
+    let stdoutBytes: Buffer[];
+    let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        stdoutBytes = [];
+        // Capture stdout.write so the assertions can inspect the bytes
+        // without polluting test output. Use a typed signature that
+        // matches the multiple overloads of process.stdout.write.
+        stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
+            stdoutBytes.push(Buffer.from(chunk));
+            return true;
+        });
+    });
+
+    afterEach(() => {
+        stdoutSpy.mockRestore();
+        (process.stdout as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+    });
+
+    it('writes raw bytes to stdout and JSON ack to stderr (via errRaw)', async () => {
+        (process.stdout as { isTTY?: boolean }).isTTY = false;
+        const client = buildClient();
+        const { ctx, out, errRaw } = buildCtx(client, { pathParams: ['42'], out: '-' });
+        await handleAttachmentGet(ctx);
+        expect(client.getAttachment).toHaveBeenCalledWith(42);
+        // out (stdout JSON) must not be called; the binary went straight to stdout.write
+        expect(out).not.toHaveBeenCalled();
+        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
+        // The JSON ack landed on stderr via errRaw.
+        expect(errRaw).toHaveBeenCalledTimes(1);
+        const ackCall = errRaw.mock.calls[0];
+        expect(ackCall).toBeDefined();
+        const ack = (ackCall?.[0] ?? '') as string;
+        expect(ack).toContain('"attachmentId": 42');
+        expect(ack).toContain('"out": "<stdout>"');
+        expect(ack).toContain('"size": 3');
+    });
+
+    it('emits a TTY warning on stderr when stdout is a terminal but still writes', async () => {
+        (process.stdout as { isTTY?: boolean }).isTTY = true;
+        const client = buildClient();
+        const { ctx, err } = buildCtx(client, { pathParams: ['42'], out: '-' });
+        await handleAttachmentGet(ctx);
+        expect(err).toHaveBeenCalledTimes(1);
+        const warnCall = err.mock.calls[0];
+        expect(warnCall).toBeDefined();
+        expect((warnCall?.[0] ?? '') as string).toContain('TTY');
+        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
+    });
+
+    it('dry-run with --out - emits preview to ctx.out, no fetch, no stdout writes', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: '-', dryRun: true });
+        await handleAttachmentGet(ctx);
+        expect(client.getAttachment).not.toHaveBeenCalled();
+        expect(stdoutBytes.length).toBe(0);
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'attachment get',
+            attachmentId: 42,
+            out: '<stdout>',
         });
     });
 });

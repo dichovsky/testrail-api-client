@@ -419,6 +419,43 @@ The CLI (`testrail attachment add-to-* --file`) uses this path by default;
 programmatic callers that already hold the bytes in memory may continue to
 pass them directly.
 
+#### CLI binary stdio (`-` sentinel)
+
+The bundled CLI follows the Unix `-` convention for streaming binary in or out
+without touching the filesystem. Useful for ephemeral pipelines (CI artifacts,
+crash dumps, on-the-fly screenshots) where writing to a temp file is wasteful.
+
+```bash
+# Pipe an upload from another process — no temp file
+curl -s https://ci.example.com/build/42/screenshot.png \
+  | testrail attachment add-to-case 1234 --file - --filename screenshot.png
+
+# Generate and upload a synthetic payload
+hexdump -C /etc/hostname | testrail attachment add-to-result 99 --file - --filename hostname.dump
+
+# Download an attachment straight into hexdump (binary stays on stdout; JSON ack goes to stderr)
+testrail attachment get 17 --out - | xxd | head -20
+
+# Chain two operations: fetch an attachment from one case, re-upload to another
+testrail attachment get 17 --out - 2>/dev/null \
+  | testrail attachment add-to-case 5678 --file - --filename forwarded.bin
+
+# BDD (Gherkin text) — same pattern
+cat features/login.feature | testrail bdd add 42 --file - --filename login.feature
+testrail bdd get 42 --out - > local-copy.feature
+```
+
+Safeguards:
+
+- **`--file -`** caps the read at 100 MiB and aborts if the producer holds
+  the pipe open for more than 30 s (slowloris defense). Rejected when stdin
+  is a TTY, when combined with `--data` / `--data-file` / `--api-key-stdin`,
+  or for non-upload actions.
+- **`--out -`** streams raw bytes to stdout and reroutes the JSON ack to
+  stderr so the binary stream stays uncontaminated. Rejected with
+  `--format table`. A TTY warning is printed (not blocking) if stdout is
+  a terminal — pipe to `xxd`, `hexdump`, or a file instead.
+
 ### Users & metadata
 
 ```typescript

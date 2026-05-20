@@ -69,6 +69,36 @@ export const DEFAULT_BODY_TIMEOUT_MS: number | undefined = undefined;
 export const MAX_STDIN_BYTES = 1024 * 1024;
 
 /**
+ * CLI binary stdin upload cap (PR3a — `--file -` sentinel). The text-body
+ * `MAX_STDIN_BYTES` is too small for binary attachment uploads (screenshots,
+ * videos, log archives). Sized at 100 MiB to match
+ * `DEFAULT_MAX_BINARY_RESPONSE_BYTES`: symmetric upload/download ceilings and
+ * an order-of-magnitude headroom below `MAX_RESPONSE_BYTES_LIMIT` (1 GiB).
+ * A producer streaming more than this is almost certainly a misconfiguration
+ * (wrong pipe, unbounded `tail -f`, or a DoS attempt); fail fast.
+ *
+ * Hard ceiling — not configurable via TestRailConfig because the cap exists
+ * to prevent process OOM at the CLI layer, not to throttle the API. Callers
+ * who legitimately need to upload more should split the file or use the
+ * upcoming streaming-upload path (BACKLOG: `streaming upload for large files`).
+ */
+export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+/**
+ * CLI stdin wall-clock deadline for the `--file -` binary upload (PR3a;
+ * SEC #24 partial mitigation). The byte cap (`MAX_STDIN_UPLOAD_BYTES`)
+ * defends against memory exhaustion, but a producer that holds the pipe
+ * open without ever sending more than the cap (a stalled `curl`, `tail -f`,
+ * an unclosed FIFO) would leave the CLI blocked on stdin indefinitely.
+ *
+ * 30 seconds matches `DEFAULT_TIMEOUT_MS` so a stdin-piped upload terminates
+ * within the same envelope as a network request. The reader uses
+ * `AbortController` rather than a polling loop so the wait is non-blocking
+ * and cancellation propagates cleanly through `for await (chunk of stdin)`.
+ */
+export const STDIN_READ_TIMEOUT_MS = 30000;
+
+/**
  * Indent width (in spaces) for the CLI YAML renderer. Two-space indent is the
  * de-facto standard across major YAML libraries (PyYAML, js-yaml, ruamel) and
  * matches the project's prettier config for JSON output. Centralized here so

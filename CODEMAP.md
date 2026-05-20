@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.0.0"
   },
-  "sourceHash": "56ddc2b097720f563dd54d9bdc3743d554e76d13cc4a7d141e041a53a9ae3ff5",
+  "sourceHash": "f24a4b7cfe961471729e5c8b6d65122170f882f5d0a05b8fd7721d414837f459",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1598,38 +1598,60 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/file-input.ts",
       "imports": [
+        "../constants.js",
         "node:fs",
         "node:path"
       ],
       "reExports": [],
       "symbols": [
         {
+          "name": "STDIN_SENTINEL",
+          "kind": "const",
+          "line": 14,
+          "exported": true,
+          "signature": "export const STDIN_SENTINEL = '-'"
+        },
+        {
           "name": "FileInput",
           "kind": "interface",
-          "line": 10,
+          "line": 27,
           "exported": true,
           "signature": "export interface FileInput { fileFlag?: string; filenameFlag?: string; }"
         },
         {
           "name": "FileResolution",
           "kind": "type",
-          "line": 24,
+          "line": 40,
           "exported": true,
-          "signature": "export type FileResolution = { ok: true; path: string; filename: string; size: number } | { ok: false; error: string }"
+          "signature": "export type FileResolution = | { ok: true; path: string; filename: string; size: number; contents?: Uint8Array; source: 'file' | 'stdin'; } | { ok: false; error: string }"
         },
         {
           "name": "ResolveFileOptions",
           "kind": "interface",
-          "line": 26,
+          "line": 53,
           "exported": true,
           "signature": "export interface ResolveFileOptions { read: boolean; }"
         },
         {
           "name": "resolveFile",
           "kind": "function",
-          "line": 51,
+          "line": 82,
           "exported": true,
-          "signature": "export function resolveFile(input: FileInput, _opts: ResolveFileOptions): FileResolution"
+          "signature": "export async function resolveFile(input: FileInput, opts: ResolveFileOptions): Promise<FileResolution>"
+        },
+        {
+          "name": "resolveFromStdin",
+          "kind": "function",
+          "line": 121,
+          "exported": false,
+          "signature": "async function resolveFromStdin(input: FileInput, opts: ResolveFileOptions): Promise<FileResolution>"
+        },
+        {
+          "name": "readStdinBinary",
+          "kind": "function",
+          "line": 172,
+          "exported": true,
+          "signature": "export async function readStdinBinary(maxBytes: number, timeoutMs: number): Promise<Uint8Array>"
         }
       ]
     },
@@ -1641,30 +1663,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
+          "name": "STDOUT_SENTINEL",
+          "kind": "const",
+          "line": 10,
+          "exported": true,
+          "signature": "export const STDOUT_SENTINEL = '-'"
+        },
+        {
           "name": "FileOutput",
           "kind": "interface",
-          "line": 7,
+          "line": 16,
           "exported": true,
           "signature": "export interface FileOutput { outFlag?: string; }"
         },
         {
           "name": "OutputResolution",
           "kind": "type",
-          "line": 11,
+          "line": 20,
           "exported": true,
-          "signature": "export type OutputResolution = { ok: true; path: string } | { ok: false; error: string }"
+          "signature": "export type OutputResolution = { ok: true; path: string; target: 'file' | 'stdout' } | { ok: false; error: string }"
         },
         {
           "name": "ResolveOutOptions",
           "kind": "interface",
-          "line": 13,
+          "line": 22,
           "exported": true,
           "signature": "export interface ResolveOutOptions { force: boolean; dryRun: boolean; }"
         },
         {
           "name": "resolveOut",
           "kind": "function",
-          "line": 32,
+          "line": 46,
           "exported": true,
           "signature": "export function resolveOut(input: FileOutput, opts: ResolveOutOptions): OutputResolution"
         }
@@ -1717,12 +1746,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 64,
           "exported": true,
-          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: (data: unknown) => void; }"
+          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: (data: unknown) => void; err?: (me…"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 78,
+          "line": 88,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
         }
@@ -1740,56 +1769,63 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ResolvedUpload",
           "kind": "interface",
-          "line": 15,
+          "line": 19,
           "exported": false,
-          "signature": "interface ResolvedUpload { filename: string; path: string; }"
+          "signature": "interface ResolvedUpload { filename: string; path: string; contents?: Uint8Array; source: 'file' | 'stdin'; }"
         },
         {
           "name": "setupUpload",
           "kind": "function",
-          "line": 30,
+          "line": 41,
           "exported": false,
-          "signature": "function setupUpload(ctx: HandlerContext, action: string, idFields: Record<string, number>): ResolvedUpload | null"
+          "signature": "async function setupUpload( ctx: HandlerContext, action: string, idFields: Record<string, number>, ): Promise<ResolvedUpload | null>"
+        },
+        {
+          "name": "uploadPayload",
+          "kind": "function",
+          "line": 85,
+          "exported": false,
+          "signature": "function uploadPayload(upload: ResolvedUpload): { path: string } | Uint8Array"
         },
         {
           "name": "handleAttachmentAddToCase",
           "kind": "function",
-          "line": 55,
+          "line": 92,
           "exported": true,
           "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToResult",
           "kind": "function",
-          "line": 62,
+          "line": 99,
           "exported": true,
           "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToRun",
           "kind": "function",
-          "line": 69,
+          "line": 106,
           "exported": true,
           "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlan",
           "kind": "function",
-          "line": 76,
+          "line": 113,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlanEntry",
           "kind": "function",
-          "line": 83,
+          "line": 120,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentDelete",
           "kind": "function",
-          "line": 96,
+          "line": 133,
           "exported": true,
           "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -1801,6 +1837,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../file-output.js",
         "../handler-context.js",
         "../ids.js",
+        "../output.js",
         "../safe-write.js"
       ],
       "reExports": [],
@@ -1808,42 +1845,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleAttachmentListForCase",
           "kind": "function",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForRun",
           "kind": "function",
-          "line": 11,
+          "line": 12,
           "exported": true,
           "signature": "export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForTest",
           "kind": "function",
-          "line": 16,
+          "line": 17,
           "exported": true,
           "signature": "export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlan",
           "kind": "function",
-          "line": 21,
+          "line": 22,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlanEntry",
           "kind": "function",
-          "line": 26,
+          "line": 27,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentGet",
           "kind": "function",
-          "line": 38,
+          "line": 45,
           "exported": true,
           "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
         }
@@ -1856,6 +1893,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../file-output.js",
         "../handler-context.js",
         "../ids.js",
+        "../output.js",
         "../safe-write.js"
       ],
       "reExports": [],
@@ -1863,14 +1901,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleBddGet",
           "kind": "function",
-          "line": 15,
+          "line": 22,
           "exported": true,
           "signature": "export async function handleBddGet(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleBddAdd",
           "kind": "function",
-          "line": 49,
+          "line": 72,
           "exported": true,
           "signature": "export async function handleBddAdd(ctx: HandlerContext): Promise<void>"
         }
@@ -3061,6 +3099,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../constants.js",
         "./auth.js",
         "./dispatch.js",
+        "./file-input.js",
+        "./file-output.js",
         "./flags.js",
         "./handler-context.js",
         "./install-skill.js",
@@ -3077,28 +3117,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 19,
+          "line": 21,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 20,
+          "line": 22,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 24,
+          "line": 26,
           "exported": false,
           "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 242,
+          "line": 257,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -3203,131 +3243,131 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 11,
           "exported": true,
-          "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; }"
+          "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; errRaw: (chunk: string) => void; }"
         },
         {
           "name": "valueToString",
           "kind": "function",
-          "line": 16,
+          "line": 21,
           "exported": true,
           "signature": "export function valueToString(v: unknown): string"
         },
         {
           "name": "getField",
           "kind": "function",
-          "line": 38,
+          "line": 43,
           "exported": false,
           "signature": "function getField(row: unknown, key: string): unknown"
         },
         {
           "name": "renderTable",
           "kind": "function",
-          "line": 43,
+          "line": 48,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 92,
+          "line": 97,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
           "name": "SPECIAL_BARE_STRINGS",
           "kind": "const",
-          "line": 124,
+          "line": 129,
           "exported": false,
           "signature": "const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([ '', '~', 'null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'false', 'False', 'FALSE', 'yes', 'Yes', 'YES', 'no', 'No', 'NO', 'on', 'On', 'ON',…"
         },
         {
           "name": "needsQuoting",
           "kind": "function",
-          "line": 161,
+          "line": 166,
           "exported": false,
           "signature": "function needsQuoting(s: string): boolean"
         },
         {
           "name": "escapeDoubleQuoted",
           "kind": "function",
-          "line": 192,
+          "line": 197,
           "exported": false,
           "signature": "function escapeDoubleQuoted(s: string): string"
         },
         {
           "name": "renderYamlScalar",
           "kind": "function",
-          "line": 235,
+          "line": 240,
           "exported": false,
           "signature": "function renderYamlScalar(v: unknown): string"
         },
         {
           "name": "isPlainObject",
           "kind": "function",
-          "line": 257,
+          "line": 262,
           "exported": false,
           "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
         },
         {
           "name": "renderYamlNode",
           "kind": "function",
-          "line": 266,
+          "line": 271,
           "exported": false,
           "signature": "function renderYamlNode(v: unknown, depth: number): string"
         },
         {
           "name": "renderYaml",
           "kind": "function",
-          "line": 347,
+          "line": 352,
           "exported": true,
           "signature": "export function renderYaml(value: unknown): string"
         },
         {
           "name": "CSV_LINE_TERMINATOR",
           "kind": "const",
-          "line": 367,
+          "line": 372,
           "exported": false,
           "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
         },
         {
           "name": "csvCellRequiresQuoting",
           "kind": "function",
-          "line": 369,
+          "line": 374,
           "exported": false,
           "signature": "function csvCellRequiresQuoting(cell: string): boolean"
         },
         {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 373,
+          "line": 378,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 380,
+          "line": 385,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
           "name": "csvCellFromValue",
           "kind": "function",
-          "line": 386,
+          "line": 391,
           "exported": false,
           "signature": "function csvCellFromValue(v: unknown): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 422,
+          "line": 427,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 476,
+          "line": 481,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -4635,9 +4675,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         },
         {
+          "name": "MAX_STDIN_UPLOAD_BYTES",
+          "kind": "const",
+          "line": 85,
+          "exported": true,
+          "signature": "export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024"
+        },
+        {
+          "name": "STDIN_READ_TIMEOUT_MS",
+          "kind": "const",
+          "line": 99,
+          "exported": true,
+          "signature": "export const STDIN_READ_TIMEOUT_MS = 30000"
+        },
+        {
           "name": "YAML_INDENT_SPACES",
           "kind": "const",
-          "line": 77,
+          "line": 107,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
         }

@@ -112,4 +112,37 @@ describe('resolveOut', () => {
         const r = resolveOut({ outFlag: link }, { force: false, dryRun: true });
         expect(r.ok).toBe(true);
     });
+
+    // ── --out '-' (stdout) ────────────────────────────────────────────────
+
+    describe("--out '-' (stdout)", () => {
+        it("recognizes the '-' sentinel as a stdout target", () => {
+            const r = resolveOut({ outFlag: '-' }, { force: false, dryRun: false });
+            expect(r.ok).toBe(true);
+            if (r.ok) {
+                expect(r.target).toBe('stdout');
+                expect(r.path).toBe('<stdout>');
+            }
+        });
+
+        it("'-' bypasses force/clobber/symlink checks (no filesystem lookup)", () => {
+            // No file is created, no symlink exists; the sentinel must
+            // resolve regardless because there is no path to inspect.
+            const r = resolveOut({ outFlag: '-' }, { force: false, dryRun: false });
+            expect(r.ok).toBe(true);
+        });
+
+        it("'-' in dry-run still resolves to stdout target", () => {
+            const r = resolveOut({ outFlag: '-' }, { force: false, dryRun: true });
+            expect(r.ok).toBe(true);
+            if (r.ok) expect(r.target).toBe('stdout');
+        });
+    });
+
+    it("regular paths report target='file'", () => {
+        const p = join(tmp, 'new.bin');
+        const r = resolveOut({ outFlag: p }, { force: false, dryRun: false });
+        expect(r.ok).toBe(true);
+        if (r.ok) expect(r.target).toBe('file');
+    });
 });

@@ -73,6 +73,16 @@ export interface HandlerContext {
      *  passed, dry-run wins and the destructive call is not executed. */
     confirmDestructive: boolean;
     out: (data: unknown) => void;
+    /** Quiet-aware stderr writer with a sanitized 'Error: ' prefix. Used by
+     *  handlers for human-readable warnings (e.g., the `--out -` TTY guard).
+     *  Optional so existing handlers and tests that build a minimal ctx
+     *  remain valid without a stub. */
+    err?: (message: string) => void;
+    /** Quiet-aware raw stderr writer (no 'Error:' prefix, caller controls
+     *  the exact bytes written). Used by `attachment get --out -` to emit
+     *  the JSON ack on stderr so stdout stays pure binary. Optional so
+     *  existing handlers and minimal-ctx tests remain valid. */
+    errRaw?: (chunk: string) => void;
 }
 
 export type Handler = (ctx: HandlerContext) => Promise<void>;

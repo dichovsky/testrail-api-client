@@ -9,6 +9,37 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- **CLI binary stdio (`-` sentinel) for attachments and BDD.** `--file -`
+  streams a binary upload from `process.stdin`; `--out -` streams the
+  download to `process.stdout` while the JSON ack is rerouted to stderr.
+  Enables pipeline composition without temp files
+  (e.g. `curl … | testrail attachment add-to-case 42 --file -`,
+  `testrail attachment get 17 --out - | xxd`).
+- **`MAX_STDIN_UPLOAD_BYTES`** (100 MiB) and **`STDIN_READ_TIMEOUT_MS`**
+  (30 s) constants gate the stdin reader. The byte cap defends against
+  memory exhaustion; the wall-clock deadline (via `stream.destroy()`
+  surfaced through the async iterator) defends against slowloris-style
+  producers that never EOF — partial mitigation of `SEC #24` for the
+  binary-upload path. `readBoundedStdin` (text body / `--api-key-stdin`)
+  still has no deadline; that follow-up remains open.
+- **`HandlerContext.err` / `HandlerContext.errRaw`** — quiet-aware stderr
+  writers passed to handlers so the `--out -` JSON ack can land on stderr
+  without bypassing `--quiet`.
+
+### Security
+
+- **`--file -` mutex gates:** rejected on non-upload actions, alongside
+  `--data` / `--data-file`, alongside `--api-key-stdin`, or when stdin is
+  a TTY. Each conflict surfaces a structured stderr error before any API
+  call is issued.
+- **`--out -` rejects `--format table`** (binary is binary; the format
+  hint is meaningless and was previously a silent foot-gun).
+- **TTY warning on `--out -`** when stdout is a terminal — emitted to
+  stderr, not blocking, so intentional pipelines to `xxd` / `hexdump`
+  still work.
+
+### Added (continued)
+
 - **CLI: `--format yaml` and `--format csv` output formats.** Closes [BACKLOG CLI
   format yaml/csv](BACKLOG-ARCHIVE.md). Every read, list, and write action now
   accepts `--format <json|table|yaml|csv>` (default unchanged: `json`).
