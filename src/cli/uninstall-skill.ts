@@ -8,11 +8,11 @@
  *
  * Scope: this command ONLY removes the skill file (and its enclosing
  * `testrail-cli` directory if empty after removal). It deliberately does
- * NOT touch `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`,
- * or `AGENTS.md` — those artifacts have an independent lifecycle (they
- * are regenerated from `src/cli/metadata.ts` and live alongside other
- * agent-tool configuration). Users who want to fully decouple from this
- * package can delete those files manually.
+ * NOT touch `.continue/rules/testrail.md` or `AGENTS.md` — those
+ * artifacts have an independent lifecycle (they are regenerated from
+ * `src/cli/metadata.ts` and live alongside other agent-tool
+ * configuration). Users who want to fully decouple from this package
+ * can delete those files manually.
  *
  * TOCTOU posture (mirrors install-skill safety patterns):
  *   1. `lstat` (NOT `stat`) the target so a symlink is detected without
@@ -131,7 +131,7 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
 
     writeOut(`Uninstalled testrail-cli skill ← ${target}`);
     writeOut(
-        'Note: .cursor/rules/testrail.mdc, .continue/rules/testrail.md, and AGENTS.md are NOT touched (separate lifecycle); remove manually if desired.',
+        'Note: .continue/rules/testrail.md and AGENTS.md are NOT touched (separate lifecycle); remove manually if desired.',
     );
     return 0;
 }

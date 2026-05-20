@@ -151,10 +151,9 @@ deletes that support it; `--dry-run` is purely client-side.
 - Pass the API key on argv (`--api-key` was removed in v3.0).
 - Skip `npm run typecheck` before committing.
 - Hand-edit `CODEMAP.md`, `docs/API-MAPPING.md`, `skill/SKILL.md`
-  generated sections, `.cursor/rules/testrail.mdc`,
-  `.continue/rules/testrail.md`, or `AGENTS.md` — they are all
-  generated. Re-run the matching `npm run` script after editing the
-  source.
+  generated sections, `.continue/rules/testrail.md`, or `AGENTS.md`
+  — they are all generated. Re-run the matching `npm run` script
+  after editing the source.
 
 ## See also
 

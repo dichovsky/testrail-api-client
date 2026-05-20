@@ -81,23 +81,13 @@ npx testrail uninstall-skill            # project-scoped
 npx testrail uninstall-skill --global   # global-scoped
 ```
 
-`uninstall-skill` removes ONLY the skill file (and its empty parent directory). It deliberately does NOT touch `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`, or `AGENTS.md` — those artifacts have an independent lifecycle (they are generated from `src/cli/metadata.ts` and live alongside other agent-tool configuration). Remove them manually if you want to fully decouple.
+`uninstall-skill` removes ONLY the skill file (and its empty parent directory). It deliberately does NOT touch `.continue/rules/testrail.md` or `AGENTS.md` — those artifacts have an independent lifecycle (they are generated from `src/cli/metadata.ts` and live alongside other agent-tool configuration). Remove them manually if you want to fully decouple.
 
 The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface, recipes, and a parallel "Programmatic TypeScript API" section with copy-paste examples for using `TestRailClient` directly.
 
-### Cursor
-
-`.cursor/rules/testrail.mdc` is a [Cursor rule](https://docs.cursor.com/context/rules-for-ai) generated from the same source. It is committed at the repo root so contributors who clone the repo get the rule automatically. To install it into your own project:
-
-```bash
-mkdir -p .cursor/rules
-curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/.cursor/rules/testrail.mdc \
-    > .cursor/rules/testrail.mdc
-```
-
 ### Continue (continue.dev)
 
-`.continue/rules/testrail.md` is a [Continue workspace rule](https://docs.continue.dev/customization/rules). Installation mirrors Cursor:
+`.continue/rules/testrail.md` is a [Continue workspace rule](https://docs.continue.dev/customization/rules). To install it into your own project:
 
 ```bash
 mkdir -p .continue/rules

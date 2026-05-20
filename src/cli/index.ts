@@ -162,8 +162,7 @@ Meta:
   uninstall-skill [--global]        Remove a previously-installed testrail-cli
                                     skill. ONLY removes the skill file (and
                                     its empty parent dir); does NOT touch
-                                    .cursor/rules/testrail.mdc,
-                                    .continue/rules/testrail.md, or AGENTS.md
+                                    .continue/rules/testrail.md or AGENTS.md
                                     (separate lifecycle — remove manually).
 
 Auth (env var preferred — argv is visible to other processes):
@@ -352,7 +351,7 @@ async function main(): Promise<number> {
     // `uninstall-skill` is the symmetric reverse of `install-skill`. Same
     // meta-command rationale: no API call, no resource:action dispatch.
     // Only removes the skill file (and its empty parent dir); does NOT
-    // touch .cursor / .continue / AGENTS.md (separate lifecycle).
+    // touch .continue / AGENTS.md (separate lifecycle).
     if (positionals[0] === 'uninstall-skill') {
         return runUninstallSkill({
             global: values['global'] === true,

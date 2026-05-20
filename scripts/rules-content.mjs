@@ -1,8 +1,8 @@
 /**
  * Shared source-of-truth content for all generated agent-instruction
- * artifacts: `.cursor/rules/testrail.mdc`, `.continue/rules/testrail.md`,
- * and `AGENTS.md`. The body sections (`renderRulesBody`) are identical
- * across the three formats; only the frontmatter/header differs.
+ * artifacts: `.continue/rules/testrail.md` and `AGENTS.md`. The body
+ * sections (`renderRulesBody`) are identical across both formats; only
+ * the header differs.
  *
  * Determinism: every helper here is pure and order-stable. ACTIONS is
  * iterated in declaration order (matches metadata.ts insertion order,
@@ -169,10 +169,9 @@ export function renderRulesBody(actions) {
         '- Pass the API key on argv (`--api-key` was removed in v3.0).',
         '- Skip `npm run typecheck` before committing.',
         '- Hand-edit `CODEMAP.md`, `docs/API-MAPPING.md`, `skill/SKILL.md`',
-        '  generated sections, `.cursor/rules/testrail.mdc`,',
-        '  `.continue/rules/testrail.md`, or `AGENTS.md` — they are all',
-        '  generated. Re-run the matching `npm run` script after editing the',
-        '  source.',
+        '  generated sections, `.continue/rules/testrail.md`, or `AGENTS.md`',
+        '  — they are all generated. Re-run the matching `npm run` script',
+        '  after editing the source.',
         '',
         '## See also',
         '',
@@ -187,25 +186,6 @@ export function renderRulesBody(actions) {
         '  API tour',
         '',
     ].join('\n');
-}
-
-/**
- * Cursor `.mdc` frontmatter. Spec (as of 2024-2025): keys are `description`
- * (string shown in the rules picker), `globs` (comma-separated minimatch
- * patterns scoping when the rule activates), and `alwaysApply` (boolean
- * override).
- *
- * Reference: https://docs.cursor.com/context/rules-for-ai
- */
-export function renderCursorMdc(actions) {
-    const frontmatter = [
-        '---',
-        'description: TestRail API client + CLI usage patterns for @dichovsky/testrail-api-client',
-        'globs: **/*.ts,**/*.tsx,**/*.js,**/*.mjs,**/*.cjs,**/*.json,**/*.md',
-        'alwaysApply: false',
-        '---',
-    ].join('\n');
-    return `${frontmatter}\n\n# TestRail API client — agent guide\n\n${renderRulesBody(actions)}`;
 }
 
 /**
@@ -244,7 +224,6 @@ export function renderAgentsMd(actions) {
         'npm run codemap                # Regenerate CODEMAP.md',
         'npm run mapping                # Regenerate docs/API-MAPPING.md',
         'npm run skill                  # Regenerate skill/SKILL.md',
-        'npm run cursor-rules           # Regenerate .cursor/rules/testrail.mdc',
         'npm run continue-rules         # Regenerate .continue/rules/testrail.md',
         'npm run agents-md              # Regenerate AGENTS.md',
         '```',

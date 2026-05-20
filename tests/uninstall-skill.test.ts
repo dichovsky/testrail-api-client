@@ -205,7 +205,7 @@ describe('runUninstallSkill', () => {
         expect(readdirSync(parent)).toEqual(['NOTES.md']);
     });
 
-    it('mentions that .cursor / .continue / AGENTS.md are NOT touched', () => {
+    it('mentions that .continue / AGENTS.md are NOT touched', () => {
         const project = join(tmp, 'proj');
         runInstallSkill(
             {
@@ -220,7 +220,7 @@ describe('runUninstallSkill', () => {
         );
         runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
         const out = stdoutChunks.join('');
-        expect(out).toContain('.cursor/rules/testrail.mdc');
+        expect(out).not.toContain('.cursor/rules/testrail.mdc');
         expect(out).toContain('.continue/rules/testrail.md');
         expect(out).toContain('AGENTS.md');
         expect(out).toContain('separate lifecycle');
