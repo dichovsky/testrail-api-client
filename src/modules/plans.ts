@@ -41,7 +41,7 @@ export class PlanModule {
                 await this.client.requestParsed<{ plans?: Plan[] }>(
                     'GET',
                     endpoint,
-                    z.object({ plans: z.array(PlanSchema).optional() }),
+                    z.object({ plans: z.array(PlanSchema).nullish() }),
                 )
             ).plans ?? []
         );

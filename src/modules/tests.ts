@@ -27,7 +27,7 @@ export class TestModule {
                 await this.client.requestParsed<{ tests?: Test[] }>(
                     'GET',
                     endpoint,
-                    z.object({ tests: z.array(TestSchema).optional() }),
+                    z.object({ tests: z.array(TestSchema).nullish() }),
                 )
             ).tests ?? []
         );

@@ -102,32 +102,32 @@ export interface Case {
     id: number;
     title: string;
     section_id: number;
-    template_id?: number;
-    type_id?: number;
-    priority_id?: number;
-    milestone_id?: number;
-    refs?: string;
+    template_id?: number | null;
+    type_id?: number | null;
+    priority_id?: number | null;
+    milestone_id?: number | null;
+    refs?: string | null;
     created_by: number;
     created_on: number; // Unix timestamp
     updated_by: number;
     updated_on: number; // Unix timestamp
-    estimate?: string; // e.g. "5m"
-    estimate_forecast?: string;
+    estimate?: string | null; // e.g. "5m"
+    estimate_forecast?: string | null;
     suite_id: number;
-    display_order?: number;
-    is_deleted?: number;
-    custom_fields?: Record<string, unknown>;
+    display_order?: number | null;
+    is_deleted?: number | null;
+    custom_fields?: Record<string, unknown> | null;
 }
 
 export interface Suite {
     id: number;
     name: string;
-    description?: string;
+    description?: string | null;
     project_id: number;
-    is_master?: boolean;
-    is_baseline?: boolean;
-    is_completed?: boolean;
-    completed_on?: number; // Unix timestamp
+    is_master?: boolean | null;
+    is_baseline?: boolean | null;
+    is_completed?: boolean | null;
+    completed_on?: number | null; // Unix timestamp
     url: string;
 }
 
@@ -138,8 +138,8 @@ export interface Section {
     id: number;
     suite_id: number;
     name: string;
-    description?: string;
-    parent_id?: number;
+    description?: string | null;
+    parent_id?: number | null;
     display_order: number;
     depth: number;
 }
@@ -147,10 +147,10 @@ export interface Section {
 export interface Project {
     id: number;
     name: string;
-    announcement?: string;
-    show_announcement?: boolean;
-    is_completed?: boolean;
-    completed_on?: number; // Unix timestamp
+    announcement?: string | null;
+    show_announcement?: boolean | null;
+    is_completed?: boolean | null;
+    completed_on?: number | null; // Unix timestamp
     /** 1=single suite, 2=single suite+baselines, 3=multiple suites */
     suite_mode: number;
     url: string;
@@ -159,39 +159,39 @@ export interface Project {
 export interface Plan {
     id: number;
     name: string;
-    description?: string;
-    milestone_id?: number;
-    assignedto_id?: number;
+    description?: string | null;
+    milestone_id?: number | null;
+    assignedto_id?: number | null;
     is_completed: boolean;
-    completed_on?: number; // Unix timestamp
+    completed_on?: number | null; // Unix timestamp
     passed_count: number;
     blocked_count: number;
     untested_count: number;
     retest_count: number;
     failed_count: number;
-    custom_status1_count?: number;
-    custom_status2_count?: number;
-    custom_status3_count?: number;
-    custom_status4_count?: number;
-    custom_status5_count?: number;
-    custom_status6_count?: number;
-    custom_status7_count?: number;
+    custom_status1_count?: number | null;
+    custom_status2_count?: number | null;
+    custom_status3_count?: number | null;
+    custom_status4_count?: number | null;
+    custom_status5_count?: number | null;
+    custom_status6_count?: number | null;
+    custom_status7_count?: number | null;
     project_id: number;
     created_on: number; // Unix timestamp
     created_by: number;
     url: string;
-    entries?: PlanEntry[];
+    entries?: PlanEntry[] | null;
 }
 
 export interface PlanEntry {
     id: string; // GUID
     suite_id: number;
     name: string;
-    description?: string;
-    assignedto_id?: number;
+    description?: string | null;
+    assignedto_id?: number | null;
     include_all: boolean;
-    case_ids?: number[];
-    config_ids?: number[];
+    case_ids?: number[] | null;
+    config_ids?: number[] | null;
     runs: Run[];
 }
 
@@ -199,31 +199,31 @@ export interface Run {
     id: number;
     suite_id: number;
     name: string;
-    description?: string;
-    milestone_id?: number;
-    assignedto_id?: number;
+    description?: string | null;
+    milestone_id?: number | null;
+    assignedto_id?: number | null;
     include_all: boolean;
     is_completed: boolean;
-    completed_on?: number; // Unix timestamp
-    config?: string;
-    config_ids?: number[];
+    completed_on?: number | null; // Unix timestamp
+    config?: string | null;
+    config_ids?: number[] | null;
     passed_count: number;
     blocked_count: number;
     untested_count: number;
     retest_count: number;
     failed_count: number;
-    custom_status1_count?: number;
-    custom_status2_count?: number;
-    custom_status3_count?: number;
-    custom_status4_count?: number;
-    custom_status5_count?: number;
-    custom_status6_count?: number;
-    custom_status7_count?: number;
+    custom_status1_count?: number | null;
+    custom_status2_count?: number | null;
+    custom_status3_count?: number | null;
+    custom_status4_count?: number | null;
+    custom_status5_count?: number | null;
+    custom_status6_count?: number | null;
+    custom_status7_count?: number | null;
     project_id: number;
-    plan_id?: number;
+    plan_id?: number | null;
     created_on: number; // Unix timestamp
     created_by: number;
-    refs?: string;
+    refs?: string | null;
     url: string;
 }
 
@@ -231,48 +231,48 @@ export interface Test {
     id: number;
     case_id: number;
     status_id: number;
-    assignedto_id?: number;
+    assignedto_id?: number | null;
     run_id: number;
     title: string;
-    template_id?: number;
-    type_id?: number;
-    priority_id?: number;
-    estimate?: string;
-    estimate_forecast?: string;
-    refs?: string;
-    milestone_id?: number;
-    custom_fields?: Record<string, unknown>;
+    template_id?: number | null;
+    type_id?: number | null;
+    priority_id?: number | null;
+    estimate?: string | null;
+    estimate_forecast?: string | null;
+    refs?: string | null;
+    milestone_id?: number | null;
+    custom_fields?: Record<string, unknown> | null;
 }
 
 export interface Result {
-    id?: number;
-    test_id?: number;
+    id: number;
+    test_id: number;
     /** e.g., 1=Passed */
     status_id: number;
-    comment?: string;
-    version?: string;
-    elapsed?: string; // e.g. "5m 30s"
-    defects?: string;
-    assignedto_id?: number;
-    created_by?: number;
-    created_on?: number; // Unix timestamp
-    custom_fields?: Record<string, unknown>;
+    comment?: string | null;
+    version?: string | null;
+    elapsed?: string | null; // e.g. "5m 30s"
+    defects?: string | null;
+    assignedto_id?: number | null;
+    created_by?: number | null;
+    created_on?: number | null; // Unix timestamp
+    custom_fields?: Record<string, unknown> | null;
 }
 
 export interface Milestone {
     id: number;
     name: string;
-    description?: string;
-    start_on?: number; // Unix timestamp
-    started_on?: number; // Unix timestamp
+    description?: string | null;
+    start_on?: number | null; // Unix timestamp
+    started_on?: number | null; // Unix timestamp
     is_completed: boolean;
-    completed_on?: number; // Unix timestamp
-    due_on?: number; // Unix timestamp
+    completed_on?: number | null; // Unix timestamp
+    due_on?: number | null; // Unix timestamp
     project_id: number;
-    parent_id?: number;
-    refs?: string;
+    parent_id?: number | null;
+    refs?: string | null;
     url: string;
-    milestones?: Milestone[];
+    milestones?: Milestone[] | null;
 }
 
 export interface User {
@@ -280,8 +280,8 @@ export interface User {
     name: string;
     email: string;
     is_active: boolean;
-    role_id?: number;
-    role?: string;
+    role_id?: number | null;
+    role?: string | null;
 }
 
 export interface Status {
@@ -314,10 +314,10 @@ export interface CaseStatus {
 }
 
 export interface HistoryChange {
-    field?: string;
-    type_id?: number;
-    old_text?: string;
-    new_text?: string;
+    field?: string | null;
+    type_id?: number | null;
+    old_text?: string | null;
+    new_text?: string | null;
 }
 
 export interface HistoryEntry {
@@ -325,10 +325,10 @@ export interface HistoryEntry {
     user_id: number;
     type_id: number;
     /** Present on case-history entries */
-    timestamp?: number;
+    timestamp?: number | null;
     /** Present on shared-step-history entries */
-    created_on?: number;
-    changes?: HistoryChange[];
+    created_on?: number | null;
+    changes?: HistoryChange[] | null;
 }
 
 // AddCasePayload and UpdateCasePayload now live in `./schemas.ts` as Zod
@@ -421,9 +421,9 @@ export interface ResultFieldConfig {
     options: {
         is_required: boolean;
         default_value: string;
-        items?: string;
-        format?: string;
-        rows?: string;
+        items?: string | null;
+        format?: string | null;
+        rows?: string | null;
     };
 }
 
@@ -443,7 +443,7 @@ export interface ResultField {
     is_active: boolean;
     include_all: boolean;
     template_ids: number[];
-    description?: string;
+    description?: string | null;
 }
 
 // ── Case Fields & Types ───────────────────────────────────────────────────────
@@ -457,9 +457,9 @@ export interface CaseFieldConfig {
     options: {
         is_required: boolean;
         default_value: string;
-        items?: string;
-        format?: string;
-        rows?: string;
+        items?: string | null;
+        format?: string | null;
+        rows?: string | null;
     };
 }
 
@@ -480,7 +480,7 @@ export interface CaseField {
     is_active: boolean;
     include_all: boolean;
     template_ids: number[];
-    description?: string;
+    description?: string | null;
 }
 
 /** Case type definition returned by get_case_types */
@@ -661,15 +661,15 @@ export interface Attachment {
     /** Original filename */
     name: string;
     /** Filename returned by the API (when available) */
-    filename?: string;
+    filename?: string | null;
     /** File size in bytes */
-    size?: number;
+    size?: number | null;
     /** Unix timestamp when the attachment was created */
-    created_on?: number;
+    created_on?: number | null;
     /** ID of the user who created the attachment */
-    created_by?: number;
+    created_by?: number | null;
     /** Numeric ID of the entity this attachment belongs to */
-    entity_id?: number;
+    entity_id?: number | null;
 }
 
 // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────────
@@ -697,9 +697,9 @@ export interface Report {
     /** Display name of the report */
     name: string;
     /** Description of the report */
-    description?: string;
+    description?: string | null;
     /** Whether the report is shared with other users */
-    is_shared?: boolean;
+    is_shared?: boolean | null;
 }
 
 /** Result returned by GET /run_report/{report_template_id} */
@@ -707,5 +707,5 @@ export interface ReportResult {
     /** URL to the generated HTML report */
     report_url: string;
     /** URL to the generated report user interface */
-    user_report_url?: string;
+    user_report_url?: string | null;
 }

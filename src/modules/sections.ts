@@ -30,7 +30,7 @@ export class SectionModule {
                 await this.client.requestParsed<{ sections?: Section[] }>(
                     'GET',
                     endpoint,
-                    z.object({ sections: z.array(SectionSchema).optional() }),
+                    z.object({ sections: z.array(SectionSchema).nullish() }),
                 )
             ).sections ?? []
         );

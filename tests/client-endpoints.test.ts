@@ -144,6 +144,24 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockProject);
         });
 
+        it('should parse null-valued optional project fields', async () => {
+            const mockProject = {
+                id: 1,
+                name: 'Test Project',
+                announcement: null,
+                show_announcement: null,
+                is_completed: null,
+                completed_on: null,
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockProject));
+
+            const result = await client.getProject(1);
+            expect(result).toEqual(mockProject);
+        });
+
         it('should get all projects', async () => {
             const mockProjects: Project[] = [
                 { id: 1, name: 'Project 1', suite_mode: 1, url: 'url1' },
@@ -158,6 +176,13 @@ describe('TestRailClient', () => {
 
         it('should handle empty projects list', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
+
+            const result = await client.getProjects();
+            expect(result).toEqual([]);
+        });
+
+        it('should treat null projects list as empty', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ projects: null }));
 
             const result = await client.getProjects();
             expect(result).toEqual([]);
@@ -376,6 +401,33 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockCase);
         });
 
+        it('should parse null-valued optional case fields', async () => {
+            const mockCase = {
+                id: 1,
+                title: 'Test Case',
+                section_id: 1,
+                template_id: null,
+                type_id: null,
+                priority_id: null,
+                milestone_id: null,
+                refs: null,
+                estimate: null,
+                estimate_forecast: null,
+                display_order: null,
+                is_deleted: null,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+            };
+
+            mockFetch.mockResolvedValueOnce(mockOk(mockCase));
+
+            const result = await client.getCase(1);
+            expect(result).toEqual(mockCase);
+        });
+
         it('should get all cases for a project', async () => {
             const mockCases: Case[] = [
                 {
@@ -425,6 +477,13 @@ describe('TestRailClient', () => {
 
         it('should handle empty cases list', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
+
+            const result = await client.getCases(1);
+            expect(result).toEqual([]);
+        });
+
+        it('should treat null cases list as empty', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: null }));
 
             const result = await client.getCases(1);
             expect(result).toEqual([]);
@@ -1554,6 +1613,13 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
+        it('should treat null results list as empty', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: null }));
+
+            const result = await client.getResults(1);
+            expect(result).toEqual([]);
+        });
+
         it('should get results for a case', async () => {
             const mockResults: Result[] = [
                 {
@@ -2030,6 +2096,12 @@ describe('TestRailClient', () => {
 
         it('should handle empty users list', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
+            const result = await client.getUsers();
+            expect(result).toEqual([]);
+        });
+
+        it('should treat null users list as empty', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ users: null }));
             const result = await client.getUsers();
             expect(result).toEqual([]);
         });

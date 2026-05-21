@@ -32,7 +32,7 @@ export class ProjectModule {
                 await this.client.requestParsed<{ projects?: Project[] }>(
                     'GET',
                     endpoint,
-                    z.object({ projects: z.array(ProjectSchema).optional() }),
+                    z.object({ projects: z.array(ProjectSchema).nullish() }),
                 )
             ).projects ?? []
         );
