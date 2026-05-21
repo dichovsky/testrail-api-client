@@ -245,8 +245,8 @@ export interface Test {
 }
 
 export interface Result {
-    id?: number | null;
-    test_id?: number | null;
+    id: number;
+    test_id: number;
     /** e.g., 1=Passed */
     status_id: number;
     comment?: string | null;

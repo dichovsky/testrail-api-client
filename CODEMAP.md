@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.0.0"
   },
-  "sourceHash": "cc08c5a61bd97186b9e58ec5835c86e0c6b2711b40c85aa364ebc205c7a55ace",
+  "sourceHash": "bfe3b8c3aecb5c75e55f46d0c4d167f96a6a8dcac108e95df04c158528d5e29d",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -858,7 +858,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "kind": "interface",
       "file": "src/types.ts",
       "line": 247,
-      "signature": "export interface Result { id?: number | null; test_id?: number | null; status_id: number; comment?: string | null; version?: string | null; elapsed?: string | null; defects?: string | null; assignedto…",
+      "signature": "export interface Result { id: number; test_id: number; status_id: number; comment?: string | null; version?: string | null; elapsed?: string | null; defects?: string | null; assignedto_id?: number | n…",
       "typeOnly": true
     },
     {
@@ -896,7 +896,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "kind": "const",
       "file": "src/schemas.ts",
       "line": 323,
-      "signature": "export const ResultSchema = zObject({ id: z.number().nullish(), test_id: z.number().nullish(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().…"
+      "signature": "export const ResultSchema = zObject({ id: z.number(), test_id: z.number(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().nullish(), defects: …"
     },
     {
       "name": "Role",
@@ -6394,7 +6394,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 323,
           "exported": true,
-          "signature": "export const ResultSchema = zObject({ id: z.number().nullish(), test_id: z.number().nullish(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().…"
+          "signature": "export const ResultSchema = zObject({ id: z.number(), test_id: z.number(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().nullish(), defects: …"
         },
         {
           "name": "Result",
@@ -7367,7 +7367,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 247,
           "exported": true,
-          "signature": "export interface Result { id?: number | null; test_id?: number | null; status_id: number; comment?: string | null; version?: string | null; elapsed?: string | null; defects?: string | null; assignedto…"
+          "signature": "export interface Result { id: number; test_id: number; status_id: number; comment?: string | null; version?: string | null; elapsed?: string | null; defects?: string | null; assignedto_id?: number | n…"
         },
         {
           "name": "Milestone",

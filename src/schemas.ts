@@ -321,8 +321,8 @@ export const TestSchema = zObject({
 export type Test = z.infer<typeof TestSchema>;
 
 export const ResultSchema = zObject({
-    id: z.number().nullish(),
-    test_id: z.number().nullish(),
+    id: z.number(),
+    test_id: z.number(),
     status_id: z.number(),
     comment: z.string().nullish(),
     version: z.string().nullish(),
