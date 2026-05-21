@@ -41,8 +41,8 @@ export const UserSchema = zObject({
     name: z.string(),
     email: z.string().email(),
     is_active: z.boolean(),
-    role_id: z.number().optional(),
-    role: z.string().optional(),
+    role_id: z.number().nullish(),
+    role: z.string().nullish(),
 });
 
 export type User = z.infer<typeof UserSchema>;
@@ -58,7 +58,7 @@ export type Role = z.infer<typeof RoleSchema>;
 export const GroupSchema = zObject({
     id: z.number(),
     name: z.string(),
-    user_ids: z.array(z.number()).optional(),
+    user_ids: z.array(z.number()).nullish(),
 });
 
 export type Group = z.infer<typeof GroupSchema>;
@@ -140,10 +140,10 @@ export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>;
 export const ProjectSchema = zObject({
     id: z.number(),
     name: z.string(),
-    announcement: z.string().optional(),
-    show_announcement: z.boolean().optional(),
-    is_completed: z.boolean().optional(),
-    completed_on: z.number().optional(),
+    announcement: z.string().nullish(),
+    show_announcement: z.boolean().nullish(),
+    is_completed: z.boolean().nullish(),
+    completed_on: z.number().nullish(),
     suite_mode: z.number(),
     url: z.string(),
 });
@@ -153,12 +153,12 @@ export type Project = z.infer<typeof ProjectSchema>;
 export const SuiteSchema = zObject({
     id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
+    description: z.string().nullish(),
     project_id: z.number(),
-    is_master: z.boolean().optional(),
-    is_baseline: z.boolean().optional(),
-    is_completed: z.boolean().optional(),
-    completed_on: z.number().optional(),
+    is_master: z.boolean().nullish(),
+    is_baseline: z.boolean().nullish(),
+    is_completed: z.boolean().nullish(),
+    completed_on: z.number().nullish(),
     url: z.string(),
 });
 
@@ -170,21 +170,21 @@ export const CaseSchema = zObject({
     id: z.number(),
     title: z.string(),
     section_id: z.number(),
-    template_id: z.number().optional(),
-    type_id: z.number().optional(),
-    priority_id: z.number().optional(),
-    milestone_id: z.number().optional(),
-    refs: z.string().optional(),
+    template_id: z.number().nullish(),
+    type_id: z.number().nullish(),
+    priority_id: z.number().nullish(),
+    milestone_id: z.number().nullish(),
+    refs: z.string().nullish(),
     created_by: z.number(),
     created_on: z.number(),
     updated_by: z.number(),
     updated_on: z.number(),
-    estimate: z.string().optional(),
-    estimate_forecast: z.string().optional(),
+    estimate: z.string().nullish(),
+    estimate_forecast: z.string().nullish(),
     suite_id: z.number(),
-    display_order: z.number().optional(),
-    is_deleted: z.number().optional(),
-    custom_fields: z.record(z.string(), z.unknown()).optional(),
+    display_order: z.number().nullish(),
+    is_deleted: z.number().nullish(),
+    custom_fields: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export type Case = z.infer<typeof CaseSchema>;
@@ -193,8 +193,8 @@ export const SectionSchema = zObject({
     id: z.number(),
     suite_id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
-    parent_id: z.number().optional(),
+    description: z.string().nullish(),
+    parent_id: z.number().nullish(),
     display_order: z.number(),
     depth: z.number(),
 });
@@ -224,31 +224,31 @@ export const RunSchema = zObject({
     id: z.number(),
     suite_id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
-    milestone_id: z.number().optional(),
-    assignedto_id: z.number().optional(),
+    description: z.string().nullish(),
+    milestone_id: z.number().nullish(),
+    assignedto_id: z.number().nullish(),
     include_all: z.boolean(),
     is_completed: z.boolean(),
-    completed_on: z.number().optional(),
-    config: z.string().optional(),
-    config_ids: z.array(z.number()).optional(),
+    completed_on: z.number().nullish(),
+    config: z.string().nullish(),
+    config_ids: z.array(z.number()).nullish(),
     passed_count: z.number(),
     blocked_count: z.number(),
     untested_count: z.number(),
     retest_count: z.number(),
     failed_count: z.number(),
-    custom_status1_count: z.number().optional(),
-    custom_status2_count: z.number().optional(),
-    custom_status3_count: z.number().optional(),
-    custom_status4_count: z.number().optional(),
-    custom_status5_count: z.number().optional(),
-    custom_status6_count: z.number().optional(),
-    custom_status7_count: z.number().optional(),
+    custom_status1_count: z.number().nullish(),
+    custom_status2_count: z.number().nullish(),
+    custom_status3_count: z.number().nullish(),
+    custom_status4_count: z.number().nullish(),
+    custom_status5_count: z.number().nullish(),
+    custom_status6_count: z.number().nullish(),
+    custom_status7_count: z.number().nullish(),
     project_id: z.number(),
-    plan_id: z.number().optional(),
+    plan_id: z.number().nullish(),
     created_on: z.number(),
     created_by: z.number(),
-    refs: z.string().optional(),
+    refs: z.string().nullish(),
     url: z.string(),
 });
 
@@ -260,11 +260,11 @@ export const PlanEntrySchema = zObject({
     id: z.string(),
     suite_id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
-    assignedto_id: z.number().optional(),
+    description: z.string().nullish(),
+    assignedto_id: z.number().nullish(),
     include_all: z.boolean(),
-    case_ids: z.array(z.number()).optional(),
-    config_ids: z.array(z.number()).optional(),
+    case_ids: z.array(z.number()).nullish(),
+    config_ids: z.array(z.number()).nullish(),
     runs: z.array(RunSchema),
 });
 
@@ -273,28 +273,28 @@ export type PlanEntry = z.infer<typeof PlanEntrySchema>;
 export const PlanSchema = zObject({
     id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
-    milestone_id: z.number().optional(),
-    assignedto_id: z.number().optional(),
+    description: z.string().nullish(),
+    milestone_id: z.number().nullish(),
+    assignedto_id: z.number().nullish(),
     is_completed: z.boolean(),
-    completed_on: z.number().optional(),
+    completed_on: z.number().nullish(),
     passed_count: z.number(),
     blocked_count: z.number(),
     untested_count: z.number(),
     retest_count: z.number(),
     failed_count: z.number(),
-    custom_status1_count: z.number().optional(),
-    custom_status2_count: z.number().optional(),
-    custom_status3_count: z.number().optional(),
-    custom_status4_count: z.number().optional(),
-    custom_status5_count: z.number().optional(),
-    custom_status6_count: z.number().optional(),
-    custom_status7_count: z.number().optional(),
+    custom_status1_count: z.number().nullish(),
+    custom_status2_count: z.number().nullish(),
+    custom_status3_count: z.number().nullish(),
+    custom_status4_count: z.number().nullish(),
+    custom_status5_count: z.number().nullish(),
+    custom_status6_count: z.number().nullish(),
+    custom_status7_count: z.number().nullish(),
     project_id: z.number(),
     created_on: z.number(),
     created_by: z.number(),
     url: z.string(),
-    entries: z.array(PlanEntrySchema).optional(),
+    entries: z.array(PlanEntrySchema).nullish(),
 });
 
 export type Plan = z.infer<typeof PlanSchema>;
@@ -305,33 +305,33 @@ export const TestSchema = zObject({
     id: z.number(),
     case_id: z.number(),
     status_id: z.number(),
-    assignedto_id: z.number().optional(),
+    assignedto_id: z.number().nullish(),
     run_id: z.number(),
     title: z.string(),
-    template_id: z.number().optional(),
-    type_id: z.number().optional(),
-    priority_id: z.number().optional(),
-    estimate: z.string().optional(),
-    estimate_forecast: z.string().optional(),
-    refs: z.string().optional(),
-    milestone_id: z.number().optional(),
-    custom_fields: z.record(z.string(), z.unknown()).optional(),
+    template_id: z.number().nullish(),
+    type_id: z.number().nullish(),
+    priority_id: z.number().nullish(),
+    estimate: z.string().nullish(),
+    estimate_forecast: z.string().nullish(),
+    refs: z.string().nullish(),
+    milestone_id: z.number().nullish(),
+    custom_fields: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export type Test = z.infer<typeof TestSchema>;
 
 export const ResultSchema = zObject({
-    id: z.number().optional(),
-    test_id: z.number().optional(),
+    id: z.number().nullish(),
+    test_id: z.number().nullish(),
     status_id: z.number(),
-    comment: z.string().optional(),
-    version: z.string().optional(),
-    elapsed: z.string().optional(),
-    defects: z.string().optional(),
-    assignedto_id: z.number().optional(),
-    created_by: z.number().optional(),
-    created_on: z.number().optional(),
-    custom_fields: z.record(z.string(), z.unknown()).optional(),
+    comment: z.string().nullish(),
+    version: z.string().nullish(),
+    elapsed: z.string().nullish(),
+    defects: z.string().nullish(),
+    assignedto_id: z.number().nullish(),
+    created_by: z.number().nullish(),
+    created_on: z.number().nullish(),
+    custom_fields: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export type Result = z.infer<typeof ResultSchema>;
@@ -341,18 +341,18 @@ export type Result = z.infer<typeof ResultSchema>;
 export const MilestoneSchema = zObject({
     id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
-    start_on: z.number().optional(),
-    started_on: z.number().optional(),
+    description: z.string().nullish(),
+    start_on: z.number().nullish(),
+    started_on: z.number().nullish(),
     is_completed: z.boolean(),
-    completed_on: z.number().optional(),
-    due_on: z.number().optional(),
+    completed_on: z.number().nullish(),
+    due_on: z.number().nullish(),
     project_id: z.number(),
-    parent_id: z.number().optional(),
-    refs: z.string().optional(),
+    parent_id: z.number().nullish(),
+    refs: z.string().nullish(),
     url: z.string(),
     // Sub-milestones are typed as unknown[] to avoid a recursive schema definition.
-    milestones: z.array(z.unknown()).optional(),
+    milestones: z.array(z.unknown()).nullish(),
 });
 
 export type Milestone = z.infer<typeof MilestoneSchema>;
@@ -404,10 +404,10 @@ export type CaseStatus = z.infer<typeof CaseStatusSchema>;
 // Per-field delta inside a history entry's `changes[]`. All fields optional
 // because TestRail emits different subsets per change type.
 const HistoryChangeSchema = zObject({
-    field: z.string().optional(),
-    type_id: z.number().optional(),
-    old_text: z.string().optional(),
-    new_text: z.string().optional(),
+    field: z.string().nullish(),
+    type_id: z.number().nullish(),
+    old_text: z.string().nullish(),
+    new_text: z.string().nullish(),
 });
 
 // Shared entry shape used by `get_history_for_case` and
@@ -419,9 +419,9 @@ export const HistoryEntrySchema = zObject({
     id: z.number(),
     user_id: z.number(),
     type_id: z.number(),
-    timestamp: z.number().optional(),
-    created_on: z.number().optional(),
-    changes: z.array(HistoryChangeSchema).optional(),
+    timestamp: z.number().nullish(),
+    created_on: z.number().nullish(),
+    changes: z.array(HistoryChangeSchema).nullish(),
 });
 
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
@@ -431,9 +431,9 @@ export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 const FieldConfigOptionsSchema = zObject({
     is_required: z.boolean(),
     default_value: z.string(),
-    items: z.string().optional(),
-    format: z.string().optional(),
-    rows: z.string().optional(),
+    items: z.string().nullish(),
+    format: z.string().nullish(),
+    rows: z.string().nullish(),
 });
 
 const FieldConfigContextSchema = zObject({
@@ -459,7 +459,7 @@ export const CaseFieldSchema = zObject({
     is_active: z.boolean(),
     include_all: z.boolean(),
     template_ids: z.array(z.number()),
-    description: z.string().optional(),
+    description: z.string().nullish(),
 });
 
 export type CaseField = z.infer<typeof CaseFieldSchema>;
@@ -482,7 +482,7 @@ export const ResultFieldSchema = zObject({
     is_active: z.boolean(),
     include_all: z.boolean(),
     template_ids: z.array(z.number()),
-    description: z.string().optional(),
+    description: z.string().nullish(),
 });
 
 export type ResultField = z.infer<typeof ResultFieldSchema>;
@@ -529,11 +529,11 @@ export type ConfigurationGroup = z.infer<typeof ConfigurationGroupSchema>;
 export const AttachmentSchema = zObject({
     attachment_id: z.number(),
     name: z.string(),
-    filename: z.string().optional(),
-    size: z.number().optional(),
-    created_on: z.number().optional(),
-    created_by: z.number().optional(),
-    entity_id: z.number().optional(),
+    filename: z.string().nullish(),
+    size: z.number().nullish(),
+    created_on: z.number().nullish(),
+    created_by: z.number().nullish(),
+    entity_id: z.number().nullish(),
 });
 
 export type Attachment = z.infer<typeof AttachmentSchema>;
@@ -543,13 +543,13 @@ export type Attachment = z.infer<typeof AttachmentSchema>;
 export const SharedStepSchema = zObject({
     id: z.number(),
     title: z.string(),
-    project_id: z.number().optional(),
-    case_ids: z.array(z.number()).optional(),
-    created_on: z.number().optional(),
-    created_by: z.number().optional(),
-    updated_on: z.number().optional(),
-    updated_by: z.number().optional(),
-    custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(),
+    project_id: z.number().nullish(),
+    case_ids: z.array(z.number()).nullish(),
+    created_on: z.number().nullish(),
+    created_by: z.number().nullish(),
+    updated_on: z.number().nullish(),
+    updated_by: z.number().nullish(),
+    custom_steps_separated: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 
 export type SharedStep = z.infer<typeof SharedStepSchema>;
@@ -586,9 +586,9 @@ export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>;
 export const DatasetSchema = zObject({
     id: z.number(),
     name: z.string(),
-    project_id: z.number().optional(),
-    created_on: z.number().optional(),
-    created_by: z.number().optional(),
+    project_id: z.number().nullish(),
+    created_on: z.number().nullish(),
+    created_by: z.number().nullish(),
 });
 
 export type Dataset = z.infer<typeof DatasetSchema>;
@@ -616,15 +616,15 @@ export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>;
 export const ReportSchema = zObject({
     id: z.number(),
     name: z.string(),
-    description: z.string().optional(),
-    is_shared: z.boolean().optional(),
+    description: z.string().nullish(),
+    is_shared: z.boolean().nullish(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;
 
 export const ReportResultSchema = zObject({
     report_url: z.string(),
-    user_report_url: z.string().optional(),
+    user_report_url: z.string().nullish(),
 });
 
 export type ReportResult = z.infer<typeof ReportResultSchema>;

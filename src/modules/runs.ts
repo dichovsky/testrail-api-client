@@ -45,7 +45,7 @@ export class RunModule {
                 await this.client.requestParsed<{ runs?: Run[] }>(
                     'GET',
                     endpoint,
-                    z.object({ runs: z.array(RunSchema).optional() }),
+                    z.object({ runs: z.array(RunSchema).nullish() }),
                 )
             ).runs ?? []
         );

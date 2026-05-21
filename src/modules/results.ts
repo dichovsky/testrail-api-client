@@ -26,7 +26,7 @@ export class ResultModule {
                 await this.client.requestParsed<{ results?: Result[] }>(
                     'GET',
                     endpoint,
-                    z.object({ results: z.array(ResultSchema).optional() }),
+                    z.object({ results: z.array(ResultSchema).nullish() }),
                 )
             ).results ?? []
         );
@@ -51,7 +51,7 @@ export class ResultModule {
                 await this.client.requestParsed<{ results?: Result[] }>(
                     'GET',
                     endpoint,
-                    z.object({ results: z.array(ResultSchema).optional() }),
+                    z.object({ results: z.array(ResultSchema).nullish() }),
                 )
             ).results ?? []
         );
@@ -74,7 +74,7 @@ export class ResultModule {
                 await this.client.requestParsed<{ results?: Result[] }>(
                     'GET',
                     endpoint,
-                    z.object({ results: z.array(ResultSchema).optional() }),
+                    z.object({ results: z.array(ResultSchema).nullish() }),
                 )
             ).results ?? []
         );

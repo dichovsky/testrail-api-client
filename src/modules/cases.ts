@@ -81,7 +81,7 @@ export class CaseModule {
                 await this.client.requestParsed<{ cases?: Case[] }>(
                     'GET',
                     endpoint,
-                    z.object({ cases: z.array(CaseSchema).optional() }),
+                    z.object({ cases: z.array(CaseSchema).nullish() }),
                 )
             ).cases ?? []
         );
@@ -279,7 +279,7 @@ export class CaseModule {
                 await this.client.requestParsed<{ history?: HistoryEntry[] }>(
                     'GET',
                     endpoint,
-                    z.object({ history: z.array(HistoryEntrySchema).optional() }),
+                    z.object({ history: z.array(HistoryEntrySchema).nullish() }),
                 )
             ).history ?? []
         );

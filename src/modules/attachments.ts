@@ -34,7 +34,7 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     endpoint,
-                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
         );
@@ -53,7 +53,7 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     endpoint,
-                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
         );
@@ -72,7 +72,7 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     endpoint,
-                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
         );
@@ -86,7 +86,7 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     `get_attachments_for_plan/${planId}`,
-                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
         );
@@ -101,7 +101,7 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     `get_attachments_for_plan_entry/${planId}/${entryId}`,
-                    z.object({ attachments: z.array(AttachmentSchema).optional() }),
+                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
         );

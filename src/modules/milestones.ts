@@ -27,7 +27,7 @@ export class MilestoneModule {
                 await this.client.requestParsed<{ milestones?: Milestone[] }>(
                     'GET',
                     endpoint,
-                    z.object({ milestones: z.array(MilestoneSchema).optional() }),
+                    z.object({ milestones: z.array(MilestoneSchema).nullish() }),
                 )
             ).milestones ?? []
         );

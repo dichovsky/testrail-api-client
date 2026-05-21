@@ -43,7 +43,7 @@ export class UsersModule {
                 await this.client.requestParsed<{ users?: User[] }>(
                     'GET',
                     endpoint,
-                    z.object({ users: z.array(UserSchema).optional() }),
+                    z.object({ users: z.array(UserSchema).nullish() }),
                 )
             ).users ?? []
         );

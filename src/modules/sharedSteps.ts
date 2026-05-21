@@ -66,7 +66,7 @@ export class SharedStepModule {
                 await this.client.requestParsed<{ history?: HistoryEntry[] }>(
                     'GET',
                     endpoint,
-                    z.object({ history: z.array(HistoryEntrySchema).optional() }),
+                    z.object({ history: z.array(HistoryEntrySchema).nullish() }),
                 )
             ).history ?? []
         );
