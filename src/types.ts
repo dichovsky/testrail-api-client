@@ -373,6 +373,12 @@ export interface Milestone {
     refs?: string | null;
     url: string;
     milestones?: Milestone[] | null;
+    // Mirror of SPEC #2.1.9 `is_started` on `MilestoneSchema`. TestRail 5.3+ —
+    // older servers omit the key entirely. Plain `boolean | undefined` (no
+    // `| null`) — matches the schema's `.optional()` choice and the
+    // documented "this is a plain boolean" contract. See schemas.ts for the
+    // sibling-asymmetry rationale vs `is_completed`.
+    is_started?: boolean;
 }
 
 export interface User {
