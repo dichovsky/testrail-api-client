@@ -1401,8 +1401,90 @@ describe('TestRailClient', () => {
             await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
 
+        // SPEC #2.1.6 — `add_plan` request body table lists `start_on` (timestamp, false)
+        // and `due_on` (timestamp, false). Verify the typed payload reaches the wire.
+        it('adds a plan with SPEC #2.1.6 fields (start_on, due_on)', async () => {
+            const payload: AddPlanPayload = {
+                name: 'Plan with dates',
+                start_on: 1646058600,
+                due_on: 1648650671,
+            };
+            const mockPlan: Plan = {
+                id: 1,
+                name: 'Plan with dates',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'url',
+                start_on: 1646058600,
+                due_on: 1648650671,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
+
+            const result = await client.addPlan(1, payload);
+
+            expect(result.start_on).toBe(1646058600);
+            expect(result.due_on).toBe(1648650671);
+
+            const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+            const body = JSON.parse(init.body as string);
+            expect(body).toMatchObject({
+                name: 'Plan with dates',
+                start_on: 1646058600,
+                due_on: 1648650671,
+            });
+        });
+
+        // SPEC #2.1.6 — `update_plan` "supports the same POST fields as `add_plan`"
+        // (except `entries`), per the Plans API doc. So `start_on` / `due_on` are
+        // valid on update_plan as well.
+        it('updates a plan with SPEC #2.1.6 fields (start_on, due_on)', async () => {
+            const payload: UpdatePlanPayload = {
+                start_on: 1646058600,
+                due_on: 1648650671,
+            };
+            const mockPlan: Plan = {
+                id: 1,
+                name: 'Updated Plan',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'url',
+                start_on: 1646058600,
+                due_on: 1648650671,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(mockPlan));
+
+            const result = await client.updatePlan(1, payload);
+
+            expect(result.start_on).toBe(1646058600);
+            expect(result.due_on).toBe(1648650671);
+
+            const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+            const body = JSON.parse(init.body as string);
+            expect(body).toMatchObject({
+                start_on: 1646058600,
+                due_on: 1648650671,
+            });
+        });
+
         it('parses get_plan response with all SPEC #2.1.6 fields (start_on, due_on, refs)', async () => {
-            const fullPlan: Plan = {
+            // Note: `custom_status*_count` fields are intentionally omitted — those are
+            // covered by their own `.nullish()` happy/null cases elsewhere. This fixture
+            // is scoped to SPEC #2.1.6 verification, hence the focused name.
+            const planWithSpec216Fields: Plan = {
                 id: 10,
                 name: 'Release 1.0: Final (all browsers)',
                 description: 'Release plan',
@@ -1423,14 +1505,14 @@ describe('TestRailClient', () => {
                 due_on: 1648650671,
                 refs: 'SAN-100, SAN-101',
             };
-            mockFetch.mockResolvedValueOnce(mockOk(fullPlan));
+            mockFetch.mockResolvedValueOnce(mockOk(planWithSpec216Fields));
             const result = await client.getPlan(10);
             // Field-specific assertions first so a single-field bug surfaces with a tight
             // error instead of a multi-page diff from toEqual on a deeply-populated plan.
             expect(result.start_on).toBe(1646058600);
             expect(result.due_on).toBe(1648650671);
             expect(result.refs).toBe('SAN-100, SAN-101');
-            expect(result).toEqual(fullPlan);
+            expect(result).toEqual(planWithSpec216Fields);
         });
 
         it('parses a pre-6.3 / unset plan response (all three SPEC #2.1.6 fields omitted)', async () => {
@@ -1507,7 +1589,14 @@ describe('TestRailClient', () => {
             expect(result.due_on).toBeUndefined();
         });
 
-        it('rejects plan response when start_on is an ISO date string instead of a Unix timestamp', async () => {
+        // SPEC #2.1.6 — `start_on` and `due_on` are both `z.number().nullish()`, so wrong
+        // types must be rejected symmetrically. Driven by `it.each` so a future field
+        // addition (or schema slip) can't silently weaken one side of the pair.
+        it.each([
+            ['start_on', { start_on: '2026-05-22' }],
+            ['due_on', { due_on: '2026-06-01' }],
+            ['refs', { refs: 42 }],
+        ])('rejects plan response when %s has the wrong type', async (_field, badField) => {
             const malformed = {
                 id: 1,
                 name: 'Bad Plan',
@@ -1521,27 +1610,7 @@ describe('TestRailClient', () => {
                 created_on: 1234567890,
                 created_by: 1,
                 url: 'url',
-                start_on: '2026-05-22',
-            };
-            mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.getPlan(1)).rejects.toThrow();
-        });
-
-        it('rejects plan response when refs is a numeric value instead of a string', async () => {
-            const malformed = {
-                id: 1,
-                name: 'Bad Plan',
-                is_completed: false,
-                passed_count: 0,
-                blocked_count: 0,
-                untested_count: 0,
-                retest_count: 0,
-                failed_count: 0,
-                project_id: 1,
-                created_on: 1234567890,
-                created_by: 1,
-                url: 'url',
-                refs: 42,
+                ...badField,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
             await expect(client.getPlan(1)).rejects.toThrow();
@@ -1620,10 +1689,18 @@ describe('TestRailClient', () => {
             expect(result.entries?.[0]?.refs).toBeNull();
         });
 
-        it('rejects a PlanEntry where start_on is a string instead of a Unix timestamp', async () => {
+        // SPEC #2.1.6 — symmetric wrong-type rejection at the PlanEntry level. `start_on`
+        // and `due_on` are both `z.number().nullish()` on PlanEntrySchema; `refs` is
+        // `z.string().nullish()`. Driven by `it.each` so any future entry-level field
+        // gets coverage parity by default.
+        it.each([
+            ['start_on', { start_on: '2026-05-22' }],
+            ['due_on', { due_on: '2026-06-01' }],
+            ['refs', { refs: 42 }],
+        ])('rejects a PlanEntry where %s has the wrong type', async (_field, badField) => {
             const malformed = {
                 id: 12,
-                name: 'Bad entry start_on',
+                name: 'Bad entry',
                 is_completed: false,
                 passed_count: 0,
                 blocked_count: 0,
@@ -1641,41 +1718,12 @@ describe('TestRailClient', () => {
                         name: 'Bad entry',
                         include_all: true,
                         runs: [],
-                        start_on: '2026-05-22',
+                        ...badField,
                     },
                 ],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
             await expect(client.getPlan(12)).rejects.toThrow();
-        });
-
-        it('rejects a PlanEntry where refs is a numeric value instead of a string', async () => {
-            const malformed = {
-                id: 13,
-                name: 'Bad entry refs',
-                is_completed: false,
-                passed_count: 0,
-                blocked_count: 0,
-                untested_count: 0,
-                retest_count: 0,
-                failed_count: 0,
-                project_id: 1,
-                created_on: 1646058671,
-                created_by: 1,
-                url: 'url',
-                entries: [
-                    {
-                        id: 'entry-bad-refs',
-                        suite_id: 1,
-                        name: 'Bad refs entry',
-                        include_all: true,
-                        runs: [],
-                        refs: 42,
-                    },
-                ],
-            };
-            mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.getPlan(13)).rejects.toThrow();
         });
     });
 
@@ -1700,6 +1748,52 @@ describe('TestRailClient', () => {
             );
         });
 
+        // SPEC #2.1.6 — Regression guard. `mockEntry` predates the SPEC #2.1.6 fields and
+        // intentionally omits them; the schema must still accept this shape. Catches a
+        // potential regression where someone tightens a SPEC field from `.nullish()` to
+        // required without realising it would break legacy fixtures.
+        it('accepts a PlanEntry response without SPEC #2.1.6 fields (legacy / pre-set)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk(mockEntry));
+            const result = await client.addPlanEntry(1, { suite_id: 2 });
+            expect(result.start_on).toBeUndefined();
+            expect(result.due_on).toBeUndefined();
+            expect(result.refs).toBeUndefined();
+        });
+
+        // SPEC #2.1.6 — write-side coverage: verify a payload carrying the new fields
+        // round-trips through the client (POST body serialised, response parsed) and
+        // that the fields appear in the JSON body sent to fetch.
+        it('adds a plan entry with SPEC #2.1.6 fields (start_on, due_on, refs)', async () => {
+            const payload: AddPlanEntryPayload = {
+                suite_id: 2,
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-100',
+            };
+            const responseEntry: PlanEntry = {
+                ...mockEntry,
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-100',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(responseEntry));
+
+            const result = await client.addPlanEntry(1, payload);
+
+            expect(result.start_on).toBe(1646058600);
+            expect(result.due_on).toBe(1648650671);
+            expect(result.refs).toBe('SAN-100');
+
+            const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+            const body = JSON.parse(init.body as string);
+            expect(body).toMatchObject({
+                suite_id: 2,
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-100',
+            });
+        });
+
         it('should throw validation error for invalid planId in addPlanEntry', async () => {
             await expect(client.addPlanEntry(-1, { suite_id: 2 })).rejects.toThrow(TestRailValidationError);
         });
@@ -1720,6 +1814,36 @@ describe('TestRailClient', () => {
                 expect.stringContaining('update_plan_entry/1/entry-guid-1'),
                 expect.objectContaining({ method: 'POST' }),
             );
+        });
+
+        // SPEC #2.1.6 — write-side coverage mirroring the addPlanEntry case above.
+        it('updates a plan entry with SPEC #2.1.6 fields (start_on, due_on, refs)', async () => {
+            const payload: UpdatePlanEntryPayload = {
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-200',
+            };
+            const responseEntry: PlanEntry = {
+                ...mockEntry,
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-200',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(responseEntry));
+
+            const result = await client.updatePlanEntry(1, 'entry-guid-1', payload);
+
+            expect(result.start_on).toBe(1646058600);
+            expect(result.due_on).toBe(1648650671);
+            expect(result.refs).toBe('SAN-200');
+
+            const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+            const body = JSON.parse(init.body as string);
+            expect(body).toMatchObject({
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-200',
+            });
         });
 
         it('should throw validation error for invalid planId in updatePlanEntry', async () => {
