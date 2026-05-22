@@ -282,6 +282,21 @@ export interface User {
     is_active: boolean;
     role_id?: number | null;
     role?: string | null;
+    // Mirror of the `.nullish()` 7.3+ fields on `UserSchema`. `?:` plus `| null` yields the
+    // same `T | null | undefined` shape that `z.infer<typeof UserSchema>` produces, with
+    // three distinct absent states preserved at the type level:
+    //   - omitted (resolves to `undefined`): older TestRail servers (≤7.2), reduced
+    //     `get_current_user` response shape.
+    //   - explicit `null`: TestRail emits null for unset/unknown values.
+    //   - typed value: TestRail 7.3+ Professional response.
+    email_notifications?: boolean | null;
+    is_admin?: boolean | null;
+    group_ids?: number[] | null;
+    mfa_required?: boolean | null;
+    // Enterprise-only mirror (TestRail Enterprise 7.3+). Professional instances never
+    // emit these keys, so the `undefined` case is dominant for non-Enterprise traffic.
+    sso_enabled?: boolean | null;
+    assigned_projects?: number[] | null;
 }
 
 export interface Status {
