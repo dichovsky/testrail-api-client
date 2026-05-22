@@ -4877,6 +4877,113 @@ describe('TestRailClient', () => {
         });
     });
 
+    describe('SharedStepSchema SPEC #2.1.15 — doc parity', () => {
+        // Verifies SharedStepSchema accepts every shape documented in the
+        // TestRail Shared Steps API article (7077919815572) and that the
+        // step-entry record permits the documented per-key `null` values.
+
+        it('parses the full get_shared_step response from the doc example verbatim', async () => {
+            // Doc example payload, copied 1:1 from the article's `get_shared_step`
+            // "Example response" code block.
+            const full = {
+                id: 1,
+                title: 'Default Login',
+                project_id: 2,
+                created_by: 1,
+                created_on: 1612555977,
+                updated_by: 1,
+                updated_on: 1612555977,
+                custom_steps_separated: [
+                    {
+                        content: 'Navigate to https://localhost/some_app',
+                        additional_info: null,
+                        expected: 'Login screen loads',
+                        refs: 'TR-123',
+                    },
+                    {
+                        content: 'Enter Valid Credentials',
+                        additional_info: null,
+                        expected: 'Logged in and redirected to dashboard',
+                        refs: null,
+                    },
+                ],
+                case_ids: [25],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(full));
+            const result = await client.getSharedStep(1);
+            expect(result).toEqual(full);
+            expect(result.custom_steps_separated?.[0]?.['additional_info']).toBeNull();
+            expect(result.custom_steps_separated?.[1]?.['refs']).toBeNull();
+        });
+
+        it('parses the truncated get_shared_steps list-form entry (only id + title)', async () => {
+            // Doc's `get_shared_steps` list response example shows entries
+            // containing only `id` and `title`. `.nullish()` on every other
+            // field accepts absence; the schema must not reject this shape.
+            const truncated = [
+                { id: 1, title: 'Shared Step 1' },
+                { id: 2, title: 'Shared Step 2' },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(truncated));
+            const result = await client.getSharedSteps(1);
+            expect(result).toEqual(truncated);
+        });
+
+        it.each([
+            ['additional_info', 'additional_info'],
+            ['refs', 'refs'],
+        ])('accepts step entry with %s explicitly null (doc-documented per-key nulls)', async (_label, key) => {
+            const withNull = {
+                id: 1,
+                title: 'T',
+                project_id: 1,
+                created_by: 1,
+                created_on: 1,
+                updated_by: 1,
+                updated_on: 1,
+                case_ids: [],
+                custom_steps_separated: [{ content: 'Step', expected: 'OK', [key]: null }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(withNull));
+            const result = await client.getSharedStep(1);
+            expect(result.custom_steps_separated?.[0]?.[key]).toBeNull();
+        });
+
+        it('accepts top-level fields as explicit null (defensive widening per PR #130)', async () => {
+            // No doc example shows top-level nulls, but `.nullish()` permits
+            // them for cross-version tolerance. This regression-guards the
+            // schema against a future tightening that would break callers
+            // hitting older TestRail servers.
+            const nulledTopLevel = {
+                id: 1,
+                title: 'T',
+                project_id: null,
+                case_ids: null,
+                created_by: null,
+                created_on: null,
+                updated_by: null,
+                updated_on: null,
+                custom_steps_separated: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(nulledTopLevel));
+            const result = await client.getSharedStep(1);
+            expect(result.project_id).toBeNull();
+            expect(result.custom_steps_separated).toBeNull();
+        });
+
+        it.each([
+            ['id missing', { title: 'T' }],
+            ['title missing', { id: 1 }],
+            ['id as string', { id: '1', title: 'T' }],
+            ['title as number', { id: 1, title: 42 }],
+        ])('rejects malformed response where %s', async (_label, payload) => {
+            // `id` and `title` are required-and-typed per the doc field table.
+            // Strict checks ensure the schema doesn't silently widen these.
+            mockFetch.mockResolvedValueOnce(mockOk(payload));
+            await expect(client.getSharedStep(1)).rejects.toThrow();
+        });
+    });
+
     describe('getSharedStepHistory', () => {
         it('should return history for a shared step', async () => {
             const mockHistory: HistoryEntry[] = [
