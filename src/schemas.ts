@@ -445,6 +445,24 @@ export const TestSchema = zObject({
     refs: z.string().nullish(),
     milestone_id: z.number().nullish(),
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
+    // SPEC #2.1.7 — Labels on a test response. Inner shape per the documented
+    // `get_test` response example: `{ id, title }`. The Case-embedded form
+    // (`CaseSchema.labels`) carries additional `created_by` / `created_on` /
+    // `name` keys; the same defensive `.nullish()` per-field shape is mirrored
+    // here so a consumer who pulls the same logical Label object through either
+    // endpoint sees a uniform type. `.passthrough()` (via `zObject`) preserves
+    // any future inner keys.
+    labels: z
+        .array(
+            zObject({
+                id: z.number().nullish(),
+                title: z.string().nullish(),
+                name: z.string().nullish(),
+                created_by: z.number().nullish(),
+                created_on: z.number().nullish(),
+            }),
+        )
+        .nullish(),
 });
 
 export type Test = z.infer<typeof TestSchema>;

@@ -30,7 +30,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 ## 📚 Spec Parity
 
-- [ ] 🟢 🐛 SPEC #2.1.7: Add missing `TestSchema.labels[]`
 - [ ] 🟢 🐛 SPEC #2.1.9: Add missing `MilestoneSchema.is_started` (response side — `UpdateMilestonePayloadSchema` already carries it at `src/schemas.ts:1051`; only the response `MilestoneSchema` is missing it)
 - [ ] 🟢 🧪 SPEC #2.1.14: Verify attachment spec parity — `id` vs `attachment_id` resolved (current API uses `attachment_id`, matches `AttachmentSchema` at `src/schemas.ts:529-537`); full field-completeness audit still pending
 - [ ] 🟡 🐛 SPEC #2.1.12: Model `add_case_field` response divergence (`configs` string vs array on `get_case_fields`)

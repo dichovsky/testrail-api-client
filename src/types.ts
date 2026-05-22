@@ -317,6 +317,19 @@ export interface Test {
     refs?: string | null;
     milestone_id?: number | null;
     custom_fields?: Record<string, unknown> | null;
+    // Mirror of SPEC #2.1.7 `labels` array on `TestSchema`. Inner shape per the
+    // documented `get_test` response example: `{ id, title }`. Same defensive
+    // `.nullish()` per-field shape as `Case.labels` so a Label object pulled
+    // through either endpoint types uniformly. `name` accommodates the
+    // stand-alone `get_label` shape; `created_by` / `created_on` mirror the
+    // richer Case-embedded form.
+    labels?: Array<{
+        id?: number | null;
+        title?: string | null;
+        name?: string | null;
+        created_by?: number | null;
+        created_on?: number | null;
+    }> | null;
 }
 
 export interface Result {

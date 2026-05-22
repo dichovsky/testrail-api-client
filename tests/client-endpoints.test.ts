@@ -2805,6 +2805,117 @@ describe('TestRailClient', () => {
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('status_id=');
         });
+
+        it('parses get_test response with the SPEC #2.1.7 labels[] array (id + title shape)', async () => {
+            // Inner shape per the documented `get_test` example: `{ id, title }`.
+            const testWithLabels: Test = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Verify line spacing on multi-page document',
+                priority_id: 2,
+                type_id: 4,
+                labels: [
+                    { id: 1, title: 'label1' },
+                    { id: 2, title: 'label2' },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(testWithLabels));
+            const result = await client.getTest(100);
+            expect(result.labels).toHaveLength(2);
+            expect(result.labels?.[0]?.id).toBe(1);
+            expect(result.labels?.[0]?.title).toBe('label1');
+            expect(result.labels?.[1]?.title).toBe('label2');
+            expect(result).toEqual(testWithLabels);
+        });
+
+        it('parses a get_test response with no labels[] key (older servers / tests without labels)', async () => {
+            const testWithoutLabels: Test = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'No labels',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(testWithoutLabels));
+            const result = await client.getTest(100);
+            expect(result.labels).toBeUndefined();
+            expect(result).toEqual(testWithoutLabels);
+        });
+
+        it('parses a get_test response with labels: null', async () => {
+            const testWithNullLabels = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Null labels',
+                labels: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(testWithNullLabels));
+            const result = await client.getTest(100);
+            expect(result.labels).toBeNull();
+        });
+
+        it('parses an empty labels[] array (test has no labels assigned)', async () => {
+            const testWithEmptyLabels: Test = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Empty labels',
+                labels: [],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(testWithEmptyLabels));
+            const result = await client.getTest(100);
+            expect(result.labels).toEqual([]);
+        });
+
+        it('parses labels[] carrying the richer Case-embedded fields (created_by / created_on)', async () => {
+            // Mirroring CaseSchema.labels: even though the documented get_test
+            // example only emits { id, title }, the inner schema accepts the
+            // richer Case-embedded shape so callers carrying a Label object
+            // between Case and Test endpoints don't lose typing.
+            const testWithRichLabels: Test = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Rich labels',
+                labels: [{ id: 1, title: 'label1', created_by: 2, created_on: 1646058600 }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(testWithRichLabels));
+            const result = await client.getTest(100);
+            expect(result.labels?.[0]?.created_by).toBe(2);
+            expect(result.labels?.[0]?.created_on).toBe(1646058600);
+        });
+
+        it('rejects labels when wire delivers a non-array value', async () => {
+            const malformed = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Bad labels',
+                labels: 'release-2.0',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getTest(100)).rejects.toThrow();
+        });
+
+        it('rejects a labels[] inner object where id is a string instead of a number (no coercion)', async () => {
+            const malformed = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Bad inner id',
+                labels: [{ id: 'one', title: 'release' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getTest(100)).rejects.toThrow();
+        });
     });
 
     describe('Results', () => {
