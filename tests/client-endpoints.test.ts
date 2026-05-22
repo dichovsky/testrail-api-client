@@ -2916,6 +2916,51 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
             await expect(client.getTest(100)).rejects.toThrow();
         });
+
+        it('rejects a labels[] inner object that is missing id entirely', async () => {
+            // `id` is required on the inner label shape — a label without it
+            // is a malformed response and must not parse silently.
+            const malformed = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Missing inner id',
+                labels: [{ title: 'no-id' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getTest(100)).rejects.toThrow();
+        });
+
+        it('rejects a labels[] inner object where created_by is a string instead of a number (no coercion)', async () => {
+            // Comment specifically calls out `created_by` as a meaningful inner
+            // field; the schema must not coerce string → number.
+            const malformed = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Bad inner created_by',
+                labels: [{ id: 1, title: 'release', created_by: 'alice' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getTest(100)).rejects.toThrow();
+        });
+
+        it('rejects a labels[] inner object where created_on is an ISO date string', async () => {
+            // TestRail emits Unix integers for timestamps; ISO strings must be
+            // rejected rather than parsed as opaque strings.
+            const malformed = {
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 'Bad inner created_on',
+                labels: [{ id: 1, title: 'release', created_on: '2024-01-01' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getTest(100)).rejects.toThrow();
+        });
     });
 
     describe('Results', () => {
