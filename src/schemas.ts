@@ -238,6 +238,24 @@ export const CaseSchema = zObject({
     display_order: z.number().nullish(),
     is_deleted: z.number().nullish(),
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
+    // SPEC #2.1.3 — Labels on a test-case response. Inner shape per the documented
+    // `get_case` response example: `{ id, title, created_by, created_on }`. The
+    // stand-alone Labels API (`get_label`) uses `name` instead of `title` for the
+    // single-label endpoint; Case-embedded labels consistently use `title` per the
+    // Cases API doc, so the inner schema accepts both as `.nullish()` to be safe
+    // against legacy / future TestRail variants. `.passthrough()` (via `zObject`)
+    // preserves any future inner keys without rejecting the parse.
+    labels: z
+        .array(
+            zObject({
+                id: z.number().nullish(),
+                title: z.string().nullish(),
+                name: z.string().nullish(),
+                created_by: z.number().nullish(),
+                created_on: z.number().nullish(),
+            }),
+        )
+        .nullish(),
 });
 
 export type Case = z.infer<typeof CaseSchema>;

@@ -117,6 +117,18 @@ export interface Case {
     display_order?: number | null;
     is_deleted?: number | null;
     custom_fields?: Record<string, unknown> | null;
+    // Mirror of SPEC #2.1.3 `labels` array on `CaseSchema`. Inner shape per the
+    // documented `get_case` response example: `{ id, title, created_by, created_on }`.
+    // `name` is included alongside `title` because the stand-alone Labels API
+    // (`get_label`) uses `name` rather than `title`; Case-embedded labels use `title`
+    // but the shape accepts both as optional+nullable so the union is type-clean.
+    labels?: Array<{
+        id?: number | null;
+        title?: string | null;
+        name?: string | null;
+        created_by?: number | null;
+        created_on?: number | null;
+    }> | null;
 }
 
 export interface Suite {
