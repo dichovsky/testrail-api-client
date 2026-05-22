@@ -376,6 +376,14 @@ export const PlanEntrySchema = zObject({
     case_ids: z.array(z.number()).nullish(),
     config_ids: z.array(z.number()).nullish(),
     runs: z.array(RunSchema),
+    // SPEC #2.1.6 — `refs` is shown in the `get_plan` `entries[]` response example;
+    // `start_on` / `due_on` are documented as `add_plan_entry` / `update_plan_entry`
+    // request fields and echo back on the response (the doc's get_plan example
+    // omits them in the abbreviated entry object but TestRail emits them when set).
+    // `.nullish()` per field: inferred type is `T | null | undefined`.
+    start_on: z.number().nullish(),
+    due_on: z.number().nullish(),
+    refs: z.string().nullish(),
 });
 
 export type PlanEntry = z.infer<typeof PlanEntrySchema>;
@@ -405,6 +413,12 @@ export const PlanSchema = zObject({
     created_by: z.number(),
     url: z.string(),
     entries: z.array(PlanEntrySchema).nullish(),
+    // SPEC #2.1.6 — `refs` requires TestRail 6.3+; `start_on` / `due_on` are ungated
+    // timestamps that emit only when set. `.nullish()` per field — inferred type is
+    // `T | null | undefined` (omitted vs explicit null vs typed value).
+    start_on: z.number().nullish(),
+    due_on: z.number().nullish(),
+    refs: z.string().nullish(),
 });
 
 export type Plan = z.infer<typeof PlanSchema>;

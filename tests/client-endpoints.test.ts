@@ -1400,6 +1400,191 @@ describe('TestRailClient', () => {
 
             await expect(client.updatePlan(1, { name: 'x' })).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
+
+        it('parses get_plan response with all SPEC #2.1.6 fields (start_on, due_on, refs)', async () => {
+            const fullPlan: Plan = {
+                id: 10,
+                name: 'Release 1.0: Final (all browsers)',
+                description: 'Release plan',
+                milestone_id: 3,
+                assignedto_id: 5,
+                is_completed: false,
+                completed_on: null,
+                passed_count: 445,
+                blocked_count: 99,
+                untested_count: 473,
+                retest_count: 107,
+                failed_count: 56,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'https://example.testrail.io/index.php?/plans/view/10',
+                start_on: 1646058600,
+                due_on: 1648650671,
+                refs: 'SAN-100, SAN-101',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(fullPlan));
+            const result = await client.getPlan(10);
+            // Field-specific assertions first so a single-field bug surfaces with a tight
+            // error instead of a multi-page diff from toEqual on a deeply-populated plan.
+            expect(result.start_on).toBe(1646058600);
+            expect(result.due_on).toBe(1648650671);
+            expect(result.refs).toBe('SAN-100, SAN-101');
+            expect(result).toEqual(fullPlan);
+        });
+
+        it('parses a pre-6.3 / unset plan response (all three SPEC #2.1.6 fields omitted)', async () => {
+            // `refs` requires TestRail 6.3+; `start_on` / `due_on` emit only when set on
+            // any version. Missing keys → undefined (not null) via `.nullish()`.
+            const minimalPlan: Plan = {
+                id: 1,
+                name: 'Legacy Plan',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(minimalPlan));
+            const result = await client.getPlan(1);
+            expect(result.start_on).toBeUndefined();
+            expect(result.due_on).toBeUndefined();
+            expect(result.refs).toBeUndefined();
+            expect(result).toEqual(minimalPlan);
+        });
+
+        it('parses a plan response with all SPEC #2.1.6 fields explicitly null', async () => {
+            const planWithNulls = {
+                id: 1,
+                name: 'Null-fields Plan',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                start_on: null,
+                due_on: null,
+                refs: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(planWithNulls));
+            const result = await client.getPlan(1);
+            expect(result.start_on).toBeNull();
+            expect(result.due_on).toBeNull();
+            expect(result.refs).toBeNull();
+        });
+
+        it('parses a partial-fields plan response with some SPEC #2.1.6 fields present, others omitted', async () => {
+            const partial = {
+                id: 1,
+                name: 'Partial',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                refs: 'SAN-100',
+                // start_on, due_on omitted
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(partial));
+            const result = await client.getPlan(1);
+            expect(result.refs).toBe('SAN-100');
+            expect(result.start_on).toBeUndefined();
+            expect(result.due_on).toBeUndefined();
+        });
+
+        it('rejects plan response when start_on is an ISO date string instead of a Unix timestamp', async () => {
+            const malformed = {
+                id: 1,
+                name: 'Bad Plan',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                start_on: '2026-05-22',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getPlan(1)).rejects.toThrow();
+        });
+
+        it('rejects plan response when refs is a numeric value instead of a string', async () => {
+            const malformed = {
+                id: 1,
+                name: 'Bad Plan',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                refs: 42,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getPlan(1)).rejects.toThrow();
+        });
+
+        it('parses get_plan response with entries[] carrying SPEC #2.1.6 fields on each PlanEntry', async () => {
+            // PlanEntry.start_on / due_on are documented as add_plan_entry / update_plan_entry
+            // request fields; refs is visible in the documented entries[] response example.
+            // TestRail echoes start_on / due_on on the response when set. Defensive .nullish().
+            const planWithRichEntries: Plan = {
+                id: 10,
+                name: 'Plan with entries',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'url',
+                entries: [
+                    {
+                        id: '75698796-61d5-46e8-9c14-d334351f12d0',
+                        suite_id: 1,
+                        name: 'Browser test',
+                        description: null,
+                        include_all: true,
+                        runs: [],
+                        start_on: 1646058600,
+                        due_on: 1648650671,
+                        refs: 'SAN-100',
+                    },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(planWithRichEntries));
+            const result = await client.getPlan(10);
+            expect(result.entries?.[0]?.start_on).toBe(1646058600);
+            expect(result.entries?.[0]?.due_on).toBe(1648650671);
+            expect(result.entries?.[0]?.refs).toBe('SAN-100');
+            expect(result).toEqual(planWithRichEntries);
+        });
     });
 
     describe('Plan Entries', () => {

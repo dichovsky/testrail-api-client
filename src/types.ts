@@ -228,6 +228,12 @@ export interface Plan {
     created_by: number;
     url: string;
     entries?: PlanEntry[] | null;
+    // Mirror of SPEC #2.1.6 fields on `PlanSchema`. `refs` requires TestRail 6.3+;
+    // `start_on` / `due_on` are ungated timestamps that emit only when set.
+    // `?: T | null` yields `T | null | undefined`, matching the schema's `.nullish()`.
+    start_on?: number | null;
+    due_on?: number | null;
+    refs?: string | null;
 }
 
 export interface PlanEntry {
@@ -240,6 +246,12 @@ export interface PlanEntry {
     case_ids?: number[] | null;
     config_ids?: number[] | null;
     runs: Run[];
+    // Mirror of SPEC #2.1.6 fields on `PlanEntrySchema`. `refs` is shown in the
+    // `get_plan` `entries[]` response example; `start_on` / `due_on` are documented
+    // as `add_plan_entry` / `update_plan_entry` request fields and echo back when set.
+    start_on?: number | null;
+    due_on?: number | null;
+    refs?: string | null;
 }
 
 export interface Run {
