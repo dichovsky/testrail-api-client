@@ -24,10 +24,12 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟡 🐛 SEC #29: `validateEntryId` accepts any non-empty string
 - [ ] 🟢 🐛 SEC #30: Fortify `requestMultipart` streaming upload against mid-stream file descriptor invalidation and resource leaks
 - [ ] 🟢 ♻️ SEC #31: Custom DNS Server / Host Mappings in Config — Support local hostname resolutions or custom DNS servers in `TestRailConfig` to allow running DNS SSRF verification in restrictive DNS environments
+- [ ] 🟡 🛡️ SEC #32: Safe-by-default root `.npmrc` configuration — Add a root `.npmrc` file that sets `ignore-scripts=true` to block execution of arbitrary lifecycle scripts from sub-dependencies during development/CI, blocks Git-based URLs with `allow-git=none`, and scopes registry access to `https://registry.npmjs.org/` to defend against dependency confusion and supply chain attacks
+- [ ] 🟢 🛡️ SEC #33: Integrate `lockfile-lint` verification — Install `lockfile-lint` as a devDependency and configure a check running in `pretest` / CI to audit `package-lock.json` for unauthorized registries, invalid URL schemes, and integrity checksum metadata anomalies to block lockfile injection vectors
+- [ ] 🟡 🛡️ SEC #34: Automated Trusted Publishing (OIDC) & Provenance Attestations — Create a secure release workflow (`.github/workflows/publish.yml`) that relies on GitHub OIDC permissions (`id-token: write`) to establish Trusted Publishing on npm and publish with `--provenance` to generate cryptographic build attestations linked to the GitHub runner, eliminating persistent secret tokens
 
 ## 📚 Spec Parity
 
-- [ ] 🟡 🐛 SPEC #2.1.5: Add missing `RunSchema` fields (`start_on`, `due_on`, `updated_on`, `entry_id`, `entry_index`)
 - [ ] 🟡 🐛 SPEC #2.1.6: Add missing `PlanSchema`/`PlanEntrySchema` fields (`start_on`, `due_on`, `refs`)
 - [ ] 🟢 🐛 SPEC #2.1.7: Add missing `TestSchema.labels[]`
 - [ ] 🟡 🐛 SPEC #2.1.3: Add missing `CaseSchema.labels[]`
