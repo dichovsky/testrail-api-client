@@ -187,6 +187,167 @@ describe('TestRailClient', () => {
             const result = await client.getProjects();
             expect(result).toEqual([]);
         });
+
+        it('parses get_project response with all 7.3+ fields (default_role_id, default_role, users[get_project shape], groups)', async () => {
+            const fullProject: Project = {
+                id: 1,
+                name: 'Project X',
+                announcement: 'Welcome to project X',
+                show_announcement: true,
+                is_completed: false,
+                completed_on: 1389968184,
+                suite_mode: 1,
+                url: 'https://instance.testrail.io/index.php?/projects/overview/1',
+                default_role_id: 3,
+                default_role: 'Tester',
+                groups: [{ id: 1, role: 'Tester', role_id: 3 }],
+                users: [
+                    {
+                        id: 3,
+                        global_role_id: null,
+                        global_role: null,
+                        project_role_id: null,
+                        project_role: null,
+                    },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(fullProject));
+            const result = await client.getProject(1);
+            // Field-specific assertions first so a single-field bug surfaces with a tight error
+            // instead of a multi-page diff from toEqual on the deeply-nested object.
+            expect(result.default_role_id).toBe(3);
+            expect(result.default_role).toBe('Tester');
+            expect(result.groups).toEqual([{ id: 1, role: 'Tester', role_id: 3 }]);
+            expect(result.users?.[0]?.id).toBe(3);
+            expect(result.users?.[0]?.global_role_id).toBeNull();
+            expect(result).toEqual(fullProject);
+        });
+
+        it('parses update_project response with the alternate users[user_id, role_id] shape', async () => {
+            // TestRail's update_project response documents a DIFFERENT inner shape for
+            // users[] than get_project — `{ user_id, role_id }` instead of
+            // `{ id, global_role_id, ... }`. The schema must accept both because the
+            // module uses a single ProjectSchema for getProject() / updateProject() /
+            // addProject(). Reject this test if the union-of-shapes regresses to a
+            // get_project-only model.
+            const updateResp = {
+                id: 1,
+                name: 'Project X',
+                announcement: 'Welcome to project X',
+                show_announcement: true,
+                is_completed: false,
+                completed_on: null,
+                suite_mode: 1,
+                url: 'https://instance.testrail.io/index.php?/projects/overview/1',
+                default_role_id: 3,
+                groups: [],
+                users: [{ user_id: 4, role_id: null }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(updateResp));
+            const result = await client.updateProject(1, { name: 'Project X' });
+            expect(result.users?.[0]?.user_id).toBe(4);
+            expect(result.users?.[0]?.role_id).toBeNull();
+            // `id` and `global_role_id` not present in update_project shape → undefined.
+            expect(result.users?.[0]?.id).toBeUndefined();
+            expect(result.users?.[0]?.global_role_id).toBeUndefined();
+            expect(result.groups).toEqual([]);
+        });
+
+        it('parses the minimal pre-7.3 response (all 7.3+ fields omitted)', async () => {
+            const minimalProject: Project = {
+                id: 1,
+                name: 'Legacy Project',
+                suite_mode: 1,
+                url: 'https://legacy.testrail.io/projects/view/1',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(minimalProject));
+            const result = await client.getProject(1);
+            // Missing keys (Zod `.nullish()` with absent input) → undefined, not null.
+            expect(result.default_role_id).toBeUndefined();
+            expect(result.default_role).toBeUndefined();
+            expect(result.users).toBeUndefined();
+            expect(result.groups).toBeUndefined();
+            expect(result).toEqual(minimalProject);
+        });
+
+        it('parses a partial-fields response where some 7.3+ fields are present and others omitted', async () => {
+            // Defensive-design check: even though the TestRail spec never emits such a mixed
+            // shape, `.nullish()` per-field must accept the cross-product of present/absent
+            // independently. Regressions to `.optional()` (no null accepted) or `.nullable()`
+            // (no missing key accepted) would fail here.
+            const partial = {
+                id: 1,
+                name: 'Partial Project',
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+                default_role_id: 3,
+                groups: [],
+                // default_role, users omitted
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(partial));
+            const result = await client.getProject(1);
+            expect(result.default_role_id).toBe(3);
+            expect(result.groups).toEqual([]);
+            expect(result.default_role).toBeUndefined();
+            expect(result.users).toBeUndefined();
+        });
+
+        it('parses project response with all 7.3+ fields explicitly set to null', async () => {
+            const projectWithNulls = {
+                id: 1,
+                name: 'Null-fields Project',
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+                default_role_id: null,
+                default_role: null,
+                groups: null,
+                users: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(projectWithNulls));
+            const result = await client.getProject(1);
+            expect(result.default_role_id).toBeNull();
+            expect(result.default_role).toBeNull();
+            expect(result.groups).toBeNull();
+            expect(result.users).toBeNull();
+        });
+
+        it('rejects users when the wire delivers a non-array value', async () => {
+            const malformed = {
+                id: 1,
+                name: 'Bad Project',
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+                users: 'not-an-array',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getProject(1)).rejects.toThrow();
+        });
+
+        it('rejects groups when the wire delivers a non-array value', async () => {
+            const malformed = {
+                id: 1,
+                name: 'Bad Project',
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+                groups: 42,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getProject(1)).rejects.toThrow();
+        });
+
+        it('rejects a users[] element where role_id is a non-numeric string (not coerced)', async () => {
+            // Each inner user field is `.nullish()` on a typed primitive — string is NOT
+            // a valid `number | null | undefined` and must be rejected, not coerced.
+            const malformed = {
+                id: 1,
+                name: 'Bad Project',
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+                users: [{ user_id: 4, role_id: 'three' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getProject(1)).rejects.toThrow();
+        });
     });
 
     describe('Suites', () => {

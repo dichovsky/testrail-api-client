@@ -154,6 +154,31 @@ export interface Project {
     /** 1=single suite, 2=single suite+baselines, 3=multiple suites */
     suite_mode: number;
     url: string;
+    // Mirror of `.nullish()` SPEC #2.1.1 fields on `ProjectSchema` (TestRail 7.3+).
+    // Three absent states preserved: omitted (undefined), explicit null, typed value.
+    default_role_id?: number | null;
+    default_role?: string | null;
+    // Per-project group assignment (TestRail 7.3+). Inner object is the union of the
+    // `get_project` and `update_project` response item shapes documented by TestRail —
+    // see ProjectSchema for the field-level rationale. All inner fields optional+nullable
+    // so either form types cleanly without forcing consumers to widen via `as`.
+    groups?: Array<{
+        id?: number | null;
+        role?: string | null;
+        role_id?: number | null;
+    }> | null;
+    // Per-project user assignment (TestRail Enterprise 7.3+). Inner object is the union of
+    // the `get_project` (id/global_role*/project_role*) and `update_project`
+    // (user_id/role_id) response item shapes — see ProjectSchema.
+    users?: Array<{
+        id?: number | null;
+        user_id?: number | null;
+        global_role_id?: number | null;
+        global_role?: string | null;
+        project_role_id?: number | null;
+        project_role?: string | null;
+        role_id?: number | null;
+    }> | null;
 }
 
 export interface Plan {
