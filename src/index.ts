@@ -8,6 +8,7 @@ export {
     GroupSchema,
     ProjectSchema,
     SuiteSchema,
+    LabelEmbeddedSchema,
     CaseSchema,
     SectionSchema,
     RunSchema,
@@ -134,6 +135,7 @@ export type {
     UpdateConfigurationPayload,
     UserAddPayload,
     UserUpdatePayload,
+    LabelEmbedded,
 } from './schemas.js';
 export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';

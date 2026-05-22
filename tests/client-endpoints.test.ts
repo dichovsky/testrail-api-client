@@ -1116,6 +1116,47 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
             await expect(client.getCase(1)).rejects.toThrow();
         });
+
+        it('rejects a labels[] inner object that is missing id entirely', async () => {
+            // `id` is required on `LabelEmbeddedSchema` — a label without it
+            // is a malformed response and must not parse silently.
+            const malformed = {
+                id: 1,
+                title: 'Missing inner id',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ title: 'no-id' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getCase(1)).rejects.toThrow();
+        });
+
+        it('parses labels[] carrying BOTH `title` and `name` simultaneously', async () => {
+            // The schema accepts both fields for cross-endpoint compatibility.
+            // Verify that when a wire response (or a hand-built fixture in
+            // downstream tests) carries both keys, both survive on the parsed
+            // result rather than one shadowing the other.
+            const caseWithBothLabels: Case = {
+                id: 1,
+                title: 'Both fields',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ id: 1, title: 'Release', name: 'release-2.0', created_by: 1, created_on: 1000 }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithBothLabels));
+            const result = await client.getCase(1);
+            expect(result.labels?.[0]?.title).toBe('Release');
+            expect(result.labels?.[0]?.name).toBe('release-2.0');
+            expect(result.labels?.[0]?.created_by).toBe(1);
+        });
     });
 
     describe('Plans', () => {

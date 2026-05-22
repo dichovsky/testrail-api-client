@@ -217,6 +217,43 @@ export const SuiteSchema = zObject({
 
 export type Suite = z.infer<typeof SuiteSchema>;
 
+// ── Label-Embedded Schema (shared between Case/Test response labels) ──────────
+
+/**
+ * Shape of a Label object as embedded inside a parent resource response —
+ * notably `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two
+ * endpoints emit the same logical shape but the wider TestRail Labels API
+ * has historically diverged on naming (`title` on embedded forms vs `name`
+ * on the stand-alone `get_label`), so the inner schema accepts both.
+ *
+ * Field choices, per `get_case` / `get_test` response examples in the
+ * TestRail API docs:
+ *   - `id`: required `z.number()`. Every documented response example carries
+ *     a concrete integer ID; making it nullish would silently mask a
+ *     malformed-response regression where TestRail stops sending it.
+ *   - `title`: `.nullish()` for the cross-endpoint `name`-vs-`title` split.
+ *     Case- and Test-embedded labels use `title`; the stand-alone Labels API
+ *     (`get_label`) uses `name`. Accepting either keeps a single shape
+ *     viable across both endpoints.
+ *   - `name`: `.nullish()` for the same cross-endpoint reason.
+ *   - `created_by` / `created_on`: `.nullish()` because TestRail's
+ *     `get_test` response example does not emit them at all, while
+ *     `get_case` does. Accepting both shapes lets consumers carry the same
+ *     `LabelEmbedded` object between endpoints without a re-cast.
+ *
+ * `.passthrough()` (via `zObject`) preserves any future inner keys without
+ * rejecting the parse.
+ */
+export const LabelEmbeddedSchema = zObject({
+    id: z.number(),
+    title: z.string().nullish(),
+    name: z.string().nullish(),
+    created_by: z.number().nullish(),
+    created_on: z.number().nullish(),
+});
+
+export type LabelEmbedded = z.infer<typeof LabelEmbeddedSchema>;
+
 // ── Case & Section Schemas ─────────────────────────────────────────────────────
 
 export const CaseSchema = zObject({
@@ -238,24 +275,11 @@ export const CaseSchema = zObject({
     display_order: z.number().nullish(),
     is_deleted: z.number().nullish(),
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
-    // SPEC #2.1.3 — Labels on a test-case response. Inner shape per the documented
-    // `get_case` response example: `{ id, title, created_by, created_on }`. The
-    // stand-alone Labels API (`get_label`) uses `name` instead of `title` for the
-    // single-label endpoint; Case-embedded labels consistently use `title` per the
-    // Cases API doc, so the inner schema accepts both as `.nullish()` to be safe
-    // against legacy / future TestRail variants. `.passthrough()` (via `zObject`)
-    // preserves any future inner keys without rejecting the parse.
-    labels: z
-        .array(
-            zObject({
-                id: z.number().nullish(),
-                title: z.string().nullish(),
-                name: z.string().nullish(),
-                created_by: z.number().nullish(),
-                created_on: z.number().nullish(),
-            }),
-        )
-        .nullish(),
+    // SPEC #2.1.3 — `labels` array uses the shared `LabelEmbeddedSchema` so the
+    // same Label shape is enforced across `get_case` and `get_test` responses
+    // and so a Label object can be carried between endpoints without re-casting.
+    // See `LabelEmbeddedSchema` above for inner field choices.
+    labels: z.array(LabelEmbeddedSchema).nullish(),
 });
 
 export type Case = z.infer<typeof CaseSchema>;
