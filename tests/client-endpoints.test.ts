@@ -1585,6 +1585,98 @@ describe('TestRailClient', () => {
             expect(result.entries?.[0]?.refs).toBe('SAN-100');
             expect(result).toEqual(planWithRichEntries);
         });
+
+        it('parses a PlanEntry with all SPEC #2.1.6 fields explicitly null', async () => {
+            const planWithNullEntryFields: Plan = {
+                id: 11,
+                name: 'Plan with null entry fields',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'url',
+                entries: [
+                    {
+                        id: 'entry-guid-null',
+                        suite_id: 1,
+                        name: 'Null-fields entry',
+                        include_all: true,
+                        runs: [],
+                        start_on: null,
+                        due_on: null,
+                        refs: null,
+                    },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(planWithNullEntryFields));
+            const result = await client.getPlan(11);
+            expect(result.entries?.[0]?.start_on).toBeNull();
+            expect(result.entries?.[0]?.due_on).toBeNull();
+            expect(result.entries?.[0]?.refs).toBeNull();
+        });
+
+        it('rejects a PlanEntry where start_on is a string instead of a Unix timestamp', async () => {
+            const malformed = {
+                id: 12,
+                name: 'Bad entry start_on',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'url',
+                entries: [
+                    {
+                        id: 'entry-bad',
+                        suite_id: 1,
+                        name: 'Bad entry',
+                        include_all: true,
+                        runs: [],
+                        start_on: '2026-05-22',
+                    },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getPlan(12)).rejects.toThrow();
+        });
+
+        it('rejects a PlanEntry where refs is a numeric value instead of a string', async () => {
+            const malformed = {
+                id: 13,
+                name: 'Bad entry refs',
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1646058671,
+                created_by: 1,
+                url: 'url',
+                entries: [
+                    {
+                        id: 'entry-bad-refs',
+                        suite_id: 1,
+                        name: 'Bad refs entry',
+                        include_all: true,
+                        runs: [],
+                        refs: 42,
+                    },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getPlan(13)).rejects.toThrow();
+        });
     });
 
     describe('Plan Entries', () => {

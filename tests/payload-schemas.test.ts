@@ -711,6 +711,21 @@ describe('AddPlanEntryPayloadSchema', () => {
         >;
         expect(parsed['custom_owner']).toBe('team-a');
     });
+
+    it('parses SPEC #2.1.6 fields (start_on / due_on / refs) on the request side', () => {
+        // Without these on the write schema, the strict `zObject` would strip them
+        // before the POST body is serialised, leaving consumers no typed path to
+        // set the documented TestRail request fields.
+        const parsed = AddPlanEntryPayloadSchema.parse({
+            suite_id: 1,
+            start_on: 1646058600,
+            due_on: 1648650671,
+            refs: 'SAN-100',
+        });
+        expect(parsed.start_on).toBe(1646058600);
+        expect(parsed.due_on).toBe(1648650671);
+        expect(parsed.refs).toBe('SAN-100');
+    });
 });
 
 describe('UpdatePlanEntryPayloadSchema', () => {
@@ -729,6 +744,17 @@ describe('UpdatePlanEntryPayloadSchema', () => {
 
     it('rejects non-array runs', () => {
         expect(() => UpdatePlanEntryPayloadSchema.parse({ runs: 'nope' })).toThrow();
+    });
+
+    it('parses SPEC #2.1.6 fields (start_on / due_on / refs) on the update request side', () => {
+        const parsed = UpdatePlanEntryPayloadSchema.parse({
+            start_on: 1646058600,
+            due_on: 1648650671,
+            refs: 'SAN-101',
+        });
+        expect(parsed.start_on).toBe(1646058600);
+        expect(parsed.due_on).toBe(1648650671);
+        expect(parsed.refs).toBe('SAN-101');
     });
 });
 

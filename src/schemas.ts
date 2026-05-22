@@ -1056,6 +1056,15 @@ export const AddPlanEntryPayloadSchema = zObject({
     case_ids: z.array(z.number()).optional(),
     config_ids: z.array(z.number()).optional(),
     runs: z.array(PlanEntryRunPayloadSchema).optional(),
+    // SPEC #2.1.6 — request-side counterparts of the response fields added to
+    // `PlanEntrySchema`. The TestRail Plans API doc lists `start_on`, `due_on`,
+    // and `refs` as valid request fields for both `add_plan_entry` and
+    // `update_plan_entry`. Without these here, the schema's strict `zObject({...})`
+    // would strip them before serialisation and consumers would have no typed
+    // path to set them.
+    start_on: z.number().optional(),
+    due_on: z.number().optional(),
+    refs: z.string().optional(),
 });
 
 export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>;
@@ -1069,6 +1078,12 @@ export const UpdatePlanEntryPayloadSchema = zObject({
     case_ids: z.array(z.number()).optional(),
     config_ids: z.array(z.number()).optional(),
     runs: z.array(PlanEntryRunPayloadSchema).optional(),
+    // SPEC #2.1.6 — same request-side fields as `AddPlanEntryPayloadSchema`.
+    // `update_plan_entry` supports the same POST fields as `add_plan_entry` per
+    // the Plans API doc.
+    start_on: z.number().optional(),
+    due_on: z.number().optional(),
+    refs: z.string().optional(),
 });
 
 export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>;
