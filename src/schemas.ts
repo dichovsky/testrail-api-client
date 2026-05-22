@@ -43,12 +43,19 @@ export const UserSchema = zObject({
     is_active: z.boolean(),
     role_id: z.number().nullish(),
     role: z.string().nullish(),
-    // TestRail 7.3+ — absent on older servers and on the reduced `get_current_user` response shape
+    // Absent in three distinct scenarios — `.nullish()` defends across all of them so the
+    // inferred type for each field is `T | null | undefined` (key omitted vs explicit null
+    // vs typed value):
+    //   1. Version-gated: older TestRail servers (≤7.2) omit these keys entirely.
+    //   2. Endpoint-shape: `get_current_user` returns a reduced shape even on 7.3+.
+    //   3. Wire-null: TestRail may emit `null` for a key whose value is unset/unknown.
     email_notifications: z.boolean().nullish(),
     is_admin: z.boolean().nullish(),
     group_ids: z.array(z.number()).nullish(),
     mfa_required: z.boolean().nullish(),
-    // TestRail Enterprise 7.3+ — only returned by Enterprise instances
+    // Enterprise-only (TestRail Enterprise 7.3+). Professional and pre-7.3 servers never
+    // emit these keys, so `undefined` (omitted) is the dominant case in non-Enterprise
+    // traffic; explicit `null` and typed values appear on Enterprise instances.
     sso_enabled: z.boolean().nullish(),
     assigned_projects: z.array(z.number()).nullish(),
 });

@@ -2147,7 +2147,7 @@ describe('TestRailClient', () => {
             await expect(client.getCurrentUser()).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
 
-        it('should parse a TestRail Professional 7.3+ user with email_notifications / is_admin / group_ids / mfa_required', async () => {
+        it('parses user response with all 7.3+ fields present (email_notifications, is_admin, group_ids, mfa_required)', async () => {
             const proUser: User = {
                 id: 1,
                 name: 'John Doe',
@@ -2162,14 +2162,16 @@ describe('TestRailClient', () => {
             };
             mockFetch.mockResolvedValueOnce(mockOk(proUser));
             const result = await client.getUser(1);
-            expect(result).toEqual(proUser);
+            // Field-specific assertions first so a single-field bug surfaces with a tight error
+            // instead of a multi-page object diff from toEqual.
             expect(result.email_notifications).toBe(true);
             expect(result.is_admin).toBe(false);
             expect(result.group_ids).toEqual([1, 2, 3]);
             expect(result.mfa_required).toBe(false);
+            expect(result).toEqual(proUser);
         });
 
-        it('should parse a TestRail Enterprise user with sso_enabled and assigned_projects', async () => {
+        it('parses user response with all 7.3+ fields plus Enterprise-only sso_enabled and assigned_projects', async () => {
             const enterpriseUser: User = {
                 id: 1,
                 name: 'John Doe',
@@ -2186,12 +2188,12 @@ describe('TestRailClient', () => {
             };
             mockFetch.mockResolvedValueOnce(mockOk(enterpriseUser));
             const result = await client.getUser(1);
-            expect(result).toEqual(enterpriseUser);
             expect(result.sso_enabled).toBe(true);
             expect(result.assigned_projects).toEqual([1, 3]);
+            expect(result).toEqual(enterpriseUser);
         });
 
-        it('should accept a reduced get_current_user response without the 7.3+ fields', async () => {
+        it('parses the reduced get_current_user response (all 7.3+ fields omitted)', async () => {
             const minimalUser: User = {
                 id: 1,
                 name: 'John Doe',
@@ -2202,12 +2204,45 @@ describe('TestRailClient', () => {
             };
             mockFetch.mockResolvedValueOnce(mockOk(minimalUser));
             const result = await client.getCurrentUser();
-            expect(result).toEqual(minimalUser);
+            // Missing keys (Zod `.nullish()` with absent input) → undefined, not null.
             expect(result.email_notifications).toBeUndefined();
+            expect(result.is_admin).toBeUndefined();
+            expect(result.group_ids).toBeUndefined();
+            expect(result.mfa_required).toBeUndefined();
             expect(result.sso_enabled).toBeUndefined();
+            expect(result.assigned_projects).toBeUndefined();
+            expect(result).toEqual(minimalUser);
         });
 
-        it('should accept null email_notifications / group_ids from older servers', async () => {
+        it('parses a partial-fields response where some 7.3+ fields are present and others omitted', async () => {
+            // Defensive-design check: even though the TestRail spec never emits such a mixed
+            // shape, `.nullish()` per-field must accept the cross-product of present/absent
+            // independently. Regressions to `.optional()` (no `null` accepted) or
+            // `.nullable()` (no missing key accepted) would fail here.
+            const partial = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                email_notifications: true,
+                group_ids: [5],
+                // is_admin, mfa_required, sso_enabled, assigned_projects all omitted
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(partial));
+            const result = await client.getUser(1);
+            expect(result.email_notifications).toBe(true);
+            expect(result.group_ids).toEqual([5]);
+            expect(result.is_admin).toBeUndefined();
+            expect(result.mfa_required).toBeUndefined();
+            expect(result.sso_enabled).toBeUndefined();
+            expect(result.assigned_projects).toBeUndefined();
+        });
+
+        it('parses user response with all 7.3+ fields explicitly set to null', async () => {
+            // `.nullish()` must accept `null` from the wire as well as missing keys.
+            // This is not an "older server" scenario (older servers omit the keys
+            // entirely); it covers TestRail emitting an explicit null where a value
+            // is unknown or unset.
             const userWithNulls = {
                 id: 1,
                 name: 'John Doe',
@@ -2223,8 +2258,47 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(userWithNulls));
             const result = await client.getUser(1);
             expect(result.email_notifications).toBeNull();
+            expect(result.is_admin).toBeNull();
             expect(result.group_ids).toBeNull();
+            expect(result.mfa_required).toBeNull();
             expect(result.sso_enabled).toBeNull();
+            expect(result.assigned_projects).toBeNull();
+        });
+
+        it('rejects group_ids when the wire delivers a string instead of an array', async () => {
+            const malformed = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                group_ids: '1,2,3',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getUser(1)).rejects.toThrow();
+        });
+
+        it('rejects group_ids when the array contains non-number elements', async () => {
+            const malformed = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                group_ids: [1, '2', 3],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getUser(1)).rejects.toThrow();
+        });
+
+        it('rejects assigned_projects when the wire delivers a non-array value', async () => {
+            const malformed = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                assigned_projects: 42,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getUser(1)).rejects.toThrow();
         });
     });
 
