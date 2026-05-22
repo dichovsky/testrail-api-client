@@ -373,6 +373,10 @@ export interface Milestone {
     refs?: string | null;
     url: string;
     milestones?: Milestone[] | null;
+    // Mirror of SPEC #2.1.9 `is_started` on `MilestoneSchema`. TestRail 5.3+ —
+    // older servers omit the key entirely. The request-side `UpdateMilestonePayload`
+    // already carries this field; this closes the response-side gap.
+    is_started?: boolean | null;
 }
 
 export interface User {

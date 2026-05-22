@@ -3437,6 +3437,96 @@ describe('TestRailClient', () => {
 
             await expect(client.deleteMilestone(1)).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
+
+        it('parses get_milestone response with SPEC #2.1.9 is_started: true', async () => {
+            // The request-side `UpdateMilestonePayloadSchema` already accepts
+            // `is_started`. This test verifies the response-side gap is closed —
+            // round-tripping a milestone after `update_milestone` exposes the flag.
+            const startedMilestone: Milestone = {
+                id: 1,
+                name: 'Release 2.0',
+                project_id: 1,
+                is_completed: false,
+                is_started: true,
+                start_on: 1646058600,
+                started_on: 1646058700,
+                url: 'https://example.testrail.io/milestones/view/1',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(startedMilestone));
+            const result = await client.getMilestone(1);
+            expect(result.is_started).toBe(true);
+            expect(result).toEqual(startedMilestone);
+        });
+
+        it('parses get_milestone response with is_started: false', async () => {
+            const notStartedMilestone: Milestone = {
+                id: 1,
+                name: 'Future Release',
+                project_id: 1,
+                is_completed: false,
+                is_started: false,
+                url: 'https://example.testrail.io/milestones/view/1',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(notStartedMilestone));
+            const result = await client.getMilestone(1);
+            expect(result.is_started).toBe(false);
+        });
+
+        it('parses pre-5.3 get_milestone response without is_started', async () => {
+            // TestRail < 5.3 omits the key entirely. `.nullish()` resolves
+            // missing keys to `undefined`.
+            const legacyMilestone: Milestone = {
+                id: 1,
+                name: 'Legacy Milestone',
+                project_id: 1,
+                is_completed: false,
+                url: 'url',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(legacyMilestone));
+            const result = await client.getMilestone(1);
+            expect(result.is_started).toBeUndefined();
+            expect(result).toEqual(legacyMilestone);
+        });
+
+        it('parses get_milestone response with is_started: null', async () => {
+            const nullStartedMilestone = {
+                id: 1,
+                name: 'Null-start Milestone',
+                project_id: 1,
+                is_completed: false,
+                url: 'url',
+                is_started: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(nullStartedMilestone));
+            const result = await client.getMilestone(1);
+            expect(result.is_started).toBeNull();
+        });
+
+        it('rejects is_started when the wire delivers a string instead of a boolean (no coercion)', async () => {
+            const malformed = {
+                id: 1,
+                name: 'Bad is_started',
+                project_id: 1,
+                is_completed: false,
+                url: 'url',
+                is_started: 'true',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getMilestone(1)).rejects.toThrow();
+        });
+
+        it('rejects is_started when the wire delivers a number (no truthy coercion)', async () => {
+            const malformed = {
+                id: 1,
+                name: 'Bad is_started',
+                project_id: 1,
+                is_completed: false,
+                url: 'url',
+                is_started: 1,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getMilestone(1)).rejects.toThrow();
+        });
     });
 
     describe('Users', () => {

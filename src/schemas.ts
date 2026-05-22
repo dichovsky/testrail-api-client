@@ -516,6 +516,12 @@ export const MilestoneSchema = zObject({
     url: z.string(),
     // Sub-milestones are typed as unknown[] to avoid a recursive schema definition.
     milestones: z.array(z.unknown()).nullish(),
+    // SPEC #2.1.9 — `is_started` response field. TestRail 5.3+ — older servers omit
+    // the key entirely. `UpdateMilestonePayloadSchema` already accepts `is_started`
+    // on the request side; this closes the response-side gap so callers that
+    // round-trip a milestone through `get_milestone` after `update_milestone` see
+    // the flag in the parsed result.
+    is_started: z.boolean().nullish(),
 });
 
 export type Milestone = z.infer<typeof MilestoneSchema>;
