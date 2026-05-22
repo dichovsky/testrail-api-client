@@ -957,6 +957,89 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ history }));
             await expect(client.getHistoryForCase(42)).rejects.toThrow();
         });
+
+        it('rejects a change where label is a boolean (no coercion)', async () => {
+            // Sibling of the `label: 42` test — `label` is a string-only field,
+            // booleans must be rejected just like numbers.
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', label: true }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
+
+        it('rejects a change where options is a plain object instead of an array', async () => {
+            // The previous coverage tested `options: 'not-an-array'`. A bare
+            // object is the other natural mistake and must be rejected as well.
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', options: { is_required: true } }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
+
+        it('parses old_value / new_value as arrays (separated-steps field type)', async () => {
+            // The schema comment hypothesises arrays for type_id=8 (separated
+            // steps); this test exercises that variant of the discriminated
+            // union so a regression to `z.unknown()` or to a non-array union
+            // would surface.
+            const history: HistoryEntry[] = [
+                {
+                    id: 4001,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [
+                        {
+                            type_id: 8,
+                            field: 'custom_steps_separated',
+                            label: 'Steps',
+                            old_value: [{ content: 'old step 1', expected: '' }],
+                            new_value: [
+                                { content: 'new step 1', expected: 'pass' },
+                                { content: 'new step 2', expected: 'pass' },
+                            ],
+                        },
+                    ],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            const result = await client.getHistoryForCase(42);
+            const change = result[0]?.changes?.[0];
+            expect(Array.isArray(change?.old_value)).toBe(true);
+            expect(Array.isArray(change?.new_value)).toBe(true);
+            expect(change?.new_value as unknown[]).toHaveLength(2);
+        });
+
+        it('rejects old_value when wire delivers a plain object (not in the discriminated union)', async () => {
+            // The union accepts string | number | boolean | array | null. Plain
+            // objects are NOT in the union — they should be rejected. This is the
+            // ergonomics-vs-`z.unknown()` win: callers no longer have to defend
+            // against arbitrary object shapes leaking through the parse boundary.
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', old_value: { unexpected: 'shape' } }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
     });
 
     describe('Bulk case operations', () => {

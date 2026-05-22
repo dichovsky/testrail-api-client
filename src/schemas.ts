@@ -542,17 +542,20 @@ const HistoryChangeSchema = zObject({
     //   - `options` (array) carries field-config options (required, default value,
     //     etc.) — inner shape varies per field type, so the element type stays
     //     `z.unknown()` to accept whatever TestRail emits.
-    //   - `old_value` / `new_value` (varies) carry the previous/new value for
-    //     non-text fields. The doc explicitly notes "value can be text or an
-    //     integer" but real wire data also includes `null` (see the `refs`
-    //     change example) and may include booleans / arrays for boolean and
-    //     steps fields. `z.unknown().nullish()` preserves the "varies"
-    //     semantics without rejecting any wire shape; consumers narrow at use
-    //     site.
+    //   - `old_value` / `new_value` are typed as a discriminated union of the
+    //     value shapes the wire actually carries:
+    //       * `string`   — text fields, refs ("1" in the doc example)
+    //       * `number`   — integer fields (3573/3574 in the section_id example)
+    //       * `boolean`  — boolean fields (type_id=3)
+    //       * `array`    — separated-steps fields (type_id=8); element shape varies
+    //       * `null`     — explicit-null emitted when previous/new is unset
+    //     Plus `.nullish()` on the field itself so the key may be omitted
+    //     entirely. The union gives consumers a switch-narrowable type instead of
+    //     the bare `unknown` they'd get from `z.unknown()`.
     label: z.string().nullish(),
     options: z.array(z.unknown()).nullish(),
-    old_value: z.unknown().nullish(),
-    new_value: z.unknown().nullish(),
+    old_value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]).nullish(),
+    new_value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]).nullish(),
 });
 
 // Shared entry shape used by `get_history_for_case` and
