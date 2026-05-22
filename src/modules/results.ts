@@ -26,6 +26,8 @@ export class ResultModule {
                 await this.client.requestParsed<{ results?: Result[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ results: z.array(ResultSchema).nullish() }),
                 )
             ).results ?? []
@@ -51,6 +53,8 @@ export class ResultModule {
                 await this.client.requestParsed<{ results?: Result[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ results: z.array(ResultSchema).nullish() }),
                 )
             ).results ?? []
@@ -74,6 +78,8 @@ export class ResultModule {
                 await this.client.requestParsed<{ results?: Result[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ results: z.array(ResultSchema).nullish() }),
                 )
             ).results ?? []

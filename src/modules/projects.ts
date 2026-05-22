@@ -32,6 +32,8 @@ export class ProjectModule {
                 await this.client.requestParsed<{ projects?: Project[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ projects: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ projects: z.array(ProjectSchema).nullish() }),
                 )
             ).projects ?? []

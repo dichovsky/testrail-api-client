@@ -43,6 +43,8 @@ export class UsersModule {
                 await this.client.requestParsed<{ users?: User[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ users: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ users: z.array(UserSchema).nullish() }),
                 )
             ).users ?? []

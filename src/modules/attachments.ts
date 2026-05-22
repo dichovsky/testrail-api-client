@@ -34,6 +34,8 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
@@ -53,6 +55,8 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
@@ -72,6 +76,8 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
@@ -86,6 +92,8 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     `get_attachments_for_plan/${planId}`,
+                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []
@@ -101,6 +109,8 @@ export class AttachmentModule {
                 await this.client.requestParsed<{ attachments?: Attachment[] }>(
                     'GET',
                     `get_attachments_for_plan_entry/${planId}/${entryId}`,
+                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ attachments: z.array(AttachmentSchema).nullish() }),
                 )
             ).attachments ?? []

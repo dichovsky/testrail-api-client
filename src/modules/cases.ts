@@ -81,6 +81,8 @@ export class CaseModule {
                 await this.client.requestParsed<{ cases?: Case[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ cases: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ cases: z.array(CaseSchema).nullish() }),
                 )
             ).cases ?? []
@@ -279,6 +281,8 @@ export class CaseModule {
                 await this.client.requestParsed<{ history?: HistoryEntry[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ history: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ history: z.array(HistoryEntrySchema).nullish() }),
                 )
             ).history ?? []

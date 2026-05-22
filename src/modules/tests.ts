@@ -27,6 +27,8 @@ export class TestModule {
                 await this.client.requestParsed<{ tests?: Test[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ tests: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ tests: z.array(TestSchema).nullish() }),
                 )
             ).tests ?? []
