@@ -5363,13 +5363,18 @@ describe('TestRailClient', () => {
                 'variable value as number (no coercion)',
                 { id: 1, name: 'D', variables: [{ id: 1, name: 'v', value: 42 }] },
             ],
-            [
-                'variable value as null (doc says string)',
-                { id: 1, name: 'D', variables: [{ id: 1, name: 'v', value: null }] },
-            ],
         ])('rejects malformed embedded variable: %s', async (_label, wire) => {
             mockFetch.mockResolvedValueOnce(mockOk(wire));
             await expect(client.getDataset(1)).rejects.toThrow();
+        });
+
+        it('accepts embedded variable with value: null (unset/cleared on server side)', async () => {
+            // SPEC #2.1.16 — value may be null for unset variables (review feedback)
+            const dataset = { id: 1, name: 'D', variables: [{ id: 1, name: 'v', value: null }] };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.getDataset(1);
+            expect(result).toEqual(dataset);
+            expect(result.variables?.[0]?.value).toBeNull();
         });
     });
 
@@ -5406,7 +5411,6 @@ describe('TestRailClient', () => {
                     id: 2,
                     name: 'Daily Digest',
                     notify_link_recipients: 'person1@example.com\r\nperson2@example.com',
-                    notify_attachment_recipients: 'person3@example.com',
                 },
             ];
             mockFetch.mockResolvedValueOnce(mockOk(reports));

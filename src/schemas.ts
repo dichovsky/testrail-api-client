@@ -926,15 +926,16 @@ export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>;
  * SPEC #2.1.16 — embedded variable/value entry inside a Dataset response.
  * Per the official TestRail "Datasets" API doc (support article
  * 7077300491540), `get_dataset` returns a `variables` array where each
- * entry has `id` (integer), `name` (string), and `value` (string). All
- * three are documented as plain types with no null arm; modelled here as
- * required, non-nullable. `zObject()`'s passthrough preserves any
- * forward-compat keys.
+ * entry has `id` (integer), `name` (string), and `value`. `id` and
+ * `name` are documented as plain non-nullable scalars; `value` may be
+ * null when the variable is unset/cleared on the server side, so it is
+ * modelled as nullable per SPEC #2.1.16 review. `zObject()`'s passthrough
+ * preserves any forward-compat keys.
  */
 export const DatasetVariableSchema = zObject({
     id: z.number(),
     name: z.string(),
-    value: z.string(),
+    value: z.string().nullable(),
 });
 
 export type DatasetVariable = z.infer<typeof DatasetVariableSchema>;
@@ -947,18 +948,15 @@ export type DatasetVariable = z.infer<typeof DatasetVariableSchema>;
  * entries. `variables` is modelled as `.nullish()` for defensive
  * back-compat — TestRail's `add_dataset` example also shows the same
  * shape but older API revisions or edge cases (e.g. an empty dataset
- * mid-creation) may omit the key. `project_id`, `created_on`, and
- * `created_by` are NOT in the current doc field table; they remain
- * `.nullish()` as forward-compat placeholders, since `zObject()`'s
- * passthrough would otherwise lose them at the type level.
+ * mid-creation) may omit the key. Any forward-compat keys the server
+ * might add (e.g. `project_id`, `created_on`, `created_by`) survive at
+ * runtime via `zObject()`'s passthrough; they are intentionally not
+ * declared here until the upstream doc lists them (SPEC #1.5).
  */
 export const DatasetSchema = zObject({
     id: z.number(),
     name: z.string(),
     variables: z.array(DatasetVariableSchema).nullish(),
-    project_id: z.number().nullish(),
-    created_on: z.number().nullish(),
-    created_by: z.number().nullish(),
 });
 
 export type Dataset = z.infer<typeof DatasetSchema>;
