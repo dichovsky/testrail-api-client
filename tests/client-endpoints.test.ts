@@ -4633,6 +4633,10 @@ describe('TestRailClient', () => {
                 'get_attachments_for_plan_entry',
                 (c: TestRailClient): Promise<Attachment[]> => c.getAttachmentsForPlanEntry(11, 2),
             ] as const,
+            [
+                'get_attachments_for_plan',
+                (c: TestRailClient): Promise<Attachment[]> => c.getAttachmentsForPlan(7),
+            ] as const,
         ])('parses the cloud 7.1+ shape via %s', async (_endpoint, call) => {
             const cloud71 = cloud71Sample();
             mockFetch.mockResolvedValueOnce(mockOk({ attachments: cloud71 }));
@@ -4658,7 +4662,7 @@ describe('TestRailClient', () => {
             // API change that would mask a real wire-format incident.
             const malformed = [{ attachment_id: 'not-a-number', name: 'broken.txt' }];
             mockFetch.mockResolvedValueOnce(mockOk({ attachments: malformed }));
-            await expect(client.getAttachmentsForCase(1)).rejects.toThrow();
+            await expect(client.getAttachmentsForCase(1)).rejects.toThrow(TestRailValidationError);
         });
     });
 

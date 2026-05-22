@@ -57,6 +57,7 @@ import {
     UpdateConfigurationPayloadSchema,
     UserAddPayloadSchema,
     UserUpdatePayloadSchema,
+    AttachmentSchema,
 } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
@@ -1502,5 +1503,17 @@ describe('UserUpdatePayloadSchema', () => {
     it('lets custom_* fields pass through', () => {
         const parsed = UserUpdatePayloadSchema.parse({ custom_attr: 'value' }) as Record<string, unknown>;
         expect(parsed['custom_attr']).toBe('value');
+    });
+});
+
+describe('AttachmentSchema', () => {
+    // SPEC #2.1.14 — upload-POST response { attachment_id: N } has no `name`;
+    // nullish() must accept this shape at the schema level (the upload runtime
+    // path goes through requestMultipart which bypasses Zod, so this proves
+    // the type contract is honest).
+    it('parses the upload-POST shape { attachment_id: N } with no `name`', () => {
+        const parsed = AttachmentSchema.parse({ attachment_id: 10 });
+        expect(parsed.attachment_id).toBe(10);
+        expect(parsed.name).toBeUndefined();
     });
 });
