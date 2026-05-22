@@ -654,6 +654,49 @@ export const CaseFieldSchema = zObject({
 
 export type CaseField = z.infer<typeof CaseFieldSchema>;
 
+// ── add_case_field response (string-vs-array divergence) ──────────────────────
+// SPEC #2.1.12 — TestRail's `add_case_field` POST response shape differs
+// from `get_case_fields` GET response in two ways:
+//
+//   1. `configs` is a **JSON-encoded string** (not a parsed array). The
+//      server serializes the configs array back to a string before sending
+//      the response, e.g.:
+//        "configs": "[{\"context\":{...},\"options\":{...},\"id\":\"<uuid>\"}]"
+//      Per the upstream docs and the literal POST response example. Callers
+//      that need the structured form must `JSON.parse(response.configs)`.
+//   2. Several boolean-style fields surface as `0`/`1` integers
+//      (`is_active`, `include_all`, `is_multi`, `is_system`) instead of
+//      `true`/`false`, and the response includes admin-internal fields
+//      (`entity_id`, `location_id`, `status_id`) absent from the GET shape.
+//
+// Modeled as a distinct schema so `getCaseFields` keeps its strict structured
+// `configs: array` shape and `addCaseField` matches what the server actually
+// returns. `.passthrough()` (via `zObject`) preserves forward-compat as
+// TestRail adds response-only fields.
+export const AddCaseFieldResponseSchema = zObject({
+    id: z.number(),
+    system_name: z.string(),
+    label: z.string(),
+    name: z.string(),
+    type_id: z.number(),
+    display_order: z.number(),
+    // POST response: JSON-encoded array (string), NOT the parsed array shape.
+    configs: z.string(),
+    // POST response uses 0/1 integers instead of true/false.
+    is_active: z.number(),
+    include_all: z.number(),
+    template_ids: z.array(z.number()),
+    description: z.string().nullish(),
+    // Admin-internal fields absent from GET get_case_fields.
+    entity_id: z.number().nullish(),
+    location_id: z.number().nullish(),
+    is_multi: z.number().nullish(),
+    status_id: z.number().nullish(),
+    is_system: z.number().nullish(),
+});
+
+export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>;
+
 export const ResultFieldConfigSchema = zObject({
     context: FieldConfigContextSchema,
     options: FieldConfigOptionsSchema,

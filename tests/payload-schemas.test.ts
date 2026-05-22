@@ -20,6 +20,7 @@ import {
     MoveCasesToSectionPayloadSchema,
     AddCaseFieldPayloadSchema,
     AddCaseFieldConfigPayloadSchema,
+    AddCaseFieldResponseSchema,
     MoveSectionPayloadSchema,
     AddRunPayloadSchema,
     UpdateRunPayloadSchema,
@@ -421,6 +422,97 @@ describe('AddCaseFieldPayloadSchema', () => {
         // passthrough survival of an unknown nested field.
         const nested = parsed.configs[0] as unknown as Record<string, unknown>;
         expect(nested['future_nested_field']).toBe('preserve me too');
+    });
+});
+
+// SPEC #2.1.12 — response schema for `add_case_field` POST. Distinct from
+// `CaseFieldSchema` (the GET response shape): `configs` is a JSON-encoded
+// string and boolean-style fields surface as 0/1 integers.
+describe('AddCaseFieldResponseSchema', () => {
+    const baseValid = {
+        id: 33,
+        name: 'my_multiselect',
+        system_name: 'custom_my_multiselect',
+        entity_id: 1,
+        label: 'My Multiselect',
+        description: 'my custom Multiselect description',
+        type_id: 12,
+        location_id: 2,
+        display_order: 7,
+        configs:
+            '[{"context":{"is_global":true,"project_ids":""},"options":{"is_required":false,"items":"1, One\\n2, Two"},"id":"9f105ba2-1ed0-45e0-b459-18d890bad86e"}]',
+        is_multi: 1,
+        is_active: 1,
+        status_id: 1,
+        is_system: 0,
+        include_all: 1,
+        template_ids: [],
+    };
+
+    it('parses the upstream-documented POST response example verbatim', () => {
+        const parsed = AddCaseFieldResponseSchema.parse(baseValid);
+        expect(parsed.id).toBe(33);
+        expect(parsed.system_name).toBe('custom_my_multiselect');
+    });
+
+    it('models configs as a JSON-encoded string (not a parsed array)', () => {
+        const parsed = AddCaseFieldResponseSchema.parse(baseValid);
+        expect(typeof parsed.configs).toBe('string');
+        // The string must be JSON-parseable — callers depend on this contract.
+        const decoded = JSON.parse(parsed.configs) as Array<Record<string, unknown>>;
+        expect(Array.isArray(decoded)).toBe(true);
+        expect(decoded[0]).toHaveProperty('context');
+        expect(decoded[0]).toHaveProperty('options');
+    });
+
+    it('rejects when configs is an array (GET-shape leak)', () => {
+        expect(() =>
+            AddCaseFieldResponseSchema.parse({
+                ...baseValid,
+                configs: [
+                    {
+                        context: { is_global: true, project_ids: [] },
+                        options: { is_required: false, default_value: '' },
+                    },
+                ],
+            }),
+        ).toThrow();
+    });
+
+    it('rejects when configs is a non-string non-array (e.g. number)', () => {
+        expect(() => AddCaseFieldResponseSchema.parse({ ...baseValid, configs: 42 })).toThrow();
+    });
+
+    it('models is_active / include_all as numbers (0/1), not booleans', () => {
+        // Booleans must NOT pass — POST response surfaces these as 0/1 integers.
+        expect(() => AddCaseFieldResponseSchema.parse({ ...baseValid, is_active: true })).toThrow();
+        expect(() => AddCaseFieldResponseSchema.parse({ ...baseValid, include_all: false })).toThrow();
+    });
+
+    it('accepts a payload with the admin-internal fields absent (forward-compat)', () => {
+        const minimal = {
+            id: 1,
+            name: 'x',
+            system_name: 'custom_x',
+            label: 'X',
+            type_id: 1,
+            display_order: 1,
+            configs: '[]',
+            is_active: 1,
+            include_all: 1,
+            template_ids: [],
+        };
+        const parsed = AddCaseFieldResponseSchema.parse(minimal);
+        expect(parsed.entity_id ?? null).toBeNull();
+        expect(parsed.location_id ?? null).toBeNull();
+    });
+
+    it('preserves unknown top-level fields via passthrough()', () => {
+        const parsed = AddCaseFieldResponseSchema.parse({
+            ...baseValid,
+            future_response_field: 'preserve me',
+        }) as Record<string, unknown>;
+        expect(parsed['future_response_field']).toBe('preserve me');
     });
 });
 

@@ -75,8 +75,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseFields`](../src/modules/metadata.ts#L40) | `case-field list` | [recipe #45](../skill/SKILL.md#45-case-field-configuration-and-discovery) |
-| [`POST add_case_field`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCaseField`](../src/modules/metadata.ts#L59) | `case-field add` | [recipe #45](../skill/SKILL.md#45-case-field-configuration-and-discovery) |
+| [`GET get_case_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseFields`](../src/modules/metadata.ts#L41) | `case-field list` | [recipe #45](../skill/SKILL.md#45-case-field-configuration-and-discovery) |
+| [`POST add_case_field`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCaseField`](../src/modules/metadata.ts#L68) | `case-field add` | [recipe #45](../skill/SKILL.md#45-case-field-configuration-and-discovery) |
 
 ## Case Types
 
@@ -84,7 +84,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_types`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTypes`](../src/modules/metadata.ts#L64) | `case-type list` | [recipe #46](../skill/SKILL.md#46-case-metadata-lookups-types-and-statuses) |
+| [`GET get_case_types`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTypes`](../src/modules/metadata.ts#L78) | `case-type list` | [recipe #46](../skill/SKILL.md#46-case-metadata-lookups-types-and-statuses) |
 
 ## Cases
 
@@ -179,7 +179,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_priorities`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getPriorities`](../src/modules/metadata.ts#L30) | `priority list` | [recipe #54](../skill/SKILL.md#54-reference-data-and-metadata-lookups) |
+| [`GET get_priorities`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getPriorities`](../src/modules/metadata.ts#L31) | `priority list` | [recipe #54](../skill/SKILL.md#54-reference-data-and-metadata-lookups) |
 
 ## Projects
 
@@ -208,7 +208,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_result_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultFields`](../src/modules/metadata.ts#L35) | `result-field list` | [recipe #54](../skill/SKILL.md#54-reference-data-and-metadata-lookups) |
+| [`GET get_result_fields`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getResultFields`](../src/modules/metadata.ts#L36) | `result-field list` | [recipe #54](../skill/SKILL.md#54-reference-data-and-metadata-lookups) |
 
 ## Results
 
@@ -230,7 +230,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_roles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRoles`](../src/modules/metadata.ts#L75) | `role list` | [recipe #43](../skill/SKILL.md#43-role-list-testrail-permission-roles) |
+| [`GET get_roles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRoles`](../src/modules/metadata.ts#L89) | `role list` | [recipe #43](../skill/SKILL.md#43-role-list-testrail-permission-roles) |
 
 ## Runs
 
@@ -277,8 +277,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseStatuses`](../src/modules/metadata.ts#L25) | `case-status list` | [recipe #46](../skill/SKILL.md#46-case-metadata-lookups-types-and-statuses) |
-| [`GET get_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getStatuses`](../src/modules/metadata.ts#L20) | `status list` | [recipe #54](../skill/SKILL.md#54-reference-data-and-metadata-lookups) |
+| [`GET get_case_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseStatuses`](../src/modules/metadata.ts#L26) | `case-status list` | [recipe #46](../skill/SKILL.md#46-case-metadata-lookups-types-and-statuses) |
+| [`GET get_statuses`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getStatuses`](../src/modules/metadata.ts#L21) | `status list` | [recipe #54](../skill/SKILL.md#54-reference-data-and-metadata-lookups) |
 
 ## Suites
 
@@ -298,7 +298,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_templates/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTemplates`](../src/modules/metadata.ts#L69) | `template list` | [recipe #52](../skill/SKILL.md#52-test-case-templates-template-list) |
+| [`GET get_templates/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTemplates`](../src/modules/metadata.ts#L83) | `template list` | [recipe #52](../skill/SKILL.md#52-test-case-templates-template-list) |
 
 ## Tests
 

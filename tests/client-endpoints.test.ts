@@ -33,6 +33,7 @@ import type {
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
     AddCaseFieldPayload,
+    AddCaseFieldResponse,
     MoveSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
@@ -3930,22 +3931,79 @@ describe('TestRailClient', () => {
                 ],
             };
 
-            it('POSTs to add_case_field with the payload and parses the response as CaseField', async () => {
-                const createdField: CaseField = {
-                    ...mockCaseField,
-                    id: 99,
-                    name: 'preconds',
-                    system_name: 'custom_preconds',
-                    label: 'Preconditions',
-                };
-                mockFetch.mockResolvedValueOnce(mockOk(createdField));
+            // SPEC #2.1.12 — the POST response shape diverges from
+            // `get_case_fields` GET: `configs` arrives as a JSON-encoded
+            // string (not a parsed array), and boolean-style fields surface
+            // as 0/1 integers. Mirrors the upstream-doc example verbatim.
+            const createdFieldResponse: AddCaseFieldResponse = {
+                id: 99,
+                name: 'preconds',
+                system_name: 'custom_preconds',
+                entity_id: 1,
+                label: 'Preconditions',
+                description: 'pre-conditions for the test case',
+                type_id: 1,
+                location_id: 2,
+                display_order: 7,
+                configs:
+                    '[{"context":{"is_global":true,"project_ids":""},"options":{"is_required":false,"default_value":""},"id":"9f105ba2-1ed0-45e0-b459-18d890bad86e"}]',
+                is_multi: 0,
+                is_active: 1,
+                status_id: 1,
+                is_system: 0,
+                include_all: 1,
+                template_ids: [],
+            };
+
+            it('POSTs to add_case_field with the payload and parses the response as AddCaseFieldResponse', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk(createdFieldResponse));
                 const result = await client.addCaseField(validPayload);
-                expect(result).toEqual(createdField);
+                expect(result).toEqual(createdFieldResponse);
                 expect(mockFetch).toHaveBeenCalledTimes(1);
                 expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_case_field'), expect.anything());
                 const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
                 expect(init.method).toBe('POST');
                 expect(JSON.parse(init.body as string)).toEqual(validPayload);
+            });
+
+            it('returns configs as a JSON-encoded string that callers can JSON.parse (SPEC #2.1.12)', async () => {
+                // The POST response shape: `configs` is a string, not an array.
+                // Callers that need the structured form must JSON.parse it.
+                mockFetch.mockResolvedValueOnce(mockOk(createdFieldResponse));
+                const result = await client.addCaseField(validPayload);
+                expect(typeof result.configs).toBe('string');
+                const parsedConfigs = JSON.parse(result.configs) as Array<Record<string, unknown>>;
+                expect(Array.isArray(parsedConfigs)).toBe(true);
+                expect(parsedConfigs[0]).toHaveProperty('context');
+                expect(parsedConfigs[0]).toHaveProperty('options');
+                expect(parsedConfigs[0]).toHaveProperty('id');
+            });
+
+            it('returns integer 0/1 for is_active / include_all (SPEC #2.1.12; GET returns booleans)', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk(createdFieldResponse));
+                const result = await client.addCaseField(validPayload);
+                expect(typeof result.is_active).toBe('number');
+                expect(result.is_active).toBe(1);
+                expect(typeof result.include_all).toBe('number');
+                expect(result.include_all).toBe(1);
+            });
+
+            it('rejects when configs comes back as an array (mis-modeled GET-shape response)', async () => {
+                // Defensive: ensures the POST response schema does NOT accept
+                // the GET-shape `configs: array`. If TestRail ever changes the
+                // server to return the structured form, this test must be
+                // updated alongside the schema.
+                const wrongShape = {
+                    ...createdFieldResponse,
+                    configs: [
+                        {
+                            context: { is_global: true, project_ids: [] },
+                            options: { is_required: false, default_value: '' },
+                        },
+                    ],
+                };
+                mockFetch.mockResolvedValueOnce(mockOk(wrongShape));
+                await expect(client.addCaseField(validPayload)).rejects.toThrow();
             });
 
             it('propagates 403 Forbidden (admin-only endpoint)', async () => {

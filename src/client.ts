@@ -43,6 +43,7 @@ import type {
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
     AddCaseFieldPayload,
+    AddCaseFieldResponse,
     MoveSectionPayload,
     AddRunPayload,
     UpdateRunPayload,
@@ -944,8 +945,10 @@ export class TestRailClient extends TestRailClientCore {
      * Create a new custom case field (admin-only; TestRail server admin
      * permissions required). `POST add_case_field` — no path/query params;
      * the payload carries `type` + `name` + `label` + `configs[]`. Returns
-     * the newly created `CaseField` (with assigned `id`, `system_name`,
-     * `display_order`).
+     * an `AddCaseFieldResponse` (NOT `CaseField`) — see SPEC #2.1.12 in
+     * `src/schemas.ts`: the POST response shape diverges from
+     * `get_case_fields` GET on `configs` (JSON-encoded string vs parsed
+     * array) and on the boolean-style fields (0/1 integers vs booleans).
      *
      * Field-type-specific server validation (e.g. `Steps` rejects `items`,
      * `name` must be a system slug) is NOT mirrored client-side — the Zod
@@ -956,7 +959,7 @@ export class TestRailClient extends TestRailClientCore {
      * @throws {TestRailApiError} When the API request fails (e.g. 403 for
      *   non-admin users, 400 for invalid payload).
      */
-    async addCaseField(payload: AddCaseFieldPayload): Promise<CaseField> {
+    async addCaseField(payload: AddCaseFieldPayload): Promise<AddCaseFieldResponse> {
         return this.metadata.addCaseField(payload);
     }
 
