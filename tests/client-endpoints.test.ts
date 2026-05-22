@@ -957,6 +957,206 @@ describe('TestRailClient', () => {
                 );
             });
         });
+
+        it('parses get_case response with the SPEC #2.1.3 labels[] array', async () => {
+            // Inner shape per the documented `get_case` response example:
+            //   { id, title, created_by, created_on }
+            const caseWithLabels: Case = {
+                id: 1,
+                title: 'Print document history and attributes',
+                section_id: 1,
+                template_id: 1,
+                type_id: 2,
+                priority_id: 2,
+                refs: 'RF-1, RF-2',
+                created_by: 1,
+                created_on: 1646058671,
+                updated_by: 1,
+                updated_on: 1646058671,
+                suite_id: 1,
+                labels: [
+                    { id: 1, title: 'label1', created_by: 2, created_on: 1646058600 },
+                    { id: 2, title: 'label2', created_by: 2, created_on: 1646058700 },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithLabels));
+            const result = await client.getCase(1);
+            expect(result.labels).toHaveLength(2);
+            expect(result.labels?.[0]?.id).toBe(1);
+            expect(result.labels?.[0]?.title).toBe('label1');
+            expect(result.labels?.[1]?.title).toBe('label2');
+            expect(result).toEqual(caseWithLabels);
+        });
+
+        it('parses a get_case response with no labels[] key (older servers / cases without labels)', async () => {
+            // Missing key (Zod `.nullish()` with absent input) → undefined, not null.
+            const caseWithoutLabels: Case = {
+                id: 1,
+                title: 'No labels',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithoutLabels));
+            const result = await client.getCase(1);
+            expect(result.labels).toBeUndefined();
+            expect(result).toEqual(caseWithoutLabels);
+        });
+
+        it('parses a get_case response with labels: null (TestRail emits null for unset)', async () => {
+            const caseWithNullLabels = {
+                id: 1,
+                title: 'Null labels',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithNullLabels));
+            const result = await client.getCase(1);
+            expect(result.labels).toBeNull();
+        });
+
+        it('parses an empty labels[] array (case has no labels assigned)', async () => {
+            const caseWithEmptyLabels: Case = {
+                id: 1,
+                title: 'Empty labels',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithEmptyLabels));
+            const result = await client.getCase(1);
+            expect(result.labels).toEqual([]);
+        });
+
+        it('parses labels[] inner objects with partial fields (only id and title)', async () => {
+            // Older TestRail variants and the stand-alone Labels endpoints document
+            // shapes without created_by / created_on. All inner fields are
+            // `.nullish()`, so the parse should succeed regardless of which keys
+            // the server emits.
+            const caseWithPartialLabels: Case = {
+                id: 1,
+                title: 'Partial label fields',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ id: 1, title: 'minimal' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithPartialLabels));
+            const result = await client.getCase(1);
+            expect(result.labels?.[0]?.id).toBe(1);
+            expect(result.labels?.[0]?.title).toBe('minimal');
+            expect(result.labels?.[0]?.created_by).toBeUndefined();
+            expect(result.labels?.[0]?.created_on).toBeUndefined();
+        });
+
+        it('parses labels[] inner objects that use `name` instead of `title` (stand-alone get_label shape)', async () => {
+            // The `get_label` endpoint uses `name`; Case-embedded labels use `title`.
+            // The inner schema accepts both so consumers can carry a label object
+            // around without translating between the two field names.
+            const caseWithNameLabels: Case = {
+                id: 1,
+                title: 'name-form labels',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ id: 1, name: 'Release 2.0' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithNameLabels));
+            const result = await client.getCase(1);
+            expect(result.labels?.[0]?.name).toBe('Release 2.0');
+            expect(result.labels?.[0]?.title).toBeUndefined();
+        });
+
+        it('rejects labels when wire delivers a non-array value', async () => {
+            const malformed = {
+                id: 1,
+                title: 'Bad labels',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: 'release-2.0',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getCase(1)).rejects.toThrow();
+        });
+
+        it('rejects a labels[] inner object where id is a string instead of a number (no coercion)', async () => {
+            const malformed = {
+                id: 1,
+                title: 'Bad inner id',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ id: 'one', title: 'release' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getCase(1)).rejects.toThrow();
+        });
+
+        it('rejects a labels[] inner object that is missing id entirely', async () => {
+            // `id` is required on `LabelEmbeddedSchema` — a label without it
+            // is a malformed response and must not parse silently.
+            const malformed = {
+                id: 1,
+                title: 'Missing inner id',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ title: 'no-id' }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getCase(1)).rejects.toThrow();
+        });
+
+        it('parses labels[] carrying BOTH `title` and `name` simultaneously', async () => {
+            // The schema accepts both fields for cross-endpoint compatibility.
+            // Verify that when a wire response (or a hand-built fixture in
+            // downstream tests) carries both keys, both survive on the parsed
+            // result rather than one shadowing the other.
+            const caseWithBothLabels: Case = {
+                id: 1,
+                title: 'Both fields',
+                section_id: 1,
+                created_by: 1,
+                created_on: 1234567890,
+                updated_by: 1,
+                updated_on: 1234567890,
+                suite_id: 1,
+                labels: [{ id: 1, title: 'Release', name: 'release-2.0', created_by: 1, created_on: 1000 }],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(caseWithBothLabels));
+            const result = await client.getCase(1);
+            expect(result.labels?.[0]?.title).toBe('Release');
+            expect(result.labels?.[0]?.name).toBe('release-2.0');
+            expect(result.labels?.[0]?.created_by).toBe(1);
+        });
     });
 
     describe('Plans', () => {
