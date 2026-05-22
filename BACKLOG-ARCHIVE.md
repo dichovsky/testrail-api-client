@@ -4036,3 +4036,38 @@ This block archives the items completed during the CLI/Skill BACKLOG initiative 
 - **Copilot weekly limit waiver.** The hard "wait for Copilot review before merging" rule was waived mid-initiative when the limit was hit. CI-only gating proved sufficient for catching code-level issues; the regressions above were content-level, which neither CI nor Copilot would catch.
 - **Cluster-sum vs BACKLOG-section-count cross-check.** Initial Wave 2 cluster scoping summed to 64 tags but the BACKLOG section actually listed 69. The 5-tag gap (projects + tests) shipped only when a post-merge audit of `docs/API-MAPPING.md` exposed `command-table` fallback rows. Future fan-out planning should reconcile cluster totals against the source list before spawning sub-agents — a single `grep -c` would have caught the oversight upfront.
 
+## BACKLOG sync — 2026-05-22 (Spec Parity + Security audit)
+
+This sync closes items verified shipped during the multi-agent BACKLOG audit on
+2026-05-22. Each `[x]` entry below was confirmed against current source
+(`src/schemas.ts`, `src/client-core.ts`, `src/cli/dispatch.ts`,
+`src/cli/file-input.ts`, `tests/skill-recipes.test.ts`) before being removed
+from `BACKLOG.md`. The partially-shipped items (SEC #5, #26, #28, SPEC #2.1.9,
+SPEC #2.1.14) were left open in `BACKLOG.md` with refined notes capturing
+exactly which slice is still pending — rather than archiving prematurely or
+leaving the original imprecise descriptions in place.
+
+### Spec Parity — schema audit
+
+- [x] **SPEC #1.1: `ResultSchema.id` and `ResultSchema.test_id` required** — Shipped. Both fields are required (non-nullish) at `src/schemas.ts:323-325`. The initial defensive `.nullish()` flip applied during the broader nullability sweep was reverted for these two response-required identifiers; spec parity restored.
+
+- [x] **SPEC #1.2: defensive `.nullish()` on `is_completed`** — Shipped in commit `9a565bc` ("Accept nullable TestRail response fields with nullish schemas", PR #130). The field accepts undefined/null where the documented-required boolean may be absent on legacy TestRail server versions or partial-fetch responses. Reverting to required is tracked under remaining SPEC #1.5 (module list-wrapper nullability) once the per-field evidence pass concludes.
+
+- [x] **SPEC #1.3: defensive `.nullish()` on `is_master`** — Shipped in `9a565bc`. Same defensive rationale as #1.2; field-level reversal blocked on evidence pass.
+
+- [x] **SPEC #1.4: defensive `.nullish()` on `show_announcement`** — Shipped in `9a565bc`. Same defensive rationale as #1.2; field-level reversal blocked on evidence pass.
+
+- [x] **SPEC #A.2: spec+wire nullability audit closure** — Closed. Commit `9a565bc` (PR #130) flipped fields across `src/schemas.ts` to `.nullish()` where TestRail returns null/undefined from real-world traffic — including booleans (`is_completed`, `is_master`, `show_announcement`), optional timestamps, refs, and module list-wrappers. The flips are defensive: they accept TestRail's looser-than-documented behavior without rejecting valid responses, trading strict-spec-rejection for compatibility with legacy servers and partial responses. Per-field reasoning for the flipped fields is captured in PR #130's description and commit body. **Audit closure status:** the nullability work is complete; the remaining narrowing work (returning a flipped field to required when both TestRail's docs and the wire confirm presence) is tracked under remaining SPEC items (`#1.5`, `#2.1.15`, `#2.1.16`) and is no longer blocked on "missing audit closure". The two `ResultSchema` exceptions (#1.1) were reverted to required during the same audit pass.
+
+### QA — recipe drift coverage
+
+- [x] **QA: snapshot test for recipe code blocks** — Shipped. `tests/skill-recipes.test.ts:51-69` pins three inline snapshot assertions (`toContain()`) covering per-test, per-case-in-run, and whole-run recipe examples. Detects drift in command names and flags. Sufficient for the immediate command-shape drift concern. The broader structural counterpart (every `ActionSpec` must have at least one `recipe-for:` binding) remains open under `QA: Gate C2 bidirectional` — that is a structural binding check, not a snapshot.
+
+### Security — verified shipped
+
+- [x] **SEC #7: TOCTOU symlink-follow on attachment upload** — Shipped. `src/cli/file-input.ts:98` opens filesystem paths with the `O_NOFOLLOW` flag; `fstatSync` at line 100 validates `isFile()` post-open. Symlink follow attacks are blocked at open-time, not via a separate `lstat` check. No TOCTOU window remains for the upload path. The sibling item SEC #5 (TOCTOU symlink-clobber on install target) is a distinct vector and stays open with a refined note.
+
+- [x] **SEC #22: Prototype-chain property access in dispatch** — Shipped. `src/cli/dispatch.ts:339` accesses handlers via bracket notation on a plain object literal whose keys are explicitly enumerated (line 109+). No prototype walk; `__proto__` or `constructor` in user-controllable resource/action strings cannot reach a handler. `Object.keys()` iteration paths confirmed safe at lines 232 and 253. Originally raised speculatively; verified safe by construction.
+
+- [x] **SEC #24: stdin wall-clock deadline (binary upload path)** — Shipped for the binary upload reader. `src/cli/file-input.ts:73-81` documents the wall-clock deadline; `resolveFromStdin` (line 146) enforces `STDIN_READ_TIMEOUT_MS` (30 s). Byte cap (`MAX_STDIN_UPLOAD_BYTES`, 100 MiB) + 30 s timeout are both active on the binary path. **Note:** the text-body / `--api-key-stdin` reader (`readBoundedStdin`) still has no wall-clock deadline; that gap is tracked elsewhere rather than under #24, which was scoped to the binary upload path.
+
