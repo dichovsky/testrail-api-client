@@ -408,6 +408,17 @@ export interface HistoryChange {
     type_id?: number | null;
     old_text?: string | null;
     new_text?: string | null;
+    // Mirror of SPEC #2.1.13 fields on `HistoryChangeSchema`. The TestRail
+    // `get_history_for_case` field table documents these as part of every
+    // change record; `label` and `options` describe the field metadata, while
+    // `old_value` / `new_value` carry the previous/new value for non-text
+    // fields. The doc explicitly says "value can be text or an integer" but
+    // real wire data also includes `null` and may include booleans / arrays —
+    // `unknown` preserves the "varies" semantics. Consumers narrow at use site.
+    label?: string | null;
+    options?: unknown[] | null;
+    old_value?: unknown;
+    new_value?: unknown;
 }
 
 export interface HistoryEntry {

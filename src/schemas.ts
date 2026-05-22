@@ -537,6 +537,22 @@ const HistoryChangeSchema = zObject({
     type_id: z.number().nullish(),
     old_text: z.string().nullish(),
     new_text: z.string().nullish(),
+    // SPEC #2.1.13 — added per the `get_history_for_case` field table:
+    //   - `label` (string) is the field label as seen in the user interface.
+    //   - `options` (array) carries field-config options (required, default value,
+    //     etc.) — inner shape varies per field type, so the element type stays
+    //     `z.unknown()` to accept whatever TestRail emits.
+    //   - `old_value` / `new_value` (varies) carry the previous/new value for
+    //     non-text fields. The doc explicitly notes "value can be text or an
+    //     integer" but real wire data also includes `null` (see the `refs`
+    //     change example) and may include booleans / arrays for boolean and
+    //     steps fields. `z.unknown().nullish()` preserves the "varies"
+    //     semantics without rejecting any wire shape; consumers narrow at use
+    //     site.
+    label: z.string().nullish(),
+    options: z.array(z.unknown()).nullish(),
+    old_value: z.unknown().nullish(),
+    new_value: z.unknown().nullish(),
 });
 
 // Shared entry shape used by `get_history_for_case` and
