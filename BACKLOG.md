@@ -30,7 +30,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 ## 📚 Spec Parity
 
-- [ ] 🟢 🧪 SPEC #2.1.14: Verify attachment spec parity — `id` vs `attachment_id` resolved (current API uses `attachment_id`, matches `AttachmentSchema` at `src/schemas.ts:529-537`); full field-completeness audit still pending
 - [ ] 🟡 🐛 SPEC #2.1.12: Model `add_case_field` response divergence (`configs` string vs array on `get_case_fields`)
 - [ ] 🔴 ♻️ SPEC #A.1: Split request/response schemas (start with results) to remove shape conflation
 - [ ] 🟢 ♻️ SPEC #1.5: Document or revert module list-wrapper `.nullish()` flips where spec backing is absent

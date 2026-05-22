@@ -23,6 +23,7 @@ import type {
     Configuration,
     HistoryEntry,
     CaseStatus,
+    Attachment,
 } from '../src/types.js';
 import type {
     AddCasePayload,
@@ -4500,6 +4501,164 @@ describe('TestRailClient', () => {
 
         it('should throw for invalid entryId', async () => {
             await expect(client.getAttachmentsForPlanEntry(1, 0)).rejects.toThrow('entryId must be a positive integer');
+        });
+    });
+
+    // SPEC #2.1.14 — full field-completeness audit. `AttachmentSchema` now
+    // covers the legacy `get_attachments_for_case`/`_test` shape, the
+    // plan/run shape (with `entity_attachments_id` + `icon_name`), and the
+    // cloud TestRail 7.1+ shape (UUID `id`, string `entity_id`, plus
+    // `client_id`/`entity_type`/`data_id`/`filetype`/`legacy_id`/`is_image`/
+    // `icon`). Regression coverage: a minimal legacy payload still parses.
+    describe('SPEC #2.1.14 — AttachmentSchema field-completeness', () => {
+        it('parses the legacy get_attachments_for_case shape (integer id + result_id: null)', async () => {
+            // Verbatim from the doc's pre-7.1 example response.
+            const legacy = [
+                {
+                    id: 1773,
+                    name: 'image.jpg',
+                    size: 21995,
+                    created_on: 1585560521,
+                    project_id: 33,
+                    case_id: 57333,
+                    user_id: 1,
+                    result_id: null,
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: legacy }));
+            const result = await client.getAttachmentsForCase(57333);
+            expect(result).toEqual(legacy);
+            expect(result[0]?.id).toBe(1773);
+            expect(result[0]?.result_id).toBeNull();
+        });
+
+        it('parses the get_attachments_for_plan shape (entity_attachments_id + icon_name + case_id: null)', async () => {
+            // Verbatim from the doc's plan example response — plan-level
+            // attachments emit `case_id: null` and add two plan-only fields.
+            const planAttachments = [
+                {
+                    id: 1900,
+                    name: 'TR-2104.gif',
+                    size: 3838070,
+                    created_on: 1602178189,
+                    project_id: 15,
+                    case_id: null,
+                    user_id: 1,
+                    entity_attachments_id: 360,
+                    icon_name: 'Gif Image',
+                    result_id: null,
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: planAttachments }));
+            const result = await client.getAttachmentsForPlan(7);
+            expect(result).toEqual(planAttachments);
+            expect(result[0]?.entity_attachments_id).toBe(360);
+            expect(result[0]?.icon_name).toBe('Gif Image');
+            expect(result[0]?.case_id).toBeNull();
+        });
+
+        it('parses the cloud TestRail 7.1+ shape (UUID id, string entity_id, full extra field set)', async () => {
+            // Verbatim from the doc's "After TestRail 7.1 release (cloud)"
+            // example — `id` is a UUID string, `entity_id` is a string, and
+            // the response carries 7 extra fields the legacy schema would
+            // have either rejected (entity_id as string) or dropped on the
+            // floor (the rest).
+            const cloud71 = [
+                {
+                    client_id: 614308,
+                    project_id: 2,
+                    entity_type: 'case',
+                    id: '2ec27be4-812f-4806-9a5d-d39130d1691a',
+                    created_on: 1631722975,
+                    data_id: '63c82867-526d-43be-b1a5-9ddfcf581cf5',
+                    entity_id: '3',
+                    filename: 'msdia80.dll',
+                    filetype: 'dll',
+                    legacy_id: 0,
+                    name: 'msdia80.dll',
+                    size: 904704,
+                    user_id: 1,
+                    is_image: false,
+                    icon: 'other',
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: cloud71 }));
+            const result = await client.getAttachmentsForCase(3);
+            expect(result).toEqual(cloud71);
+            expect(result[0]?.id).toBe('2ec27be4-812f-4806-9a5d-d39130d1691a');
+            expect(result[0]?.entity_id).toBe('3');
+            expect(result[0]?.client_id).toBe(614308);
+            expect(result[0]?.entity_type).toBe('case');
+            expect(result[0]?.data_id).toBe('63c82867-526d-43be-b1a5-9ddfcf581cf5');
+            expect(result[0]?.filetype).toBe('dll');
+            expect(result[0]?.legacy_id).toBe(0);
+            expect(result[0]?.is_image).toBe(false);
+            expect(result[0]?.icon).toBe('other');
+        });
+
+        // The four list endpoints share `AttachmentSchema`; once the
+        // case-scoped path accepts the 7.1+ payload, the rest must too.
+        // Symmetric coverage so a future schema regression on one
+        // endpoint can't slip past the others.
+        const cloud71Sample = (): Attachment[] => [
+            {
+                client_id: 614308,
+                project_id: 2,
+                entity_type: 'case',
+                id: 'aaaa-bbbb-cccc-dddd',
+                created_on: 1700000000,
+                data_id: 'eeee-ffff-0000-1111',
+                entity_id: '42',
+                filename: 'log.txt',
+                filetype: 'txt',
+                legacy_id: 0,
+                name: 'log.txt',
+                size: 1024,
+                user_id: 1,
+                is_image: false,
+                icon: 'text',
+            },
+        ];
+
+        it.each([
+            [
+                'get_attachments_for_test',
+                (c: TestRailClient): Promise<Attachment[]> => c.getAttachmentsForTest(5),
+            ] as const,
+            [
+                'get_attachments_for_run',
+                (c: TestRailClient): Promise<Attachment[]> => c.getAttachmentsForRun(7),
+            ] as const,
+            [
+                'get_attachments_for_plan_entry',
+                (c: TestRailClient): Promise<Attachment[]> => c.getAttachmentsForPlanEntry(11, 2),
+            ] as const,
+        ])('parses the cloud 7.1+ shape via %s', async (_endpoint, call) => {
+            const cloud71 = cloud71Sample();
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: cloud71 }));
+            const result = await call(client);
+            expect(result).toEqual(cloud71);
+        });
+
+        it('accepts a list response with no SPEC #2.1.14 fields (legacy regression guard)', async () => {
+            // Pre-existing tests fixtured with `{ attachment_id, name }`
+            // pairs — neither field is in the doc's list responses, but the
+            // schema relaxation must still accept that shape so a callers'
+            // existing mocks don't break. This is the explicit
+            // "no-new-fields" regression guard.
+            const minimal = [{ attachment_id: 99, name: 'legacy.txt' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: minimal }));
+            const result = await client.getAttachmentsForCase(1);
+            expect(result).toEqual(minimal);
+        });
+
+        it('rejects a non-numeric `attachment_id` (no coercion)', async () => {
+            // `attachment_id` is `z.number().nullish()` — string values are
+            // rejected. Guards against silent type coercion from a future
+            // API change that would mask a real wire-format incident.
+            const malformed = [{ attachment_id: 'not-a-number', name: 'broken.txt' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ attachments: malformed }));
+            await expect(client.getAttachmentsForCase(1)).rejects.toThrow();
         });
     });
 

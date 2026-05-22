@@ -784,22 +784,73 @@ export interface Role {
 
 // ── Attachments (TASK-027) ────────────────────────────────────────────────────
 
-/** An attachment metadata record returned by attachment list and upload endpoints */
+/**
+ * An attachment metadata record returned by attachment list and upload endpoints.
+ *
+ * SPEC #2.1.14 — mirror of `AttachmentSchema` (see `src/schemas.ts` for the
+ * full rationale). TestRail emits three+ response shapes through the same
+ * `Attachment` type:
+ *  - upload-POST: only `attachment_id`.
+ *  - legacy list (`get_attachments_for_case` / `_test`): `id`, `name`,
+ *    `size`, `created_on`, `project_id`, `case_id`, `user_id`, `result_id`.
+ *  - plan/run list: adds `entity_attachments_id`, `icon_name`; `case_id`
+ *    may be `null`.
+ *  - cloud TestRail 7.1+: `id` becomes a UUID string and `entity_id` becomes
+ *    a string; the response gains `client_id`, `entity_type`, `data_id`,
+ *    `filetype`, `legacy_id`, `is_image`, `icon`.
+ *
+ * Every field is optional/nullable so a single type covers the union; consume
+ * the field appropriate for the endpoint you called.
+ */
 export interface Attachment {
-    /** Unique attachment ID */
-    attachment_id: number;
-    /** Original filename */
-    name: string;
-    /** Filename returned by the API (when available) */
+    /** Upload-POST response: the ID of the attachment uploaded to TestRail. Absent on list responses. */
+    attachment_id?: number | null;
+    /** Primary key on list responses: integer pre-7.1, UUID string on cloud 7.1+. */
+    id?: number | string | null;
+    /** Original filename / display name. Absent on the upload-POST response. */
+    name?: string | null;
+    /** Filename returned by the API (when available). */
     filename?: string | null;
-    /** File size in bytes */
+    /** File extension/type label (cloud 7.1+). */
+    filetype?: string | null;
+    /** File size in bytes. */
     size?: number | null;
-    /** Unix timestamp when the attachment was created */
+    /** Unix timestamp when the attachment was created. */
     created_on?: number | null;
-    /** ID of the user who created the attachment */
+    /**
+     * Legacy / non-documented uploader ID. The documented field is `user_id`;
+     * `created_by` is retained for backward compatibility with existing callers.
+     */
     created_by?: number | null;
-    /** Numeric ID of the entity this attachment belongs to */
-    entity_id?: number | null;
+    /** ID of the user who uploaded the attachment (documented field). */
+    user_id?: number | null;
+    /** ID of the project the attachment was uploaded against. */
+    project_id?: number | null;
+    /** ID of the case the attachment belongs to. `null` for plan-level attachments. */
+    case_id?: number | null;
+    /** Test result ID the attachment belongs to (may be `null`). */
+    result_id?: number | null;
+    /**
+     * ID of the entity the attachment belongs to. Integer on older endpoints,
+     * string (e.g. `"3"`) on cloud TestRail 7.1+.
+     */
+    entity_id?: number | string | null;
+    /** Plan/run-list field: the attachment record's own ID (separate from the file ID). */
+    entity_attachments_id?: number | null;
+    /** Entity kind label on cloud 7.1+ (e.g. `"case"`). */
+    entity_type?: string | null;
+    /** Plan/run-list field: name of the icon used within the TestRail UI. */
+    icon_name?: string | null;
+    /** Cloud 7.1+ tenant ID. */
+    client_id?: number | null;
+    /** Cloud 7.1+ underlying data record UUID. */
+    data_id?: string | null;
+    /** Cloud 7.1+ legacy/migration ID (0 when none). */
+    legacy_id?: number | null;
+    /** Cloud 7.1+ flag for whether the attachment is renderable as an image. */
+    is_image?: boolean | null;
+    /** Cloud 7.1+ icon identifier string. */
+    icon?: string | null;
 }
 
 // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────────
