@@ -681,18 +681,21 @@ export const AddCaseFieldResponseSchema = zObject({
     type_id: z.number(),
     display_order: z.number(),
     // POST response: JSON-encoded array (string), NOT the parsed array shape.
+    // configs is a JSON-encoded string per TestRail spec; not validated as
+    // parseable JSON here — callers using JSON.parse must handle SyntaxError
+    // (server-bug case; programmer error in normal operation).
     configs: z.string(),
     // POST response uses 0/1 integers instead of true/false.
-    is_active: z.number(),
-    include_all: z.number(),
+    is_active: z.union([z.literal(0), z.literal(1)]),
+    include_all: z.union([z.literal(0), z.literal(1)]),
     template_ids: z.array(z.number()),
     description: z.string().nullish(),
     // Admin-internal fields absent from GET get_case_fields.
     entity_id: z.number().nullish(),
     location_id: z.number().nullish(),
-    is_multi: z.number().nullish(),
+    is_multi: z.union([z.literal(0), z.literal(1)]).nullish(),
     status_id: z.number().nullish(),
-    is_system: z.number().nullish(),
+    is_system: z.union([z.literal(0), z.literal(1)]).nullish(),
 });
 
 export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>;

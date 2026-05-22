@@ -2782,6 +2782,10 @@ testrail case-field add --data '{
 On success, TestRail returns the new field object with an assigned `id`.
 You can then use `"custom_<id>": "value"` in case payloads going forward.
 
+Note: `response.configs` is returned as a JSON-encoded string — use
+`JSON.parse(result.configs)` to access the structured config objects
+(this differs from the array shape returned by `get_case_fields`).
+
 Common field creation options:
 
 ```bash
