@@ -1373,13 +1373,14 @@ export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema
 // and there's no project-time visibility into which keys are present. The
 // `.passthrough()` from `zObject` also lets future `custom_*` keys survive
 // round-trip (matches the AddCase / AddRun precedent).
-//
-// SPEC #2.1.15 — verified against the `add_shared_step` request-body field
-// table (Support article 7077919815572): only `title` is `required=true`;
-// `custom_steps_separated` is `required=false`. The doc's request example
-// also shows step entries with a subset of fields (just `content`), which
-// the `z.record(string, unknown())` per-step shape accepts.
 
+/**
+ * SPEC #2.1.15 — verified against the `add_shared_step` request-body field
+ * table (Support article 7077919815572): only `title` is `required=true`;
+ * `custom_steps_separated` is `required=false`. The doc's request example
+ * also shows step entries with a subset of fields (just `content`), which
+ * the `z.record(string, unknown())` per-step shape accepts.
+ */
 export const AddSharedStepPayloadSchema = zObject({
     title: z.string(),
     custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(),

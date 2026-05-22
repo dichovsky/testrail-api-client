@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "08f6c16a203bb0404797e2fae8f3527dbf88cd725dfc2b22a101b90b81b4439c",
+  "sourceHash": "5b0a79947848a12cb66a3bc7ba16289810e4f64e7ba167d756f5978250becf98",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -81,7 +81,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddConfigurationGroupPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 1418,
+      "line": 1419,
       "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -89,14 +89,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddConfigurationGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 1414,
+      "line": 1415,
       "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "AddConfigurationPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 1430,
+      "line": 1431,
       "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>",
       "typeOnly": true
     },
@@ -104,7 +104,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddConfigurationPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 1426,
+      "line": 1427,
       "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
     },
     {
@@ -322,7 +322,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddSharedStepPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 1388,
+      "line": 1389,
       "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>",
       "typeOnly": true
     },
@@ -330,8 +330,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddSharedStepPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 1383,
-      "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
+      "line": 1384,
+      "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
+      "jsdoc": "SPEC #2.1.15 — verified against the `add_shared_step` request-body field table (Support article 7077919815572): only `title` is `required=true`; `custom_steps_separated` is `required=false`. The doc's request example also shows step entries with a subset of fields (just `content`), which the `z.record(string, unknown())` per-step shape accepts."
     },
     {
       "name": "AddSuitePayload",
@@ -1135,7 +1136,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateConfigurationGroupPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 1424,
+      "line": 1425,
       "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -1143,14 +1144,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateConfigurationGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 1420,
+      "line": 1421,
       "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
       "name": "UpdateConfigurationPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 1436,
+      "line": 1437,
       "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>",
       "typeOnly": true
     },
@@ -1158,7 +1159,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateConfigurationPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 1432,
+      "line": 1433,
       "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
@@ -1301,7 +1302,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateSharedStepPayload",
       "kind": "type",
       "file": "src/schemas.ts",
-      "line": 1404,
+      "line": 1405,
       "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>",
       "typeOnly": true
     },
@@ -1309,7 +1310,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateSharedStepPayloadSchema",
       "kind": "const",
       "file": "src/schemas.ts",
-      "line": 1399,
+      "line": 1400,
       "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
       "jsdoc": "Update payload for `update_shared_step`. Every field is optional — TestRail accepts an empty object (`{}`) as a no-op update, so the CLI's `shared-step update <id> --data '{}'` is intentionally a valid call. This mirrors `UpdateMilestonePayloadSchema` and `UpdateCasePayloadSchema`: empty bodies are accepted at the schema layer; rejecting them is the API's responsibility, not the client's. Callers that want to enforce \"non-empty update\" must do so above this schema."
     },
@@ -7228,84 +7229,84 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "AddSharedStepPayloadSchema",
           "kind": "const",
-          "line": 1383,
+          "line": 1384,
           "exported": true,
           "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
         },
         {
           "name": "AddSharedStepPayload",
           "kind": "type",
-          "line": 1388,
+          "line": 1389,
           "exported": true,
           "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>"
         },
         {
           "name": "UpdateSharedStepPayloadSchema",
           "kind": "const",
-          "line": 1399,
+          "line": 1400,
           "exported": true,
           "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
         },
         {
           "name": "UpdateSharedStepPayload",
           "kind": "type",
-          "line": 1404,
+          "line": 1405,
           "exported": true,
           "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
         },
         {
           "name": "AddConfigurationGroupPayloadSchema",
           "kind": "const",
-          "line": 1414,
+          "line": 1415,
           "exported": true,
           "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddConfigurationGroupPayload",
           "kind": "type",
-          "line": 1418,
+          "line": 1419,
           "exported": true,
           "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>"
         },
         {
           "name": "UpdateConfigurationGroupPayloadSchema",
           "kind": "const",
-          "line": 1420,
+          "line": 1421,
           "exported": true,
           "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateConfigurationGroupPayload",
           "kind": "type",
-          "line": 1424,
+          "line": 1425,
           "exported": true,
           "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>"
         },
         {
           "name": "AddConfigurationPayloadSchema",
           "kind": "const",
-          "line": 1426,
+          "line": 1427,
           "exported": true,
           "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddConfigurationPayload",
           "kind": "type",
-          "line": 1430,
+          "line": 1431,
           "exported": true,
           "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>"
         },
         {
           "name": "UpdateConfigurationPayloadSchema",
           "kind": "const",
-          "line": 1432,
+          "line": 1433,
           "exported": true,
           "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateConfigurationPayload",
           "kind": "type",
-          "line": 1436,
+          "line": 1437,
           "exported": true,
           "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>"
         }
