@@ -711,6 +711,34 @@ describe('AddPlanEntryPayloadSchema', () => {
         >;
         expect(parsed['custom_owner']).toBe('team-a');
     });
+
+    it('parses SPEC #2.1.6 fields (start_on / due_on / refs) on the request side', () => {
+        // Declared on the write schema so consumers have a statically-typed path to set
+        // these documented TestRail request fields. `zObject` is `.passthrough()`, so
+        // undeclared keys would still reach the wire, but they'd be typed as `unknown`
+        // (or absent) on the inferred payload — i.e. no IDE/tsc help to set them, and
+        // wrong-typed values would not be rejected at parse time.
+        const parsed = AddPlanEntryPayloadSchema.parse({
+            suite_id: 1,
+            start_on: 1646058600,
+            due_on: 1648650671,
+            refs: 'SAN-100',
+        });
+        expect(parsed.start_on).toBe(1646058600);
+        expect(parsed.due_on).toBe(1648650671);
+        expect(parsed.refs).toBe('SAN-100');
+    });
+
+    // SPEC #2.1.6 — wrong-type rejection. Mirrors the `AddMilestonePayloadSchema`
+    // convention in this file. `it.each` keeps the three fields in sync so a future
+    // schema slip on any one of them fails loudly.
+    it.each([
+        ['start_on as ISO string', { start_on: '2026-05-22' }],
+        ['due_on as ISO string', { due_on: '2026-06-01' }],
+        ['refs as number', { refs: 42 }],
+    ])('rejects %s', (_label, badField) => {
+        expect(() => AddPlanEntryPayloadSchema.parse({ suite_id: 1, ...badField })).toThrow();
+    });
 });
 
 describe('UpdatePlanEntryPayloadSchema', () => {
@@ -729,6 +757,26 @@ describe('UpdatePlanEntryPayloadSchema', () => {
 
     it('rejects non-array runs', () => {
         expect(() => UpdatePlanEntryPayloadSchema.parse({ runs: 'nope' })).toThrow();
+    });
+
+    it('parses SPEC #2.1.6 fields (start_on / due_on / refs) on the update request side', () => {
+        const parsed = UpdatePlanEntryPayloadSchema.parse({
+            start_on: 1646058600,
+            due_on: 1648650671,
+            refs: 'SAN-101',
+        });
+        expect(parsed.start_on).toBe(1646058600);
+        expect(parsed.due_on).toBe(1648650671);
+        expect(parsed.refs).toBe('SAN-101');
+    });
+
+    // SPEC #2.1.6 — symmetric wrong-type rejection on the update path.
+    it.each([
+        ['start_on as ISO string', { start_on: '2026-05-22' }],
+        ['due_on as ISO string', { due_on: '2026-06-01' }],
+        ['refs as number', { refs: 42 }],
+    ])('rejects %s', (_label, badField) => {
+        expect(() => UpdatePlanEntryPayloadSchema.parse(badField)).toThrow();
     });
 });
 
@@ -831,6 +879,26 @@ describe('AddPlanPayloadSchema', () => {
         const parsed = AddPlanPayloadSchema.parse({ name: 'R', custom_tag: 'foo' }) as Record<string, unknown>;
         expect(parsed['custom_tag']).toBe('foo');
     });
+
+    // SPEC #2.1.6 — `add_plan` request body table lists `start_on` (timestamp, false)
+    // and `due_on` (timestamp, false). `refs` is NOT in the request body table for
+    // `add_plan` (only in the response) and must not be in the inferred payload.
+    it('parses SPEC #2.1.6 fields (start_on / due_on) on the add_plan request side', () => {
+        const parsed = AddPlanPayloadSchema.parse({
+            name: 'Plan with dates',
+            start_on: 1646058600,
+            due_on: 1648650671,
+        });
+        expect(parsed.start_on).toBe(1646058600);
+        expect(parsed.due_on).toBe(1648650671);
+    });
+
+    it.each([
+        ['start_on as ISO string', { start_on: '2026-05-22' }],
+        ['due_on as ISO string', { due_on: '2026-06-01' }],
+    ])('rejects %s on add_plan', (_label, badField) => {
+        expect(() => AddPlanPayloadSchema.parse({ name: 'R', ...badField })).toThrow();
+    });
 });
 
 describe('UpdatePlanPayloadSchema', () => {
@@ -851,6 +919,25 @@ describe('UpdatePlanPayloadSchema', () => {
 
     it('rejects non-string description', () => {
         expect(() => UpdatePlanPayloadSchema.parse({ description: 123 })).toThrow();
+    });
+
+    // SPEC #2.1.6 — `update_plan` "supports the same POST fields as `add_plan`"
+    // (except `entries`), per the Plans API doc. So `start_on` / `due_on` are
+    // valid on the update path.
+    it('parses SPEC #2.1.6 fields (start_on / due_on) on the update_plan request side', () => {
+        const parsed = UpdatePlanPayloadSchema.parse({
+            start_on: 1646058600,
+            due_on: 1648650671,
+        });
+        expect(parsed.start_on).toBe(1646058600);
+        expect(parsed.due_on).toBe(1648650671);
+    });
+
+    it.each([
+        ['start_on as ISO string', { start_on: '2026-05-22' }],
+        ['due_on as ISO string', { due_on: '2026-06-01' }],
+    ])('rejects %s on update_plan', (_label, badField) => {
+        expect(() => UpdatePlanPayloadSchema.parse(badField)).toThrow();
     });
 
     it('lets custom_* fields pass through unchanged', () => {
