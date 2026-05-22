@@ -3439,9 +3439,6 @@ describe('TestRailClient', () => {
         });
 
         it('parses get_milestone response with SPEC #2.1.9 is_started: true', async () => {
-            // The request-side `UpdateMilestonePayloadSchema` already accepts
-            // `is_started`. This test verifies the response-side gap is closed —
-            // round-tripping a milestone after `update_milestone` exposes the flag.
             const startedMilestone: Milestone = {
                 id: 1,
                 name: 'Release 2.0',
@@ -3473,7 +3470,7 @@ describe('TestRailClient', () => {
         });
 
         it('parses pre-5.3 get_milestone response without is_started', async () => {
-            // TestRail < 5.3 omits the key entirely. `.nullish()` resolves
+            // TestRail < 5.3 omits the key entirely. `.optional()` resolves
             // missing keys to `undefined`.
             const legacyMilestone: Milestone = {
                 id: 1,
@@ -3488,41 +3485,25 @@ describe('TestRailClient', () => {
             expect(result).toEqual(legacyMilestone);
         });
 
-        it('parses get_milestone response with is_started: null', async () => {
-            const nullStartedMilestone = {
-                id: 1,
-                name: 'Null-start Milestone',
-                project_id: 1,
-                is_completed: false,
-                url: 'url',
-                is_started: null,
-            };
-            mockFetch.mockResolvedValueOnce(mockOk(nullStartedMilestone));
-            const result = await client.getMilestone(1);
-            expect(result.is_started).toBeNull();
-        });
-
-        it('rejects is_started when the wire delivers a string instead of a boolean (no coercion)', async () => {
+        it.each([
+            ['string', 'true'],
+            ['number 1', 1],
+            ['number 0', 0],
+            ['explicit null', null],
+            ['empty object', {}],
+            ['empty array', []],
+        ])('rejects is_started when the wire delivers %s (strict boolean, no coercion)', async (_label, value) => {
+            // `.optional()` (not `.nullish()`) — accepts undefined / true / false
+            // and rejects everything else, matching the sibling `is_completed:
+            // z.boolean()` shape on the same schema and the doc's "plain boolean"
+            // contract.
             const malformed = {
                 id: 1,
                 name: 'Bad is_started',
                 project_id: 1,
                 is_completed: false,
                 url: 'url',
-                is_started: 'true',
-            };
-            mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.getMilestone(1)).rejects.toThrow();
-        });
-
-        it('rejects is_started when the wire delivers a number (no truthy coercion)', async () => {
-            const malformed = {
-                id: 1,
-                name: 'Bad is_started',
-                project_id: 1,
-                is_completed: false,
-                url: 'url',
-                is_started: 1,
+                is_started: value,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
             await expect(client.getMilestone(1)).rejects.toThrow();
