@@ -882,6 +882,19 @@ export type SharedStep = z.infer<typeof SharedStepSchema>;
 
 // ── Variable & Dataset Schemas ────────────────────────────────────────────────
 
+/**
+ * SPEC #2.1.16 — verified against the official TestRail "Variables" API
+ * doc (support article 7077979742868) on 2026-05-23. The documented
+ * Variable response object has exactly two fields, both required and
+ * non-nullable: `id: integer` and `name: string`. No back-compat
+ * `.nullish()` is added on either field — TestRail has emitted this
+ * shape since the endpoint was introduced and the doc shows no version
+ * gating. `zObject()`'s passthrough still preserves any forward-compat
+ * keys TestRail may add. The doc-level `get_variables` pagination
+ * envelope (`offset` / `limit` / `size` / `_links` / `variables[]`) is
+ * handled outside the schema by the `getVariables()` module method,
+ * which unwraps the envelope before parsing.
+ */
 export const VariableSchema = zObject({
     id: z.number(),
     name: z.string(),
@@ -909,9 +922,40 @@ export const UpdateVariablePayloadSchema = zObject({
 
 export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>;
 
+/**
+ * SPEC #2.1.16 — embedded variable/value entry inside a Dataset response.
+ * Per the official TestRail "Datasets" API doc (support article
+ * 7077300491540), `get_dataset` returns a `variables` array where each
+ * entry has `id` (integer), `name` (string), and `value` (string). All
+ * three are documented as plain types with no null arm; modelled here as
+ * required, non-nullable. `zObject()`'s passthrough preserves any
+ * forward-compat keys.
+ */
+export const DatasetVariableSchema = zObject({
+    id: z.number(),
+    name: z.string(),
+    value: z.string(),
+});
+
+export type DatasetVariable = z.infer<typeof DatasetVariableSchema>;
+
+/**
+ * SPEC #2.1.16 — verified against the official TestRail "Datasets" API
+ * doc (support article 7077300491540) on 2026-05-23. Documented response
+ * fields are `id`, `name`, and `variables[]`; `id` and `name` are
+ * required scalars, `variables` is the array of `DatasetVariable`
+ * entries. `variables` is modelled as `.nullish()` for defensive
+ * back-compat — TestRail's `add_dataset` example also shows the same
+ * shape but older API revisions or edge cases (e.g. an empty dataset
+ * mid-creation) may omit the key. `project_id`, `created_on`, and
+ * `created_by` are NOT in the current doc field table; they remain
+ * `.nullish()` as forward-compat placeholders, since `zObject()`'s
+ * passthrough would otherwise lose them at the type level.
+ */
 export const DatasetSchema = zObject({
     id: z.number(),
     name: z.string(),
+    variables: z.array(DatasetVariableSchema).nullish(),
     project_id: z.number().nullish(),
     created_on: z.number().nullish(),
     created_by: z.number().nullish(),
@@ -939,17 +983,50 @@ export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>;
 
 // ── Report Schemas ────────────────────────────────────────────────────────────
 
+/**
+ * SPEC #2.1.16 — verified against the official TestRail "Reports and
+ * Cross-Project Reports" API doc (support article 7077825062036) on
+ * 2026-05-23. Per the "system fields always included in the response"
+ * table, `get_reports` returns `id`, `name`, `description`, and six
+ * `notify_*` fields. `id` and `name` are required scalars; `description`
+ * is documented as a string but the doc example shows `"description":
+ * null`, so `.nullish()` matches the wire. The six `notify_*` fields are
+ * always-included per the doc, but modelled as `.nullish()` for
+ * defensive back-compat: older TestRail versions may omit them and
+ * `notify_link_recipients` is documented as a string that the doc
+ * example also shows as `null`. `is_shared` is NOT in the current doc
+ * field table; it remains `.nullish()` as a forward-compat placeholder.
+ */
 export const ReportSchema = zObject({
     id: z.number(),
     name: z.string(),
     description: z.string().nullish(),
+    notify_user: z.boolean().nullish(),
+    notify_link: z.boolean().nullish(),
+    notify_link_recipients: z.string().nullish(),
+    notify_attachment: z.boolean().nullish(),
+    notify_attachment_html_format: z.boolean().nullish(),
+    notify_attachment_pdf_format: z.boolean().nullish(),
     is_shared: z.boolean().nullish(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;
 
+/**
+ * SPEC #2.1.16 — verified against the official TestRail "Reports and
+ * Cross-Project Reports" API doc (support article 7077825062036) on
+ * 2026-05-23. `run_report` returns three URLs per the current doc
+ * example: `report_url` (the report view), `report_html`, and
+ * `report_pdf`. `report_url` is required; `report_html` and `report_pdf`
+ * are modelled as `.nullish()` since the endpoint requires TestRail 5.7+
+ * and older servers may emit fewer keys. `user_report_url` is NOT in
+ * the current doc but remains `.nullish()` as a forward/legacy-compat
+ * placeholder for TestRail revisions that emitted it.
+ */
 export const ReportResultSchema = zObject({
     report_url: z.string(),
+    report_html: z.string().nullish(),
+    report_pdf: z.string().nullish(),
     user_report_url: z.string().nullish(),
 });
 

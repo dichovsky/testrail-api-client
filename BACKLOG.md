@@ -31,7 +31,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 ## 📚 Spec Parity
 
 - [ ] 🔴 ♻️ SPEC #A.1: Split request/response schemas (start with results) to remove shape conflation
-- [ ] 🟡 🧪 SPEC #2.1.16: Verify Variables/Datasets/Reports schema nullability against current official spec docs
 
 ## 🏗️ Architecture
 

@@ -871,7 +871,17 @@ export interface Attachment {
 
 // ── Reports (TASK-031) ────────────────────────────────────────────────────────
 
-/** A report template returned by GET /get_reports/{project_id} */
+/**
+ * A report template returned by GET /get_reports/{project_id}.
+ *
+ * SPEC #2.1.16 — fields kept in lockstep with `ReportSchema`
+ * (`src/schemas.ts`). The six `notify_*` system fields are documented
+ * as always-included in the response but modelled as optional+nullable
+ * here for defensive back-compat with older TestRail versions and to
+ * match `notify_link_recipients`, which the doc example shows as
+ * `null`. `is_shared` is not in the current doc field table; it
+ * remains as a forward-compat placeholder.
+ */
 export interface Report {
     /** Unique report template ID */
     id: number;
@@ -879,14 +889,37 @@ export interface Report {
     name: string;
     /** Description of the report */
     description?: string | null;
-    /** Whether the report is shared with other users */
+    /** Indicates whether the author should be notified once the report has been executed */
+    notify_user?: boolean | null;
+    /** Indicates whether emails with links to the report should be sent */
+    notify_link?: boolean | null;
+    /** List of users to whom the report should be sent */
+    notify_link_recipients?: string | null;
+    /** Indicates whether the report should be emailed as an attachment */
+    notify_attachment?: boolean | null;
+    /** Indicates whether the attachment should be emailed in HTML format, if notify_attachment is true */
+    notify_attachment_html_format?: boolean | null;
+    /** Indicates whether the attachment should be emailed in PDF format, if notify_attachment is true */
+    notify_attachment_pdf_format?: boolean | null;
+    /** Whether the report is shared with other users (not in current doc; forward-compat) */
     is_shared?: boolean | null;
 }
 
-/** Result returned by GET /run_report/{report_template_id} */
+/**
+ * Result returned by GET /run_report/{report_template_id}.
+ *
+ * SPEC #2.1.16 — fields kept in lockstep with `ReportResultSchema`
+ * (`src/schemas.ts`). `report_html` and `report_pdf` are documented
+ * response fields per the current doc example; `user_report_url` is
+ * not in the current doc but retained as a legacy-compat placeholder.
+ */
 export interface ReportResult {
-    /** URL to the generated HTML report */
+    /** URL to the generated report view */
     report_url: string;
-    /** URL to the generated report user interface */
+    /** URL to fetch the report HTML (TestRail 5.7+, may be omitted on older servers) */
+    report_html?: string | null;
+    /** URL to fetch the report PDF (TestRail 5.7+, may be omitted on older servers) */
+    report_pdf?: string | null;
+    /** URL to the generated report user interface (legacy field; not in current doc) */
     user_report_url?: string | null;
 }
