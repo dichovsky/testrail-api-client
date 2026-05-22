@@ -1671,6 +1671,232 @@ describe('TestRailClient', () => {
 
             await expect(client.updateRun(1, { name: 'Run' })).rejects.toThrow();
         });
+
+        it('parses get_run response with all SPEC #2.1.5 timestamp fields (start_on, due_on, updated_on)', async () => {
+            const fullRun: Run = {
+                id: 81,
+                suite_id: 4,
+                name: 'File Formats',
+                include_all: false,
+                is_completed: false,
+                passed_count: 2,
+                blocked_count: 0,
+                untested_count: 3,
+                retest_count: 1,
+                failed_count: 2,
+                project_id: 1,
+                plan_id: 80,
+                milestone_id: 7,
+                created_on: 1393845644,
+                created_by: 1,
+                url: 'http://example.testrail.io/index.php?/runs/view/81',
+                refs: 'SAN-1',
+                start_on: 1393845000,
+                due_on: 1393932044,
+                updated_on: 1393900000,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(fullRun));
+            const result = await client.getRun(81);
+            // Field-specific assertions first so a single-field bug surfaces with a tight
+            // error instead of a multi-page diff from toEqual on the deeply-populated run.
+            expect(result.start_on).toBe(1393845000);
+            expect(result.due_on).toBe(1393932044);
+            expect(result.updated_on).toBe(1393900000);
+            expect(result).toEqual(fullRun);
+        });
+
+        it('parses a run-inside-plan-entry response with entry_id (GUID) and entry_index', async () => {
+            // `entry_id` / `entry_index` are not documented on the `get_run` response in
+            // the current TestRail API reference; they appear when this Run object is
+            // returned inside `get_plan` entries. `entry_id` matches `PlanEntry.id` (a
+            // string GUID); `entry_index` is the run's index within that entry. Schema
+            // must accept both whether they appear standalone or alongside the other
+            // SPEC #2.1.5 fields.
+            const planEntryRun: Run = {
+                id: 81,
+                suite_id: 4,
+                name: 'File Formats — Firefox',
+                include_all: false,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 5,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                plan_id: 80,
+                created_on: 1393845644,
+                created_by: 1,
+                url: 'http://example.testrail.io/index.php?/runs/view/81',
+                entry_id: '3933d74b-4282-43a2-9f1a-d72a85b4c2a3',
+                entry_index: 0,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(planEntryRun));
+            const result = await client.getRun(81);
+            expect(result.entry_id).toBe('3933d74b-4282-43a2-9f1a-d72a85b4c2a3');
+            expect(result.entry_index).toBe(0);
+            expect(result).toEqual(planEntryRun);
+        });
+
+        it('parses a standalone run response without any SPEC #2.1.5 fields', async () => {
+            // Older TestRail servers (<6.5.2 for updated_on) and standalone runs not part
+            // of a plan entry omit every new field. Missing keys (Zod `.nullish()` with
+            // absent input) resolve to `undefined`, not `null`.
+            const minimalRun: Run = {
+                id: 1,
+                suite_id: 1,
+                name: 'Standalone',
+                include_all: true,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(minimalRun));
+            const result = await client.getRun(1);
+            expect(result.start_on).toBeUndefined();
+            expect(result.due_on).toBeUndefined();
+            expect(result.updated_on).toBeUndefined();
+            expect(result.entry_id).toBeUndefined();
+            expect(result.entry_index).toBeUndefined();
+            expect(result).toEqual(minimalRun);
+        });
+
+        it('parses a run response with all SPEC #2.1.5 fields explicitly null', async () => {
+            const runWithNulls = {
+                id: 1,
+                suite_id: 1,
+                name: 'Null-fields',
+                include_all: true,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                start_on: null,
+                due_on: null,
+                updated_on: null,
+                entry_id: null,
+                entry_index: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(runWithNulls));
+            const result = await client.getRun(1);
+            expect(result.start_on).toBeNull();
+            expect(result.due_on).toBeNull();
+            expect(result.updated_on).toBeNull();
+            expect(result.entry_id).toBeNull();
+            expect(result.entry_index).toBeNull();
+        });
+
+        it('parses a partial-fields response with some SPEC #2.1.5 fields present, others omitted', async () => {
+            // Defensive-design cross-product: `.nullish()` per-field must accept any
+            // combination of present/absent independently. Regressions to `.optional()`
+            // (no null) or `.nullable()` (no missing key) would fail here.
+            const partial = {
+                id: 1,
+                suite_id: 1,
+                name: 'Partial',
+                include_all: true,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                start_on: 1393845000,
+                entry_index: 2,
+                // due_on, updated_on, entry_id omitted
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(partial));
+            const result = await client.getRun(1);
+            expect(result.start_on).toBe(1393845000);
+            expect(result.entry_index).toBe(2);
+            expect(result.due_on).toBeUndefined();
+            expect(result.updated_on).toBeUndefined();
+            expect(result.entry_id).toBeUndefined();
+        });
+
+        it('rejects entry_id when wire delivers a number instead of a GUID string (no coercion)', async () => {
+            const malformed = {
+                id: 1,
+                suite_id: 1,
+                name: 'Bad',
+                include_all: true,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                entry_id: 42,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getRun(1)).rejects.toThrow();
+        });
+
+        it('rejects entry_index when wire delivers a string instead of a number (no coercion)', async () => {
+            const malformed = {
+                id: 1,
+                suite_id: 1,
+                name: 'Bad',
+                include_all: true,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                entry_index: '0',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getRun(1)).rejects.toThrow();
+        });
+
+        it('rejects start_on when wire delivers an ISO date string instead of a numeric Unix timestamp', async () => {
+            // TestRail emits Unix integers, not ISO strings. Zod must NOT coerce.
+            const malformed = {
+                id: 1,
+                suite_id: 1,
+                name: 'Bad',
+                include_all: true,
+                is_completed: false,
+                passed_count: 0,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 1234567890,
+                created_by: 1,
+                url: 'url',
+                start_on: '2026-05-22T10:00:00Z',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(malformed));
+            await expect(client.getRun(1)).rejects.toThrow();
+        });
     });
 
     describe('Tests', () => {

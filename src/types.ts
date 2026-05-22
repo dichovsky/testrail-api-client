@@ -250,6 +250,19 @@ export interface Run {
     created_by: number;
     refs?: string | null;
     url: string;
+    // Mirror of SPEC #2.1.5 timestamp fields on `RunSchema`. `updated_on` requires
+    // TestRail 6.5.2+; `start_on` / `due_on` are ungated but only emit when set.
+    // `?: T | null` yields `T | null | undefined`, matching the schema's `.nullish()`
+    // (omitted vs explicit null vs typed Unix timestamp).
+    start_on?: number | null;
+    due_on?: number | null;
+    updated_on?: number | null;
+    // Mirror of plan-entry context fields. NOT in the documented `get_run` response;
+    // emit only when this Run is returned inside a `get_plan` entry, where it carries
+    // the parent entry's GUID (string, matching `PlanEntry.id`) and the run's index
+    // within that entry. Standalone runs from `get_run` / `get_runs` omit both.
+    entry_id?: string | null;
+    entry_index?: number | null;
 }
 
 export interface Test {

@@ -27,7 +27,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 ## 📚 Spec Parity
 
-- [ ] 🟡 🐛 SPEC #2.1.5: Add missing `RunSchema` fields (`start_on`, `due_on`, `updated_on`, `entry_id`, `entry_index`)
 - [ ] 🟡 🐛 SPEC #2.1.6: Add missing `PlanSchema`/`PlanEntrySchema` fields (`start_on`, `due_on`, `refs`)
 - [ ] 🟢 🐛 SPEC #2.1.7: Add missing `TestSchema.labels[]`
 - [ ] 🟡 🐛 SPEC #2.1.3: Add missing `CaseSchema.labels[]`
