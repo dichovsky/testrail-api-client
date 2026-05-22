@@ -2146,6 +2146,86 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden'));
             await expect(client.getCurrentUser()).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
+
+        it('should parse a TestRail Professional 7.3+ user with email_notifications / is_admin / group_ids / mfa_required', async () => {
+            const proUser: User = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                role_id: 3,
+                role: 'Tester',
+                email_notifications: true,
+                is_admin: false,
+                group_ids: [1, 2, 3],
+                mfa_required: false,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(proUser));
+            const result = await client.getUser(1);
+            expect(result).toEqual(proUser);
+            expect(result.email_notifications).toBe(true);
+            expect(result.is_admin).toBe(false);
+            expect(result.group_ids).toEqual([1, 2, 3]);
+            expect(result.mfa_required).toBe(false);
+        });
+
+        it('should parse a TestRail Enterprise user with sso_enabled and assigned_projects', async () => {
+            const enterpriseUser: User = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                role_id: 3,
+                role: 'Tester',
+                email_notifications: true,
+                is_admin: false,
+                group_ids: [1, 2, 3],
+                mfa_required: false,
+                sso_enabled: true,
+                assigned_projects: [1, 3],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(enterpriseUser));
+            const result = await client.getUser(1);
+            expect(result).toEqual(enterpriseUser);
+            expect(result.sso_enabled).toBe(true);
+            expect(result.assigned_projects).toEqual([1, 3]);
+        });
+
+        it('should accept a reduced get_current_user response without the 7.3+ fields', async () => {
+            const minimalUser: User = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                role_id: 3,
+                role: 'Tester',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(minimalUser));
+            const result = await client.getCurrentUser();
+            expect(result).toEqual(minimalUser);
+            expect(result.email_notifications).toBeUndefined();
+            expect(result.sso_enabled).toBeUndefined();
+        });
+
+        it('should accept null email_notifications / group_ids from older servers', async () => {
+            const userWithNulls = {
+                id: 1,
+                name: 'John Doe',
+                email: 'john.doe@gurock.io',
+                is_active: true,
+                email_notifications: null,
+                is_admin: null,
+                group_ids: null,
+                mfa_required: null,
+                sso_enabled: null,
+                assigned_projects: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(userWithNulls));
+            const result = await client.getUser(1);
+            expect(result.email_notifications).toBeNull();
+            expect(result.group_ids).toBeNull();
+            expect(result.sso_enabled).toBeNull();
+        });
     });
 
     describe('Statuses', () => {

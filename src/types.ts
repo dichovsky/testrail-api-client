@@ -282,6 +282,14 @@ export interface User {
     is_active: boolean;
     role_id?: number | null;
     role?: string | null;
+    // TestRail 7.3+ — absent on older servers and on the reduced `get_current_user` response shape
+    email_notifications?: boolean | null;
+    is_admin?: boolean | null;
+    group_ids?: number[] | null;
+    mfa_required?: boolean | null;
+    // TestRail Enterprise 7.3+ — only returned by Enterprise instances
+    sso_enabled?: boolean | null;
+    assigned_projects?: number[] | null;
 }
 
 export interface Status {

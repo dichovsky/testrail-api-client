@@ -354,6 +354,11 @@ describe('optInt', () => {
     ])('accepts valid non-negative decimal: %s', (_label, raw, expected) => {
         expect(optInt(raw)).toBe(expected);
     });
+
+    it('rejects unsafe-integer magnitudes that pass the decimal regex but exceed Number.MAX_SAFE_INTEGER', () => {
+        // 21 nines — parses as a finite Number but loses precision past 2^53-1.
+        expect(optInt('999999999999999999999')).toBeUndefined();
+    });
 });
 
 describe('resolveAuth', () => {

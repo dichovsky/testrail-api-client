@@ -153,6 +153,65 @@ describe('handleBddGet', () => {
         await expect(handleBddGet(ctx)).rejects.toThrow();
         expect(client.getBdd).not.toHaveBeenCalled();
     });
+
+    it('streams Gherkin text to process.stdout and reroutes the JSON ack to errRaw when --out -', async () => {
+        const client = buildClient();
+        const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+        const errRaw = vi.fn();
+        const out = vi.fn();
+        const ctx: HandlerContext = {
+            client: client as unknown as TestRailClient,
+            args: { pathParams: ['42'], out: '-' },
+            bodyInput: {},
+            dryRun: false,
+            force: false,
+            confirmDestructive: false,
+            out,
+            errRaw,
+        };
+        try {
+            await handleBddGet(ctx);
+            expect(client.getBdd).toHaveBeenCalledWith(42);
+            expect(stdoutSpy).toHaveBeenCalledWith('Feature: Login\n  Scenario: ok\n');
+            // JSON ack rerouted to stderr — keeps stdout pure Gherkin.
+            expect(errRaw).toHaveBeenCalledTimes(1);
+            const ackArg = errRaw.mock.calls[0]?.[0] as string;
+            expect(ackArg.endsWith('\n')).toBe(true);
+            const parsed = JSON.parse(ackArg.trim()) as Record<string, unknown>;
+            expect(parsed).toEqual({
+                caseId: 42,
+                out: '<stdout>',
+                size: Buffer.byteLength('Feature: Login\n  Scenario: ok\n', 'utf-8'),
+            });
+            // out (stdout JSON) MUST NOT be called — that would corrupt the Gherkin stream.
+            expect(out).not.toHaveBeenCalled();
+        } finally {
+            stdoutSpy.mockRestore();
+        }
+    });
+
+    it('--out - with no errRaw silently suppresses the ack (still streams to stdout)', async () => {
+        const client = buildClient();
+        const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+        const out = vi.fn();
+        const ctx: HandlerContext = {
+            client: client as unknown as TestRailClient,
+            args: { pathParams: ['7'], out: '-' },
+            bodyInput: {},
+            dryRun: false,
+            force: false,
+            confirmDestructive: false,
+            out,
+            // no errRaw — branch where ack is dropped
+        };
+        try {
+            await handleBddGet(ctx);
+            expect(stdoutSpy).toHaveBeenCalledWith('Feature: Login\n  Scenario: ok\n');
+            expect(out).not.toHaveBeenCalled();
+        } finally {
+            stdoutSpy.mockRestore();
+        }
+    });
 });
 
 // ── bdd add ──────────────────────────────────────────────────────────────

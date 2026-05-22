@@ -43,6 +43,14 @@ export const UserSchema = zObject({
     is_active: z.boolean(),
     role_id: z.number().nullish(),
     role: z.string().nullish(),
+    // TestRail 7.3+ — absent on older servers and on the reduced `get_current_user` response shape
+    email_notifications: z.boolean().nullish(),
+    is_admin: z.boolean().nullish(),
+    group_ids: z.array(z.number()).nullish(),
+    mfa_required: z.boolean().nullish(),
+    // TestRail Enterprise 7.3+ — only returned by Enterprise instances
+    sso_enabled: z.boolean().nullish(),
+    assigned_projects: z.array(z.number()).nullish(),
 });
 
 export type User = z.infer<typeof UserSchema>;

@@ -28,7 +28,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 ## 📚 Spec Parity
 
 - [ ] 🟡 🐛 SPEC #2.1.1: Add missing `ProjectSchema` fields (`default_role_id`, `default_role`, `users[]`, `groups[]`)
-- [ ] 🔴 🐛 SPEC #2.1.10: Add missing `UserSchema` fields (`email_notifications`, `is_admin`, `group_ids`, `mfa_required`, `sso_enabled`, `assigned_projects`)
 - [ ] 🟡 🐛 SPEC #2.1.5: Add missing `RunSchema` fields (`start_on`, `due_on`, `updated_on`, `entry_id`, `entry_index`)
 - [ ] 🟡 🐛 SPEC #2.1.6: Add missing `PlanSchema`/`PlanEntrySchema` fields (`start_on`, `due_on`, `refs`)
 - [ ] 🟢 🐛 SPEC #2.1.7: Add missing `TestSchema.labels[]`
