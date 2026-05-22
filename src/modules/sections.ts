@@ -30,6 +30,8 @@ export class SectionModule {
                 await this.client.requestParsed<{ sections?: Section[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ sections: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ sections: z.array(SectionSchema).nullish() }),
                 )
             ).sections ?? []

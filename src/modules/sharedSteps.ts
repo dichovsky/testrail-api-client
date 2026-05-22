@@ -66,6 +66,8 @@ export class SharedStepModule {
                 await this.client.requestParsed<{ history?: HistoryEntry[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ history: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ history: z.array(HistoryEntrySchema).nullish() }),
                 )
             ).history ?? []

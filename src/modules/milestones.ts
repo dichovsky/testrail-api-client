@@ -27,6 +27,8 @@ export class MilestoneModule {
                 await this.client.requestParsed<{ milestones?: Milestone[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ milestones: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ milestones: z.array(MilestoneSchema).nullish() }),
                 )
             ).milestones ?? []

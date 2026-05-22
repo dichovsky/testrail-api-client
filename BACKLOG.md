@@ -32,7 +32,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 - [ ] 🟡 🐛 SPEC #2.1.12: Model `add_case_field` response divergence (`configs` string vs array on `get_case_fields`)
 - [ ] 🔴 ♻️ SPEC #A.1: Split request/response schemas (start with results) to remove shape conflation
-- [ ] 🟢 ♻️ SPEC #1.5: Document or revert module list-wrapper `.nullish()` flips where spec backing is absent
 - [ ] 🟡 🧪 SPEC #2.1.15: Verify Shared Steps schema nullability against current official spec docs
 - [ ] 🟡 🧪 SPEC #2.1.16: Verify Variables/Datasets/Reports schema nullability against current official spec docs
 

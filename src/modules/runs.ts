@@ -45,6 +45,8 @@ export class RunModule {
                 await this.client.requestParsed<{ runs?: Run[] }>(
                     'GET',
                     endpoint,
+                    // SPEC #1.5 — TestRail can return `{ runs: null }` for empty list wrappers;
+                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
                     z.object({ runs: z.array(RunSchema).nullish() }),
                 )
             ).runs ?? []
