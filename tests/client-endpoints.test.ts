@@ -811,6 +811,235 @@ describe('TestRailClient', () => {
         it('should reject invalid caseId in getHistoryForCase', async () => {
             await expect(client.getHistoryForCase(-1)).rejects.toThrow('caseId must be a positive integer');
         });
+
+        it('parses get_history_for_case response with SPEC #2.1.13 fields (label, options, old_value, new_value)', async () => {
+            // Per the documented `get_history_for_case` example: a change record
+            // can carry `old_value` / `new_value` as integers (e.g. `section_id`)
+            // alongside the previously-modelled `field` / `type_id` / `old_text` /
+            // `new_text` keys.
+            const richHistory: HistoryEntry[] = [
+                {
+                    id: 3382,
+                    type_id: 6,
+                    created_on: 1597927176,
+                    user_id: 1,
+                    changes: [
+                        {
+                            type_id: 1,
+                            old_text: 'Original Section',
+                            new_text: 'Updated Section',
+                            field: 'section_id',
+                            label: 'Section',
+                            options: [{ is_required: true }],
+                            old_value: 3573,
+                            new_value: 3574,
+                        },
+                    ],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history: richHistory }));
+            const result = await client.getHistoryForCase(42);
+            const change = result[0]?.changes?.[0];
+            expect(change?.label).toBe('Section');
+            expect(change?.options).toEqual([{ is_required: true }]);
+            expect(change?.old_value).toBe(3573);
+            expect(change?.new_value).toBe(3574);
+            expect(result).toEqual(richHistory);
+        });
+
+        it('parses a change with old_value: null and new_value as string (refs example from docs)', async () => {
+            // Per the doc's second example: `{ "field": "refs", "old_value": null,
+            // "new_value": "1" }`. `old_value` / `new_value` are typed `unknown` so
+            // `null` and `string` both pass — the schema must not reject either.
+            const history: HistoryEntry[] = [
+                {
+                    id: 3389,
+                    type_id: 6,
+                    created_on: 1597932715,
+                    user_id: 1,
+                    changes: [
+                        {
+                            type_id: 1,
+                            field: 'refs',
+                            old_value: null,
+                            new_value: '1',
+                        },
+                    ],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            const result = await client.getHistoryForCase(42);
+            const change = result[0]?.changes?.[0];
+            expect(change?.old_value).toBeNull();
+            expect(change?.new_value).toBe('1');
+            expect(change?.label).toBeUndefined();
+            expect(change?.options).toBeUndefined();
+        });
+
+        it('parses a change carrying old_value / new_value as booleans (boolean field type)', async () => {
+            // TestRail's field type table lists 3 = boolean. The doc says "value can
+            // be text or an integer" but real wire boolean fields emit `true`/`false`.
+            // `z.unknown()` accepts any JSON-compatible value.
+            const history: HistoryEntry[] = [
+                {
+                    id: 3400,
+                    type_id: 6,
+                    created_on: 1700000000,
+                    user_id: 1,
+                    changes: [
+                        {
+                            type_id: 3,
+                            field: 'is_deleted',
+                            label: 'Deleted',
+                            old_value: false,
+                            new_value: true,
+                        },
+                    ],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            const result = await client.getHistoryForCase(42);
+            const change = result[0]?.changes?.[0];
+            expect(change?.old_value).toBe(false);
+            expect(change?.new_value).toBe(true);
+        });
+
+        it('parses a change with options[] as a complex inner shape (no element-schema enforcement)', async () => {
+            // The `options` array's inner shape varies per field type — `z.unknown()`
+            // for the element type means the schema doesn't reject any element shape.
+            // Verifies we can carry through a heterogeneous list of inner objects.
+            const history: HistoryEntry[] = [
+                {
+                    id: 3401,
+                    type_id: 6,
+                    created_on: 1700000001,
+                    user_id: 1,
+                    changes: [
+                        {
+                            field: 'priority_id',
+                            label: 'Priority',
+                            options: [{ is_required: true, default_value: 'Medium' }, 'auto-derived', 42, null],
+                            old_value: 'Low',
+                            new_value: 'High',
+                        },
+                    ],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            const result = await client.getHistoryForCase(42);
+            expect(result[0]?.changes?.[0]?.options).toHaveLength(4);
+        });
+
+        it('rejects a change where options is not an array', async () => {
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', options: 'not-an-array' }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
+
+        it('rejects a change where label is a number (no coercion)', async () => {
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', label: 42 }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
+
+        it('rejects a change where label is a boolean (no coercion)', async () => {
+            // Sibling of the `label: 42` test — `label` is a string-only field,
+            // booleans must be rejected just like numbers.
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', label: true }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
+
+        it('rejects a change where options is a plain object instead of an array', async () => {
+            // The previous coverage tested `options: 'not-an-array'`. A bare
+            // object is the other natural mistake and must be rejected as well.
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', options: { is_required: true } }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
+
+        it('parses old_value / new_value as arrays (separated-steps field type)', async () => {
+            // The schema comment hypothesises arrays for type_id=8 (separated
+            // steps); this test exercises that variant of the discriminated
+            // union so a regression to `z.unknown()` or to a non-array union
+            // would surface.
+            const history: HistoryEntry[] = [
+                {
+                    id: 4001,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [
+                        {
+                            type_id: 8,
+                            field: 'custom_steps_separated',
+                            label: 'Steps',
+                            old_value: [{ content: 'old step 1', expected: '' }],
+                            new_value: [
+                                { content: 'new step 1', expected: 'pass' },
+                                { content: 'new step 2', expected: 'pass' },
+                            ],
+                        },
+                    ],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            const result = await client.getHistoryForCase(42);
+            const change = result[0]?.changes?.[0];
+            expect(Array.isArray(change?.old_value)).toBe(true);
+            expect(Array.isArray(change?.new_value)).toBe(true);
+            expect(change?.new_value as unknown[]).toHaveLength(2);
+        });
+
+        it('rejects old_value when wire delivers a plain object (not in the discriminated union)', async () => {
+            // The union accepts string | number | boolean | array | null. Plain
+            // objects are NOT in the union — they should be rejected. This is the
+            // ergonomics-vs-`z.unknown()` win: callers no longer have to defend
+            // against arbitrary object shapes leaking through the parse boundary.
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1700000000,
+                    changes: [{ field: 'x', old_value: { unexpected: 'shape' } }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expect(client.getHistoryForCase(42)).rejects.toThrow();
+        });
     });
 
     describe('Bulk case operations', () => {

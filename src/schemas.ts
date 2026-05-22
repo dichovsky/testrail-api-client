@@ -537,6 +537,25 @@ const HistoryChangeSchema = zObject({
     type_id: z.number().nullish(),
     old_text: z.string().nullish(),
     new_text: z.string().nullish(),
+    // SPEC #2.1.13 — added per the `get_history_for_case` field table:
+    //   - `label` (string) is the field label as seen in the user interface.
+    //   - `options` (array) carries field-config options (required, default value,
+    //     etc.) — inner shape varies per field type, so the element type stays
+    //     `z.unknown()` to accept whatever TestRail emits.
+    //   - `old_value` / `new_value` are typed as a discriminated union of the
+    //     value shapes the wire actually carries:
+    //       * `string`   — text fields, refs ("1" in the doc example)
+    //       * `number`   — integer fields (3573/3574 in the section_id example)
+    //       * `boolean`  — boolean fields (type_id=3)
+    //       * `array`    — separated-steps fields (type_id=8); element shape varies
+    //       * `null`     — explicit-null emitted when previous/new is unset
+    //     Plus `.nullish()` on the field itself so the key may be omitted
+    //     entirely. The union gives consumers a switch-narrowable type instead of
+    //     the bare `unknown` they'd get from `z.unknown()`.
+    label: z.string().nullish(),
+    options: z.array(z.unknown()).nullish(),
+    old_value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]).nullish(),
+    new_value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]).nullish(),
 });
 
 // Shared entry shape used by `get_history_for_case` and

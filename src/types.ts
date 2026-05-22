@@ -408,6 +408,15 @@ export interface HistoryChange {
     type_id?: number | null;
     old_text?: string | null;
     new_text?: string | null;
+    // Mirror of SPEC #2.1.13 fields on `HistoryChangeSchema`. See schemas.ts
+    // for the per-variant rationale of `old_value` / `new_value`. The union
+    // here matches the Zod inferred type and lets callers `switch (typeof v)`
+    // to narrow at use site (vs the previous `unknown` which forced explicit
+    // runtime checks).
+    label?: string | null;
+    options?: unknown[] | null;
+    old_value?: string | number | boolean | unknown[] | null;
+    new_value?: string | number | boolean | unknown[] | null;
 }
 
 export interface HistoryEntry {
