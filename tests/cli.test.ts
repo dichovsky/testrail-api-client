@@ -2419,28 +2419,27 @@ describe('CLI', () => {
             ],
         });
 
-        const MOCK_CASE_FIELD = {
+        // SPEC #2.1.12 — the POST response shape diverges from `get_case_fields`
+        // GET: `configs` is a JSON-encoded string (not a parsed array) and
+        // boolean-style fields surface as 0/1 integers.
+        const MOCK_CASE_FIELD_POST_RESPONSE = {
             id: 99,
             system_name: 'custom_preconds',
             label: 'Preconditions',
             name: 'preconds',
             type_id: 1,
             display_order: 1,
-            configs: [
-                {
-                    context: { is_global: true, project_ids: [] },
-                    options: { is_required: false, default_value: '' },
-                },
-            ],
-            is_active: true,
-            include_all: true,
+            configs:
+                '[{"context":{"is_global":true,"project_ids":""},"options":{"is_required":false,"default_value":""},"id":"9f105ba2-1ed0-45e0-b459-18d890bad86e"}]',
+            is_active: 1,
+            include_all: 1,
             template_ids: [],
         };
 
         it('case-field add POSTs to add_case_field and returns the created field', async () => {
             const { exitCodes } = await runCli(
                 ['case-field', 'add', '--data', VALID_PAYLOAD],
-                [jsonResponse(MOCK_CASE_FIELD)],
+                [jsonResponse(MOCK_CASE_FIELD_POST_RESPONSE)],
             );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;

@@ -5,12 +5,13 @@ import {
     PrioritySchema,
     ResultFieldSchema,
     CaseFieldSchema,
+    AddCaseFieldResponseSchema,
     CaseTypeSchema,
     TemplateSchema,
     RoleSchema,
     CaseStatusSchema,
 } from '../schemas.js';
-import type { AddCaseFieldPayload } from '../schemas.js';
+import type { AddCaseFieldPayload, AddCaseFieldResponse } from '../schemas.js';
 import { z } from 'zod';
 
 export class MetadataModule {
@@ -43,9 +44,17 @@ export class MetadataModule {
 
     /**
      * Create a new custom case field (admin-only). The endpoint is
-     * `POST add_case_field` with no path or query params. Returns the
-     * newly created `CaseField`, including its assigned `id`, `system_name`,
-     * and `display_order`.
+     * `POST add_case_field` with no path or query params. Returns an
+     * `AddCaseFieldResponse` (NOT `CaseField`) — see SPEC #2.1.12 in
+     * `src/schemas.ts`: the POST response shape diverges from
+     * `get_case_fields` GET in two ways:
+     *
+     *   - `configs` is a JSON-encoded string (not a parsed array). Callers
+     *     that need the structured form must `JSON.parse(response.configs)`.
+     *   - Boolean-style fields (`is_active`, `include_all`, `is_multi`,
+     *     `is_system`) surface as `0`/`1` integers, and several
+     *     admin-internal fields (`entity_id`, `location_id`, `status_id`)
+     *     appear here but not on GET.
      *
      * Server validates: `name` must be a valid system slug (lowercase,
      * alphanumeric + underscore); field-type-specific rules (e.g. `Steps`
@@ -56,8 +65,13 @@ export class MetadataModule {
      *
      * @testrail POST add_case_field
      */
-    async addCaseField(payload: AddCaseFieldPayload): Promise<CaseField> {
-        return this.client.requestParsed<CaseField>('POST', 'add_case_field', CaseFieldSchema, payload);
+    async addCaseField(payload: AddCaseFieldPayload): Promise<AddCaseFieldResponse> {
+        return this.client.requestParsed<AddCaseFieldResponse>(
+            'POST',
+            'add_case_field',
+            AddCaseFieldResponseSchema,
+            payload,
+        );
     }
 
     /** @testrail GET get_case_types */
