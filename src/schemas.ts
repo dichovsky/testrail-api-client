@@ -483,6 +483,13 @@ export const TestSchema = zObject({
 
 export type Test = z.infer<typeof TestSchema>;
 
+/**
+ * SPEC #A.1 — canonical exemplar for **response** schemas.
+ *
+ * See `docs/SCHEMA-CONVENTIONS.md` (§1 naming, §2 nullability). All optional
+ * fields use `.nullish()` because TestRail may return `null` or omit the key,
+ * and a response `.optional()` would fail to parse `{ field: null }`.
+ */
 export const ResultSchema = zObject({
     id: z.number(),
     test_id: z.number(),
@@ -1222,6 +1229,16 @@ export const UpdateRunPayloadSchema = zObject({
 
 export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>;
 
+/**
+ * SPEC #A.1 — canonical exemplar for **request** payload schemas.
+ *
+ * See `docs/SCHEMA-CONVENTIONS.md` (§1 naming, §2 nullability). Caller-omitted
+ * fields use `.optional()` (= `T | undefined`), NOT `.nullish()`: a request
+ * `.nullish()` would widen the input type with `null` for no reason — callers
+ * omit the key instead of sending `null`. Mirror of the response-side
+ * `ResultSchema` with optionality flipped accordingly on `comment`, `defects`,
+ * and `assignedto_id`.
+ */
 export const AddResultPayloadSchema = zObject({
     status_id: z.number(),
     comment: z.string().optional(),
@@ -1234,6 +1251,7 @@ export const AddResultPayloadSchema = zObject({
 
 export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>;
 
+// SPEC #A.1 — see docs/SCHEMA-CONVENTIONS.md §3 (no .extend() across directions)
 // Inlined rather than `.extend(AddResultPayloadSchema)` so the passthrough()
 // behavior is unambiguous and the inferred type stays a plain object literal.
 export const AddResultForCasePayloadSchema = zObject({
@@ -1255,6 +1273,7 @@ export const AddResultsForCasesPayloadSchema = zObject({
 
 export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>;
 
+// SPEC #A.1 — see docs/SCHEMA-CONVENTIONS.md §3 (no .extend() across directions)
 // Same precedent as AddResultForCasePayloadSchema: inlined rather than
 // `.extend(AddResultPayloadSchema)` so the passthrough() behavior is
 // unambiguous and the inferred type stays a plain object literal.
