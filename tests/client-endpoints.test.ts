@@ -5258,6 +5258,257 @@ describe('TestRailClient', () => {
         });
     });
 
+    // ── SPEC #2.1.16: Variables / Datasets / Reports nullability ──────────────
+
+    describe('SPEC #2.1.16 — Variables schema parity', () => {
+        it('parses the doc-canonical {id, name} shape (no extra fields)', async () => {
+            // Per TestRail "Variables" API doc (support article 7077979742868),
+            // the Variable response object has exactly id + name, both required
+            // and non-nullable. Mirrors the doc's example response.
+            const variable = { id: 611, name: 'd' };
+            mockFetch.mockResolvedValueOnce(mockOk(variable));
+            const result = await client.addVariable(1, { name: 'd' });
+            expect(result).toEqual(variable);
+        });
+
+        it('passes through forward-compat keys without dropping them (zObject passthrough)', async () => {
+            // `zObject()` uses `.passthrough()` so any future TestRail-added
+            // key (e.g. `description`) survives a round-trip without breaking
+            // the parse. Guards against the schema becoming brittle to
+            // upstream additions.
+            const variable = { id: 612, name: 'e', description: 'forward-compat' };
+            mockFetch.mockResolvedValueOnce(mockOk(variable));
+            const result = await client.addVariable(1, { name: 'e' });
+            expect(result).toEqual(variable);
+        });
+
+        it.each([
+            ['missing id', { name: 'no_id' }],
+            ['missing name', { id: 1 }],
+            ['null id', { id: null, name: 'null_id' }],
+            ['null name', { id: 1, name: null }],
+            ['string id', { id: '1', name: 'string_id' }],
+            ['number name', { id: 1, name: 42 }],
+        ])('rejects %s (no nullability or coercion)', async (_label, wire) => {
+            mockFetch.mockResolvedValueOnce(mockOk(wire));
+            await expect(client.addVariable(1, { name: 'x' })).rejects.toThrow();
+        });
+    });
+
+    describe('SPEC #2.1.16 — Datasets schema parity', () => {
+        it('parses get_dataset doc-canonical response with embedded variables[]', async () => {
+            // Per TestRail "Datasets" API doc (support article 7077300491540),
+            // a Dataset has id + name + variables[{id, name, value}].
+            // Mirrors the doc's example response verbatim.
+            const dataset = {
+                id: 183,
+                name: 'Default',
+                variables: [
+                    { id: 1171, name: 'age', value: '41' },
+                    { id: 1170, name: 'birth_year', value: '1980' },
+                    { id: 1172, name: 'browser', value: 'Chrome' },
+                ],
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.getDataset(183);
+            expect(result).toEqual(dataset);
+            expect(result.variables).toHaveLength(3);
+        });
+
+        it('parses legacy get_dataset response without SPEC #2.1.16 variables field (regression guard)', async () => {
+            // Pre-SPEC #2.1.16 callers and older TestRail revisions may omit
+            // the `variables` key — `.nullish()` accepts absence without
+            // forcing a defensive `|| []` at every call site.
+            const legacy = { id: 1, name: 'Smoke Dataset', project_id: 1 };
+            mockFetch.mockResolvedValueOnce(mockOk(legacy));
+            const result = await client.getDataset(1);
+            expect(result).toEqual(legacy);
+            expect(result.variables).toBeUndefined();
+        });
+
+        it('parses get_dataset response with explicit null variables (defensive back-compat)', async () => {
+            const dataset = { id: 2, name: 'Empty Dataset', variables: null };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.getDataset(2);
+            expect(result.variables).toBeNull();
+        });
+
+        it('parses get_datasets response with array of variable-bearing datasets', async () => {
+            const datasets = [
+                {
+                    id: 543,
+                    name: 'Dataset_name_3',
+                    variables: [
+                        { id: 1171, name: 'age', value: '38' },
+                        { id: 1169, name: 'name', value: 'Ringo' },
+                    ],
+                },
+                {
+                    id: 544,
+                    name: 'New',
+                    variables: [{ id: 1170, name: 'birth_year', value: 'n' }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(datasets));
+            const result = await client.getDatasets(2);
+            expect(result).toEqual(datasets);
+            expect(result[0]?.variables?.[0]?.value).toBe('38');
+        });
+
+        it.each([
+            ['missing variable id', { id: 1, name: 'D', variables: [{ name: 'v', value: '1' }] }],
+            ['missing variable name', { id: 1, name: 'D', variables: [{ id: 1, value: '1' }] }],
+            ['missing variable value', { id: 1, name: 'D', variables: [{ id: 1, name: 'v' }] }],
+            [
+                'variable value as number (no coercion)',
+                { id: 1, name: 'D', variables: [{ id: 1, name: 'v', value: 42 }] },
+            ],
+        ])('rejects malformed embedded variable: %s', async (_label, wire) => {
+            mockFetch.mockResolvedValueOnce(mockOk(wire));
+            await expect(client.getDataset(1)).rejects.toThrow();
+        });
+
+        it('accepts embedded variable with value: null (unset/cleared on server side)', async () => {
+            // SPEC #2.1.16 — value may be null for unset variables (review feedback)
+            const dataset = { id: 1, name: 'D', variables: [{ id: 1, name: 'v', value: null }] };
+            mockFetch.mockResolvedValueOnce(mockOk(dataset));
+            const result = await client.getDataset(1);
+            expect(result).toEqual(dataset);
+            expect(result.variables?.[0]?.value).toBeNull();
+        });
+    });
+
+    describe('SPEC #2.1.16 — Reports schema parity', () => {
+        it('parses get_reports response with full SPEC #2.1.16 system-field set', async () => {
+            // Per TestRail "Reports and Cross-Project Reports" API doc
+            // (support article 7077825062036), the always-included system
+            // fields are id, name, description, and six notify_* fields.
+            // Mirrors the doc's example response.
+            const reports = [
+                {
+                    id: 1,
+                    name: 'Activity Summary (Cases) %date%',
+                    description: null,
+                    notify_user: true,
+                    notify_link: false,
+                    notify_link_recipients: null,
+                    notify_attachment: false,
+                    notify_attachment_html_format: false,
+                    notify_attachment_pdf_format: false,
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(reports));
+            const result = await client.getReports(1);
+            expect(result).toEqual(reports);
+            expect(result[0]?.notify_user).toBe(true);
+            expect(result[0]?.notify_link_recipients).toBeNull();
+        });
+
+        it('parses get_reports response with notify_link_recipients as string of emails', async () => {
+            // Doc example shows the field can carry CRLF-separated emails.
+            const reports = [
+                {
+                    id: 2,
+                    name: 'Daily Digest',
+                    notify_link_recipients: 'person1@example.com\r\nperson2@example.com',
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(reports));
+            const result = await client.getReports(1);
+            expect(result[0]?.notify_link_recipients).toContain('person1@example.com');
+        });
+
+        it('parses legacy get_reports response without SPEC #2.1.16 notify_* fields (regression guard)', async () => {
+            // Pre-SPEC #2.1.16 callers and older TestRail revisions may omit
+            // every notify_* key — `.nullish()` accepts absence so the
+            // existing legacy test fixture (id+name+is_shared) continues
+            // to parse without modification.
+            const legacy = [
+                { id: 1, name: 'Test Run Summary', description: 'Summary report' },
+                { id: 2, name: 'Milestone Report', is_shared: true },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(legacy));
+            const result = await client.getReports(1);
+            expect(result).toEqual(legacy);
+            expect(result[0]?.notify_user).toBeUndefined();
+        });
+
+        it.each([
+            ['notify_user', 'notify_user', 'truthy-string'],
+            ['notify_link', 'notify_link', 1],
+            ['notify_attachment', 'notify_attachment', 'yes'],
+            ['notify_attachment_html_format', 'notify_attachment_html_format', 0],
+            ['notify_attachment_pdf_format', 'notify_attachment_pdf_format', 'no'],
+        ])('rejects non-boolean %s (strict, no coercion)', async (_label, field, value) => {
+            const report = { id: 1, name: 'r', [field]: value };
+            mockFetch.mockResolvedValueOnce(mockOk([report]));
+            await expect(client.getReports(1)).rejects.toThrow();
+        });
+
+        it('parses run_report doc-canonical response with report_html and report_pdf', async () => {
+            // Per the current TestRail doc, run_report returns three URLs.
+            // report_html and report_pdf were missing from ReportResultSchema
+            // before SPEC #2.1.16.
+            const result = {
+                report_url: 'https://docs.testrail.com/index.php?/reports/view/383',
+                report_html: 'https://docs.testrail.com/index.php?/reports/get_html/383',
+                report_pdf: 'https://docs.testrail.com/index.php?/reports/get_pdf/383',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(result));
+            const got = await client.runReport(383);
+            expect(got).toEqual(result);
+            expect(got.report_html).toContain('get_html');
+            expect(got.report_pdf).toContain('get_pdf');
+        });
+
+        it('parses legacy run_report response without SPEC #2.1.16 report_html/report_pdf (regression guard)', async () => {
+            // Pre-5.7 (or any pre-SPEC #2.1.16 mock) callers may emit only
+            // report_url + user_report_url. `.nullish()` accepts absence.
+            const result = {
+                report_url: 'https://example.testrail.io/reports/1/html',
+                user_report_url: 'https://example.testrail.io/reports/1',
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(result));
+            const got = await client.runReport(1);
+            expect(got).toEqual(result);
+            expect(got.report_html).toBeUndefined();
+            expect(got.report_pdf).toBeUndefined();
+        });
+
+        it.each([
+            ['null report_html', 'report_html', null],
+            ['null report_pdf', 'report_pdf', null],
+        ])('accepts %s (defensive back-compat)', async (_label, field, value) => {
+            const result = {
+                report_url: 'https://example.testrail.io/reports/1',
+                [field]: value,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(result));
+            const got = await client.runReport(1);
+            // Cast: `it.each` parametrizes `field` as a generic string, but the
+            // interface keys are narrower. Go via `unknown` to access the
+            // runtime wire-shape verbatim without weakening the parsed type.
+            expect((got as unknown as Record<string, unknown>)[field]).toBeNull();
+        });
+
+        it.each([
+            ['report_html as number', 'report_html', 42],
+            ['report_pdf as boolean', 'report_pdf', true],
+            ['report_url missing', 'report_url', undefined],
+        ])('rejects malformed run_report response (%s)', async (_label, field, value) => {
+            const result: Record<string, unknown> = {
+                report_url: 'https://example.testrail.io/reports/1',
+            };
+            if (value === undefined) {
+                delete result[field];
+            } else {
+                result[field] = value;
+            }
+            mockFetch.mockResolvedValueOnce(mockOk(result));
+            await expect(client.runReport(1)).rejects.toThrow();
+        });
+    });
+
     // ── BDDs (Gherkin .feature) ───────────────────────────────────────────────
 
     describe('getBdd', () => {

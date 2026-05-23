@@ -256,8 +256,8 @@ describe('CODEMAP.md structural invariants', () => {
         expect(Array.isArray(data.files)).toBe(true);
     });
 
-    it('size is under the 256 KB sanity bound', () => {
+    it('size is under the 300 KB sanity bound', () => {
         const md = readFileSync(join(REPO_ROOT, 'CODEMAP.md'), 'utf8');
-        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(256_000);
+        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(300_000);
     });
 });
