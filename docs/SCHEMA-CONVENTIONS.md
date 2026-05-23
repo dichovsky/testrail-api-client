@@ -43,8 +43,8 @@ vice versa). Reason: `zObject` is defined as
 `.passthrough()` is not obvious — the inferred type and the parse-time
 passthrough behavior can drift apart in confusing ways.
 
-Existing precedent: the comment above `AddResultForCasePayloadSchema` at
-`src/schemas.ts:1237`:
+Existing precedent: the comment above `AddResultForCasePayloadSchema` in
+`src/schemas.ts`:
 
 > Inlined rather than `.extend(AddResultPayloadSchema)` so the passthrough()
 > behavior is unambiguous and the inferred type stays a plain object literal.
@@ -75,7 +75,7 @@ different fields, different types — model the POST response as a separate
 Reference case (PR #146): TestRail's `add_case_field` POST returns
 `configs` as a **JSON-encoded string**, while `get_case_fields` GET returns
 `configs` as a **structured array**. The POST response is modeled as
-`AddCaseFieldResponseSchema` (see `src/schemas.ts:676`) so `getCaseFields`
+`AddCaseFieldResponseSchema` (see `src/schemas.ts`) so `getCaseFields`
 keeps its strict structured shape and `addCaseField` matches what the server
 actually sends. Both schemas inherit `.passthrough()` via `zObject` so
 forward-compatible response fields don't break the parse.
