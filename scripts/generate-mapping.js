@@ -21,14 +21,20 @@
  * filesystem.
  *
  * Drift gates (Phase 2):
- *   A — Drift: committed `docs/API-MAPPING.md` must match generator output.
- *       Enforced by `--check` mode, wired into `pretest` and CI.
- *   B — Code↔JSON: every `@testrail` tag in `src/modules/*.ts` must reference
- *       an endpoint that exists in `docs/testrail-endpoints.json`. Catches
- *       typos and renames in either direction.
- *   C — ActionSpec↔JSDoc: every `apiEndpoint` field on an `ACTIONS` entry
- *       must match a `@testrail` tag on some method in `src/modules/*.ts`.
- *       Catches CLI claims about endpoints the client doesn't implement.
+ *   A  — Drift: committed `docs/API-MAPPING.md` must match generator output.
+ *        Enforced by `--check` mode, wired into `pretest` and CI.
+ *   B  — Code↔JSON: every `@testrail` tag in `src/modules/*.ts` must reference
+ *        an endpoint that exists in `docs/testrail-endpoints.json`. Catches
+ *        typos and renames in either direction.
+ *   C  — ActionSpec↔JSDoc: every `apiEndpoint` field on an `ACTIONS` entry
+ *        must match a `@testrail` tag on some method in `src/modules/*.ts`.
+ *        Catches CLI claims about endpoints the client doesn't implement.
+ *   C2 — ACTIONS↔SKILL.md (bidirectional): every `<!-- recipe-for: r:a -->`
+ *        tag in `skill/SKILL.md` must reference an existing `ACTIONS` entry
+ *        (forward), AND every `ACTIONS` entry must have ≥1 matching
+ *        `recipe-for:` tag unless `skillRecipeExempt: true` is set on the
+ *        spec (reverse). The reverse check closes the silent-recipe-drop
+ *        regression that affected PR #114 and PR #118.
  *
  * D (coverage regression) is intentionally NOT enforced — shrinkage is
  * sometimes legitimate (TestRail deprecates endpoints); PR review catches
@@ -51,6 +57,7 @@ import {
     parseSkillRecipes,
     parseTestrailTag,
     renderDocument,
+    validateGates,
 } from './mapping-renderer.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -168,6 +175,7 @@ function loadCliActions() {
                         resource: entry.resource,
                         action: entry.action,
                         apiEndpoint: entry.apiEndpoint,
+                        skillRecipeExempt: entry.skillRecipeExempt === true,
                     });
                 }
             }
@@ -176,68 +184,6 @@ function loadCliActions() {
     }
     visit(sf);
     return actions;
-}
-
-// ── Cross-validation gates ───────────────────────────────────────────────────
-
-/**
- * Gate B:  every `@testrail` tag must reference an endpoint in the JSON.
- * Gate C:  every `ActionSpec.apiEndpoint` must reference an endpoint that has
- *          a `@testrail` tag (i.e., the client actually implements it).
- * Gate C2: every `<!-- recipe-for: resource:action -->` HTML comment in
- *          `skill/SKILL.md` must reference an existing entry in `ACTIONS`.
- *          Catches stale recipe tags after an action is renamed or removed.
- *
- * All three gates produce error lists; the generator exits non-zero if any
- * is non-empty.
- */
-function validateGates(callSites, actions, endpoints, recipes) {
-    const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
-    const tagKeys = new Set(callSites.map((c) => `${c.method} ${normalizePathForMatch(c.path)}`));
-    const actionKeys = new Set(actions.map((a) => `${a.resource}:${a.action}`));
-
-    const errors = [];
-
-    // Gate B
-    for (const cs of callSites) {
-        const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
-        if (!jsonKeys.has(key)) {
-            const rel = cs.moduleFile.replace(ROOT + '/', '');
-            errors.push(
-                `[gate B] ${rel}:${cs.line} — \`${cs.methodName}\` has @testrail "${cs.method} ${cs.path}" but this endpoint is not in docs/testrail-endpoints.json`,
-            );
-        }
-    }
-
-    // Gate C
-    for (const a of actions) {
-        const parsed = parseTestrailTag(a.apiEndpoint);
-        if (!parsed) {
-            errors.push(
-                `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` has malformed apiEndpoint: "${a.apiEndpoint}"`,
-            );
-            continue;
-        }
-        const key = `${parsed.method} ${normalizePathForMatch(parsed.path)}`;
-        if (!tagKeys.has(key)) {
-            errors.push(
-                `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` claims apiEndpoint "${a.apiEndpoint}" but no method in src/modules/*.ts has a matching @testrail tag`,
-            );
-        }
-    }
-
-    // Gate C2: every `recipe-for:` tag in SKILL.md must reference an existing
-    // ACTIONS entry. Catches typos and stale recipe tags when an action is
-    // renamed or removed.
-    for (const [key, recipe] of recipes) {
-        if (!actionKeys.has(key)) {
-            errors.push(
-                `[gate C2] skill/SKILL.md recipe #${recipe.number} ("${recipe.title}") has \`recipe-for: ${key}\` but no such resource:action exists in ACTIONS`,
-            );
-        }
-    }
-
-    return errors;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -273,7 +219,7 @@ async function main() {
     const recipes = parseSkillRecipes(skillSource);
 
     // 4. Run drift gates
-    const errors = validateGates(callSites, actions, endpoints, recipes);
+    const errors = validateGates({ callSites, actions, endpoints, recipes, rootPrefix: ROOT + '/' });
     if (errors.length > 0) {
         console.error('docs/API-MAPPING.md generator failed cross-validation:');
         for (const e of errors) console.error(`  · ${e}`);

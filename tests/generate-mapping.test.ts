@@ -18,6 +18,17 @@ import * as renderer from '../scripts/mapping-renderer.mjs';
 type Recipe = { number: number; title: string; anchor: string };
 type RecipeMap = Map<string, Recipe>;
 
+type CallSite = { moduleFile: string; methodName: string; method: string; path: string; line: number };
+type ActionEntry = { resource: string; action: string; apiEndpoint: string; skillRecipeExempt?: boolean };
+type EndpointEntry = { method: string; path: string };
+type ValidateGatesInput = {
+    callSites: CallSite[];
+    actions: ActionEntry[];
+    endpoints: EndpointEntry[];
+    recipes: RecipeMap;
+    rootPrefix?: string;
+};
+
 const {
     EndpointsArraySchema,
     EndpointSchema,
@@ -32,6 +43,7 @@ const {
     renderSkillCell,
     renderSummaryTable,
     slugifyHeading,
+    validateGates,
 } = renderer as {
     EndpointsArraySchema: {
         safeParse: (input: unknown) => { success: boolean; error?: { issues: { message: string }[] }; data?: unknown };
@@ -59,6 +71,7 @@ const {
         recipes?: RecipeMap,
     ) => string;
     slugifyHeading: (heading: string) => string;
+    validateGates: (input: ValidateGatesInput) => string[];
 };
 
 describe('EndpointSchema', () => {
@@ -426,5 +439,208 @@ describe('aggregate renderers', () => {
         const suitesIdx = out.indexOf('## Suites');
         expect(casesIdx).toBeGreaterThan(-1);
         expect(suitesIdx).toBeGreaterThan(casesIdx);
+    });
+});
+
+describe('validateGates — gates B, C, C2', () => {
+    // Reusable, well-formed fixtures: one endpoint, one client call site, one
+    // ActionSpec, one recipe — all bound. Tests perturb a single field to
+    // exercise each gate in isolation.
+    const HAPPY_ENDPOINT: EndpointEntry = { method: 'GET', path: 'get_case/{case_id}' };
+    const HAPPY_CALL_SITE: CallSite = {
+        moduleFile: '/repo/src/modules/cases.ts',
+        methodName: 'getCase',
+        method: 'GET',
+        path: 'get_case/{case_id}',
+        line: 42,
+    };
+    const HAPPY_ACTION: ActionEntry = {
+        resource: 'case',
+        action: 'get',
+        apiEndpoint: 'GET get_case/{case_id}',
+    };
+    const HAPPY_RECIPE: RecipeMap = new Map([
+        ['case:get', { number: 1, title: 'Fetch a case', anchor: '1-fetch-a-case' }],
+    ]);
+
+    it('returns an empty error list when every binding is consistent', () => {
+        const errors = validateGates({
+            callSites: [HAPPY_CALL_SITE],
+            actions: [HAPPY_ACTION],
+            endpoints: [HAPPY_ENDPOINT],
+            recipes: HAPPY_RECIPE,
+            rootPrefix: '/repo/',
+        });
+        expect(errors).toEqual([]);
+    });
+
+    describe('gate B (call-site → JSON inventory)', () => {
+        it('flags a `@testrail` tag pointing at an endpoint not in the JSON', () => {
+            const stray: CallSite = { ...HAPPY_CALL_SITE, path: 'nonexistent_endpoint' };
+            const errors = validateGates({
+                callSites: [stray],
+                actions: [],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: new Map(),
+                rootPrefix: '/repo/',
+            });
+            expect(errors).toHaveLength(1);
+            expect(errors[0]).toContain('[gate B]');
+            expect(errors[0]).toContain('nonexistent_endpoint');
+            // Strips rootPrefix from the file path.
+            expect(errors[0]).toContain('src/modules/cases.ts:42');
+            expect(errors[0]).not.toContain('/repo/src/modules/cases.ts');
+        });
+
+        it('keeps the absolute file path when rootPrefix is empty (default)', () => {
+            const stray: CallSite = { ...HAPPY_CALL_SITE, path: 'nonexistent_endpoint' };
+            const errors = validateGates({
+                callSites: [stray],
+                actions: [],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: new Map(),
+            });
+            expect(errors[0]).toContain('/repo/src/modules/cases.ts:42');
+        });
+    });
+
+    describe('gate C (ActionSpec → @testrail tag)', () => {
+        it('flags an ActionSpec whose apiEndpoint has no matching call site', () => {
+            const orphanAction: ActionEntry = { ...HAPPY_ACTION, apiEndpoint: 'GET ghost_endpoint' };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [orphanAction],
+                endpoints: [HAPPY_ENDPOINT, { method: 'GET', path: 'ghost_endpoint' }],
+                recipes: HAPPY_RECIPE,
+                rootPrefix: '/repo/',
+            });
+            const gateC = errors.filter((e) => e.includes('[gate C]') && !e.includes('[gate C2'));
+            expect(gateC).toHaveLength(1);
+            expect(gateC[0]).toContain('case:get');
+            expect(gateC[0]).toContain('GET ghost_endpoint');
+        });
+
+        it('flags a malformed apiEndpoint string', () => {
+            const malformed: ActionEntry = { ...HAPPY_ACTION, apiEndpoint: 'PATCH not-real' };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [malformed],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+                rootPrefix: '/repo/',
+            });
+            const gateC = errors.filter((e) => e.includes('[gate C]') && !e.includes('[gate C2'));
+            expect(gateC).toHaveLength(1);
+            expect(gateC[0]).toContain('malformed apiEndpoint');
+        });
+    });
+
+    describe('gate C2 forward (recipe-for → ACTIONS)', () => {
+        it('flags a recipe-for tag pointing at a non-existent ACTIONS entry', () => {
+            const orphanRecipes: RecipeMap = new Map([
+                ['case:get', { number: 1, title: 'Fetch a case', anchor: '1-fetch-a-case' }],
+                ['ghost:action', { number: 2, title: 'Phantom recipe', anchor: '2-phantom-recipe' }],
+            ]);
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [HAPPY_ACTION],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: orphanRecipes,
+                rootPrefix: '/repo/',
+            });
+            const fwd = errors.filter((e) => e.includes('[gate C2 forward]'));
+            expect(fwd).toHaveLength(1);
+            expect(fwd[0]).toContain('recipe #2');
+            expect(fwd[0]).toContain('Phantom recipe');
+            expect(fwd[0]).toContain('ghost:action');
+        });
+    });
+
+    describe('gate C2 reverse (ACTIONS → recipe-for)', () => {
+        it('flags an ACTIONS entry that has no matching recipe-for binding', () => {
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [HAPPY_ACTION],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: new Map(),
+                rootPrefix: '/repo/',
+            });
+            const rev = errors.filter((e) => e.includes('[gate C2 reverse]'));
+            expect(rev).toHaveLength(1);
+            expect(rev[0]).toContain('case:get');
+            // The error must tell the dev exactly how to fix it.
+            expect(rev[0]).toContain('skill/SKILL.md');
+            expect(rev[0]).toContain('skillRecipeExempt: true');
+            // The error must include the literal tag so dev can copy/paste.
+            expect(rev[0]).toContain('<!-- recipe-for: case:get -->');
+        });
+
+        it('honors the skillRecipeExempt opt-out flag', () => {
+            const exempt: ActionEntry = { ...HAPPY_ACTION, skillRecipeExempt: true };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [exempt],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: new Map(),
+                rootPrefix: '/repo/',
+            });
+            expect(errors.filter((e) => e.includes('[gate C2 reverse]'))).toEqual([]);
+        });
+
+        it('skillRecipeExempt: false is treated like the default (recipe required)', () => {
+            const notExempt: ActionEntry = { ...HAPPY_ACTION, skillRecipeExempt: false };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [notExempt],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: new Map(),
+                rootPrefix: '/repo/',
+            });
+            expect(errors.filter((e) => e.includes('[gate C2 reverse]'))).toHaveLength(1);
+        });
+
+        it('matches resource:action keys case-sensitively (no false negative on case mismatch)', () => {
+            // ACTIONS uses lowercase resource/action; a recipe-for tag with
+            // different case must NOT silently satisfy the reverse check.
+            const upperCaseRecipe: RecipeMap = new Map([
+                ['Case:Get', { number: 1, title: 'Fetch a case', anchor: '1-fetch-a-case' }],
+            ]);
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [HAPPY_ACTION],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: upperCaseRecipe,
+                rootPrefix: '/repo/',
+            });
+            // Reverse: case:get has no binding (Case:Get doesn't match).
+            const rev = errors.filter((e) => e.includes('[gate C2 reverse]'));
+            expect(rev).toHaveLength(1);
+            // Forward: Case:Get points at no ACTIONS entry.
+            const fwd = errors.filter((e) => e.includes('[gate C2 forward]'));
+            expect(fwd).toHaveLength(1);
+        });
+
+        it('reports multiple missing-recipe failures in one pass (does not bail on first)', () => {
+            const action2: ActionEntry = { resource: 'run', action: 'get', apiEndpoint: 'GET get_run/{run_id}' };
+            const endpoint2: EndpointEntry = { method: 'GET', path: 'get_run/{run_id}' };
+            const callSite2: CallSite = {
+                moduleFile: '/repo/src/modules/runs.ts',
+                methodName: 'getRun',
+                method: 'GET',
+                path: 'get_run/{run_id}',
+                line: 10,
+            };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE, callSite2],
+                actions: [HAPPY_ACTION, action2],
+                endpoints: [HAPPY_ENDPOINT, endpoint2],
+                recipes: new Map(),
+                rootPrefix: '/repo/',
+            });
+            const rev = errors.filter((e) => e.includes('[gate C2 reverse]'));
+            expect(rev).toHaveLength(2);
+            expect(rev.some((e) => e.includes('case:get'))).toBe(true);
+            expect(rev.some((e) => e.includes('run:get'))).toBe(true);
+        });
     });
 });

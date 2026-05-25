@@ -142,6 +142,101 @@ export function parseSkillRecipes(skillSource) {
     return recipes;
 }
 
+// ── Cross-validation gates (B, C, C2 — pure, testable) ──────────────────────
+
+/**
+ * Gate B:  every `@testrail` tag must reference an endpoint in the JSON.
+ * Gate C:  every `ActionSpec.apiEndpoint` must reference an endpoint that has
+ *          a `@testrail` tag (i.e., the client actually implements it).
+ * Gate C2: bidirectional binding between `ACTIONS` and skill recipes —
+ *          (forward) every `<!-- recipe-for: resource:action -->` HTML comment
+ *          in `skill/SKILL.md` must reference an existing entry in `ACTIONS`
+ *          (catches typos / stale tags after an action is renamed or removed),
+ *          AND
+ *          (reverse) every `ACTIONS` entry must have ≥1 matching `recipe-for:`
+ *          binding in `skill/SKILL.md` unless the spec sets
+ *          `skillRecipeExempt: true` (catches the silent-recipe-drop regression
+ *          seen in PR #114 / PR #118 where the one-way forward check let
+ *          recipes vanish during rebase).
+ *
+ * All three gates produce error lists; the caller exits non-zero if any is
+ * non-empty.
+ *
+ * @param {object} input
+ * @param {Array<{ moduleFile: string, methodName: string, method: string, path: string, line: number }>} input.callSites
+ * @param {Array<{ resource: string, action: string, apiEndpoint: string, skillRecipeExempt?: boolean }>} input.actions
+ * @param {Array<{ method: string, path: string }>} input.endpoints
+ * @param {Map<string, { number: number, title: string, anchor: string }>} input.recipes
+ * @param {string} [input.rootPrefix='']
+ *        Repo root prefix to strip from `moduleFile` paths in Gate B errors
+ *        (e.g., `/Users/x/repo/`). Defaults to '' so callers running outside
+ *        a checkout get the full absolute path.
+ * @returns {string[]}
+ */
+export function validateGates({ callSites, actions, endpoints, recipes, rootPrefix = '' }) {
+    const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
+    const tagKeys = new Set(callSites.map((c) => `${c.method} ${normalizePathForMatch(c.path)}`));
+    const actionKeys = new Set(actions.map((a) => `${a.resource}:${a.action}`));
+
+    const errors = [];
+
+    // Gate B
+    for (const cs of callSites) {
+        const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
+        if (!jsonKeys.has(key)) {
+            const rel = rootPrefix ? cs.moduleFile.replace(rootPrefix, '') : cs.moduleFile;
+            errors.push(
+                `[gate B] ${rel}:${cs.line} — \`${cs.methodName}\` has @testrail "${cs.method} ${cs.path}" but this endpoint is not in docs/testrail-endpoints.json`,
+            );
+        }
+    }
+
+    // Gate C
+    for (const a of actions) {
+        const parsed = parseTestrailTag(a.apiEndpoint);
+        if (!parsed) {
+            errors.push(
+                `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` has malformed apiEndpoint: "${a.apiEndpoint}"`,
+            );
+            continue;
+        }
+        const key = `${parsed.method} ${normalizePathForMatch(parsed.path)}`;
+        if (!tagKeys.has(key)) {
+            errors.push(
+                `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` claims apiEndpoint "${a.apiEndpoint}" but no method in src/modules/*.ts has a matching @testrail tag`,
+            );
+        }
+    }
+
+    // Gate C2 (forward): every `recipe-for:` tag in SKILL.md must reference an
+    // existing ACTIONS entry. Catches typos and stale recipe tags when an
+    // action is renamed or removed.
+    for (const [key, recipe] of recipes) {
+        if (!actionKeys.has(key)) {
+            errors.push(
+                `[gate C2 forward] skill/SKILL.md recipe #${recipe.number} ("${recipe.title}") has \`recipe-for: ${key}\` but no such resource:action exists in ACTIONS`,
+            );
+        }
+    }
+
+    // Gate C2 (reverse): every ACTIONS entry must have ≥1 matching
+    // `recipe-for:` binding in skill/SKILL.md, unless the spec opts out via
+    // `skillRecipeExempt: true`. Closes the silent-recipe-drop regression
+    // (PR #114 dropped recipe #34; PR #118 dropped C3+C5 during rebase) that
+    // the one-way forward check could not detect.
+    for (const a of actions) {
+        if (a.skillRecipeExempt) continue;
+        const key = `${a.resource}:${a.action}`;
+        if (!recipes.has(key)) {
+            errors.push(
+                `[gate C2 reverse] ACTIONS entry \`${key}\` has no \`<!-- recipe-for: ${key} -->\` binding in skill/SKILL.md. Add a numbered recipe with that tag, or set \`skillRecipeExempt: true\` on the ActionSpec (with a justification comment) if the action genuinely does not warrant a curated recipe.`,
+            );
+        }
+    }
+
+    return errors;
+}
+
 // ── Cell renderers ───────────────────────────────────────────────────────────
 //
 // `docs/API-MAPPING.md` lives one directory below the repo root, so all links
