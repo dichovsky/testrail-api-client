@@ -432,6 +432,8 @@ _(schema shape not introspectable)_
     "name": "string (required)",
     "description": "string?",
     "milestone_id": "number?",
+    "start_on": "number?",
+    "due_on": "number?",
     "entries": "object[]?"
 }
 ```
@@ -443,7 +445,9 @@ _(schema shape not introspectable)_
     "name": "string?",
     "description": "string?",
     "milestone_id": "number?",
-    "assignedto_id": "number?"
+    "assignedto_id": "number?",
+    "start_on": "number?",
+    "due_on": "number?"
 }
 ```
 
@@ -458,7 +462,10 @@ _(schema shape not introspectable)_
     "include_all": "boolean?",
     "case_ids": "number[]?",
     "config_ids": "number[]?",
-    "runs": "object[]?"
+    "runs": "object[]?",
+    "start_on": "number?",
+    "due_on": "number?",
+    "refs": "string?"
 }
 ```
 
@@ -486,7 +493,10 @@ _(schema shape not introspectable)_
     "include_all": "boolean?",
     "case_ids": "number[]?",
     "config_ids": "number[]?",
-    "runs": "object[]?"
+    "runs": "object[]?",
+    "start_on": "number?",
+    "due_on": "number?",
+    "refs": "string?"
 }
 ```
 

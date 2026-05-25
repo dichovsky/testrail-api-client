@@ -25,7 +25,7 @@
  *   - Redirect (3xx) still rejected via `assertNotRedirect`
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync, createWriteStream } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, createWriteStream, openSync, closeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TestRailClient } from '../src/client.js';
@@ -43,6 +43,29 @@ vi.mock('node:dns/promises', () => ({
     default: { lookup: vi.fn().mockResolvedValue([{ address: '203.0.113.10', family: 4 }]) },
     lookup: vi.fn().mockResolvedValue([{ address: '203.0.113.10', family: 4 }]),
 }));
+
+// Mutable control object for fd-error tests.  `vi.mock` is hoisted so the
+// factory captures this reference; individual tests mutate it per-test and
+// reset it in afterEach to avoid cross-test pollution.
+const closeSyncControl = {
+    throwForFd: null as number | null,
+    callsWithFd: [] as number[],
+};
+
+vi.mock('node:fs', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('node:fs')>();
+    return {
+        ...actual,
+        closeSync: (fd: number) => {
+            closeSyncControl.callsWithFd.push(fd);
+            if (closeSyncControl.throwForFd !== null && fd === closeSyncControl.throwForFd) {
+                const err = Object.assign(new Error('EBADF: bad file descriptor, close'), { code: 'EBADF' });
+                throw err;
+            }
+            return actual.closeSync(fd);
+        },
+    };
+});
 
 function buildClient(): TestRailClient {
     return new TestRailClient({
@@ -69,12 +92,16 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
 
     beforeEach(() => {
         mockFetch.mockReset();
+        closeSyncControl.throwForFd = null;
+        closeSyncControl.callsWithFd = [];
         tmp = mkdtempSync(join(tmpdir(), 'tr-streaming-'));
         smallPath = join(tmp, 'small.bin');
         writeFileSync(smallPath, Buffer.from([1, 2, 3, 4, 5]));
     });
 
     afterEach(() => {
+        closeSyncControl.throwForFd = null;
+        closeSyncControl.callsWithFd = [];
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -301,5 +328,144 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         await vi.runAllTimersAsync();
         await assertion;
         vi.useRealTimers();
+    });
+
+    // --- FD-error / cleanup-robustness tests ---
+    //
+    // These pin the cleanup contract around client-core.ts lines 1140-1148:
+    // the finally block calls closeSync(file.fd) inside try/catch, ensuring
+    // errors in cleanup never bubble up and never suppress a prior upload error.
+
+    it('FD invalidated before openAsBlob: surfaces TestRailApiError, no unhandled rejection', async () => {
+        // Open a real fd, then immediately close it so the fd number is stale.
+        // On macOS the upload path becomes /dev/fd/N; openAsBlob on a stale fd
+        // throws ERR_INVALID_ARG_VALUE which the catch block wraps as a
+        // TestRailApiError(0, 'Network error: ...').
+        const fd = openSync(smallPath, 'r');
+        closeSync(fd); // fd is now stale — subsequent /dev/fd/N access → error
+
+        const client = buildClient();
+        // No mockFetch setup — openAsBlob fails before fetch runs.
+
+        const descriptor = { path: smallPath, fd };
+
+        const errors: unknown[] = [];
+        const unhandledHandler = (reason: unknown): void => {
+            errors.push(reason);
+        };
+        process.on('unhandledRejection', unhandledHandler);
+
+        let caught: unknown = null;
+        try {
+            await client.addAttachmentToCase(1, descriptor, 's.bin');
+        } catch (e) {
+            caught = e;
+        } finally {
+            process.off('unhandledRejection', unhandledHandler);
+        }
+
+        expect(caught).toBeInstanceOf(TestRailApiError);
+        expect((caught as TestRailApiError).status).toBe(0);
+        expect(errors).toHaveLength(0);
+        // fetch never reached because openAsBlob failed first
+        expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('closeSync throws EBADF during cleanup: upload still resolves, no unhandled exception', async () => {
+        // Simulate a scenario where the fd is closed by an external caller
+        // (e.g. GC finalizer / other thread) between upload completion and
+        // the finally-block cleanup. closeSync in the finally block catches
+        // its own errors, so the upload result must propagate cleanly.
+        const fd = openSync(smallPath, 'r');
+        // Tell the mocked closeSync to throw EBADF for this specific fd.
+        closeSyncControl.throwForFd = fd;
+
+        const client = buildClient();
+        mockOk({ attachment_id: 42 });
+
+        const errors: unknown[] = [];
+        const unhandledHandler = (reason: unknown): void => {
+            errors.push(reason);
+        };
+        process.on('unhandledRejection', unhandledHandler);
+
+        let result: unknown;
+        try {
+            result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
+        } finally {
+            process.off('unhandledRejection', unhandledHandler);
+            // The mock threw instead of closing; release the real fd here.
+            try {
+                closeSync(fd);
+            } catch {
+                /* already stale or reassigned */
+            }
+        }
+
+        expect(result).toEqual({ attachment_id: 42 });
+        expect(errors).toHaveLength(0);
+        // Confirm cleanup was attempted — the mock was called with our fd.
+        expect(closeSyncControl.callsWithFd).toContain(fd);
+    });
+
+    it('abort + EBADF in cleanup: exactly one error surfaces (the 408), no double-throw', async () => {
+        // Abort fires mid-upload (timeout) AND the finally-block closeSync
+        // throws EBADF. Only the abort error (408 TestRailApiError) should
+        // reach the caller; the cleanup error must be swallowed by the
+        // try/catch inside finally.
+        const fd = openSync(smallPath, 'r');
+        closeSyncControl.throwForFd = fd;
+
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 't@example.com',
+            apiKey: 'k',
+            enableCache: false,
+            timeout: 50,
+            allowPrivateHosts: true,
+        });
+
+        vi.useFakeTimers();
+        mockFetch.mockImplementation((_url: string, options: RequestInit) => {
+            return new Promise((_resolve, reject) => {
+                options.signal?.addEventListener('abort', () => {
+                    const err = new Error('aborted');
+                    err.name = 'AbortError';
+                    reject(err);
+                });
+            });
+        });
+
+        const errors: unknown[] = [];
+        const unhandledHandler = (reason: unknown): void => {
+            errors.push(reason);
+        };
+        process.on('unhandledRejection', unhandledHandler);
+
+        const promise = client.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
+        const assertion = expect(promise).rejects.toThrow(/Request timeout after 50ms/);
+        await vi.runAllTimersAsync();
+
+        let assertionError: unknown = null;
+        try {
+            await assertion;
+        } catch (e) {
+            assertionError = e;
+        } finally {
+            process.off('unhandledRejection', unhandledHandler);
+            vi.useRealTimers();
+            try {
+                closeSync(fd);
+            } catch {
+                /* released by mock throw path */
+            }
+        }
+
+        // The assertion already verified we got the 408 timeout error.
+        // Additional checks:
+        expect(assertionError).toBeNull(); // the assertion itself passed (didn't rethrow)
+        expect(errors).toHaveLength(0); // no unhandled rejections from cleanup
+        // Confirm cleanup ran (closeSync was called with our fd) even though it threw EBADF
+        expect(closeSyncControl.callsWithFd).toContain(fd);
     });
 });
