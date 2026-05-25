@@ -4071,3 +4071,34 @@ leaving the original imprecise descriptions in place.
 
 - [x] **SEC #24: stdin wall-clock deadline (binary upload path)** — Shipped for the binary upload reader. `src/cli/file-input.ts:73-81` documents the wall-clock deadline; `resolveFromStdin` (line 146) enforces `STDIN_READ_TIMEOUT_MS` (30 s). Byte cap (`MAX_STDIN_UPLOAD_BYTES`, 100 MiB) + 30 s timeout are both active on the binary path. **Note:** the text-body / `--api-key-stdin` reader (`readBoundedStdin`) still has no wall-clock deadline; that gap is tracked elsewhere rather than under #24, which was scoped to the binary upload path.
 
+## BACKLOG sync — 2026-05-24 (Architecture + SPEC #A.1 full closure)
+
+This sync closes items verified shipped during the multi-agent BACKLOG audit on
+2026-05-24. Each `[x]` entry below was confirmed against current source
+(`src/cli/safe-write.ts`, `src/cli/handlers/attachment.ts`, `src/cli/handlers/bdd.ts`,
+`scripts/generate-mapping.js`, `docs/API-MAPPING.md`, PR #148 + #149 bodies) before
+being removed from `BACKLOG.md`. Note: SPEC #A.1 closed in full via PR #149
+during the reconcile window — what this sync originally planned as a phase-1
+split is now archived as a single full-closure entry.
+
+Audit methodology: 4 read-only Explore subagents in parallel, criterion C
+(shipped + stale-citation + scope-drift), structured YAML output with quoted
+source evidence. Findings without quotes were rejected during synthesis. One
+finding (SEC #28 classified `shipped`) was rejected because the agent's quote
+covered the per-instance `destroy()` but the BACKLOG concern is about the
+iteration site `cleanupAllClients` (`client-core.ts:176-180`), which still has
+no try/finally — SEC #28 remains open. Two scope-drift findings (ARCH #2 and
+ARCH #3, where file/line counts have roughly doubled since the bullets were
+written) are surfaced in the reconcile PR body for per-item review rather than
+auto-applied.
+
+### Architecture — verified shipped
+
+- [x] **ARCH #8: `scripts/generate-mapping.js` Phase 1 parser fix** — Shipped. `docs/API-MAPPING.md` now contains zero `—` cells (verified `grep -c "| — " docs/API-MAPPING.md → 0`). The fix landed via the alternative path documented in the original BACKLOG bullet's caveat: `@testrail` JSDoc tags on every module method + `apiEndpoint` field on every `ActionSpec`, cross-referenced by mapping-generator Gate C. All four gates (A, B, C, C2) now run in `pretest` and CI per CLAUDE.md §"API Coverage Matrix". CI drift gate is operational. The `buildEndpoint()` call-site detection mentioned in the bullet's primary clause was superseded by the tag-based approach and was not needed.
+
+- [x] **ARCH #11: Unify file-output writes across download handlers** — Shipped. `src/cli/safe-write.ts` exports both `safeWriteBinary(path, bytes, force)` and `safeWriteText(path, text, force)`. The only two download handlers in the codebase, `src/cli/handlers/attachment.ts` (`safeWriteBinary` import + call) and `src/cli/handlers/bdd.ts` (`safeWriteText` import + call), both consume these helpers — no raw `writeFileSync` remains in handlers. TOCTOU + symlink protection is inherited centrally; future download-style handlers adopt the same protection automatically by importing from `safe-write.js`.
+
+### Spec Parity — full closure
+
+- [x] **SPEC #A.1: Split request/response schemas (full wave)** — Closed across PR #148 + PR #149. Phase 0 (PR #148, merged 2026-05-23): new `docs/SCHEMA-CONVENTIONS.md` (5-point convention reference) + JSDoc annotations on `ResultSchema`, `AddResultPayloadSchema`, and the bulk-results cluster. Phases 1–3 (PR #149, merged 2026-05-25): cross-domain audit across 9 domains reported **zero conflation violations** — codebase already compliant with the conventions, so no fix PRs were needed; regression guard landed as `tests/schema-conventions.test.ts` (3 static-analysis checks: no `.extend()` between payload/response, payload schemas don't reference response base schemas, payload schemas don't reference response sub-schemas). PR #149's audit surfaced one unrelated LOW finding (`TestSchema.labels` uses an inline duplicate of `LabelEmbeddedSchema` at `src/schemas.ts` — pure code dedup, not direction conflation) which is tracked separately.
+
