@@ -30,8 +30,6 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 ## 📚 Spec Parity
 
-- [ ] 🔴 ♻️ SPEC #A.1: Split request/response schemas (start with results) to remove shape conflation
-
 ## 🏗️ Architecture
 
 - [ ] 🟡 ♻️ ARCH #1: Extract `HttpPipeline` seam — collapse `request<T>`/`requestText`/`requestMultipart`/`requestBinary` (`client-core.ts`) into one pipeline + four response-parser adapters; concentrate retry-eligibility matrix
