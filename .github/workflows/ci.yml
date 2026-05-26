@@ -89,8 +89,6 @@ jobs:
 
             - name: Run CLI fuzz tests
               run: RUN_FUZZ=1 npx vitest run tests/cli-fuzz.test.ts
-              env:
-                  RUN_FUZZ: '1'
 
     security-audit:
         runs-on: ubuntu-latest
