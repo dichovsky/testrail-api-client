@@ -155,6 +155,57 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
             TestRailApiError,
         );
     });
+
+    it('enforces the cap on the arrayBuffer fallback path (oversized binary response)', async () => {
+        // Targets the `bytes.byteLength > maxBytes` branch inside the
+        // arrayBuffer fallback. Without this test the byte-cap protection
+        // on Response-like mocks would be unverified.
+        const big = new Uint8Array(50).buffer;
+        const fakeResponse = {
+            body: {}, // truthy but no getReader -> dispatch to fallback
+            arrayBuffer: async () => big,
+        } as unknown as Response;
+        await expect(readBodyWithLimits(fakeResponse, { maxBytes: 10, deadlineMs: 0 })).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Response body too large',
+        });
+    });
+
+    it('returns an empty Uint8Array when neither arrayBuffer nor text is exposed (defensive)', async () => {
+        // Targets the trailing `return new Uint8Array(0)` after both fallback
+        // probes fail. Used so a malformed mock cannot crash the reader.
+        const fakeResponse = {
+            body: undefined,
+        } as unknown as Response;
+        const out = await readBodyWithLimits(fakeResponse, { maxBytes: 100, deadlineMs: 0 });
+        expect(out.byteLength).toBe(0);
+    });
+
+    it('ignores reader chunks where value is undefined (defensive against non-conformant streams)', async () => {
+        // A Web Streams reader is allowed to emit { done: false, value: undefined }
+        // (the polyfill in some runtimes does this on backpressure). The reader
+        // must treat this as a no-op and continue, never throwing on the
+        // `value.byteLength` access. We synthesize a custom reader to drive
+        // this path because the standard ReadableStream constructor cannot
+        // emit such chunks via controller.enqueue.
+        let callCount = 0;
+        const fakeReader = {
+            read: async () => {
+                callCount += 1;
+                if (callCount === 1) return { done: false, value: undefined };
+                if (callCount === 2) return { done: false, value: new Uint8Array([1, 2, 3]) };
+                return { done: true, value: undefined };
+            },
+            releaseLock: () => undefined,
+            cancel: async () => undefined,
+        };
+        const fakeResponse = {
+            body: { getReader: () => fakeReader },
+        } as unknown as Response;
+        const out = await readBodyWithLimits(fakeResponse, { maxBytes: 100, deadlineMs: 0 });
+        expect(Array.from(out)).toEqual([1, 2, 3]);
+        expect(callCount).toBe(3);
+    });
 });
 
 describe('readBodyAsText', () => {

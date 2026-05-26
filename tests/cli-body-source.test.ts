@@ -119,6 +119,26 @@ describe('resolveBody', () => {
             if (!result.ok) expect(result.error).toContain('Cannot read stdin');
         });
 
+        it('falls back to String(e) when stdin thunk throws a non-Error value', () => {
+            // Defensive: a thunk that rejects with a plain string (rather than
+            // an Error instance) must not crash on `.message` access. Exercises
+            // the `e instanceof Error ? e.message : String(e)` false branch.
+            const result = resolveBody(
+                {
+                    readStdin: () => {
+                        // eslint-disable-next-line @typescript-eslint/only-throw-error
+                        throw 'string-shaped failure';
+                    },
+                },
+                AddCasePayloadSchema,
+            );
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.error).toContain('Cannot read stdin');
+                expect(result.error).toContain('string-shaped failure');
+            }
+        });
+
         it('does not invoke the thunk when --data is also provided (mutex check happens first)', () => {
             let called = 0;
             const result = resolveBody(

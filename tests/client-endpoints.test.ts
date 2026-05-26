@@ -1093,6 +1093,45 @@ describe('TestRailClient', () => {
                 );
                 await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
             });
+
+            it('passes through TestRailValidationError unchanged (non-TestRailApiError branch)', async () => {
+                // A schema-validation failure inside requestParsed throws
+                // TestRailValidationError. The addCases try/catch tests
+                // `e instanceof TestRailApiError` first — when false, the
+                // catch must rethrow as-is rather than apply the version-gate
+                // fingerprint. Returning a malformed shape from the server
+                // triggers this path.
+                mockFetch.mockResolvedValueOnce(
+                    new Response(JSON.stringify([{ notACase: true }]), {
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                );
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(TestRailValidationError);
+            });
+
+            it('passes through a 400 with no response body (defensive — exercises e.response ?? "" branch)', async () => {
+                // When the server returns a 4xx with an empty body, the
+                // version-gate regex sees an empty string and falls through
+                // to the generic rethrow. Confirms the nullish-coalesce
+                // fallback in the response-stringification branch doesn't
+                // misclassify empty responses as a version-gate match.
+                mockFetch.mockResolvedValueOnce(
+                    new Response('', {
+                        status: 400,
+                        statusText: 'Bad Request',
+                    }),
+                );
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
+            });
+
+            it('matches "No route" in addition to "Invalid uri" for the version gate', async () => {
+                // Documented dual fingerprint. Without a test for `No route`
+                // the alternation branch in the regex is unexercised.
+                mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', 'No route found'));
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+            });
         });
 
         describe('updateCases', () => {

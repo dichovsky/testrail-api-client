@@ -1804,6 +1804,14 @@ describe('handleProjectUpdate', () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{}' });
         await expect(handleProjectUpdate(ctx)).rejects.toThrow(/project_id/);
     });
+
+    it('rejects when body fails schema validation', async () => {
+        // Exercises the `if (!body.ok) throw new Error(body.error)` branch
+        // for the Update handler. UpdateProjectPayloadSchema rejects a `name`
+        // of wrong type (number instead of string).
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"name":123}' });
+        await expect(handleProjectUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
 });
 
 // ── suite add ────────────────────────────────────────────────────────────
@@ -1872,6 +1880,11 @@ describe('handleSuiteUpdate', () => {
     it('rejects when suite_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['bad'], dataFlag: '{}' });
         await expect(handleSuiteUpdate(ctx)).rejects.toThrow(/suite_id/);
+    });
+
+    it('rejects when body fails schema validation', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['22'], dataFlag: '{"name":123}' });
+        await expect(handleSuiteUpdate(ctx)).rejects.toThrow(/validation failed/);
     });
 });
 
@@ -1943,6 +1956,11 @@ describe('handleSectionUpdate', () => {
     it('rejects when section_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['0'], dataFlag: '{}' });
         await expect(handleSectionUpdate(ctx)).rejects.toThrow(/section_id/);
+    });
+
+    it('rejects when body fails schema validation', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['33'], dataFlag: '{"name":123}' });
+        await expect(handleSectionUpdate(ctx)).rejects.toThrow(/validation failed/);
     });
 });
 
@@ -2017,6 +2035,11 @@ describe('handleMilestoneUpdate', () => {
     it('rejects when milestone_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{}' });
         await expect(handleMilestoneUpdate(ctx)).rejects.toThrow(/milestone_id/);
+    });
+
+    it('rejects when body fails schema validation', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['44'], dataFlag: '{"name":123}' });
+        await expect(handleMilestoneUpdate(ctx)).rejects.toThrow(/validation failed/);
     });
 });
 
