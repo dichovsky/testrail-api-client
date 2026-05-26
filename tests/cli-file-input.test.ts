@@ -235,6 +235,45 @@ describe('resolveFile', () => {
             expect(bytes.byteLength).toBe(4);
             expect(Buffer.from(bytes).toString('utf-8')).toBe('abcd');
         });
+
+        it('converts Uint8Array (non-Buffer) chunks into Buffer', async () => {
+            // Exercises the `chunk instanceof Uint8Array` true branch with a
+            // chunk that is NOT a Buffer. Buffer is a Uint8Array subclass, so
+            // Node typically yields Buffer; we synthesize a plain Uint8Array
+            // emitter to drive the deeper branch.
+            async function* emit(): AsyncGenerator<Uint8Array> {
+                yield new Uint8Array([1, 2, 3]);
+                yield new Uint8Array([4, 5]);
+            }
+            const stream = Readable.from(emit(), { objectMode: false });
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', {
+                value: stream,
+                configurable: true,
+                writable: false,
+            });
+            const bytes = await readStdinBinary(1024, 5000);
+            expect(bytes.byteLength).toBe(5);
+            expect(Array.from(bytes)).toEqual([1, 2, 3, 4, 5]);
+        });
+
+        it('falls back to String(chunk) for unknown chunk types (defensive)', async () => {
+            // Exercises the `else { buf = Buffer.from(String(chunk)) }` arm.
+            // We yield a plain number — not Buffer, not string, not Uint8Array.
+            async function* emit(): AsyncGenerator<unknown> {
+                yield 42; // String(42) === '42' → 2 bytes
+            }
+            // objectMode: true so Readable emits the raw value as-is.
+            const stream = Readable.from(emit(), { objectMode: true });
+            (stream as { isTTY?: boolean }).isTTY = false;
+            Object.defineProperty(process, 'stdin', {
+                value: stream,
+                configurable: true,
+                writable: false,
+            });
+            const bytes = await readStdinBinary(1024, 5000);
+            expect(Buffer.from(bytes).toString('utf-8')).toBe('42');
+        });
     });
 
     describe('readStdinBinary helper', () => {

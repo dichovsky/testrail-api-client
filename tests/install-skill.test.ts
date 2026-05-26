@@ -164,6 +164,52 @@ describe('runInstallSkill', () => {
         expect(existsSync(join(project, '.claude'))).toBe(false);
     });
 
+    it('falls back to process.cwd() when cwdOverride is undefined (project default)', () => {
+        // Exercises the `opts.cwdOverride ?? process.cwd()` nullish-coalesce
+        // false branch. We stub process.cwd() to a sandboxed tmp so the real
+        // working directory is never touched.
+        const sandbox = join(tmp, 'sandbox-cwd');
+        const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(sandbox);
+        try {
+            const code = runInstallSkill(
+                {
+                    global: false,
+                    force: false,
+                    printPath: false,
+                    quiet: true,
+                    sourceOverride: source,
+                    // cwdOverride deliberately omitted — must fall back to process.cwd().
+                },
+                'file:///irrelevant',
+            );
+            expect(code).toBe(0);
+            expect(existsSync(join(sandbox, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
+        } finally {
+            cwdSpy.mockRestore();
+        }
+    });
+
+    it('--print-path with --quiet suppresses stdout entirely (exit 0, no output)', () => {
+        // Exercises the `if (!opts.quiet)` false branch on the print-path
+        // return: a script that only cares about exit code can opt out of
+        // the printed path. Pairs with the install/uninstall --quiet
+        // semantics (silence on success, exit code carries the signal).
+        const project = join(tmp, 'proj');
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: true,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(0);
+        expect(stdoutChunks.join('')).toBe('');
+    });
+
     it('--quiet suppresses the "Installed" success message but still installs', () => {
         const project = join(tmp, 'proj');
         const code = runInstallSkill(

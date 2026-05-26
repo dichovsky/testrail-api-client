@@ -68,6 +68,16 @@ describe('safeWriteBinary', () => {
         safeWriteBinary(p, new Uint8Array([0x42]), true);
         expect(Array.from(readFileSync(p))).toEqual([0x42]);
     });
+
+    it('writes successfully when target does not exist (force + ENOENT short-circuits the lstat check)', () => {
+        // Exercises the `code === 'ENOENT'` false branch (i.e. the swallow
+        // path) of the lstat-error handler. Without this test the
+        // ENOENT-tolerant code path would be unverified.
+        const p = join(tmp, 'fresh.bin');
+        expect(existsSync(p)).toBe(false);
+        safeWriteBinary(p, new Uint8Array([0xab, 0xcd]), true);
+        expect(Array.from(readFileSync(p))).toEqual([0xab, 0xcd]);
+    });
 });
 
 describe('safeWriteText', () => {
