@@ -470,30 +470,6 @@ describe('handleRunWatch', () => {
         await expect(handleRunWatch(ctx)).rejects.toThrow(/plain-string-failure/);
     });
 
-    it('coerces a transient non-Error rejection into String(e) for the stderr message', async () => {
-        // Exercises the `e instanceof Error ? e.message : String(e)` false
-        // branch in the transient-error stderr path. A TestRailApiError
-        // with status >= 500 is transient; we need to extend the error to
-        // a non-Error to drive the coercion. We wrap a 503 inside another
-        // object that the catch sees as non-Error.
-        const client = buildClient();
-        // Synthesize a "transient" non-Error: an object that passes
-        // isTransientError (instanceof TestRailApiError) but throws as a
-        // non-Error. We achieve this by extending TestRailApiError but
-        // overriding `.message`. Since instanceof still matches, the
-        // transient branch runs; since the object is an Error subclass,
-        // e instanceof Error is true — that does not help. Instead, make
-        // isTransientError return true via a thrown POJO; but the
-        // function returns false for non-TestRailApiError values. So this
-        // branch is reachable only via TestRailApiError. The line
-        // `e instanceof Error` is always true for TestRailApiError, so
-        // the cond-expr:1 branch is effectively dead code. Document
-        // here and skip the impossible-to-reach branch.
-        // (No assertion — kept as a documentation marker so the next
-        // contributor doesn't waste cycles on this defensive code.)
-        expect(client).toBeDefined();
-    });
-
     it('SIGINT during the getRun await cancels gracefully (covers post-getRun cancelled branch)', async () => {
         // Exercises the `if (cancelled) { resolve(); return; }` branch at
         // line 210 (after the getRun promise settles but before snapshot
