@@ -38,7 +38,7 @@ export class TestRailNotFoundError extends TestRailApiError {
     }
 }
 
-/** Thrown when a request times out (408 / AbortError) or the response-body read deadline fires. */
+/** Thrown when TestRail returns 408 or the fetch is aborted (AbortError / request-header timeout). Body-read deadline fires surface as plain `TestRailApiError(0, 'Body read timeout')`. */
 export class TestRailTimeoutError extends TestRailApiError {
     constructor(status: number, statusText: string, response?: unknown) {
         super(status, statusText, response);
