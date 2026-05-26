@@ -394,6 +394,9 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
         } finally {
             process.off('unhandledRejection', unhandledHandler);
+            // Un-arm the mock BEFORE real cleanup — otherwise the mocked
+            // closeSync would throw again and the real fd would leak.
+            closeSyncControl.throwForFd = null;
             // The mock threw instead of closing; release the real fd here.
             try {
                 closeSync(fd);
@@ -454,6 +457,9 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         } finally {
             process.off('unhandledRejection', unhandledHandler);
             vi.useRealTimers();
+            // Un-arm the mock BEFORE real cleanup — otherwise the mocked
+            // closeSync would throw again and the real fd would leak.
+            closeSyncControl.throwForFd = null;
             try {
                 closeSync(fd);
             } catch {
