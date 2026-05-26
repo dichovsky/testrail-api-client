@@ -54,9 +54,14 @@ vi.mock('../src/utils.js', async (importOriginal) => {
 // lifted above all imports).
 const stubbedStdin = vi.hoisted(() => ({
     value: null as string | null,
+    throwNonError: false,
 }));
 vi.mock('../src/cli/stdin.js', () => ({
     readBoundedStdin: (): string => {
+        if (stubbedStdin.throwNonError) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw 'non-error-string-failure';
+        }
         if (stubbedStdin.value === null) {
             throw new Error('readBoundedStdin not stubbed for this test');
         }
@@ -453,6 +458,36 @@ describe('CLI', () => {
                 expect(exitCodes).toContain(1);
                 expect(stderr).toBe('');
             } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin coerces a non-Error throw via String(e) (covers cond-expr:1 in catch)', async () => {
+            // Exercises the `e instanceof Error ? e.message : String(e)` false
+            // branch in the api-key-stdin catch (src/cli/index.ts:418).
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            stubbedStdin.throwNonError = true;
+            try {
+                const { exitCodes, stderr } = await runCli(
+                    [
+                        '--base-url',
+                        'https://example.testrail.io',
+                        '--email',
+                        'test@example.com',
+                        '--api-key-stdin',
+                        'project',
+                        'get',
+                        '1',
+                    ],
+                    [],
+                    {},
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/cannot read --api-key-stdin/);
+                expect(stderr).toMatch(/non-error-string-failure/);
+            } finally {
+                stubbedStdin.throwNonError = false;
                 process.stdin.isTTY = origIsTTY;
             }
         });
