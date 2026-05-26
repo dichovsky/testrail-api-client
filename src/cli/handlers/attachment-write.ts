@@ -133,12 +133,12 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
  * `--dry-run` is also passed, dry-run wins (no API call) and emits a preview
  * with `destructive: true` so callers can spot it in audit output.
  *
- * Gate order (Pattern B): parseId → dryRun (wins) → yes gate → API.
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft-reject → yes gate → API.
  */
 export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void> {
     const attachmentId = parseId(ctx.args.pathParams[0], 'attachment_id');
     await runDestructive(ctx, { action: 'attachment delete', attachmentId }, async () => {
         await ctx.client.deleteAttachment(attachmentId);
         ctx.out({ attachmentId, deleted: true });
-    });
+    }, { softUnsupported: true });
 }

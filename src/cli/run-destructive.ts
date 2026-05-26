@@ -3,7 +3,7 @@ import type { HandlerContext } from './handler-context.js';
 /**
  * Canonical protocol for no-soft destructive CLI actions (Pattern B):
  *   dryRun  → emit preview + return (no API call)
- *   soft unsupported + soft flag → throw
+ *   soft unsupported (opts.softUnsupported) + soft flag → throw  [opt-in]
  *   !yes    → throw
  *   execute()
  *
@@ -18,7 +18,7 @@ export async function runDestructive(
     opts?: { softUnsupported?: boolean },
 ): Promise<void> {
     if (ctx.dryRun) {
-        ctx.out({ dryRun: true, destructive: true, ...preview });
+        ctx.out({ ...preview, dryRun: true, destructive: true });
         return;
     }
     if (opts?.softUnsupported === true && ctx.args.soft === true) {
