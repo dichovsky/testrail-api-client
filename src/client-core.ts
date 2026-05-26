@@ -233,6 +233,7 @@ export class TestRailClientCore {
      * byte cap protects). Resolved from `config.bodyTimeout ?? config.timeout`.
      */
     private readonly bodyTimeout: number;
+    private readonly fetchOverride: typeof globalThis.fetch | undefined;
 
     constructor(config: TestRailConfig) {
         this.validateConfig(config);
@@ -267,6 +268,7 @@ export class TestRailClientCore {
         // protects). `undefined` falls back to the request `timeout` so the
         // body read is always bounded unless callers explicitly opt out.
         this.bodyTimeout = config.bodyTimeout ?? this.timeout;
+        this.fetchOverride = config.fetch;
 
         // DNS host validation runs fresh before every request (see awaitDnsValidation).
         // Resolving once at construction would let a DNS-rebinding attacker pin a
@@ -779,7 +781,7 @@ export class TestRailClientCore {
         }
 
         try {
-            const response: Response = await fetch(url, options);
+            const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
             // Headers received — header timeout has done its job. The body
             // read is bounded independently by readBodyWithLimits, so clearing
             // here does not re-open the slowloris-on-body window (SEC #21).
@@ -940,7 +942,7 @@ export class TestRailClientCore {
         }
 
         try {
-            const response: Response = await fetch(url, options);
+            const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
             // Body read is bounded by readBodyWithLimits (SEC #21).
             clearTimeout(timeoutId);
 
@@ -1088,7 +1090,7 @@ export class TestRailClientCore {
             }
             formData.append('attachment', blob, filename);
 
-            const response = await fetch(url, {
+            const response = await (this.fetchOverride ?? globalThis.fetch)(url, {
                 method: 'POST',
                 headers: {
                     Authorization: `Basic ${this.auth}`,
@@ -1179,7 +1181,7 @@ export class TestRailClientCore {
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
         try {
-            const response = await fetch(url, {
+            const response = await (this.fetchOverride ?? globalThis.fetch)(url, {
                 method: 'GET',
                 headers: {
                     Authorization: `Basic ${this.auth}`,
