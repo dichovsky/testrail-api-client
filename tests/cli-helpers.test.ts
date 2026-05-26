@@ -7,7 +7,14 @@
  * resolveAuth precedence between flags and env.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { valueToString, renderTable, safeJsonStringify, renderYaml, renderCsv, createOutput } from '../src/cli/output.js';
+import {
+    valueToString,
+    renderTable,
+    safeJsonStringify,
+    renderYaml,
+    renderCsv,
+    createOutput,
+} from '../src/cli/output.js';
 import { parseId, optInt, parseEntryId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import {
@@ -1565,4 +1572,3 @@ describe('renderTable — defensive key-lookup branches', () => {
         expect(out).toBe('\n\n');
     });
 });
-

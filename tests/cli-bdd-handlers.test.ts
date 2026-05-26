@@ -191,7 +191,7 @@ describe('handleBddGet', () => {
             expect(ack['size']).toBe(Buffer.byteLength('Feature: Login\n  Scenario: ok\n', 'utf-8'));
         });
 
-        it("writes to stdout but silently skips ack when ctx.errRaw is undefined (defensive)", async () => {
+        it('writes to stdout but silently skips ack when ctx.errRaw is undefined (defensive)', async () => {
             // Exercises the `if (ctx.errRaw !== undefined)` false branch.
             // Minimal-ctx callers (synthetic handlers, deferred tests) must
             // not crash when errRaw is missing — the binary stream still

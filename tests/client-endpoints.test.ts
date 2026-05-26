@@ -1141,9 +1141,9 @@ describe('TestRailClient', () => {
                 // The object stringifies to '{"error":"Invalid uri"}' so the
                 // version-gate fingerprint matches.
                 const { TestRailApiError } = await import('../src/client.js');
-                const spy = vi.spyOn(client, 'requestParsed').mockRejectedValueOnce(
-                    new TestRailApiError(404, 'Not Found', { error: 'Invalid uri' }),
-                );
+                const spy = vi
+                    .spyOn(client, 'requestParsed')
+                    .mockRejectedValueOnce(new TestRailApiError(404, 'Not Found', { error: 'Invalid uri' }));
                 try {
                     await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
                 } finally {
@@ -1156,9 +1156,9 @@ describe('TestRailClient', () => {
                 // The stringified empty fallback should not match the version
                 // gate regex, so the original error propagates verbatim.
                 const { TestRailApiError } = await import('../src/client.js');
-                const spy = vi.spyOn(client, 'requestParsed').mockRejectedValueOnce(
-                    new TestRailApiError(400, 'Bad Request', null),
-                );
+                const spy = vi
+                    .spyOn(client, 'requestParsed')
+                    .mockRejectedValueOnce(new TestRailApiError(400, 'Bad Request', null));
                 try {
                     await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
                 } finally {

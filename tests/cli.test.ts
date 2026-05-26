@@ -5642,14 +5642,7 @@ describe('CLI', () => {
             process.stdin.isTTY = false;
             try {
                 const result = await withStubbedStdin('fake-key', () =>
-                    runCli([
-                        'attachment',
-                        'add-to-case',
-                        '42',
-                        '--file',
-                        '-',
-                        '--api-key-stdin',
-                    ]),
+                    runCli(['attachment', 'add-to-case', '42', '--file', '-', '--api-key-stdin']),
                 );
                 expect(result.exitCodes).toContain(1);
                 expect(result.stderr).toMatch(/cannot be combined with --api-key-stdin/);
