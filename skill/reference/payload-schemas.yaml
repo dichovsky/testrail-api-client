@@ -16,8 +16,8 @@ schemas:
 
     AddCasesBulkPayloadSchema:
         actions: ['case add-bulk']
-        req: 'not_introspectable'
-        opt: 'not_introspectable'
+        req: 'schema_shape_unavailable'
+        opt: 'schema_shape_unavailable'
 
     UpdateCasePayloadSchema:
         actions: ['case update']

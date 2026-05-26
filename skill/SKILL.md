@@ -290,7 +290,7 @@ Router pattern: use the compact index below first; open
 # compact schema index
 schemas:
 - {s: AddCasePayloadSchema, a: "case add", req: [title], opt: 7, ref: "./reference/payload-schemas.yaml#addcasepayloadschema"}
-- {s: AddCasesBulkPayloadSchema, a: "case add-bulk", req: "not_introspectable", opt: "not_introspectable", ref: "./reference/payload-schemas.yaml#addcasesbulkpayloadschema"}
+- {s: AddCasesBulkPayloadSchema, a: "case add-bulk", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#addcasesbulkpayloadschema"}
 - {s: UpdateCasePayloadSchema, a: "case update", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updatecasepayloadschema"}
 - {s: UpdateCasesPayloadSchema, a: "case update-bulk", req: [case_ids], opt: 8, ref: "./reference/payload-schemas.yaml#updatecasespayloadschema"}
 - {s: DeleteCasesPayloadSchema, a: "case delete-bulk", req: [case_ids], opt: 0, ref: "./reference/payload-schemas.yaml#deletecasespayloadschema"}

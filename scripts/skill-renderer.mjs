@@ -134,7 +134,7 @@ function renderPayloadIndexEntry(spec) {
     const schemaName = schemaNameFor(spec);
     const fields = readSchemaFields(spec.bodySchema);
     if (!fields) {
-        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "not_introspectable", opt: "not_introspectable", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
+        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
     }
     const req = fields
         .filter((f) => !f.optional)
@@ -151,8 +151,8 @@ function renderReferenceEntry(schemaName, actions, fields) {
         return [
             `  ${schemaName}:`,
             `    actions: ${actionLine}`,
-            '    req: "not_introspectable"',
-            '    opt: "not_introspectable"',
+            '    req: "schema_shape_unavailable"',
+            '    opt: "schema_shape_unavailable"',
             '',
         ].join('\n');
     }
