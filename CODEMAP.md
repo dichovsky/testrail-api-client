@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "8884cab6a92fed420de26c7f728c02679cd245c08706e019a70073ec5bb91b28",
+  "sourceHash": "68056353e85897c36d8970e895540dae5a2868ce6825ddb8aec5b6b843edae98",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -531,6 +531,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
     },
     {
+      "name": "createApiError",
+      "kind": "function",
+      "file": "src/errors.ts",
+      "line": 53,
+      "signature": "export function createApiError(status: number, statusText: string, response?: unknown): TestRailApiError",
+      "jsdoc": "Returns the most specific TestRailApiError subclass for a given HTTP status. Falls back to TestRailApiError for unclassified statuses."
+    },
+    {
       "name": "Dataset",
       "kind": "type",
       "file": "src/schemas.ts",
@@ -692,7 +700,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 33,
+      "line": 77,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
       "jsdoc": "Utility to convert ZodError into TestRailValidationError."
     },
@@ -1100,6 +1108,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "jsdoc": "Thrown when the TestRail API returns a non-2xx response or a network error occurs."
     },
     {
+      "name": "TestRailAuthError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 26,
+      "signature": "export class TestRailAuthError extends TestRailApiError",
+      "jsdoc": "Thrown when TestRail returns 401 Unauthorized or 403 Forbidden."
+    },
+    {
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
@@ -1124,10 +1140,34 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const TestRailConfigSchema = zObject({ baseUrl: z.string().url(), email: z.string().email(), apiKey: z.string().min(1), timeout: z.number().optional(), maxRetries: z.number().int().nonnegative(…"
     },
     {
+      "name": "TestRailNotFoundError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 34,
+      "signature": "export class TestRailNotFoundError extends TestRailApiError",
+      "jsdoc": "Thrown when TestRail returns 404 Not Found."
+    },
+    {
+      "name": "TestRailRateLimitError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 18,
+      "signature": "export class TestRailRateLimitError extends TestRailApiError",
+      "jsdoc": "Thrown when TestRail returns 429 Too Many Requests or the client-side rate limiter fires."
+    },
+    {
+      "name": "TestRailTimeoutError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 42,
+      "signature": "export class TestRailTimeoutError extends TestRailApiError",
+      "jsdoc": "Thrown when TestRail returns 408 or the fetch is aborted (AbortError / request-header timeout). Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`."
+    },
+    {
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 20,
+      "line": 64,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -3747,284 +3787,284 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 19,
+          "line": 26,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 29,
+          "line": 36,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
         },
         {
           "name": "PRIVATE_HOST_PATTERNS",
           "kind": "const",
-          "line": 56,
+          "line": 63,
           "exported": false,
           "signature": "const PRIVATE_HOST_PATTERNS: RegExp[] = [ /^localhost\\.?$/i, /^127\\./, /^10\\./, /^172\\.(1[6-9]|2\\d|3[01])\\./, /^192\\.168\\./, /^169\\.254\\./, /^::1$/, /^fe80:/i, /^f[cd][0-9a-f]{2}:/i, /^0\\./, ]"
         },
         {
           "name": "isPrivateOrLoopbackIPv4",
           "kind": "function",
-          "line": 69,
+          "line": 76,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIPv4(ip: string): boolean"
         },
         {
           "name": "isPrivateOrLoopbackIP",
           "kind": "function",
-          "line": 91,
+          "line": 98,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIP(ip: string, family?: number): boolean"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 123,
+          "line": 130,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string): Promise<void>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 172,
+          "line": 179,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 173,
+          "line": 180,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 176,
+          "line": 183,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 182,
+          "line": 189,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 205,
+          "line": 212,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 206
+              "line": 213
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 209
+              "line": 216
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 210
+              "line": 217
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 211
+              "line": 218
             },
             {
               "name": "enableCache",
               "kind": "property",
-              "line": 212
+              "line": 219
             },
             {
               "name": "cacheTtl",
               "kind": "property",
-              "line": 213
+              "line": 220
             },
             {
               "name": "cacheCleanupInterval",
               "kind": "property",
-              "line": 214
+              "line": 221
             },
             {
               "name": "maxCacheSize",
               "kind": "property",
-              "line": 215
+              "line": 222
             },
             {
               "name": "cache",
               "kind": "property",
-              "line": 216
+              "line": 223
             },
             {
               "name": "cacheCleanupTimer",
               "kind": "property",
-              "line": 217
+              "line": 224
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 218
+              "line": 225
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 219
+              "line": 226
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 220
+              "line": 227
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 221
+              "line": 228
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 222
+              "line": 229
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 223
+              "line": 230
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 228
+              "line": 235
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 230
+              "line": 237
             },
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 289
+              "line": 296
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 435
+              "line": 442
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 460
+              "line": 467
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 501
+              "line": 508
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 519
+              "line": 526
             },
             {
               "name": "validateId",
               "kind": "method",
-              "line": 547
+              "line": 554
             },
             {
               "name": "validateEntryId",
               "kind": "method",
-              "line": 557
+              "line": 564
             },
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 567
+              "line": 574
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 586
+              "line": 593
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 598
+              "line": 605
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 619
+              "line": 626
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 641
+              "line": 648
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 645
+              "line": 652
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 656
+              "line": 663
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 663
+              "line": 670
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 690
+              "line": 697
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 724
+              "line": 731
             },
             {
               "name": "requestText",
               "kind": "method",
-              "line": 904
+              "line": 911
             },
             {
               "name": "requestMultipart",
               "kind": "method",
-              "line": 1030
+              "line": 1037
             },
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1160
+              "line": 1167
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1266
+              "line": 1273
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1275
+              "line": 1282
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1308
+              "line": 1315
             }
           ]
         }
@@ -4980,23 +5020,86 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           ]
         },
         {
+          "name": "TestRailRateLimitError",
+          "kind": "class",
+          "line": 18,
+          "exported": true,
+          "signature": "export class TestRailRateLimitError extends TestRailApiError",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 19
+            }
+          ]
+        },
+        {
+          "name": "TestRailAuthError",
+          "kind": "class",
+          "line": 26,
+          "exported": true,
+          "signature": "export class TestRailAuthError extends TestRailApiError",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 27
+            }
+          ]
+        },
+        {
+          "name": "TestRailNotFoundError",
+          "kind": "class",
+          "line": 34,
+          "exported": true,
+          "signature": "export class TestRailNotFoundError extends TestRailApiError",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 35
+            }
+          ]
+        },
+        {
+          "name": "TestRailTimeoutError",
+          "kind": "class",
+          "line": 42,
+          "exported": true,
+          "signature": "export class TestRailTimeoutError extends TestRailApiError",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 43
+            }
+          ]
+        },
+        {
+          "name": "createApiError",
+          "kind": "function",
+          "line": 53,
+          "exported": true,
+          "signature": "export function createApiError(status: number, statusText: string, response?: unknown): TestRailApiError"
+        },
+        {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 20,
+          "line": 64,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 21
+              "line": 65
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 33,
+          "line": 77,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }

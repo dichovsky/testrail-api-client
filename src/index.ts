@@ -1,5 +1,14 @@
 export { TestRailClient } from './client.js';
-export { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
+export {
+    TestRailApiError,
+    TestRailRateLimitError,
+    TestRailAuthError,
+    TestRailNotFoundError,
+    TestRailTimeoutError,
+    TestRailValidationError,
+    createApiError,
+    handleZodError,
+} from './errors.js';
 export {
     TestRailConfigSchema,
     PaginationSchema,
