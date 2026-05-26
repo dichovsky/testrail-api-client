@@ -282,6 +282,20 @@ describe('resolveFile', () => {
     });
 
     describe('resolveFile stdin error coercion', () => {
+        // Restore real stdin after each test — Vitest can execute multiple
+        // test files in the same worker process, so a mutated process.stdin
+        // would leak into later tests and cause hard-to-debug flakiness.
+        const ORIG_STDIN = process.stdin;
+        const ORIG_IS_TTY = process.stdin.isTTY;
+        afterEach(() => {
+            Object.defineProperty(process, 'stdin', {
+                value: ORIG_STDIN,
+                configurable: true,
+                writable: false,
+            });
+            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+        });
+
         it('surfaces an Error thrown by stdin reading as structured ok:false (Error branch at line 169)', async () => {
             // Exercises the `e instanceof Error ? e.message : String(e)` true
             // branch in resolveFromStdin's catch handler.
@@ -303,6 +317,19 @@ describe('resolveFile', () => {
     });
 
     describe('readStdinBinary error coercion', () => {
+        // Restore real stdin after each test (same reasoning as the
+        // `resolveFile stdin error coercion` block above).
+        const ORIG_STDIN = process.stdin;
+        const ORIG_IS_TTY = process.stdin.isTTY;
+        afterEach(() => {
+            Object.defineProperty(process, 'stdin', {
+                value: ORIG_STDIN,
+                configurable: true,
+                writable: false,
+            });
+            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+        });
+
         it('wraps a non-Error thrown inside the for-await loop into an Error (covers cond-expr:1)', async () => {
             // Exercises the `e instanceof Error ? e : new Error(String(e), { cause: e })`
             // false branch. Hand-rolled async iterable that throws a plain
