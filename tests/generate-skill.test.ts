@@ -8,11 +8,15 @@
  * after regeneration.
  */
 import { describe, it, expect } from 'vitest';
-// scripts/ is outside the typecheck rootDir (src/), so we import the
-// JavaScript module directly. The tsconfig excludes tests/, so this is fine
-// for the test build path.
-// @ts-expect-error -- importing a .mjs script module not covered by tsc
-import { renderCommandTable, replaceSection, schemaNameFor } from '../scripts/skill-renderer.mjs';
+// Ambient module typing for *.mjs test imports is provided by
+// tests/skill-renderer-mjs.d.ts.
+import {
+    renderCommandTable,
+    renderPayloadSchemaReference,
+    renderPayloadSchemas,
+    replaceSection,
+    schemaNameFor,
+} from '../scripts/skill-renderer.mjs';
 
 interface ActionFixture {
     resource: string;
@@ -55,32 +59,32 @@ const NO_BODY_WRITE_FIXTURE: ActionFixture = {
 describe('renderCommandTable', () => {
     it('emits the markdown header and separator rows', () => {
         const out = renderCommandTable([READ_FIXTURE]) as string;
-        expect(out).toContain('| Resource | Action | Path args | Body | Description |');
-        expect(out).toContain('| --- | --- | --- | --- | --- |');
+        expect(out).toContain('| Cmd | Mode | Args | Input |');
+        expect(out).toContain('| --- | --- | --- | --- |');
     });
 
-    it('renders a read action with "—" for body and path arg in backticks', () => {
+    it('renders a read action with compact mode and input labels', () => {
         const out = renderCommandTable([READ_FIXTURE]) as string;
-        expect(out).toContain('| project | get | `<project_id>` | — |');
+        expect(out).toContain('| `project get` | R | `<project_id>` | - |');
     });
 
-    it('renders a write action with its schema name', () => {
+    it('renders a write action with mode W and its schema name', () => {
         const out = renderCommandTable([WRITE_FIXTURE]) as string;
-        expect(out).toContain('`AddCasePayloadSchema`');
+        expect(out).toContain('| `case add` | W | `<section_id>` | AddCasePayloadSchema |');
     });
 
-    it('renders a no-body write action with "— (no body)"', () => {
+    it('renders a no-body write action as none input', () => {
         const out = renderCommandTable([NO_BODY_WRITE_FIXTURE]) as string;
-        expect(out).toContain('— (no body)');
+        expect(out).toContain('| `run close` | W | `<run_id>` | none |');
     });
 
-    it('emits "—" for actions with no path params', () => {
+    it('emits "-" for actions with no path params', () => {
         const listFixture: ActionFixture = { ...READ_FIXTURE, action: 'list', pathParams: [] };
         const out = renderCommandTable([listFixture]) as string;
-        expect(out).toContain('| project | list | — | — |');
+        expect(out).toContain('| `project list` | R | - | - |');
     });
 
-    it('renders a file-input action with `--file <path>` in the body column', () => {
+    it('renders a file-input action as file input', () => {
         const fixture: ActionFixture = {
             resource: 'attachment',
             action: 'add-to-case',
@@ -90,10 +94,10 @@ describe('renderCommandTable', () => {
             fileInput: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('`--file <path>`');
+        expect(out).toContain('| `attachment add-to-case` | W | `<case_id>` | file |');
     });
 
-    it('renders a file-output action with `--out <path> (binary)` in the body column', () => {
+    it('renders a file-output action as out:binary input', () => {
         const fixture: ActionFixture = {
             resource: 'attachment',
             action: 'get',
@@ -103,13 +107,10 @@ describe('renderCommandTable', () => {
             fileOutput: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('`--out <path>` (binary)');
+        expect(out).toContain('| `attachment get` | R | `<attachment_id>` | out:binary |');
     });
 
-    it('renders a text file-output action with `--out <path> (text)` in the body column', () => {
-        // `bdd get` writes UTF-8 Gherkin via writeFileSync(path, text, 'utf-8').
-        // Labelling it `(binary)` (the pre-`outputKind` default) misleads skill
-        // users; opt into the `text` kind so the table reflects reality.
+    it('renders a text file-output action as out:text input', () => {
         const fixture: ActionFixture = {
             resource: 'bdd',
             action: 'get',
@@ -120,13 +121,10 @@ describe('renderCommandTable', () => {
             outputKind: 'text',
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('`--out <path>` (text)');
-        expect(out).not.toContain('(binary)');
+        expect(out).toContain('| `bdd get` | R | `<case_id>` | out:text |');
     });
 
-    it('defaults `outputKind` to `binary` when omitted (back-compat)', () => {
-        // Specs predating the `outputKind` field must keep their existing
-        // `(binary)` label so the renderer change is non-breaking.
+    it('defaults `outputKind` to binary when omitted (back-compat)', () => {
         const fixture: ActionFixture = {
             resource: 'attachment',
             action: 'get',
@@ -136,11 +134,11 @@ describe('renderCommandTable', () => {
             fileOutput: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('(binary)');
-        expect(out).not.toContain('(text)');
+        expect(out).toContain('out:binary');
+        expect(out).not.toContain('out:text');
     });
 
-    it('renders a destructive no-body action with the --yes hint', () => {
+    it('renders a destructive no-body action with mode D and none+yes input', () => {
         const fixture: ActionFixture = {
             resource: 'attachment',
             action: 'delete',
@@ -150,7 +148,45 @@ describe('renderCommandTable', () => {
             destructive: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('requires `--yes`');
+        expect(out).toContain('| `attachment delete` | D | `<attachment_id>` | none+yes |');
+    });
+});
+
+describe('payload schema rendering', () => {
+    it('renders a compact yaml index with reference anchors', () => {
+        const out = renderPayloadSchemas([WRITE_FIXTURE]) as string;
+        expect(out).toContain('```yaml');
+        expect(out).toContain('schemas:');
+        expect(out).toContain('s: AddCasePayloadSchema');
+        expect(out).toContain('a: "case add"');
+        expect(out).toContain('ref: "./reference/payload-schemas.yaml#addcasepayloadschema"');
+    });
+
+    it('renders a full reference yaml payload map', () => {
+        const out = renderPayloadSchemaReference([WRITE_FIXTURE]) as string;
+        expect(out).toContain('# Generated by scripts/generate-skill.js. Do not edit by hand.');
+        expect(out).toContain('schemas:');
+        expect(out).toContain('AddCasePayloadSchema:');
+        expect(out).toContain('actions: ["case add"]');
+        expect(out).toContain('req:');
+        expect(out).toContain('- "title:unknown"');
+        expect(out).toContain('opt: []');
+    });
+
+    it('merges duplicate schema names into one reference entry', () => {
+        const baseSchemaFixture: ActionFixture = {
+            ...WRITE_FIXTURE,
+            resource: 'result',
+            action: 'add',
+        };
+        const duplicateSchemaFixture: ActionFixture = {
+            ...WRITE_FIXTURE,
+            resource: 'result',
+            action: 'add-by-test',
+        };
+        const out = renderPayloadSchemaReference([baseSchemaFixture, duplicateSchemaFixture]) as string;
+        expect(out.match(/AddResultPayloadSchema:/g)?.length).toBe(1);
+        expect(out).toContain('actions: ["result add", "result add-by-test"]');
     });
 });
 

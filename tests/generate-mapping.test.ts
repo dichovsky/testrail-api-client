@@ -9,10 +9,6 @@
  * the build if the committed `docs/API-MAPPING.md` is out of date.
  */
 import { describe, expect, it } from 'vitest';
-// scripts/ is outside the tsconfig include for src/; the .mjs has no .d.ts.
-// Single-line import so the @ts-expect-error directive applies to the line
-// that emits TS7016 (the import statement itself).
-// @ts-expect-error -- importing a .mjs script module not covered by tsc
 import * as renderer from '../scripts/mapping-renderer.mjs';
 
 type Recipe = { number: number; title: string; anchor: string };
