@@ -1,6 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveFile } from '../file-input.js';
+import { runDestructive } from '../run-destructive.js';
 
 /**
  * Resolved file ready for upload. Returned by `setupUpload` only on the
@@ -131,24 +132,13 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
  * Destructive: deletes the attachment permanently. Gated by `--yes`; if
  * `--dry-run` is also passed, dry-run wins (no API call) and emits a preview
  * with `destructive: true` so callers can spot it in audit output.
+ *
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft-reject → yes gate → API.
  */
 export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void> {
     const attachmentId = parseId(ctx.args.pathParams[0], 'attachment_id');
-
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'attachment delete',
-            attachmentId,
-            destructive: true,
-        });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.deleteAttachment(attachmentId);
-    ctx.out({ attachmentId, deleted: true });
+    await runDestructive(ctx, { action: 'attachment delete', attachmentId }, async () => {
+        await ctx.client.deleteAttachment(attachmentId);
+        ctx.out({ attachmentId, deleted: true });
+    }, { softUnsupported: true });
 }

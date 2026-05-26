@@ -2,6 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveBody } from '../body.js';
 import { AddVariablePayloadSchema, UpdateVariablePayloadSchema } from '../../schemas.js';
+import { runDestructive } from '../run-destructive.js';
 
 export async function handleVariableAdd(ctx: HandlerContext): Promise<void> {
     const projectId = parseId(ctx.args.pathParams[0], 'project_id');
@@ -44,28 +45,17 @@ export async function handleVariableUpdate(ctx: HandlerContext): Promise<void> {
  * destructive intent unambiguous (mirrors the `milestone delete` /
  * `project delete` pattern).
  *
- * Check order (canonical, matches PR #88 plan-destructive pattern):
- *   parseId → `--dry-run` (wins) → `--soft` reject → `--yes` gate.
- * Putting `--dry-run` first means a caller previewing a destructive op
- * never trips the `--soft` rejection — preview is always a no-op against
- * the network, regardless of other intent flags.
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
  */
 export async function handleVariableDelete(ctx: HandlerContext): Promise<void> {
     const variableId = parseId(ctx.args.pathParams[0], 'variable_id');
-
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'variable delete', variableId, destructive: true });
-        return;
-    }
-
-    if (ctx.args.soft === true) {
-        throw new Error('variable delete does not support --soft.');
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.deleteVariable(variableId);
-    ctx.out({ variableId, deleted: true });
+    await runDestructive(
+        ctx,
+        { action: 'variable delete', variableId },
+        async () => {
+            await ctx.client.deleteVariable(variableId);
+            ctx.out({ variableId, deleted: true });
+        },
+        { softUnsupported: true },
+    );
 }

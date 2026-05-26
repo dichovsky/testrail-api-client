@@ -2270,14 +2270,19 @@ describe('handleMilestoneDelete', () => {
         await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/milestone delete does not support --soft/);
     });
 
-    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
-        const { ctx } = buildCtx(buildClient(), {
+    it('dry-run wins over --soft (Pattern B: dryRun fires before soft-reject)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
             pathParams: ['3'],
             confirmDestructive: true,
             dryRun: true,
             soft: true,
         });
-        await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/milestone delete does not support --soft/);
+        await handleMilestoneDelete(ctx);
+        expect(client.deleteMilestone).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'milestone delete', milestoneId: 3, destructive: true }),
+        );
     });
 
     it('rejects when milestone_id is not a positive integer', async () => {
@@ -2823,15 +2828,23 @@ describe('handleConfigurationGroupDelete', () => {
         );
     });
 
-    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
-        const { ctx } = buildCtx(buildClient(), {
+    it('dry-run wins over --soft (Pattern B: dryRun fires before soft-reject)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
             pathParams: ['55'],
             confirmDestructive: true,
             dryRun: true,
             soft: true,
         });
-        await expect(handleConfigurationGroupDelete(ctx)).rejects.toThrow(
-            /configuration-group delete does not support --soft/,
+        await handleConfigurationGroupDelete(ctx);
+        expect(client.deleteConfigurationGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'configuration-group delete',
+                configGroupId: 55,
+                destructive: true,
+            }),
         );
     });
 
@@ -2976,14 +2989,24 @@ describe('handleConfigurationDelete', () => {
         await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/configuration delete does not support --soft/);
     });
 
-    it('rejects --soft even in dry-run mode (intent is unambiguous)', async () => {
-        const { ctx } = buildCtx(buildClient(), {
+    it('dry-run wins over --soft (Pattern B: dryRun fires before soft-reject)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
             pathParams: ['66'],
             confirmDestructive: true,
             dryRun: true,
             soft: true,
         });
-        await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/configuration delete does not support --soft/);
+        await handleConfigurationDelete(ctx);
+        expect(client.deleteConfiguration).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dryRun: true,
+                action: 'configuration delete',
+                configId: 66,
+                destructive: true,
+            }),
+        );
     });
 
     it('rejects when config_id is not a positive integer', async () => {
@@ -3112,12 +3135,9 @@ describe('handleGroupUpdate', () => {
 });
 
 // ── group delete (destructive; --soft NOT supported) ──────────────────────
-// Uses the canonical milestone/project ordering: `parseId → --soft reject
-// → --dry-run → --yes`. Per ARCH #9 the codebase has two patterns shipped;
-// this PR pins the canonical path deliberately. The behaviour difference
-// vs the newer "dry-run first" order: `--soft` reject fires even with
-// `--dry-run --yes --soft`, surfacing intent unambiguously instead of
-// short-circuiting to a no-op preview.
+// Uses Pattern B ordering: `parseId → --dry-run (wins) → --soft reject → --yes`.
+// ARCH #9+#10: all no-soft destructive handlers now use this canonical ordering
+// via runDestructive helper. --dry-run wins even when --soft is also set.
 
 describe('handleGroupDelete', () => {
     it('hard-delete: calls client.deleteGroup with --yes', async () => {
@@ -3150,20 +3170,19 @@ describe('handleGroupDelete', () => {
         await expect(handleGroupDelete(ctx)).rejects.toThrow(/group delete does not support --soft/);
     });
 
-    it('rejects --soft even in dry-run mode (canonical order: --soft check precedes dry-run)', async () => {
-        // Canonical milestone/project pattern: `parseId → --soft reject → --dry-run → --yes`.
-        // The --soft rejection fires before the dry-run branch, so even
-        // `--dry-run --yes --soft` surfaces the intent mismatch instead of
-        // silently emitting a preview. Contrasts with the newer "dry-run
-        // first" order used by `variable delete` / `shared-step delete` /
-        // `plan delete*`; harmonization is tracked as ARCH #9.
-        const { ctx } = buildCtx(buildClient(), {
+    it('dry-run wins over --soft (Pattern B: dryRun fires before soft-reject)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
             pathParams: ['77'],
             confirmDestructive: true,
             dryRun: true,
             soft: true,
         });
-        await expect(handleGroupDelete(ctx)).rejects.toThrow(/group delete does not support --soft/);
+        await handleGroupDelete(ctx);
+        expect(client.deleteGroup).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'group delete', groupId: 77, destructive: true }),
+        );
     });
 
     it('rejects when group_id is not a positive integer', async () => {
