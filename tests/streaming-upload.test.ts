@@ -52,6 +52,14 @@ const closeSyncControl = {
     callsWithFd: [] as number[],
 };
 
+// Captures the path argument passed to `openAsBlob`. Used by the
+// platform-specific fd-rewrite tests (Linux /proc/self/fd, Darwin /dev/fd)
+// to pin that the upload pipeline rewrites the path BEFORE calling
+// openAsBlob, regardless of whether openAsBlob ultimately resolves on the
+// host platform. ESM namespace properties can't be redefined via vi.spyOn,
+// so we wrap openAsBlob via vi.mock with a module-level recorder.
+const openAsBlobRecorder: { lastPath: string | undefined } = { lastPath: undefined };
+
 vi.mock('node:fs', async (importOriginal) => {
     const actual = await importOriginal<typeof import('node:fs')>();
     return {
@@ -63,6 +71,10 @@ vi.mock('node:fs', async (importOriginal) => {
                 throw err;
             }
             return actual.closeSync(fd);
+        },
+        openAsBlob: (path: string | URL | Buffer, opts?: Parameters<typeof actual.openAsBlob>[1]) => {
+            openAsBlobRecorder.lastPath = typeof path === 'string' ? path : String(path);
+            return actual.openAsBlob(path, opts);
         },
     };
 });
@@ -94,6 +106,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         mockFetch.mockReset();
         closeSyncControl.throwForFd = null;
         closeSyncControl.callsWithFd = [];
+        openAsBlobRecorder.lastPath = undefined;
         tmp = mkdtempSync(join(tmpdir(), 'tr-streaming-'));
         smallPath = join(tmp, 'small.bin');
         writeFileSync(smallPath, Buffer.from([1, 2, 3, 4, 5]));
@@ -253,8 +266,13 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
 
     it('uploads via { path, fd } descriptor on Linux (covers /proc/self/fd rewrite branch)', async () => {
         // Exercises the `process.platform === 'linux'` true branch at
-        // src/client-core.ts:1061. The test environment may be Darwin, so
-        // we stub process.platform to 'linux' for one call.
+        // src/client-core.ts:1061. The test environment may be Darwin
+        // (where /proc/self/fd does not exist), so we stub process.platform
+        // to 'linux' AND use the module-level openAsBlobRecorder to capture
+        // the path argument. The tightened contract: regardless of whether
+        // openAsBlob ultimately resolves on this platform, the path passed
+        // to it MUST be the rewritten /proc/self/fd/<fd> form — never the
+        // original path.
         const origPlatform = process.platform;
         Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
         try {
@@ -262,18 +280,15 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             mockOk({ attachment_id: 9, name: 'linux-fd.bin' });
             const fd = openSync(smallPath, 'r');
             try {
-                // On macOS where this test runs, /proc/self/fd doesn't
-                // exist; openAsBlob may still succeed or fail. Either way
-                // we exercise the branch — the assertion accepts both
-                // outcomes (success or a structured TestRailApiError).
-                let result: unknown;
                 try {
-                    result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'linux-fd.bin');
+                    await client.addAttachmentToCase(1, { path: smallPath, fd }, 'linux-fd.bin');
                 } catch (e) {
+                    // On non-Linux runners, /proc/self/fd/<fd> doesn't exist
+                    // so openAsBlob rejects → surfaces as TestRailApiError.
+                    // The rewrite-arg assertion below still pins the contract.
                     expect(e).toBeInstanceOf(TestRailApiError);
-                    return;
                 }
-                expect(result).toBeDefined();
+                expect(openAsBlobRecorder.lastPath).toBe(`/proc/self/fd/${fd}`);
             } finally {
                 try {
                     closeSync(fd);
