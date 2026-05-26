@@ -322,6 +322,46 @@ export function checkDestructiveEnvGate(
     };
 }
 
+export type PathParamCountResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Validates that the number of positional path params supplied on the CLI
+ * matches the count declared in the ActionSpec.
+ *
+ * Returns `{ ok: true }` when the spec is absent (defensive no-op — the
+ * caller handles the unknown-action case) or counts match. Returns
+ * `{ ok: false, error }` with a usage hint when too many or too few params
+ * are given.
+ */
+export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: readonly string[]): PathParamCountResult {
+    if (spec === undefined) return { ok: true };
+    const expected = spec.pathParams.length;
+    const actual = pathParams.length;
+    if (actual === expected) return { ok: true };
+    const paramNames = spec.pathParams.map((p) => `<${p.name}>`).join(' ');
+    const usage = paramNames
+        ? `testrail ${spec.resource} ${spec.action} ${paramNames}`
+        : `testrail ${spec.resource} ${spec.action}`;
+    if (actual < expected) {
+        return {
+            ok: false,
+            error:
+                `'${spec.resource} ${spec.action}' requires ${expected} path parameter(s) ` +
+                `(got ${actual}). Usage: ${usage}`,
+        };
+    }
+    return {
+        ok: false,
+        error:
+            `'${spec.resource} ${spec.action}' takes ${expected} path parameter(s) ` +
+            `(got ${actual}, extra: ${pathParams
+                .slice(expected)
+                .map((p) => JSON.stringify(p))
+                .join(', ')}). ` +
+            `Usage: ${usage}`,
+    };
+}
+
 export function dispatch(resource: string, action: string): DispatchResult {
     // Guard against Object.prototype-key access (`toString`, `__proto__`,
     // `constructor`, `valueOf`, etc.). `RESOURCES` is a plain object

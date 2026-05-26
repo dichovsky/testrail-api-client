@@ -746,7 +746,7 @@ describe('CLI', () => {
         it('section get with missing id should exit 1', async () => {
             const { exitCodes, stderr } = await runCli(['section', 'get']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/section id/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -851,7 +851,7 @@ describe('CLI', () => {
         it('section list with missing project_id should exit 1', async () => {
             const { exitCodes, stderr } = await runCli(['section', 'list']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/project id/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -1153,7 +1153,7 @@ describe('CLI', () => {
         it('test get without id should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['test', 'get']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/positive integer/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -1216,7 +1216,7 @@ describe('CLI', () => {
         it('test list without run_id should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['test', 'list']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/positive integer/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -1391,7 +1391,7 @@ describe('CLI', () => {
         it('result list-for-test rejects missing positional', async () => {
             const { stderr, exitCodes } = await runCli(['result', 'list-for-test']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/test id/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
         });
 
         // '-1' is parsed as a short-flag '-1' by parseArgs and rejected by
@@ -1511,7 +1511,7 @@ describe('CLI', () => {
         it('result list-for-case missing case id should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['result', 'list-for-case', '100']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/case id/);
+            expect(stderr).toMatch(/requires 2 path parameter/);
         });
 
         it.each(['0', '1.5', 'abc', '1e2', '0x1'])(
@@ -1713,7 +1713,7 @@ describe('CLI', () => {
                 'alice@example.com',
             ]);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -1783,7 +1783,7 @@ describe('CLI', () => {
         it('user get-current rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['user', 'get-current', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2319,7 +2319,7 @@ describe('CLI', () => {
         it('case-status list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['case-status', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });
@@ -2372,7 +2372,7 @@ describe('CLI', () => {
         it('report list with missing project_id should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['report', 'list']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/project id/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2440,7 +2440,7 @@ describe('CLI', () => {
         it('report run with missing report_template_id should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['report', 'run']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/report template id/);
+            expect(stderr).toMatch(/requires 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2630,7 +2630,7 @@ describe('CLI', () => {
         it('case-field list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['case-field', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2683,7 +2683,7 @@ describe('CLI', () => {
         it('result-field list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['result-field', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2739,7 +2739,7 @@ describe('CLI', () => {
         it('status list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['status', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2801,7 +2801,7 @@ describe('CLI', () => {
         it('role list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['role', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2854,7 +2854,7 @@ describe('CLI', () => {
         it('priority list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['priority', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2907,7 +2907,7 @@ describe('CLI', () => {
         it('case-type list rejects extra positional args (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['case-type', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -3850,7 +3850,7 @@ describe('CLI', () => {
         it('group list rejects extra positional args', async () => {
             const { exitCodes, stderr } = await runCli(['group', 'list', '5']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -3890,7 +3890,7 @@ describe('CLI', () => {
         it('group add rejects extra positional args', async () => {
             const { exitCodes, stderr } = await runCli(['group', 'add', '5', '--data', '{"name":"QA"}']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('no positional arguments');
+            expect(stderr).toContain('takes 0 path parameter');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -5889,6 +5889,13 @@ describe('CLI', () => {
             const { exitCodes, stderr } = await runCli(['milestone', 'delete', '3', '--soft', '--yes']);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/milestone delete does not support --soft/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects extra path param — exit 1, stderr contains "takes 1 path parameter"', async () => {
+            const { exitCodes, stderr } = await runCli(['milestone', 'delete', '5', '99']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/takes 1 path parameter/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
     });

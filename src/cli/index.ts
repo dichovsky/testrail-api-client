@@ -5,7 +5,7 @@ import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
 import { createOutput, type OutputFormat } from './output.js';
-import { dispatch, checkDestructiveEnvGate } from './dispatch.js';
+import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
@@ -388,10 +388,19 @@ async function main(): Promise<number> {
     // TO the per-handler `--yes` check — both must be satisfied. See SEC
     // notes in CHANGELOG.md for the breaking-change rationale.
     const dryRun = values['dry-run'] === true;
-    const envGate = checkDestructiveEnvGate(getActionSpec(resource, action), process.env, dryRun);
+    const actionSpec = getActionSpec(resource, action);
+    const envGate = checkDestructiveEnvGate(actionSpec, process.env, dryRun);
     if (!envGate.ok) {
         err(envGate.error);
         return 2;
+    }
+
+    // Validate path-param count before stdin/auth work so a wrong arg count
+    // fails immediately without reading stdin or checking credentials.
+    const paramCountResult = checkPathParamCount(actionSpec, pathParams);
+    if (!paramCountResult.ok) {
+        err(paramCountResult.error);
+        return 1;
     }
 
     // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
@@ -480,7 +489,6 @@ async function main(): Promise<number> {
     // is a typo/no-op (e.g. `echo '{...}' | testrail result add ... --file
     // x`), surfacing as a misleading "Body required" error instead of the
     // ignored flag.
-    const actionSpec = getActionSpec(resource, action);
     const isFileInputAction = actionSpec?.fileInput === true;
     const isFileOutputAction = actionSpec?.fileOutput === true;
 

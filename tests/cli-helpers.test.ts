@@ -21,6 +21,7 @@ import {
     dispatch,
     getRegisteredActions,
     checkDestructiveEnvGate,
+    checkPathParamCount,
     DESTRUCTIVE_ENV_VAR,
     DESTRUCTIVE_ENV_ALLOW_VALUE,
 } from '../src/cli/dispatch.js';
@@ -637,6 +638,81 @@ describe('checkDestructiveEnvGate', () => {
             false,
         );
         expect(result.ok).toBe(false);
+    });
+});
+
+describe('checkPathParamCount', () => {
+    /**
+     * Unit tests for the dispatch-level path-param count validator.
+     * Covers the full truth table of (spec, pathParams) → ok | error.
+     */
+
+    it('returns ok=true when spec is undefined (defensive no-op — caller handles unknown action)', () => {
+        const result = checkPathParamCount(undefined, ['5', '99']);
+        expect(result.ok).toBe(true);
+    });
+
+    it('returns ok=true when counts match — 0 params', () => {
+        const spec = getActionSpec('project', 'list'); // 0 path params
+        expect(spec?.pathParams.length).toBe(0);
+        const result = checkPathParamCount(spec, []);
+        expect(result.ok).toBe(true);
+    });
+
+    it('returns ok=true when counts match — 1 param', () => {
+        const spec = getActionSpec('milestone', 'delete'); // 1 path param: milestone_id
+        expect(spec?.pathParams.length).toBe(1);
+        const result = checkPathParamCount(spec, ['5']);
+        expect(result.ok).toBe(true);
+    });
+
+    it('returns ok=true when counts match — 2 params', () => {
+        const spec = getActionSpec('result', 'list-for-case'); // 2 path params: run_id, case_id
+        expect(spec?.pathParams.length).toBe(2);
+        const result = checkPathParamCount(spec, ['10', '20']);
+        expect(result.ok).toBe(true);
+    });
+
+    it('returns ok=false with "takes N" message when too many args supplied', () => {
+        const spec = getActionSpec('milestone', 'delete'); // expects 1
+        const result = checkPathParamCount(spec, ['5', '99']);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.error).toContain('takes 1 path parameter(s)');
+            expect(result.error).toContain('got 2');
+            expect(result.error).toContain('"99"');
+        }
+    });
+
+    it('returns ok=false with "requires N" message when too few args supplied', () => {
+        const spec = getActionSpec('milestone', 'delete'); // expects 1
+        const result = checkPathParamCount(spec, []);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.error).toContain('requires 1 path parameter(s)');
+            expect(result.error).toContain('got 0');
+        }
+    });
+
+    it('error message includes usage hint with <param_name> placeholders', () => {
+        const spec = getActionSpec('milestone', 'delete'); // pathParams: [{name:'milestone_id'}]
+        const result = checkPathParamCount(spec, ['5', '99']);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.error).toContain('<milestone_id>');
+            expect(result.error).toContain('testrail milestone delete <milestone_id>');
+        }
+    });
+
+    it('usage hint has no param placeholders for 0-param actions', () => {
+        const spec = getActionSpec('project', 'list');
+        const result = checkPathParamCount(spec, ['extra']);
+        expect(result.ok).toBe(false);
+        if (!result.ok) {
+            expect(result.error).toContain('takes 0 path parameter(s)');
+            expect(result.error).toContain('testrail project list');
+            expect(result.error).not.toContain('<');
+        }
     });
 });
 
