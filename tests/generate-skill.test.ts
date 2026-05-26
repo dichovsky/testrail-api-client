@@ -8,6 +8,8 @@
  * after regeneration.
  */
 import { describe, it, expect } from 'vitest';
+// Ambient module typing for *.mjs test imports is provided by
+// tests/skill-renderer-mjs.d.ts.
 import {
     renderCommandTable,
     renderPayloadSchemaReference,

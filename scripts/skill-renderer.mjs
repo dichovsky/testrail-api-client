@@ -126,7 +126,7 @@ function readSchemaFields(schema) {
     });
 }
 
-function schemaRefAnchor(schemaName) {
+function schemaNameToAnchor(schemaName) {
     return schemaName.toLowerCase();
 }
 
@@ -134,7 +134,7 @@ function renderPayloadIndexEntry(spec) {
     const schemaName = schemaNameFor(spec);
     const fields = readSchemaFields(spec.bodySchema);
     if (!fields) {
-        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "?", opt: "?", ref: "./reference/payload-schemas.yaml#${schemaRefAnchor(schemaName)}"}`;
+        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "?", opt: "?", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
     }
     const req = fields
         .filter((f) => !f.optional)
@@ -142,7 +142,7 @@ function renderPayloadIndexEntry(spec) {
         .join(', ');
     const optCount = fields.filter((f) => f.optional).length;
     const reqLabel = req.length > 0 ? `[${req}]` : '[]';
-    return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: ${reqLabel}, opt: ${optCount}, ref: "./reference/payload-schemas.yaml#${schemaRefAnchor(schemaName)}"}`;
+    return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: ${reqLabel}, opt: ${optCount}, ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
 }
 
 function renderReferenceEntry(schemaName, actions, fields) {
