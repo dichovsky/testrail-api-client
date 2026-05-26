@@ -15,6 +15,15 @@ export default defineConfig({
             reporter: ['text', 'json', 'html'],
             include: ['src/**/*.ts'],
             exclude: ['src/**/*.d.ts', 'src/**/types.ts'],
+            // Per-metric floor: 99% on lines/statements/functions, 98% on
+            // branches. Branches is intentionally one point lower because
+            // 27 branches are genuinely unreachable defensive code (type-
+            // guaranteed Zod.parse/JSON.parse arms, runtime-guaranteed Node
+            // invariants like process.on/O_NOFOLLOW, dead-by-construction
+            // checks where the map is built from its own consumer's keys,
+            // and TOCTOU races that can't be reliably engineered). See PR
+            // #156 for the full catalog. Do NOT lower below these floors
+            // without similar documented justification.
             thresholds: {
                 lines: 99,
                 statements: 99,
