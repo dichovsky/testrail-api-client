@@ -22,15 +22,17 @@
  * `git diff --exit-code skill/SKILL.md` after regeneration in CI/publish.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { renderCommandTable, renderPayloadSchemas, replaceSection } from './skill-renderer.mjs';
+import { renderCommandTable, renderPayloadSchemas, renderPayloadSchemaReference, replaceSection } from './skill-renderer.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const distMetadata = path.join(root, 'dist', 'cli', 'metadata.js');
 const skillPath = path.join(root, 'skill', 'SKILL.md');
+const referenceDir = path.join(root, 'skill', 'reference');
+const payloadReferencePath = path.join(referenceDir, 'payload-schemas.yaml');
 
 if (!existsSync(distMetadata)) {
     process.stderr.write(
@@ -45,5 +47,9 @@ let content = readFileSync(skillPath, 'utf-8');
 content = replaceSection(content, 'command-table', renderCommandTable(ACTIONS));
 content = replaceSection(content, 'payload-schemas', renderPayloadSchemas(ACTIONS));
 writeFileSync(skillPath, content, 'utf-8');
+mkdirSync(referenceDir, { recursive: true });
+writeFileSync(payloadReferencePath, renderPayloadSchemaReference(ACTIONS), 'utf-8');
 
-process.stdout.write(`skill/SKILL.md regenerated (${content.split('\n').length} lines).\n`);
+process.stdout.write(
+    `skill/SKILL.md regenerated (${content.split('\n').length} lines); wrote skill/reference/payload-schemas.yaml.\n`,
+);

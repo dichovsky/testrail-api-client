@@ -60,6 +60,12 @@ on stderr. Never echo or log the API key.
 
 ## Command surface
 
+Compact table legend:
+
+- `Mode`: `R` read, `W` write, `D` destructive write (`--yes` + env gate).
+- `Input`: `-` none, `none` write with no body, `none+yes` destructive no-body,
+  `file`, `out:text`, `out:binary`, or a payload schema name.
+
 <!-- GENERATED:command-table -->
 | Resource | Action | Path args | Body | Description |
 | --- | --- | --- | --- | --- |
@@ -275,6 +281,9 @@ Each write action validates its body against a Zod schema with
 `.passthrough()` — required fields must match types exactly (no
 coercion; `"5"` is rejected where `5` is expected), and TestRail
 `custom_*` fields pass through untouched.
+
+Router pattern: use the compact index below first; open
+`./reference/payload-schemas.yaml` only when you need full field-level details.
 
 <!-- GENERATED:payload-schemas -->
 ### `AddCasePayloadSchema` (used by `case add`)
