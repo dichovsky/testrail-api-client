@@ -1,6 +1,13 @@
 import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
-import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
+import {
+    TestRailApiError,
+    TestRailRateLimitError,
+    TestRailTimeoutError,
+    TestRailValidationError,
+    createApiError,
+    handleZodError,
+} from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
@@ -531,7 +538,7 @@ export class TestRailClientCore {
                 }
             }
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
-            throw new TestRailApiError(429, 'Too Many Requests', {
+            throw new TestRailRateLimitError(429, 'Too Many Requests', {
                 message: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
                 waitTimeMs: waitTime,
             });
@@ -826,7 +833,7 @@ export class TestRailClientCore {
                 // or secret values. Keep it in the structured `response` field for
                 // programmatic inspection but do not embed it in the message string,
                 // which callers commonly pass to loggers.
-                throw new TestRailApiError(response.status, response.statusText, errorText);
+                throw createApiError(response.status, response.statusText, errorText);
             }
 
             // Invalidate cache after mutating requests to avoid stale GET results.
@@ -865,7 +872,7 @@ export class TestRailClientCore {
 
             // Don't retry timeout errors to avoid excessive wait times
             if (isAbortError) {
-                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
+                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
             }
 
             // Retry network errors only for GET. A TypeError from fetch can fire
@@ -967,7 +974,7 @@ export class TestRailClientCore {
                     return this.requestText(method, endpoint, data, retryCount + 1);
                 }
 
-                throw new TestRailApiError(response.status, response.statusText, errorText);
+                throw createApiError(response.status, response.statusText, errorText);
             }
 
             // Mutating calls still invalidate the JSON cache so subsequent
@@ -986,7 +993,7 @@ export class TestRailClientCore {
 
             const isAbortError = (error as Error).name === 'AbortError';
             if (isAbortError) {
-                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
+                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
             }
 
             // Network errors retry only for GET — see request<T>() for rationale.
@@ -1110,7 +1117,7 @@ export class TestRailClientCore {
                     }
                     errorText = 'Unknown error';
                 }
-                throw new TestRailApiError(response.status, response.statusText, errorText);
+                throw createApiError(response.status, response.statusText, errorText);
             }
 
             // Invalidate cache after upload
@@ -1133,7 +1140,7 @@ export class TestRailClientCore {
 
             const isAbortError = (error as Error).name === 'AbortError';
             if (isAbortError) {
-                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
+                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
             }
 
             throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
@@ -1219,7 +1226,7 @@ export class TestRailClientCore {
                     return this.requestBinary(endpoint, retryCount + 1);
                 }
 
-                throw new TestRailApiError(response.status, response.statusText, errorText);
+                throw createApiError(response.status, response.statusText, errorText);
             }
 
             // Binary success body: use the larger binary cap.
@@ -1243,7 +1250,7 @@ export class TestRailClientCore {
 
             const isAbortError = (error as Error).name === 'AbortError';
             if (isAbortError) {
-                throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
+                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
             }
 
             if (retryCount < this.maxRetries) {
