@@ -60,127 +60,133 @@ on stderr. Never echo or log the API key.
 
 ## Command surface
 
+Compact table legend:
+
+- `Mode`: `R` read, `W` write, `D` destructive write (`--yes` + env gate).
+- `Input`: `-` none, `none` write with no body, `none+yes` destructive no-body,
+  `file`, `out:text`, `out:binary`, or a payload schema name.
+
 <!-- GENERATED:command-table -->
-| Resource | Action | Path args | Body | Description |
-| --- | --- | --- | --- | --- |
-| project | get | `<project_id>` | — | Fetch a single project by ID |
-| project | list | — | — | List all projects (paginated) |
-| suite | get | `<suite_id>` | — | Fetch a single suite by ID |
-| suite | list | — | — | List suites in a project |
-| case | get | `<case_id>` | — | Fetch a single test case by ID |
-| case | list | — | — | List cases in a project (optionally filtered by suite) |
-| case | history | `<case_id>` | — | List edit history for a test case (paginated; TestRail 7.5+) |
-| run | get | `<run_id>` | — | Fetch a single run by ID |
-| run | list | — | — | List runs in a project (paginated) |
-| run | watch | `<run_id>` | — | Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll) |
-| test | get | `<test_id>` | — | Fetch a single test (run instance of a case) by ID |
-| test | list | `<run_id>` | — | List tests in a run (optionally filtered by status, paginated) |
-| result | list | — | — | List results for a run (paginated) |
-| result | list-for-test | `<test_id>` | — | List results for a single test (paginated; --status-id / --defects-filter supported) |
-| result | list-for-case | `<run_id>` `<case_id>` | — | List results for a case within a run (paginated; --status-id / --defects-filter supported) |
-| milestone | get | `<milestone_id>` | — | Fetch a single milestone by ID |
-| milestone | list | — | — | List milestones in a project (paginated) |
-| user | get | `<user_id>` | — | Fetch a single user by ID |
-| user | list | — | — | List users (paginated) |
-| user | get-by-email | — | — | Look up a single user by email address |
-| user | get-current | — | — | Fetch the user identified by the auth credential (TestRail 6.6+; no positional args) |
-| plan | get | `<plan_id>` | — | Fetch a single test plan by ID |
-| plan | list | — | — | List plans in a project (paginated) |
-| section | get | `<section_id>` | — | Fetch a single section by ID |
-| section | list | `<project_id>` | — | List sections in a project (optionally filtered by suite; paginated) |
-| case | add | `<section_id>` | `AddCasePayloadSchema` | Create a new test case under a section |
-| case | add-bulk | `<section_id>` | `AddCasesBulkPayloadSchema` | Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads |
-| case | update | `<case_id>` | `UpdateCasePayloadSchema` | Update an existing test case (partial fields) |
-| case | update-bulk | `<suite_id>` | `UpdateCasesPayloadSchema` | Bulk-update many cases in a suite with the same field values |
-| case | delete | `<case_id>` | — (no body, requires `--yes`) | Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting) |
-| case | delete-bulk | `<suite_id>` | `DeleteCasesPayloadSchema` | Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion) |
-| case | copy-to-section | `<section_id>` | `CopyCasesToSectionPayloadSchema` | Copy cases into a target section (returns the new case copies) |
-| case | move-to-section | `<section_id>` | `MoveCasesToSectionPayloadSchema` | Move cases into a target section (suite_id required in body) |
-| run | add | `<project_id>` | `AddRunPayloadSchema` | Create a new test run in a project |
-| run | update | `<run_id>` | `UpdateRunPayloadSchema` | Update an existing test run (all fields optional) |
-| run | close | `<run_id>` | — (no body, requires `--yes`) | Close a test run permanently — irreversible (no body; requires --yes) |
-| run | delete | `<run_id>` | — (no body, requires `--yes`) | Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion) |
-| result | add | `<run_id>` `<case_id>` | `AddResultPayloadSchema` | Record a single result for a case in a run |
-| result | add-bulk | `<run_id>` | `AddResultsForCasesPayloadSchema` | Record multiple results for cases in one API call |
-| result | add-bulk-by-test | `<run_id>` | `AddResultsPayloadSchema` | Record multiple results for tests (by test_id) in one API call |
-| result | add-by-test | `<test_id>` | `AddResultPayloadSchema` | Add a single test result by test ID |
-| plan | add | `<project_id>` | `AddPlanPayloadSchema` | Create a new test plan in a project (optionally with nested entries) |
-| plan | update | `<plan_id>` | `UpdatePlanPayloadSchema` | Update an existing test plan (partial fields) |
-| plan | add-entry | `<plan_id>` | `AddPlanEntryPayloadSchema` | Add an entry (suite + optional runs) to an existing test plan |
-| plan | add-run-to-entry | `<plan_id>` `<entry_id>` | `AddRunToPlanEntryPayloadSchema` | Add a config-specific run to an existing plan entry (config_ids required) |
-| plan | update-entry | `<plan_id>` `<entry_id>` | `UpdatePlanEntryPayloadSchema` | Update an existing plan entry (partial fields; applies to every run in the entry) |
-| plan | update-run-in-entry | `<run_id>` | `UpdateRunInPlanEntryPayloadSchema` | Update a single config-specific run inside a plan entry (description/assignee/case selection only) |
-| plan | close | `<plan_id>` | — (no body, requires `--yes`) | Close a test plan permanently — irreversible (no body; requires --yes) |
-| plan | delete | `<plan_id>` | — (no body, requires `--yes`) | Delete a test plan and all of its entries and runs (requires --yes; --soft NOT supported by TestRail) |
-| plan | delete-entry | `<plan_id>` `<entry_id>` | — (no body, requires `--yes`) | Delete a single plan entry and its runs (requires --yes; --soft NOT supported by TestRail). entry_id is a UUID-style string. |
-| plan | delete-run-from-entry | `<run_id>` | — (no body, requires `--yes`) | Delete a single run from its plan entry, leaving sibling runs intact (requires --yes; --soft NOT supported by TestRail) |
-| section | add | `<project_id>` | `AddSectionPayloadSchema` | Create a new section in a project (suite_id required for multi-suite-mode projects) |
-| section | update | `<section_id>` | `UpdateSectionPayloadSchema` | Update an existing section (partial fields) |
-| section | move | `<section_id>` | `MoveSectionPayloadSchema` | Move a section to a new parent and/or position (TestRail 6.5.2+) |
-| section | delete | `<section_id>` | — (no body, requires `--yes`) | Delete a section (recursively removes subsections and cases; requires --yes; --soft for server-side preview) |
-| project | add | — | `AddProjectPayloadSchema` | Create a new project (no path params, payload-only) |
-| project | update | `<project_id>` | `UpdateProjectPayloadSchema` | Update an existing project (partial fields) |
-| project | delete | `<project_id>` | — (no body, requires `--yes`) | Delete a project and everything inside it (highest blast radius; requires --yes; --soft NOT supported by TestRail) |
-| suite | add | `<project_id>` | `AddSuitePayloadSchema` | Create a new test suite in a project |
-| suite | update | `<suite_id>` | `UpdateSuitePayloadSchema` | Update an existing test suite (partial fields) |
-| suite | delete | `<suite_id>` | — (no body, requires `--yes`) | Delete a suite and everything inside it (sections, cases, runs, plans; requires --yes; --soft for server-side preview) |
-| milestone | add | `<project_id>` | `AddMilestonePayloadSchema` | Create a new milestone in a project |
-| milestone | update | `<milestone_id>` | `UpdateMilestonePayloadSchema` | Update an existing milestone (partial fields, including is_completed/is_started toggles) |
-| milestone | delete | `<milestone_id>` | — (no body, requires `--yes`) | Delete a milestone (requires --yes; --soft NOT supported by TestRail) |
-| user | add | — | `UserAddPayloadSchema` | Create a new user (no path param, payload-only; TestRail 7.3+) |
-| user | update | `<user_id>` | `UserUpdatePayloadSchema` | Update an existing user (partial fields; TestRail 7.3+) |
-| shared-step | get | `<shared_step_id>` | — | Fetch a single shared step by ID |
-| shared-step | list | — | — | List shared steps in a project |
-| shared-step | history | `<shared_step_id>` | — | List revision history for a shared step (paginated) |
-| report | list | `<project_id>` | — | List report templates configured for a project |
-| report | run | `<report_template_id>` | — | Execute a report template and return the generated report URLs |
-| shared-step | add | `<project_id>` | `AddSharedStepPayloadSchema` | Create a new shared step set in a project (TestRail 7.0+) |
-| shared-step | update | `<shared_step_id>` | `UpdateSharedStepPayloadSchema` | Update an existing shared step set (partial fields; TestRail 7.0+) |
-| shared-step | delete | `<shared_step_id>` | — (no body, requires `--yes`) | Delete a shared step set — referencing cases keep their content but lose the step-set link (requires --yes; --soft NOT supported by TestRail; TestRail 7.0+) |
-| case-status | list | — | — | List case-level lifecycle statuses (TestRail 7.5+) |
-| case-field | list | — | — | List all custom case fields defined on the TestRail instance |
-| result-field | list | — | — | List all custom result fields defined on the TestRail instance |
-| status | list | — | — | List all result statuses defined on the TestRail instance |
-| template | list | `<project_id>` | — | List case templates available in a project |
-| role | list | — | — | List all user roles defined on the TestRail instance |
-| priority | list | — | — | List all case priorities defined on the TestRail instance |
-| case-type | list | — | — | List all case types defined on the TestRail instance |
-| case-field | add | — | `AddCaseFieldPayloadSchema` | Create a custom case field (admin-only); no path params, payload-only |
-| attachment | list-for-case | `<case_id>` | — | List attachments on a test case |
-| attachment | list-for-run | `<run_id>` | — | List attachments on a test run |
-| attachment | list-for-test | `<test_id>` | — | List attachments on a test (run instance of a case) |
-| attachment | list-for-plan | `<plan_id>` | — | List attachments on a test plan |
-| attachment | list-for-plan-entry | `<plan_id>` `<entry_id>` | — | List attachments on a plan entry |
-| attachment | get | `<attachment_id>` | `--out <path>` (binary) | Download an attachment by ID to --out <path> |
-| attachment | add-to-case | `<case_id>` | `--file <path>` | Upload an attachment to a test case |
-| attachment | add-to-result | `<result_id>` | `--file <path>` | Upload an attachment to a test result |
-| attachment | add-to-run | `<run_id>` | `--file <path>` | Upload an attachment to a test run |
-| attachment | add-to-plan | `<plan_id>` | `--file <path>` | Upload an attachment to a test plan |
-| attachment | add-to-plan-entry | `<plan_id>` `<entry_id>` | `--file <path>` | Upload an attachment to a plan entry |
-| attachment | delete | `<attachment_id>` | — (no body, requires `--yes`) | Delete an attachment by ID (requires --yes) |
-| bdd | get | `<case_id>` | `--out <path>` (text) | Download a case's BDD (Gherkin .feature) content to --out <path> |
-| bdd | add | `<case_id>` | `--file <path>` | Upload a .feature file as the BDD content for a case |
-| variable | list | `<project_id>` | — | List variables in a project |
-| variable | add | `<project_id>` | `AddVariablePayloadSchema` | Create a new variable in a project |
-| variable | update | `<variable_id>` | `UpdateVariablePayloadSchema` | Update an existing variable (rename) |
-| variable | delete | `<variable_id>` | — (no body, requires `--yes`) | Delete a variable (requires --yes; --soft NOT supported by TestRail) |
-| group | get | `<group_id>` | — | Fetch a single user group by ID (TestRail 7.5+) |
-| group | list | — | — | List all user groups on the instance (TestRail 7.5+; no path params) |
-| group | add | — | `AddGroupPayloadSchema` | Create a new user group (no path params, payload-only; TestRail 7.5+) |
-| group | update | `<group_id>` | `UpdateGroupPayloadSchema` | Update an existing user group (partial fields; TestRail 7.5+) |
-| group | delete | `<group_id>` | — (no body, requires `--yes`) | Delete a user group (requires --yes; --soft NOT supported by TestRail; TestRail 7.5+) |
-| dataset | get | `<dataset_id>` | — | Fetch a single dataset by ID |
-| dataset | list | `<project_id>` | — | List datasets in a project |
-| dataset | add | `<project_id>` | `AddDatasetPayloadSchema` | Create a new dataset in a project |
-| dataset | update | `<dataset_id>` | `UpdateDatasetPayloadSchema` | Update an existing dataset (rename) |
-| dataset | delete | `<dataset_id>` | — (no body, requires `--yes`) | Delete a dataset (requires --yes; --soft NOT supported by TestRail) |
-| configuration | list | `<project_id>` | — | List configuration groups (with nested configs) for a project |
-| configuration-group | add | `<project_id>` | `AddConfigurationGroupPayloadSchema` | Create a new configuration group in a project (e.g. "Browsers") |
-| configuration-group | update | `<config_group_id>` | `UpdateConfigurationGroupPayloadSchema` | Update a configuration group (rename) |
-| configuration-group | delete | `<config_group_id>` | — (no body, requires `--yes`) | Delete a configuration group and every config in it (requires --yes; --soft NOT supported by TestRail) |
-| configuration | add | `<config_group_id>` | `AddConfigurationPayloadSchema` | Create a new configuration (leaf) inside a configuration group (e.g. "Chrome") |
-| configuration | update | `<config_id>` | `UpdateConfigurationPayloadSchema` | Update a single configuration (rename) |
-| configuration | delete | `<config_id>` | — (no body, requires `--yes`) | Delete a single configuration (requires --yes; --soft NOT supported by TestRail) |
+| Cmd | Mode | Args | Input |
+| --- | --- | --- | --- |
+| `project get` | R | `<project_id>` | - |
+| `project list` | R | - | - |
+| `suite get` | R | `<suite_id>` | - |
+| `suite list` | R | - | - |
+| `case get` | R | `<case_id>` | - |
+| `case list` | R | - | - |
+| `case history` | R | `<case_id>` | - |
+| `run get` | R | `<run_id>` | - |
+| `run list` | R | - | - |
+| `run watch` | R | `<run_id>` | - |
+| `test get` | R | `<test_id>` | - |
+| `test list` | R | `<run_id>` | - |
+| `result list` | R | - | - |
+| `result list-for-test` | R | `<test_id>` | - |
+| `result list-for-case` | R | `<run_id>` `<case_id>` | - |
+| `milestone get` | R | `<milestone_id>` | - |
+| `milestone list` | R | - | - |
+| `user get` | R | `<user_id>` | - |
+| `user list` | R | - | - |
+| `user get-by-email` | R | - | - |
+| `user get-current` | R | - | - |
+| `plan get` | R | `<plan_id>` | - |
+| `plan list` | R | - | - |
+| `section get` | R | `<section_id>` | - |
+| `section list` | R | `<project_id>` | - |
+| `case add` | W | `<section_id>` | AddCasePayloadSchema |
+| `case add-bulk` | W | `<section_id>` | AddCasesBulkPayloadSchema |
+| `case update` | W | `<case_id>` | UpdateCasePayloadSchema |
+| `case update-bulk` | W | `<suite_id>` | UpdateCasesPayloadSchema |
+| `case delete` | D | `<case_id>` | none+yes |
+| `case delete-bulk` | D | `<suite_id>` | DeleteCasesPayloadSchema |
+| `case copy-to-section` | W | `<section_id>` | CopyCasesToSectionPayloadSchema |
+| `case move-to-section` | W | `<section_id>` | MoveCasesToSectionPayloadSchema |
+| `run add` | W | `<project_id>` | AddRunPayloadSchema |
+| `run update` | W | `<run_id>` | UpdateRunPayloadSchema |
+| `run close` | D | `<run_id>` | none+yes |
+| `run delete` | D | `<run_id>` | none+yes |
+| `result add` | W | `<run_id>` `<case_id>` | AddResultPayloadSchema |
+| `result add-bulk` | W | `<run_id>` | AddResultsForCasesPayloadSchema |
+| `result add-bulk-by-test` | W | `<run_id>` | AddResultsPayloadSchema |
+| `result add-by-test` | W | `<test_id>` | AddResultPayloadSchema |
+| `plan add` | W | `<project_id>` | AddPlanPayloadSchema |
+| `plan update` | W | `<plan_id>` | UpdatePlanPayloadSchema |
+| `plan add-entry` | W | `<plan_id>` | AddPlanEntryPayloadSchema |
+| `plan add-run-to-entry` | W | `<plan_id>` `<entry_id>` | AddRunToPlanEntryPayloadSchema |
+| `plan update-entry` | W | `<plan_id>` `<entry_id>` | UpdatePlanEntryPayloadSchema |
+| `plan update-run-in-entry` | W | `<run_id>` | UpdateRunInPlanEntryPayloadSchema |
+| `plan close` | D | `<plan_id>` | none+yes |
+| `plan delete` | D | `<plan_id>` | none+yes |
+| `plan delete-entry` | D | `<plan_id>` `<entry_id>` | none+yes |
+| `plan delete-run-from-entry` | D | `<run_id>` | none+yes |
+| `section add` | W | `<project_id>` | AddSectionPayloadSchema |
+| `section update` | W | `<section_id>` | UpdateSectionPayloadSchema |
+| `section move` | W | `<section_id>` | MoveSectionPayloadSchema |
+| `section delete` | D | `<section_id>` | none+yes |
+| `project add` | W | - | AddProjectPayloadSchema |
+| `project update` | W | `<project_id>` | UpdateProjectPayloadSchema |
+| `project delete` | D | `<project_id>` | none+yes |
+| `suite add` | W | `<project_id>` | AddSuitePayloadSchema |
+| `suite update` | W | `<suite_id>` | UpdateSuitePayloadSchema |
+| `suite delete` | D | `<suite_id>` | none+yes |
+| `milestone add` | W | `<project_id>` | AddMilestonePayloadSchema |
+| `milestone update` | W | `<milestone_id>` | UpdateMilestonePayloadSchema |
+| `milestone delete` | D | `<milestone_id>` | none+yes |
+| `user add` | W | - | UserAddPayloadSchema |
+| `user update` | W | `<user_id>` | UserUpdatePayloadSchema |
+| `shared-step get` | R | `<shared_step_id>` | - |
+| `shared-step list` | R | - | - |
+| `shared-step history` | R | `<shared_step_id>` | - |
+| `report list` | R | `<project_id>` | - |
+| `report run` | R | `<report_template_id>` | - |
+| `shared-step add` | W | `<project_id>` | AddSharedStepPayloadSchema |
+| `shared-step update` | W | `<shared_step_id>` | UpdateSharedStepPayloadSchema |
+| `shared-step delete` | D | `<shared_step_id>` | none+yes |
+| `case-status list` | R | - | - |
+| `case-field list` | R | - | - |
+| `result-field list` | R | - | - |
+| `status list` | R | - | - |
+| `template list` | R | `<project_id>` | - |
+| `role list` | R | - | - |
+| `priority list` | R | - | - |
+| `case-type list` | R | - | - |
+| `case-field add` | W | - | AddCaseFieldPayloadSchema |
+| `attachment list-for-case` | R | `<case_id>` | - |
+| `attachment list-for-run` | R | `<run_id>` | - |
+| `attachment list-for-test` | R | `<test_id>` | - |
+| `attachment list-for-plan` | R | `<plan_id>` | - |
+| `attachment list-for-plan-entry` | R | `<plan_id>` `<entry_id>` | - |
+| `attachment get` | R | `<attachment_id>` | out:binary |
+| `attachment add-to-case` | W | `<case_id>` | file |
+| `attachment add-to-result` | W | `<result_id>` | file |
+| `attachment add-to-run` | W | `<run_id>` | file |
+| `attachment add-to-plan` | W | `<plan_id>` | file |
+| `attachment add-to-plan-entry` | W | `<plan_id>` `<entry_id>` | file |
+| `attachment delete` | D | `<attachment_id>` | none+yes |
+| `bdd get` | R | `<case_id>` | out:text |
+| `bdd add` | W | `<case_id>` | file |
+| `variable list` | R | `<project_id>` | - |
+| `variable add` | W | `<project_id>` | AddVariablePayloadSchema |
+| `variable update` | W | `<variable_id>` | UpdateVariablePayloadSchema |
+| `variable delete` | D | `<variable_id>` | none+yes |
+| `group get` | R | `<group_id>` | - |
+| `group list` | R | - | - |
+| `group add` | W | - | AddGroupPayloadSchema |
+| `group update` | W | `<group_id>` | UpdateGroupPayloadSchema |
+| `group delete` | D | `<group_id>` | none+yes |
+| `dataset get` | R | `<dataset_id>` | - |
+| `dataset list` | R | `<project_id>` | - |
+| `dataset add` | W | `<project_id>` | AddDatasetPayloadSchema |
+| `dataset update` | W | `<dataset_id>` | UpdateDatasetPayloadSchema |
+| `dataset delete` | D | `<dataset_id>` | none+yes |
+| `configuration list` | R | `<project_id>` | - |
+| `configuration-group add` | W | `<project_id>` | AddConfigurationGroupPayloadSchema |
+| `configuration-group update` | W | `<config_group_id>` | UpdateConfigurationGroupPayloadSchema |
+| `configuration-group delete` | D | `<config_group_id>` | none+yes |
+| `configuration add` | W | `<config_group_id>` | AddConfigurationPayloadSchema |
+| `configuration update` | W | `<config_id>` | UpdateConfigurationPayloadSchema |
+| `configuration delete` | D | `<config_id>` | none+yes |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -276,472 +282,56 @@ Each write action validates its body against a Zod schema with
 coercion; `"5"` is rejected where `5` is expected), and TestRail
 `custom_*` fields pass through untouched.
 
+Router pattern: use the compact index below first; open
+`./reference/payload-schemas.yaml` only when you need full field-level details.
+
 <!-- GENERATED:payload-schemas -->
-### `AddCasePayloadSchema` (used by `case add`)
-
-```jsonc
-{
-    "title": "string (required)",
-    "template_id": "number?",
-    "type_id": "number?",
-    "priority_id": "number?",
-    "estimate": "string?",
-    "milestone_id": "number?",
-    "refs": "string?",
-    "custom_fields": "Record<string, unknown>?"
-}
-```
-
-### `AddCasesBulkPayloadSchema` (used by `case add-bulk`)
-
-_(schema shape not introspectable)_
-
-### `UpdateCasePayloadSchema` (used by `case update`)
-
-```jsonc
-{
-    "title": "string?",
-    "template_id": "number?",
-    "type_id": "number?",
-    "priority_id": "number?",
-    "estimate": "string?",
-    "milestone_id": "number?",
-    "refs": "string?",
-    "custom_fields": "Record<string, unknown>?"
-}
-```
-
-### `UpdateCasesPayloadSchema` (used by `case update-bulk`)
-
-```jsonc
-{
-    "case_ids": "number[] (required)",
-    "title": "string?",
-    "template_id": "number?",
-    "type_id": "number?",
-    "priority_id": "number?",
-    "estimate": "string?",
-    "milestone_id": "number?",
-    "refs": "string?",
-    "custom_fields": "Record<string, unknown>?"
-}
-```
-
-### `DeleteCasesPayloadSchema` (used by `case delete-bulk`)
-
-```jsonc
-{
-    "case_ids": "number[] (required)"
-}
-```
-
-### `CopyCasesToSectionPayloadSchema` (used by `case copy-to-section`)
-
-```jsonc
-{
-    "case_ids": "number[] (required)"
-}
-```
-
-### `MoveCasesToSectionPayloadSchema` (used by `case move-to-section`)
-
-```jsonc
-{
-    "case_ids": "number[] (required)",
-    "suite_id": "number (required)"
-}
-```
-
-### `AddRunPayloadSchema` (used by `run add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "suite_id": "number?",
-    "description": "string?",
-    "milestone_id": "number?",
-    "assignedto_id": "number?",
-    "include_all": "boolean?",
-    "case_ids": "number[]?",
-    "refs": "string?"
-}
-```
-
-### `UpdateRunPayloadSchema` (used by `run update`)
-
-```jsonc
-{
-    "name": "string?",
-    "description": "string?",
-    "milestone_id": "number?",
-    "assignedto_id": "number?",
-    "include_all": "boolean?",
-    "case_ids": "number[]?",
-    "refs": "string?"
-}
-```
-
-### `AddResultPayloadSchema` (used by `result add`)
-
-```jsonc
-{
-    "status_id": "number (required)",
-    "comment": "string?",
-    "version": "string?",
-    "elapsed": "string?",
-    "defects": "string?",
-    "assignedto_id": "number?",
-    "custom_fields": "Record<string, unknown>?"
-}
-```
-
-### `AddResultsForCasesPayloadSchema` (used by `result add-bulk`)
-
-```jsonc
-{
-    "results": "object[] (required)"
-}
-```
-
-### `AddResultsPayloadSchema` (used by `result add-bulk-by-test`)
-
-```jsonc
-{
-    "results": "object[] (required)"
-}
-```
-
-### `AddResultPayloadSchema` (used by `result add-by-test`)
-
-```jsonc
-{
-    "status_id": "number (required)",
-    "comment": "string?",
-    "version": "string?",
-    "elapsed": "string?",
-    "defects": "string?",
-    "assignedto_id": "number?",
-    "custom_fields": "Record<string, unknown>?"
-}
-```
-
-### `AddPlanPayloadSchema` (used by `plan add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "description": "string?",
-    "milestone_id": "number?",
-    "entries": "object[]?"
-}
-```
-
-### `UpdatePlanPayloadSchema` (used by `plan update`)
-
-```jsonc
-{
-    "name": "string?",
-    "description": "string?",
-    "milestone_id": "number?",
-    "assignedto_id": "number?"
-}
-```
-
-### `AddPlanEntryPayloadSchema` (used by `plan add-entry`)
-
-```jsonc
-{
-    "suite_id": "number (required)",
-    "name": "string?",
-    "description": "string?",
-    "assignedto_id": "number?",
-    "include_all": "boolean?",
-    "case_ids": "number[]?",
-    "config_ids": "number[]?",
-    "runs": "object[]?"
-}
-```
-
-### `AddRunToPlanEntryPayloadSchema` (used by `plan add-run-to-entry`)
-
-```jsonc
-{
-    "config_ids": "number[] (required)",
-    "description": "string?",
-    "assignedto_id": "number?",
-    "include_all": "boolean?",
-    "case_ids": "number[]?",
-    "refs": "string?"
-}
-```
-
-### `UpdatePlanEntryPayloadSchema` (used by `plan update-entry`)
-
-```jsonc
-{
-    "suite_id": "number?",
-    "name": "string?",
-    "description": "string?",
-    "assignedto_id": "number?",
-    "include_all": "boolean?",
-    "case_ids": "number[]?",
-    "config_ids": "number[]?",
-    "runs": "object[]?"
-}
-```
-
-### `UpdateRunInPlanEntryPayloadSchema` (used by `plan update-run-in-entry`)
-
-```jsonc
-{
-    "description": "string?",
-    "assignedto_id": "number?",
-    "include_all": "boolean?",
-    "case_ids": "number[]?"
-}
-```
-
-### `AddSectionPayloadSchema` (used by `section add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "suite_id": "number?",
-    "parent_id": "number?",
-    "description": "string?"
-}
-```
-
-### `UpdateSectionPayloadSchema` (used by `section update`)
-
-```jsonc
-{
-    "name": "string?",
-    "description": "string?"
-}
-```
-
-### `MoveSectionPayloadSchema` (used by `section move`)
-
-```jsonc
-{
-    "parent_id": "number?",
-    "after_id": "number?"
-}
-```
-
-### `AddProjectPayloadSchema` (used by `project add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "announcement": "string?",
-    "show_announcement": "boolean?",
-    "suite_mode": "number?"
-}
-```
-
-### `UpdateProjectPayloadSchema` (used by `project update`)
-
-```jsonc
-{
-    "name": "string?",
-    "announcement": "string?",
-    "show_announcement": "boolean?",
-    "suite_mode": "number?"
-}
-```
-
-### `AddSuitePayloadSchema` (used by `suite add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "description": "string?"
-}
-```
-
-### `UpdateSuitePayloadSchema` (used by `suite update`)
-
-```jsonc
-{
-    "name": "string?",
-    "description": "string?"
-}
-```
-
-### `AddMilestonePayloadSchema` (used by `milestone add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "description": "string?",
-    "due_on": "number?",
-    "start_on": "number?",
-    "parent_id": "number?",
-    "refs": "string?"
-}
-```
-
-### `UpdateMilestonePayloadSchema` (used by `milestone update`)
-
-```jsonc
-{
-    "name": "string?",
-    "description": "string?",
-    "due_on": "number?",
-    "start_on": "number?",
-    "parent_id": "number?",
-    "refs": "string?",
-    "is_completed": "boolean?",
-    "is_started": "boolean?"
-}
-```
-
-### `UserAddPayloadSchema` (used by `user add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "email": "string (required)",
-    "password": "string (required)",
-    "is_active": "boolean?",
-    "role_id": "number?",
-    "group_ids": "number[]?",
-    "mfa_required": "boolean?",
-    "language": "string?",
-    "email_notifications": "boolean?"
-}
-```
-
-### `UserUpdatePayloadSchema` (used by `user update`)
-
-```jsonc
-{
-    "name": "string?",
-    "email": "string?",
-    "password": "string?",
-    "is_active": "boolean?",
-    "role_id": "number?",
-    "group_ids": "number[]?",
-    "mfa_required": "boolean?",
-    "language": "string?",
-    "email_notifications": "boolean?"
-}
-```
-
-### `AddSharedStepPayloadSchema` (used by `shared-step add`)
-
-```jsonc
-{
-    "title": "string (required)",
-    "custom_steps_separated": "Record<string, unknown>[]?"
-}
-```
-
-### `UpdateSharedStepPayloadSchema` (used by `shared-step update`)
-
-```jsonc
-{
-    "title": "string?",
-    "custom_steps_separated": "Record<string, unknown>[]?"
-}
-```
-
-### `AddCaseFieldPayloadSchema` (used by `case-field add`)
-
-```jsonc
-{
-    "type": "string (required)",
-    "name": "string (required)",
-    "label": "string (required)",
-    "description": "string?",
-    "include_all": "boolean?",
-    "template_ids": "number[]?",
-    "configs": "object[] (required)"
-}
-```
-
-### `AddVariablePayloadSchema` (used by `variable add`)
-
-```jsonc
-{
-    "name": "string (required)"
-}
-```
-
-### `UpdateVariablePayloadSchema` (used by `variable update`)
-
-```jsonc
-{
-    "name": "string?"
-}
-```
-
-### `AddGroupPayloadSchema` (used by `group add`)
-
-```jsonc
-{
-    "name": "string (required)",
-    "user_ids": "number[]?"
-}
-```
-
-### `UpdateGroupPayloadSchema` (used by `group update`)
-
-```jsonc
-{
-    "name": "string?",
-    "user_ids": "number[]?"
-}
-```
-
-### `AddDatasetPayloadSchema` (used by `dataset add`)
-
-```jsonc
-{
-    "name": "string (required)"
-}
-```
-
-### `UpdateDatasetPayloadSchema` (used by `dataset update`)
-
-```jsonc
-{
-    "name": "string?"
-}
-```
-
-### `AddConfigurationGroupPayloadSchema` (used by `configuration-group add`)
-
-```jsonc
-{
-    "name": "string (required)"
-}
-```
-
-### `UpdateConfigurationGroupPayloadSchema` (used by `configuration-group update`)
-
-```jsonc
-{
-    "name": "string?"
-}
-```
-
-### `AddConfigurationPayloadSchema` (used by `configuration add`)
-
-```jsonc
-{
-    "name": "string (required)"
-}
-```
-
-### `UpdateConfigurationPayloadSchema` (used by `configuration update`)
-
-```jsonc
-{
-    "name": "string?"
-}
+```yaml
+# compact schema index
+schemas:
+- {s: AddCasePayloadSchema, a: "case add", req: [title], opt: 7, ref: "./reference/payload-schemas.yaml#addcasepayloadschema"}
+- {s: AddCasesBulkPayloadSchema, a: "case add-bulk", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#addcasesbulkpayloadschema"}
+- {s: UpdateCasePayloadSchema, a: "case update", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updatecasepayloadschema"}
+- {s: UpdateCasesPayloadSchema, a: "case update-bulk", req: [case_ids], opt: 8, ref: "./reference/payload-schemas.yaml#updatecasespayloadschema"}
+- {s: DeleteCasesPayloadSchema, a: "case delete-bulk", req: [case_ids], opt: 0, ref: "./reference/payload-schemas.yaml#deletecasespayloadschema"}
+- {s: CopyCasesToSectionPayloadSchema, a: "case copy-to-section", req: [case_ids], opt: 0, ref: "./reference/payload-schemas.yaml#copycasestosectionpayloadschema"}
+- {s: MoveCasesToSectionPayloadSchema, a: "case move-to-section", req: [case_ids, suite_id], opt: 0, ref: "./reference/payload-schemas.yaml#movecasestosectionpayloadschema"}
+- {s: AddRunPayloadSchema, a: "run add", req: [name], opt: 7, ref: "./reference/payload-schemas.yaml#addrunpayloadschema"}
+- {s: UpdateRunPayloadSchema, a: "run update", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#updaterunpayloadschema"}
+- {s: AddResultPayloadSchema, a: "result add", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
+- {s: AddResultsForCasesPayloadSchema, a: "result add-bulk", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultsforcasespayloadschema"}
+- {s: AddResultsPayloadSchema, a: "result add-bulk-by-test", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultspayloadschema"}
+- {s: AddResultPayloadSchema, a: "result add-by-test", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
+- {s: AddPlanPayloadSchema, a: "plan add", req: [name], opt: 5, ref: "./reference/payload-schemas.yaml#addplanpayloadschema"}
+- {s: UpdatePlanPayloadSchema, a: "plan update", req: [], opt: 6, ref: "./reference/payload-schemas.yaml#updateplanpayloadschema"}
+- {s: AddPlanEntryPayloadSchema, a: "plan add-entry", req: [suite_id], opt: 10, ref: "./reference/payload-schemas.yaml#addplanentrypayloadschema"}
+- {s: AddRunToPlanEntryPayloadSchema, a: "plan add-run-to-entry", req: [config_ids], opt: 5, ref: "./reference/payload-schemas.yaml#addruntoplanentrypayloadschema"}
+- {s: UpdatePlanEntryPayloadSchema, a: "plan update-entry", req: [], opt: 11, ref: "./reference/payload-schemas.yaml#updateplanentrypayloadschema"}
+- {s: UpdateRunInPlanEntryPayloadSchema, a: "plan update-run-in-entry", req: [], opt: 4, ref: "./reference/payload-schemas.yaml#updateruninplanentrypayloadschema"}
+- {s: AddSectionPayloadSchema, a: "section add", req: [name], opt: 3, ref: "./reference/payload-schemas.yaml#addsectionpayloadschema"}
+- {s: UpdateSectionPayloadSchema, a: "section update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesectionpayloadschema"}
+- {s: MoveSectionPayloadSchema, a: "section move", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#movesectionpayloadschema"}
+- {s: AddProjectPayloadSchema, a: "project add", req: [name], opt: 3, ref: "./reference/payload-schemas.yaml#addprojectpayloadschema"}
+- {s: UpdateProjectPayloadSchema, a: "project update", req: [], opt: 4, ref: "./reference/payload-schemas.yaml#updateprojectpayloadschema"}
+- {s: AddSuitePayloadSchema, a: "suite add", req: [name], opt: 1, ref: "./reference/payload-schemas.yaml#addsuitepayloadschema"}
+- {s: UpdateSuitePayloadSchema, a: "suite update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesuitepayloadschema"}
+- {s: AddMilestonePayloadSchema, a: "milestone add", req: [name], opt: 5, ref: "./reference/payload-schemas.yaml#addmilestonepayloadschema"}
+- {s: UpdateMilestonePayloadSchema, a: "milestone update", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updatemilestonepayloadschema"}
+- {s: UserAddPayloadSchema, a: "user add", req: [name, email, password], opt: 6, ref: "./reference/payload-schemas.yaml#useraddpayloadschema"}
+- {s: UserUpdatePayloadSchema, a: "user update", req: [], opt: 9, ref: "./reference/payload-schemas.yaml#userupdatepayloadschema"}
+- {s: AddSharedStepPayloadSchema, a: "shared-step add", req: [title], opt: 1, ref: "./reference/payload-schemas.yaml#addsharedsteppayloadschema"}
+- {s: UpdateSharedStepPayloadSchema, a: "shared-step update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesharedsteppayloadschema"}
+- {s: AddCaseFieldPayloadSchema, a: "case-field add", req: [type, name, label, configs], opt: 3, ref: "./reference/payload-schemas.yaml#addcasefieldpayloadschema"}
+- {s: AddVariablePayloadSchema, a: "variable add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addvariablepayloadschema"}
+- {s: UpdateVariablePayloadSchema, a: "variable update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updatevariablepayloadschema"}
+- {s: AddGroupPayloadSchema, a: "group add", req: [name], opt: 1, ref: "./reference/payload-schemas.yaml#addgrouppayloadschema"}
+- {s: UpdateGroupPayloadSchema, a: "group update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updategrouppayloadschema"}
+- {s: AddDatasetPayloadSchema, a: "dataset add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#adddatasetpayloadschema"}
+- {s: UpdateDatasetPayloadSchema, a: "dataset update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updatedatasetpayloadschema"}
+- {s: AddConfigurationGroupPayloadSchema, a: "configuration-group add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addconfigurationgrouppayloadschema"}
+- {s: UpdateConfigurationGroupPayloadSchema, a: "configuration-group update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationgrouppayloadschema"}
+- {s: AddConfigurationPayloadSchema, a: "configuration add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addconfigurationpayloadschema"}
+- {s: UpdateConfigurationPayloadSchema, a: "configuration update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationpayloadschema"}
 ```
 <!-- /GENERATED:payload-schemas -->
 

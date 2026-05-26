@@ -56,36 +56,39 @@ export function schemaNameFor(spec) {
 }
 
 function renderPathArgs(spec) {
-    if (spec.pathParams.length === 0) return '—';
+    if (spec.pathParams.length === 0) return '-';
+    // Wrap each `<arg>` in a backtick code span so Markdown renderers
+    // don't interpret the angle brackets as an HTML tag (which would
+    // make the arg invisible or trigger HTML sanitization). The code
+    // span keeps the placeholder visible AND verbatim.
     return spec.pathParams.map((p) => `\`<${p.name}>\``).join(' ');
 }
 
-function bodyLabel(spec) {
-    if (spec.fileInput === true) return '`--file <path>`';
+function inputLabel(spec) {
+    if (spec.fileInput === true) return 'file';
     if (spec.fileOutput === true) {
-        // `outputKind` differentiates UTF-8 text payloads (e.g. `bdd get`
-        // writes Gherkin) from opaque binary blobs (e.g. `attachment get`).
-        // Default to `binary` for backward compatibility with action specs
-        // that pre-date the field.
         const kind = spec.outputKind === 'text' ? 'text' : 'binary';
-        return `\`--out <path>\` (${kind})`;
+        return `out:${kind}`;
     }
-    if (!spec.isWrite) return '—';
+    if (!spec.isWrite) return '-';
     if (!spec.bodySchema) {
-        if (spec.destructive === true) return '— (no body, requires `--yes`)';
-        return '— (no body)';
+        if (spec.destructive === true) return 'none+yes';
+        return 'none';
     }
-    return `\`${schemaNameFor(spec)}\``;
+    return schemaNameFor(spec);
+}
+
+function modeLabel(spec) {
+    if (spec.destructive === true) return 'D';
+    return spec.isWrite ? 'W' : 'R';
 }
 
 export function renderCommandTable(actions) {
     const rows = actions.map(
         (spec) =>
-            `| ${spec.resource} | ${spec.action} | ${renderPathArgs(spec)} | ${bodyLabel(spec)} | ${spec.summary} |`,
+            `| \`${spec.resource} ${spec.action}\` | ${modeLabel(spec)} | ${renderPathArgs(spec)} | ${inputLabel(spec)} |`,
     );
-    return ['| Resource | Action | Path args | Body | Description |', '| --- | --- | --- | --- | --- |', ...rows].join(
-        '\n',
-    );
+    return ['| Cmd | Mode | Args | Input |', '| --- | --- | --- | --- |', ...rows].join('\n');
 }
 
 function describeType(field) {
@@ -116,32 +119,86 @@ function describeType(field) {
     }
 }
 
-function renderSchemaFields(schema) {
-    // Zod v4 passthrough() returns ZodObject; `.shape` (or `_zod.def.shape`)
-    // holds the field map.
+function readSchemaFields(schema) {
     const shape = schema?._zod?.def?.shape ?? schema?.shape;
-    if (!shape) return '_(schema shape not introspectable)_';
+    if (!shape) return null;
 
-    const fields = Object.entries(shape).map(([key, field]) => {
+    return Object.entries(shape).map(([key, field]) => {
         const type = describeType(field);
         const optional = field?._zod?.def?.type === 'optional' || field?.isOptional?.() === true;
-        const suffix = optional ? '?' : ' (required)';
-        return `    "${key}": "${type}${suffix}"`;
+        return { key, type, optional };
     });
-    return ['```jsonc', '{', fields.join(',\n'), '}', '```'].join('\n');
+}
+
+function schemaNameToAnchor(schemaName) {
+    return schemaName.toLowerCase();
+}
+
+function renderPayloadIndexEntry(spec) {
+    const schemaName = schemaNameFor(spec);
+    const fields = readSchemaFields(spec.bodySchema);
+    if (!fields) {
+        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
+    }
+    const req = fields
+        .filter((f) => !f.optional)
+        .map((f) => f.key)
+        .join(', ');
+    const optCount = fields.filter((f) => f.optional).length;
+    const reqLabel = req.length > 0 ? `[${req}]` : '[]';
+    return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: ${reqLabel}, opt: ${optCount}, ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
+}
+
+function renderReferenceEntry(schemaName, actions, fields) {
+    const actionLine = `[${actions.map((a) => `"${a}"`).join(', ')}]`;
+    if (!fields) {
+        return [
+            `  ${schemaName}:`,
+            `    actions: ${actionLine}`,
+            '    req: "schema_shape_unavailable"',
+            '    opt: "schema_shape_unavailable"',
+            '',
+        ].join('\n');
+    }
+
+    const req = fields.filter((f) => !f.optional).map((f) => `${f.key}:${f.type}`);
+    const opt = fields.filter((f) => f.optional).map((f) => `${f.key}:${f.type}`);
+    const reqLines = req.length > 0 ? ['    req:', ...req.map((v) => `      - "${v}"`)] : ['    req: []'];
+    const optLines = opt.length > 0 ? ['    opt:', ...opt.map((v) => `      - "${v}"`)] : ['    opt: []'];
+    return [`  ${schemaName}:`, `    actions: ${actionLine}`, ...reqLines, ...optLines, ''].join('\n');
 }
 
 export function renderPayloadSchemas(actions) {
     const writes = actions.filter((a) => a.isWrite && a.bodySchema);
-    return writes
-        .map((spec) =>
-            [
-                `### \`${schemaNameFor(spec)}\` (used by \`${spec.resource} ${spec.action}\`)`,
-                '',
-                renderSchemaFields(spec.bodySchema),
-            ].join('\n'),
-        )
-        .join('\n\n');
+    const lines = ['```yaml', '# compact schema index', 'schemas:'];
+    for (const spec of writes) {
+        lines.push(renderPayloadIndexEntry(spec));
+    }
+    lines.push('```');
+    return lines.join('\n');
+}
+
+export function renderPayloadSchemaReference(actions) {
+    const writes = actions.filter((a) => a.isWrite && a.bodySchema);
+    const merged = new Map();
+    for (const spec of writes) {
+        const schemaName = schemaNameFor(spec);
+        const action = `${spec.resource} ${spec.action}`;
+        if (!merged.has(schemaName)) {
+            merged.set(schemaName, { actions: [action], fields: readSchemaFields(spec.bodySchema) });
+            continue;
+        }
+        merged.get(schemaName).actions.push(action);
+    }
+    const lines = [
+        '# Generated by scripts/generate-skill.js. Do not edit by hand.',
+        '# Full payload field map for skill/SKILL.md schema index.',
+        'schemas:',
+    ];
+    for (const [schemaName, entry] of merged) {
+        lines.push(renderReferenceEntry(schemaName, entry.actions, entry.fields));
+    }
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
 /**

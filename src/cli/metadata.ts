@@ -106,6 +106,16 @@ export interface ActionSpec {
     isWrite: boolean;
     /** True for destructive actions that require `--yes` to execute. */
     destructive?: boolean;
+    /** Opt-out flag for the bidirectional Gate C2 check. When `true`, the
+     *  mapping generator skips the "every ACTIONS entry needs ≥1
+     *  `<!-- recipe-for: resource:action -->` binding in skill/SKILL.md"
+     *  enforcement for this entry.
+     *
+     *  Use sparingly — only for genuinely niche admin/reference endpoints
+     *  that don't warrant a numbered skill recipe (the command-table fallback
+     *  in SKILL.md still covers them). The default (no flag) is to require a
+     *  recipe so PR #114 / PR #118-style silent recipe drops are impossible. */
+    skillRecipeExempt?: boolean;
 }
 
 export const ACTIONS: readonly ActionSpec[] = [

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "f9eff0f1b4c3fcb7faf2a80c0410a5bdd2f509499e33fec96b2faa40f29277cf",
+  "sourceHash": "8884cab6a92fed420de26c7f728c02679cd245c08706e019a70073ec5bb91b28",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3459,14 +3459,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 111,
+          "line": 121,
           "exported": true,
           "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 1207,
+          "line": 1217,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }

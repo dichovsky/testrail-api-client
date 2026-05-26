@@ -323,6 +323,22 @@ export function checkDestructiveEnvGate(
 }
 
 export function dispatch(resource: string, action: string): DispatchResult {
+    // Guard against Object.prototype-key access (`toString`, `__proto__`,
+    // `constructor`, `valueOf`, etc.). `RESOURCES` is a plain object
+    // literal, so an unguarded `RESOURCES[resource]` would resolve those
+    // keys to inherited prototype methods (functions, not arrays), which
+    // then crashes the subsequent `actions.includes(...)` call.
+    // `Object.hasOwn` (Node 16.9+) returns true only for own properties,
+    // never for inherited ones — the canonical guard for this pattern.
+    // (The `HANDLERS` lookup below uses a `${resource}:${action}` key,
+    // which always contains a `:` and so cannot collide with any
+    // Object.prototype key — no guard needed there.)
+    if (!Object.hasOwn(RESOURCES, resource)) {
+        return {
+            ok: false,
+            error: `Unknown resource '${resource}'. Use: ${Object.keys(RESOURCES).join(', ')}`,
+        };
+    }
     const actions = RESOURCES[resource];
     if (actions === undefined) {
         return {

@@ -237,4 +237,26 @@ describe('getInstallTarget', () => {
         const target = getInstallTarget({ global: true, homeOverride: '/tmp/home' });
         expect(target).toBe(join('/tmp/home', '.claude', 'skills', 'testrail-cli', 'SKILL.md'));
     });
+
+    it('falls back to process.cwd() when cwdOverride is undefined', () => {
+        // Exercises the `opts.cwdOverride ?? process.cwd()` false branch.
+        const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/tmp/stub-cwd');
+        try {
+            const target = getInstallTarget({ global: false });
+            expect(target).toBe(join('/tmp/stub-cwd', '.claude', 'skills', 'testrail-cli', 'SKILL.md'));
+        } finally {
+            cwdSpy.mockRestore();
+        }
+    });
+
+    it('falls back to homedir() when homeOverride is undefined (returns a non-empty real path)', () => {
+        // Exercises the `opts.homeOverride ?? homedir()` false branch. We
+        // can't stub homedir easily (frozen module export), so we assert
+        // only the stable suffix (`.claude/skills/testrail-cli/SKILL.md`)
+        // — the homedir prefix is whatever os.homedir() returns and is
+        // not directly verified.
+        const target = getInstallTarget({ global: true });
+        expect(target).toContain('.claude');
+        expect(target.endsWith(join('.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
+    });
 });

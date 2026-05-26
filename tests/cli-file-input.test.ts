@@ -235,6 +235,119 @@ describe('resolveFile', () => {
             expect(bytes.byteLength).toBe(4);
             expect(Buffer.from(bytes).toString('utf-8')).toBe('abcd');
         });
+
+        it('converts Uint8Array (non-Buffer) chunks into Buffer', async () => {
+            // Exercises the `chunk instanceof Uint8Array` true branch with a
+            // chunk that is NOT a Buffer. Buffer is a Uint8Array subclass, so
+            // Node typically yields Buffer; we wire up a hand-rolled async
+            // iterable so the values arrive as plain Uint8Arrays without
+            // Node's Readable.from() coercion.
+            const arr1 = new Uint8Array([1, 2, 3]);
+            const arr2 = new Uint8Array([4, 5]);
+            const iterable: AsyncIterable<unknown> = {
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    yield arr1;
+                    yield arr2;
+                },
+            };
+            // Stub process.stdin directly with the hand-rolled async iterable
+            // so the for-await loop in readStdinBinary sees the raw values.
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+            const bytes = await readStdinBinary(1024, 5000);
+            expect(bytes.byteLength).toBe(5);
+            expect(Array.from(bytes)).toEqual([1, 2, 3, 4, 5]);
+        });
+
+        it('falls back to String(chunk) for unknown chunk types (defensive)', async () => {
+            // Exercises the `else { buf = Buffer.from(String(chunk)) }` arm.
+            // Hand-rolled async iterable so the number value bypasses
+            // Node's Readable.from() Buffer coercion.
+            const iterable: AsyncIterable<unknown> = {
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    yield 42; // String(42) === '42' → 2 bytes
+                },
+            };
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+            const bytes = await readStdinBinary(1024, 5000);
+            expect(Buffer.from(bytes).toString('utf-8')).toBe('42');
+        });
+    });
+
+    describe('resolveFile stdin error coercion', () => {
+        // Restore real stdin after each test — Vitest can execute multiple
+        // test files in the same worker process, so a mutated process.stdin
+        // would leak into later tests and cause hard-to-debug flakiness.
+        const ORIG_STDIN = process.stdin;
+        const ORIG_IS_TTY = process.stdin.isTTY;
+        afterEach(() => {
+            Object.defineProperty(process, 'stdin', {
+                value: ORIG_STDIN,
+                configurable: true,
+                writable: false,
+            });
+            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+        });
+
+        it('surfaces an Error thrown by stdin reading as structured ok:false (Error branch at line 169)', async () => {
+            // Exercises the `e instanceof Error ? e.message : String(e)` true
+            // branch in resolveFromStdin's catch handler.
+            const iterable: AsyncIterable<unknown> = {
+                // eslint-disable-next-line require-yield
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    throw new Error('mid-iteration Error');
+                },
+            };
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+            const r = await resolveFile({ fileFlag: '-' }, { read: true });
+            expect(r.ok).toBe(false);
+            if (!r.ok) expect(r.error).toContain('mid-iteration Error');
+        });
+    });
+
+    describe('readStdinBinary error coercion', () => {
+        // Restore real stdin after each test (same reasoning as the
+        // `resolveFile stdin error coercion` block above).
+        const ORIG_STDIN = process.stdin;
+        const ORIG_IS_TTY = process.stdin.isTTY;
+        afterEach(() => {
+            Object.defineProperty(process, 'stdin', {
+                value: ORIG_STDIN,
+                configurable: true,
+                writable: false,
+            });
+            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+        });
+
+        it('wraps a non-Error thrown inside the for-await loop into an Error (covers cond-expr:1)', async () => {
+            // Exercises the `e instanceof Error ? e : new Error(String(e), { cause: e })`
+            // false branch. Hand-rolled async iterable that throws a plain
+            // string inside the iterator's body.
+            const iterable: AsyncIterable<unknown> = {
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    yield Buffer.from('hi'); // first chunk
+                    // eslint-disable-next-line @typescript-eslint/only-throw-error
+                    throw 'plain-string-inner-failure';
+                },
+            };
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+            await expect(readStdinBinary(1024, 5000)).rejects.toThrow(/plain-string-inner-failure/);
+        });
     });
 
     describe('readStdinBinary helper', () => {

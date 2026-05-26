@@ -7,7 +7,14 @@
  * resolveAuth precedence between flags and env.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { valueToString, renderTable, safeJsonStringify, renderYaml, renderCsv } from '../src/cli/output.js';
+import {
+    valueToString,
+    renderTable,
+    safeJsonStringify,
+    renderYaml,
+    renderCsv,
+    createOutput,
+} from '../src/cli/output.js';
 import { parseId, optInt, parseEntryId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import {
@@ -354,6 +361,14 @@ describe('optInt', () => {
     ])('accepts valid non-negative decimal: %s', (_label, raw, expected) => {
         expect(optInt(raw)).toBe(expected);
     });
+
+    it('returns undefined for values exceeding Number.MAX_SAFE_INTEGER (silent drop on unsafe-int)', () => {
+        // 2^53 + 1 = 9007199254740993 — passes the regex but Number.isSafeInteger
+        // returns false. Exercises the `Number.isSafeInteger(n) ? n : undefined`
+        // false branch. Without this guard a smuggled bigger value would
+        // silently round-trip with precision loss to the API.
+        expect(optInt('9007199254740993')).toBeUndefined();
+    });
 });
 
 describe('resolveAuth', () => {
@@ -446,6 +461,45 @@ describe('dispatch', () => {
         expect(result.ok).toBe(false);
         if (!result.ok) {
             expect(result.error).toContain("Unknown action 'get' for result");
+        }
+    });
+
+    /**
+     * Regression: `RESOURCES` is a plain `Record<string, string[]>`, so an
+     * unguarded `RESOURCES[resource]` lookup resolves Object.prototype keys
+     * (`toString`, `__proto__`, `constructor`, `valueOf`, etc.) to inherited
+     * methods — a function, not an array — which then crashed
+     * `actions.includes(...)` with TypeError. The CLI fuzz suite uncovered
+     * this; the fix is `Object.hasOwn(RESOURCES, resource)` before the index.
+     * These tests pin the contract: every prototype key must surface as a
+     * clean `Unknown resource` error, never a TypeError.
+     */
+    describe('prototype-key regression (own-property guard)', () => {
+        const PROTOTYPE_KEYS = [
+            'toString',
+            '__proto__',
+            'constructor',
+            'valueOf',
+            'hasOwnProperty',
+            'isPrototypeOf',
+            'propertyIsEnumerable',
+            'toLocaleString',
+            '__defineGetter__',
+            '__defineSetter__',
+            '__lookupGetter__',
+            '__lookupSetter__',
+        ] as const;
+
+        for (const protoKey of PROTOTYPE_KEYS) {
+            it(`returns Unknown resource error for prototype key '${protoKey}' (no TypeError)`, () => {
+                // Must not throw — pre-fix this crashed with
+                // "TypeError: actions.includes is not a function".
+                const result = dispatch(protoKey, 'any-action');
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toContain(`Unknown resource '${protoKey}'`);
+                }
+            });
         }
     });
 });
@@ -1367,5 +1421,154 @@ describe('renderCsv — Unicode and special chars', () => {
     it('strips terminal-control bytes from CSV headers', () => {
         const out = renderCsv({ 'safe\x9dheader': 'ok' });
         expect(out).toBe('safeheader\r\nok');
+    });
+});
+
+describe('renderYaml — additional edge cases for branch coverage', () => {
+    it('quotes octal-looking strings (e.g. "0o755") so they round-trip as strings', () => {
+        // Exercises the `/^0o[0-7]+$/` needsQuoting branch — without quoting,
+        // YAML 1.2 parsers may coerce 0o755 to an integer.
+        expect(renderYaml('0o755')).toBe('"0o755"');
+        expect(renderYaml('0o17')).toBe('"0o17"');
+    });
+
+    it('renders a stand-alone YAML carriage-return string with the \\r escape', () => {
+        // Hits the `s.includes('\r')` branch in needsQuoting.
+        expect(renderYaml('\r')).toBe('"\\r"');
+    });
+
+    it('handles a non-Error throw inside renderYamlNode by emitting a structured error doc', () => {
+        // The recursive emitter could fail on hostile getters; force a
+        // thrown non-Error to hit the `e instanceof Error ? ... : String(e)`
+        // false branch in the catch.
+        const hostile = {
+            get bad() {
+                // eslint-disable-next-line @typescript-eslint/only-throw-error
+                throw 'plain string failure';
+            },
+        };
+        const out = renderYaml(hostile);
+        expect(out).toContain('error: unserializable');
+        expect(out).toContain('plain string failure');
+    });
+});
+
+describe('safeJsonStringify — additional edge cases for branch coverage', () => {
+    it('handles a non-Error throw inside JSON.stringify (toJSON returns a hostile getter)', () => {
+        // Exercises the `e instanceof Error ? e.message : String(e)` false
+        // branch of safeJsonStringify's catch. We construct an object whose
+        // toJSON method throws a plain string.
+        const hostile = {
+            toJSON(): never {
+                // eslint-disable-next-line @typescript-eslint/only-throw-error
+                throw 'plain string failure';
+            },
+        };
+        const out = safeJsonStringify(hostile);
+        const parsed = JSON.parse(out) as Record<string, unknown>;
+        expect(parsed['error']).toBe('unserializable');
+        expect(parsed['message']).toBe('plain string failure');
+    });
+});
+
+describe('createOutput — opts.quiet routing', () => {
+    function captureStdout(fn: () => void): string {
+        const original = process.stdout.write.bind(process.stdout);
+        const chunks: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        process.stdout.write = ((c: any): boolean => {
+            chunks.push(typeof c === 'string' ? c : String(c));
+            return true;
+        }) as typeof process.stdout.write;
+        try {
+            fn();
+        } finally {
+            process.stdout.write = original;
+        }
+        return chunks.join('');
+    }
+    function captureStderr(fn: () => void): string {
+        const original = process.stderr.write.bind(process.stderr);
+        const chunks: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        process.stderr.write = ((c: any): boolean => {
+            chunks.push(typeof c === 'string' ? c : String(c));
+            return true;
+        }) as typeof process.stderr.write;
+        try {
+            fn();
+        } finally {
+            process.stderr.write = original;
+        }
+        return chunks.join('');
+    }
+
+    it('quiet=true suppresses out()', () => {
+        const o = createOutput({ format: 'json', quiet: true });
+        const written = captureStdout(() => o.out({ id: 1 }));
+        expect(written).toBe('');
+    });
+
+    it('quiet=true suppresses err()', () => {
+        const o = createOutput({ format: 'json', quiet: true });
+        const written = captureStderr(() => o.err('boom'));
+        expect(written).toBe('');
+    });
+
+    it('quiet=true suppresses errRaw() — covers the `!opts.quiet` false branch', () => {
+        // Hits the `if (!opts.quiet) process.stderr.write(chunk)` false
+        // branch inside errRaw. Quiet must keep JSON acks off stderr too.
+        const o = createOutput({ format: 'json', quiet: true });
+        const written = captureStderr(() => o.errRaw('{"ack":true}\n'));
+        expect(written).toBe('');
+    });
+
+    it('quiet=false routes out() to stdout, err() prefixes "Error: ", errRaw() writes verbatim', () => {
+        const o = createOutput({ format: 'json', quiet: false });
+        expect(captureStdout(() => o.out({ id: 1 }))).toContain('"id": 1');
+        expect(captureStderr(() => o.err('boom'))).toMatch(/^Error: boom\n$/);
+        expect(captureStderr(() => o.errRaw('verbatim\n'))).toBe('verbatim\n');
+    });
+
+    it('table format dispatches through renderTable', () => {
+        const o = createOutput({ format: 'table', quiet: false });
+        const written = captureStdout(() => o.out([{ id: 1, name: 'a' }]));
+        expect(written).toContain('id');
+        expect(written).toContain('name');
+        expect(written).toContain('a');
+    });
+
+    it('yaml format dispatches through renderYaml', () => {
+        const o = createOutput({ format: 'yaml', quiet: false });
+        const written = captureStdout(() => o.out({ id: 1, name: 'a' }));
+        expect(written).toContain('id: 1');
+        expect(written).toContain('name: a');
+    });
+
+    it('csv format suppresses output entirely when renderCsv returns empty (empty array path)', () => {
+        // Exercises the `csvOutput === '' ? '' : ...` true branch.
+        const o = createOutput({ format: 'csv', quiet: false });
+        const written = captureStdout(() => o.out([]));
+        expect(written).toBe('');
+    });
+
+    it('csv format emits a final CRLF terminator when output is non-empty', () => {
+        // Exercises the false branch of the same conditional.
+        const o = createOutput({ format: 'csv', quiet: false });
+        const written = captureStdout(() => o.out({ id: 1 }));
+        expect(written.endsWith('\r\n')).toBe(true);
+    });
+});
+
+describe('renderTable — defensive key-lookup branches', () => {
+    it('handles objects whose Object.keys() yields an empty list (no rows)', () => {
+        // Exercises the `rawKeys[i] ?? k` / `widths[i] ?? 0` fallback paths
+        // in the table renderer. An empty-keyed object has no columns; the
+        // helper must still emit the header/line scaffolding without
+        // crashing on missing index lookups.
+        const out = renderTable({});
+        // No keys → header line is empty, separator line is empty. The body
+        // row is empty too — total: 3 empty lines joined with '\n'.
+        expect(out).toBe('\n\n');
     });
 });
