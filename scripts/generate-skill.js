@@ -25,7 +25,12 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { renderCommandTable, renderPayloadSchemas, renderPayloadSchemaReference, replaceSection } from './skill-renderer.mjs';
+import {
+    renderCommandTable,
+    renderPayloadSchemas,
+    renderPayloadSchemaReference,
+    replaceSection,
+} from './skill-renderer.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');

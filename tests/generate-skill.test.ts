@@ -8,10 +8,6 @@
  * after regeneration.
  */
 import { describe, it, expect } from 'vitest';
-// scripts/ is outside the typecheck rootDir (src/), so we import the
-// JavaScript module directly. The tsconfig excludes tests/, so this is fine
-// for the test build path.
-// @ts-expect-error -- importing a .mjs script module not covered by tsc
 import {
     renderCommandTable,
     renderPayloadSchemaReference,
@@ -170,8 +166,25 @@ describe('payload schema rendering', () => {
         expect(out).toContain('schemas:');
         expect(out).toContain('AddCasePayloadSchema:');
         expect(out).toContain('action: "case add"');
-        expect(out).toContain('req: [title:unknown]');
+        expect(out).toContain('req:');
+        expect(out).toContain('- "title:unknown"');
         expect(out).toContain('opt: []');
+    });
+
+    it('merges duplicate schema names into one reference entry', () => {
+        const baseSchemaFixture: ActionFixture = {
+            ...WRITE_FIXTURE,
+            resource: 'result',
+            action: 'add',
+        };
+        const duplicateSchemaFixture: ActionFixture = {
+            ...WRITE_FIXTURE,
+            resource: 'result',
+            action: 'add-by-test',
+        };
+        const out = renderPayloadSchemaReference([baseSchemaFixture, duplicateSchemaFixture]) as string;
+        expect(out.match(/AddResultPayloadSchema:/g)?.length).toBe(1);
+        expect(out).toContain('action: ["result add", "result add-by-test"]');
     });
 });
 
