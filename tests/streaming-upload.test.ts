@@ -122,6 +122,35 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         expect(init.redirect).toBe('manual');
     });
 
+    it('uploads via { path, fd } descriptor on POSIX platforms (covers /dev/fd and /proc/self/fd rewrites)', async () => {
+        // Exercises the platform-specific fd-rewrite branches at
+        // src/client-core.ts:1058-1072. On Darwin the path is rewritten to
+        // /dev/fd/<fd>; on Linux to /proc/self/fd/<fd>. Both POSIX variants
+        // verify that requestMultipart accepts the fd and produces a
+        // file-backed Blob. On other platforms the fallback closes the fd
+        // and uses the original path.
+        const client = buildClient();
+        mockOk({ attachment_id: 7, name: 'fd-shot.bin' });
+        const fd = openSync(smallPath, 'r');
+        try {
+            const result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'fd-shot.bin');
+            expect(result).toEqual({ attachment_id: 7, name: 'fd-shot.bin' });
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+            expect(init.body).toBeInstanceOf(globalThis.FormData);
+        } finally {
+            // requestMultipart closes the fd in its finally block on POSIX
+            // platforms when the rewrite path is used; on other platforms it
+            // already closed and zeroed file.fd. We attempt close defensively
+            // — if it's already closed, that's fine.
+            try {
+                closeSync(fd);
+            } catch {
+                // already closed
+            }
+        }
+    });
+
     it('respects --filename override (renames the multipart part)', async () => {
         const client = buildClient();
         mockOk();

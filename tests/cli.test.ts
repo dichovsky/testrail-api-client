@@ -457,6 +457,36 @@ describe('CLI', () => {
             }
         });
 
+        it('--api-key-stdin surfaces a structured "cannot read" error when the stdin reader throws an Error', async () => {
+            // Exercises the `e instanceof Error ? e.message : String(e)` true
+            // branch in the api-key-stdin catch (src/cli/index.ts:418). The
+            // stub throws an Error when called without withStubbedStdin
+            // setup, which gives us the exact "cannot read" path.
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes, stderr } = await runCli(
+                    [
+                        '--base-url',
+                        'https://example.testrail.io',
+                        '--email',
+                        'test@example.com',
+                        '--api-key-stdin',
+                        'project',
+                        'get',
+                        '1',
+                    ],
+                    [],
+                    {},
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/cannot read --api-key-stdin/);
+                expect(stderr).toMatch(/not stubbed/);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
         it('--api-key-stdin requires piped stdin (rejects when stdin is a TTY)', async () => {
             // runCli runs in-process; vitest workers typically have
             // process.stdin.isTTY === undefined (treated as TTY for the
@@ -1038,6 +1068,20 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('close_run/42');
+        });
+
+        it('run watch --once --interval 30 polls once and exits 0 (covers --interval/--once args spread)', async () => {
+            // Exercises the `--interval` and `--once` argv branches in
+            // src/cli/index.ts (lines 473, 474). Use a completed run so
+            // the watcher exits immediately after the first poll instead
+            // of looping.
+            const { exitCodes } = await runCli(
+                ['run', 'watch', '42', '--interval', '30', '--once'],
+                [jsonResponse({ ...MOCK_RUN, id: 42, is_completed: true, passed_count: 5 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_run/42');
         });
 
         it('run close with --dry-run skips the API call even with --yes; preview marks destructive', async () => {

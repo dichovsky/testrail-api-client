@@ -281,6 +281,27 @@ describe('resolveFile', () => {
         });
     });
 
+    describe('resolveFile stdin error coercion', () => {
+        it('surfaces an Error thrown by stdin reading as structured ok:false (Error branch at line 169)', async () => {
+            // Exercises the `e instanceof Error ? e.message : String(e)` true
+            // branch in resolveFromStdin's catch handler.
+            const iterable: AsyncIterable<unknown> = {
+                // eslint-disable-next-line require-yield
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    throw new Error('mid-iteration Error');
+                },
+            };
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+            const r = await resolveFile({ fileFlag: '-' }, { read: true });
+            expect(r.ok).toBe(false);
+            if (!r.ok) expect(r.error).toContain('mid-iteration Error');
+        });
+    });
+
     describe('readStdinBinary error coercion', () => {
         it('wraps a non-Error thrown inside the for-await loop into an Error (covers cond-expr:1)', async () => {
             // Exercises the `e instanceof Error ? e : new Error(String(e), { cause: e })`
