@@ -134,7 +134,7 @@ function renderPayloadIndexEntry(spec) {
     const schemaName = schemaNameFor(spec);
     const fields = readSchemaFields(spec.bodySchema);
     if (!fields) {
-        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "?", opt: "?", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
+        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "not_introspectable", opt: "not_introspectable", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
     }
     const req = fields
         .filter((f) => !f.optional)
@@ -146,16 +146,22 @@ function renderPayloadIndexEntry(spec) {
 }
 
 function renderReferenceEntry(schemaName, actions, fields) {
-    const actionLine = actions.length === 1 ? `"${actions[0]}"` : `[${actions.map((a) => `"${a}"`).join(', ')}]`;
+    const actionLine = `[${actions.map((a) => `"${a}"`).join(', ')}]`;
     if (!fields) {
-        return [`  ${schemaName}:`, `    action: ${actionLine}`, '    req: "?"', '    opt: "?"', ''].join('\n');
+        return [
+            `  ${schemaName}:`,
+            `    actions: ${actionLine}`,
+            '    req: "not_introspectable"',
+            '    opt: "not_introspectable"',
+            '',
+        ].join('\n');
     }
 
     const req = fields.filter((f) => !f.optional).map((f) => `${f.key}:${f.type}`);
     const opt = fields.filter((f) => f.optional).map((f) => `${f.key}:${f.type}`);
     const reqLines = req.length > 0 ? ['    req:', ...req.map((v) => `      - "${v}"`)] : ['    req: []'];
     const optLines = opt.length > 0 ? ['    opt:', ...opt.map((v) => `      - "${v}"`)] : ['    opt: []'];
-    return [`  ${schemaName}:`, `    action: ${actionLine}`, ...reqLines, ...optLines, ''].join('\n');
+    return [`  ${schemaName}:`, `    actions: ${actionLine}`, ...reqLines, ...optLines, ''].join('\n');
 }
 
 export function renderPayloadSchemas(actions) {
