@@ -173,10 +173,15 @@ describe.skipIf(!RUN_FUZZ)('CLI fuzz: parseId', () => {
         // For any string that IS a canonical positive integer, parseId must
         // return the same numeric value that Number() would return.
         // This pins the contract: no coercion, no truncation, no silent failure.
-        const VALID_POSITIVE_INT_RE = /^[1-9]\d*$/;
+        //
+        // Generate canonical positive-int strings DIRECTLY via fc.integer.map
+        // rather than filtering fc.string() — random strings are an extremely
+        // sparse subset of canonical integer strings, so filter discard rate
+        // would be near 100% and fast-check would warn/throw or run flakily
+        // in CI.
         fc.assert(
             fc.property(
-                fc.string({ minLength: 1, maxLength: 15 }).filter((s) => VALID_POSITIVE_INT_RE.test(s)),
+                fc.integer({ min: 1 }).map((n) => String(n)),
                 (validStr) => {
                     const result = parseId(validStr, 'fuzz-id');
                     const expected = Number(validStr);
