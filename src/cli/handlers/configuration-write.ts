@@ -7,6 +7,7 @@ import {
     AddConfigurationPayloadSchema,
     UpdateConfigurationPayloadSchema,
 } from '../../schemas.js';
+import { runDestructive } from '../run-destructive.js';
 
 // ── Config group CRUD ────────────────────────────────────────────────────────
 // `configuration-group` is a separate CLI resource from `configuration` because
@@ -60,25 +61,20 @@ export async function handleConfigurationGroupUpdate(ctx: HandlerContext): Promi
  * Cascade caveat: deleting a group invalidates every plan entry that
  * references one of its configs. Prefer deleting individual configs first
  * (`configuration delete`) if you only need to retire a subset.
+ *
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
  */
 export async function handleConfigurationGroupDelete(ctx: HandlerContext): Promise<void> {
     const configGroupId = parseId(ctx.args.pathParams[0], 'config_group_id');
-
-    if (ctx.args.soft === true) {
-        throw new Error('configuration-group delete does not support --soft.');
-    }
-
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'configuration-group delete', configGroupId, destructive: true });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.deleteConfigurationGroup(configGroupId);
-    ctx.out({ configGroupId, deleted: true });
+    await runDestructive(
+        ctx,
+        { action: 'configuration-group delete', configGroupId },
+        async () => {
+            await ctx.client.deleteConfigurationGroup(configGroupId);
+            ctx.out({ configGroupId, deleted: true });
+        },
+        { softUnsupported: true },
+    );
 }
 
 // ── Config (leaf) CRUD ───────────────────────────────────────────────────────
@@ -123,23 +119,18 @@ export async function handleConfigurationUpdate(ctx: HandlerContext): Promise<vo
  * NOT support `soft=1`; `--soft` is rejected. Deleting a config removes it
  * from any plan entries that referenced it (no cascade across runs/results,
  * but plan entry config selections lose this option).
+ *
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
  */
 export async function handleConfigurationDelete(ctx: HandlerContext): Promise<void> {
     const configId = parseId(ctx.args.pathParams[0], 'config_id');
-
-    if (ctx.args.soft === true) {
-        throw new Error('configuration delete does not support --soft.');
-    }
-
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'configuration delete', configId, destructive: true });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.deleteConfiguration(configId);
-    ctx.out({ configId, deleted: true });
+    await runDestructive(
+        ctx,
+        { action: 'configuration delete', configId },
+        async () => {
+            await ctx.client.deleteConfiguration(configId);
+            ctx.out({ configId, deleted: true });
+        },
+        { softUnsupported: true },
+    );
 }

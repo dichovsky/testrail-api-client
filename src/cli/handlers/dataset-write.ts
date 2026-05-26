@@ -4,6 +4,7 @@ import { resolveBody } from '../body.js';
 import type { BodyResolution } from '../body.js';
 import { AddDatasetPayloadSchema, UpdateDatasetPayloadSchema } from '../../schemas.js';
 import type { UpdateDatasetPayload } from '../../schemas.js';
+import { runDestructive } from '../run-destructive.js';
 
 export async function handleDatasetAdd(ctx: HandlerContext): Promise<void> {
     const projectId = parseId(ctx.args.pathParams[0], 'project_id');
@@ -63,28 +64,17 @@ export async function handleDatasetUpdate(ctx: HandlerContext): Promise<void> {
  * destructive intent unambiguous (mirrors the `variable delete` /
  * `milestone delete` / `project delete` pattern).
  *
- * Check order (canonical, matches the variable/plan destructive pattern):
- *   parseId → `--dry-run` (wins) → `--soft` reject → `--yes` gate.
- * Putting `--dry-run` first means a caller previewing a destructive op
- * never trips the `--soft` rejection — preview is always a no-op against
- * the network, regardless of other intent flags.
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
  */
 export async function handleDatasetDelete(ctx: HandlerContext): Promise<void> {
     const datasetId = parseId(ctx.args.pathParams[0], 'dataset_id');
-
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'dataset delete', datasetId, destructive: true });
-        return;
-    }
-
-    if (ctx.args.soft === true) {
-        throw new Error('dataset delete does not support --soft.');
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    await ctx.client.deleteDataset(datasetId);
-    ctx.out({ datasetId, deleted: true });
+    await runDestructive(
+        ctx,
+        { action: 'dataset delete', datasetId },
+        async () => {
+            await ctx.client.deleteDataset(datasetId);
+            ctx.out({ datasetId, deleted: true });
+        },
+        { softUnsupported: true },
+    );
 }
