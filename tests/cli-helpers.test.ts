@@ -448,6 +448,45 @@ describe('dispatch', () => {
             expect(result.error).toContain("Unknown action 'get' for result");
         }
     });
+
+    /**
+     * Regression: `RESOURCES` is a plain `Record<string, string[]>`, so an
+     * unguarded `RESOURCES[resource]` lookup resolves Object.prototype keys
+     * (`toString`, `__proto__`, `constructor`, `valueOf`, etc.) to inherited
+     * methods — a function, not an array — which then crashed
+     * `actions.includes(...)` with TypeError. The CLI fuzz suite uncovered
+     * this; the fix is `Object.hasOwn(RESOURCES, resource)` before the index.
+     * These tests pin the contract: every prototype key must surface as a
+     * clean `Unknown resource` error, never a TypeError.
+     */
+    describe('prototype-key regression (own-property guard)', () => {
+        const PROTOTYPE_KEYS = [
+            'toString',
+            '__proto__',
+            'constructor',
+            'valueOf',
+            'hasOwnProperty',
+            'isPrototypeOf',
+            'propertyIsEnumerable',
+            'toLocaleString',
+            '__defineGetter__',
+            '__defineSetter__',
+            '__lookupGetter__',
+            '__lookupSetter__',
+        ] as const;
+
+        for (const protoKey of PROTOTYPE_KEYS) {
+            it(`returns Unknown resource error for prototype key '${protoKey}' (no TypeError)`, () => {
+                // Must not throw — pre-fix this crashed with
+                // "TypeError: actions.includes is not a function".
+                const result = dispatch(protoKey, 'any-action');
+                expect(result.ok).toBe(false);
+                if (!result.ok) {
+                    expect(result.error).toContain(`Unknown resource '${protoKey}'`);
+                }
+            });
+        }
+    });
 });
 
 describe('checkDestructiveEnvGate', () => {
