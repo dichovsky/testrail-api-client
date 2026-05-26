@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "8884cab6a92fed420de26c7f728c02679cd245c08706e019a70073ec5bb91b28",
+  "sourceHash": "d4d64d3758a96c7e19dcd08932ad35ccdcd8def1ed2a7bfbb15a50e868f87046",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1699,9 +1699,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export function checkDestructiveEnvGate( spec: ActionSpec | undefined, env: Readonly<Record<string, string | undefined>>, dryRun: boolean, ): EnvGateResult"
         },
         {
+          "name": "PathParamCountResult",
+          "kind": "type",
+          "line": 325,
+          "exported": true,
+          "signature": "export type PathParamCountResult = { ok: true } | { ok: false; error: string }"
+        },
+        {
+          "name": "checkPathParamCount",
+          "kind": "function",
+          "line": 335,
+          "exported": true,
+          "signature": "export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: readonly string[]): PathParamCountResult"
+        },
+        {
           "name": "dispatch",
           "kind": "function",
-          "line": 325,
+          "line": 364,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }

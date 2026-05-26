@@ -5,7 +5,7 @@ import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveAuth } from './auth.js';
 import { createOutput, type OutputFormat } from './output.js';
-import { dispatch, checkDestructiveEnvGate } from './dispatch.js';
+import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispatch.js';
 import { getActionSpec } from './metadata.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
@@ -481,6 +481,17 @@ async function main(): Promise<number> {
     // x`), surfacing as a misleading "Body required" error instead of the
     // ignored flag.
     const actionSpec = getActionSpec(resource, action);
+
+    // Validate positional path-param count before any I/O or auth work.
+    // Extra args are silently ignored today (ARCH #12); missing args surface
+    // inside handlers via parseId()'s generic error. Both cases now fail fast
+    // at the dispatch layer with a clear error and usage hint.
+    const paramCountResult = checkPathParamCount(actionSpec, pathParams);
+    if (!paramCountResult.ok) {
+        err(paramCountResult.error);
+        return 1;
+    }
+
     const isFileInputAction = actionSpec?.fileInput === true;
     const isFileOutputAction = actionSpec?.fileOutput === true;
 
