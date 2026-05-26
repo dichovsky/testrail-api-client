@@ -70,9 +70,11 @@ describe('safeWriteBinary', () => {
     });
 
     it('writes successfully when target does not exist (force + ENOENT short-circuits the lstat check)', () => {
-        // Exercises the `code === 'ENOENT'` false branch (i.e. the swallow
-        // path) of the lstat-error handler. Without this test the
-        // ENOENT-tolerant code path would be unverified.
+        // Exercises the swallow path of the lstat-error handler in
+        // src/cli/safe-write.ts: lstatSync throws ENOENT, the catch
+        // evaluates `code !== 'ENOENT'` to FALSE, the error is swallowed,
+        // and the write proceeds. Without this test the ENOENT-tolerant
+        // code path would be unverified.
         const p = join(tmp, 'fresh.bin');
         expect(existsSync(p)).toBe(false);
         safeWriteBinary(p, new Uint8Array([0xab, 0xcd]), true);

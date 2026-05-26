@@ -251,8 +251,10 @@ describe('getInstallTarget', () => {
 
     it('falls back to homedir() when homeOverride is undefined (returns a non-empty real path)', () => {
         // Exercises the `opts.homeOverride ?? homedir()` false branch. We
-        // can't stub homedir easily (frozen module export), so we assert the
-        // helper produced a path containing the real homedir's basename.
+        // can't stub homedir easily (frozen module export), so we assert
+        // only the stable suffix (`.claude/skills/testrail-cli/SKILL.md`)
+        // — the homedir prefix is whatever os.homedir() returns and is
+        // not directly verified.
         const target = getInstallTarget({ global: true });
         expect(target).toContain('.claude');
         expect(target.endsWith(join('.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);

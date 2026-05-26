@@ -235,13 +235,18 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         // for the duration of this test.
         const origPlatform = process.platform;
         Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+        const fd = openSync(smallPath, 'r');
         try {
             const client = buildClient();
             mockOk({ attachment_id: 8, name: 'fallback.bin' });
-            const fd = openSync(smallPath, 'r');
             const result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'fallback.bin');
             expect(result).toEqual({ attachment_id: 8, name: 'fallback.bin' });
         } finally {
+            try {
+                closeSync(fd);
+            } catch {
+                // already closed (EBADF) — implementation may have closed it
+            }
             Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
         }
     });
