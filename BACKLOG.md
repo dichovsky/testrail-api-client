@@ -45,10 +45,3 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟢 ♻️ ARCH #13: Specialized Error Subclasses — Introduce `TestRailRateLimitError`, `TestRailAuthError`, `TestRailNotFoundError`, and `TestRailTimeoutError` extending `TestRailApiError` to enable idiomatic `instanceof` checks rather than status code parsing
 - [ ] 🟡 ♻️ ARCH #14: Injectable Fetch Adapter — Allow providing a custom `fetch` implementation in `TestRailConfig` to native-mock the network boundary for downstream automation frameworks (e.g. Playwright or Appium)
 
-## 🧪 QA / Verification
-
-- [ ] 🟢 🧪 QA: separate CI job for skill-generation drift
-- [ ] 🟢 🧪 QA: coverage delta enforcement (98% floor)
-- [ ] 🟡 🧪 QA: CLI fuzz tests
-- [ ] 🟢 🧪 QA: Gate C2 should be bidirectional (every ActionSpec must have at least one recipe-for binding); current one-way check allowed PR #114 to silently drop recipe #34 and PR #118 to drop C3+C5 recipes during rebase — both regressions only caught by ad-hoc audit
-- [ ] 🟢 🧪 QA: Add unit tests in `streaming-upload.test.ts` for mid-stream file descriptor errors (e.g., simulated `EBADF`) to verify upload cleanup
