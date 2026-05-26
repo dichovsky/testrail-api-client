@@ -439,6 +439,9 @@ export class TestRailClientCore {
                 throw new TestRailValidationError('rateLimiter.windowMs must be a positive integer');
             }
         }
+        if (config.fetch !== undefined && typeof config.fetch !== 'function') {
+            throw new TestRailValidationError('fetch must be a function compatible with the Fetch API');
+        }
     }
 
     private getRetryDelay(retryCount: number): number {

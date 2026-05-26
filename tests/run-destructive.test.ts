@@ -15,11 +15,10 @@ import { runDestructive } from '../src/cli/run-destructive.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import type { TestRailClient } from '../src/client.js';
 
-function buildCtx(overrides: {
-    dryRun?: boolean;
-    soft?: boolean;
-    confirmDestructive?: boolean;
-}): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
+function buildCtx(overrides: { dryRun?: boolean; soft?: boolean; confirmDestructive?: boolean }): {
+    ctx: HandlerContext;
+    out: ReturnType<typeof vi.fn>;
+} {
     const out = vi.fn();
     const ctx: HandlerContext = {
         client: {} as unknown as TestRailClient,
@@ -56,7 +55,13 @@ describe('runDestructive', () => {
 
         await runDestructive(ctx, preview, vi.fn());
 
-        expect(out).toHaveBeenCalledWith({ dryRun: true, destructive: true, action: 'run delete', runId: 42, extra: 'info' });
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            destructive: true,
+            action: 'run delete',
+            runId: 42,
+            extra: 'info',
+        });
     });
 
     // Branch 2: opts === undefined → skips soft check, goes to yes-gate
@@ -86,9 +91,9 @@ describe('runDestructive', () => {
         const { ctx } = buildCtx({ dryRun: false, soft: false, confirmDestructive: false });
         const execute = vi.fn();
 
-        await expect(runDestructive(ctx, { action: 'plan delete' }, execute, { softUnsupported: true })).rejects.toThrow(
-            'Destructive action; pass --yes to confirm.',
-        );
+        await expect(
+            runDestructive(ctx, { action: 'plan delete' }, execute, { softUnsupported: true }),
+        ).rejects.toThrow('Destructive action; pass --yes to confirm.');
         expect(execute).not.toHaveBeenCalled();
     });
 

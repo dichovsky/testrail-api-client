@@ -137,8 +137,13 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
  */
 export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void> {
     const attachmentId = parseId(ctx.args.pathParams[0], 'attachment_id');
-    await runDestructive(ctx, { action: 'attachment delete', attachmentId }, async () => {
-        await ctx.client.deleteAttachment(attachmentId);
-        ctx.out({ attachmentId, deleted: true });
-    }, { softUnsupported: true });
+    await runDestructive(
+        ctx,
+        { action: 'attachment delete', attachmentId },
+        async () => {
+            await ctx.client.deleteAttachment(attachmentId);
+            ctx.out({ attachmentId, deleted: true });
+        },
+        { softUnsupported: true },
+    );
 }

@@ -82,10 +82,10 @@ export interface TestRailConfig {
     registerProcessHandlers?: boolean;
     /**
      * Custom `fetch` implementation injected into every HTTP call made by this
-     * client. Defaults to `globalThis.fetch`. Useful for testing (pass a spy or
-     * mock) and for environments that require a custom fetch (e.g. proxy agents,
-     * undici, node-fetch). The function must match the WHATWG Fetch API
-     * signature: `(url: string | URL, init?: RequestInit) => Promise<Response>`.
+     * client. Must have the same signature as `globalThis.fetch`. Defaults to
+     * `globalThis.fetch`. Useful for testing (pass a spy or mock) and for
+     * environments that require a custom fetch (e.g. proxy agents, undici,
+     * node-fetch).
      */
     fetch?: typeof globalThis.fetch;
 }

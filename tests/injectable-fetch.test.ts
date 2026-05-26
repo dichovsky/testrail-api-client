@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient } from '../src/client.js';
+import { TestRailApiError } from '../src/errors.js';
 
 const BASE_CONFIG = {
     baseUrl: 'https://example.testrail.io',
@@ -53,10 +54,13 @@ describe('injectable fetch adapter (ARCH #14)', () => {
             .spyOn(globalThis, 'fetch')
             .mockResolvedValue(okJson({ ...MOCK_PROJECT, id: 2, name: 'P2' }));
         const client = new TestRailClient({ ...BASE_CONFIG });
-        await client.getProject(2);
-        expect(globalSpy).toHaveBeenCalledTimes(1);
-        globalSpy.mockRestore();
-        client.destroy();
+        try {
+            await client.getProject(2);
+            expect(globalSpy).toHaveBeenCalledTimes(1);
+        } finally {
+            globalSpy.mockRestore();
+            client.destroy();
+        }
     });
 
     it('passes URL and init to the custom fetch', async () => {
@@ -96,10 +100,38 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         client.destroy();
     });
 
-    it('custom fetch errors propagate as TestRailApiError via the normal retry path', async () => {
+    it('uses the custom fetch for requestText (getBdd) requests', async () => {
+        const bddText = 'Feature: Login\n  Scenario: Valid credentials\n    Given I am on the login page';
+        const textResponse = new Response(bddText, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+        const customFetch = vi.fn().mockResolvedValue(textResponse);
+        const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
+        const result = await client.getBdd(7);
+        expect(customFetch).toHaveBeenCalledTimes(1);
+        const [url] = customFetch.mock.calls[0] as [string, RequestInit];
+        expect(url).toContain('get_bdd/7');
+        expect(result).toBe(bddText);
+        client.destroy();
+    });
+
+    it('uses the custom fetch for requestMultipart (addAttachmentToCase) requests', async () => {
+        const attachmentResponse = okJson({ attachment_id: 99 });
+        const customFetch = vi.fn().mockResolvedValue(attachmentResponse);
+        const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
+        const blob = new globalThis.Blob(['hello'], { type: 'text/plain' });
+        await client.addAttachmentToCase(1, blob, 'hello.txt');
+        expect(customFetch).toHaveBeenCalledTimes(1);
+        const [url, init] = customFetch.mock.calls[0] as [string, RequestInit];
+        expect(url).toContain('add_attachment_to_case/1');
+        expect(init.method).toBe('POST');
+        client.destroy();
+    });
+
+    it('custom fetch network errors surface as a rejected promise', async () => {
         const customFetch = vi.fn().mockRejectedValue(new TypeError('Network failure'));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch, maxRetries: 0 });
-        await expect(client.getProject(1)).rejects.toThrow('Network failure');
+        const error = await client.getProject(1).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(TestRailApiError);
+        expect((error as TestRailApiError).message).toContain('Network failure');
         client.destroy();
     });
 });
