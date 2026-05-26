@@ -54,9 +54,14 @@ vi.mock('../src/utils.js', async (importOriginal) => {
 // lifted above all imports).
 const stubbedStdin = vi.hoisted(() => ({
     value: null as string | null,
+    throwNonError: false,
 }));
 vi.mock('../src/cli/stdin.js', () => ({
     readBoundedStdin: (): string => {
+        if (stubbedStdin.throwNonError) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw 'non-error-string-failure';
+        }
         if (stubbedStdin.value === null) {
             throw new Error('readBoundedStdin not stubbed for this test');
         }
@@ -452,6 +457,66 @@ describe('CLI', () => {
                 );
                 expect(exitCodes).toContain(1);
                 expect(stderr).toBe('');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin coerces a non-Error throw via String(e) (covers cond-expr:1 in catch)', async () => {
+            // Exercises the `e instanceof Error ? e.message : String(e)` false
+            // branch in the api-key-stdin catch (src/cli/index.ts:418).
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            stubbedStdin.throwNonError = true;
+            try {
+                const { exitCodes, stderr } = await runCli(
+                    [
+                        '--base-url',
+                        'https://example.testrail.io',
+                        '--email',
+                        'test@example.com',
+                        '--api-key-stdin',
+                        'project',
+                        'get',
+                        '1',
+                    ],
+                    [],
+                    {},
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/cannot read --api-key-stdin/);
+                expect(stderr).toMatch(/non-error-string-failure/);
+            } finally {
+                stubbedStdin.throwNonError = false;
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--api-key-stdin surfaces a structured "cannot read" error when the stdin reader throws an Error', async () => {
+            // Exercises the `e instanceof Error ? e.message : String(e)` true
+            // branch in the api-key-stdin catch (src/cli/index.ts:418). The
+            // stub throws an Error when called without withStubbedStdin
+            // setup, which gives us the exact "cannot read" path.
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const { exitCodes, stderr } = await runCli(
+                    [
+                        '--base-url',
+                        'https://example.testrail.io',
+                        '--email',
+                        'test@example.com',
+                        '--api-key-stdin',
+                        'project',
+                        'get',
+                        '1',
+                    ],
+                    [],
+                    {},
+                );
+                expect(exitCodes).toContain(1);
+                expect(stderr).toMatch(/cannot read --api-key-stdin/);
+                expect(stderr).toMatch(/not stubbed/);
             } finally {
                 process.stdin.isTTY = origIsTTY;
             }
@@ -1038,6 +1103,20 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('close_run/42');
+        });
+
+        it('run watch --once --interval 30 polls once and exits 0 (covers --interval/--once args spread)', async () => {
+            // Exercises the `--interval` and `--once` argv branches in
+            // src/cli/index.ts (lines 473, 474). Use a completed run so
+            // the watcher exits immediately after the first poll instead
+            // of looping.
+            const { exitCodes } = await runCli(
+                ['run', 'watch', '42', '--interval', '30', '--once'],
+                [jsonResponse({ ...MOCK_RUN, id: 42, is_completed: true, passed_count: 5 })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_run/42');
         });
 
         it('run close with --dry-run skips the API call even with --yes; preview marks destructive', async () => {
@@ -4503,6 +4582,30 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('uninstall-skill');
         });
+
+        it('routes the uninstall-skill positional through the runUninstallSkill helper (exit 1, not-found)', async () => {
+            // Exercises the `if (positionals[0] === 'uninstall-skill')` true
+            // branch in src/cli/index.ts. The CLI dispatches before resource:action
+            // parsing; with no skill installed the helper returns 1.
+            const { exitCodes } = await runCli(['uninstall-skill']);
+            // Exit code is 1 (no skill installed in this sandbox) — confirms
+            // the dispatch path runs rather than the resource:action path.
+            expect(exitCodes).toContain(1);
+        });
+    });
+
+    describe('args spread coverage', () => {
+        it('accepts --case-id without failure (covers args.caseId spread branch)', async () => {
+            // The CLI spreads --case-id into HandlerArgs even though no
+            // current handler reads it. Exercising the spread guarantees the
+            // forward-compatibility branch (line 452 in src/cli/index.ts) is
+            // tested. Pair with a benign read action so the test passes.
+            const { exitCodes } = await runCli(
+                ['project', 'get', '1', '--case-id', '99'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+        });
     });
 
     describe('plan', () => {
@@ -5528,6 +5631,25 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/cannot be combined with --data/);
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('add-to-case --file - rejects --api-key-stdin combination (one consumer per stdin)', async () => {
+            // Exercises the `if (apiKeyStdin)` true branch inside the
+            // file-flag-is-stdin mutex check at src/cli/index.ts:518.
+            // Both flags want fd 0; the gate refuses the combination
+            // before any handler runs.
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const result = await withStubbedStdin('fake-key', () =>
+                    runCli(['attachment', 'add-to-case', '42', '--file', '-', '--api-key-stdin']),
+                );
+                expect(result.exitCodes).toContain(1);
+                expect(result.stderr).toMatch(/cannot be combined with --api-key-stdin/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('--file - rejected on non-upload actions', async () => {

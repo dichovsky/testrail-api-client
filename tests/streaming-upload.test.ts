@@ -52,6 +52,14 @@ const closeSyncControl = {
     callsWithFd: [] as number[],
 };
 
+// Captures the path argument passed to `openAsBlob`. Used by the
+// platform-specific fd-rewrite tests (Linux /proc/self/fd, Darwin /dev/fd)
+// to pin that the upload pipeline rewrites the path BEFORE calling
+// openAsBlob, regardless of whether openAsBlob ultimately resolves on the
+// host platform. ESM namespace properties can't be redefined via vi.spyOn,
+// so we wrap openAsBlob via vi.mock with a module-level recorder.
+const openAsBlobRecorder: { lastPath: string | undefined } = { lastPath: undefined };
+
 vi.mock('node:fs', async (importOriginal) => {
     const actual = await importOriginal<typeof import('node:fs')>();
     return {
@@ -63,6 +71,10 @@ vi.mock('node:fs', async (importOriginal) => {
                 throw err;
             }
             return actual.closeSync(fd);
+        },
+        openAsBlob: (path: string | URL | Buffer, opts?: Parameters<typeof actual.openAsBlob>[1]) => {
+            openAsBlobRecorder.lastPath = typeof path === 'string' ? path : String(path);
+            return actual.openAsBlob(path, opts);
         },
     };
 });
@@ -94,6 +106,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         mockFetch.mockReset();
         closeSyncControl.throwForFd = null;
         closeSyncControl.callsWithFd = [];
+        openAsBlobRecorder.lastPath = undefined;
         tmp = mkdtempSync(join(tmpdir(), 'tr-streaming-'));
         smallPath = join(tmp, 'small.bin');
         writeFileSync(smallPath, Buffer.from([1, 2, 3, 4, 5]));
@@ -120,6 +133,35 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         // assert Content-Type because fetch (not us) injects it.
         expect(init.body).toBeInstanceOf(globalThis.FormData);
         expect(init.redirect).toBe('manual');
+    });
+
+    it('uploads via { path, fd } descriptor on POSIX platforms (covers /dev/fd and /proc/self/fd rewrites)', async () => {
+        // Exercises the platform-specific fd-rewrite branches at
+        // src/client-core.ts:1058-1072. On Darwin the path is rewritten to
+        // /dev/fd/<fd>; on Linux to /proc/self/fd/<fd>. Both POSIX variants
+        // verify that requestMultipart accepts the fd and produces a
+        // file-backed Blob. On other platforms the fallback closes the fd
+        // and uses the original path.
+        const client = buildClient();
+        mockOk({ attachment_id: 7, name: 'fd-shot.bin' });
+        const fd = openSync(smallPath, 'r');
+        try {
+            const result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'fd-shot.bin');
+            expect(result).toEqual({ attachment_id: 7, name: 'fd-shot.bin' });
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+            expect(init.body).toBeInstanceOf(globalThis.FormData);
+        } finally {
+            // requestMultipart closes the fd in its finally block on POSIX
+            // platforms when the rewrite path is used; on other platforms it
+            // already closed and zeroed file.fd. We attempt close defensively
+            // — if it's already closed, that's fine.
+            try {
+                closeSync(fd);
+            } catch {
+                // already closed
+            }
+        }
     });
 
     it('respects --filename override (renames the multipart part)', async () => {
@@ -197,6 +239,98 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         // but openAsBlob itself does not buffer. Either way, growth must
         // be << file size.
         expect(growthMB).toBeLessThan(20);
+    });
+
+    it('uploads via { path, fd } descriptor on a non-POSIX platform (covers the Linux/Darwin fallback branch)', async () => {
+        // Exercises the `else` branch at src/client-core.ts:1063 (neither
+        // Darwin nor Linux) — closes the fd defensively and uses the
+        // original path. We override process.platform to a non-POSIX value
+        // for the duration of this test.
+        const origPlatform = process.platform;
+        Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+        const fd = openSync(smallPath, 'r');
+        try {
+            const client = buildClient();
+            mockOk({ attachment_id: 8, name: 'fallback.bin' });
+            const result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'fallback.bin');
+            expect(result).toEqual({ attachment_id: 8, name: 'fallback.bin' });
+        } finally {
+            try {
+                closeSync(fd);
+            } catch {
+                // already closed (EBADF) — implementation may have closed it
+            }
+            Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+        }
+    });
+
+    it('uploads via { path, fd } descriptor on Linux (covers /proc/self/fd rewrite branch)', async () => {
+        // Exercises the `process.platform === 'linux'` true branch at
+        // src/client-core.ts:1061. The test environment may be Darwin
+        // (where /proc/self/fd does not exist), so we stub process.platform
+        // to 'linux' AND use the module-level openAsBlobRecorder to capture
+        // the path argument. The tightened contract: regardless of whether
+        // openAsBlob ultimately resolves on this platform, the path passed
+        // to it MUST be the rewritten /proc/self/fd/<fd> form — never the
+        // original path.
+        const origPlatform = process.platform;
+        Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+        try {
+            const client = buildClient();
+            mockOk({ attachment_id: 9, name: 'linux-fd.bin' });
+            const fd = openSync(smallPath, 'r');
+            try {
+                try {
+                    await client.addAttachmentToCase(1, { path: smallPath, fd }, 'linux-fd.bin');
+                } catch (e) {
+                    // On non-Linux runners, /proc/self/fd/<fd> doesn't exist
+                    // so openAsBlob rejects → surfaces as TestRailApiError.
+                    // The rewrite-arg assertion below still pins the contract.
+                    expect(e).toBeInstanceOf(TestRailApiError);
+                }
+                expect(openAsBlobRecorder.lastPath).toBe(`/proc/self/fd/${fd}`);
+            } finally {
+                try {
+                    closeSync(fd);
+                } catch {
+                    // already closed
+                }
+            }
+        } finally {
+            Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+        }
+    });
+
+    it('rethrows a body-read TestRailApiError from the error path (covers requestMultipart 1108 branch)', async () => {
+        // For requestMultipart's error path: a 500 with an oversized body
+        // causes the body-read to throw TestRailApiError(0, "Response body too large").
+        // The catch must re-throw verbatim rather than swallow into
+        // 'Unknown error', so the limit signal reaches the caller.
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 't@example.com',
+            apiKey: 'k',
+            enableCache: false,
+            maxJsonResponseBytes: 256,
+        });
+        // 4 KiB error body — exceeds the 256-byte cap.
+        const huge = new Uint8Array(4096);
+        mockFetch.mockResolvedValueOnce({
+            ok: false,
+            status: 500,
+            statusText: 'Server Error',
+            body: new globalThis.ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(huge);
+                    controller.close();
+                },
+            }),
+            headers: { get: (): null => null },
+        });
+        await expect(client.addAttachmentToCase(1, { path: smallPath }, 'shot.bin')).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Response body too large',
+        });
     });
 
     it('upload does NOT retry on 5xx (retry-disabled invariant)', async () => {

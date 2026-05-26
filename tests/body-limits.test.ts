@@ -155,6 +155,157 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
             TestRailApiError,
         );
     });
+
+    it('enforces the cap on the arrayBuffer fallback path (oversized binary response)', async () => {
+        // Targets the `bytes.byteLength > maxBytes` branch inside the
+        // arrayBuffer fallback. Without this test the byte-cap protection
+        // on Response-like mocks would be unverified.
+        const big = new Uint8Array(50).buffer;
+        const fakeResponse = {
+            body: {}, // truthy but no getReader -> dispatch to fallback
+            arrayBuffer: async () => big,
+        } as unknown as Response;
+        await expect(readBodyWithLimits(fakeResponse, { maxBytes: 10, deadlineMs: 0 })).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Response body too large',
+        });
+    });
+
+    it('returns an empty Uint8Array when neither arrayBuffer nor text is exposed (defensive)', async () => {
+        // Targets the trailing `return new Uint8Array(0)` after both fallback
+        // probes fail. Used so a malformed mock cannot crash the reader.
+        const fakeResponse = {
+            body: undefined,
+        } as unknown as Response;
+        const out = await readBodyWithLimits(fakeResponse, { maxBytes: 100, deadlineMs: 0 });
+        expect(out.byteLength).toBe(0);
+    });
+
+    it('rethrows a TestRailApiError from the error-path body read in requestText (covers `bodyErr instanceof TestRailApiError` true branch)', async () => {
+        // For the requestText() error path: a 500 with an oversized body
+        // causes the body-read itself to throw TestRailApiError(0, "...too large").
+        // That error should be re-thrown verbatim rather than swallowed
+        // into "Unknown error", so the limit signal reaches the caller.
+        const huge = new globalThis.TextEncoder().encode('e'.repeat(4096));
+        const res = streamingResponse([huge], { status: 500, statusText: 'Server Error' });
+        mockFetch.mockResolvedValueOnce(res);
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 'test@example.com',
+            apiKey: 'api-key',
+            maxJsonResponseBytes: 256,
+            maxRetries: 0,
+            allowPrivateHosts: true,
+        });
+        await expect(client.getBdd(1)).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Response body too large',
+        });
+        client.destroy();
+    });
+
+    it('rethrows a TestRailApiError from the error-path body read in requestBinary (covers same branch)', async () => {
+        const huge = new globalThis.TextEncoder().encode('e'.repeat(4096));
+        const res = streamingResponse([huge], { status: 500, statusText: 'Server Error' });
+        mockFetch.mockResolvedValueOnce(res);
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 'test@example.com',
+            apiKey: 'api-key',
+            maxJsonResponseBytes: 256,
+            maxRetries: 0,
+            allowPrivateHosts: true,
+        });
+        await expect(client.getAttachment(1)).rejects.toMatchObject({
+            status: 0,
+            statusText: 'Response body too large',
+        });
+        client.destroy();
+    });
+
+    it('swallows a non-TestRailApiError body-read failure in requestText into "Unknown error" (covers fallback branch)', async () => {
+        // When the body-read throws a plain Error (not TestRailApiError),
+        // the catch falls through and sets errorText='Unknown error', then
+        // rethrows the original HTTP error verbatim. We synthesize this by
+        // mocking a Response whose text() throws a plain Error.
+        const fakeRes = {
+            ok: false,
+            status: 500,
+            statusText: 'Server Error',
+            body: null,
+            text: async (): Promise<string> => {
+                throw new Error('reader exploded');
+            },
+            headers: { get: (): null => null },
+        } as unknown as Response;
+        mockFetch.mockResolvedValueOnce(fakeRes);
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 'test@example.com',
+            apiKey: 'api-key',
+            maxRetries: 0,
+            allowPrivateHosts: true,
+        });
+        await expect(client.getBdd(1)).rejects.toMatchObject({
+            status: 500,
+            statusText: 'Server Error',
+            response: 'Unknown error',
+        });
+        client.destroy();
+    });
+
+    it('swallows a non-TestRailApiError body-read failure in requestBinary into "Unknown error"', async () => {
+        const fakeRes = {
+            ok: false,
+            status: 500,
+            statusText: 'Server Error',
+            body: null,
+            text: async (): Promise<string> => {
+                throw new Error('reader exploded');
+            },
+            headers: { get: (): null => null },
+        } as unknown as Response;
+        mockFetch.mockResolvedValueOnce(fakeRes);
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 'test@example.com',
+            apiKey: 'api-key',
+            maxRetries: 0,
+            allowPrivateHosts: true,
+        });
+        await expect(client.getAttachment(1)).rejects.toMatchObject({
+            status: 500,
+            statusText: 'Server Error',
+            response: 'Unknown error',
+        });
+        client.destroy();
+    });
+
+    it('ignores reader chunks where value is undefined (defensive against non-conformant streams)', async () => {
+        // A Web Streams reader is allowed to emit { done: false, value: undefined }
+        // (the polyfill in some runtimes does this on backpressure). The reader
+        // must treat this as a no-op and continue, never throwing on the
+        // `value.byteLength` access. We synthesize a custom reader to drive
+        // this path because the standard ReadableStream constructor cannot
+        // emit such chunks via controller.enqueue.
+        let callCount = 0;
+        const fakeReader = {
+            read: async () => {
+                callCount += 1;
+                if (callCount === 1) return { done: false, value: undefined };
+                if (callCount === 2) return { done: false, value: new Uint8Array([1, 2, 3]) };
+                return { done: true, value: undefined };
+            },
+            releaseLock: () => undefined,
+            cancel: async () => undefined,
+        };
+        const fakeResponse = {
+            body: { getReader: () => fakeReader },
+        } as unknown as Response;
+        const out = await readBodyWithLimits(fakeResponse, { maxBytes: 100, deadlineMs: 0 });
+        expect(Array.from(out)).toEqual([1, 2, 3]);
+        expect(callCount).toBe(3);
+    });
 });
 
 describe('readBodyAsText', () => {

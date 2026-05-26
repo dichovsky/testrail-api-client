@@ -299,6 +299,19 @@ describe('attachment upload handlers', () => {
         );
     });
 
+    it('add-to-result dry-run skips upload and returns (covers null-upload short-circuit)', async () => {
+        // Exercises the `if (upload === null) return;` true branch in
+        // handleAttachmentAddToResult. Without this, the result-specific
+        // dry-run path is unverified.
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], file: filePath, dryRun: true });
+        await handleAttachmentAddToResult(ctx);
+        expect(client.addAttachmentToResult).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'attachment add-to-result', resultId: 77 }),
+        );
+    });
+
     it('add-to-run uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['88'], file: filePath });
@@ -310,6 +323,16 @@ describe('attachment upload handlers', () => {
         );
     });
 
+    it('add-to-run dry-run skips upload and returns (covers null-upload short-circuit)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['88'], file: filePath, dryRun: true });
+        await handleAttachmentAddToRun(ctx);
+        expect(client.addAttachmentToRun).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'attachment add-to-run', runId: 88 }),
+        );
+    });
+
     it('add-to-plan uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['99'], file: filePath });
@@ -318,6 +341,16 @@ describe('attachment upload handlers', () => {
             99,
             expect.objectContaining({ path: filePath }),
             'shot.png',
+        );
+    });
+
+    it('add-to-plan dry-run skips upload and returns (covers null-upload short-circuit)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['99'], file: filePath, dryRun: true });
+        await handleAttachmentAddToPlan(ctx);
+        expect(client.addAttachmentToPlan).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'attachment add-to-plan', planId: 99 }),
         );
     });
 
@@ -481,6 +514,20 @@ describe("attachment get with --out '-'", () => {
         expect(ack).toContain('"attachmentId": 42');
         expect(ack).toContain('"out": "<stdout>"');
         expect(ack).toContain('"size": 3');
+    });
+
+    it("--out '-' with no errRaw on ctx still streams bytes (defensive — covers `ctx.errRaw !== undefined` false branch)", async () => {
+        // A minimal-ctx caller (deferred tests, synthetic dispatch) may not
+        // wire up errRaw. The handler must still write the binary stream
+        // to stdout — only the JSON ack is dropped.
+        (process.stdout as { isTTY?: boolean }).isTTY = false;
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], out: '-' });
+        const minimalCtx = { ...ctx };
+        delete (minimalCtx as { errRaw?: unknown }).errRaw;
+        await handleAttachmentGet(minimalCtx);
+        expect(client.getAttachment).toHaveBeenCalledWith(42);
+        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
     });
 
     it('emits a TTY warning on stderr when stdout is a terminal but still writes', async () => {

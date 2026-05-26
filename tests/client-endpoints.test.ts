@@ -1093,6 +1093,78 @@ describe('TestRailClient', () => {
                 );
                 await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
             });
+
+            it('passes through TestRailValidationError unchanged (non-TestRailApiError branch)', async () => {
+                // A schema-validation failure inside requestParsed throws
+                // TestRailValidationError. The addCases try/catch tests
+                // `e instanceof TestRailApiError` first — when false, the
+                // catch must rethrow as-is rather than apply the version-gate
+                // fingerprint. Returning a malformed shape from the server
+                // triggers this path.
+                mockFetch.mockResolvedValueOnce(
+                    new Response(JSON.stringify([{ notACase: true }]), {
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                );
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(TestRailValidationError);
+            });
+
+            it('passes through a 400 with no response body (defensive — exercises e.response ?? "" branch)', async () => {
+                // When the server returns a 4xx with an empty body, the
+                // version-gate regex sees an empty string and falls through
+                // to the generic rethrow. Confirms the nullish-coalesce
+                // fallback in the response-stringification branch doesn't
+                // misclassify empty responses as a version-gate match.
+                mockFetch.mockResolvedValueOnce(
+                    new Response('', {
+                        status: 400,
+                        statusText: 'Bad Request',
+                    }),
+                );
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
+            });
+
+            it('matches "No route" in addition to "Invalid uri" for the version gate', async () => {
+                // Documented dual fingerprint. Without a test for `No route`
+                // the alternation branch in the regex is unexercised.
+                mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', 'No route found'));
+                await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+            });
+
+            it('handles a TestRailApiError with object-shaped response (non-string typeof branch)', async () => {
+                // Exercises the `typeof e.response === 'string' ? ... : JSON.stringify(...)`
+                // false branch in cases.ts. We stub requestParsed to throw a
+                // TestRailApiError whose `response` is an object, which the
+                // version-gate must JSON.stringify before applying the regex.
+                // The object stringifies to '{"error":"Invalid uri"}' so the
+                // version-gate fingerprint matches.
+                const { TestRailApiError } = await import('../src/client.js');
+                const spy = vi
+                    .spyOn(client, 'requestParsed')
+                    .mockRejectedValueOnce(new TestRailApiError(404, 'Not Found', { error: 'Invalid uri' }));
+                try {
+                    await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+                } finally {
+                    spy.mockRestore();
+                }
+            });
+
+            it('handles a TestRailApiError with null response (nullish-coalesce fallback branch)', async () => {
+                // Exercises the `e.response ?? ''` true branch (response is null).
+                // The stringified empty fallback should not match the version
+                // gate regex, so the original error propagates verbatim.
+                const { TestRailApiError } = await import('../src/client.js');
+                const spy = vi
+                    .spyOn(client, 'requestParsed')
+                    .mockRejectedValueOnce(new TestRailApiError(400, 'Bad Request', null));
+                try {
+                    await expect(client.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
+                } finally {
+                    spy.mockRestore();
+                }
+            });
         });
 
         describe('updateCases', () => {
