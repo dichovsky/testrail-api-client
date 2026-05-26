@@ -388,10 +388,19 @@ async function main(): Promise<number> {
     // TO the per-handler `--yes` check — both must be satisfied. See SEC
     // notes in CHANGELOG.md for the breaking-change rationale.
     const dryRun = values['dry-run'] === true;
-    const envGate = checkDestructiveEnvGate(getActionSpec(resource, action), process.env, dryRun);
+    const actionSpec = getActionSpec(resource, action);
+    const envGate = checkDestructiveEnvGate(actionSpec, process.env, dryRun);
     if (!envGate.ok) {
         err(envGate.error);
         return 2;
+    }
+
+    // Validate path-param count before stdin/auth work so a wrong arg count
+    // fails immediately without reading stdin or checking credentials.
+    const paramCountResult = checkPathParamCount(actionSpec, pathParams);
+    if (!paramCountResult.ok) {
+        err(paramCountResult.error);
+        return 1;
     }
 
     // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
@@ -480,18 +489,6 @@ async function main(): Promise<number> {
     // is a typo/no-op (e.g. `echo '{...}' | testrail result add ... --file
     // x`), surfacing as a misleading "Body required" error instead of the
     // ignored flag.
-    const actionSpec = getActionSpec(resource, action);
-
-    // Validate positional path-param count before any I/O or auth work.
-    // Extra args are silently ignored today (ARCH #12); missing args surface
-    // inside handlers via parseId()'s generic error. Both cases now fail fast
-    // at the dispatch layer with a clear error and usage hint.
-    const paramCountResult = checkPathParamCount(actionSpec, pathParams);
-    if (!paramCountResult.ok) {
-        err(paramCountResult.error);
-        return 1;
-    }
-
     const isFileInputAction = actionSpec?.fileInput === true;
     const isFileOutputAction = actionSpec?.fileOutput === true;
 
