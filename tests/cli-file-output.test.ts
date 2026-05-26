@@ -145,4 +145,17 @@ describe('resolveOut', () => {
         expect(r.ok).toBe(true);
         if (r.ok) expect(r.target).toBe('file');
     });
+
+    it('surfaces non-ENOENT lstat errors as a structured rejection (ENOTDIR — file used as a directory)', async () => {
+        // Exercises the `code === 'ENOENT'` false branch in the lstat-error
+        // handler (line 68). We create a regular file then try to resolve
+        // a path that treats it as a parent directory — lstat returns
+        // ENOTDIR, which must surface as `Cannot stat ...` rather than
+        // being mistaken for "path does not exist".
+        const file = join(tmp, 'plain.txt');
+        writeFileSync(file, 'x');
+        const r = resolveOut({ outFlag: join(file, 'child.bin') }, { force: false, dryRun: false });
+        expect(r.ok).toBe(false);
+        if (!r.ok) expect(r.error).toContain('Cannot stat');
+    });
 });

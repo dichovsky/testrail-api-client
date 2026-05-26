@@ -239,16 +239,21 @@ describe('resolveFile', () => {
         it('converts Uint8Array (non-Buffer) chunks into Buffer', async () => {
             // Exercises the `chunk instanceof Uint8Array` true branch with a
             // chunk that is NOT a Buffer. Buffer is a Uint8Array subclass, so
-            // Node typically yields Buffer; we synthesize a plain Uint8Array
-            // emitter to drive the deeper branch.
-            async function* emit(): AsyncGenerator<Uint8Array> {
-                yield new Uint8Array([1, 2, 3]);
-                yield new Uint8Array([4, 5]);
-            }
-            const stream = Readable.from(emit(), { objectMode: false });
-            (stream as { isTTY?: boolean }).isTTY = false;
+            // Node typically yields Buffer; we wire up a hand-rolled async
+            // iterable so the values arrive as plain Uint8Arrays without
+            // Node's Readable.from() coercion.
+            const arr1 = new Uint8Array([1, 2, 3]);
+            const arr2 = new Uint8Array([4, 5]);
+            const iterable: AsyncIterable<unknown> = {
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    yield arr1;
+                    yield arr2;
+                },
+            };
+            // Stub process.stdin directly with the hand-rolled async iterable
+            // so the for-await loop in readStdinBinary sees the raw values.
             Object.defineProperty(process, 'stdin', {
-                value: stream,
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
                 configurable: true,
                 writable: false,
             });
@@ -259,20 +264,41 @@ describe('resolveFile', () => {
 
         it('falls back to String(chunk) for unknown chunk types (defensive)', async () => {
             // Exercises the `else { buf = Buffer.from(String(chunk)) }` arm.
-            // We yield a plain number — not Buffer, not string, not Uint8Array.
-            async function* emit(): AsyncGenerator<unknown> {
-                yield 42; // String(42) === '42' → 2 bytes
-            }
-            // objectMode: true so Readable emits the raw value as-is.
-            const stream = Readable.from(emit(), { objectMode: true });
-            (stream as { isTTY?: boolean }).isTTY = false;
+            // Hand-rolled async iterable so the number value bypasses
+            // Node's Readable.from() Buffer coercion.
+            const iterable: AsyncIterable<unknown> = {
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    yield 42; // String(42) === '42' → 2 bytes
+                },
+            };
             Object.defineProperty(process, 'stdin', {
-                value: stream,
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
                 configurable: true,
                 writable: false,
             });
             const bytes = await readStdinBinary(1024, 5000);
             expect(Buffer.from(bytes).toString('utf-8')).toBe('42');
+        });
+    });
+
+    describe('readStdinBinary error coercion', () => {
+        it('wraps a non-Error thrown inside the for-await loop into an Error (covers cond-expr:1)', async () => {
+            // Exercises the `e instanceof Error ? e : new Error(String(e), { cause: e })`
+            // false branch. Hand-rolled async iterable that throws a plain
+            // string inside the iterator's body.
+            const iterable: AsyncIterable<unknown> = {
+                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
+                    yield Buffer.from('hi'); // first chunk
+                    // eslint-disable-next-line @typescript-eslint/only-throw-error
+                    throw 'plain-string-inner-failure';
+                },
+            };
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+            await expect(readStdinBinary(1024, 5000)).rejects.toThrow(/plain-string-inner-failure/);
         });
     });
 

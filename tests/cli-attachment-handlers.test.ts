@@ -516,6 +516,20 @@ describe("attachment get with --out '-'", () => {
         expect(ack).toContain('"size": 3');
     });
 
+    it("--out '-' with no errRaw on ctx still streams bytes (defensive — covers `ctx.errRaw !== undefined` false branch)", async () => {
+        // A minimal-ctx caller (deferred tests, synthetic dispatch) may not
+        // wire up errRaw. The handler must still write the binary stream
+        // to stdout — only the JSON ack is dropped.
+        (process.stdout as { isTTY?: boolean }).isTTY = false;
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], out: '-' });
+        const minimalCtx = { ...ctx };
+        delete (minimalCtx as { errRaw?: unknown }).errRaw;
+        await handleAttachmentGet(minimalCtx);
+        expect(client.getAttachment).toHaveBeenCalledWith(42);
+        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
+    });
+
     it('emits a TTY warning on stderr when stdout is a terminal but still writes', async () => {
         (process.stdout as { isTTY?: boolean }).isTTY = true;
         const client = buildClient();

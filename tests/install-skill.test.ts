@@ -189,6 +189,38 @@ describe('runInstallSkill', () => {
         }
     });
 
+    it('falls back to homedir() when homeOverride is undefined (--global default with HOME env redirect)', () => {
+        // Exercises the `opts.homeOverride ?? homedir()` nullish-coalesce
+        // false branch. node:os.homedir() reads HOME (POSIX) or USERPROFILE
+        // (Windows). Redirect HOME to a sandboxed tmp so the real home
+        // directory is never touched.
+        const sandbox = join(tmp, 'sandbox-home');
+        const origHome = process.env['HOME'];
+        const origUserProfile = process.env['USERPROFILE'];
+        process.env['HOME'] = sandbox;
+        process.env['USERPROFILE'] = sandbox;
+        try {
+            const code = runInstallSkill(
+                {
+                    global: true,
+                    force: false,
+                    printPath: false,
+                    quiet: true,
+                    sourceOverride: source,
+                    // homeOverride deliberately omitted — must fall back to homedir().
+                },
+                'file:///irrelevant',
+            );
+            expect(code).toBe(0);
+            expect(existsSync(join(sandbox, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
+        } finally {
+            if (origHome !== undefined) process.env['HOME'] = origHome;
+            else delete process.env['HOME'];
+            if (origUserProfile !== undefined) process.env['USERPROFILE'] = origUserProfile;
+            else delete process.env['USERPROFILE'];
+        }
+    });
+
     it('--print-path with --quiet suppresses stdout entirely (exit 0, no output)', () => {
         // Exercises the `if (!opts.quiet)` false branch on the print-path
         // return: a script that only cares about exit code can opt out of

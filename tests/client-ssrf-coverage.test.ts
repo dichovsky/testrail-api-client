@@ -319,6 +319,53 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         await expect(client.getProject(1)).rejects.toThrow(inner);
     });
 
+    it('accepts a public IPv6 URL literal at request time (exercises validatePublicHost IP-literal pass-through)', async () => {
+        // URL = http://[2001:db8::1]/ passes both URL-format and
+        // PRIVATE_HOST_PATTERNS at construction. At request time,
+        // validatePublicHost dispatches through the IP-literal branch:
+        //   bracket-strip → bare = '2001:db8::1'
+        //   isIP(bare) === 6 (IP literal, no DNS)
+        //   isPrivateOrLoopbackIP returns false (documentation prefix)
+        //   → fetch proceeds.
+        // Without this test the IP-literal happy path in validatePublicHost
+        // (lines 124, 134, 135) is unverified.
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+        });
+        const client = new TestRailClient({
+            baseUrl: 'http://[2001:db8::1]/testrail',
+            email: 'test@example.com',
+            apiKey: 'key',
+            allowInsecure: true,
+        });
+        await expect(client.getProject(1)).resolves.toBeDefined();
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts a public IPv4 URL literal at request time (exercises ipFamily === 4 branch)', async () => {
+        // URL = http://203.0.113.5/ — public TEST-NET-3 address; URL.hostname
+        // does NOT have brackets (IPv4 literal). Exercises the
+        // ipFamily === 4 branch in isPrivateOrLoopbackIP, taken via the
+        // IP-literal short-circuit at line 134.
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+        });
+        const client = new TestRailClient({
+            baseUrl: 'http://203.0.113.5/testrail',
+            email: 'test@example.com',
+            apiKey: 'key',
+            allowInsecure: true,
+        });
+        await expect(client.getProject(1)).resolves.toBeDefined();
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
     it('wraps non-Error DNS rejections (defensive — fail-closed)', async () => {
         // err instanceof Error -> false branch: the message falls back to
         // 'Unknown error'. Defends against a future DNS shim that rejects

@@ -4515,6 +4515,20 @@ describe('CLI', () => {
         });
     });
 
+    describe('args spread coverage', () => {
+        it('accepts --case-id without failure (covers args.caseId spread branch)', async () => {
+            // The CLI spreads --case-id into HandlerArgs even though no
+            // current handler reads it. Exercising the spread guarantees the
+            // forward-compatibility branch (line 452 in src/cli/index.ts) is
+            // tested. Pair with a benign read action so the test passes.
+            const { exitCodes } = await runCli(
+                ['project', 'get', '1', '--case-id', '99'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
+            expect(exitCodes).toContain(0);
+        });
+    });
+
     describe('plan', () => {
         it('plan get <id> should exit 0', async () => {
             const { exitCodes } = await runCli(['plan', 'get', '50'], [jsonResponse(MOCK_PLAN)]);
