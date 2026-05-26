@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "8884cab6a92fed420de26c7f728c02679cd245c08706e019a70073ec5bb91b28",
+  "sourceHash": "5901f683356b865679c77ce22dd0c489f35b82485d6a79fed9502ab9018a0524",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1874,70 +1874,71 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../file-input.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "ResolvedUpload",
           "kind": "interface",
-          "line": 19,
+          "line": 20,
           "exported": false,
           "signature": "interface ResolvedUpload { filename: string; path: string; contents?: Uint8Array; fd?: number | undefined; source: 'file' | 'stdin'; }"
         },
         {
           "name": "setupUpload",
           "kind": "function",
-          "line": 42,
+          "line": 43,
           "exported": false,
           "signature": "async function setupUpload( ctx: HandlerContext, action: string, idFields: Record<string, number>, ): Promise<ResolvedUpload | null>"
         },
         {
           "name": "uploadPayload",
           "kind": "function",
-          "line": 87,
+          "line": 88,
           "exported": false,
           "signature": "function uploadPayload(upload: ResolvedUpload): { path: string; fd?: number | undefined } | Uint8Array"
         },
         {
           "name": "handleAttachmentAddToCase",
           "kind": "function",
-          "line": 94,
+          "line": 95,
           "exported": true,
           "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToResult",
           "kind": "function",
-          "line": 101,
+          "line": 102,
           "exported": true,
           "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToRun",
           "kind": "function",
-          "line": 108,
+          "line": 109,
           "exported": true,
           "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlan",
           "kind": "function",
-          "line": 115,
+          "line": 116,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlanEntry",
           "kind": "function",
-          "line": 122,
+          "line": 123,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentDelete",
           "kind": "function",
-          "line": 135,
+          "line": 138,
           "exported": true,
           "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2207,49 +2208,50 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleConfigurationGroupAdd",
           "kind": "function",
-          "line": 19,
+          "line": 20,
           "exported": true,
           "signature": "export async function handleConfigurationGroupAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleConfigurationGroupUpdate",
           "kind": "function",
-          "line": 36,
+          "line": 37,
           "exported": true,
           "signature": "export async function handleConfigurationGroupUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleConfigurationGroupDelete",
           "kind": "function",
-          "line": 64,
+          "line": 67,
           "exported": true,
           "signature": "export async function handleConfigurationGroupDelete(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleConfigurationAdd",
           "kind": "function",
-          "line": 86,
+          "line": 82,
           "exported": true,
           "signature": "export async function handleConfigurationAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleConfigurationUpdate",
           "kind": "function",
-          "line": 103,
+          "line": 99,
           "exported": true,
           "signature": "export async function handleConfigurationUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleConfigurationDelete",
           "kind": "function",
-          "line": 127,
+          "line": 125,
           "exported": true,
           "signature": "export async function handleConfigurationDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2278,28 +2280,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleDatasetAdd",
           "kind": "function",
-          "line": 8,
+          "line": 9,
           "exported": true,
           "signature": "export async function handleDatasetAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleDatasetUpdate",
           "kind": "function",
-          "line": 36,
+          "line": 37,
           "exported": true,
           "signature": "export async function handleDatasetUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleDatasetDelete",
           "kind": "function",
-          "line": 72,
+          "line": 69,
           "exported": true,
           "signature": "export async function handleDatasetDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2335,28 +2338,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleGroupAdd",
           "kind": "function",
-          "line": 11,
+          "line": 12,
           "exported": true,
           "signature": "export async function handleGroupAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleGroupUpdate",
           "kind": "function",
-          "line": 36,
+          "line": 37,
           "exported": true,
           "signature": "export async function handleGroupUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleGroupDelete",
           "kind": "function",
-          "line": 70,
+          "line": 66,
           "exported": true,
           "signature": "export async function handleGroupDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2392,28 +2396,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleMilestoneAdd",
           "kind": "function",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export async function handleMilestoneAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleMilestoneUpdate",
           "kind": "function",
-          "line": 23,
+          "line": 24,
           "exported": true,
           "signature": "export async function handleMilestoneUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleMilestoneDelete",
           "kind": "function",
-          "line": 46,
+          "line": 49,
           "exported": true,
           "signature": "export async function handleMilestoneDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2449,70 +2454,71 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handlePlanAdd",
           "kind": "function",
-          "line": 13,
+          "line": 14,
           "exported": true,
           "signature": "export async function handlePlanAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanUpdate",
           "kind": "function",
-          "line": 24,
+          "line": 25,
           "exported": true,
           "signature": "export async function handlePlanUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanAddEntry",
           "kind": "function",
-          "line": 35,
+          "line": 36,
           "exported": true,
           "signature": "export async function handlePlanAddEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanAddRunToEntry",
           "kind": "function",
-          "line": 46,
+          "line": 47,
           "exported": true,
           "signature": "export async function handlePlanAddRunToEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanUpdateEntry",
           "kind": "function",
-          "line": 65,
+          "line": 66,
           "exported": true,
           "signature": "export async function handlePlanUpdateEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanUpdateRunInEntry",
           "kind": "function",
-          "line": 84,
+          "line": 85,
           "exported": true,
           "signature": "export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanClose",
           "kind": "function",
-          "line": 112,
+          "line": 115,
           "exported": true,
           "signature": "export async function handlePlanClose(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanDelete",
           "kind": "function",
-          "line": 134,
+          "line": 136,
           "exported": true,
           "signature": "export async function handlePlanDelete(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handlePlanDeleteEntry",
           "kind": "function",
-          "line": 157,
+          "line": 158,
           "exported": true,
           "signature": "export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void>"
         },
@@ -2572,28 +2578,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleProjectAdd",
           "kind": "function",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export async function handleProjectAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleProjectUpdate",
           "kind": "function",
-          "line": 16,
+          "line": 17,
           "exported": true,
           "signature": "export async function handleProjectUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleProjectDelete",
           "kind": "function",
-          "line": 41,
+          "line": 44,
           "exported": true,
           "signature": "export async function handleProjectDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -2991,28 +2998,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleSharedStepAdd",
           "kind": "function",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export async function handleSharedStepAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleSharedStepUpdate",
           "kind": "function",
-          "line": 23,
+          "line": 24,
           "exported": true,
           "signature": "export async function handleSharedStepUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleSharedStepDelete",
           "kind": "function",
-          "line": 56,
+          "line": 53,
           "exported": true,
           "signature": "export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -3241,28 +3249,29 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../run-destructive.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleVariableAdd",
           "kind": "function",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export async function handleVariableAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleVariableUpdate",
           "kind": "function",
-          "line": 23,
+          "line": 24,
           "exported": true,
           "signature": "export async function handleVariableUpdate(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleVariableDelete",
           "kind": "function",
-          "line": 53,
+          "line": 50,
           "exported": true,
           "signature": "export async function handleVariableDelete(ctx: HandlerContext): Promise<void>"
         }
@@ -3626,6 +3635,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 481,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/run-destructive.ts",
+      "imports": [
+        "./handler-context.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "runDestructive",
+          "kind": "function",
+          "line": 14,
+          "exported": true,
+          "signature": "export async function runDestructive( ctx: HandlerContext, preview: Record<string, unknown>, execute: () => Promise<void>, opts?: { softUnsupported?: boolean }, ): Promise<void>"
         }
       ]
     },

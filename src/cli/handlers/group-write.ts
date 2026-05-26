@@ -2,6 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId, IdParseError } from '../ids.js';
 import { resolveBody } from '../body.js';
 import { AddGroupPayloadSchema, UpdateGroupPayloadSchema } from '../../schemas.js';
+import { runDestructive } from '../run-destructive.js';
 
 /**
  * `group add` — create a new user group (TestRail 7.5+). No path param;
@@ -56,12 +57,7 @@ export async function handleGroupUpdate(ctx: HandlerContext): Promise<void> {
  * `soft=1` server-side preview, so `--soft` is rejected here rather than
  * silently dropped — keeping destructive intent unambiguous.
  *
- * Check order (canonical, matches `milestone delete` / `project delete` /
- * `configuration-group delete`): `parseId → --soft reject → --dry-run →
- * --yes`. Per ARCH #9 the codebase has two patterns shipped (canonical
- * here vs newer "dry-run first" used by `plan delete*` / `variable delete`
- * / `shared-step delete`); harmonization is tracked as a follow-up. This
- * PR uses the canonical ordering deliberately.
+ * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
  *
  * Cascade caveat: deleting a group removes its membership claims but does
  * NOT delete the users themselves (TestRail keeps users at the instance
@@ -69,20 +65,13 @@ export async function handleGroupUpdate(ctx: HandlerContext): Promise<void> {
  */
 export async function handleGroupDelete(ctx: HandlerContext): Promise<void> {
     const groupId = parseId(ctx.args.pathParams[0], 'group_id');
-
-    if (ctx.args.soft === true) {
-        throw new Error('group delete does not support --soft.');
-    }
-
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'group delete', groupId, destructive: true });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('group delete: pass --yes to confirm');
-    }
-
-    await ctx.client.deleteGroup(groupId);
-    ctx.out({ groupId, deleted: true });
+    await runDestructive(
+        ctx,
+        { action: 'group delete', groupId },
+        async () => {
+            await ctx.client.deleteGroup(groupId);
+            ctx.out({ groupId, deleted: true });
+        },
+        { softUnsupported: true },
+    );
 }
