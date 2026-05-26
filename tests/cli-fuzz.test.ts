@@ -290,45 +290,10 @@ describe.skipIf(!RUN_FUZZ)('CLI fuzz: optInt', () => {
 //   C. When ok=false, the error string is always a non-empty string.
 //   D. When ok=true, handler is always a function.
 //
-// *** BUG FOUND BY FUZZING (follow-up backlog item) ***
-//
-// The `RESOURCES` map in dispatch.ts is built as a plain `Record<string,
-// string[]>` object literal. A resource string that is an inherited
-// Object.prototype property key (e.g. "toString", "valueOf", "constructor",
-// "hasOwnProperty") causes `RESOURCES[resource]` to return the inherited
-// method — a *function*, not an array. The subsequent `actions.includes(...)`
-// call then throws `TypeError: actions.includes is not a function`.
-//
-// Minimal repro:
-//   dispatch("toString", "")  →  throws TypeError: actions.includes is not a function
-//
-// Root cause: RESOURCES should use `Object.create(null)` or `Map` instead of
-// `{}`, or the `dispatch` function should guard with
-// `Object.prototype.hasOwnProperty.call(RESOURCES, resource)` before
-// accessing RESOURCES[resource].
-//
-// This bug is out of scope for this PR. It should be tracked as a separate
-// backlog item and fixed in a dedicated patch that adds a regression test.
-// The tests below filter out the prototype-key inputs until the bug is fixed.
-
-// Prototype-key strings that trigger the known dispatch bug: they resolve
-// to inherited Object.prototype methods instead of `undefined` in a plain
-// Record<string, string[]>, causing `actions.includes` to throw.
-// This set is used to filter fuzz inputs until the bug is fixed.
-const OBJECT_PROTOTYPE_KEYS = new Set([
-    '__defineGetter__',
-    '__defineSetter__',
-    '__lookupGetter__',
-    '__lookupSetter__',
-    '__proto__',
-    'constructor',
-    'hasOwnProperty',
-    'isPrototypeOf',
-    'propertyIsEnumerable',
-    'toLocaleString',
-    'toString',
-    'valueOf',
-]);
+// Prototype-key inputs (e.g. "toString", "__proto__", "constructor") are
+// explicitly covered as a regression in tests/cli-helpers.test.ts after this
+// fuzz suite uncovered an unguarded `RESOURCES[resource]` access. Both this
+// suite and that one now exercise the post-fix `Object.hasOwn` guard.
 
 describe.skipIf(!RUN_FUZZ)('CLI fuzz: dispatch', () => {
     const registeredKeys = getRegisteredActions();
@@ -361,9 +326,11 @@ describe.skipIf(!RUN_FUZZ)('CLI fuzz: dispatch', () => {
             fc.property(
                 fc
                     .string({ minLength: 1, maxLength: 30 })
-                    // Exclude known registered resources AND the Object.prototype
-                    // keys that trigger the known dispatch bug (tracked separately).
-                    .filter((s) => !knownResources.has(s) && !OBJECT_PROTOTYPE_KEYS.has(s)),
+                    // Exclude known registered resources. Object.prototype keys
+                    // (toString, __proto__, etc.) are intentionally NOT excluded —
+                    // the dispatch.ts `Object.hasOwn` guard now handles them
+                    // (regression covered in tests/cli-helpers.test.ts).
+                    .filter((s) => !knownResources.has(s)),
                 fc.string({ minLength: 0, maxLength: 20 }),
                 (unknownResource, anyAction) => {
                     const result = dispatch(unknownResource, anyAction);
@@ -452,13 +419,13 @@ describe.skipIf(!RUN_FUZZ)('CLI fuzz: dispatch', () => {
         );
     });
 
-    it('output is always ok=true|false (never undefined, never throws) for safe resource strings', () => {
-        // Excludes Object.prototype key strings that trigger the known dispatch
-        // bug (see bug note at top of this describe block). Once that bug is
-        // fixed, remove the OBJECT_PROTOTYPE_KEYS filter from this test.
+    it('output is always ok=true|false (never undefined, never throws) for any input', () => {
+        // No filter on Object.prototype keys — the `Object.hasOwn` guard in
+        // dispatch() now handles `toString`, `__proto__`, `constructor`, etc.
+        // cleanly (regression pinned in tests/cli-helpers.test.ts).
         fc.assert(
             fc.property(
-                fc.string({ minLength: 0, maxLength: 20 }).filter((s) => !OBJECT_PROTOTYPE_KEYS.has(s)),
+                fc.string({ minLength: 0, maxLength: 20 }),
                 fc.string({ minLength: 0, maxLength: 20 }),
                 (resource, action) => {
                     let result: ReturnType<typeof dispatch> | undefined;
