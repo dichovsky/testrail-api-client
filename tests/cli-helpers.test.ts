@@ -647,7 +647,7 @@ describe('checkPathParamCount', () => {
      * Covers the full truth table of (spec, pathParams) → ok | error.
      */
 
-    it('returns ok=true when spec is undefined (unknown action — upstream already errors)', () => {
+    it('returns ok=true when spec is undefined (defensive no-op — caller handles unknown action)', () => {
         const result = checkPathParamCount(undefined, ['5', '99']);
         expect(result.ok).toBe(true);
     });

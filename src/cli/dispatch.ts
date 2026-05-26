@@ -328,9 +328,10 @@ export type PathParamCountResult = { ok: true } | { ok: false; error: string };
  * Validates that the number of positional path params supplied on the CLI
  * matches the count declared in the ActionSpec.
  *
- * Returns `{ ok: true }` when the spec is absent (unknown action — upstream
- * already errors) or counts match. Returns `{ ok: false, error }` with a
- * usage hint when too many or too few params are given.
+ * Returns `{ ok: true }` when the spec is absent (defensive no-op — the
+ * caller handles the unknown-action case) or counts match. Returns
+ * `{ ok: false, error }` with a usage hint when too many or too few params
+ * are given.
  */
 export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: readonly string[]): PathParamCountResult {
     if (spec === undefined) return { ok: true };

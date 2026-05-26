@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "ea5931f3aef4983f95bf5719e8b275e9140b2c8a8cfbda5e9a01beb4d63ef34d",
+  "sourceHash": "f62f41f39e60944775d2d91c7ebf8e89d99b98be11e2d5c370d02e79c4afd6a0",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1748,14 +1748,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "checkPathParamCount",
           "kind": "function",
-          "line": 335,
+          "line": 336,
           "exported": true,
           "signature": "export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: readonly string[]): PathParamCountResult"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 364,
+          "line": 365,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
