@@ -25,7 +25,7 @@ import { dispatch, getRegisteredActions } from '../src/cli/dispatch.js';
 import { resolveAuth } from '../src/cli/auth.js';
 import type { AuthEnv } from '../src/cli/auth.js';
 
-const RUN_FUZZ = Boolean(process.env['RUN_FUZZ']);
+const RUN_FUZZ = process.env['RUN_FUZZ'] === '1';
 
 // ── 1. parseId ───────────────────────────────────────────────────────────────
 //
