@@ -65,17 +65,17 @@ describe('renderCommandTable', () => {
 
     it('renders a read action with compact mode and input labels', () => {
         const out = renderCommandTable([READ_FIXTURE]) as string;
-        expect(out).toContain('| `project get` | R | <project_id> | - |');
+        expect(out).toContain('| `project get` | R | `<project_id>` | - |');
     });
 
     it('renders a write action with mode W and its schema name', () => {
         const out = renderCommandTable([WRITE_FIXTURE]) as string;
-        expect(out).toContain('| `case add` | W | <section_id> | AddCasePayloadSchema |');
+        expect(out).toContain('| `case add` | W | `<section_id>` | AddCasePayloadSchema |');
     });
 
     it('renders a no-body write action as none input', () => {
         const out = renderCommandTable([NO_BODY_WRITE_FIXTURE]) as string;
-        expect(out).toContain('| `run close` | W | <run_id> | none |');
+        expect(out).toContain('| `run close` | W | `<run_id>` | none |');
     });
 
     it('emits "-" for actions with no path params', () => {
@@ -94,7 +94,7 @@ describe('renderCommandTable', () => {
             fileInput: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('| `attachment add-to-case` | W | <case_id> | file |');
+        expect(out).toContain('| `attachment add-to-case` | W | `<case_id>` | file |');
     });
 
     it('renders a file-output action as out:binary input', () => {
@@ -107,7 +107,7 @@ describe('renderCommandTable', () => {
             fileOutput: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('| `attachment get` | R | <attachment_id> | out:binary |');
+        expect(out).toContain('| `attachment get` | R | `<attachment_id>` | out:binary |');
     });
 
     it('renders a text file-output action as out:text input', () => {
@@ -121,7 +121,7 @@ describe('renderCommandTable', () => {
             outputKind: 'text',
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('| `bdd get` | R | <case_id> | out:text |');
+        expect(out).toContain('| `bdd get` | R | `<case_id>` | out:text |');
     });
 
     it('defaults `outputKind` to binary when omitted (back-compat)', () => {
@@ -148,7 +148,7 @@ describe('renderCommandTable', () => {
             destructive: true,
         };
         const out = renderCommandTable([fixture]) as string;
-        expect(out).toContain('| `attachment delete` | D | <attachment_id> | none+yes |');
+        expect(out).toContain('| `attachment delete` | D | `<attachment_id>` | none+yes |');
     });
 });
 

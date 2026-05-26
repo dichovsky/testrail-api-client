@@ -57,7 +57,11 @@ export function schemaNameFor(spec) {
 
 function renderPathArgs(spec) {
     if (spec.pathParams.length === 0) return '-';
-    return spec.pathParams.map((p) => `<${p.name}>`).join(' ');
+    // Wrap each `<arg>` in a backtick code span so Markdown renderers
+    // don't interpret the angle brackets as an HTML tag (which would
+    // make the arg invisible or trigger HTML sanitization). The code
+    // span keeps the placeholder visible AND verbatim.
+    return spec.pathParams.map((p) => `\`<${p.name}>\``).join(' ');
 }
 
 function inputLabel(spec) {
