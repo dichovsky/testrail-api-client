@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient } from '../src/client.js';
-import { TestRailApiError } from '../src/errors.js';
+import { TestRailApiError, TestRailValidationError } from '../src/errors.js';
 
 const BASE_CONFIG = {
     baseUrl: 'https://example.testrail.io',
@@ -124,6 +124,12 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         expect(url).toContain('add_attachment_to_case/1');
         expect(init.method).toBe('POST');
         client.destroy();
+    });
+
+    it('rejects a non-function config.fetch with TestRailValidationError', () => {
+        expect(
+            () => new TestRailClient({ ...BASE_CONFIG, fetch: 'not-a-function' as unknown as typeof globalThis.fetch }),
+        ).toThrow(TestRailValidationError);
     });
 
     it('custom fetch network errors surface as a rejected promise', async () => {
