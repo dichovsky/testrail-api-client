@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "9cfcf7c05c636e1e75b901167a9d2bc6cda87c1eac88aef2cb16ad09acfeb149",
+  "sourceHash": "68056353e85897c36d8970e895540dae5a2868ce6825ddb8aec5b6b843edae98",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1161,7 +1161,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "file": "src/errors.ts",
       "line": 42,
       "signature": "export class TestRailTimeoutError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail returns 408 or the fetch is aborted (AbortError / request-header timeout). Body-read deadline fires surface as plain `TestRailApiError(0, 'Body read timeout')`."
+      "jsdoc": "Thrown when TestRail returns 408 or the fetch is aborted (AbortError / request-header timeout). Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`."
     },
     {
       "name": "TestRailValidationError",
