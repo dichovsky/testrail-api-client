@@ -4102,3 +4102,22 @@ auto-applied.
 
 - [x] **SPEC #A.1: Split request/response schemas (full wave)** — Closed across PR #148 + PR #149. Phase 0 (PR #148, merged 2026-05-23): new `docs/SCHEMA-CONVENTIONS.md` (5-point convention reference) + JSDoc annotations on `ResultSchema`, `AddResultPayloadSchema`, and the bulk-results cluster. Phases 1–3 (PR #149, merged 2026-05-25): cross-domain audit across 9 domains reported **zero conflation violations** — codebase already compliant with the conventions, so no fix PRs were needed; regression guard landed as `tests/schema-conventions.test.ts` (3 static-analysis checks: no `.extend()` between payload/response, payload schemas don't reference response base schemas, payload schemas don't reference response sub-schemas). PR #149's audit surfaced one unrelated LOW finding (`TestSchema.labels` uses an inline duplicate of `LabelEmbeddedSchema` at `src/schemas.ts` — pure code dedup, not direction conflation) which is tracked separately.
 
+## BACKLOG sync — 2026-05-26 (QA / Verification cluster — PRs #152–#156)
+
+This sync archives the full `## 🧪 QA / Verification` section from `BACKLOG.md`.
+All five items were confirmed shipped during the audit on 2026-05-26 by matching
+each bullet to its corresponding PR and commit. No items in the section were left
+open; the section heading was removed from `BACKLOG.md`.
+
+### QA — verified shipped
+
+- [x] **QA: separate CI job for skill-generation drift** — Shipped in PR #152 (`ci: add gen-drift job for codemap/skill/mapping checks`). A dedicated `gen-drift` CI job now runs `npm run codemap:check`, `npm run skill:check`, and `npm run mapping:check` in a separate workflow step so drift in generated files (CODEMAP.md, skill/SKILL.md, docs/API-MAPPING.md) is caught immediately on every PR rather than only in the local `pretest` hook.
+
+- [x] **QA: Gate C2 should be bidirectional (every ActionSpec must have at least one recipe-for binding); current one-way check allowed PR #114 to silently drop recipe #34 and PR #118 to drop C3+C5 recipes during rebase — both regressions only caught by ad-hoc audit** — Shipped in PR #153 (`test: make Gate C2 bidirectional (ACTIONS → recipe-for)`). Gate C2 in `scripts/generate-mapping.js` previously only verified that every `recipe-for:` tag in `skill/SKILL.md` referenced an existing `ACTIONS` entry (one-way: recipe → action). The bidirectional check now also verifies that every `ActionSpec` entry in `ACTIONS` has at least one `recipe-for:` tag, so a future PR that removes or renames an `ActionSpec` without updating the skill file fails the drift gate immediately.
+
+- [x] **QA: Add unit tests in `streaming-upload.test.ts` for mid-stream file descriptor errors (e.g., simulated `EBADF`) to verify upload cleanup** — Shipped in PR #154 (`test: add FD-error tests to streaming-upload (EBADF cleanup)`). New test cases in `tests/streaming-upload.test.ts` simulate `EBADF`-style file descriptor errors occurring mid-stream during multipart upload and assert that the upload cleanup path runs correctly (readable stream destroyed, no resource leaks). Verifies the existing cleanup logic rather than adding new production code.
+
+- [x] **QA: CLI fuzz tests** — Shipped in PR #155 (`test: add fast-check fuzz tests for CLI arg parsing`). Property-based fuzz tests using `fast-check` added to the CLI test suite. The fuzzer generates arbitrary strings, numeric edge cases, and pathological inputs (empty strings, Unicode surrogates, deeply nested JSON, `__proto__` keys, excessively long values) for `parseId`, `optInt`, `resolveAuth`, and the dispatch path. Every fuzzer run confirms that invalid inputs consistently produce the expected error shape rather than panicking, corrupting state, or bypassing validation silently.
+
+- [x] **QA: coverage delta enforcement (98% floor)** — Shipped in PR #156 (`test: enforce per-metric coverage floor (99/99/99/98)`). Vitest coverage thresholds in `vitest.config.ts` updated to enforce per-metric floors: statements 99%, branches 99%, functions 99%, lines 98%. CI fails the build if any metric drops below the floor, preventing coverage regressions from landing undetected. Previously the project tracked coverage in CLAUDE.md as a narrative "98%+" without a machine-checked enforcement gate.
+
