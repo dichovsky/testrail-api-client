@@ -340,4 +340,133 @@ describe('handleRunWatch', () => {
         expect(stderrWrites.join('')).toMatch(/run watch: interrupted at runId=42/);
         spyErr.mockRestore();
     });
+
+    it('SIGINT before any successful poll writes "(no successful poll)" summary', async () => {
+        // Exercises the `lastSnapshot !== undefined ? ... : '(no successful poll)'`
+        // false branch on signal handling. SIGINT fires while the first
+        // getRun() is still pending.
+        const client = buildClient();
+        // First poll: never resolves until we cancel.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        client.getRun.mockImplementationOnce(() => new Promise(() => undefined));
+
+        const stderrWrites: string[] = [];
+        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+            return true;
+        });
+
+        const { ctx } = buildCtx(client);
+        const promise = handleRunWatch(ctx);
+        // Emit SIGINT immediately — no poll has settled yet.
+        await Promise.resolve();
+        process.emit('SIGINT');
+        await vi.advanceTimersByTimeAsync(0);
+        await promise;
+
+        expect(stderrWrites.join('')).toMatch(/\(no successful poll\)/);
+        spyErr.mockRestore();
+    });
+
+    it('SIGINT delivered twice is idempotent (covers the `if (cancelled) return` re-entry guard)', async () => {
+        // Exercises the `if (cancelled) return;` true branch in onSignal.
+        // Two consecutive signals must not double-write the status summary.
+        const client = buildClient();
+        client.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+
+        const stderrWrites: string[] = [];
+        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+            return true;
+        });
+
+        const { ctx } = buildCtx(client);
+        const promise = handleRunWatch(ctx);
+        await Promise.resolve();
+        await Promise.resolve();
+        process.emit('SIGINT');
+        process.emit('SIGINT'); // second signal: should be a no-op
+        await vi.advanceTimersByTimeAsync(0);
+        await promise;
+
+        // Only one "interrupted at" line should appear despite two signals.
+        const interruptedCount = stderrWrites.join('').match(/interrupted at runId=42/g) ?? [];
+        expect(interruptedCount.length).toBe(1);
+        spyErr.mockRestore();
+    });
+
+    it('--quiet suppresses transient-error stderr writes (covers the !argv.includes("--quiet") false branch)', async () => {
+        // Exercises the `!process.argv.includes('--quiet')` false branch
+        // in the transient-error stderr path.
+        const argvBackup = process.argv.slice();
+        process.argv.push('--quiet');
+        try {
+            const client = buildClient();
+            client.getRun
+                .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+                .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
+
+            const stderrWrites: string[] = [];
+            const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+                stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+                return true;
+            });
+
+            const { ctx } = buildCtx(client);
+            const promise = handleRunWatch(ctx);
+            await vi.advanceTimersByTimeAsync(30_000);
+            await promise;
+
+            // --quiet suppresses the transient line; no `transient error`
+            // string should reach stderr even though the 503 was retried.
+            expect(stderrWrites.join('')).not.toMatch(/transient error/);
+            spyErr.mockRestore();
+        } finally {
+            process.argv.length = 0;
+            process.argv.push(...argvBackup);
+        }
+    });
+
+    it('--quiet suppresses the SIGINT status summary too', async () => {
+        // Mirror suppression on the signal-summary write at line 179.
+        const argvBackup = process.argv.slice();
+        process.argv.push('--quiet');
+        try {
+            const client = buildClient();
+            client.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+
+            const stderrWrites: string[] = [];
+            const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+                stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+                return true;
+            });
+
+            const { ctx } = buildCtx(client);
+            const promise = handleRunWatch(ctx);
+            await Promise.resolve();
+            await Promise.resolve();
+            process.emit('SIGINT');
+            await vi.advanceTimersByTimeAsync(0);
+            await promise;
+
+            expect(stderrWrites.join('')).not.toMatch(/interrupted at runId/);
+            spyErr.mockRestore();
+        } finally {
+            process.argv.length = 0;
+            process.argv.push(...argvBackup);
+        }
+    });
+
+    it('wraps a non-Error rejection from getRun as Error (covers the rejection-shape coercion)', async () => {
+        // Exercises the `e instanceof Error ? e : new Error(String(e))` false
+        // branch — a thunk that rejects with a plain string must still
+        // surface as an Error to main().
+        const client = buildClient();
+        client.getRun.mockImplementationOnce(
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises, @typescript-eslint/prefer-promise-reject-errors
+            (): Promise<never> => Promise.reject('plain-string-failure'),
+        );
+        const { ctx } = buildCtx(client);
+        await expect(handleRunWatch(ctx)).rejects.toThrow(/plain-string-failure/);
+    });
 });

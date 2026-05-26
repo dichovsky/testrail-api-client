@@ -299,6 +299,19 @@ describe('attachment upload handlers', () => {
         );
     });
 
+    it('add-to-result dry-run skips upload and returns (covers null-upload short-circuit)', async () => {
+        // Exercises the `if (upload === null) return;` true branch in
+        // handleAttachmentAddToResult. Without this, the result-specific
+        // dry-run path is unverified.
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['77'], file: filePath, dryRun: true });
+        await handleAttachmentAddToResult(ctx);
+        expect(client.addAttachmentToResult).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'attachment add-to-result', resultId: 77 }),
+        );
+    });
+
     it('add-to-run uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['88'], file: filePath });
@@ -310,6 +323,16 @@ describe('attachment upload handlers', () => {
         );
     });
 
+    it('add-to-run dry-run skips upload and returns (covers null-upload short-circuit)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['88'], file: filePath, dryRun: true });
+        await handleAttachmentAddToRun(ctx);
+        expect(client.addAttachmentToRun).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'attachment add-to-run', runId: 88 }),
+        );
+    });
+
     it('add-to-plan uploads correctly', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['99'], file: filePath });
@@ -318,6 +341,16 @@ describe('attachment upload handlers', () => {
             99,
             expect.objectContaining({ path: filePath }),
             'shot.png',
+        );
+    });
+
+    it('add-to-plan dry-run skips upload and returns (covers null-upload short-circuit)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['99'], file: filePath, dryRun: true });
+        await handleAttachmentAddToPlan(ctx);
+        expect(client.addAttachmentToPlan).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'attachment add-to-plan', planId: 99 }),
         );
     });
 

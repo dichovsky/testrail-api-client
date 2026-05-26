@@ -4503,6 +4503,16 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('uninstall-skill');
         });
+
+        it('routes the uninstall-skill positional through the runUninstallSkill helper (exit 1, not-found)', async () => {
+            // Exercises the `if (positionals[0] === 'uninstall-skill')` true
+            // branch in src/cli/index.ts. The CLI dispatches before resource:action
+            // parsing; with no skill installed the helper returns 1.
+            const { exitCodes } = await runCli(['uninstall-skill']);
+            // Exit code is 1 (no skill installed in this sandbox) — confirms
+            // the dispatch path runs rather than the resource:action path.
+            expect(exitCodes).toContain(1);
+        });
     });
 
     describe('plan', () => {
@@ -5528,6 +5538,32 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/cannot be combined with --data/);
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('add-to-case --file - rejects --api-key-stdin combination (one consumer per stdin)', async () => {
+            // Exercises the `if (apiKeyStdin)` true branch inside the
+            // file-flag-is-stdin mutex check at src/cli/index.ts:518.
+            // Both flags want fd 0; the gate refuses the combination
+            // before any handler runs.
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = false;
+            try {
+                const result = await withStubbedStdin('fake-key', () =>
+                    runCli([
+                        'attachment',
+                        'add-to-case',
+                        '42',
+                        '--file',
+                        '-',
+                        '--api-key-stdin',
+                    ]),
+                );
+                expect(result.exitCodes).toContain(1);
+                expect(result.stderr).toMatch(/cannot be combined with --api-key-stdin/);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('--file - rejected on non-upload actions', async () => {
