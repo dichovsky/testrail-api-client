@@ -184,7 +184,10 @@ export function validateGates({ callSites, actions, endpoints, recipes, rootPref
     for (const cs of callSites) {
         const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
         if (!jsonKeys.has(key)) {
-            const rel = rootPrefix ? cs.moduleFile.replace(rootPrefix, '') : cs.moduleFile;
+            const rel =
+                rootPrefix && cs.moduleFile.startsWith(rootPrefix)
+                    ? cs.moduleFile.slice(rootPrefix.length)
+                    : cs.moduleFile;
             errors.push(
                 `[gate B] ${rel}:${cs.line} — \`${cs.methodName}\` has @testrail "${cs.method} ${cs.path}" but this endpoint is not in docs/testrail-endpoints.json`,
             );
@@ -256,7 +259,10 @@ export function renderEndpointCell(ep) {
 
 export function renderClientCell(match, rootPrefix) {
     if (!match) return '—';
-    const rel = match.moduleFile.replace(rootPrefix, '');
+    const rel =
+        rootPrefix && match.moduleFile.startsWith(rootPrefix)
+            ? match.moduleFile.slice(rootPrefix.length)
+            : match.moduleFile;
     return `[\`${match.methodName}\`](${LINK_PREFIX}${rel}#L${match.line})`;
 }
 
