@@ -28,8 +28,13 @@ jobs:
             - name: Run codemap drift check
               run: npm run codemap:check
 
+            # Call the generator directly instead of `npm run skill`, which
+            # would re-run `npm run build` (already executed above). The
+            # standalone build step is the single source of dist/ for all
+            # three drift checks; chaining via `npm run skill` duplicated
+            # the TypeScript compile and undermined fail-fast.
             - name: Generate skill documentation
-              run: npm run skill
+              run: node scripts/generate-skill.js
 
             - name: Run skill drift check
               run: npm run skill:check
