@@ -2135,7 +2135,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     apiKey: 'api-key',
                     allowInsecure: true,
                 });
-                expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('allowInsecure is enabled'));
+                expect(warnSpy).not.toHaveBeenCalled();
                 c.destroy();
             } finally {
                 warnSpy.mockRestore();
@@ -2144,7 +2144,7 @@ describe('TestRailClient - Enhanced Features', () => {
     });
 
     describe('destroy() exception safety (SEC #28)', () => {
-        it('removes client from activeClients even when cleanup throws', () => {
+        it('is idempotent after a throwing cleanup', () => {
             const c = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
                 email: 'test@example.com',
@@ -2154,9 +2154,31 @@ describe('TestRailClient - Enhanced Features', () => {
                 throw new Error('boom');
             });
             expect(() => c.destroy()).toThrow('boom');
-            // After the throw, destroy() should be idempotent (isDestroyed=true)
             expect(() => c.destroy()).not.toThrow();
             spy.mockRestore();
+        });
+
+        it('cleanupAllClients sweep continues past a throwing client', () => {
+            // Without the per-client try/catch in cleanupAllClients, a throwing
+            // client aborts the sweep and siblings are never destroyed.
+            const bad = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                registerProcessHandlers: true,
+            });
+            const good = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+            vi.spyOn(bad as unknown as { clearCache: () => void }, 'clearCache').mockImplementation(() => {
+                throw new Error('boom');
+            });
+            const goodSpy = vi.spyOn(good, 'destroy');
+            process.emit('exit', 0);
+            expect(goodSpy).toHaveBeenCalledOnce();
+            goodSpy.mockRestore();
         });
     });
 

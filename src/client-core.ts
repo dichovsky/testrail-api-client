@@ -727,9 +727,11 @@ export class TestRailClientCore {
         try {
             this.stopCacheCleanup();
             this.clearCache();
-            // Zero the in-memory credential to reduce exposure window.
-            this.auth = '';
         } finally {
+            // Zero the credential and remove from registry unconditionally so a
+            // throw inside stopCacheCleanup/clearCache leaves no stale entry and
+            // no recoverable credential in the heap.
+            this.auth = '';
             activeClients.delete(this);
         }
     }
