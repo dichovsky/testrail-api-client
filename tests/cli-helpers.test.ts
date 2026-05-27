@@ -317,6 +317,12 @@ describe('parseEntryId', () => {
     it('includes the parameter name in the error', () => {
         expect(() => parseEntryId(undefined, 'entry_id')).toThrow(/entry_id/);
     });
+
+    it('throws when raw is not a UUID (non-UUID string)', () => {
+        expect(() => parseEntryId('not-a-uuid', 'entry_id')).toThrow(IdParseError);
+        expect(() => parseEntryId('../../admin', 'entry_id')).toThrow(IdParseError);
+        expect(() => parseEntryId('entry-guid-1', 'entry_id')).toThrow(IdParseError);
+    });
 });
 
 describe('optInt', () => {
