@@ -31,7 +31,7 @@ vi.mock('../src/utils.js', async (importOriginal) => {
 
 beforeEach(() => {
     vi.resetAllMocks();
-    mockDnsLookup.mockResolvedValue([]);
+    mockDnsLookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
 });
 
 // ---------------------------------------------------------------------------
