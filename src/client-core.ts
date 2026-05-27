@@ -604,8 +604,7 @@ export class TestRailClientCore {
      * @throws {TestRailValidationError} When entryId is not a UUID string
      */
     public validateEntryId(entryId: string): void {
-        const trimmed = typeof entryId === 'string' ? entryId.trim() : '';
-        if (!ENTRY_ID_RE.test(trimmed)) {
+        if (!ENTRY_ID_RE.test(entryId.trim())) {
             throw new TestRailValidationError('entryId must be a UUID string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
         }
     }

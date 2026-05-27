@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "82fea6de329c1e6cc0e72c1f7a6f4fde82b84da4c68c8edf7a26191083fc9752",
+  "sourceHash": "416dd7d4db09b0d7a52cf936883c99940c59e6aae828665baf4922d4daf8b8e7",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4054,82 +4054,82 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 617
+              "line": 616
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 636
+              "line": 635
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 648
+              "line": 647
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 669
+              "line": 668
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 691
+              "line": 690
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 699
+              "line": 698
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 710
+              "line": 709
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 717
+              "line": 716
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 744
+              "line": 743
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 781
+              "line": 780
             },
             {
               "name": "requestText",
               "kind": "method",
-              "line": 996
+              "line": 995
             },
             {
               "name": "requestMultipart",
               "kind": "method",
-              "line": 1122
+              "line": 1121
             },
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1252
+              "line": 1251
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1358
+              "line": 1357
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1367
+              "line": 1366
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1400
+              "line": 1399
             }
           ]
         }
