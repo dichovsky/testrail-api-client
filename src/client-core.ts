@@ -13,7 +13,7 @@ import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
 import { ZodError, type ZodType } from 'zod';
 import type { PipelineSpec } from './http-pipeline-types.js';
-import { fullRetryPolicy, binaryGetRetryPolicy } from './retry-policy.js';
+import { fullRetryPolicy, binaryGetRetryPolicy, noRetryPolicy } from './retry-policy.js';
 
 /**
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
@@ -893,145 +893,121 @@ export class TestRailClientCore {
      * @throws {Error} When called after `destroy()`
      */
     public async requestMultipart<T>(endpoint: string, file: UploadFileInput, filename: string): Promise<T> {
-        if (this.isDestroyed) {
-            throw new Error('Cannot use TestRailClient after destroy() has been called');
-        }
-
-        await this.awaitDnsValidation();
-
-        this.checkRateLimit();
-
-        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
         // Track the caller-supplied fd locally so we never mutate the input
         // descriptor (SEC #30 — immutability). `fdToClose` is set to undefined
-        // as soon as we close the fd so the finally block never double-closes.
+        // as soon as we close the fd so cleanup never double-closes.
         let fdToClose: number | undefined = isFilePathInput(file) ? file.fd : undefined;
 
-        try {
-            // Build the multipart body inside the try block so file-open
-            // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
-            // TestRailApiError rather than an unhandled TypeError. openAsBlob
-            // returns a file-backed Blob whose stream() reads from disk on
-            // demand, so fetch consumes the FormData via that stream and the
-            // entire file is never resident in memory at once.
-            const formData = new globalThis.FormData();
-            let blob: globalThis.Blob;
-            if (isFilePathInput(file)) {
-                const opts: { type?: string } = {};
-                if (file.type !== undefined) opts.type = file.type;
-
-                let uploadPath = file.path;
-                if (fdToClose !== undefined) {
-                    if (process.platform === 'darwin') {
-                        uploadPath = `/dev/fd/${fdToClose}`;
-                    } else if (process.platform === 'linux') {
-                        uploadPath = `/proc/self/fd/${fdToClose}`;
-                    } else {
-                        // Non-POSIX: use the original path directly; close the
-                        // fd now since /dev/fd symlinks aren't available.
-                        try {
-                            closeSync(fdToClose);
-                        } catch {
-                            // best-effort
-                        }
-                        fdToClose = undefined; // prevent duplicate close in finally
-                    }
-                }
-
-                blob = await openAsBlob(uploadPath, opts);
-
-                // `/dev/fd/<N>` and `/proc/self/fd/<N>` are kernel-resolved
-                // symlinks: the OS dereferenced the symlink and opened a new,
-                // independent file description to the same inode. Our original
-                // fd N is now redundant — close it early to shrink the
-                // concurrent-fd window (SEC #30). If openAsBlob threw above,
-                // this block is never reached and the finally block closes fd N.
-                if (fdToClose !== undefined) {
+        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+        return this.executePipeline<T>({
+            method: 'POST',
+            endpoint,
+            body: {
+                kind: 'formdata',
+                build: async () => {
                     try {
-                        closeSync(fdToClose);
-                    } catch {
-                        // best-effort cleanup
-                    }
-                    fdToClose = undefined;
-                }
-            } else if (file instanceof globalThis.Blob) {
-                blob = file;
-            } else {
-                // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
-                blob = new globalThis.Blob([new Uint8Array(file)]);
-            }
-            formData.append('attachment', blob, filename);
+                        // Build the multipart body inside the try block so file-open
+                        // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
+                        // TestRailApiError rather than an unhandled TypeError. openAsBlob
+                        // returns a file-backed Blob whose stream() reads from disk on
+                        // demand, so fetch consumes the FormData via that stream and the
+                        // entire file is never resident in memory at once.
+                        const formData = new globalThis.FormData();
+                        let blob: globalThis.Blob;
+                        if (isFilePathInput(file)) {
+                            const opts: { type?: string } = {};
+                            if (file.type !== undefined) opts.type = file.type;
 
-            const response = await (this.fetchOverride ?? globalThis.fetch)(url, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Basic ${this.auth}`,
-                    'User-Agent': USER_AGENT,
-                    // Do NOT set Content-Type — fetch sets it automatically with the boundary
+                            let uploadPath = file.path;
+                            if (fdToClose !== undefined) {
+                                if (process.platform === 'darwin') {
+                                    uploadPath = `/dev/fd/${fdToClose}`;
+                                } else if (process.platform === 'linux') {
+                                    uploadPath = `/proc/self/fd/${fdToClose}`;
+                                } else {
+                                    // Non-POSIX: use the original path directly; close the
+                                    // fd now since /dev/fd symlinks aren't available.
+                                    try {
+                                        closeSync(fdToClose);
+                                    } catch {
+                                        // best-effort
+                                    }
+                                    fdToClose = undefined; // prevent duplicate close in cleanup
+                                }
+                            }
+
+                            blob = await openAsBlob(uploadPath, opts);
+
+                            // `/dev/fd/<N>` and `/proc/self/fd/<N>` are kernel-resolved
+                            // symlinks: the OS dereferenced the symlink and opened a new,
+                            // independent file description to the same inode. Our original
+                            // fd N is now redundant — close it early to shrink the
+                            // concurrent-fd window (SEC #30). If openAsBlob threw above,
+                            // this block is never reached and cleanup closes fd N.
+                            if (fdToClose !== undefined) {
+                                try {
+                                    closeSync(fdToClose);
+                                } catch {
+                                    // best-effort cleanup
+                                }
+                                fdToClose = undefined;
+                            }
+                        } else if (file instanceof globalThis.Blob) {
+                            blob = file;
+                        } else {
+                            // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
+                            blob = new globalThis.Blob([new Uint8Array(file)]);
+                        }
+                        formData.append('attachment', blob, filename);
+
+                        return {
+                            body: formData,
+                            cleanup: () => {
+                                // fdToClose is always undefined here (closed early on POSIX
+                                // after openAsBlob, or on non-POSIX before openAsBlob).
+                                // This guard is a defensive safety net; c8 ignore covers the
+                                // unreachable try block.
+                                /* c8 ignore next 5 */
+                                if (fdToClose !== undefined) {
+                                    try {
+                                        closeSync(fdToClose);
+                                    } catch {
+                                        // best-effort cleanup
+                                    }
+                                }
+                            },
+                        };
+                    } catch (buildErr) {
+                        // If build throws before returning cleanup, close the fd here
+                        // so executePipeline's formdataCleanup?.() (undefined) doesn't leak.
+                        if (fdToClose !== undefined) {
+                            try {
+                                closeSync(fdToClose);
+                            } catch {
+                                // best-effort
+                            }
+                            fdToClose = undefined;
+                        }
+                        throw buildErr;
+                    }
                 },
-                body: formData,
-                signal: controller.signal,
-                // BACKLOG #4: never follow redirects automatically (see request<T>).
-                redirect: 'manual',
-            });
-
-            this.assertNotRedirect(response);
-
-            const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
-
-            if (!response.ok) {
-                // Body-limit errors (cap / timeout) surface immediately — see
-                // the same pattern in request<T>() for the full rationale.
-                let errorText: string;
+            },
+            sendJsonContentType: false,
+            retryPolicy: noRetryPolicy(),
+            cache: { key: undefined, skipRead: false },
+            parseSuccess: async (response: Response) => {
+                const responseText = await readBodyAsText(response, jsonLimits);
+                if (!responseText) return {} as T;
                 try {
-                    errorText = await readBodyAsText(response, jsonLimits);
-                } catch (bodyErr) {
-                    if (bodyErr instanceof TestRailApiError) {
-                        throw bodyErr;
-                    }
-                    errorText = 'Unknown error';
-                }
-                throw createApiError(response.status, response.statusText, errorText);
-            }
-
-            // Invalidate cache after upload
-            this.clearCache();
-
-            const responseText = await readBodyAsText(response, jsonLimits);
-            if (!responseText) {
-                return {} as T;
-            }
-
-            try {
-                return JSON.parse(responseText) as T;
-            } catch {
-                throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
-            }
-        } catch (error) {
-            if (error instanceof TestRailApiError) {
-                throw error;
-            }
-
-            const isAbortError = (error as Error).name === 'AbortError';
-            if (isAbortError) {
-                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
-            }
-
-            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
-        } finally {
-            clearTimeout(timeoutId);
-            if (fdToClose !== undefined) {
-                try {
-                    closeSync(fdToClose);
+                    return JSON.parse(responseText) as T;
                 } catch {
-                    // best-effort cleanup
+                    throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
                 }
-            }
-        }
+            },
+            onSuccessBeforeParse: () => {
+                this.clearCache();
+            },
+        });
     }
 
     /**
@@ -1112,6 +1088,7 @@ export class TestRailClientCore {
         const retrySpec: PipelineSpec<TParsed> = { ...spec, cache: { key: cacheKey, skipRead: true } };
 
         const fetchPromise: Promise<TParsed> = (async () => {
+            let formdataCleanup: (() => void) | undefined;
             try {
                 const options: RequestInit = {
                     method: spec.method,
@@ -1124,9 +1101,12 @@ export class TestRailClientCore {
                 };
                 if (spec.body.kind === 'json') {
                     options.body = JSON.stringify(spec.body.data);
+                } else if (spec.body.kind === 'formdata') {
+                    const built = await spec.body.build();
+                    options.body = built.body;
+                    formdataCleanup = built.cleanup;
                 }
                 // kind === 'none': no body
-                // kind === 'formdata': added in Phase 4 when requestMultipart migrates
 
                 const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
                 // Headers received — header timeout has done its job. The body
@@ -1189,6 +1169,8 @@ export class TestRailClientCore {
                 }
 
                 throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+            } finally {
+                formdataCleanup?.();
             }
         })();
 
