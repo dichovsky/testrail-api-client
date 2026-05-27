@@ -1036,4 +1036,36 @@ describe('TestRailClient - Coverage Improvement', () => {
             client.destroy();
         });
     });
+
+    describe('baseUrl userinfo rejection (SEC #20)', () => {
+        it('throws for baseUrl with username and password', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://user:pass@example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                });
+            }).toThrow(TestRailValidationError);
+        });
+
+        it('throws for baseUrl with username only', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://user@example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                });
+            }).toThrow(TestRailValidationError);
+        });
+
+        it('includes a helpful message pointing to email/apiKey fields', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://user:pass@example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                });
+            }).toThrow(/embedded credentials/);
+        });
+    });
 });

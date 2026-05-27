@@ -182,7 +182,11 @@ let processHandlersRegistered = false;
 // Synchronous-only cleanup — safe to call on process exit
 function cleanupAllClients(): void {
     for (const client of activeClients) {
-        client.destroy();
+        try {
+            client.destroy();
+        } catch {
+            // One throwing client must not abort the sweep.
+        }
     }
 }
 
@@ -270,6 +274,14 @@ export class TestRailClientCore {
         this.bodyTimeout = config.bodyTimeout ?? this.timeout;
         this.fetchOverride = config.fetch;
 
+        if (config.allowInsecure === true && new URL(config.baseUrl).protocol === 'http:') {
+            // eslint-disable-next-line no-console
+            console.warn(
+                '[testrail-api-client] WARNING: allowInsecure is enabled. ' +
+                    'HTTP transmits credentials in cleartext. Use HTTPS in production.',
+            );
+        }
+
         // DNS host validation runs fresh before every request (see awaitDnsValidation).
         // Resolving once at construction would let a DNS-rebinding attacker pin a
         // public IP for the validation lookup and then flip to a private target
@@ -321,6 +333,13 @@ export class TestRailClientCore {
                 throw new TestRailValidationError(
                     'baseUrl must use HTTPS. HTTP sends credentials in cleartext. ' +
                         'Set allowInsecure: true only in isolated development environments.',
+                );
+            }
+
+            if (url.username !== '' || url.password !== '') {
+                throw new TestRailValidationError(
+                    'baseUrl must not contain embedded credentials (userinfo). ' +
+                        'Use the email and apiKey config fields instead.',
                 );
             }
 
@@ -617,7 +636,7 @@ export class TestRailClientCore {
             // Move to end to mark as recently used (LRU behavior)
             this.cache.delete(cacheKey);
             this.cache.set(cacheKey, entry);
-            return entry.data;
+            return globalThis.structuredClone<T>(entry.data);
         }
 
         // Clean expired entry
@@ -642,7 +661,7 @@ export class TestRailClientCore {
         }
 
         this.cache.set(cacheKey, {
-            data,
+            data: globalThis.structuredClone(data),
             expiry: Date.now() + this.cacheTtl,
         });
     }
@@ -705,14 +724,14 @@ export class TestRailClientCore {
         }
 
         this.isDestroyed = true;
-        this.stopCacheCleanup();
-        this.clearCache();
-
-        // Zero the in-memory credential to reduce exposure window.
-        this.auth = '';
-
-        // Remove this instance from the active clients set
-        activeClients.delete(this);
+        try {
+            this.stopCacheCleanup();
+            this.clearCache();
+            // Zero the in-memory credential to reduce exposure window.
+            this.auth = '';
+        } finally {
+            activeClients.delete(this);
+        }
     }
 
     /**
