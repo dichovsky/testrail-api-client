@@ -1,9 +1,7 @@
 /**
- * Shared source-of-truth content for all generated agent-instruction
- * artifacts: `.continue/rules/testrail.md` and `AGENTS.md`. The shared
- * body (`renderRulesBody`) is identical across both formats; wrappers
- * and extra sections differ — `renderContinueRules` just prepends a
- * heading, while `renderAgentsMd` adds a different header plus a
+ * Shared source-of-truth content for the generated agent-instruction
+ * artifact `AGENTS.md`. The shared body (`renderRulesBody`) is
+ * format-neutral; `renderAgentsMd` wraps it with a header and a
  * trailing "Build / verify commands" section.
  *
  * Determinism: every helper here is pure and order-stable. ACTIONS is
@@ -171,7 +169,7 @@ export function renderRulesBody(actions) {
         '- Pass the API key on argv (`--api-key` was removed in v3.0).',
         '- Skip `npm run typecheck` before committing.',
         '- Hand-edit `CODEMAP.md`, `docs/API-MAPPING.md`, `skill/SKILL.md`',
-        '  generated sections, `.continue/rules/testrail.md`, or `AGENTS.md`',
+        '  generated sections, or `AGENTS.md`',
         '  — they are all generated. Re-run the matching `npm run` script',
         '  after editing the source.',
         '',
@@ -188,15 +186,6 @@ export function renderRulesBody(actions) {
         '  API tour',
         '',
     ].join('\n');
-}
-
-/**
- * Continue (continue.dev) rules — plain markdown, no frontmatter required.
- * Continue picks up `.continue/rules/*.md` files from the workspace and
- * injects them into the system prompt. Spec: https://docs.continue.dev/customization/rules
- */
-export function renderContinueRules(actions) {
-    return `# TestRail API client — agent guide\n\n${renderRulesBody(actions)}`;
 }
 
 /**
@@ -226,7 +215,6 @@ export function renderAgentsMd(actions) {
         'npm run codemap                # Regenerate CODEMAP.md',
         'npm run mapping                # Regenerate docs/API-MAPPING.md',
         'npm run skill                  # Regenerate skill/SKILL.md',
-        'npm run continue-rules         # Regenerate .continue/rules/testrail.md',
         'npm run agents-md              # Regenerate AGENTS.md',
         '```',
         '',

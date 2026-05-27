@@ -24,7 +24,7 @@ CLI hardening cluster and one library-API breaker. Highlights:
   your behalf — no action needed for `testrail` users.
 - **New CLI surface** — `--format yaml|csv`, binary stdio (`--file -` /
   `--out -`), `case add-bulk`, `run watch`, attachment pagination,
-  `uninstall-skill`, Cursor/Continue/AGENTS.md rule generators.
+  `uninstall-skill`, Cursor/AGENTS.md rule generators.
 - **Streaming uploads** — `requestMultipart` now streams from disk via
   `node:fs.openAsBlob` (heap +175 MiB → +0.02 MiB on a 100 MiB attachment).
 
@@ -104,19 +104,9 @@ npx testrail uninstall-skill            # project-scoped
 npx testrail uninstall-skill --global   # global-scoped
 ```
 
-`uninstall-skill` removes ONLY the skill file (and its empty parent directory). It deliberately does NOT touch `.continue/rules/testrail.md` or `AGENTS.md` — those artifacts have an independent lifecycle (they are generated from `src/cli/metadata.ts` and live alongside other agent-tool configuration). Remove them manually if you want to fully decouple.
+`uninstall-skill` removes ONLY the skill file (and its empty parent directory). It deliberately does NOT touch `AGENTS.md` — that artifact has an independent lifecycle (it is generated from `src/cli/metadata.ts`). Remove it manually if you want to fully decouple.
 
 The skill description triggers auto-load when an agent's prompt mentions TestRail entities (projects, suites, cases, runs, results, milestones, users) or when `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the environment. The bundled CLI itself supports both read (`get`, `list`) and write (`add`, `update`, `add-bulk`, `close`) operations — see `skill/SKILL.md` for the complete command surface, recipes, and a parallel "Programmatic TypeScript API" section with copy-paste examples for using `TestRailClient` directly.
-
-### Continue (continue.dev)
-
-`.continue/rules/testrail.md` is a [Continue workspace rule](https://docs.continue.dev/customization/rules). To install it into your own project:
-
-```bash
-mkdir -p .continue/rules
-curl -fsSL https://raw.githubusercontent.com/dichovsky/testrail-api-client/main/.continue/rules/testrail.md \
-    > .continue/rules/testrail.md
-```
 
 ### Generic AGENTS.md
 

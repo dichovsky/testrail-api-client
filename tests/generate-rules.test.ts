@@ -1,19 +1,18 @@
 /**
- * Tests for the agent-instruction generators: `.continue/rules/testrail.md`
- * and `AGENTS.md`. Both share `scripts/rules-content.mjs` so the tests cover
- * both the pure renderers and the committed output (drift gates run via the
- * scripts themselves at `pretest` time).
+ * Tests for the agent-instruction generator: `AGENTS.md`. The renderer
+ * uses `scripts/rules-content.mjs` so the tests cover both the pure
+ * renderer and the committed output (drift gates run via the script at
+ * `pretest` time).
  *
  * Focus: determinism (re-rendering the same input is byte-identical) and
- * structural invariants (no frontmatter for continue, agents.md
- * self-references).
+ * structural invariants (agents.md self-references).
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { ACTIONS } from '../src/cli/metadata.js';
-import { renderAgentsMd, renderContinueRules, resourceList } from '../scripts/rules-content.mjs';
+import { renderAgentsMd, resourceList } from '../scripts/rules-content.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -34,18 +33,6 @@ describe('resourceList', () => {
     });
 });
 
-describe('renderContinueRules', () => {
-    it('has no YAML frontmatter (Continue rules are plain markdown)', () => {
-        const out = renderContinueRules(ACTIONS);
-        expect(out.startsWith('---')).toBe(false);
-        expect(out.startsWith('# TestRail API client')).toBe(true);
-    });
-
-    it('is deterministic', () => {
-        expect(renderContinueRules(ACTIONS)).toBe(renderContinueRules(ACTIONS));
-    });
-});
-
 describe('renderAgentsMd', () => {
     it('starts with the AGENTS.md heading and links to agents.md spec', () => {
         const out = renderAgentsMd(ACTIONS);
@@ -61,7 +48,6 @@ describe('renderAgentsMd', () => {
             'npm run lint',
             'npm run codemap',
             'npm run skill',
-            'npm run continue-rules',
             'npm run agents-md',
         ]) {
             expect(out).toContain(cmd);
@@ -77,11 +63,6 @@ describe('committed artifacts match generator output', () => {
     // These tests replicate the `--check` drift gates inside the test
     // runner, so a failure surfaces alongside the relevant unit tests
     // instead of only from `npm run pretest`.
-    it('.continue/rules/testrail.md matches generator output', () => {
-        const committed = readFileSync(path.join(root, '.continue', 'rules', 'testrail.md'), 'utf-8');
-        expect(committed).toBe(`${renderContinueRules(ACTIONS)}\n`);
-    });
-
     it('AGENTS.md matches generator output', () => {
         const committed = readFileSync(path.join(root, 'AGENTS.md'), 'utf-8');
         expect(committed).toBe(`${renderAgentsMd(ACTIONS)}\n`);
