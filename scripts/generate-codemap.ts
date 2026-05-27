@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Generates CODEMAP.md — a machine-readable symbol index for coding agents.
- * Run: node scripts/generate-codemap.js          (regenerate)
- *      node scripts/generate-codemap.js --check  (verify committed CODEMAP.md is up to date)
+ * Run: npx tsx scripts/generate-codemap.ts          (regenerate)
+ *      npx tsx scripts/generate-codemap.ts --check  (verify committed CODEMAP.md is up to date)
  *
  * Output shape (schema "codemap.v2"): a short Markdown preamble followed by a
  * single fenced ```json``` block.
@@ -25,13 +25,6 @@
  * scanner so string literals are preserved.
  *
  * Sanity bound (not enforced): target ≤ 150 KB for this repo.
- *
- * Deviations from the original spec:
- *   - .gitignore is NOT parsed; sourceDirs + exclude in codemap.config.json
- *     are the sole filters. Adding a parser would be dead code given this
- *     repo's layout (every ignored path is already outside sourceDirs).
- *   - The script is .js (not .ts) so no new devDep (tsx) is needed; the
- *     TypeScript Compiler API is imported directly from the existing devDep.
  */
 
 import { createHash } from 'node:crypto';
@@ -49,16 +42,28 @@ const DIFF_PREVIEW_LINES = 40;
 
 // ── Config + filesystem helpers ───────────────────────────────────────────────
 
-function toPosix(p) {
+function toPosix(p: string): string {
     return p.split(/[\\/]/).join('/');
 }
 
-function loadConfig(rootDir) {
+interface CodemapConfig {
+    sourceDirs: string[];
+    entrypoints: string[];
+    exclude: string[];
+    maxSignatureLength: number;
+}
+
+function loadConfig(rootDir: string): CodemapConfig {
     const configPath = join(rootDir, 'codemap.config.json');
     if (!existsSync(configPath)) {
         throw new Error(`codemap.config.json not found at ${configPath}`);
     }
-    const cfg = JSON.parse(readFileSync(configPath, 'utf8'));
+    const cfg = JSON.parse(readFileSync(configPath, 'utf8')) as {
+        sourceDirs?: string[];
+        entrypoints?: string[];
+        exclude?: string[];
+        maxSignatureLength?: number;
+    };
     return {
         sourceDirs: cfg.sourceDirs ?? ['src'],
         entrypoints: cfg.entrypoints ?? ['src/index.ts'],
@@ -69,7 +74,7 @@ function loadConfig(rootDir) {
 
 // Hand-rolled glob → regex. Supports **, *, ?, literal segments.
 // Patterns are matched against POSIX-normalized paths relative to rootDir.
-function globToRegex(glob) {
+function globToRegex(glob: string): RegExp {
     let re = '';
     let i = 0;
     while (i < glob.length) {
@@ -89,24 +94,24 @@ function globToRegex(glob) {
         } else if (c === '?') {
             re += '[^/]';
             i += 1;
-        } else if ('.+^$(){}|[]\\'.includes(c)) {
-            re += '\\' + c;
+        } else if (c !== undefined && '.+^$(){}|[]\\'.includes(c)) {
+            re += `\\${c}`;
             i += 1;
         } else {
-            re += c;
+            re += c ?? '';
             i += 1;
         }
     }
-    return new RegExp('^' + re + '$');
+    return new RegExp(`^${re}$`);
 }
 
-function matchesAnyGlob(relPath, compiledGlobs) {
+function matchesAnyGlob(relPath: string, compiledGlobs: RegExp[]): boolean {
     return compiledGlobs.some((re) => re.test(relPath));
 }
 
-function collectSourceFiles(rootDir, sourceDirs, exclude) {
+function collectSourceFiles(rootDir: string, sourceDirs: string[], exclude: string[]): string[] {
     const compiled = exclude.map(globToRegex);
-    const files = [];
+    const files: string[] = [];
     for (const dir of sourceDirs) {
         const abs = join(rootDir, dir);
         if (!existsSync(abs)) continue;
@@ -116,7 +121,7 @@ function collectSourceFiles(rootDir, sourceDirs, exclude) {
     return files;
 }
 
-function walk(absDir, rootDir, compiledExcludes, out) {
+function walk(absDir: string, rootDir: string, compiledExcludes: RegExp[], out: string[]): void {
     for (const name of readdirSync(absDir)) {
         const abs = join(absDir, name);
         const rel = toPosix(relative(rootDir, abs));
@@ -132,13 +137,13 @@ function walk(absDir, rootDir, compiledExcludes, out) {
     }
 }
 
-function normalizeLineEndings(s) {
+function normalizeLineEndings(s: string): string {
     // Normalize CRLF → LF so generator output and source hash are stable across
     // platforms and git autocrlf settings.
     return s.replace(/\r\n/g, '\n');
 }
 
-function computeSourceHash(rootDir, relFiles) {
+function computeSourceHash(rootDir: string, relFiles: string[]): string {
     const h = createHash('sha256');
     for (const rel of [...relFiles].sort()) {
         const content = normalizeLineEndings(readFileSync(join(rootDir, rel), 'utf8'));
@@ -152,7 +157,7 @@ function computeSourceHash(rootDir, relFiles) {
 
 // ── AST: signature extraction via scanner (preserves string literals) ─────────
 
-function normalizeWhitespace(source) {
+function normalizeWhitespace(source: string): string {
     // Tokenize via TS scanner so string literals (which may contain spaces or
     // newlines) are not corrupted by a naive `replace(/\s+/g, ' ')`.
     const scanner = ts.createScanner(
@@ -184,14 +189,18 @@ function normalizeWhitespace(source) {
     return out;
 }
 
-function truncate(s, maxLen) {
-    return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+function truncate(s: string, maxLen: number): string {
+    return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
 }
 
-function sliceFunctionSignature(node, sourceFile, maxLen) {
+function sliceFunctionSignature(
+    node: ts.FunctionDeclaration | ts.MethodDeclaration | ts.ConstructorDeclaration,
+    sourceFile: ts.SourceFile,
+    maxLen: number,
+): string {
     const text = sourceFile.text;
     const start = node.getStart(sourceFile);
-    const end = node.body ? node.body.getStart(sourceFile) : node.getEnd();
+    const end = node.body !== undefined ? node.body.getStart(sourceFile) : node.getEnd();
     const normalized = normalizeWhitespace(text.slice(start, end))
         .trim()
         .replace(/[\s{]+$/, '')
@@ -199,7 +208,7 @@ function sliceFunctionSignature(node, sourceFile, maxLen) {
     return truncate(normalized, maxLen);
 }
 
-function sliceClassHeader(node, sourceFile, maxLen) {
+function sliceClassHeader(node: ts.ClassDeclaration, sourceFile: ts.SourceFile, maxLen: number): string {
     const text = sourceFile.text;
     const start = node.getStart(sourceFile);
     const openBrace = text.indexOf('{', start);
@@ -207,83 +216,85 @@ function sliceClassHeader(node, sourceFile, maxLen) {
     return truncate(normalizeWhitespace(slice).trim(), maxLen);
 }
 
-function sliceFull(node, sourceFile, maxLen) {
+function sliceFull(node: ts.Node, sourceFile: ts.SourceFile, maxLen: number): string {
     const normalized = normalizeWhitespace(node.getText(sourceFile)).trim().replace(/;\s*$/, '');
     return truncate(normalized, maxLen);
 }
 
-function sliceVariable(stmt, sourceFile, maxLen) {
+function sliceVariable(stmt: ts.VariableStatement, sourceFile: ts.SourceFile, maxLen: number): string {
     const normalized = normalizeWhitespace(stmt.getText(sourceFile)).trim().replace(/;\s*$/, '');
     return truncate(normalized, maxLen);
 }
 
 // ── AST: JSDoc extraction (first paragraph + inline tag mentions) ─────────────
 
-function commentToString(comment) {
+function commentToString(comment: string | ts.NodeArray<ts.JSDocComment> | undefined): string {
     if (typeof comment === 'string') return comment;
-    if (!comment) return '';
-    return comment.map((c) => c.text ?? '').join('');
+    if (comment === undefined) return '';
+    if (Array.isArray(comment)) return (comment as { text?: string }[]).map((c) => c.text ?? '').join('');
+    return '';
 }
 
-function extractJsdoc(node) {
+function extractJsdoc(node: ts.Node): string | undefined {
     const docs = ts.getJSDocCommentsAndTags(node);
-    if (!docs || docs.length === 0) return undefined;
+    if (docs === undefined || docs.length === 0) return undefined;
     const jsDocNode = docs.find((d) => d.kind === ts.SyntaxKind.JSDoc);
-    if (!jsDocNode) return undefined;
+    if (jsDocNode === undefined) return undefined;
+    if (!ts.isJSDoc(jsDocNode)) return undefined;
 
     const commentText = commentToString(jsDocNode.comment);
     const firstParagraph = commentText.split(/\n\s*\n/)[0] ?? '';
     let text = firstParagraph.replace(/\s+/g, ' ').trim();
 
-    const inline = [];
+    const inline: string[] = [];
     let exampleSeen = false;
     for (const tag of jsDocNode.tags ?? []) {
-        const tagName = tag.tagName.escapedText;
-        if (tagName === 'param' || tagName === 'returns' || tagName === 'return') continue;
+        const tagName = tag.tagName.escapedText as string;
         const c = commentToString(tag.comment).replace(/\s+/g, ' ').trim();
+        if (tagName === 'param' || tagName === 'returns' || tagName === 'return') continue;
         if (tagName === 'deprecated') {
-            inline.push(c ? `@deprecated ${c}` : '@deprecated');
+            inline.push(c.length > 0 ? `@deprecated ${c}` : '@deprecated');
         } else if (tagName === 'since') {
-            inline.push(c ? `@since ${c}` : '@since');
+            inline.push(c.length > 0 ? `@since ${c}` : '@since');
         } else if (tagName === 'example' && !exampleSeen) {
             exampleSeen = true;
             const ex = truncate(c, JSDOC_EXAMPLE_TRUNCATE);
-            inline.push(ex ? `@example ${ex}` : '@example');
+            inline.push(ex.length > 0 ? `@example ${ex}` : '@example');
         }
     }
     if (inline.length > 0) {
-        text = text ? `${text} ${inline.join(' ')}` : inline.join(' ');
+        text = text.length > 0 ? `${text} ${inline.join(' ')}` : inline.join(' ');
     }
-    return text || undefined;
+    return text.length > 0 ? text : undefined;
 }
 
 // ── AST: helpers ──────────────────────────────────────────────────────────────
 
-function lineOf(node, sourceFile) {
+function lineOf(node: ts.Node, sourceFile: ts.SourceFile): number {
     const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     return line + 1;
 }
 
-function hasModifier(node, kind) {
+function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
     if (!ts.canHaveModifiers(node)) return false;
     const mods = ts.getModifiers(node);
-    return mods ? mods.some((m) => m.kind === kind) : false;
+    return mods !== undefined ? mods.some((m) => m.kind === kind) : false;
 }
 
-const hasExportModifier = (node) => hasModifier(node, ts.SyntaxKind.ExportKeyword);
-const hasDefaultModifier = (node) => hasModifier(node, ts.SyntaxKind.DefaultKeyword);
+const hasExportModifier = (node: ts.Node): boolean => hasModifier(node, ts.SyntaxKind.ExportKeyword);
+const hasDefaultModifier = (node: ts.Node): boolean => hasModifier(node, ts.SyntaxKind.DefaultKeyword);
 
-function variableKind(stmt) {
+function variableKind(stmt: ts.VariableStatement): string {
     // Distinguish const/let/var from VariableStatement.declarationList.flags.
-    // Without this, every variable declaration would be reported as 'const',
-    // which is misleading for module-level mutable state.
     const flags = stmt.declarationList.flags;
     if (flags & ts.NodeFlags.Const) return 'const';
     if (flags & ts.NodeFlags.Let) return 'let';
     return 'var';
 }
 
-function classifyMember(member) {
+type MemberKind = 'constructor' | 'method' | 'property' | 'getter' | 'setter';
+
+function classifyMember(member: ts.ClassElement): MemberKind | undefined {
     if (ts.isConstructorDeclaration(member)) return 'constructor';
     if (ts.isMethodDeclaration(member)) return 'method';
     if (ts.isPropertyDeclaration(member)) return 'property';
@@ -292,10 +303,10 @@ function classifyMember(member) {
     return undefined;
 }
 
-function memberName(member) {
+function memberName(member: ts.ClassElement): string | undefined {
     if (ts.isConstructorDeclaration(member)) return 'constructor';
     const n = member.name;
-    if (!n) return undefined;
+    if (n === undefined) return undefined;
     if (ts.isIdentifier(n) || ts.isPrivateIdentifier(n) || ts.isStringLiteral(n) || ts.isNumericLiteral(n)) {
         return n.text;
     }
@@ -304,28 +315,43 @@ function memberName(member) {
 
 // ── AST: per-file symbol extraction (all top-level declarations) ──────────────
 
-function extractFileSymbols(sourceFile, maxLen) {
-    const symbols = [];
+interface MemberEntry {
+    name: string;
+    kind: string;
+    line: number;
+}
+
+interface SymbolEntry {
+    name: string;
+    kind: string;
+    line: number;
+    exported: boolean;
+    signature: string;
+    members?: MemberEntry[];
+}
+
+function extractFileSymbols(sourceFile: ts.SourceFile, maxLen: number): SymbolEntry[] {
+    const symbols: SymbolEntry[] = [];
     for (const stmt of sourceFile.statements) {
         const line = lineOf(stmt, sourceFile);
         const exported = hasExportModifier(stmt);
         const isDefault = hasDefaultModifier(stmt);
 
-        if (ts.isFunctionDeclaration(stmt) && (stmt.name || isDefault)) {
+        if (ts.isFunctionDeclaration(stmt) && (stmt.name !== undefined || isDefault)) {
             symbols.push({
-                name: isDefault ? 'default' : stmt.name.text,
+                name: isDefault ? 'default' : (stmt.name as ts.Identifier).text,
                 kind: 'function',
                 line,
                 exported,
                 signature: sliceFunctionSignature(stmt, sourceFile, maxLen),
             });
         } else if (ts.isClassDeclaration(stmt)) {
-            const name = isDefault ? 'default' : stmt.name ? stmt.name.text : '<anonymous>';
-            const members = [];
+            const name = isDefault ? 'default' : stmt.name !== undefined ? stmt.name.text : '<anonymous>';
+            const members: MemberEntry[] = [];
             for (const m of stmt.members) {
                 const kind = classifyMember(m);
                 const nm = memberName(m);
-                if (!kind || !nm) continue;
+                if (kind === undefined || nm === undefined) continue;
                 members.push({ name: nm, kind, line: lineOf(m, sourceFile) });
             }
             members.sort((a, b) => a.line - b.line || a.name.localeCompare(b.name));
@@ -373,9 +399,9 @@ function extractFileSymbols(sourceFile, maxLen) {
                     signature: sliceVariable(stmt, sourceFile, maxLen),
                 });
             }
-        } else if (ts.isModuleDeclaration(stmt) && stmt.name) {
+        } else if (ts.isModuleDeclaration(stmt) && stmt.name !== undefined) {
             symbols.push({
-                name: stmt.name.text,
+                name: ts.isIdentifier(stmt.name) ? stmt.name.text : stmt.name.text,
                 kind: 'namespace',
                 line,
                 exported,
@@ -389,13 +415,17 @@ function extractFileSymbols(sourceFile, maxLen) {
 
 // ── AST: imports + reExports (sorted module specifiers) ───────────────────────
 
-function extractImportsAndReExports(sourceFile) {
-    const imports = new Set();
-    const reExports = new Set();
+function extractImportsAndReExports(sourceFile: ts.SourceFile): { imports: string[]; reExports: string[] } {
+    const imports = new Set<string>();
+    const reExports = new Set<string>();
     for (const stmt of sourceFile.statements) {
         if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier)) {
             imports.add(stmt.moduleSpecifier.text);
-        } else if (ts.isExportDeclaration(stmt) && stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)) {
+        } else if (
+            ts.isExportDeclaration(stmt) &&
+            stmt.moduleSpecifier !== undefined &&
+            ts.isStringLiteral(stmt.moduleSpecifier)
+        ) {
             reExports.add(stmt.moduleSpecifier.text);
         }
     }
@@ -404,7 +434,7 @@ function extractImportsAndReExports(sourceFile) {
 
 // ── Public API: transitive re-export resolver ────────────────────────────────
 
-function resolveSpecifierToFile(fromAbsFile, specifier, rootDir) {
+function resolveSpecifierToFile(fromAbsFile: string, specifier: string, rootDir: string): string | undefined {
     if (!specifier.startsWith('.')) return undefined; // bare or absolute: out of scope
     const fromDir = dirname(fromAbsFile);
     const tsSpec = specifier.replace(/\.js$/, '.ts');
@@ -415,7 +445,7 @@ function resolveSpecifierToFile(fromAbsFile, specifier, rootDir) {
     return undefined;
 }
 
-function classifyDeclaration(stmt) {
+function classifyDeclaration(stmt: ts.Statement): string | undefined {
     if (ts.isFunctionDeclaration(stmt)) return 'function';
     if (ts.isClassDeclaration(stmt)) return 'class';
     if (ts.isInterfaceDeclaration(stmt)) return 'interface';
@@ -425,33 +455,45 @@ function classifyDeclaration(stmt) {
     return undefined;
 }
 
+interface DeclInfo {
+    kind: string;
+    node: ts.Node;
+    parent?: ts.VariableStatement;
+}
+
+type FileExport =
+    | { kind: 'star'; fromSpec: string; typeOnly: boolean }
+    | { kind: 'namespace-star'; name: string; fromSpec: string; typeOnly: boolean }
+    | { kind: 'named'; name: string; importedName: string; fromSpec?: string; typeOnly: boolean }
+    | { kind: 'declaration'; name: string; decl: DeclInfo; typeOnly: boolean };
+
 /**
- * Enumerate this file's exports as a flat list of records:
- *   - { kind: 'star',           fromSpec, typeOnly }                    export * from '...'
- *   - { kind: 'namespace-star', name, fromSpec, typeOnly }              export * as X from '...'
- *   - { kind: 'named',          name, importedName, fromSpec?, typeOnly } export { A as B } from '...' / export { X }
- *   - { kind: 'declaration',    name, decl, typeOnly }                  export class/function/const/...
+ * Enumerate this file's exports as a flat list of records.
  */
-function collectFileExports(sourceFile) {
-    const out = [];
+function collectFileExports(sourceFile: ts.SourceFile): FileExport[] {
+    const out: FileExport[] = [];
     for (const stmt of sourceFile.statements) {
         if (ts.isExportDeclaration(stmt)) {
             const fromSpec =
-                stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)
+                stmt.moduleSpecifier !== undefined && ts.isStringLiteral(stmt.moduleSpecifier)
                     ? stmt.moduleSpecifier.text
                     : undefined;
             const typeOnly = stmt.isTypeOnly === true;
-            if (stmt.exportClause === undefined && fromSpec) {
+            if (stmt.exportClause === undefined && fromSpec !== undefined) {
                 out.push({ kind: 'star', fromSpec, typeOnly });
-            } else if (stmt.exportClause && ts.isNamespaceExport(stmt.exportClause) && fromSpec) {
+            } else if (
+                stmt.exportClause !== undefined &&
+                ts.isNamespaceExport(stmt.exportClause) &&
+                fromSpec !== undefined
+            ) {
                 out.push({ kind: 'namespace-star', name: stmt.exportClause.name.text, fromSpec, typeOnly });
-            } else if (stmt.exportClause && ts.isNamedExports(stmt.exportClause)) {
+            } else if (stmt.exportClause !== undefined && ts.isNamedExports(stmt.exportClause)) {
                 for (const el of stmt.exportClause.elements) {
                     out.push({
                         kind: 'named',
                         name: el.name.text,
-                        importedName: el.propertyName ? el.propertyName.text : el.name.text,
-                        fromSpec,
+                        importedName: el.propertyName !== undefined ? el.propertyName.text : el.name.text,
+                        ...(fromSpec !== undefined ? { fromSpec } : {}),
                         typeOnly: typeOnly || el.isTypeOnly === true,
                     });
                 }
@@ -475,8 +517,20 @@ function collectFileExports(sourceFile) {
             continue;
         }
         const declKind = classifyDeclaration(stmt);
-        if (!declKind) continue;
-        const name = isDefault ? 'default' : stmt.name && ts.isIdentifier(stmt.name) ? stmt.name.text : '<anonymous>';
+        if (declKind === undefined) continue;
+        let declName = '<anonymous>';
+        if (
+            (ts.isFunctionDeclaration(stmt) || ts.isClassDeclaration(stmt)) &&
+            stmt.name !== undefined &&
+            ts.isIdentifier(stmt.name)
+        ) {
+            declName = stmt.name.text;
+        } else if (ts.isInterfaceDeclaration(stmt) || ts.isTypeAliasDeclaration(stmt) || ts.isEnumDeclaration(stmt)) {
+            declName = stmt.name.text;
+        } else if (ts.isModuleDeclaration(stmt) && ts.isIdentifier(stmt.name)) {
+            declName = stmt.name.text;
+        }
+        const name = isDefault ? 'default' : declName;
         out.push({
             kind: 'declaration',
             name,
@@ -487,17 +541,32 @@ function collectFileExports(sourceFile) {
     return out;
 }
 
-function buildSymbolFromDecl(decl, sourceFile, relFile, maxLen) {
+interface PublicApiEntry {
+    name: string;
+    kind: string;
+    file: string;
+    line: number;
+    signature: string;
+    jsdoc?: string;
+    typeOnly?: boolean;
+}
+
+function buildSymbolFromDecl(
+    decl: DeclInfo,
+    sourceFile: ts.SourceFile,
+    relFile: string,
+    maxLen: number,
+): Omit<PublicApiEntry, 'name'> {
     const { kind, node, parent } = decl;
-    let signature;
-    let line;
-    if (kind === 'function') {
+    let signature: string;
+    let line: number;
+    if (kind === 'function' && ts.isFunctionDeclaration(node)) {
         signature = sliceFunctionSignature(node, sourceFile, maxLen);
         line = lineOf(node, sourceFile);
-    } else if (kind === 'class') {
+    } else if (kind === 'class' && ts.isClassDeclaration(node)) {
         signature = sliceClassHeader(node, sourceFile, maxLen);
         line = lineOf(node, sourceFile);
-    } else if (kind === 'const' || kind === 'let' || kind === 'var') {
+    } else if ((kind === 'const' || kind === 'let' || kind === 'var') && parent !== undefined) {
         signature = sliceVariable(parent, sourceFile, maxLen);
         line = lineOf(node, sourceFile);
     } else {
@@ -505,41 +574,45 @@ function buildSymbolFromDecl(decl, sourceFile, relFile, maxLen) {
         line = lineOf(node, sourceFile);
     }
     const jsdoc = extractJsdoc(parent ?? node);
-    return { kind, file: relFile, line, signature, jsdoc };
+    return { kind, file: relFile, line, signature, ...(jsdoc !== undefined ? { jsdoc } : {}) };
 }
 
-function resolvePublicApi(entrypoints, rootDir, sourceFileByRel, maxLen) {
-    const collected = [];
-    const seen = new Set();
+function resolvePublicApi(
+    entrypoints: string[],
+    rootDir: string,
+    sourceFileByRel: Map<string, ts.SourceFile>,
+    maxLen: number,
+): PublicApiEntry[] {
+    const collected: PublicApiEntry[] = [];
+    const seen = new Set<string>();
 
-    function emit(relFile, decl, sourceFile, name, typeOnly) {
+    function emit(relFile: string, decl: DeclInfo, sourceFile: ts.SourceFile, name: string, typeOnly: boolean): void {
         const key = `${relFile}:::${name}`;
         if (seen.has(key)) return;
         seen.add(key);
         const sym = buildSymbolFromDecl(decl, sourceFile, relFile, maxLen);
-        const entry = { name, ...sym };
+        const entry: PublicApiEntry = { name, ...sym };
         if (typeOnly || decl.kind === 'interface' || decl.kind === 'type') entry.typeOnly = true;
-        if (!entry.jsdoc) delete entry.jsdoc;
         collected.push(entry);
     }
 
-    function visit(relFile, depth) {
+    function visit(relFile: string, depth: number): void {
         if (depth > RE_EXPORT_DEPTH_CAP) return;
         const sf = sourceFileByRel.get(relFile);
-        if (!sf) return;
+        if (sf === undefined) return;
         const exports = collectFileExports(sf);
 
         for (const e of exports) {
             if (e.kind === 'star') {
                 const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
-                if (target && sourceFileByRel.has(target)) visit(target, depth + 1);
+                if (target !== undefined && sourceFileByRel.has(target)) visit(target, depth + 1);
             } else if (e.kind === 'namespace-star') {
                 const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
-                if (target && sourceFileByRel.has(target)) {
+                if (target !== undefined && sourceFileByRel.has(target)) {
                     const key = `${target}:::${e.name}`;
                     if (!seen.has(key)) {
                         seen.add(key);
-                        const entry = {
+                        const entry: PublicApiEntry = {
                             name: e.name,
                             kind: 'namespace',
                             file: target,
@@ -551,9 +624,10 @@ function resolvePublicApi(entrypoints, rootDir, sourceFileByRel, maxLen) {
                     }
                 }
             } else if (e.kind === 'named') {
-                if (e.fromSpec) {
-                    const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
-                    if (target && sourceFileByRel.has(target)) {
+                const fromSpec = e.fromSpec;
+                if (fromSpec !== undefined) {
+                    const target = resolveSpecifierToFile(join(rootDir, relFile), fromSpec, rootDir);
+                    if (target !== undefined && sourceFileByRel.has(target)) {
                         const sub = findOriginalDeclaration(
                             target,
                             e.importedName,
@@ -561,11 +635,12 @@ function resolvePublicApi(entrypoints, rootDir, sourceFileByRel, maxLen) {
                             rootDir,
                             depth + 1,
                         );
-                        if (sub) emit(sub.file, sub.decl, sub.sourceFile, e.name, e.typeOnly || sub.typeOnly);
+                        if (sub !== undefined)
+                            emit(sub.file, sub.decl, sub.sourceFile, e.name, e.typeOnly || sub.typeOnly);
                     }
                 } else {
                     const sub = findOriginalDeclaration(relFile, e.importedName, sourceFileByRel, rootDir, depth);
-                    if (sub) emit(sub.file, sub.decl, sub.sourceFile, e.name, e.typeOnly || sub.typeOnly);
+                    if (sub !== undefined) emit(sub.file, sub.decl, sub.sourceFile, e.name, e.typeOnly || sub.typeOnly);
                 }
             } else if (e.kind === 'declaration') {
                 emit(relFile, e.decl, sf, e.name, e.typeOnly);
@@ -577,15 +652,14 @@ function resolvePublicApi(entrypoints, rootDir, sourceFileByRel, maxLen) {
     return collected;
 }
 
-function findLocalDeclaration(sourceFile, name) {
+function findLocalDeclaration(sourceFile: ts.SourceFile, name: string): DeclInfo | undefined {
     // Locate any top-level declaration of `name` in this file, regardless of
-    // whether it has an `export` modifier. Used to resolve `export { X }`
-    // where X is declared locally without the export keyword.
+    // whether it has an `export` modifier.
     for (const stmt of sourceFile.statements) {
-        if (ts.isFunctionDeclaration(stmt) && stmt.name && stmt.name.text === name) {
+        if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name) {
             return { kind: 'function', node: stmt };
         }
-        if (ts.isClassDeclaration(stmt) && stmt.name && stmt.name.text === name) {
+        if (ts.isClassDeclaration(stmt) && stmt.name?.text === name) {
             return { kind: 'class', node: stmt };
         }
         if (ts.isInterfaceDeclaration(stmt) && stmt.name.text === name) {
@@ -597,7 +671,12 @@ function findLocalDeclaration(sourceFile, name) {
         if (ts.isEnumDeclaration(stmt) && stmt.name.text === name) {
             return { kind: 'enum', node: stmt };
         }
-        if (ts.isModuleDeclaration(stmt) && stmt.name && ts.isIdentifier(stmt.name) && stmt.name.text === name) {
+        if (
+            ts.isModuleDeclaration(stmt) &&
+            stmt.name !== undefined &&
+            ts.isIdentifier(stmt.name) &&
+            stmt.name.text === name
+        ) {
             return { kind: 'namespace', node: stmt };
         }
         if (ts.isVariableStatement(stmt)) {
@@ -611,21 +690,20 @@ function findLocalDeclaration(sourceFile, name) {
     return undefined;
 }
 
-function findImportBinding(sourceFile, localName) {
-    // For `import { foo as bar } from './x.js'`, return the source spec and the
-    // ORIGINAL name when localName === 'bar'. Used to chase `export { X }`
-    // when X is imported (not locally declared) so the resolver can follow
-    // the import to its definition file instead of looping on itself.
+function findImportBinding(
+    sourceFile: ts.SourceFile,
+    localName: string,
+): { fromSpec: string; importedName: string } | undefined {
     for (const stmt of sourceFile.statements) {
         if (!ts.isImportDeclaration(stmt)) continue;
-        if (!stmt.importClause || !stmt.importClause.namedBindings) continue;
+        if (stmt.importClause?.namedBindings === undefined) continue;
         if (!ts.isNamedImports(stmt.importClause.namedBindings)) continue;
         if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
         for (const el of stmt.importClause.namedBindings.elements) {
             if (el.name.text === localName) {
                 return {
                     fromSpec: stmt.moduleSpecifier.text,
-                    importedName: el.propertyName ? el.propertyName.text : el.name.text,
+                    importedName: el.propertyName !== undefined ? el.propertyName.text : el.name.text,
                 };
             }
         }
@@ -633,21 +711,35 @@ function findImportBinding(sourceFile, localName) {
     return undefined;
 }
 
-function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir, depth) {
+interface FoundDeclaration {
+    file: string;
+    decl: DeclInfo;
+    sourceFile: ts.SourceFile;
+    typeOnly: boolean;
+}
+
+function findOriginalDeclaration(
+    relFile: string,
+    exportedName: string,
+    sourceFileByRel: Map<string, ts.SourceFile>,
+    rootDir: string,
+    depth: number,
+): FoundDeclaration | undefined {
     if (depth > RE_EXPORT_DEPTH_CAP) return undefined;
     const sf = sourceFileByRel.get(relFile);
-    if (!sf) return undefined;
+    if (sf === undefined) return undefined;
     const exports = collectFileExports(sf);
     for (const e of exports) {
         if (e.kind === 'declaration' && e.name === exportedName) {
             return { file: relFile, decl: e.decl, sourceFile: sf, typeOnly: e.typeOnly };
         }
         if (e.kind === 'named' && e.name === exportedName) {
-            if (e.fromSpec) {
-                const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
-                if (target) {
+            const fromSpec = e.fromSpec;
+            if (fromSpec !== undefined) {
+                const target = resolveSpecifierToFile(join(rootDir, relFile), fromSpec, rootDir);
+                if (target !== undefined) {
                     const sub = findOriginalDeclaration(target, e.importedName, sourceFileByRel, rootDir, depth + 1);
-                    if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
+                    if (sub !== undefined) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
                 }
             } else {
                 // `export { X }` with no fromSpec — resolve against (a) a local
@@ -656,7 +748,7 @@ function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir
                 // recursing into this same file with the same name, which
                 // would loop until depth cap and never resolve.
                 const local = findLocalDeclaration(sf, e.importedName);
-                if (local) {
+                if (local !== undefined) {
                     return {
                         file: relFile,
                         decl: local,
@@ -665,9 +757,9 @@ function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir
                     };
                 }
                 const imp = findImportBinding(sf, e.importedName);
-                if (imp) {
+                if (imp !== undefined) {
                     const target = resolveSpecifierToFile(join(rootDir, relFile), imp.fromSpec, rootDir);
-                    if (target) {
+                    if (target !== undefined) {
                         const sub = findOriginalDeclaration(
                             target,
                             imp.importedName,
@@ -675,7 +767,7 @@ function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir
                             rootDir,
                             depth + 1,
                         );
-                        if (sub) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
+                        if (sub !== undefined) return { ...sub, typeOnly: sub.typeOnly || e.typeOnly };
                     }
                 }
             }
@@ -684,9 +776,9 @@ function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir
     for (const e of exports) {
         if (e.kind === 'star') {
             const target = resolveSpecifierToFile(join(rootDir, relFile), e.fromSpec, rootDir);
-            if (target) {
+            if (target !== undefined) {
                 const sub = findOriginalDeclaration(target, exportedName, sourceFileByRel, rootDir, depth + 1);
-                if (sub) return sub;
+                if (sub !== undefined) return sub;
             }
         }
     }
@@ -695,19 +787,41 @@ function findOriginalDeclaration(relFile, exportedName, sourceFileByRel, rootDir
 
 // ── Top-level builder ─────────────────────────────────────────────────────────
 
-export function buildCodemap({ rootDir }) {
+interface FileEntry {
+    path: string;
+    imports: string[];
+    reExports: string[];
+    symbols: SymbolEntry[];
+}
+
+interface CodemapData {
+    schema: string;
+    repo: { name: string; version: string };
+    sourceHash: string;
+    entrypoints: string[];
+    publicApi: PublicApiEntry[];
+    files: FileEntry[];
+}
+
+interface BuildCodemapResult {
+    markdown: string;
+    sourceHash: string;
+    data: CodemapData;
+}
+
+export function buildCodemap({ rootDir }: { rootDir: string }): BuildCodemapResult {
     const root = resolve(rootDir);
     const config = loadConfig(root);
     const relFiles = collectSourceFiles(root, config.sourceDirs, config.exclude);
     const sourceHash = computeSourceHash(root, relFiles);
 
-    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string };
 
     // Parse source files directly. We only need AST walking, not type-checking,
     // and createProgram doesn't reliably attach `.jsDoc` arrays to nodes (which
     // ts.getJSDocCommentsAndTags relies on). createSourceFile with
     // setParentNodes=true gives us both JSDoc attachment and `.parent` chains.
-    const sourceFileByRel = new Map();
+    const sourceFileByRel = new Map<string, ts.SourceFile>();
     for (const rel of relFiles) {
         const abs = join(root, rel);
         const text = readFileSync(abs, 'utf8');
@@ -715,10 +829,10 @@ export function buildCodemap({ rootDir }) {
         if (!sf.isDeclarationFile) sourceFileByRel.set(rel, sf);
     }
 
-    const files = [];
+    const files: FileEntry[] = [];
     for (const rel of relFiles) {
         const sf = sourceFileByRel.get(rel);
-        if (!sf) continue;
+        if (sf === undefined) continue;
         const { imports, reExports } = extractImportsAndReExports(sf);
         const symbols = extractFileSymbols(sf, config.maxSignatureLength);
         files.push({ path: rel, imports, reExports, symbols });
@@ -728,7 +842,7 @@ export function buildCodemap({ rootDir }) {
     const publicApi = resolvePublicApi(config.entrypoints, root, sourceFileByRel, config.maxSignatureLength);
     publicApi.sort((a, b) => a.name.localeCompare(b.name) || a.file.localeCompare(b.file));
 
-    const data = {
+    const data: CodemapData = {
         schema: SCHEMA_VERSION,
         repo: { name: pkg.name, version: pkg.version },
         sourceHash,
@@ -740,7 +854,7 @@ export function buildCodemap({ rootDir }) {
     return { markdown: renderMarkdown(data), sourceHash, data };
 }
 
-function renderMarkdown(data) {
+function renderMarkdown(data: CodemapData): string {
     const preamble = [
         '# CODEMAP',
         '',
@@ -754,10 +868,10 @@ function renderMarkdown(data) {
 
 // ── --check mode ──────────────────────────────────────────────────────────────
 
-function unifiedDiffPreview(expected, actual, maxLines) {
+function unifiedDiffPreview(expected: string, actual: string, maxLines: number): string {
     const e = expected.split('\n');
     const a = actual.split('\n');
-    const out = [];
+    const out: string[] = [];
     const max = Math.max(e.length, a.length);
     for (let i = 0; i < max && out.length < maxLines; i++) {
         const left = e[i];
@@ -770,7 +884,21 @@ function unifiedDiffPreview(expected, actual, maxLines) {
     return out.join('\n');
 }
 
-export function runCli({ rootDir, check, stdout = process.stdout, stderr = process.stderr }) {
+interface WriteStream {
+    write: (s: string) => void;
+}
+
+export function runCli({
+    rootDir,
+    check,
+    stdout = process.stdout,
+    stderr = process.stderr,
+}: {
+    rootDir: string;
+    check: boolean;
+    stdout?: WriteStream;
+    stderr?: WriteStream;
+}): number {
     const { markdown } = buildCodemap({ rootDir });
     const outPath = join(resolve(rootDir), 'CODEMAP.md');
 
@@ -788,7 +916,7 @@ export function runCli({ rootDir, check, stdout = process.stdout, stderr = proce
             return 0;
         }
         stderr.write('✗ CODEMAP.md is stale. Run `npm run codemap` and commit the result.\n\n');
-        stderr.write(unifiedDiffPreview(onDisk, expected, DIFF_PREVIEW_LINES) + '\n');
+        stderr.write(`${unifiedDiffPreview(onDisk, expected, DIFF_PREVIEW_LINES)}\n`);
         return 1;
     }
 

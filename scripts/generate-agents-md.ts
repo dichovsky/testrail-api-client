@@ -1,7 +1,7 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Regenerates `AGENTS.md` at the repository root from `src/cli/metadata.ts`
- * and `scripts/rules-content.mjs`. Deterministic output (no timestamps).
+ * and `scripts/rules-content.ts`. Deterministic output (no timestamps).
  *
  * `AGENTS.md` follows the vendor-neutral convention documented at
  * https://agents.md/ — a single markdown file any AI coding agent or
@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { renderAgentsMd } from './rules-content.mjs';
+import { renderAgentsMd } from './rules-content.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -30,7 +30,9 @@ if (!existsSync(distMetadata)) {
     process.exit(1);
 }
 
-const { ACTIONS } = await import(pathToFileURL(distMetadata).href);
+const { ACTIONS } = (await import(pathToFileURL(distMetadata).href)) as {
+    ACTIONS: readonly { resource: string; action: string; isWrite: boolean; destructive?: boolean }[];
+};
 const rendered = `${renderAgentsMd(ACTIONS)}\n`;
 
 const checkMode = process.argv.includes('--check');
