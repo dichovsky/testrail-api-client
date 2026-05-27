@@ -151,7 +151,7 @@ const MOCK_PLAN = {
     url: 'https://example.testrail.io/plans/view/50',
 };
 const MOCK_PLAN_ENTRY = {
-    id: 'abc-def-uuid',
+    id: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
     suite_id: 1,
     name: 'Entry A',
     include_all: true,
@@ -4691,12 +4691,19 @@ describe('CLI', () => {
 
         it('plan add-run-to-entry POSTs the payload and returns the created run', async () => {
             const { exitCodes } = await runCli(
-                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1,2]}'],
+                [
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"config_ids":[1,2]}',
+                ],
                 [jsonResponse(MOCK_RUN)],
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('add_run_to_plan_entry/50/abc-def-uuid'),
+                expect.stringContaining('add_run_to_plan_entry/50/e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'),
                 expect.anything(),
             );
         });
@@ -4706,7 +4713,7 @@ describe('CLI', () => {
                 'plan',
                 'add-run-to-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--data',
                 '{"include_all":true}',
             ]);
@@ -4715,7 +4722,12 @@ describe('CLI', () => {
         });
 
         it('plan add-run-to-entry exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['plan', 'add-run-to-entry', '50', 'abc-def-uuid']);
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'add-run-to-entry',
+                '50',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            ]);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Body required');
         });
@@ -4725,7 +4737,7 @@ describe('CLI', () => {
                 'plan',
                 'add-run-to-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--data',
                 '{"config_ids":[1]}',
                 '--dry-run',
@@ -4738,7 +4750,16 @@ describe('CLI', () => {
 
         it('plan add-run-to-entry --format table renders the result as a table', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}', '--format', 'table'],
+                [
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"config_ids":[1]}',
+                    '--format',
+                    'table',
+                ],
                 [jsonResponse(MOCK_RUN)],
             );
             expect(exitCodes).toContain(0);
@@ -4748,7 +4769,14 @@ describe('CLI', () => {
 
         it('plan add-run-to-entry surfaces 404 as TestRailApiError exit 1', async () => {
             const { stderr, exitCodes } = await runCli(
-                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}'],
+                [
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"config_ids":[1]}',
+                ],
                 [jsonResponse({ error: 'not found' }, 404)],
             );
             expect(exitCodes).toContain(1);
@@ -4757,26 +4785,31 @@ describe('CLI', () => {
 
         it('plan update-entry POSTs the payload', async () => {
             const { exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"renamed"}'],
+                ['plan', 'update-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--data', '{"name":"renamed"}'],
                 [jsonResponse(MOCK_PLAN_ENTRY)],
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('update_plan_entry/50/abc-def-uuid'),
+                expect.stringContaining('update_plan_entry/50/e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'),
                 expect.anything(),
             );
         });
 
         it('plan update-entry accepts an empty body', async () => {
             const { exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{}'],
+                ['plan', 'update-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--data', '{}'],
                 [jsonResponse(MOCK_PLAN_ENTRY)],
             );
             expect(exitCodes).toContain(0);
         });
 
         it('plan update-entry exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['plan', 'update-entry', '50', 'abc-def-uuid']);
+            const { stderr, exitCodes } = await runCli([
+                'plan',
+                'update-entry',
+                '50',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            ]);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Body required');
         });
@@ -4786,7 +4819,7 @@ describe('CLI', () => {
                 'plan',
                 'update-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--data',
                 '{"name":42}',
             ]);
@@ -4799,7 +4832,7 @@ describe('CLI', () => {
                 'plan',
                 'update-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--data',
                 '{"name":"R"}',
                 '--dry-run',
@@ -4889,7 +4922,16 @@ describe('CLI', () => {
 
         it('plan add-run-to-entry --format json emits parseable JSON', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}', '--format', 'json'],
+                [
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"config_ids":[1]}',
+                    '--format',
+                    'json',
+                ],
                 [jsonResponse(MOCK_RUN)],
             );
             expect(exitCodes).toContain(0);
@@ -4899,7 +4941,16 @@ describe('CLI', () => {
 
         it('plan update-entry --format table renders the result as a table', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"renamed"}', '--format', 'table'],
+                [
+                    'plan',
+                    'update-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"name":"renamed"}',
+                    '--format',
+                    'table',
+                ],
                 [jsonResponse(MOCK_PLAN_ENTRY)],
             );
             expect(exitCodes).toContain(0);
@@ -4908,7 +4959,16 @@ describe('CLI', () => {
 
         it('plan update-entry --format json emits parseable JSON', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}', '--format', 'json'],
+                [
+                    'plan',
+                    'update-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"name":"x"}',
+                    '--format',
+                    'json',
+                ],
                 [jsonResponse(MOCK_PLAN_ENTRY)],
             );
             expect(exitCodes).toContain(0);
@@ -4929,7 +4989,7 @@ describe('CLI', () => {
 
         it('plan update-entry surfaces 401 as TestRailApiError exit 1', async () => {
             const { stderr, exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}'],
+                ['plan', 'update-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--data', '{"name":"x"}'],
                 [jsonResponse({ error: 'unauthorized' }, 401)],
             );
             expect(exitCodes).toContain(1);
@@ -4938,7 +4998,7 @@ describe('CLI', () => {
 
         it('plan update-entry surfaces 403 as TestRailApiError exit 1', async () => {
             const { stderr, exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}'],
+                ['plan', 'update-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--data', '{"name":"x"}'],
                 [jsonResponse({ error: 'forbidden' }, 403)],
             );
             expect(exitCodes).toContain(1);
@@ -4947,7 +5007,7 @@ describe('CLI', () => {
 
         it('plan update-entry surfaces 404 as TestRailApiError exit 1', async () => {
             const { stderr, exitCodes } = await runCli(
-                ['plan', 'update-entry', '50', 'abc-def-uuid', '--data', '{"name":"x"}'],
+                ['plan', 'update-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--data', '{"name":"x"}'],
                 [jsonResponse({ error: 'not found' }, 404)],
             );
             expect(exitCodes).toContain(1);
@@ -4961,7 +5021,7 @@ describe('CLI', () => {
                 'plan',
                 'update-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--data',
                 '{"name":"x"}',
             ]);
@@ -4971,7 +5031,14 @@ describe('CLI', () => {
 
         it('plan add-run-to-entry surfaces 401 as TestRailApiError exit 1', async () => {
             const { stderr, exitCodes } = await runCli(
-                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}'],
+                [
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"config_ids":[1]}',
+                ],
                 [jsonResponse({ error: 'unauthorized' }, 401)],
             );
             expect(exitCodes).toContain(1);
@@ -4980,7 +5047,14 @@ describe('CLI', () => {
 
         it('plan add-run-to-entry surfaces 403 as TestRailApiError exit 1', async () => {
             const { stderr, exitCodes } = await runCli(
-                ['plan', 'add-run-to-entry', '50', 'abc-def-uuid', '--data', '{"config_ids":[1]}'],
+                [
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                    '--data',
+                    '{"config_ids":[1]}',
+                ],
                 [jsonResponse({ error: 'forbidden' }, 403)],
             );
             expect(exitCodes).toContain(1);
@@ -4994,7 +5068,7 @@ describe('CLI', () => {
                 'plan',
                 'add-run-to-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--data',
                 '{"config_ids":[1]}',
             ]);
@@ -5108,7 +5182,12 @@ describe('CLI', () => {
 
         // ── plan delete-entry (entry_id is a UUID string) ──────────────────
         it('plan delete-entry without --yes rejects', async () => {
-            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '50', 'abc-def-uuid']);
+            const { exitCodes, stderr } = await runCli([
+                'plan',
+                'delete-entry',
+                '50',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            ]);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/--yes to confirm/);
             expect(mockFetch).not.toHaveBeenCalled();
@@ -5116,12 +5195,12 @@ describe('CLI', () => {
 
         it('plan delete-entry with --yes POSTs to delete_plan_entry/{plan_id}/{entry_id}', async () => {
             const { exitCodes, stdout } = await runCli(
-                ['plan', 'delete-entry', '50', 'abc-def-uuid', '--yes'],
+                ['plan', 'delete-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--yes'],
                 [jsonResponse({})],
             );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
-            expect(url).toContain('delete_plan_entry/50/abc-def-uuid');
+            expect(url).toContain('delete_plan_entry/50/e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56');
             expect(stdout).toContain('"deleted": true');
         });
 
@@ -5130,7 +5209,7 @@ describe('CLI', () => {
                 'plan',
                 'delete-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--yes',
                 '--dry-run',
             ]);
@@ -5148,7 +5227,12 @@ describe('CLI', () => {
         });
 
         it('plan delete-entry rejects non-positive plan_id before --yes check', async () => {
-            const { exitCodes, stderr } = await runCli(['plan', 'delete-entry', '0', 'abc-def-uuid']);
+            const { exitCodes, stderr } = await runCli([
+                'plan',
+                'delete-entry',
+                '0',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            ]);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/plan_id/);
             expect(mockFetch).not.toHaveBeenCalled();
@@ -5202,7 +5286,7 @@ describe('CLI', () => {
 
         it('plan delete-entry surfaces 403 from TestRail as exit 1', async () => {
             const { exitCodes, stderr } = await runCli(
-                ['plan', 'delete-entry', '50', 'abc-uuid', '--yes'],
+                ['plan', 'delete-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--yes'],
                 [jsonResponse({ error: 'Forbidden' }, 403)],
             );
             expect(exitCodes).toContain(1);
@@ -5242,12 +5326,12 @@ describe('CLI', () => {
 
         it('plan delete-entry --format json --yes emits JSON-parseable stdout', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['plan', 'delete-entry', '50', 'abc-def-uuid', '--yes', '--format', 'json'],
+                ['plan', 'delete-entry', '50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', '--yes', '--format', 'json'],
                 [jsonResponse({})],
             );
             expect(exitCodes).toContain(0);
             const parsed = JSON.parse(stdout.trim()) as { planId: number; entryId: string; deleted: boolean };
-            expect(parsed).toEqual({ planId: 50, entryId: 'abc-def-uuid', deleted: true });
+            expect(parsed).toEqual({ planId: 50, entryId: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', deleted: true });
         });
 
         it('plan delete-run-from-entry --format json --yes emits JSON-parseable stdout', async () => {
@@ -5346,7 +5430,7 @@ describe('CLI', () => {
                 'plan',
                 'delete-entry',
                 '50',
-                'abc-def-uuid',
+                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 '--soft',
                 '--yes',
             ]);

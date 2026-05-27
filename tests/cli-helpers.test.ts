@@ -291,11 +291,15 @@ describe('parseId', () => {
 
 describe('parseEntryId', () => {
     it('returns the trimmed entry id for a valid non-empty string', () => {
-        expect(parseEntryId('abc-uuid', 'entry_id')).toBe('abc-uuid');
+        expect(parseEntryId('e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', 'entry_id')).toBe(
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+        );
     });
 
     it('trims surrounding whitespace before returning', () => {
-        expect(parseEntryId('  abc-uuid  ', 'entry_id')).toBe('abc-uuid');
+        expect(parseEntryId('  e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56  ', 'entry_id')).toBe(
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+        );
     });
 
     it('throws IdParseError when raw is undefined', () => {
@@ -312,6 +316,12 @@ describe('parseEntryId', () => {
 
     it('includes the parameter name in the error', () => {
         expect(() => parseEntryId(undefined, 'entry_id')).toThrow(/entry_id/);
+    });
+
+    it('throws when raw is not a UUID (non-UUID string)', () => {
+        expect(() => parseEntryId('not-a-uuid', 'entry_id')).toThrow(IdParseError);
+        expect(() => parseEntryId('../../admin', 'entry_id')).toThrow(IdParseError);
+        expect(() => parseEntryId('entry-guid-1', 'entry_id')).toThrow(IdParseError);
     });
 });
 
