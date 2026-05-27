@@ -1,7 +1,8 @@
-import { readFileSync, openSync, fstatSync, closeSync, constants } from 'node:fs';
+import { openSync, fstatSync, closeSync, constants } from 'node:fs';
 import type { z } from 'zod';
 import type { BodyInput } from './handler-context.js';
 import { MAX_DATA_FILE_BYTES } from '../constants.js';
+import { readBoundedStdin } from './stdin.js';
 
 /**
  * Source of a parsed body. Reported alongside the resolution result so
@@ -23,8 +24,9 @@ export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | {
  * - `--data <json-string>` (provided via `BodyInput.dataFlag`)
  * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; opened with
  *   O_RDONLY | O_NOFOLLOW to prevent symlink traversal, then read via
- *   readFileSync(fd); failures surface as a structured `ok: false` rather
- *   than crashing the CLI)
+ *   readBoundedStdin(fd) to enforce the byte cap on actual bytes read rather
+ *   than just on the fstat-reported size; failures surface as a structured
+ *   `ok: false` rather than crashing the CLI)
  * - stdin (provided via `BodyInput.readStdin` thunk; the caller is
  *   responsible for non-TTY detection — only set the thunk when stdin is
  *   piped. The resolver invokes the thunk *only* when stdin is the
@@ -81,7 +83,11 @@ export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S)
                     error: `--data-file '${input.dataFileFlag}' exceeds maximum size of ${MAX_DATA_FILE_BYTES} bytes.`,
                 };
             }
-            raw = readFileSync(fd, 'utf-8');
+            // Use readBoundedStdin (which accepts any fd) so the byte cap is
+            // enforced on bytes actually read, not just on the fstat size —
+            // a file can grow between fstat and read if another writer holds
+            // the same inode open (SEC #17).
+            raw = readBoundedStdin(MAX_DATA_FILE_BYTES, fd);
         } catch (e) {
             return {
                 ok: false,

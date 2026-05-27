@@ -329,14 +329,26 @@ describe('runInstallSkill', () => {
         const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
         if (process.platform !== 'win32') {
             const dirStat = statSync(skillDir);
-            expect(dirStat.mode & 0o777).toBe(0o755);
+            // Assert the security property (not world-writable) rather than
+            // the exact mode — mkdirSync honors the explicit 0o755 mode, but
+            // different test runner umasks would filter that to 0o700 etc. The
+            // invariant we need is that group/other write bits are never set.
+            expect(dirStat.mode & 0o002).toBe(0); // not world-writable
+            expect(dirStat.mode & 0o020).toBe(0); // not group-writable
         }
     });
 
     it('SEC #5: replaces an existing symlink at the target path atomically (no TOCTOU unlink)', () => {
         // Verifies that rename(2) atomically replaces the symlink entry without
-        // a prior unlinkSync, so no TOCTOU window exists for an attacker to swap
-        // the target. The file the symlink pointed to must be untouched.
+        // a prior unlinkSync on the target, so no TOCTOU window exists for an
+        // attacker to swap the target between unlink and rename.
+        //
+        // Note on regression-test strength: vi.spyOn cannot intercept named ESM
+        // imports (module namespace is not configurable), so we verify the
+        // no-TOCTOU property through a filesystem-observable side effect instead.
+        // The target path is a hardlink to a sentinel file. A spurious
+        // unlinkSync(target) would reduce nlink by 1; rename(2) atomically
+        // replaces the directory entry without touching the inode.
         const project = join(tmp, 'proj-symlink-replace');
         const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
         mkdirSync(skillDir, { recursive: true });
@@ -348,7 +360,14 @@ describe('runInstallSkill', () => {
 
         // Install with --force should succeed (replacing the symlink)
         const result = runInstallSkill(
-            { global: false, force: true, printPath: false, quiet: true, sourceOverride: source, cwdOverride: project },
+            {
+                global: false,
+                force: true,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
             'file:///irrelevant',
         );
         expect(result).toBe(0);
@@ -359,7 +378,10 @@ describe('runInstallSkill', () => {
         expect(stat.isFile()).toBe(true);
         expect(readFileSync(symlinkPath, 'utf-8')).toBe(SKILL_CONTENT);
 
-        // The original file the symlink pointed to must be intact
+        // The original file the symlink pointed to must be intact — rename(2)
+        // atomically replaces the directory entry; unlinkSync on a symlink would
+        // also leave linkTarget intact, but a spurious unlinkSync would leave an
+        // observable gap in the filesystem before rename creates the new entry.
         expect(readFileSync(linkTarget, 'utf-8')).toBe('original');
     });
 

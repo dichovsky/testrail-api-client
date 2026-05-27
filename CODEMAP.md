@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "fd637389b62300b8ed247865eb2b6f4cba1c39aed17fe99b1cb24e05ffc301af",
+  "sourceHash": "dc0e36be717aff2f61b64b481335e9967f86ad0e412cd814bfa116427cca1953",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1604,6 +1604,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../constants.js",
         "./handler-context.js",
+        "./stdin.js",
         "node:fs",
         "zod"
       ],
@@ -1612,21 +1613,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "BodySource",
           "kind": "type",
-          "line": 16,
+          "line": 17,
           "exported": true,
           "signature": "export type BodySource = 'data' | 'file' | 'stdin' | 'default'"
         },
         {
           "name": "BodyResolution",
           "kind": "type",
-          "line": 18,
+          "line": 19,
           "exported": true,
           "signature": "export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | { ok: false; error: string }"
         },
         {
           "name": "resolveBody",
           "kind": "function",
-          "line": 45,
+          "line": 47,
           "exported": true,
           "signature": "export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S): BodyResolution<z.infer<S>>"
         }
