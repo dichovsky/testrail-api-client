@@ -4121,3 +4121,21 @@ open; the section heading was removed from `BACKLOG.md`.
 
 - [x] **QA: coverage delta enforcement (98% floor)** — Shipped in PR #156 (`test: enforce per-metric coverage floor (99/99/99/98)`). Vitest coverage thresholds in `vitest.config.ts` updated to enforce per-metric floors: lines 99%, statements 99%, functions 99%, branches 98%. CI fails the build if any metric drops below the floor, preventing coverage regressions from landing undetected. Previously the project tracked coverage in CLAUDE.md as a narrative "98%+" without a machine-checked enforcement gate.
 
+
+## BACKLOG sync — 2026-05-27 (Architecture cluster — PRs #161–#164)
+
+This sync archives five Architecture items shipped during the 2026-05-27
+autonomous orchestrator session. Each item is confirmed against the corresponding
+PR merge commit on `main`.
+
+### Architecture — verified shipped
+
+- [x] **ARCH #9: Harmonize `--soft`/`--dry-run` check order across destructive handlers** — Shipped in PR #162 (`refactor(cli): extract runDestructive helper + Pattern B ordering (ARCH #9+#10)`). All destructive handlers now follow canonical Pattern B ordering: `parseId → dryRun (wins, emits preview) → softUnsupported-reject (opt-in via `opts.softUnsupported`) → yes-gate → execute`. The spread ordering fix (`ctx.out({ ...preview, dryRun: true, destructive: true })`) ensures dryRun/destructive flags cannot be overridden by preview keys. `attachment delete` gained `{ softUnsupported: true }` to complete the harmonisation.
+
+- [x] **ARCH #10: Extract `runDestructive` helper** — Shipped in PR #162 (same PR as ARCH #9). `src/cli/run-destructive.ts` is the single source of truth for the dry-run → `--yes` guard protocol. All 8+ destructive handlers now delegate to `runDestructive(ctx, preview, execute, opts?)`. 11 unit tests in `tests/run-destructive.test.ts` cover all branches including `softUnsupported`, the dryRun-wins-over-yes path, and the missing-yes-gate throw.
+
+- [x] **ARCH #12: Type `HandlerArgs` path-param contracts (count check)** — Shipped in PR #163 (`fix(dispatch): validate path-param count before handler invocation (ARCH #12)`). `checkPathParamCount(spec, pathParams)` in `src/cli/dispatch.ts` is now hoisted before `--api-key-stdin` and `resolveAuth()` in `src/cli/index.ts`, so a wrong arg count fails immediately without reading stdin or checking credentials. The function returns `{ ok: false, error }` with a human-readable usage hint; `undefined` spec (unknown action) returns `ok: true` as a defensive no-op (the caller handles the unknown-action case).
+
+- [x] **ARCH #13: Specialized Error Subclasses** — Shipped in PR #161 (`feat(errors): introduce specialized error subclasses (ARCH #13)`). `src/errors.ts` exports `TestRailRateLimitError` (429), `TestRailAuthError` (401/403), `TestRailNotFoundError` (404), and `TestRailTimeoutError` (408 + AbortError). Each extends `TestRailApiError` and is thrown from the matching status-code branch in `client-core.ts`. Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`, not `TestRailTimeoutError`. 25 tests in `tests/error-subclasses.test.ts` cover construction, instanceof chain, and dispatch across all four fetch sites.
+
+- [x] **ARCH #14: Injectable Fetch Adapter** — Shipped in PR #164 (`feat(config): injectable fetch adapter (ARCH #14)`). `TestRailConfig.fetch?: typeof globalThis.fetch` stores the override; `validateConfig()` rejects non-function values with `TestRailValidationError`. All four fetch sites in `client-core.ts` resolve at call time via `(this.fetchOverride ?? globalThis.fetch)(url, init)` — NOT at construction — preserving backward compatibility with tests that assign `global.fetch` after construction. 10 tests in `tests/injectable-fetch.test.ts` cover GET/POST/binary/requestText/requestMultipart paths, the globalThis fallback, error propagation, and the validation guard.
