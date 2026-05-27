@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
+import { mockOk } from './helpers.js';
 
 const { mockDnsLookup } = vi.hoisted(() => ({
     mockDnsLookup: vi.fn(),
@@ -2104,6 +2105,104 @@ describe('TestRailClient - Enhanced Features', () => {
             );
             await vi.runAllTimersAsync();
             await assertion;
+        });
+    });
+
+    describe('allowInsecure warning (SEC #26)', () => {
+        it('warns when allowInsecure is enabled with an http:// baseUrl', () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            try {
+                const c = new TestRailClient({
+                    baseUrl: 'http://localhost/testrail',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowInsecure: true,
+                    allowPrivateHosts: true,
+                });
+                expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('allowInsecure is enabled'));
+                c.destroy();
+            } finally {
+                warnSpy.mockRestore();
+            }
+        });
+
+        it('does not warn for https:// baseUrl even with allowInsecure set', () => {
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            try {
+                const c = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                    allowInsecure: true,
+                });
+                expect(warnSpy).not.toHaveBeenCalled();
+                c.destroy();
+            } finally {
+                warnSpy.mockRestore();
+            }
+        });
+    });
+
+    describe('destroy() exception safety (SEC #28)', () => {
+        it('is idempotent after a throwing cleanup', () => {
+            const c = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+            const spy = vi.spyOn(c as unknown as { clearCache: () => void }, 'clearCache').mockImplementation(() => {
+                throw new Error('boom');
+            });
+            expect(() => c.destroy()).toThrow('boom');
+            expect(() => c.destroy()).not.toThrow();
+            spy.mockRestore();
+        });
+
+        it('cleanupAllClients sweep continues past a throwing client', () => {
+            // Without the per-client try/catch in cleanupAllClients, a throwing
+            // client aborts the sweep and siblings are never destroyed.
+            const bad = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                registerProcessHandlers: true,
+            });
+            const good = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+            });
+            vi.spyOn(bad as unknown as { clearCache: () => void }, 'clearCache').mockImplementation(() => {
+                throw new Error('boom');
+            });
+            const goodSpy = vi.spyOn(good, 'destroy');
+            process.emit('exit', 0);
+            expect(goodSpy).toHaveBeenCalledOnce();
+            goodSpy.mockRestore();
+        });
+    });
+
+    describe('Cache mutable-reference protection (SEC #14)', () => {
+        it('mutating a returned cached object does not affect future cache reads', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+            });
+            try {
+                mockFetch.mockResolvedValueOnce(
+                    mockOk({ id: 1, name: 'Original', suite_mode: 1, url: 'u', is_completed: false }),
+                );
+                const first = await wt.getProject(1);
+                (first as { name: string }).name = 'Tampered';
+                const second = await wt.getProject(1);
+                expect(second.name).toBe('Original');
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+            } finally {
+                wt.destroy();
+            }
         });
     });
 });
