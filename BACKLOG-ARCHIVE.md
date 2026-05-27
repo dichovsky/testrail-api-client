@@ -4139,3 +4139,16 @@ PR merge commit on `main`.
 - [x] **ARCH #13: Specialized Error Subclasses** — Shipped in PR #161 (`feat(errors): introduce specialized error subclasses (ARCH #13)`). `src/errors.ts` exports `TestRailRateLimitError` (429), `TestRailAuthError` (401/403), `TestRailNotFoundError` (404), and `TestRailTimeoutError` (408 + AbortError). Each extends `TestRailApiError` and is thrown from the matching status-code branch in `client-core.ts`. Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`, not `TestRailTimeoutError`. 25 tests in `tests/error-subclasses.test.ts` cover construction, instanceof chain, and dispatch across all four fetch sites.
 
 - [x] **ARCH #14: Injectable Fetch Adapter** — Shipped in PR #164 (`feat(config): injectable fetch adapter (ARCH #14)`). `TestRailConfig.fetch?: typeof globalThis.fetch` stores the override; `validateConfig()` rejects non-function values with `TestRailValidationError`. All four fetch sites in `client-core.ts` resolve at call time via `(this.fetchOverride ?? globalThis.fetch)(url, init)` — NOT at construction — preserving backward compatibility with tests that assign `global.fetch` after construction. 10 tests in `tests/injectable-fetch.test.ts` cover GET/POST/binary/requestText/requestMultipart paths, the globalThis fallback, error propagation, and the validation guard.
+
+
+## BACKLOG sync — 2026-05-27 (Security cluster — PRs #169–#171)
+
+This sync archives three Security items shipped during the 2026-05-27
+autonomous orchestrator session. Each item is confirmed against the corresponding
+PR merge commit on `main`.
+
+### Security — verified shipped
+
+- [x] **SEC #29: `validateEntryId` accepts any non-empty string** — Shipped in PR #170 (`fix(security): enforce UUID format for plan entry IDs (SEC #29)`). `ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i` added to `src/client-core.ts` and `src/cli/ids.ts`. `validateEntryId` rejects non-UUID strings (including path-traversal sequences like `../../etc/passwd`); `parseEntryId` trims then validates. Three new endpoint regression tests cover `updatePlanEntry`, `deletePlanEntry`, and `addRunToPlanEntry`.
+
+- [x] **SEC #30: Fortify `requestMultipart` against fd mutation and resource leaks** — Shipped in PR #171 (`fix(security): fortify requestMultipart against fd mutation and resource leaks (SEC #30)`). `file.fd = undefined` mutation replaced by `let fdToClose: number | undefined` local variable. On POSIX, original fd released early after `openAsBlob` obtains its own independent file description via `/dev/fd/<N>` or `/proc/self/fd/<N>` kernel-resolved symlinks. On non-POSIX, fd closed before `openAsBlob`; `finally` only closes if neither early-path ran. Immutability regression test added: verifies `descriptor.fd` unchanged after upload and that `closeSync` was called with the original fd on POSIX.
