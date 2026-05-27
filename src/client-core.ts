@@ -1,13 +1,6 @@
 import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
-import {
-    TestRailApiError,
-    TestRailRateLimitError,
-    TestRailTimeoutError,
-    TestRailValidationError,
-    createApiError,
-    handleZodError,
-} from './errors.js';
+import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
@@ -594,7 +587,7 @@ export class TestRailClientCore {
                 }
             }
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
-            throw new TestRailRateLimitError(429, 'Too Many Requests', {
+            throw new TestRailApiError(429, 'Too Many Requests', {
                 message: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,
                 waitTimeMs: waitTime,
             });
@@ -821,7 +814,13 @@ export class TestRailClientCore {
                         throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
                     }
                 },
-                ...(method !== 'GET' ? { onSuccessBeforeParse: () => { this.clearCache(); } } : {}),
+                ...(method !== 'GET'
+                    ? {
+                          onSuccessBeforeParse: () => {
+                              this.clearCache();
+                          },
+                      }
+                    : {}),
             },
             retryCount,
         );
@@ -858,7 +857,13 @@ export class TestRailClientCore {
                 retryPolicy: fullRetryPolicy(),
                 cache: { key: undefined, skipRead: false },
                 parseSuccess: async (response: Response) => readBodyAsText(response, jsonLimits),
-                ...(method !== 'GET' ? { onSuccessBeforeParse: () => { this.clearCache(); } } : {}),
+                ...(method !== 'GET'
+                    ? {
+                          onSuccessBeforeParse: () => {
+                              this.clearCache();
+                          },
+                      }
+                    : {}),
             },
             retryCount,
         );
@@ -1145,7 +1150,7 @@ export class TestRailClientCore {
                     // or secret values. Keep it in the structured `response` field for
                     // programmatic inspection but do not embed it in the message string,
                     // which callers commonly pass to loggers.
-                    throw createApiError(status, response.statusText, errorText);
+                    throw new TestRailApiError(status, response.statusText, errorText);
                 }
 
                 spec.onSuccessBeforeParse?.();
@@ -1160,7 +1165,7 @@ export class TestRailClientCore {
                 if (error instanceof TestRailApiError) throw error;
 
                 if ((error as Error).name === 'AbortError') {
-                    throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
+                    throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
                 }
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
@@ -1182,7 +1187,9 @@ export class TestRailClientCore {
             // Suppress the rejection on the cleanup chain; callers own the
             // returned promise and are responsible for catching it.
             fetchPromise
-                .finally(() => { this.pendingRequests.delete(cacheKey); })
+                .finally(() => {
+                    this.pendingRequests.delete(cacheKey);
+                })
                 .catch(() => {});
         }
 

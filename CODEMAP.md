@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "d4b742e143a47facbc7aa4545a9cf929aa37dc26d660c28396d416ec85c41d5f",
+  "sourceHash": "4542a99f836612ee329ab9756cca80b047f88d01f80b666544274ecf5da9f650",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -531,14 +531,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
     },
     {
-      "name": "createApiError",
-      "kind": "function",
-      "file": "src/errors.ts",
-      "line": 53,
-      "signature": "export function createApiError(status: number, statusText: string, response?: unknown): TestRailApiError",
-      "jsdoc": "Returns the most specific TestRailApiError subclass for a given HTTP status. Falls back to TestRailApiError for unclassified statuses."
-    },
-    {
       "name": "Dataset",
       "kind": "type",
       "file": "src/schemas.ts",
@@ -571,15 +563,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "jsdoc": "SPEC #2.1.16 — embedded variable/value entry inside a Dataset response. Per the official TestRail \"Datasets\" API doc (support article 7077300491540), `get_dataset` returns a `variables` array where each entry has `id` (integer), `name` (string), and `value`. `id` and `name` are documented as plain non-nullable scalars; `value` may be null when the variable is unset/cleared on the server side, so it is modelled as nullable per SPEC #2.1.16 review. `zObject()`'s passthrough preserves any forward-compat keys."
     },
     {
-      "name": "DeleteCasesOptions",
-      "kind": "type",
-      "file": "src/modules/cases.ts",
-      "line": 26,
-      "signature": "export type DeleteCasesOptions = SoftDeleteOptions",
-      "jsdoc": "@deprecated Use from `../types.js` — kept as an alias for back-compat.",
-      "typeOnly": true
-    },
-    {
       "name": "DeleteCasesPayload",
       "kind": "type",
       "file": "src/schemas.ts",
@@ -593,15 +576,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "file": "src/schemas.ts",
       "line": 1114,
       "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
-    },
-    {
-      "name": "DeleteCasesPreview",
-      "kind": "type",
-      "file": "src/modules/cases.ts",
-      "line": 30,
-      "signature": "export type DeleteCasesPreview = SoftDeletePreview",
-      "jsdoc": "@deprecated Use (re-exported from the package root) — kept as an alias for back-compat.",
-      "typeOnly": true
     },
     {
       "name": "GetAttachmentsOptions",
@@ -700,7 +674,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 77,
+      "line": 33,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
       "jsdoc": "Utility to convert ZodError into TestRailValidationError."
     },
@@ -1108,14 +1082,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "jsdoc": "Thrown when the TestRail API returns a non-2xx response or a network error occurs."
     },
     {
-      "name": "TestRailAuthError",
-      "kind": "class",
-      "file": "src/errors.ts",
-      "line": 26,
-      "signature": "export class TestRailAuthError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail returns 401 Unauthorized or 403 Forbidden."
-    },
-    {
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
@@ -1140,34 +1106,10 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const TestRailConfigSchema = zObject({ baseUrl: z.string().url(), email: z.string().email(), apiKey: z.string().min(1), timeout: z.number().optional(), maxRetries: z.number().int().nonnegative(…"
     },
     {
-      "name": "TestRailNotFoundError",
-      "kind": "class",
-      "file": "src/errors.ts",
-      "line": 34,
-      "signature": "export class TestRailNotFoundError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail returns 404 Not Found."
-    },
-    {
-      "name": "TestRailRateLimitError",
-      "kind": "class",
-      "file": "src/errors.ts",
-      "line": 18,
-      "signature": "export class TestRailRateLimitError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail returns 429 Too Many Requests or the client-side rate limiter fires."
-    },
-    {
-      "name": "TestRailTimeoutError",
-      "kind": "class",
-      "file": "src/errors.ts",
-      "line": 42,
-      "signature": "export class TestRailTimeoutError extends TestRailApiError",
-      "jsdoc": "Thrown when TestRail returns 408 or the fetch is aborted (AbortError / request-header timeout). Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`."
-    },
-    {
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 64,
+      "line": 20,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -3837,318 +3779,318 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 28,
+          "line": 21,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 38,
+          "line": 31,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
         },
         {
           "name": "PRIVATE_HOST_PATTERNS",
           "kind": "const",
-          "line": 65,
+          "line": 58,
           "exported": false,
           "signature": "const PRIVATE_HOST_PATTERNS: RegExp[] = [ /^localhost\\.?$/i, /^127\\./, /^10\\./, /^172\\.(1[6-9]|2\\d|3[01])\\./, /^192\\.168\\./, /^169\\.254\\./, /^::1$/, /^fe80:/i, /^f[cd][0-9a-f]{2}:/i, /^fe[c-f][0-9a-f]…"
         },
         {
           "name": "isPrivateOrLoopbackIPv4",
           "kind": "function",
-          "line": 81,
+          "line": 74,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIPv4(ip: string): boolean"
         },
         {
           "name": "isPrivateOrLoopbackIP",
           "kind": "function",
-          "line": 103,
+          "line": 96,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIP(ip: string, family?: number): boolean"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 142,
+          "line": 135,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 144,
+          "line": 137,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
         },
         {
           "name": "ENTRY_ID_RE",
           "kind": "const",
-          "line": 206,
+          "line": 199,
           "exported": false,
           "signature": "const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 208,
+          "line": 201,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 209,
+          "line": 202,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 212,
+          "line": 205,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 222,
+          "line": 215,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 245,
+          "line": 238,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 246
+              "line": 239
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 249
+              "line": 242
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 250
+              "line": 243
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 251
+              "line": 244
             },
             {
               "name": "enableCache",
               "kind": "property",
-              "line": 252
+              "line": 245
             },
             {
               "name": "cacheTtl",
               "kind": "property",
-              "line": 253
+              "line": 246
             },
             {
               "name": "cacheCleanupInterval",
               "kind": "property",
-              "line": 254
+              "line": 247
             },
             {
               "name": "maxCacheSize",
               "kind": "property",
-              "line": 255
+              "line": 248
             },
             {
               "name": "cache",
               "kind": "property",
-              "line": 256
+              "line": 249
             },
             {
               "name": "pendingRequests",
               "kind": "property",
-              "line": 257
+              "line": 250
             },
             {
               "name": "cacheCleanupTimer",
               "kind": "property",
-              "line": 258
+              "line": 251
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 259
+              "line": 252
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 260
+              "line": 253
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 261
+              "line": 254
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 262
+              "line": 255
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 263
+              "line": 256
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 264
+              "line": 257
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 269
+              "line": 262
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 270
+              "line": 263
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 271
+              "line": 264
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 273
+              "line": 266
             },
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 342
+              "line": 335
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 498
+              "line": 491
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 523
+              "line": 516
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 564
+              "line": 557
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 582
+              "line": 575
             },
             {
               "name": "validateId",
               "kind": "method",
-              "line": 610
+              "line": 603
             },
             {
               "name": "validateEntryId",
               "kind": "method",
-              "line": 623
+              "line": 616
             },
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 633
+              "line": 626
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 652
+              "line": 645
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 664
+              "line": 657
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 685
+              "line": 678
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 707
+              "line": 700
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 715
+              "line": 708
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 726
+              "line": 719
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 733
+              "line": 726
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 760
+              "line": 753
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 797
+              "line": 790
             },
             {
               "name": "requestText",
               "kind": "method",
-              "line": 850
+              "line": 849
             },
             {
               "name": "requestMultipart",
               "kind": "method",
-              "line": 895
+              "line": 900
             },
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1021
+              "line": 1026
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 1055
+              "line": 1060
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1200
+              "line": 1207
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1209
+              "line": 1216
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1242
+              "line": 1249
             }
           ]
         }
@@ -5111,86 +5053,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           ]
         },
         {
-          "name": "TestRailRateLimitError",
-          "kind": "class",
-          "line": 18,
-          "exported": true,
-          "signature": "export class TestRailRateLimitError extends TestRailApiError",
-          "members": [
-            {
-              "name": "constructor",
-              "kind": "constructor",
-              "line": 19
-            }
-          ]
-        },
-        {
-          "name": "TestRailAuthError",
-          "kind": "class",
-          "line": 26,
-          "exported": true,
-          "signature": "export class TestRailAuthError extends TestRailApiError",
-          "members": [
-            {
-              "name": "constructor",
-              "kind": "constructor",
-              "line": 27
-            }
-          ]
-        },
-        {
-          "name": "TestRailNotFoundError",
-          "kind": "class",
-          "line": 34,
-          "exported": true,
-          "signature": "export class TestRailNotFoundError extends TestRailApiError",
-          "members": [
-            {
-              "name": "constructor",
-              "kind": "constructor",
-              "line": 35
-            }
-          ]
-        },
-        {
-          "name": "TestRailTimeoutError",
-          "kind": "class",
-          "line": 42,
-          "exported": true,
-          "signature": "export class TestRailTimeoutError extends TestRailApiError",
-          "members": [
-            {
-              "name": "constructor",
-              "kind": "constructor",
-              "line": 43
-            }
-          ]
-        },
-        {
-          "name": "createApiError",
-          "kind": "function",
-          "line": 53,
-          "exported": true,
-          "signature": "export function createApiError(status: number, statusText: string, response?: unknown): TestRailApiError"
-        },
-        {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 64,
+          "line": 20,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 65
+              "line": 21
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 77,
+          "line": 33,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }
@@ -5392,55 +5271,56 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export interface GetHistoryForCaseOptions { limit?: number; offset?: number; }"
         },
         {
-          "name": "DeleteCasesOptions",
-          "kind": "type",
-          "line": 26,
-          "exported": true,
-          "signature": "export type DeleteCasesOptions = SoftDeleteOptions"
-        },
-        {
-          "name": "DeleteCasesPreview",
-          "kind": "type",
-          "line": 30,
-          "exported": true,
-          "signature": "export type DeleteCasesPreview = SoftDeletePreview"
-        },
-        {
           "name": "CaseModule",
           "kind": "class",
-          "line": 32,
+          "line": 24,
           "exported": true,
           "signature": "export class CaseModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 33
+              "line": 25
             },
             {
               "name": "getCase",
               "kind": "method",
-              "line": 36
+              "line": 28
             },
             {
               "name": "getCases",
               "kind": "method",
-              "line": 42
+              "line": 34
             },
             {
               "name": "addCase",
               "kind": "method",
-              "line": 93
+              "line": 85
             },
             {
               "name": "addCases",
               "kind": "method",
-              "line": 112
+              "line": 104
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 148
+              "line": 140
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 154
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 155
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 161
             },
             {
               "name": "deleteCase",
@@ -5448,59 +5328,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 162
             },
             {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 163
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 169
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 170
-            },
-            {
               "name": "updateCases",
               "kind": "method",
-              "line": 194
+              "line": 186
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 207
+              "line": 199
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 213
+              "line": 205
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 220
+              "line": 212
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 226
+              "line": 218
             },
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 249
+              "line": 241
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 266
+              "line": 258
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 272
+              "line": 264
             }
           ]
         }
