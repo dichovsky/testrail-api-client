@@ -18,17 +18,22 @@ permissions:
     id-token: write
     attestations: write
 
+concurrency:
+    group: npm-publish
+    cancel-in-progress: false
+
 jobs:
     publish:
         runs-on: ubuntu-latest
         environment: npm-publish
+        timeout-minutes: 15
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
             - name: Setup Node.js
-              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
               with:
                   node-version-file: '.nvmrc'
                   registry-url: 'https://registry.npmjs.org'
@@ -49,8 +54,14 @@ jobs:
             - name: Build
               run: npm run build
 
+            - name: Generate skill documentation
+              run: node scripts/generate-skill.js
+
+            - name: Verify skill drift
+              run: npm run skill:check
+
             - name: Strip source maps from dist/
               run: npm run clean:maps
 
             - name: Publish to npm with provenance
-              run: npm publish --provenance --access public
+              run: npm publish --provenance
