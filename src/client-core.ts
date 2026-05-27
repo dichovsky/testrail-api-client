@@ -186,6 +186,10 @@ async function validatePublicHost(hostname: string): Promise<void> {
     }
 }
 
+// UUID format for plan entry IDs (SEC #29). All four groups are hex-only so
+// path-traversal sequences cannot appear in a validated entry ID.
+const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const activeClients = new Set<TestRailClientCore>();
 let processHandlersRegistered = false;
 
@@ -593,12 +597,15 @@ export class TestRailClientCore {
     }
 
     /**
-     * Validates that a string entry ID is non-empty.
-     * @throws {TestRailValidationError} When entryId is not a non-empty string
+     * Validates that an entry ID is a well-formed UUID string.
+     * TestRail plan-entry IDs are RFC 4122 UUIDs; accepting arbitrary strings
+     * allows path-traversal sequences (e.g. `../../admin`) to be injected into
+     * the URL (SEC #29).
+     * @throws {TestRailValidationError} When entryId is not a UUID string
      */
     public validateEntryId(entryId: string): void {
-        if (typeof entryId !== 'string' || entryId.trim() === '') {
-            throw new TestRailValidationError('entryId must be a non-empty string');
+        if (typeof entryId !== 'string' || !ENTRY_ID_RE.test(entryId)) {
+            throw new TestRailValidationError('entryId must be a UUID string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
         }
     }
 

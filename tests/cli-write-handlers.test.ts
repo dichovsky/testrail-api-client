@@ -170,9 +170,11 @@ function buildClient(): MockedClient {
         addResults: vi.fn().mockResolvedValue([{ id: 200 }, { id: 201 }]),
         addPlan: vi.fn().mockResolvedValue({ id: 50, name: 'p' }),
         updatePlan: vi.fn().mockResolvedValue({ id: 50, name: 'p2' }),
-        addPlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'e' }),
+        addPlanEntry: vi.fn().mockResolvedValue({ id: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', suite_id: 1, name: 'e' }),
         addRunToPlanEntry: vi.fn().mockResolvedValue({ id: 77, suite_id: 1, name: 'r-in-entry' }),
-        updatePlanEntry: vi.fn().mockResolvedValue({ id: 'abc-uuid', suite_id: 1, name: 'updated' }),
+        updatePlanEntry: vi
+            .fn()
+            .mockResolvedValue({ id: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', suite_id: 1, name: 'updated' }),
         updateRunInPlanEntry: vi.fn().mockResolvedValue({ id: 77, suite_id: 1, name: 'updated-run' }),
         closePlan: vi.fn().mockResolvedValue({ id: 50, name: 'p', is_completed: true }),
         deletePlan: vi.fn().mockResolvedValue(undefined),
@@ -1130,7 +1132,7 @@ describe('handlePlanAddEntry', () => {
             50,
             expect.objectContaining({ suite_id: 1, include_all: true }),
         );
-        expect(out).toHaveBeenCalledWith({ id: 'abc-uuid', suite_id: 1, name: 'e' });
+        expect(out).toHaveBeenCalledWith({ id: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', suite_id: 1, name: 'e' });
     });
 
     it('dry-run does not call client', async () => {
@@ -1169,13 +1171,13 @@ describe('handlePlanAddRunToEntry', () => {
     it('calls client.addRunToPlanEntry with planId, entryId, and parsed payload', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"config_ids":[1,2],"include_all":true}',
         });
         await handlePlanAddRunToEntry(ctx);
         expect(client.addRunToPlanEntry).toHaveBeenCalledWith(
             50,
-            'abc-def-uuid',
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
             expect.objectContaining({ config_ids: [1, 2], include_all: true }),
         );
         expect(out).toHaveBeenCalledWith({ id: 77, suite_id: 1, name: 'r-in-entry' });
@@ -1184,13 +1186,13 @@ describe('handlePlanAddRunToEntry', () => {
     it('passes through custom_* fields (Zod passthrough)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"config_ids":[1],"custom_label":"xyz"}',
         });
         await handlePlanAddRunToEntry(ctx);
         expect(client.addRunToPlanEntry).toHaveBeenCalledWith(
             50,
-            'abc-def-uuid',
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
             expect.objectContaining({ config_ids: [1], custom_label: 'xyz' }),
         );
     });
@@ -1198,7 +1200,7 @@ describe('handlePlanAddRunToEntry', () => {
     it('dry-run does not call the client and emits a preview', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"config_ids":[1]}',
             dryRun: true,
         });
@@ -1209,19 +1211,19 @@ describe('handlePlanAddRunToEntry', () => {
                 dryRun: true,
                 action: 'plan add-run-to-entry',
                 planId: 50,
-                entryId: 'abc-def-uuid',
+                entryId: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
             }),
         );
     });
 
     it('rejects missing body', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', 'abc-def-uuid'] });
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'] });
         await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/Body required/);
     });
 
     it('rejects body missing required config_ids', async () => {
         const { ctx } = buildCtx(buildClient(), {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"include_all":true}',
         });
         await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/validation failed/);
@@ -1229,7 +1231,7 @@ describe('handlePlanAddRunToEntry', () => {
 
     it('rejects when plan_id is not a positive integer', async () => {
         const { ctx } = buildCtx(buildClient(), {
-            pathParams: ['0', 'abc-def-uuid'],
+            pathParams: ['0', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"config_ids":[1]}',
         });
         await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/plan_id/);
@@ -1257,35 +1259,42 @@ describe('handlePlanUpdateEntry', () => {
     it('calls client.updatePlanEntry with planId, entryId, and parsed payload', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"name":"renamed","include_all":false}',
         });
         await handlePlanUpdateEntry(ctx);
         expect(client.updatePlanEntry).toHaveBeenCalledWith(
             50,
-            'abc-def-uuid',
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
             expect.objectContaining({ name: 'renamed', include_all: false }),
         );
-        expect(out).toHaveBeenCalledWith({ id: 'abc-uuid', suite_id: 1, name: 'updated' });
+        expect(out).toHaveBeenCalledWith({ id: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56', suite_id: 1, name: 'updated' });
     });
 
     it('accepts an empty body (all fields optional)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['50', 'abc-def-uuid'], dataFlag: '{}' });
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
+            dataFlag: '{}',
+        });
         await handlePlanUpdateEntry(ctx);
-        expect(client.updatePlanEntry).toHaveBeenCalledWith(50, 'abc-def-uuid', expect.any(Object));
+        expect(client.updatePlanEntry).toHaveBeenCalledWith(
+            50,
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            expect.any(Object),
+        );
     });
 
     it('passes through custom_* fields (Zod passthrough)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"custom_field":42}',
         });
         await handlePlanUpdateEntry(ctx);
         expect(client.updatePlanEntry).toHaveBeenCalledWith(
             50,
-            'abc-def-uuid',
+            'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
             expect.objectContaining({ custom_field: 42 }),
         );
     });
@@ -1293,7 +1302,7 @@ describe('handlePlanUpdateEntry', () => {
     it('dry-run does not call the client and emits a preview', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"name":"x"}',
             dryRun: true,
         });
@@ -1304,26 +1313,29 @@ describe('handlePlanUpdateEntry', () => {
                 dryRun: true,
                 action: 'plan update-entry',
                 planId: 50,
-                entryId: 'abc-def-uuid',
+                entryId: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
             }),
         );
     });
 
     it('rejects missing body', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', 'abc-def-uuid'] });
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'] });
         await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/Body required/);
     });
 
     it('rejects body with wrong field type', async () => {
         const { ctx } = buildCtx(buildClient(), {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"name":42}',
         });
         await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/validation failed/);
     });
 
     it('rejects when plan_id is not a positive integer', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['bad', 'abc-def-uuid'], dataFlag: '{}' });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['bad', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
+            dataFlag: '{}',
+        });
         await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/plan_id/);
     });
 
@@ -1431,7 +1443,7 @@ describe('plan-entry handlers — numeric ID boundary inputs', () => {
         ['empty', ''],
     ])('plan add-run-to-entry: rejects plan_id=%s', async (_label, raw) => {
         const { ctx } = buildCtx(buildClient(), {
-            pathParams: [raw, 'abc-def-uuid'],
+            pathParams: [raw, 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dataFlag: '{"config_ids":[1]}',
         });
         await expect(handlePlanAddRunToEntry(ctx)).rejects.toThrow(/plan_id/);
@@ -1444,7 +1456,10 @@ describe('plan-entry handlers — numeric ID boundary inputs', () => {
         ['abc', 'abc'],
         ['empty', ''],
     ])('plan update-entry: rejects plan_id=%s', async (_label, raw) => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: [raw, 'abc-def-uuid'], dataFlag: '{}' });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: [raw, 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
+            dataFlag: '{}',
+        });
         await expect(handlePlanUpdateEntry(ctx)).rejects.toThrow(/plan_id/);
     });
 });
@@ -1586,24 +1601,31 @@ describe('handlePlanDeleteEntry', () => {
     it('calls client.deletePlanEntry with parsed plan_id and entry_id', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', 'abc-def-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             confirmDestructive: true,
         });
         await handlePlanDeleteEntry(ctx);
-        expect(client.deletePlanEntry).toHaveBeenCalledWith(50, 'abc-def-uuid');
-        expect(out).toHaveBeenCalledWith({ planId: 50, entryId: 'abc-def-uuid', deleted: true });
+        expect(client.deletePlanEntry).toHaveBeenCalledWith(50, 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56');
+        expect(out).toHaveBeenCalledWith({
+            planId: 50,
+            entryId: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            deleted: true,
+        });
     });
 
     it('rejects without --yes', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['50', 'abc-uuid'] });
+        const { ctx } = buildCtx(client, { pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'] });
         await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/--yes to confirm/);
         expect(client.deletePlanEntry).not.toHaveBeenCalled();
     });
 
     it('dry-run does not call the client and marks preview destructive', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['50', 'abc-uuid'], dryRun: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
+            dryRun: true,
+        });
         await handlePlanDeleteEntry(ctx);
         expect(client.deletePlanEntry).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
@@ -1611,7 +1633,7 @@ describe('handlePlanDeleteEntry', () => {
                 dryRun: true,
                 action: 'plan delete-entry',
                 planId: 50,
-                entryId: 'abc-uuid',
+                entryId: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
                 destructive: true,
             }),
         );
@@ -1620,7 +1642,7 @@ describe('handlePlanDeleteEntry', () => {
     it('dry-run wins over --yes: no API call', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', 'abc-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             dryRun: true,
             confirmDestructive: true,
         });
@@ -1635,7 +1657,7 @@ describe('handlePlanDeleteEntry', () => {
     // integers by Number() and pass parseId. The CLI's parseId boundary is
     // limited to non-integers, non-positives, and empty strings.
     it.each([['0'], ['-1'], ['1.5'], ['abc'], ['']])('rejects non-positive-integer plan_id (%s)', async (raw) => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: [raw, 'abc-uuid'] });
+        const { ctx } = buildCtx(buildClient(), { pathParams: [raw, 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'] });
         await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/plan_id/);
     });
 
@@ -1657,18 +1679,22 @@ describe('handlePlanDeleteEntry', () => {
     it('trims whitespace from entry_id before calling the client', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['50', '  abc-uuid  '],
+            pathParams: ['50', '  e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56  '],
             confirmDestructive: true,
         });
         await handlePlanDeleteEntry(ctx);
-        expect(client.deletePlanEntry).toHaveBeenCalledWith(50, 'abc-uuid');
-        expect(out).toHaveBeenCalledWith({ planId: 50, entryId: 'abc-uuid', deleted: true });
+        expect(client.deletePlanEntry).toHaveBeenCalledWith(50, 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56');
+        expect(out).toHaveBeenCalledWith({
+            planId: 50,
+            entryId: 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+            deleted: true,
+        });
     });
 
     it('rejects --soft (TestRail does not support soft on delete_plan_entry)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, {
-            pathParams: ['50', 'abc-uuid'],
+            pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             soft: true,
             confirmDestructive: true,
         });

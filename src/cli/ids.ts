@@ -35,18 +35,25 @@ export function parseId(raw: string | undefined, name: string): number {
     return Number(raw);
 }
 
+// UUID format for plan entry IDs (SEC #29) — must match validateEntryId in
+// client-core.ts. Kept in sync as a module-level const rather than importing
+// from client-core to avoid pulling the entire HTTP layer into the CLI layer.
+const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Parse a TestRail plan-entry ID. Unlike numeric IDs (plan_id, run_id),
- * entry_id is a UUID-style string per TestRail's API. Mirrors the
- * `validateEntryId` rule in `client-core.ts`: non-empty after trim.
+ * Parse a TestRail plan-entry ID. Validates UUID format (SEC #29) to prevent
+ * path-traversal sequences from appearing in the API URL.
  * Returns the trimmed value so callers don't pass whitespace to the API.
  * Throws `IdParseError` so `main()` exits 1 (parity with `parseId`).
  */
 export function parseEntryId(raw: string | undefined, name: string): string {
-    if (typeof raw !== 'string' || raw.trim() === '') {
-        throw new IdParseError(`${name} must be a non-empty string (got: ${raw ?? '(none)'})`);
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    if (!ENTRY_ID_RE.test(trimmed)) {
+        throw new IdParseError(
+            `${name} must be a UUID string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) (got: ${raw ?? '(none)'})`,
+        );
     }
-    return raw.trim();
+    return trimmed;
 }
 
 export function optInt(raw: string | undefined): number | undefined {
