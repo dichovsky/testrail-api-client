@@ -20,7 +20,7 @@
  *   - rejection: an unrecoverable getRun() failure (4xx, plain Error)
  *     propagates so main() exits 1
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { handleRunWatch } from '../src/cli/handlers/run-watch.js';
 import { TestRailApiError } from '../src/errors.js';
 import type { TestRailClient } from '../src/client.js';
@@ -568,5 +568,112 @@ describe('handleRunWatch', () => {
         // short-circuited before the retry-log branch.
         expect(stderrWrites.join('')).not.toMatch(/transient error/);
         spyErr.mockRestore();
+    });
+});
+
+/**
+ * Isolated describe block that re-imports the handler with a mocked
+ * `errors.ts` where `TestRailApiError` does NOT extend `Error`. This is the
+ * only way to exercise the `String(e)` arm of the ternary at line 247:
+ *
+ *   const msg = e instanceof Error ? e.message : String(e);
+ *
+ * In the normal module, `isTransientError` requires `e instanceof
+ * TestRailApiError`, and `TestRailApiError extends Error`, so the `String(e)`
+ * arm is unreachable without this seam.
+ */
+describe('handleRunWatch – String(e) branch via non-Error transient mock', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let handleRunWatchIsolated: (ctx: any) => Promise<void>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let MockApiError: new (status: number, statusText: string) => any;
+
+    beforeAll(async () => {
+        // Replace the errors module with a version where TestRailApiError is a
+        // plain class that does NOT extend Error, so `e instanceof Error` is
+        // false at the transient-error log site.
+        vi.doMock('../src/errors.js', () => {
+            class TestRailApiError {
+                public status: number;
+                public statusText: string;
+                public message: string;
+                constructor(status: number, statusText: string) {
+                    this.status = status;
+                    this.statusText = statusText;
+                    this.message = `TestRail API error: ${status} ${statusText}`;
+                }
+            }
+            return { TestRailApiError };
+        });
+        // Reset so subsequent imports pick up the mock.
+        vi.resetModules();
+        const errMod = await import('../src/errors.js');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        MockApiError = (errMod as any).TestRailApiError as typeof MockApiError;
+        const mod = await import('../src/cli/handlers/run-watch.js');
+        handleRunWatchIsolated = mod.handleRunWatch;
+    });
+
+    afterAll(() => {
+        vi.doUnmock('../src/errors.js');
+        vi.resetModules();
+    });
+
+    it('logs String(e) when transient error is not an Error instance (covers line 247 false branch)', async () => {
+        // The MockApiError class does NOT extend Error, so `e instanceof Error`
+        // at line 247 evaluates to false → the String(e) arm is reached.
+        const getRun = vi.fn();
+        getRun
+            .mockRejectedValueOnce(new MockApiError(503, 'Service Unavailable'))
+            .mockResolvedValueOnce({
+                id: 42,
+                suite_id: 1,
+                name: 'CI Run',
+                include_all: true,
+                is_completed: true,
+                passed_count: 5,
+                blocked_count: 0,
+                untested_count: 0,
+                retest_count: 0,
+                failed_count: 0,
+                project_id: 1,
+                created_on: 0,
+                created_by: 1,
+                url: 'https://example.testrail.io/runs/view/42',
+            });
+
+        const out = vi.fn();
+        const ctx = {
+            client: { getRun } as unknown as TestRailClient,
+            args: { pathParams: ['42'] },
+            bodyInput: {},
+            dryRun: false,
+            force: false,
+            confirmDestructive: false,
+            out,
+        };
+
+        vi.useFakeTimers();
+        const stderrWrites: string[] = [];
+        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
+            return true;
+        });
+        try {
+            const promise = handleRunWatchIsolated(ctx);
+            await vi.advanceTimersByTimeAsync(30_000);
+            await promise;
+        } finally {
+            spyErr.mockRestore();
+            vi.useRealTimers();
+        }
+
+        // String(e) for a plain-class instance gives "[object Object]" unless
+        // Symbol.toPrimitive / toString is defined. The important thing is
+        // that the transient-error line was written to stderr.
+        expect(stderrWrites.join('')).toMatch(/transient error for runId=42/);
+        // The watcher continued and completed after the transient error.
+        const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
+        expect(events).toContain('completed');
     });
 });

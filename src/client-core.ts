@@ -13,7 +13,7 @@ import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
 import { ZodError, type ZodType } from 'zod';
 import type { PipelineSpec } from './http-pipeline-types.js';
-import { fullRetryPolicy } from './retry-policy.js';
+import { fullRetryPolicy, binaryGetRetryPolicy } from './retry-policy.js';
 
 /**
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
@@ -848,101 +848,20 @@ export class TestRailClientCore {
      * @throws {Error} When called after `destroy()`
      */
     public async requestText(method: string, endpoint: string, data?: unknown, retryCount = 0): Promise<string> {
-        if (this.isDestroyed) {
-            throw new Error('Cannot use TestRailClient after destroy() has been called');
-        }
-
-        await this.awaitDnsValidation();
-
-        this.checkRateLimit();
-
-        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
-        const headers: Record<string, string> = {
-            Authorization: `Basic ${this.auth}`,
-            'Content-Type': 'application/json',
-            'User-Agent': USER_AGENT,
-        };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-        const options: RequestInit = {
-            method,
-            headers,
-            signal: controller.signal,
-            // BACKLOG #4: never follow redirects automatically (see request<T>).
-            redirect: 'manual',
-        };
-
-        if (data !== undefined) {
-            options.body = JSON.stringify(data);
-        }
-
-        try {
-            const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
-            // Body read is bounded by readBodyWithLimits (SEC #21).
-            clearTimeout(timeoutId);
-
-            this.assertNotRedirect(response);
-
-            const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
-
-            if (!response.ok) {
-                // Body-limit errors (cap / timeout) surface immediately — see
-                // the same pattern in request<T>() for the full rationale.
-                let errorText: string;
-                try {
-                    errorText = await readBodyAsText(response, jsonLimits);
-                } catch (bodyErr) {
-                    if (bodyErr instanceof TestRailApiError) {
-                        throw bodyErr;
-                    }
-                    errorText = 'Unknown error';
-                }
-
-                // Mirrors the retry contract documented on request<T>():
-                // 429 retries for all methods; 5xx retries only for GET.
-                // Retry-After is honored on both (BACKLOG SEC #25).
-                const isIdempotent = method === 'GET';
-                const status = response.status;
-                const shouldRetry = (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
-                if (shouldRetry) {
-                    const retryAfterMs = this.parseRetryAfterMs(response);
-                    const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
-                    await sleep(delay);
-                    return this.requestText(method, endpoint, data, retryCount + 1);
-                }
-
-                throw createApiError(response.status, response.statusText, errorText);
-            }
-
-            // Mutating calls still invalidate the JSON cache so subsequent
-            // GETs see the new state.
-            if (method !== 'GET') {
-                this.clearCache();
-            }
-
-            return readBodyAsText(response, jsonLimits);
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            if (error instanceof TestRailApiError) {
-                throw error;
-            }
-
-            const isAbortError = (error as Error).name === 'AbortError';
-            if (isAbortError) {
-                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
-            }
-
-            // Network errors retry only for GET — see request<T>() for rationale.
-            if (method === 'GET' && retryCount < this.maxRetries) {
-                await sleep(this.getRetryDelay(retryCount));
-                return this.requestText(method, endpoint, data, retryCount + 1);
-            }
-
-            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
-        }
+        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+        return this.executePipeline<string>(
+            {
+                method,
+                endpoint,
+                body: data !== undefined ? { kind: 'json', data } : { kind: 'none' },
+                sendJsonContentType: true,
+                retryPolicy: fullRetryPolicy(),
+                cache: { key: undefined, skipRead: false },
+                parseSuccess: async (response: Response) => readBodyAsText(response, jsonLimits),
+                ...(method !== 'GET' ? { onSuccessBeforeParse: () => { this.clearCache(); } } : {}),
+            },
+            retryCount,
+        );
     }
 
     /**
@@ -1124,101 +1043,26 @@ export class TestRailClientCore {
      * @throws {Error} When called after `destroy()`
      */
     public async requestBinary(endpoint: string, retryCount = 0): Promise<ArrayBuffer> {
-        if (this.isDestroyed) {
-            throw new Error('Cannot use TestRailClient after destroy() has been called');
-        }
-
-        await this.awaitDnsValidation();
-
-        this.checkRateLimit();
-
-        const url = `${this.baseUrl}/index.php?/api/v2/${endpoint}`;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-        try {
-            const response = await (this.fetchOverride ?? globalThis.fetch)(url, {
+        return this.executePipeline<ArrayBuffer>(
+            {
                 method: 'GET',
-                headers: {
-                    Authorization: `Basic ${this.auth}`,
-                    'User-Agent': USER_AGENT,
-                },
-                signal: controller.signal,
-                // BACKLOG #4: never follow redirects automatically (see request<T>).
-                redirect: 'manual',
-            });
-
-            // Body read is bounded by readBodyWithLimits (SEC #21).
-            clearTimeout(timeoutId);
-
-            this.assertNotRedirect(response);
-
-            if (!response.ok) {
-                // Error bodies on the binary endpoint are still JSON/text — use the
-                // JSON cap so a server cannot OOM us with a giant error payload.
-                // Body-limit errors (cap / timeout) surface immediately — see
-                // the same pattern in request<T>() for the full rationale.
-                let errorText: string;
-                try {
-                    errorText = await readBodyAsText(response, {
-                        maxBytes: this.maxJsonResponseBytes,
+                endpoint,
+                body: { kind: 'none' },
+                sendJsonContentType: false,
+                retryPolicy: binaryGetRetryPolicy(),
+                cache: { key: undefined, skipRead: false },
+                parseSuccess: async (response: Response) => {
+                    const bytes = await readBodyWithLimits(response, {
+                        maxBytes: this.maxBinaryResponseBytes,
                         deadlineMs: this.bodyTimeout,
                     });
-                } catch (bodyErr) {
-                    if (bodyErr instanceof TestRailApiError) {
-                        throw bodyErr;
-                    }
-                    errorText = 'Unknown error';
-                }
-
-                // Retry strategy for 5xx (Server Errors) and 429 (Too Many Requests).
-                // requestBinary is always GET (attachment download) and therefore
-                // idempotent — retrying any 5xx is safe.
-                // Retry-After is honored on both classes (BACKLOG SEC #25); it falls
-                // back to exponential backoff when absent, zero, in the past, or
-                // unparseable (see parseRetryAfterMs).
-                if ((response.status >= 500 || response.status === 429) && retryCount < this.maxRetries) {
-                    const retryAfterMs = this.parseRetryAfterMs(response);
-                    const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
-                    await sleep(delay);
-                    return this.requestBinary(endpoint, retryCount + 1);
-                }
-
-                throw createApiError(response.status, response.statusText, errorText);
-            }
-
-            // Binary success body: use the larger binary cap.
-            const bytes = await readBodyWithLimits(response, {
-                maxBytes: this.maxBinaryResponseBytes,
-                deadlineMs: this.bodyTimeout,
-            });
-            // readBodyWithLimits returns a subarray view of a growable buffer
-            // that may have spare capacity.  Return an ArrayBuffer that contains
-            // exactly the downloaded bytes — slice only when needed to avoid an
-            // unnecessary copy when the buffer happens to be exact-sized.
-            return bytes.byteLength === bytes.buffer.byteLength
-                ? (bytes.buffer as ArrayBuffer)
-                : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            if (error instanceof TestRailApiError) {
-                throw error;
-            }
-
-            const isAbortError = (error as Error).name === 'AbortError';
-            if (isAbortError) {
-                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
-            }
-
-            if (retryCount < this.maxRetries) {
-                await sleep(this.getRetryDelay(retryCount));
-                return this.requestBinary(endpoint, retryCount + 1);
-            }
-
-            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
-        }
+                    return bytes.byteLength === bytes.buffer.byteLength
+                        ? (bytes.buffer as ArrayBuffer)
+                        : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+                },
+            },
+            retryCount,
+        );
     }
 
     /**
