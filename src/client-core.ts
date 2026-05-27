@@ -963,6 +963,11 @@ export class TestRailClientCore {
                         return {
                             body: formData,
                             cleanup: () => {
+                                // fdToClose is always undefined here (closed early on POSIX
+                                // after openAsBlob, or on non-POSIX before openAsBlob).
+                                // This guard is a defensive safety net; c8 ignore covers the
+                                // unreachable try block.
+                                /* c8 ignore next 5 */
                                 if (fdToClose !== undefined) {
                                     try {
                                         closeSync(fdToClose);
