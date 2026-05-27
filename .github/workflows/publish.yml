@@ -55,7 +55,7 @@ jobs:
               run: npm run build
 
             - name: Generate skill documentation
-              run: node scripts/generate-skill.js
+              run: npx tsx scripts/generate-skill.ts
 
             - name: Verify skill drift
               run: npm run skill:check

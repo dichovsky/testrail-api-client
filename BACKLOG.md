@@ -28,5 +28,4 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 - [ ] 🟡 ♻️ ARCH #7: Eliminate hand-written 1517-line facade (`client.ts`) — 131 `async` wrapper methods forwarding to 18 modules; either deprecate flat surface in favor of namespaced (`client.projects.getProject`) or generate the facade from module signatures at build time; contradicts ARCHITECTURE.md §3.2 — reopen because JSDoc/types are no longer the load-bearing reason (modules carry the same)
 
 ## From User (should be reordered by priority)
-- [ ] 🟡 📦 USER: all scripts from `./scripts/` folder should be written in Typescript
 - [ ] 🟡 📦 USER: merge tsconfig.eslint.json into tsconfig.json and remove tsconfig.eslint.json. all dev script should use tsconfig.json

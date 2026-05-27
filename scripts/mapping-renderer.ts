@@ -1,10 +1,10 @@
 /**
- * Pure helpers for scripts/generate-mapping.js. Extracted as a sibling module
+ * Pure helpers for scripts/generate-mapping.ts. Extracted as a sibling module
  * so they can be exercised by tests/generate-mapping.test.ts without invoking
  * the whole AST-crawl + filesystem pipeline.
  *
  * Nothing here reads files or has side effects. Side-effectful orchestration
- * (loading JSON, walking modules, writing output) stays in generate-mapping.js.
+ * (loading JSON, walking modules, writing output) stays in generate-mapping.ts.
  *
  * Phase 2 changes: the Phase-1 `CLI_OPERATION_MAP` / `guessCliCommand` heuristic
  * is gone. Each `ActionSpec` now carries an explicit `apiEndpoint` field, so
@@ -28,14 +28,19 @@ export const EndpointSchema = z.object({
     docUrl: z.string().url().optional(),
 });
 
+export type Endpoint = z.infer<typeof EndpointSchema>;
+
 export const EndpointsArraySchema = z.array(EndpointSchema).superRefine((arr, ctx) => {
-    const seen = new Map();
+    const seen = new Map<string, number>();
     for (let i = 0; i < arr.length; i++) {
-        const key = `${arr[i].method} ${arr[i].path}`;
-        if (seen.has(key)) {
+        const item = arr[i];
+        if (item === undefined) continue;
+        const key = `${item.method} ${item.path}`;
+        const prev = seen.get(key);
+        if (prev !== undefined) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `Duplicate endpoint "${key}" at index ${i} (first seen at index ${seen.get(key)})`,
+                message: `Duplicate endpoint "${key}" at index ${i} (first seen at index ${prev})`,
                 path: [i],
             });
         } else {
@@ -51,11 +56,8 @@ export const EndpointsArraySchema = z.array(EndpointSchema).superRefine((arr, ct
  * Strips TestRail's `&key=val` query suffix (which appears in some endpoints).
  * Both sides use `{snake_case}` placeholders already, so no further work is
  * needed there.
- *
- * @param {string} raw
- * @returns {string}
  */
-export function normalizePathForMatch(raw) {
+export function normalizePathForMatch(raw: string): string {
     const amp = raw.indexOf('&');
     return amp === -1 ? raw : raw.slice(0, amp);
 }
@@ -64,15 +66,12 @@ export function normalizePathForMatch(raw) {
  * Parse a `@testrail` JSDoc tag value into `{ method, path }`. Accepts forms
  * like `GET get_case/{case_id}` or `POST add_project`. Returns `null` for
  * unparseable input so callers can decide how to report the error.
- *
- * @param {string} text
- * @returns {{ method: string, path: string } | null}
  */
-export function parseTestrailTag(text) {
+export function parseTestrailTag(text: string): { method: string; path: string } | null {
     const trimmed = text.trim();
     const match = trimmed.match(/^(GET|POST)\s+(\S+)$/);
-    if (!match) return null;
-    return { method: match[1], path: match[2] };
+    if (match === null) return null;
+    return { method: match[1] as string, path: match[2] as string };
 }
 
 // ── Skill recipe parsing (Phase 3) ────────────────────────────────────────────
@@ -81,15 +80,18 @@ export function parseTestrailTag(text) {
  * GitHub-flavored heading anchor: lowercase, strip everything that isn't
  * alphanumeric / space / hyphen, then replace spaces with hyphens. Matches
  * GitHub's behavior for `### 1. Smoke-test auth & connectivity` → `#1-smoke-test-auth--connectivity`.
- *
- * @param {string} heading raw text after `### ` markdown prefix
- * @returns {string}
  */
-export function slugifyHeading(heading) {
+export function slugifyHeading(heading: string): string {
     return heading
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s/g, '-');
+}
+
+export interface SkillRecipe {
+    number: number;
+    title: string;
+    anchor: string;
 }
 
 /**
@@ -100,15 +102,12 @@ export function slugifyHeading(heading) {
  *
  * Skips the GENERATED sections (anything between `<!-- GENERATED:` markers)
  * so generator-rendered tables can't poison the parse.
- *
- * @param {string} skillSource full SKILL.md content
- * @returns {Map<string, { number: number, title: string, anchor: string }>}
  */
-export function parseSkillRecipes(skillSource) {
-    const recipes = new Map();
+export function parseSkillRecipes(skillSource: string): Map<string, SkillRecipe> {
+    const recipes = new Map<string, SkillRecipe>();
     const lines = skillSource.split('\n');
     let inGenerated = false;
-    let currentRecipe = null;
+    let currentRecipe: SkillRecipe | null = null;
     for (const raw of lines) {
         if (raw.startsWith('<!-- GENERATED:')) {
             inGenerated = true;
@@ -121,16 +120,16 @@ export function parseSkillRecipes(skillSource) {
         if (inGenerated) continue;
 
         const headingMatch = raw.match(/^###\s+(\d+)\.\s+(.+?)\s*$/);
-        if (headingMatch) {
-            const number = Number.parseInt(headingMatch[1], 10);
-            const title = headingMatch[2];
+        if (headingMatch !== null) {
+            const number = Number.parseInt(headingMatch[1] as string, 10);
+            const title = headingMatch[2] as string;
             currentRecipe = { number, title, anchor: slugifyHeading(`${number}. ${title}`) };
             continue;
         }
 
         const tagMatch = raw.match(/^<!--\s*recipe-for:\s*(.+?)\s*-->\s*$/);
-        if (tagMatch && currentRecipe) {
-            const keys = tagMatch[1]
+        if (tagMatch !== null && currentRecipe !== null) {
+            const keys = (tagMatch[1] as string)
                 .split(',')
                 .map((k) => k.trim())
                 .filter(Boolean);
@@ -143,6 +142,29 @@ export function parseSkillRecipes(skillSource) {
 }
 
 // ── Cross-validation gates (B, C, C2 — pure, testable) ──────────────────────
+
+export interface CallSite {
+    moduleFile: string;
+    methodName: string;
+    method: string;
+    path: string;
+    line: number;
+}
+
+export interface ActionEntry {
+    resource: string;
+    action: string;
+    apiEndpoint: string;
+    skillRecipeExempt?: boolean;
+}
+
+export interface ValidateGatesInput {
+    callSites: CallSite[];
+    actions: ActionEntry[];
+    endpoints: { method: string; path: string }[];
+    recipes: Map<string, SkillRecipe>;
+    rootPrefix?: string;
+}
 
 /**
  * Gate B:  every `@testrail` tag must reference an endpoint in the JSON.
@@ -161,31 +183,26 @@ export function parseSkillRecipes(skillSource) {
  *
  * All three gates produce error lists; the caller exits non-zero if any is
  * non-empty.
- *
- * @param {object} input
- * @param {Array<{ moduleFile: string, methodName: string, method: string, path: string, line: number }>} input.callSites
- * @param {Array<{ resource: string, action: string, apiEndpoint: string, skillRecipeExempt?: boolean }>} input.actions
- * @param {Array<{ method: string, path: string }>} input.endpoints
- * @param {Map<string, { number: number, title: string, anchor: string }>} input.recipes
- * @param {string} [input.rootPrefix='']
- *        Repo root prefix to strip from `moduleFile` paths in Gate B errors
- *        (e.g., `/Users/x/repo/`). Defaults to '' so callers running outside
- *        a checkout get the full absolute path.
- * @returns {string[]}
  */
-export function validateGates({ callSites, actions, endpoints, recipes, rootPrefix = '' }) {
+export function validateGates({
+    callSites,
+    actions,
+    endpoints,
+    recipes,
+    rootPrefix = '',
+}: ValidateGatesInput): string[] {
     const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
     const tagKeys = new Set(callSites.map((c) => `${c.method} ${normalizePathForMatch(c.path)}`));
     const actionKeys = new Set(actions.map((a) => `${a.resource}:${a.action}`));
 
-    const errors = [];
+    const errors: string[] = [];
 
     // Gate B
     for (const cs of callSites) {
         const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
         if (!jsonKeys.has(key)) {
             const rel =
-                rootPrefix && cs.moduleFile.startsWith(rootPrefix)
+                rootPrefix.length > 0 && cs.moduleFile.startsWith(rootPrefix)
                     ? cs.moduleFile.slice(rootPrefix.length)
                     : cs.moduleFile;
             errors.push(
@@ -197,7 +214,7 @@ export function validateGates({ callSites, actions, endpoints, recipes, rootPref
     // Gate C
     for (const a of actions) {
         const parsed = parseTestrailTag(a.apiEndpoint);
-        if (!parsed) {
+        if (parsed === null) {
             errors.push(
                 `[gate C] ACTIONS entry \`${a.resource}:${a.action}\` has malformed apiEndpoint: "${a.apiEndpoint}"`,
             );
@@ -228,7 +245,7 @@ export function validateGates({ callSites, actions, endpoints, recipes, rootPref
     // (PR #114 dropped recipe #34; PR #118 dropped C3+C5 during rebase) that
     // the one-way forward check could not detect.
     for (const a of actions) {
-        if (a.skillRecipeExempt) continue;
+        if (a.skillRecipeExempt === true) continue;
         const key = `${a.resource}:${a.action}`;
         if (!recipes.has(key)) {
             errors.push(
@@ -251,23 +268,26 @@ const LINK_PREFIX = '../';
 const SKILL_COMMAND_TABLE_ANCHOR = `${LINK_PREFIX}skill/SKILL.md#command-surface`;
 const TESTRAIL_DOCS_BASE = 'https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference';
 
-export function renderEndpointCell(ep) {
+export function renderEndpointCell(ep: { method: string; path: string; docUrl?: string | undefined }): string {
     const text = `\`${ep.method} ${ep.path}\``;
     const url = ep.docUrl ?? TESTRAIL_DOCS_BASE;
     return `[${text}](${url})`;
 }
 
-export function renderClientCell(match, rootPrefix) {
-    if (!match) return '—';
+export function renderClientCell(
+    match: { moduleFile: string; methodName: string; line: number } | null,
+    rootPrefix: string,
+): string {
+    if (match === null) return '—';
     const rel =
-        rootPrefix && match.moduleFile.startsWith(rootPrefix)
+        rootPrefix.length > 0 && match.moduleFile.startsWith(rootPrefix)
             ? match.moduleFile.slice(rootPrefix.length)
             : match.moduleFile;
     return `[\`${match.methodName}\`](${LINK_PREFIX}${rel}#L${match.line})`;
 }
 
-export function renderCliCell(cliKey) {
-    if (!cliKey) return '—';
+export function renderCliCell(cliKey: string | null): string {
+    if (cliKey === null) return '—';
     return `\`${cliKey.replace(':', ' ')}\``;
 }
 
@@ -276,10 +296,10 @@ export function renderCliCell(cliKey) {
  * link directly to that recipe. Otherwise fall back to the generated command-
  * table anchor. Returns em-dash when the row has no CLI binding at all.
  */
-export function renderSkillCell(cliKey, recipes) {
-    if (!cliKey) return '—';
-    const recipe = recipes && recipes.get ? recipes.get(cliKey) : null;
-    if (recipe) {
+export function renderSkillCell(cliKey: string | null, recipes?: Map<string, SkillRecipe>): string {
+    if (cliKey === null) return '—';
+    const recipe = recipes !== undefined ? recipes.get(cliKey) : undefined;
+    if (recipe !== undefined) {
         return `[recipe #${recipe.number}](${LINK_PREFIX}skill/SKILL.md#${recipe.anchor})`;
     }
     return `[command-table](${SKILL_COMMAND_TABLE_ANCHOR})`;
@@ -287,7 +307,18 @@ export function renderSkillCell(cliKey, recipes) {
 
 // ── Aggregate renderers ───────────────────────────────────────────────────────
 
-export function renderSummaryTable(grouped, recipes) {
+export interface MappingRow {
+    endpoint: Endpoint;
+    match: { moduleFile: string; methodName: string; line: number } | null;
+    cliKey: string | null;
+}
+
+export interface GroupedResource {
+    resource: string;
+    rows: MappingRow[];
+}
+
+export function renderSummaryTable(grouped: GroupedResource[], recipes?: Map<string, SkillRecipe>): string {
     const lines = [
         '| Resource | TestRail endpoints | Client methods | CLI commands | Skill exposure |',
         '| --- | ---: | ---: | ---: | ---: |',
@@ -295,10 +326,10 @@ export function renderSummaryTable(grouped, recipes) {
     const totals = { ep: 0, client: 0, cli: 0, skill: 0 };
     for (const { resource, rows } of grouped) {
         const ep = rows.length;
-        const client = rows.filter((r) => r.match).length;
-        const cli = rows.filter((r) => r.cliKey).length;
+        const client = rows.filter((r) => r.match !== null).length;
+        const cli = rows.filter((r) => r.cliKey !== null).length;
         // Skill count: rows whose cliKey has a recipe-for: tag in SKILL.md.
-        const skill = recipes ? rows.filter((r) => r.cliKey && recipes.has(r.cliKey)).length : 0;
+        const skill = recipes !== undefined ? rows.filter((r) => r.cliKey !== null && recipes.has(r.cliKey)).length : 0;
         totals.ep += ep;
         totals.client += client;
         totals.cli += cli;
@@ -310,9 +341,14 @@ export function renderSummaryTable(grouped, recipes) {
     return lines.join('\n');
 }
 
-export function renderResourceSection(resource, rows, rootPrefix, recipes) {
+export function renderResourceSection(
+    resource: string,
+    rows: MappingRow[],
+    rootPrefix: string,
+    recipes?: Map<string, SkillRecipe>,
+): string {
     const slug = resource.toLowerCase().replace(/\s+/g, '-');
-    const header = [`## ${resource}`, '', '<a id="' + slug + '"></a>', ''];
+    const header = [`## ${resource}`, '', `<a id="${slug}"></a>`, ''];
     const table = ['| Endpoint | Client method | CLI command | Skill recipe |', '| --- | --- | --- | --- |'];
     for (const row of rows) {
         table.push(
@@ -322,9 +358,13 @@ export function renderResourceSection(resource, rows, rootPrefix, recipes) {
     return [...header, ...table, ''].join('\n');
 }
 
-export function renderDocument(grouped, rootPrefix, recipes) {
+export function renderDocument(
+    grouped: GroupedResource[],
+    rootPrefix: string,
+    recipes?: Map<string, SkillRecipe>,
+): string {
     const lines = [
-        '<!-- Generated by scripts/generate-mapping.js. Do not edit by hand. -->',
+        '<!-- Generated by scripts/generate-mapping.ts. Do not edit by hand. -->',
         '',
         '# TestRail API Mapping',
         '',
@@ -344,5 +384,5 @@ export function renderDocument(grouped, rootPrefix, recipes) {
     for (const { resource, rows } of grouped) {
         lines.push(renderResourceSection(resource, rows, rootPrefix, recipes));
     }
-    return lines.join('\n').replace(/\n{3,}/g, '\n\n') + '\n';
+    return `${lines.join('\n').replace(/\n{3,}/g, '\n\n')}\n`;
 }

@@ -9,10 +9,17 @@
  * preserved by ES module evaluation). No timestamps, no randomness.
  */
 
+interface ActionLike {
+    resource: string;
+    action: string;
+    isWrite?: boolean;
+    destructive?: boolean;
+}
+
 /** Resource list pulled from ACTIONS, deduped while preserving order. */
-export function resourceList(actions) {
-    const seen = new Set();
-    const result = [];
+export function resourceList(actions: readonly ActionLike[]): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
     for (const a of actions) {
         if (!seen.has(a.resource)) {
             seen.add(a.resource);
@@ -26,9 +33,9 @@ export function resourceList(actions) {
  * Format-neutral body of the rules document. Each format wraps this in its
  * own frontmatter / header so the actual usage guidance stays in one place.
  */
-export function renderRulesBody(actions) {
+export function renderRulesBody(actions: readonly ActionLike[]): string {
     const resources = resourceList(actions);
-    const writeCount = actions.filter((a) => a.isWrite).length;
+    const writeCount = actions.filter((a) => a.isWrite === true).length;
     const readCount = actions.length - writeCount;
     const destructiveCount = actions.filter((a) => a.destructive === true).length;
 
@@ -194,7 +201,7 @@ export function renderRulesBody(actions) {
  * agent/harness can read for project conventions, build commands, and
  * "what to know" pointers.
  */
-export function renderAgentsMd(actions) {
+export function renderAgentsMd(actions: readonly ActionLike[]): string {
     return [
         '# AGENTS.md',
         '',

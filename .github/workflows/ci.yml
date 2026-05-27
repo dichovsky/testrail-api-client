@@ -34,7 +34,7 @@ jobs:
             # three drift checks; chaining via `npm run skill` duplicated
             # the TypeScript compile and undermined fail-fast.
             - name: Generate skill documentation
-              run: node scripts/generate-skill.js
+              run: npx tsx scripts/generate-skill.ts
 
             - name: Run skill drift check
               run: npm run skill:check

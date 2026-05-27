@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 /**
  * Regenerates the machine-generated sections of skill/SKILL.md from
  * src/cli/metadata.ts (the ACTIONS array) and the referenced Zod
@@ -30,7 +30,7 @@ import {
     renderPayloadSchemas,
     renderPayloadSchemaReference,
     replaceSection,
-} from './skill-renderer.mjs';
+} from './skill-renderer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -46,14 +46,26 @@ if (!existsSync(distMetadata)) {
     process.exit(1);
 }
 
-const { ACTIONS } = await import(pathToFileURL(distMetadata).href);
+const { ACTIONS } = (await import(pathToFileURL(distMetadata).href)) as { ACTIONS: readonly unknown[] };
 
 let content = readFileSync(skillPath, 'utf-8');
-content = replaceSection(content, 'command-table', renderCommandTable(ACTIONS));
-content = replaceSection(content, 'payload-schemas', renderPayloadSchemas(ACTIONS));
+content = replaceSection(
+    content,
+    'command-table',
+    renderCommandTable(ACTIONS as Parameters<typeof renderCommandTable>[0]),
+);
+content = replaceSection(
+    content,
+    'payload-schemas',
+    renderPayloadSchemas(ACTIONS as Parameters<typeof renderPayloadSchemas>[0]),
+);
 writeFileSync(skillPath, content, 'utf-8');
 mkdirSync(referenceDir, { recursive: true });
-writeFileSync(payloadReferencePath, renderPayloadSchemaReference(ACTIONS), 'utf-8');
+writeFileSync(
+    payloadReferencePath,
+    renderPayloadSchemaReference(ACTIONS as Parameters<typeof renderPayloadSchemaReference>[0]),
+    'utf-8',
+);
 
 process.stdout.write(
     `skill/SKILL.md regenerated (${content.split('\n').length} lines); wrote skill/reference/payload-schemas.yaml.\n`,

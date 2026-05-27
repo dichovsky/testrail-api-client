@@ -1,11 +1,23 @@
 /**
  * Pure rendering helpers for the skill generator. Extracted from
- * generate-skill.js so tests can import these without triggering the
+ * generate-skill.ts so tests can import these without triggering the
  * script's top-level filesystem side effects.
  */
 
+interface ActionLike {
+    resource: string;
+    action: string;
+    isWrite: boolean;
+    bodySchema?: unknown;
+    fileInput?: boolean;
+    fileOutput?: boolean;
+    outputKind?: 'binary' | 'text';
+    destructive?: boolean;
+    pathParams: readonly { name: string }[];
+}
+
 /** Maps a (resource, action) pair to its exported schema variable name. */
-const SCHEMA_NAMES = new Map([
+const SCHEMA_NAMES: ReadonlyMap<string, string> = new Map([
     ['case:add', 'AddCasePayloadSchema'],
     ['case:add-bulk', 'AddCasesBulkPayloadSchema'],
     ['case:update', 'UpdateCasePayloadSchema'],
@@ -51,11 +63,11 @@ const SCHEMA_NAMES = new Map([
     ['user:update', 'UserUpdatePayloadSchema'],
 ]);
 
-export function schemaNameFor(spec) {
+export function schemaNameFor(spec: { resource: string; action: string }): string {
     return SCHEMA_NAMES.get(`${spec.resource}:${spec.action}`) ?? '(body)';
 }
 
-function renderPathArgs(spec) {
+function renderPathArgs(spec: ActionLike): string {
     if (spec.pathParams.length === 0) return '-';
     // Wrap each `<arg>` in a backtick code span so Markdown renderers
     // don't interpret the angle brackets as an HTML tag (which would
@@ -64,26 +76,26 @@ function renderPathArgs(spec) {
     return spec.pathParams.map((p) => `\`<${p.name}>\``).join(' ');
 }
 
-function inputLabel(spec) {
+function inputLabel(spec: ActionLike): string {
     if (spec.fileInput === true) return 'file';
     if (spec.fileOutput === true) {
         const kind = spec.outputKind === 'text' ? 'text' : 'binary';
         return `out:${kind}`;
     }
     if (!spec.isWrite) return '-';
-    if (!spec.bodySchema) {
+    if (spec.bodySchema === undefined) {
         if (spec.destructive === true) return 'none+yes';
         return 'none';
     }
     return schemaNameFor(spec);
 }
 
-function modeLabel(spec) {
+function modeLabel(spec: ActionLike): string {
     if (spec.destructive === true) return 'D';
     return spec.isWrite ? 'W' : 'R';
 }
 
-export function renderCommandTable(actions) {
+export function renderCommandTable(actions: readonly ActionLike[]): string {
     const rows = actions.map(
         (spec) =>
             `| \`${spec.resource} ${spec.action}\` | ${modeLabel(spec)} | ${renderPathArgs(spec)} | ${inputLabel(spec)} |`,
@@ -91,14 +103,42 @@ export function renderCommandTable(actions) {
     return ['| Cmd | Mode | Args | Input |', '| --- | --- | --- | --- |', ...rows].join('\n');
 }
 
-function describeType(field) {
+// Zod v4 internal shape — we use `unknown` + narrowing to avoid `any`.
+interface ZodDefLike {
+    type?: string;
+    innerType?: unknown;
+    element?: unknown;
+    shape?: Record<string, unknown>;
+}
+
+interface ZodNodeLike {
+    _zod?: { def?: ZodDefLike };
+    shape?: Record<string, unknown>;
+    isOptional?: () => boolean;
+    unwrap?: () => unknown;
+}
+
+function isZodNodeLike(value: unknown): value is ZodNodeLike {
+    return typeof value === 'object' && value !== null;
+}
+
+function describeType(field: unknown): string {
     // Unwrap z.optional() / z.nullable() to the inner type.
-    let f = field;
-    while (f?._zod?.def?.type === 'optional' || f?._zod?.def?.type === 'nullable' || f?._zod?.def?.innerType) {
-        f = f._zod?.def?.innerType ?? f.unwrap?.() ?? f;
-        if (!f?._zod) break;
+    let f: unknown = field;
+    while (isZodNodeLike(f) && f._zod !== undefined) {
+        const defType = f._zod?.def?.type;
+        if (defType !== 'optional' && defType !== 'nullable' && f._zod?.def?.innerType === undefined) break;
+        const inner = f._zod?.def?.innerType;
+        if (inner !== undefined) {
+            f = inner;
+        } else if (isZodNodeLike(f) && typeof f.unwrap === 'function') {
+            f = f.unwrap();
+        } else {
+            break;
+        }
+        if (!isZodNodeLike(f)) break;
     }
-    const t = f?._zod?.def?.type ?? 'unknown';
+    const t = isZodNodeLike(f) ? (f._zod?.def?.type ?? 'unknown') : 'unknown';
     switch (t) {
         case 'string':
             return 'string';
@@ -107,37 +147,46 @@ function describeType(field) {
         case 'boolean':
             return 'boolean';
         case 'array': {
-            const inner = f._zod?.def?.element;
-            return inner ? `${describeType(inner)}[]` : 'unknown[]';
+            const inner = isZodNodeLike(f) ? f._zod?.def?.element : undefined;
+            return inner !== undefined ? `${describeType(inner)}[]` : 'unknown[]';
         }
         case 'record':
             return 'Record<string, unknown>';
         case 'object':
             return 'object';
         default:
-            return t;
+            return typeof t === 'string' ? t : 'unknown';
     }
 }
 
-function readSchemaFields(schema) {
-    const shape = schema?._zod?.def?.shape ?? schema?.shape;
-    if (!shape) return null;
+interface FieldDescriptor {
+    key: string;
+    type: string;
+    optional: boolean;
+}
+
+function readSchemaFields(schema: unknown): FieldDescriptor[] | null {
+    if (!isZodNodeLike(schema)) return null;
+    const shape: Record<string, unknown> | undefined = schema._zod?.def?.shape ?? schema.shape;
+    if (shape === undefined) return null;
 
     return Object.entries(shape).map(([key, field]) => {
         const type = describeType(field);
-        const optional = field?._zod?.def?.type === 'optional' || field?.isOptional?.() === true;
+        const optional =
+            (isZodNodeLike(field) && field._zod?.def?.type === 'optional') ||
+            (isZodNodeLike(field) && typeof field.isOptional === 'function' && field.isOptional() === true);
         return { key, type, optional };
     });
 }
 
-function schemaNameToAnchor(schemaName) {
+function schemaNameToAnchor(schemaName: string): string {
     return schemaName.toLowerCase();
 }
 
-function renderPayloadIndexEntry(spec) {
+function renderPayloadIndexEntry(spec: ActionLike): string {
     const schemaName = schemaNameFor(spec);
     const fields = readSchemaFields(spec.bodySchema);
-    if (!fields) {
+    if (fields === null) {
         return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
     }
     const req = fields
@@ -149,9 +198,9 @@ function renderPayloadIndexEntry(spec) {
     return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: ${reqLabel}, opt: ${optCount}, ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
 }
 
-function renderReferenceEntry(schemaName, actions, fields) {
+function renderReferenceEntry(schemaName: string, actions: string[], fields: FieldDescriptor[] | null): string {
     const actionLine = `[${actions.map((a) => `"${a}"`).join(', ')}]`;
-    if (!fields) {
+    if (fields === null) {
         return [
             `  ${schemaName}:`,
             `    actions: ${actionLine}`,
@@ -168,8 +217,8 @@ function renderReferenceEntry(schemaName, actions, fields) {
     return [`  ${schemaName}:`, `    actions: ${actionLine}`, ...reqLines, ...optLines, ''].join('\n');
 }
 
-export function renderPayloadSchemas(actions) {
-    const writes = actions.filter((a) => a.isWrite && a.bodySchema);
+export function renderPayloadSchemas(actions: readonly ActionLike[]): string {
+    const writes = actions.filter((a) => a.isWrite && a.bodySchema !== undefined);
     const lines = ['```yaml', '# compact schema index', 'schemas:'];
     for (const spec of writes) {
         lines.push(renderPayloadIndexEntry(spec));
@@ -178,20 +227,21 @@ export function renderPayloadSchemas(actions) {
     return lines.join('\n');
 }
 
-export function renderPayloadSchemaReference(actions) {
-    const writes = actions.filter((a) => a.isWrite && a.bodySchema);
-    const merged = new Map();
+export function renderPayloadSchemaReference(actions: readonly ActionLike[]): string {
+    const writes = actions.filter((a) => a.isWrite && a.bodySchema !== undefined);
+    const merged = new Map<string, { actions: string[]; fields: FieldDescriptor[] | null }>();
     for (const spec of writes) {
         const schemaName = schemaNameFor(spec);
         const action = `${spec.resource} ${spec.action}`;
-        if (!merged.has(schemaName)) {
+        const existing = merged.get(schemaName);
+        if (existing === undefined) {
             merged.set(schemaName, { actions: [action], fields: readSchemaFields(spec.bodySchema) });
             continue;
         }
-        merged.get(schemaName).actions.push(action);
+        existing.actions.push(action);
     }
     const lines = [
-        '# Generated by scripts/generate-skill.js. Do not edit by hand.',
+        '# Generated by scripts/generate-skill.ts. Do not edit by hand.',
         '# Full payload field map for skill/SKILL.md schema index.',
         'schemas:',
     ];
@@ -207,7 +257,7 @@ export function renderPayloadSchemaReference(actions) {
  * or if they appear in the wrong order — catching the most common drift
  * cause (developer hand-edits the file and removes a sentinel).
  */
-export function replaceSection(content, name, body) {
+export function replaceSection(content: string, name: string, body: string): string {
     const open = `<!-- GENERATED:${name} -->`;
     const close = `<!-- /GENERATED:${name} -->`;
     const openIdx = content.indexOf(open);
