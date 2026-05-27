@@ -944,9 +944,14 @@ export class TestRailClientCore {
         if (method === 'GET' && !skipCache) {
             const cacheKey = `${method}:${endpoint}`;
             this.pendingRequests.set(cacheKey, fetchPromise);
-            void fetchPromise.finally(() => {
-                this.pendingRequests.delete(cacheKey);
-            });
+            // Suppress the rejection on the cleanup chain; callers own the returned
+            // promise and are responsible for catching it. Without this, a rejected
+            // fetchPromise produces an unhandled rejection on the finally() branch.
+            fetchPromise
+                .finally(() => {
+                    this.pendingRequests.delete(cacheKey);
+                })
+                .catch(() => {});
         }
 
         return fetchPromise;
@@ -1417,9 +1422,11 @@ export class TestRailClientCore {
 
         if (cacheKey !== undefined) {
             this.pendingRequests.set(cacheKey, fetchPromise);
-            void fetchPromise.finally(() => {
-                this.pendingRequests.delete(cacheKey);
-            });
+            fetchPromise
+                .finally(() => {
+                    this.pendingRequests.delete(cacheKey);
+                })
+                .catch(() => {});
         }
 
         return fetchPromise;
