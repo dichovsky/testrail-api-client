@@ -57,7 +57,8 @@
         "mapping": "node scripts/generate-mapping.js",
         "mapping:check": "node scripts/generate-mapping.js --check",
         "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run skill && npm run skill:check && npm run clean:maps",
-        "pretest": "npm run typecheck && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run continue-rules:check && npm run agents-md:check",
+        "lockfile-lint": "lockfile-lint --config .lockfile-lintrc",
+        "pretest": "npm run typecheck && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run continue-rules:check && npm run agents-md:check && npm run lockfile-lint",
         "skill": "npm run build && node scripts/generate-skill.js",
         "skill:check": "git diff --exit-code skill/SKILL.md",
         "test": "vitest run",
@@ -77,6 +78,7 @@
         "@vitest/coverage-v8": "^4.1.7",
         "eslint": "^10.4.0",
         "fast-check": "^4.8.0",
+        "lockfile-lint": "^5.0.0",
         "prettier": "~3.8.3",
         "typescript": "~6.0.3",
         "vitest": "^4.1.7"
