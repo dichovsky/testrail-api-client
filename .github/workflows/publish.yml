@@ -1,0 +1,56 @@
+name: Publish
+
+# Triggered when a GitHub Release is published (draft → published, or new release).
+# The publish job runs the full pre-publish gate (typecheck, lint, tests, build)
+# explicitly rather than relying on the prepublishOnly lifecycle hook, since
+# .npmrc ignore-scripts=true may suppress lifecycle hooks during publish.
+on:
+    release:
+        types: [published]
+
+# Minimal permissions: read source + write OIDC token for npm Trusted Publishing.
+# No NPM_TOKEN secret is required — npm validates the OIDC token issued by
+# GitHub Actions against the repository's Trusted Publisher configuration on
+# npmjs.com. Provenance attestations are written to the GitHub release via the
+# attestations permission.
+permissions:
+    contents: read
+    id-token: write
+    attestations: write
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        environment: npm-publish
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+            - name: Setup Node.js
+              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+              with:
+                  node-version-file: '.nvmrc'
+                  registry-url: 'https://registry.npmjs.org'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Type-check
+              run: npm run typecheck
+
+            - name: Lint
+              run: npm run lint
+
+            - name: Test (with coverage)
+              run: npm run test:coverage
+
+            - name: Build
+              run: npm run build
+
+            - name: Strip source maps from dist/
+              run: npm run clean:maps
+
+            - name: Publish to npm with provenance
+              run: npm publish --provenance --access public
