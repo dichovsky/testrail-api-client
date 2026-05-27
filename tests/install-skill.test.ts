@@ -309,10 +309,12 @@ describe('runInstallSkill', () => {
         expect(stderrChunks.join('')).toContain('bundled SKILL.md not found');
     });
 
-    it('SEC #19: created directory has mode 0o755 on POSIX', () => {
+    it('SEC #19: created directory is not group/other-writable on POSIX', () => {
         // Exercises the `mkdirSync(dir, { recursive: true, mode: 0o755 })` fix.
         // Without an explicit mode the directory inherits the process umask;
         // under a permissive umask (e.g. 0o000) the dir becomes world-writable.
+        // The exact mode is umask-filtered, so we assert the security property
+        // (group/other write bits absent) rather than a fixed octal value.
         const project = join(tmp, 'proj-mode');
         const code = runInstallSkill(
             {
@@ -338,17 +340,15 @@ describe('runInstallSkill', () => {
         }
     });
 
-    it('SEC #5: replaces an existing symlink at the target path atomically (no TOCTOU unlink)', () => {
-        // Verifies that rename(2) atomically replaces the symlink entry without
-        // a prior unlinkSync on the target, so no TOCTOU window exists for an
-        // attacker to swap the target between unlink and rename.
+    it('SEC #5: --force replaces a symlink at the target path with a regular file', () => {
+        // Verifies that --force replaces an existing symlink with a regular file
+        // (the installed skill content) and that the file the symlink previously
+        // pointed to is left untouched.
         //
-        // Note on regression-test strength: vi.spyOn cannot intercept named ESM
+        // Note on ESM spy limitations: vi.spyOn cannot intercept named ESM
         // imports (module namespace is not configurable), so we verify the
-        // no-TOCTOU property through a filesystem-observable side effect instead.
-        // The target path is a hardlink to a sentinel file. A spurious
-        // unlinkSync(target) would reduce nlink by 1; rename(2) atomically
-        // replaces the directory entry without touching the inode.
+        // outcome directly via the filesystem rather than asserting the absence
+        // of a particular syscall sequence.
         const project = join(tmp, 'proj-symlink-replace');
         const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
         mkdirSync(skillDir, { recursive: true });
@@ -378,10 +378,7 @@ describe('runInstallSkill', () => {
         expect(stat.isFile()).toBe(true);
         expect(readFileSync(symlinkPath, 'utf-8')).toBe(SKILL_CONTENT);
 
-        // The original file the symlink pointed to must be intact — rename(2)
-        // atomically replaces the directory entry; unlinkSync on a symlink would
-        // also leave linkTarget intact, but a spurious unlinkSync would leave an
-        // observable gap in the filesystem before rename creates the new entry.
+        // The original file the symlink pointed to must be untouched.
         expect(readFileSync(linkTarget, 'utf-8')).toBe('original');
     });
 

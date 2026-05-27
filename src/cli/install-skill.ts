@@ -115,8 +115,11 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
             throw new Error('temporary file is not a regular file');
         }
 
-        // Atomically place it at target (rename(2) replaces any existing entry atomically,
-        // including symlinks, so no prior unlink is needed — and avoids a TOCTOU window).
+        // Place the file at the target. On POSIX, Node's renameSync delegates to
+        // rename(2), which atomically replaces any existing directory entry
+        // (including symlinks) without a prior unlink — no TOCTOU window.
+        // On Windows, renameSync overwrites regular files but may throw on
+        // existing directories or symlinks depending on the OS version.
         renameSync(tempPath, target);
         tempPath = undefined;
         /* v8 ignore start -- defensive: triggered only by filesystem failures

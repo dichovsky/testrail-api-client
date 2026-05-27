@@ -158,6 +158,7 @@ describe('resolveBody', () => {
 
     describe('--data-file symlink rejection and size cap (SEC #17)', () => {
         it('rejects a --data-file path that is a symlink', () => {
+            if (process.platform === 'win32') return; // symlinks may require elevated privileges on Windows
             // O_NOFOLLOW causes openSync to fail when the path is a symlink,
             // preventing traversal to a sensitive file outside the cwd.
             const realFile = join(tmp, 'real.json');
