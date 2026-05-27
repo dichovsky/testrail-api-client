@@ -137,7 +137,9 @@ function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
     return false;
 }
 
-async function validatePublicHost(hostname: string): Promise<void> {
+type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>;
+
+async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void> {
     const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
     const isPrivatePattern = PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare));
     if (isPrivatePattern) {
@@ -165,8 +167,12 @@ async function validatePublicHost(hostname: string): Promise<void> {
     // allowPrivateHosts: true to bypass this check entirely.
     let lookups: { address: string; family: number }[];
     try {
-        const dns = await import('node:dns/promises');
-        lookups = await dns.lookup(bare, { all: true });
+        if (dnsLookup) {
+            lookups = await dnsLookup(bare);
+        } else {
+            const dns = await import('node:dns/promises');
+            lookups = await dns.lookup(bare, { all: true });
+        }
     } catch (err) {
         if (err instanceof TestRailValidationError) throw err;
         const message = err instanceof Error ? err.message : 'Unknown error';
@@ -253,6 +259,7 @@ export class TestRailClientCore {
      */
     private readonly bodyTimeout: number;
     private readonly fetchOverride: typeof globalThis.fetch | undefined;
+    private readonly dnsLookup: DnsLookupFn | undefined;
 
     constructor(config: TestRailConfig) {
         this.validateConfig(config);
@@ -288,6 +295,7 @@ export class TestRailClientCore {
         // body read is always bounded unless callers explicitly opt out.
         this.bodyTimeout = config.bodyTimeout ?? this.timeout;
         this.fetchOverride = config.fetch;
+        this.dnsLookup = config.dnsLookup;
 
         if (config.allowInsecure === true && new URL(config.baseUrl).protocol === 'http:') {
             // eslint-disable-next-line no-console
@@ -1376,7 +1384,7 @@ export class TestRailClientCore {
      */
     private async awaitDnsValidation(): Promise<void> {
         if (this.allowPrivateHosts) return;
-        await validatePublicHost(this.hostname);
+        await validatePublicHost(this.hostname, this.dnsLookup);
     }
 
     /**

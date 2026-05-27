@@ -88,6 +88,25 @@ export interface TestRailConfig {
      * node-fetch).
      */
     fetch?: typeof globalThis.fetch;
+    /**
+     * Custom DNS lookup function used for SSRF host validation (SEC #31).
+     * Receives the bare hostname (no brackets for IPv6 literals) and must
+     * return the resolved addresses in the same shape as
+     * `node:dns/promises lookup(hostname, { all: true })`.
+     *
+     * Use this to supply static host-to-IP mappings or a custom resolver in
+     * environments where the system DNS cannot reach the TestRail hostname
+     * (e.g. CI networks with split-horizon DNS). The SSRF private-IP check
+     * still runs against the returned addresses — this option does **not**
+     * bypass the security validation, only replaces the resolution mechanism.
+     *
+     * When omitted (default), Node's system resolver is used.
+     *
+     * @example
+     * // Map a corporate hostname to a known public IP for CI validation
+     * dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }]
+     */
+    dnsLookup?: (hostname: string) => Promise<{ address: string; family: number }[]>;
 }
 
 export interface UploadFilePathInput {
