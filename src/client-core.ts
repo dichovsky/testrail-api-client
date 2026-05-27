@@ -1268,7 +1268,6 @@ export class TestRailClientCore {
         const retrySpec: PipelineSpec<TParsed> = { ...spec, cache: { key: cacheKey, skipRead: true } };
 
         const fetchPromise: Promise<TParsed> = (async () => {
-            let bodyCleanup: (() => void) | undefined;
             try {
                 const options: RequestInit = {
                     method: spec.method,
@@ -1281,12 +1280,9 @@ export class TestRailClientCore {
                 };
                 if (spec.body.kind === 'json') {
                     options.body = JSON.stringify(spec.body.data);
-                } else if (spec.body.kind === 'formdata') {
-                    const built = await spec.body.build();
-                    options.body = built.body;
-                    bodyCleanup = built.cleanup;
                 }
                 // kind === 'none': no body
+                // kind === 'formdata': added in Phase 4 when requestMultipart migrates
 
                 const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
                 // Headers received — header timeout has done its job. The body
@@ -1349,8 +1345,6 @@ export class TestRailClientCore {
                 }
 
                 throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
-            } finally {
-                bodyCleanup?.();
             }
         })();
 
