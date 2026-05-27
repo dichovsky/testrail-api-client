@@ -1170,11 +1170,12 @@ export class TestRailClientCore {
 
                 blob = await openAsBlob(uploadPath, opts);
 
-                // On POSIX the Blob opened its own fd via /dev/fd or
-                // /proc/self/fd; the original fd is redundant from this point
-                // on. Release it early to minimise the concurrent-fd window
-                // (SEC #30). If openAsBlob threw, this block is never reached
-                // and finally handles the close.
+                // `/dev/fd/<N>` and `/proc/self/fd/<N>` are kernel-resolved
+                // symlinks: the OS dereferenced the symlink and opened a new,
+                // independent file description to the same inode. Our original
+                // fd N is now redundant — close it early to shrink the
+                // concurrent-fd window (SEC #30). If openAsBlob threw above,
+                // this block is never reached and the finally block closes fd N.
                 if (fdToClose !== undefined) {
                     try {
                         closeSync(fdToClose);

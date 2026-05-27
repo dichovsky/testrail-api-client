@@ -95,9 +95,13 @@ export interface UploadFilePathInput {
     type?: string;
     /**
      * Optional open file descriptor to read the upload content from.
-     * When provided on POSIX systems (macOS, Linux), the client will stream the
-     * file content directly from this descriptor (protecting against TOCTOU symlink
-     * swap attacks) and will automatically close the descriptor after upload.
+     * When provided on POSIX systems (macOS, Linux), the client streams the
+     * file via `/dev/fd/<N>` or `/proc/self/fd/<N>` (protecting against TOCTOU
+     * symlink swap attacks) and closes the descriptor after `openAsBlob` returns
+     * its own independent file description. On non-POSIX systems the descriptor
+     * is closed before `openAsBlob` and the original `path` is used directly.
+     * In all cases the descriptor is consumed by the upload — callers must not
+     * use it after the upload completes.
      *
      * Union contains `| undefined` to remain compatible with TS exactOptionalPropertyTypes.
      */

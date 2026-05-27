@@ -175,6 +175,13 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             // The descriptor must be unchanged; requestMultipart tracks fd
             // via an internal variable, not by zeroing the input object.
             expect(descriptor.fd).toBe(fd);
+            // On POSIX, requestMultipart closes the original fd early (after
+            // openAsBlob obtains its own independent file description). Pin
+            // the resource-release contract: closeSync must have been called
+            // with the original fd on this platform.
+            if (process.platform === 'darwin' || process.platform === 'linux') {
+                expect(closeSyncControl.callsWithFd).toContain(fd);
+            }
         } finally {
             try {
                 closeSync(fd);
