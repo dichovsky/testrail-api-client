@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "64a99136a7a72c4b7eeea8581e260f1a176eb98123b191e11567ca8183712c50",
+  "sourceHash": "c8413957927231a5b65e56719ca6f489211fc5e629747a90a826bcbed7d6f6ca",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3946,169 +3946,174 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 237
             },
             {
-              "name": "cacheCleanupTimer",
+              "name": "pendingRequests",
               "kind": "property",
               "line": 238
             },
             {
-              "name": "rateLimiter",
+              "name": "cacheCleanupTimer",
               "kind": "property",
               "line": 239
             },
             {
-              "name": "isDestroyed",
+              "name": "rateLimiter",
               "kind": "property",
               "line": 240
             },
             {
-              "name": "hostname",
+              "name": "isDestroyed",
               "kind": "property",
               "line": 241
             },
             {
-              "name": "allowPrivateHosts",
+              "name": "hostname",
               "kind": "property",
               "line": 242
             },
             {
-              "name": "maxJsonResponseBytes",
+              "name": "allowPrivateHosts",
               "kind": "property",
               "line": 243
             },
             {
-              "name": "maxBinaryResponseBytes",
+              "name": "maxJsonResponseBytes",
               "kind": "property",
               "line": 244
             },
             {
-              "name": "bodyTimeout",
+              "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 249
+              "line": 245
             },
             {
-              "name": "fetchOverride",
+              "name": "bodyTimeout",
               "kind": "property",
               "line": 250
             },
             {
+              "name": "fetchOverride",
+              "kind": "property",
+              "line": 251
+            },
+            {
               "name": "constructor",
               "kind": "constructor",
-              "line": 252
+              "line": 253
             },
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 320
+              "line": 321
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 476
+              "line": 477
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 501
+              "line": 502
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 542
+              "line": 543
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 560
+              "line": 561
             },
             {
               "name": "validateId",
               "kind": "method",
-              "line": 588
+              "line": 589
             },
             {
               "name": "validateEntryId",
               "kind": "method",
-              "line": 598
+              "line": 599
             },
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 608
+              "line": 609
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 627
+              "line": 628
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 639
+              "line": 640
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 660
+              "line": 661
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 682
+              "line": 683
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 686
+              "line": 691
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 697
+              "line": 702
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 704
+              "line": 709
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 731
+              "line": 736
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 767
+              "line": 773
             },
             {
               "name": "requestText",
               "kind": "method",
-              "line": 947
+              "line": 988
             },
             {
               "name": "requestMultipart",
               "kind": "method",
-              "line": 1073
+              "line": 1114
             },
             {
               "name": "requestBinary",
               "kind": "method",
-              "line": 1203
+              "line": 1244
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1309
+              "line": 1350
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1318
+              "line": 1359
             },
             {
               "name": "requestParsed",
               "kind": "method",
-              "line": 1351
+              "line": 1392
             }
           ]
         }

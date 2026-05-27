@@ -682,6 +682,10 @@ export class TestRailClientCore {
      */
     public clearCache(): void {
         this.cache.clear();
+        // Clear in-flight coalesced GET promises (SEC #23): a POST has just
+        // mutated state, so any pending GET for the same resource must re-fetch
+        // rather than serving the pre-mutation snapshot to late joiners.
+        this.pendingRequests.clear();
     }
 
     private startCacheCleanup(): void {
@@ -876,7 +880,10 @@ export class TestRailClientCore {
                         const retryAfterMs = this.parseRetryAfterMs(response);
                         const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                         await sleep(delay);
-                        return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+                        // Force skipCache=true: we're already inside the coalesced
+                        // fetchPromise, so the retry must not look up pendingRequests
+                        // (which still holds *this* promise) — that would deadlock.
+                        return this.request<T>(method, endpoint, data, retryCount + 1, true);
                     }
 
                     // The raw server body may contain stack traces, internal paths,
@@ -931,7 +938,8 @@ export class TestRailClientCore {
                 // already processed. GET is idempotent and safe to retry.
                 if (method === 'GET' && retryCount < this.maxRetries) {
                     await sleep(this.getRetryDelay(retryCount));
-                    return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+                    // Force skipCache=true for the same reason as the 5xx retry above.
+                    return this.request<T>(method, endpoint, data, retryCount + 1, true);
                 }
 
                 throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);

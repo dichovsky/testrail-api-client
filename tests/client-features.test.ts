@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
-import { mockOk } from './helpers.js';
+import { mockErr, mockOk } from './helpers.js';
 
 const { mockDnsLookup } = vi.hoisted(() => ({
     mockDnsLookup: vi.fn(),
@@ -2253,6 +2253,77 @@ describe('TestRailClient - Enhanced Features', () => {
                 expect(mockFetch).toHaveBeenCalledTimes(2);
                 expect(r1.name).toBe('A');
                 expect(r2.name).toBe('B');
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('clearCache() from a POST clears pendingRequests so late joiners re-fetch', async () => {
+            // Scenario: GET starts → POST fires + completes (clearCache) → new GET arrives
+            // while the original GET is still in flight.  Without pendingRequests.clear()
+            // in clearCache() the new GET would coalesce onto the stale in-flight promise.
+            let resolveGet!: (v: Response) => void;
+            const delayedGet = new Promise<Response>((res) => {
+                resolveGet = res;
+            });
+
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: false,
+                maxRetries: 0,
+            });
+            try {
+                // The first GET is delayed so we can interleave a POST.
+                mockFetch
+                    .mockReturnValueOnce(delayedGet)
+                    .mockResolvedValueOnce(mockOk({})) // POST
+                    .mockResolvedValueOnce(
+                        mockOk({ id: 1, name: 'Fresh', suite_mode: 1, url: 'u', is_completed: false }),
+                    ); // second GET after POST
+
+                const firstGet = wt.request<{ id: number }>('GET', 'get_project/1');
+
+                // POST fires and resolves → clearCache() is called → pendingRequests cleared.
+                await wt.request<Record<string, never>>('POST', 'update_project/1', {});
+
+                // Now resolve the first GET *after* the POST cleared pendingRequests.
+                resolveGet(mockOk({ id: 1, name: 'Stale', suite_mode: 1, url: 'u', is_completed: false }));
+                await firstGet;
+
+                // A new GET should not coalesce on the now-cleared map; it must issue a fresh fetch.
+                const secondGet = await wt.request<{ id: number; name: string }>('GET', 'get_project/1');
+
+                // 3 total fetches: first GET + POST + second GET
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+                expect(secondGet.name).toBe('Fresh');
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('retries do not deadlock when the key is still in pendingRequests', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                maxRetries: 1,
+            });
+            try {
+                mockFetch
+                    .mockResolvedValueOnce(mockErr(503, 'Service Unavailable'))
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'OK', suite_mode: 1, url: 'u', is_completed: false }));
+
+                // A GET with maxRetries=1 will retry on 503 while the key is still in
+                // pendingRequests.  If the retry re-uses skipCache=false it would pick up
+                // its own promise → deadlock.  With the fix it passes skipCache=true and
+                // resolves cleanly.
+                const result = await wt.getProject(1);
+                expect(result.name).toBe('OK');
+                expect(mockFetch).toHaveBeenCalledTimes(2);
             } finally {
                 wt.destroy();
             }
