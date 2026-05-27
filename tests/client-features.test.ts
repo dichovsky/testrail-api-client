@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
-import { mockOk } from './helpers.js';
+import { mockErr, mockOk } from './helpers.js';
 
 const { mockDnsLookup } = vi.hoisted(() => ({
     mockDnsLookup: vi.fn(),
@@ -2200,6 +2200,156 @@ describe('TestRailClient - Enhanced Features', () => {
                 const second = await wt.getProject(1);
                 expect(second.name).toBe('Original');
                 expect(mockFetch).toHaveBeenCalledTimes(1);
+            } finally {
+                wt.destroy();
+            }
+        });
+    });
+
+    describe('GET request coalescing (SEC #23)', () => {
+        it('deduplicates concurrent identical GET requests into a single upstream call', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+            });
+            try {
+                // Fire the same GET three times concurrently before any response arrives.
+                // Only one actual fetch should hit the mock.
+                mockFetch.mockResolvedValueOnce(
+                    mockOk({ id: 1, name: 'Proj', suite_mode: 1, url: 'u', is_completed: false }),
+                );
+
+                const [r1, r2, r3] = await Promise.all([wt.getProject(1), wt.getProject(1), wt.getProject(1)]);
+
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+                expect(r1).toEqual(r2);
+                expect(r2).toEqual(r3);
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('does not coalesce requests with skipCache=true', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+            });
+            try {
+                mockFetch
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'A', suite_mode: 1, url: 'u', is_completed: false }))
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'B', suite_mode: 1, url: 'u', is_completed: false }));
+
+                const [r1, r2] = await Promise.all([
+                    wt.request<{ id: number; name: string }>('GET', 'get_project/1', undefined, 0, true),
+                    wt.request<{ id: number; name: string }>('GET', 'get_project/1', undefined, 0, true),
+                ]);
+
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+                expect(r1.name).toBe('A');
+                expect(r2.name).toBe('B');
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('clearCache() from a POST clears pendingRequests so late joiners re-fetch', async () => {
+            // Scenario: GET starts → POST fires + completes (clearCache) → new GET arrives
+            // while the original GET is still in flight.  Without pendingRequests.clear()
+            // in clearCache() the new GET would coalesce onto the stale in-flight promise.
+            let resolveGet!: (v: Response) => void;
+            const delayedGet = new Promise<Response>((res) => {
+                resolveGet = res;
+            });
+
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: false,
+                maxRetries: 0,
+            });
+            try {
+                // The first GET is delayed so we can interleave a POST.
+                mockFetch
+                    .mockReturnValueOnce(delayedGet)
+                    .mockResolvedValueOnce(mockOk({})) // POST
+                    .mockResolvedValueOnce(
+                        mockOk({ id: 1, name: 'Fresh', suite_mode: 1, url: 'u', is_completed: false }),
+                    ); // second GET after POST
+
+                const firstGet = wt.request<{ id: number }>('GET', 'get_project/1');
+
+                // POST fires and resolves → clearCache() is called → pendingRequests cleared.
+                await wt.request<Record<string, never>>('POST', 'update_project/1', {});
+
+                // Now resolve the first GET *after* the POST cleared pendingRequests.
+                resolveGet(mockOk({ id: 1, name: 'Stale', suite_mode: 1, url: 'u', is_completed: false }));
+                await firstGet;
+
+                // A new GET should not coalesce on the now-cleared map; it must issue a fresh fetch.
+                const secondGet = await wt.request<{ id: number; name: string }>('GET', 'get_project/1');
+
+                // 3 total fetches: first GET + POST + second GET
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+                expect(secondGet.name).toBe('Fresh');
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('retries do not deadlock when the key is still in pendingRequests', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                maxRetries: 1,
+            });
+            try {
+                mockFetch
+                    .mockResolvedValueOnce(mockErr(503, 'Service Unavailable'))
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'OK', suite_mode: 1, url: 'u', is_completed: false }));
+
+                // A GET with maxRetries=1 will retry on 503 while the key is still in
+                // pendingRequests.  If the retry re-uses skipCache=false it would pick up
+                // its own promise → deadlock.  With the fix it passes skipCache=true and
+                // resolves cleanly.
+                const result = await wt.getProject(1);
+                expect(result.name).toBe('OK');
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('removes the pending entry after rejection so subsequent calls retry', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                maxRetries: 0,
+            });
+            try {
+                mockFetch
+                    .mockRejectedValueOnce(new Error('network error'))
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'OK', suite_mode: 1, url: 'u', is_completed: false }));
+
+                // First call fails
+                await expect(wt.getProject(1)).rejects.toThrow();
+
+                // Second call (after rejection) must retry, not return the rejected promise
+                const result = await wt.getProject(1);
+                expect(result.name).toBe('OK');
+                expect(mockFetch).toHaveBeenCalledTimes(2);
             } finally {
                 wt.destroy();
             }
