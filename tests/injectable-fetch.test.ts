@@ -28,7 +28,7 @@ vi.mock('node:dns/promises', () => ({ lookup: mockDnsLookup }));
 describe('injectable fetch adapter (ARCH #14)', () => {
     beforeEach(() => {
         mockDnsLookup.mockReset();
-        mockDnsLookup.mockResolvedValue([]);
+        mockDnsLookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
     });
 
     it('uses the provided fetch instead of globalThis.fetch for JSON requests', async () => {
