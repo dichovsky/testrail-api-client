@@ -1,16 +1,16 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // SPEC #A.1 lint — codifies the rules in docs/SCHEMA-CONVENTIONS.md as a
-// static-analysis test against src/schemas.ts. The cross-domain audit
+// static-analysis test against src/schemas/*.ts. The cross-domain audit
 // (PR #148 wave) found zero conflation violations; this test is the
 // regression guard so future schema additions can't drift.
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const SCHEMAS_PATH = resolve(__dirname, '../src/schemas.ts');
+const SCHEMAS_DIR = resolve(__dirname, '../src/schemas');
 
 /**
  * Strip block comments and line comments from the source so references
@@ -93,11 +93,22 @@ function referencedSchemas(block: { name: string; body: string }): string[] {
 }
 
 describe('SPEC #A.1 — schema conventions lint (docs/SCHEMA-CONVENTIONS.md)', () => {
-    const rawSource = readFileSync(SCHEMAS_PATH, 'utf8');
-    const source = stripComments(rawSource);
+    // PR-B (file-split refactor) moved every Zod schema out of the
+    // monolithic `src/schemas.ts` into `src/schemas/<domain>.ts` modules.
+    // The lint operates on the concatenated source of those per-domain
+    // files so the same regex/heuristics keep working — payload blocks
+    // are still all `export const`s, references between schemas still
+    // resolve to the same `XxxSchema` identifiers (imports are explicit
+    // and visible to the regex extractor).
+    const sources = readdirSync(SCHEMAS_DIR)
+        .filter((f) => f.endsWith('.ts'))
+        .sort()
+        .map((f) => readFileSync(join(SCHEMAS_DIR, f), 'utf8'))
+        .join('\n');
+    const source = stripComments(sources);
     const blocks = extractPayloadBlocks(source);
 
-    it('src/schemas.ts contains no .extend() calls (SPEC #A.1 §3 — see docs/SCHEMA-CONVENTIONS.md)', () => {
+    it('src/schemas/*.ts contain no .extend() calls (SPEC #A.1 §3 — see docs/SCHEMA-CONVENTIONS.md)', () => {
         const matches = source.match(/\.extend\(/g) ?? [];
         expect(
             matches,
