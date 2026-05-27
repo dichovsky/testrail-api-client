@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { ACTIONS } from '../src/cli/metadata.js';
-import { renderAgentsMd, resourceList } from '../scripts/rules-content.mjs';
+import { renderAgentsMd, resourceList } from '../scripts/rules-content.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');

@@ -5,16 +5,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// The generator script is plain ESM JS with no .d.ts; tsconfig allows
-// import-from-.js, so the import resolves at runtime without TS picking it up.
-// @ts-expect-error - intentional untyped import of .js script
 import { buildCodemap, runCli } from '../scripts/generate-codemap.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const REPO_ROOT = resolve(__dirname, '..');
 const FIXTURE_ROOT = resolve(__dirname, 'fixtures/codemap');
-const SCRIPT_PATH = resolve(REPO_ROOT, 'scripts/generate-codemap.js');
+const SCRIPT_PATH = resolve(REPO_ROOT, 'scripts/generate-codemap.ts');
 
 type CodemapResult = { markdown: string; sourceHash: string };
 
@@ -61,7 +58,7 @@ function extractJson(markdown: string): Codemap {
 }
 
 function build(rootDir: string): CodemapResult {
-    return buildCodemap({ rootDir }) as CodemapResult;
+    return buildCodemap({ rootDir });
 }
 
 describe('buildCodemap — basic', () => {
@@ -200,7 +197,7 @@ describe('runCli — --check mode exit codes', () => {
                 check: true,
                 stdout: { write: (s: string) => (stdout += s) },
                 stderr: { write: () => {} },
-            }) as number;
+            });
             expect(code).toBe(0);
             expect(stdout).toContain('up to date');
         });
@@ -215,7 +212,7 @@ describe('runCli — --check mode exit codes', () => {
                 check: true,
                 stdout: { write: () => {} },
                 stderr: { write: (s: string) => (stderr += s) },
-            }) as number;
+            });
             expect(code).toBe(1);
             expect(stderr).toContain('is stale');
             expect(stderr).toContain('Stale content');
@@ -232,14 +229,14 @@ describe('runCli — --check mode exit codes', () => {
                 check: true,
                 stdout: { write: () => {} },
                 stderr: { write: (s: string) => (stderr += s) },
-            }) as number;
+            });
             expect(code).toBe(1);
             expect(stderr).toContain('missing');
         });
     });
 
-    it('subprocess invocation: `node generate-codemap.js --check` exits 0 on the live repo', () => {
-        const out = execFileSync('node', [SCRIPT_PATH, '--check'], { cwd: REPO_ROOT, encoding: 'utf8' });
+    it('subprocess invocation: `npx tsx generate-codemap.ts --check` exits 0 on the live repo', () => {
+        const out = execFileSync('npx', ['tsx', SCRIPT_PATH, '--check'], { cwd: REPO_ROOT, encoding: 'utf8' });
         expect(out).toContain('up to date');
     });
 });
