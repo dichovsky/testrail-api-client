@@ -52,22 +52,34 @@ vi.mock('../src/utils.js', async (importOriginal) => {
 // the test process's actual stdin contents. vi.hoisted is required
 // because vi.mock factories cannot capture file-scope variables (they're
 // lifted above all imports).
+//
+// When fd is provided and is not 0 (stdin), the call is coming from
+// body.ts reading a --data-file path; delegate to the real implementation
+// so the file contents are read normally.
 const stubbedStdin = vi.hoisted(() => ({
     value: null as string | null,
     throwNonError: false,
 }));
-vi.mock('../src/cli/stdin.js', () => ({
-    readBoundedStdin: (): string => {
-        if (stubbedStdin.throwNonError) {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
-            throw 'non-error-string-failure';
-        }
-        if (stubbedStdin.value === null) {
-            throw new Error('readBoundedStdin not stubbed for this test');
-        }
-        return stubbedStdin.value;
-    },
-}));
+vi.mock('../src/cli/stdin.js', async (importOriginal) => {
+    const real = await importOriginal<typeof import('../src/cli/stdin.js')>();
+    return {
+        readBoundedStdin: (maxBytes: number, fd = 0): string => {
+            if (fd !== 0) {
+                // Reading from a real file fd (e.g. --data-file); use the
+                // real implementation — the stub only applies to stdin.
+                return real.readBoundedStdin(maxBytes, fd);
+            }
+            if (stubbedStdin.throwNonError) {
+                // eslint-disable-next-line @typescript-eslint/only-throw-error
+                throw 'non-error-string-failure';
+            }
+            if (stubbedStdin.value === null) {
+                throw new Error('readBoundedStdin not stubbed for this test');
+            }
+            return stubbedStdin.value;
+        },
+    };
+});
 
 async function withStubbedStdin<T>(value: string, fn: () => Promise<T>): Promise<T> {
     const orig = stubbedStdin.value;

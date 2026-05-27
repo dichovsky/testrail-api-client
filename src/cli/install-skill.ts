@@ -96,7 +96,7 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     let tempPath: string | undefined;
     try {
         const dir = dirname(target);
-        mkdirSync(dir, { recursive: true });
+        mkdirSync(dir, { recursive: true, mode: 0o755 });
 
         // Create a secure sibling temp file first.
         tempPath = join(dir, `SKILL.md.tmp.${Math.random().toString(36).substring(2, 9)}`);
@@ -115,12 +115,11 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
             throw new Error('temporary file is not a regular file');
         }
 
-        // If it exists (even if it's a symlink), unlink it first to ensure we don't follow any existing link.
-        if (targetExists) {
-            unlinkSync(target);
-        }
-
-        // Atomically place it at target
+        // Place the file at the target. On POSIX, Node's renameSync delegates to
+        // rename(2), which atomically replaces any existing directory entry
+        // (including symlinks) without a prior unlink — no TOCTOU window.
+        // On Windows, renameSync overwrites regular files but may throw on
+        // existing directories or symlinks depending on the OS version.
         renameSync(tempPath, target);
         tempPath = undefined;
         /* v8 ignore start -- defensive: triggered only by filesystem failures

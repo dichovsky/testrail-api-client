@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { openSync, fstatSync, closeSync, constants } from 'node:fs';
 import type { z } from 'zod';
 import type { BodyInput } from './handler-context.js';
+import { MAX_DATA_FILE_BYTES } from '../constants.js';
+import { readBoundedStdin } from './stdin.js';
 
 /**
  * Source of a parsed body. Reported alongside the resolution result so
@@ -20,9 +22,11 @@ export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | {
  * Resolve a write-action body from one of three mutually-exclusive sources:
  *
  * - `--data <json-string>` (provided via `BodyInput.dataFlag`)
- * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; read via
- *   readFileSync so failures surface as a structured `ok: false` rather than
- *   crashing the CLI)
+ * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; opened with
+ *   O_RDONLY | O_NOFOLLOW to prevent symlink traversal, then read via
+ *   readBoundedStdin(fd) to enforce the byte cap on actual bytes read rather
+ *   than just on the fstat-reported size; failures surface as a structured
+ *   `ok: false` rather than crashing the CLI)
  * - stdin (provided via `BodyInput.readStdin` thunk; the caller is
  *   responsible for non-TTY detection — only set the thunk when stdin is
  *   piped. The resolver invokes the thunk *only* when stdin is the
@@ -66,13 +70,37 @@ export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S)
         raw = input.dataFlag;
         source = 'data';
     } else if (input.dataFileFlag !== undefined) {
+        let fd: number | undefined;
         try {
-            raw = readFileSync(input.dataFileFlag, 'utf-8');
+            fd = openSync(input.dataFileFlag, constants.O_RDONLY | constants.O_NOFOLLOW);
+            const stat = fstatSync(fd);
+            if (!stat.isFile()) {
+                return { ok: false, error: `--data-file '${input.dataFileFlag}' is not a regular file.` };
+            }
+            if (stat.size > MAX_DATA_FILE_BYTES) {
+                return {
+                    ok: false,
+                    error: `--data-file '${input.dataFileFlag}' exceeds maximum size of ${MAX_DATA_FILE_BYTES} bytes.`,
+                };
+            }
+            // Use readBoundedStdin (which accepts any fd) so the byte cap is
+            // enforced on bytes actually read, not just on the fstat size —
+            // a file can grow between fstat and read if another writer holds
+            // the same inode open (SEC #17).
+            raw = readBoundedStdin(MAX_DATA_FILE_BYTES, fd);
         } catch (e) {
             return {
                 ok: false,
                 error: `Cannot read --data-file '${input.dataFileFlag}': ${e instanceof Error ? e.message : String(e)}`,
             };
+        } finally {
+            if (fd !== undefined) {
+                try {
+                    closeSync(fd);
+                } catch {
+                    /* best-effort */
+                }
+            }
         }
         source = 'file';
     } else {

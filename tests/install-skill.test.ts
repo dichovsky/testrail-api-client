@@ -15,6 +15,7 @@ import {
     rmSync,
     symlinkSync,
     lstatSync,
+    statSync,
     mkdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -306,6 +307,79 @@ describe('runInstallSkill', () => {
         );
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('bundled SKILL.md not found');
+    });
+
+    it('SEC #19: created directory is not group/other-writable on POSIX', () => {
+        // Exercises the `mkdirSync(dir, { recursive: true, mode: 0o755 })` fix.
+        // Without an explicit mode the directory inherits the process umask;
+        // under a permissive umask (e.g. 0o000) the dir becomes world-writable.
+        // The exact mode is umask-filtered, so we assert the security property
+        // (group/other write bits absent) rather than a fixed octal value.
+        const project = join(tmp, 'proj-mode');
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(0);
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        if (process.platform !== 'win32') {
+            const dirStat = statSync(skillDir);
+            // Assert the security property (not world-writable) rather than
+            // the exact mode — mkdirSync honors the explicit 0o755 mode, but
+            // different test runner umasks would filter that to 0o700 etc. The
+            // invariant we need is that group/other write bits are never set.
+            expect(dirStat.mode & 0o002).toBe(0); // not world-writable
+            expect(dirStat.mode & 0o020).toBe(0); // not group-writable
+        }
+    });
+
+    it('SEC #5: --force replaces a symlink at the target path with a regular file', () => {
+        // Verifies that --force replaces an existing symlink with a regular file
+        // (the installed skill content) and that the file the symlink previously
+        // pointed to is left untouched.
+        //
+        // Note on ESM spy limitations: vi.spyOn cannot intercept named ESM
+        // imports (module namespace is not configurable), so we verify the
+        // outcome directly via the filesystem rather than asserting the absence
+        // of a particular syscall sequence.
+        const project = join(tmp, 'proj-symlink-replace');
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(skillDir, { recursive: true });
+
+        const linkTarget = join(tmp, 'some-other-file.txt');
+        writeFileSync(linkTarget, 'original', 'utf-8');
+        const symlinkPath = join(skillDir, 'SKILL.md');
+        symlinkSync(linkTarget, symlinkPath);
+
+        // Install with --force should succeed (replacing the symlink)
+        const result = runInstallSkill(
+            {
+                global: false,
+                force: true,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(result).toBe(0);
+
+        // The path must now be a regular file, not a symlink
+        const stat = lstatSync(symlinkPath);
+        expect(stat.isSymbolicLink()).toBe(false);
+        expect(stat.isFile()).toBe(true);
+        expect(readFileSync(symlinkPath, 'utf-8')).toBe(SKILL_CONTENT);
+
+        // The original file the symlink pointed to must be untouched.
+        expect(readFileSync(linkTarget, 'utf-8')).toBe('original');
     });
 
     it('refuses to clobber target via a symlink (breaks link and creates regular file)', () => {
