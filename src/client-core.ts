@@ -186,7 +186,7 @@ async function validatePublicHost(hostname: string): Promise<void> {
     }
 }
 
-// UUID format for plan entry IDs (SEC #29). All four groups are hex-only so
+// UUID format for plan entry IDs (SEC #29). All five groups are hex-only so
 // path-traversal sequences cannot appear in a validated entry ID.
 const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -604,7 +604,7 @@ export class TestRailClientCore {
      * @throws {TestRailValidationError} When entryId is not a UUID string
      */
     public validateEntryId(entryId: string): void {
-        if (!ENTRY_ID_RE.test(entryId.trim())) {
+        if (!ENTRY_ID_RE.test(entryId)) {
             throw new TestRailValidationError('entryId must be a UUID string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
         }
     }
