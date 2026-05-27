@@ -235,6 +235,7 @@ export class TestRailClientCore {
     private readonly cacheCleanupInterval: number;
     private readonly maxCacheSize: number;
     private readonly cache = new Map<string, CacheEntry<unknown>>();
+    private readonly pendingRequests = new Map<string, Promise<unknown>>();
     private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
     private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
     private isDestroyed = false;
@@ -737,6 +738,7 @@ export class TestRailClientCore {
         try {
             this.stopCacheCleanup();
             this.clearCache();
+            this.pendingRequests.clear();
         } finally {
             // Zero the credential and remove from registry unconditionally so a
             // throw inside stopCacheCleanup/clearCache leaves no stale entry and
@@ -785,6 +787,14 @@ export class TestRailClientCore {
             if (cachedData !== undefined) {
                 return cachedData;
             }
+
+            // Coalesce concurrent identical GET requests (SEC #23):
+            // if a fetch for this key is already in flight, return that Promise
+            // instead of starting a new upstream request.
+            const existing = this.pendingRequests.get(cacheKey) as Promise<T> | undefined;
+            if (existing !== undefined) {
+                return existing;
+            }
         }
 
         // Apply rate limiting
@@ -814,114 +824,132 @@ export class TestRailClientCore {
             options.body = JSON.stringify(data);
         }
 
-        try {
-            const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
-            // Headers received — header timeout has done its job. The body
-            // read is bounded independently by readBodyWithLimits, so clearing
-            // here does not re-open the slowloris-on-body window (SEC #21).
-            clearTimeout(timeoutId);
+        // Wrap the fetch in a named promise so concurrent GET callers with the
+        // same cache key (SEC #23) can share a single upstream request.
+        const fetchPromise: Promise<T> = (async () => {
+            try {
+                const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
+                // Headers received — header timeout has done its job. The body
+                // read is bounded independently by readBodyWithLimits, so clearing
+                // here does not re-open the slowloris-on-body window (SEC #21).
+                clearTimeout(timeoutId);
 
-            this.assertNotRedirect(response);
+                this.assertNotRedirect(response);
 
-            const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+                const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
 
-            if (!response.ok) {
-                // Error bodies inherit the same cap so an attacker cannot OOM
-                // the client by responding 4xx/5xx with a 10 GiB payload.
-                // If the body read itself hits a limit (cap or timeout), surface
-                // that TestRailApiError immediately — no retry, since repeating
-                // the request would compound the wait by (maxRetries+1)×bodyTimeout.
-                // Only generic decode errors fall back to 'Unknown error'.
-                let errorText: string;
-                try {
-                    errorText = await readBodyAsText(response, jsonLimits);
-                } catch (bodyErr) {
-                    if (bodyErr instanceof TestRailApiError) {
-                        throw bodyErr;
+                if (!response.ok) {
+                    // Error bodies inherit the same cap so an attacker cannot OOM
+                    // the client by responding 4xx/5xx with a 10 GiB payload.
+                    // If the body read itself hits a limit (cap or timeout), surface
+                    // that TestRailApiError immediately — no retry, since repeating
+                    // the request would compound the wait by (maxRetries+1)×bodyTimeout.
+                    // Only generic decode errors fall back to 'Unknown error'.
+                    let errorText: string;
+                    try {
+                        errorText = await readBodyAsText(response, jsonLimits);
+                    } catch (bodyErr) {
+                        if (bodyErr instanceof TestRailApiError) {
+                            throw bodyErr;
+                        }
+                        errorText = 'Unknown error';
                     }
-                    errorText = 'Unknown error';
+
+                    // Retry strategy:
+                    //   429 (rate limit) — retried for ALL methods. TestRail's rate limiter
+                    //     rejects the request before it executes, so a retry on a mutating
+                    //     call cannot duplicate writes. Respect Retry-After when present.
+                    //   5xx (server error) — retried only for GET. A 5xx on POST/PUT/DELETE
+                    //     leaves write state ambiguous (server may have processed the request
+                    //     before the failure), so retrying could create duplicate records.
+                    //     Non-GET callers see the 5xx surfaced immediately. Retry-After is
+                    //     honored on GET 5xx too (BACKLOG SEC #25): TestRail / nginx /
+                    //     Cloudflare commonly emit it on 502/503/504 during maintenance, and
+                    //     respecting the hint avoids hammering an upstream that already told
+                    //     us how long to wait. parseRetryAfterMs falls back to null on zero,
+                    //     past dates, or invalid values, so the caller never spins.
+                    const isIdempotent = method === 'GET';
+                    const status = response.status;
+                    const shouldRetry =
+                        (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
+                    if (shouldRetry) {
+                        const retryAfterMs = this.parseRetryAfterMs(response);
+                        const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
+                        await sleep(delay);
+                        return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
+                    }
+
+                    // The raw server body may contain stack traces, internal paths,
+                    // or secret values. Keep it in the structured `response` field for
+                    // programmatic inspection but do not embed it in the message string,
+                    // which callers commonly pass to loggers.
+                    throw createApiError(response.status, response.statusText, errorText);
                 }
 
-                // Retry strategy:
-                //   429 (rate limit) — retried for ALL methods. TestRail's rate limiter
-                //     rejects the request before it executes, so a retry on a mutating
-                //     call cannot duplicate writes. Respect Retry-After when present.
-                //   5xx (server error) — retried only for GET. A 5xx on POST/PUT/DELETE
-                //     leaves write state ambiguous (server may have processed the request
-                //     before the failure), so retrying could create duplicate records.
-                //     Non-GET callers see the 5xx surfaced immediately. Retry-After is
-                //     honored on GET 5xx too (BACKLOG SEC #25): TestRail / nginx /
-                //     Cloudflare commonly emit it on 502/503/504 during maintenance, and
-                //     respecting the hint avoids hammering an upstream that already told
-                //     us how long to wait. parseRetryAfterMs falls back to null on zero,
-                //     past dates, or invalid values, so the caller never spins.
-                const isIdempotent = method === 'GET';
-                const status = response.status;
-                const shouldRetry = (status === 429 || (isIdempotent && status >= 500)) && retryCount < this.maxRetries;
-                if (shouldRetry) {
-                    const retryAfterMs = this.parseRetryAfterMs(response);
-                    const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
-                    await sleep(delay);
+                // Invalidate cache after mutating requests to avoid stale GET results.
+                // Done before the empty-body check so empty responses (e.g. delete endpoints)
+                // also clear the cache.
+                if (method !== 'GET') {
+                    this.clearCache();
+                }
+
+                const responseText = await readBodyAsText(response, jsonLimits);
+                if (!responseText) {
+                    return {} as T;
+                }
+
+                try {
+                    const result = JSON.parse(responseText) as T;
+
+                    // Cache successful GET responses
+                    if (method === 'GET' && !skipCache) {
+                        const cacheKey = `${method}:${endpoint}`;
+                        this.setCachedData(cacheKey, result);
+                    }
+
+                    return result;
+                } catch {
+                    throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+
+                if (error instanceof TestRailApiError) {
+                    throw error;
+                }
+
+                const isAbortError = (error as Error).name === 'AbortError';
+
+                // Don't retry timeout errors to avoid excessive wait times
+                if (isAbortError) {
+                    throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
+                }
+
+                // Retry network errors only for GET. A TypeError from fetch can fire
+                // mid-flight (e.g. ECONNRESET after the request bytes are on the wire),
+                // so retrying a POST/PUT/DELETE risks duplicating a write the server
+                // already processed. GET is idempotent and safe to retry.
+                if (method === 'GET' && retryCount < this.maxRetries) {
+                    await sleep(this.getRetryDelay(retryCount));
                     return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
                 }
 
-                // The raw server body may contain stack traces, internal paths,
-                // or secret values. Keep it in the structured `response` field for
-                // programmatic inspection but do not embed it in the message string,
-                // which callers commonly pass to loggers.
-                throw createApiError(response.status, response.statusText, errorText);
+                throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
             }
+        })();
 
-            // Invalidate cache after mutating requests to avoid stale GET results.
-            // Done before the empty-body check so empty responses (e.g. delete endpoints)
-            // also clear the cache.
-            if (method !== 'GET') {
-                this.clearCache();
-            }
-
-            const responseText = await readBodyAsText(response, jsonLimits);
-            if (!responseText) {
-                return {} as T;
-            }
-
-            try {
-                const result = JSON.parse(responseText) as T;
-
-                // Cache successful GET responses
-                if (method === 'GET' && !skipCache) {
-                    const cacheKey = `${method}:${endpoint}`;
-                    this.setCachedData(cacheKey, result);
-                }
-
-                return result;
-            } catch {
-                throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            if (error instanceof TestRailApiError) {
-                throw error;
-            }
-
-            const isAbortError = (error as Error).name === 'AbortError';
-
-            // Don't retry timeout errors to avoid excessive wait times
-            if (isAbortError) {
-                throw new TestRailTimeoutError(408, `Request timeout after ${this.timeout}ms`);
-            }
-
-            // Retry network errors only for GET. A TypeError from fetch can fire
-            // mid-flight (e.g. ECONNRESET after the request bytes are on the wire),
-            // so retrying a POST/PUT/DELETE risks duplicating a write the server
-            // already processed. GET is idempotent and safe to retry.
-            if (method === 'GET' && retryCount < this.maxRetries) {
-                await sleep(this.getRetryDelay(retryCount));
-                return this.request<T>(method, endpoint, data, retryCount + 1, skipCache);
-            }
-
-            throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+        // Register the in-flight promise so concurrent GET callers with the
+        // same cache key (and skipCache=false) share this single fetch (SEC #23).
+        // Remove on settle so rejections don't permanently block a cache key.
+        if (method === 'GET' && !skipCache) {
+            const cacheKey = `${method}:${endpoint}`;
+            this.pendingRequests.set(cacheKey, fetchPromise);
+            void fetchPromise.finally(() => {
+                this.pendingRequests.delete(cacheKey);
+            });
         }
+
+        return fetchPromise;
     }
 
     /**
@@ -1365,19 +1393,35 @@ export class TestRailClientCore {
             if (cachedData !== undefined) {
                 return cachedData;
             }
+
+            // Coalesce concurrent identical GET requests (SEC #23): if a validated
+            // fetch for this key is already in flight, return the shared Promise.
+            const existing = this.pendingRequests.get(cacheKey) as Promise<T> | undefined;
+            if (existing !== undefined) {
+                return existing;
+            }
         }
 
         // Use skipCache=true to bypass request()'s own cache write — we only
         // want to cache after validation has succeeded. POST's cache-clear
         // still fires inside request() because clearCache() is unconditional
         // for non-GET methods regardless of skipCache.
-        const raw = await this.request<unknown>(method, endpoint, data, 0, true);
-        const validated = this.parse<T>(schema, raw);
+        const fetchPromise: Promise<T> = (async () => {
+            const raw = await this.request<unknown>(method, endpoint, data, 0, true);
+            const validated = this.parse<T>(schema, raw);
+            if (cacheKey !== undefined) {
+                this.setCachedData(cacheKey, validated);
+            }
+            return validated;
+        })();
 
         if (cacheKey !== undefined) {
-            this.setCachedData(cacheKey, validated);
+            this.pendingRequests.set(cacheKey, fetchPromise);
+            void fetchPromise.finally(() => {
+                this.pendingRequests.delete(cacheKey);
+            });
         }
 
-        return validated;
+        return fetchPromise;
     }
 }

@@ -2205,4 +2205,83 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
     });
+
+    describe('GET request coalescing (SEC #23)', () => {
+        it('deduplicates concurrent identical GET requests into a single upstream call', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+            });
+            try {
+                // Fire the same GET three times concurrently before any response arrives.
+                // Only one actual fetch should hit the mock.
+                mockFetch.mockResolvedValueOnce(
+                    mockOk({ id: 1, name: 'Proj', suite_mode: 1, url: 'u', is_completed: false }),
+                );
+
+                const [r1, r2, r3] = await Promise.all([wt.getProject(1), wt.getProject(1), wt.getProject(1)]);
+
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+                expect(r1).toEqual(r2);
+                expect(r2).toEqual(r3);
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('does not coalesce requests with skipCache=true', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+            });
+            try {
+                mockFetch
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'A', suite_mode: 1, url: 'u', is_completed: false }))
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'B', suite_mode: 1, url: 'u', is_completed: false }));
+
+                const [r1, r2] = await Promise.all([
+                    wt.request<{ id: number; name: string }>('GET', 'get_project/1', undefined, 0, true),
+                    wt.request<{ id: number; name: string }>('GET', 'get_project/1', undefined, 0, true),
+                ]);
+
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+                expect(r1.name).toBe('A');
+                expect(r2.name).toBe('B');
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('removes the pending entry after rejection so subsequent calls retry', async () => {
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                maxRetries: 0,
+            });
+            try {
+                mockFetch
+                    .mockRejectedValueOnce(new Error('network error'))
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'OK', suite_mode: 1, url: 'u', is_completed: false }));
+
+                // First call fails
+                await expect(wt.getProject(1)).rejects.toThrow();
+
+                // Second call (after rejection) must retry, not return the rejected promise
+                const result = await wt.getProject(1);
+                expect(result.name).toBe('OK');
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+            } finally {
+                wt.destroy();
+            }
+        });
+    });
 });
