@@ -305,6 +305,27 @@ describe('TestRailClient - Coverage Improvement', () => {
         });
     });
 
+    describe('IPv6 SSRF allowlist gaps (SEC #15)', () => {
+        const blockedIPs: Array<[string, string]> = [
+            ['fec0::1', 'IPv6 site-local (fec0::/10)'],
+            ['feff::1', 'IPv6 site-local upper end (fec0::/10)'],
+            ['2002::1', '6to4 (2002::/16)'],
+            ['2002:c000:204::', '6to4 with embedded private IPv4 (192.0.2.4)'],
+            ['64:ff9b::1', 'NAT64 well-known prefix (64:ff9b::/96)'],
+            ['64:ff9b::c0a8:1', 'NAT64 mapping 192.168.0.1'],
+        ];
+
+        it.each(blockedIPs)('blocks %s (%s) as a private/SSRF-risky address', (ip) => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: `https://[${ip}]/testrail`,
+                    email: 'test@example.com',
+                    apiKey: 'api-key',
+                });
+            }).toThrow(TestRailValidationError);
+        });
+    });
+
     // Additional coverage tests to complete edge cases coverage
     describe('Additional Edge Cases', () => {
         it('should access timeout property correctly', () => {

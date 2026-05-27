@@ -195,22 +195,29 @@ describe('SSRF defense — DNS-resolved IPv6 (isPrivateOrLoopbackIP branches)', 
         await expectRejectedOnLookup('fe80::1%eth0', 6);
     });
 
-    it('does NOT reject a public IPv6 (fec0:: — deprecated site-local, NOT in the link-local prefix list)', async () => {
-        // Confirms we don't over-block; fec0/fed0/fef0 deprecated site-local
-        // prefixes are intentionally NOT in the link-local list.
-        mockDnsLookup.mockResolvedValueOnce([{ address: 'fec0::1', family: 6 }] as never);
-        mockFetch.mockResolvedValueOnce({
-            ok: true,
-            status: 200,
-            statusText: 'OK',
-            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
-        });
-        const client = new TestRailClient({
-            baseUrl: 'https://public-host.example',
-            email: 'test@example.com',
-            apiKey: 'key',
-        });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+    // SEC #15: site-local (fec0::/10), 6to4 (2002::/16), NAT64 (64:ff9b::/96)
+    it('rejects fec0::1 (IPv6 site-local fec0::/10, SEC #15)', async () => {
+        await expectRejectedOnLookup('fec0::1', 6);
+    });
+
+    it('rejects feff::1 (IPv6 site-local fec0::/10 upper end, SEC #15)', async () => {
+        await expectRejectedOnLookup('feff::1', 6);
+    });
+
+    it('rejects 2002::1 (6to4 2002::/16, SEC #15)', async () => {
+        await expectRejectedOnLookup('2002::1', 6);
+    });
+
+    it('rejects 2002:c000:204:: (6to4 with embedded private IPv4 192.0.2.4, SEC #15)', async () => {
+        await expectRejectedOnLookup('2002:c000:204::', 6);
+    });
+
+    it('rejects 64:ff9b::1 (NAT64 well-known prefix 64:ff9b::/96, SEC #15)', async () => {
+        await expectRejectedOnLookup('64:ff9b::1', 6);
+    });
+
+    it('rejects 64:ff9b::c0a8:1 (NAT64 mapping 192.168.0.1, SEC #15)', async () => {
+        await expectRejectedOnLookup('64:ff9b::c0a8:1', 6);
     });
 
     it('does NOT reject a public IPv6 (2001:db8:: documentation prefix)', async () => {

@@ -70,6 +70,9 @@ const PRIVATE_HOST_PATTERNS: RegExp[] = [
     /^::1$/,
     /^fe80:/i, // IPv6 link-local (fe80::/10)
     /^f[cd][0-9a-f]{2}:/i, // IPv6 unique-local (fc00::/7 covers fc** and fd**)
+    /^fe[c-f][0-9a-f]:/i, // IPv6 site-local (fec0::/10, deprecated but still routable privately)
+    /^2002:/i, // 6to4 (2002::/16); embeds IPv4 — can reach private space
+    /^64:ff9b::/i, // NAT64 well-known prefix (64:ff9b::/96); maps IPv4 private ranges
     /^0\./,
 ];
 
@@ -113,14 +116,21 @@ function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
             return true;
         }
 
-        const [firstHextet] = normalized.split(':') as [string, ...string[]];
+        const parts = normalized.split(':') as [string, ...string[]];
+        const [firstHextet] = parts;
         return (
             firstHextet.startsWith('fc') ||
             firstHextet.startsWith('fd') ||
             firstHextet.startsWith('fe8') ||
             firstHextet.startsWith('fe9') ||
             firstHextet.startsWith('fea') ||
-            firstHextet.startsWith('feb')
+            firstHextet.startsWith('feb') ||
+            firstHextet.startsWith('fec') || // site-local fec0::/10
+            firstHextet.startsWith('fed') ||
+            firstHextet.startsWith('fee') ||
+            firstHextet.startsWith('fef') ||
+            firstHextet === '2002' || // 6to4 2002::/16
+            (firstHextet === '64' && parts[1] === 'ff9b') // NAT64 64:ff9b::/96
         );
     }
 
