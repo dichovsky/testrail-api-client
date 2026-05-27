@@ -4152,3 +4152,33 @@ PR merge commit on `main`.
 - [x] **SEC #29: `validateEntryId` accepts any non-empty string** — Shipped in PR #170 (`fix(security): enforce UUID format for plan entry IDs (SEC #29)`). `ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i` added to `src/client-core.ts` and `src/cli/ids.ts`. `validateEntryId` rejects non-UUID strings (including path-traversal sequences like `../../etc/passwd`); `parseEntryId` trims then validates. Three new endpoint regression tests cover `updatePlanEntry`, `deletePlanEntry`, and `addRunToPlanEntry`.
 
 - [x] **SEC #30: Fortify `requestMultipart` against fd mutation and resource leaks** — Shipped in PR #171 (`fix(security): fortify requestMultipart against fd mutation and resource leaks (SEC #30)`). `file.fd = undefined` mutation replaced by `let fdToClose: number | undefined` local variable. On POSIX, original fd released early after `openAsBlob` obtains its own independent file description via `/dev/fd/<N>` or `/proc/self/fd/<N>` kernel-resolved symlinks. On non-POSIX, fd closed before `openAsBlob`; `finally` only closes if neither early-path ran. Immutability regression test added: verifies `descriptor.fd` unchanged after upload and that `closeSync` was called with the original fd on POSIX.
+
+## BACKLOG sync — 2026-05-27 (Security cluster — PRs #166–#169, #173)
+
+This sync archives nine Security items confirmed shipped in earlier PRs during
+the 2026-05-27 orchestrator session. Items were verified against merge commits on
+`main` before removal from `BACKLOG.md`.
+
+### Security — verified shipped
+
+- [x] **SEC #5: TOCTOU symlink-clobber on install target** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). `cli/install-skill.ts` now uses an atomic temp-then-rename flow: writes to a `.tmp` sibling, validates the symlink state, then renames atomically. The pre-rename `unlinkSync` path that allowed a symlink swap between the `targetExists` check and the unlink is eliminated.
+
+- [x] **SEC #14: Mutable cached references let callers poison future reads** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `getCachedData()` now returns a deep-cloned copy; `setCachedData()` stores a clone. External mutations to the returned/stored reference can no longer poison subsequent cache reads.
+
+- [x] **SEC #15: IPv6 SSRF allowlist gaps** — Shipped in PR #167 (`fix(security): add missing IPv6 SSRF ranges (SEC #15)`). SSRF allowlist expanded to cover `fec0::/10` (deprecated site-local), `2002::/16` (6to4), and `64:ff9b::/96` (NAT64 well-known prefix). All three ranges added to `validatePublicHost` in `src/client-core.ts`.
+
+- [x] **SEC #17: `--data-file` follows symlinks with no size cap** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). `cli/file-input.ts` `resolveFromPath` now opens data-file paths with `O_NOFOLLOW`, fstat-validates `isFile()` post-open, and enforces `MAX_DATA_FILE_BYTES` (10 MiB) byte cap. Symlink-follow attacks and unbounded reads both blocked.
+
+- [x] **SEC #19: `mkdirSync` omits explicit mode under permissive umask** — Shipped in PR #169 (`fix(security): filesystem hardening (SEC #5, #17, #19)`). All `mkdirSync` calls in `cli/install-skill.ts` now pass `{ mode: 0o700 }` so directory permissions are pinned independent of the caller's umask.
+
+- [x] **SEC #20: `baseUrl` accepts embedded userinfo** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `validateConfig()` now rejects `baseUrl` values where `new URL(baseUrl).username` or `.password` is non-empty, throwing `TestRailValidationError`. Credential injection via `https://user:pass@host/` is blocked at construction.
+
+- [x] **SEC #23: Identical GETs stampede into parallel upstream calls** — Shipped in PR #168 (`fix(security): coalesce concurrent identical GET requests (SEC #23)`). `request<T>()` now de-duplicates in-flight GET requests by endpoint key: a second call with the same cache-key while the first is pending receives the same Promise instead of issuing a parallel upstream call.
+
+- [x] **SEC #26: `allowInsecure: true` opts out of HTTPS enforcement silently** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `console.warn('[testrail-api-client] WARNING: allowInsecure is enabled. HTTP transmits credentials in cleartext. Use HTTPS in production.')` emitted at construction time when `allowInsecure: true` and the baseUrl protocol is `http:`.
+
+- [x] **SEC #28: `destroy()` stale `activeClients` entries** — Shipped in PR #166 (`fix(security): harden client-core (SEC #14, #20, #26, #28)`). `destroy()` now wraps `stopCacheCleanup`/`clearCache` in `try` with `finally { this.auth = ''; activeClients.delete(this); }`. `cleanupAllClients()` wraps each `client.destroy()` in a per-client `try/catch` so a throwing client cannot abort the sweep.
+
+- [x] **SEC #32: Safe-by-default root `.npmrc` configuration** — Shipped in PR #173 (`chore(security): supply-chain hardening — .npmrc + lockfile-lint (SEC #32, #33)`). Root `.npmrc` sets `ignore-scripts=true` (blocks install-time lifecycle hooks of sub-dependencies) and `registry=https://registry.npmjs.org/` (pins to official registry). Note: `allow-git=none` is not a real npm config option; git-URL protection is provided by `lockfile-lint` instead.
+
+- [x] **SEC #33: Integrate `lockfile-lint` verification** — Shipped in PR #173 (`chore(security): supply-chain hardening — .npmrc + lockfile-lint (SEC #32, #33)`). `lockfile-lint` added as a devDependency. `.lockfile-lintrc` validates `package-lock.json` entries resolve through `https://registry.npmjs.org/` (HTTPS-only, npm registry only). `npm run lockfile-lint` wired into `pretest` and CI.

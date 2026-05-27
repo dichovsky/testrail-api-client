@@ -12,19 +12,8 @@ Archive file: [`BACKLOG-ARCHIVE.md`](BACKLOG-ARCHIVE.md) — preserves long-form
 
 ## 🔒 Security
 
-- [ ] 🟡 🐛 SEC #5: TOCTOU symlink-clobber on install target — atomic temp-then-rename narrows the window in practice (`install-skill.ts:103` uses `O_NOFOLLOW` + post-write `lstatSync` + `renameSync`) but the pre-rename `unlinkSync` (line 120) still allows a symlink swap between the `targetExists` check and the unlink; harden by collapsing to `mkdirSync` + immediate atomic temp-then-rename without the separate unlink (`cli/install-skill.ts`)
-- [ ] 🟢 🐛 SEC #14: Mutable cached references let callers poison future reads
-- [ ] 🟢 🐛 SEC #15: IPv6 SSRF allowlist gaps (`fec0::/10`, `2002::/16`, `64:ff9b::/96`)
-- [ ] 🟡 🐛 SEC #17: `--data-file` follows symlinks with no size cap
-- [ ] 🟢 🐛 SEC #19: `mkdirSync` omits explicit mode under permissive umask
-- [ ] 🟢 🐛 SEC #20: `baseUrl` accepts embedded userinfo
-- [ ] 🟢 🐛 SEC #23: Identical GETs stampede into parallel upstream calls
-- [ ] 🟢 🐛 SEC #26: `allowInsecure: true` opts out of HTTPS enforcement silently (`client-core.ts:307-316`) — no stderr warning, no structured audit log, no per-request indication. Add at least a single-shot stderr warning at client construction; ideally a structured audit-trail event on each request made over an insecure baseUrl.
-- [ ] 🟢 🐛 SEC #28: thrown `destroy()` leaves stale `activeClients` entries — `destroy()` (`client-core.ts:690-703`) has no try/finally and `activeClients.delete(this)` is the last line, so an earlier throw skips it; `cleanupAllClients` (`client-core.ts:176-180`) also iterates without per-client try/finally, so one bad client poisons the sweep. Wrap both sites: per-client try/finally inside `destroy()` so `activeClients.delete(this)` runs unconditionally, plus a try/catch around `client.destroy()` in `cleanupAllClients` so a thrown client cannot abort the iteration.
-- [ ] 🟢 ♻️ SEC #31: Custom DNS Server / Host Mappings in Config — Support local hostname resolutions or custom DNS servers in `TestRailConfig` to allow running DNS SSRF verification in restrictive DNS environments
-- [ ] 🟡 🛡️ SEC #32: Safe-by-default root `.npmrc` configuration — Add a root `.npmrc` file that sets `ignore-scripts=true` to block execution of arbitrary lifecycle scripts from sub-dependencies during development/CI, blocks Git-based URLs with `allow-git=none`, and scopes registry access to `https://registry.npmjs.org/` to defend against dependency confusion and supply chain attacks
-- [ ] 🟢 🛡️ SEC #33: Integrate `lockfile-lint` verification — Install `lockfile-lint` as a devDependency and configure a check running in `pretest` / CI to audit `package-lock.json` for unauthorized registries, invalid URL schemes, and integrity checksum metadata anomalies to block lockfile injection vectors
-- [ ] 🟡 🛡️ SEC #34: Automated Trusted Publishing (OIDC) & Provenance Attestations — Create a secure release workflow (`.github/workflows/publish.yml`) that relies on GitHub OIDC permissions (`id-token: write`) to establish Trusted Publishing on npm and publish with `--provenance` to generate cryptographic build attestations linked to the GitHub runner, eliminating persistent secret tokens
+- [ ] 🟢 ♻️ SEC #31: Custom DNS Server / Host Mappings in Config — Support local hostname resolutions or custom DNS servers in `TestRailConfig` to allow running DNS SSRF verification in restrictive DNS environments (PR #172 open)
+- [ ] 🟡 🛡️ SEC #34: Automated Trusted Publishing (OIDC) & Provenance Attestations — Create a secure release workflow (`.github/workflows/publish.yml`) that relies on GitHub OIDC permissions (`id-token: write`) to establish Trusted Publishing on npm and publish with `--provenance` to generate cryptographic build attestations linked to the GitHub runner, eliminating persistent secret tokens (PR #174 open)
 
 ## 📚 Spec Parity
 
