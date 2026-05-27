@@ -55,6 +55,15 @@ export const MAX_RESPONSE_BYTES_LIMIT = 1024 * 1024 * 1024;
 export const DEFAULT_BODY_TIMEOUT_MS: number | undefined = undefined;
 
 /**
+ * Maximum size in bytes for a --data-file payload (1 MiB).
+ *
+ * SEC #17: `readFileSync` with no size cap could exhaust memory on a
+ * large file. The cap is sized to cover the largest realistic JSON body
+ * (bulk case payloads with thousands of cases) while keeping OOM impossible.
+ */
+export const MAX_DATA_FILE_BYTES = 1_048_576;
+
+/**
  * CLI stdin read cap. CTF audit #24: `readFileSync(0, 'utf-8')` reads
  * the entire pipe into memory unbounded. A pipe larger than container
  * memory (typical CI runner: 512 MB–1 GB) OOM-kills the process; on

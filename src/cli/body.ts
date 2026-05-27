@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, openSync, fstatSync, closeSync, constants } from 'node:fs';
 import type { z } from 'zod';
 import type { BodyInput } from './handler-context.js';
+import { MAX_DATA_FILE_BYTES } from '../constants.js';
 
 /**
  * Source of a parsed body. Reported alongside the resolution result so
@@ -66,13 +67,33 @@ export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S)
         raw = input.dataFlag;
         source = 'data';
     } else if (input.dataFileFlag !== undefined) {
+        let fd: number | undefined;
         try {
-            raw = readFileSync(input.dataFileFlag, 'utf-8');
+            fd = openSync(input.dataFileFlag, constants.O_RDONLY | constants.O_NOFOLLOW);
+            const stat = fstatSync(fd);
+            if (!stat.isFile()) {
+                return { ok: false, error: `--data-file '${input.dataFileFlag}' is not a regular file.` };
+            }
+            if (stat.size > MAX_DATA_FILE_BYTES) {
+                return {
+                    ok: false,
+                    error: `--data-file '${input.dataFileFlag}' exceeds maximum size of ${MAX_DATA_FILE_BYTES} bytes.`,
+                };
+            }
+            raw = readFileSync(fd, 'utf-8');
         } catch (e) {
             return {
                 ok: false,
                 error: `Cannot read --data-file '${input.dataFileFlag}': ${e instanceof Error ? e.message : String(e)}`,
             };
+        } finally {
+            if (fd !== undefined) {
+                try {
+                    closeSync(fd);
+                } catch {
+                    /* best-effort */
+                }
+            }
         }
         source = 'file';
     } else {

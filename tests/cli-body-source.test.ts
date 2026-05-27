@@ -8,7 +8,7 @@
  * tests/payload-schemas.test.ts.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveBody } from '../src/cli/body.js';
@@ -153,6 +153,46 @@ describe('resolveBody', () => {
             );
             expect(result.ok).toBe(false); // mutex error
             expect(called).toBe(0); // thunk never ran
+        });
+    });
+
+    describe('--data-file symlink rejection and size cap (SEC #17)', () => {
+        it('rejects a --data-file path that is a symlink', () => {
+            // O_NOFOLLOW causes openSync to fail when the path is a symlink,
+            // preventing traversal to a sensitive file outside the cwd.
+            const realFile = join(tmp, 'real.json');
+            const symlinkPath = join(tmp, 'link.json');
+            writeFileSync(realFile, JSON.stringify({ title: 'test' }), 'utf-8');
+            symlinkSync(realFile, symlinkPath);
+            try {
+                const result = resolveBody({ dataFileFlag: symlinkPath }, AddCasePayloadSchema);
+                expect(result.ok).toBe(false);
+                // O_NOFOLLOW throws ELOOP on macOS/Linux; the message surfaces
+                // via the catch branch as "Cannot read --data-file '...': ..."
+                if (!result.ok) {
+                    expect(result.error).toMatch(/Cannot read --data-file|not a regular file/i);
+                }
+            } finally {
+                try {
+                    unlinkSync(symlinkPath);
+                } catch {
+                    /* best-effort */
+                }
+            }
+        });
+
+        it('rejects a --data-file path that exceeds MAX_DATA_FILE_BYTES', () => {
+            // A file larger than 1 MiB must be rejected before being read into
+            // memory to prevent memory exhaustion (SEC #17).
+            const bigFile = join(tmp, 'big.json');
+            // Write a file slightly over the 1 MiB limit
+            const padding = 'a'.repeat(1_100_000);
+            writeFileSync(bigFile, `{"title":"${padding}"}`, 'utf-8');
+            const result = resolveBody({ dataFileFlag: bigFile }, AddCasePayloadSchema);
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.error).toContain('exceeds maximum size');
+            }
         });
     });
 

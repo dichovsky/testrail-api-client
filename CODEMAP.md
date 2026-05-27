@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "c8413957927231a5b65e56719ca6f489211fc5e629747a90a826bcbed7d6f6ca",
+  "sourceHash": "705718a7e232d845a7b0417db71b4fc529aad284d59806b4785fccaae1519a67",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1602,6 +1602,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/body.ts",
       "imports": [
+        "../constants.js",
         "./handler-context.js",
         "node:fs",
         "zod"
@@ -1611,21 +1612,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "BodySource",
           "kind": "type",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export type BodySource = 'data' | 'file' | 'stdin' | 'default'"
         },
         {
           "name": "BodyResolution",
           "kind": "type",
-          "line": 17,
+          "line": 18,
           "exported": true,
           "signature": "export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | { ok: false; error: string }"
         },
         {
           "name": "resolveBody",
           "kind": "function",
-          "line": 43,
+          "line": 44,
           "exported": true,
           "signature": "export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S): BodyResolution<z.infer<S>>"
         }
@@ -5018,30 +5019,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export const DEFAULT_BODY_TIMEOUT_MS: number | undefined = undefined"
         },
         {
+          "name": "MAX_DATA_FILE_BYTES",
+          "kind": "const",
+          "line": 64,
+          "exported": true,
+          "signature": "export const MAX_DATA_FILE_BYTES = 1_048_576"
+        },
+        {
           "name": "MAX_STDIN_BYTES",
           "kind": "const",
-          "line": 69,
+          "line": 78,
           "exported": true,
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         },
         {
           "name": "MAX_STDIN_UPLOAD_BYTES",
           "kind": "const",
-          "line": 85,
+          "line": 94,
           "exported": true,
           "signature": "export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "STDIN_READ_TIMEOUT_MS",
           "kind": "const",
-          "line": 99,
+          "line": 108,
           "exported": true,
           "signature": "export const STDIN_READ_TIMEOUT_MS = 30000"
         },
         {
           "name": "YAML_INDENT_SPACES",
           "kind": "const",
-          "line": 107,
+          "line": 116,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
         }

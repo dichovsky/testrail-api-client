@@ -15,6 +15,7 @@ import {
     rmSync,
     symlinkSync,
     lstatSync,
+    statSync,
     mkdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -306,6 +307,60 @@ describe('runInstallSkill', () => {
         );
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('bundled SKILL.md not found');
+    });
+
+    it('SEC #19: created directory has mode 0o755 on POSIX', () => {
+        // Exercises the `mkdirSync(dir, { recursive: true, mode: 0o755 })` fix.
+        // Without an explicit mode the directory inherits the process umask;
+        // under a permissive umask (e.g. 0o000) the dir becomes world-writable.
+        const project = join(tmp, 'proj-mode');
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                quiet: true,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(0);
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        if (process.platform !== 'win32') {
+            const dirStat = statSync(skillDir);
+            expect(dirStat.mode & 0o777).toBe(0o755);
+        }
+    });
+
+    it('SEC #5: replaces an existing symlink at the target path atomically (no TOCTOU unlink)', () => {
+        // Verifies that rename(2) atomically replaces the symlink entry without
+        // a prior unlinkSync, so no TOCTOU window exists for an attacker to swap
+        // the target. The file the symlink pointed to must be untouched.
+        const project = join(tmp, 'proj-symlink-replace');
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(skillDir, { recursive: true });
+
+        const linkTarget = join(tmp, 'some-other-file.txt');
+        writeFileSync(linkTarget, 'original', 'utf-8');
+        const symlinkPath = join(skillDir, 'SKILL.md');
+        symlinkSync(linkTarget, symlinkPath);
+
+        // Install with --force should succeed (replacing the symlink)
+        const result = runInstallSkill(
+            { global: false, force: true, printPath: false, quiet: true, sourceOverride: source, cwdOverride: project },
+            'file:///irrelevant',
+        );
+        expect(result).toBe(0);
+
+        // The path must now be a regular file, not a symlink
+        const stat = lstatSync(symlinkPath);
+        expect(stat.isSymbolicLink()).toBe(false);
+        expect(stat.isFile()).toBe(true);
+        expect(readFileSync(symlinkPath, 'utf-8')).toBe(SKILL_CONTENT);
+
+        // The original file the symlink pointed to must be intact
+        expect(readFileSync(linkTarget, 'utf-8')).toBe('original');
     });
 
     it('refuses to clobber target via a symlink (breaks link and creates regular file)', () => {
