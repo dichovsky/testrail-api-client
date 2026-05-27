@@ -21,9 +21,10 @@ export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | {
  * Resolve a write-action body from one of three mutually-exclusive sources:
  *
  * - `--data <json-string>` (provided via `BodyInput.dataFlag`)
- * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; read via
- *   readFileSync so failures surface as a structured `ok: false` rather than
- *   crashing the CLI)
+ * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; opened with
+ *   O_RDONLY | O_NOFOLLOW to prevent symlink traversal, then read via
+ *   readFileSync(fd); failures surface as a structured `ok: false` rather
+ *   than crashing the CLI)
  * - stdin (provided via `BodyInput.readStdin` thunk; the caller is
  *   responsible for non-TTY detection — only set the thunk when stdin is
  *   piped. The resolver invokes the thunk *only* when stdin is the

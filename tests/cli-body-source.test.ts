@@ -194,6 +194,16 @@ describe('resolveBody', () => {
                 expect(result.error).toContain('exceeds maximum size');
             }
         });
+
+        it('rejects a --data-file path that is a directory (isFile() guard)', () => {
+            // openSync(O_RDONLY | O_NOFOLLOW) succeeds on directories; the
+            // fstatSync().isFile() check must catch this before readFileSync.
+            const result = resolveBody({ dataFileFlag: tmp }, AddCasePayloadSchema);
+            expect(result.ok).toBe(false);
+            if (!result.ok) {
+                expect(result.error).toMatch(/not a regular file/i);
+            }
+        });
     });
 
     describe('mutually-exclusive sources', () => {
