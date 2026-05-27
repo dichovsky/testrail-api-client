@@ -1132,6 +1132,11 @@ export class TestRailClientCore {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+        // Track the caller-supplied fd locally so we never mutate the input
+        // descriptor (SEC #30 — immutability). `fdToClose` is set to undefined
+        // as soon as we close the fd so the finally block never double-closes.
+        let fdToClose: number | undefined = isFilePathInput(file) ? file.fd : undefined;
+
         try {
             // Build the multipart body inside the try block so file-open
             // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
@@ -1146,24 +1151,38 @@ export class TestRailClientCore {
                 if (file.type !== undefined) opts.type = file.type;
 
                 let uploadPath = file.path;
-                if (file.fd !== undefined) {
+                if (fdToClose !== undefined) {
                     if (process.platform === 'darwin') {
-                        uploadPath = `/dev/fd/${file.fd}`;
+                        uploadPath = `/dev/fd/${fdToClose}`;
                     } else if (process.platform === 'linux') {
-                        uploadPath = `/proc/self/fd/${file.fd}`;
+                        uploadPath = `/proc/self/fd/${fdToClose}`;
                     } else {
-                        // Fall back to original path, and close fd immediately since we aren't using it
+                        // Non-POSIX: use the original path directly; close the
+                        // fd now since /dev/fd symlinks aren't available.
                         try {
-                            closeSync(file.fd);
+                            closeSync(fdToClose);
                         } catch {
-                            // Ignore close errors
+                            // best-effort
                         }
-                        // Prevent duplicate close in finally block
-                        file.fd = undefined;
+                        fdToClose = undefined; // prevent duplicate close in finally
                     }
                 }
 
                 blob = await openAsBlob(uploadPath, opts);
+
+                // On POSIX the Blob opened its own fd via /dev/fd or
+                // /proc/self/fd; the original fd is redundant from this point
+                // on. Release it early to minimise the concurrent-fd window
+                // (SEC #30). If openAsBlob threw, this block is never reached
+                // and finally handles the close.
+                if (fdToClose !== undefined) {
+                    try {
+                        closeSync(fdToClose);
+                    } catch {
+                        // best-effort cleanup
+                    }
+                    fdToClose = undefined;
+                }
             } else if (file instanceof globalThis.Blob) {
                 blob = file;
             } else {
@@ -1230,11 +1249,11 @@ export class TestRailClientCore {
             throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
         } finally {
             clearTimeout(timeoutId);
-            if (isFilePathInput(file) && file.fd !== undefined) {
+            if (fdToClose !== undefined) {
                 try {
-                    closeSync(file.fd);
+                    closeSync(fdToClose);
                 } catch {
-                    // Ignore close errors
+                    // best-effort cleanup
                 }
             }
         }

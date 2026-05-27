@@ -152,14 +152,34 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
             expect(init.body).toBeInstanceOf(globalThis.FormData);
         } finally {
-            // requestMultipart closes the fd in its finally block on POSIX
-            // platforms when the rewrite path is used; on other platforms it
-            // already closed and zeroed file.fd. We attempt close defensively
-            // — if it's already closed, that's fine.
+            // requestMultipart closes the fd after openAsBlob (POSIX) or
+            // before openAsBlob (non-POSIX). Attempt defensive close here
+            // in case the test itself needs cleanup; EBADF is expected.
             try {
                 closeSync(fd);
             } catch {
-                // already closed
+                // already closed by requestMultipart — expected on POSIX
+            }
+        }
+    });
+
+    it('does not mutate the input descriptor object (SEC #30 — immutability)', async () => {
+        // requestMultipart must never zero file.fd on the caller's object.
+        // The caller retains ownership of the descriptor after the upload.
+        const client = buildClient();
+        mockOk({ attachment_id: 55 });
+        const fd = openSync(smallPath, 'r');
+        const descriptor = { path: smallPath, fd };
+        try {
+            await client.addAttachmentToCase(1, descriptor, 'immut.bin');
+            // The descriptor must be unchanged; requestMultipart tracks fd
+            // via an internal variable, not by zeroing the input object.
+            expect(descriptor.fd).toBe(fd);
+        } finally {
+            try {
+                closeSync(fd);
+            } catch {
+                // already closed by requestMultipart — expected on POSIX
             }
         }
     });
