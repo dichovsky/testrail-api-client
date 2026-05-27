@@ -623,24 +623,22 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
         // The MockApiError class does NOT extend Error, so `e instanceof Error`
         // at line 247 evaluates to false → the String(e) arm is reached.
         const getRun = vi.fn();
-        getRun
-            .mockRejectedValueOnce(new MockApiError(503, 'Service Unavailable'))
-            .mockResolvedValueOnce({
-                id: 42,
-                suite_id: 1,
-                name: 'CI Run',
-                include_all: true,
-                is_completed: true,
-                passed_count: 5,
-                blocked_count: 0,
-                untested_count: 0,
-                retest_count: 0,
-                failed_count: 0,
-                project_id: 1,
-                created_on: 0,
-                created_by: 1,
-                url: 'https://example.testrail.io/runs/view/42',
-            });
+        getRun.mockRejectedValueOnce(new MockApiError(503, 'Service Unavailable')).mockResolvedValueOnce({
+            id: 42,
+            suite_id: 1,
+            name: 'CI Run',
+            include_all: true,
+            is_completed: true,
+            passed_count: 5,
+            blocked_count: 0,
+            untested_count: 0,
+            retest_count: 0,
+            failed_count: 0,
+            project_id: 1,
+            created_on: 0,
+            created_by: 1,
+            url: 'https://example.testrail.io/runs/view/42',
+        });
 
         const out = vi.fn();
         const ctx = {

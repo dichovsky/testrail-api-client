@@ -20,7 +20,7 @@ export class PlanModule {
     /** @testrail GET get_plan/{plan_id} */
     async getPlan(planId: number): Promise<Plan> {
         this.client.validateId(planId, 'planId');
-        return this.client.requestParsed<Plan>('GET', `get_plan/${planId}`, PlanSchema);
+        return this.client.request<Plan>({ method: 'GET', endpoint: `get_plan/${planId}`, schema: PlanSchema });
     }
 
     /** @testrail GET get_plans/{project_id} */
@@ -38,13 +38,13 @@ export class PlanModule {
         });
         return (
             (
-                await this.client.requestParsed<{ plans?: Plan[] }>(
-                    'GET',
+                await this.client.request<{ plans?: Plan[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ plans: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ plans: z.array(PlanSchema).nullish() }),
-                )
+                    schema: z.object({ plans: z.array(PlanSchema).nullish() }),
+                })
             ).plans ?? []
         );
     }
@@ -52,68 +52,103 @@ export class PlanModule {
     /** @testrail POST add_plan/{project_id} */
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Plan>('POST', `add_plan/${projectId}`, PlanSchema, payload);
+        return this.client.request<Plan>({
+            method: 'POST',
+            endpoint: `add_plan/${projectId}`,
+            schema: PlanSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_plan/{plan_id} */
     async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
         this.client.validateId(planId, 'planId');
-        return this.client.requestParsed<Plan>('POST', `update_plan/${planId}`, PlanSchema, payload);
+        return this.client.request<Plan>({
+            method: 'POST',
+            endpoint: `update_plan/${planId}`,
+            schema: PlanSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST close_plan/{plan_id} */
     async closePlan(planId: number): Promise<Plan> {
         this.client.validateId(planId, 'planId');
-        return this.client.requestParsed<Plan>('POST', `close_plan/${planId}`, PlanSchema);
+        return this.client.request<Plan>({
+            method: 'POST',
+            endpoint: `close_plan/${planId}`,
+            schema: PlanSchema,
+        });
     }
 
     /** @testrail POST delete_plan/{plan_id} */
     async deletePlan(planId: number): Promise<void> {
         this.client.validateId(planId, 'planId');
-        await this.client.request<void>('POST', `delete_plan/${planId}`);
+        await this.client.request<void>({ method: 'POST', endpoint: `delete_plan/${planId}` });
     }
 
     /** @testrail POST add_plan_entry/{plan_id} */
     async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
         this.client.validateId(planId, 'planId');
-        return this.client.requestParsed<PlanEntry>('POST', `add_plan_entry/${planId}`, PlanEntrySchema, payload);
+        return this.client.request<PlanEntry>({
+            method: 'POST',
+            endpoint: `add_plan_entry/${planId}`,
+            schema: PlanEntrySchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_plan_entry/{plan_id}/{entry_id} */
     async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
         this.client.validateId(planId, 'planId');
         this.client.validateEntryId(entryId);
-        return this.client.requestParsed<PlanEntry>(
-            'POST',
-            `update_plan_entry/${planId}/${entryId}`,
-            PlanEntrySchema,
-            payload,
-        );
+        return this.client.request<PlanEntry>({
+            method: 'POST',
+            endpoint: `update_plan_entry/${planId}/${entryId}`,
+            schema: PlanEntrySchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST delete_plan_entry/{plan_id}/{entry_id} */
     async deletePlanEntry(planId: number, entryId: string): Promise<void> {
         this.client.validateId(planId, 'planId');
         this.client.validateEntryId(entryId);
-        await this.client.request<void>('POST', `delete_plan_entry/${planId}/${entryId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_plan_entry/${planId}/${entryId}`,
+        });
     }
 
     /** @testrail POST add_run_to_plan_entry/{plan_id}/{entry_id} */
     async addRunToPlanEntry(planId: number, entryId: string, payload: AddRunToPlanEntryPayload): Promise<Run> {
         this.client.validateId(planId, 'planId');
         this.client.validateEntryId(entryId);
-        return this.client.requestParsed<Run>('POST', `add_run_to_plan_entry/${planId}/${entryId}`, RunSchema, payload);
+        return this.client.request<Run>({
+            method: 'POST',
+            endpoint: `add_run_to_plan_entry/${planId}/${entryId}`,
+            schema: RunSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_run_in_plan_entry/{run_id} */
     async updateRunInPlanEntry(runId: number, payload: UpdateRunInPlanEntryPayload): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestParsed<Run>('POST', `update_run_in_plan_entry/${runId}`, RunSchema, payload);
+        return this.client.request<Run>({
+            method: 'POST',
+            endpoint: `update_run_in_plan_entry/${runId}`,
+            schema: RunSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST delete_run_from_plan_entry/{run_id} */
     async deleteRunFromPlanEntry(runId: number): Promise<void> {
         this.client.validateId(runId, 'runId');
-        await this.client.request<void>('POST', `delete_run_from_plan_entry/${runId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_run_from_plan_entry/${runId}`,
+        });
     }
 }

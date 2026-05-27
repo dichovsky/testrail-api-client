@@ -23,13 +23,13 @@ export class ResultModule {
         });
         return (
             (
-                await this.client.requestParsed<{ results?: Result[] }>(
-                    'GET',
+                await this.client.request<{ results?: Result[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ results: z.array(ResultSchema).nullish() }),
-                )
+                    schema: z.object({ results: z.array(ResultSchema).nullish() }),
+                })
             ).results ?? []
         );
     }
@@ -50,13 +50,13 @@ export class ResultModule {
         });
         return (
             (
-                await this.client.requestParsed<{ results?: Result[] }>(
-                    'GET',
+                await this.client.request<{ results?: Result[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ results: z.array(ResultSchema).nullish() }),
-                )
+                    schema: z.object({ results: z.array(ResultSchema).nullish() }),
+                })
             ).results ?? []
         );
     }
@@ -75,13 +75,13 @@ export class ResultModule {
         });
         return (
             (
-                await this.client.requestParsed<{ results?: Result[] }>(
-                    'GET',
+                await this.client.request<{ results?: Result[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ results: z.array(ResultSchema).nullish() }),
-                )
+                    schema: z.object({ results: z.array(ResultSchema).nullish() }),
+                })
             ).results ?? []
         );
     }
@@ -89,35 +89,45 @@ export class ResultModule {
     /** @testrail POST add_result/{test_id} */
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
         this.client.validateId(testId, 'testId');
-        return this.client.requestParsed<Result>('POST', `add_result/${testId}`, ResultSchema, payload);
+        return this.client.request<Result>({
+            method: 'POST',
+            endpoint: `add_result/${testId}`,
+            schema: ResultSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST add_result_for_case/{run_id}/{case_id} */
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
         this.client.validateId(runId, 'runId');
         this.client.validateId(caseId, 'caseId');
-        return this.client.requestParsed<Result>(
-            'POST',
-            `add_result_for_case/${runId}/${caseId}`,
-            ResultSchema,
-            payload,
-        );
+        return this.client.request<Result>({
+            method: 'POST',
+            endpoint: `add_result_for_case/${runId}/${caseId}`,
+            schema: ResultSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST add_results_for_cases/{run_id} */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestParsed<Result[]>(
-            'POST',
-            `add_results_for_cases/${runId}`,
-            z.array(ResultSchema),
-            payload,
-        );
+        return this.client.request<Result[]>({
+            method: 'POST',
+            endpoint: `add_results_for_cases/${runId}`,
+            schema: z.array(ResultSchema),
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST add_results/{run_id} */
     async addResults(runId: number, payload: AddResultsPayload): Promise<Result[]> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestParsed<Result[]>('POST', `add_results/${runId}`, z.array(ResultSchema), payload);
+        return this.client.request<Result[]>({
+            method: 'POST',
+            endpoint: `add_results/${runId}`,
+            schema: z.array(ResultSchema),
+            body: { kind: 'json', data: payload },
+        });
     }
 }

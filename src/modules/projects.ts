@@ -15,7 +15,11 @@ export class ProjectModule {
      */
     async getProject(projectId: number): Promise<Project> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Project>('GET', `get_project/${projectId}`, ProjectSchema);
+        return this.client.request<Project>({
+            method: 'GET',
+            endpoint: `get_project/${projectId}`,
+            schema: ProjectSchema,
+        });
     }
 
     /**
@@ -29,13 +33,13 @@ export class ProjectModule {
         const endpoint = this.client.buildEndpoint('get_projects', { limit, offset });
         return (
             (
-                await this.client.requestParsed<{ projects?: Project[] }>(
-                    'GET',
+                await this.client.request<{ projects?: Project[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ projects: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ projects: z.array(ProjectSchema).nullish() }),
-                )
+                    schema: z.object({ projects: z.array(ProjectSchema).nullish() }),
+                })
             ).projects ?? []
         );
     }
@@ -46,7 +50,12 @@ export class ProjectModule {
      * @testrail POST add_project
      */
     async addProject(payload: AddProjectPayload): Promise<Project> {
-        return this.client.requestParsed<Project>('POST', 'add_project', ProjectSchema, payload);
+        return this.client.request<Project>({
+            method: 'POST',
+            endpoint: 'add_project',
+            schema: ProjectSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -57,7 +66,12 @@ export class ProjectModule {
      */
     async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Project>('POST', `update_project/${projectId}`, ProjectSchema, payload);
+        return this.client.request<Project>({
+            method: 'POST',
+            endpoint: `update_project/${projectId}`,
+            schema: ProjectSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -68,6 +82,9 @@ export class ProjectModule {
      */
     async deleteProject(projectId: number): Promise<void> {
         this.client.validateId(projectId, 'projectId');
-        await this.client.request<void>('POST', `delete_project/${projectId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_project/${projectId}`,
+        });
     }
 }

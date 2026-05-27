@@ -6,9 +6,9 @@ import { CaseSchema } from '../schemas.js';
  * BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints — TestRail 7.5+.
  *
  * Unlike every other endpoint in this client, `getBdd` returns raw Gherkin
- * text (`text/plain`), not JSON. It goes through `requestText()` on the core,
- * which mirrors `request<T>()`'s retry / rate-limit / timeout pipeline but
- * swaps the JSON parse step for `response.text()`.
+ * text (`text/plain`), not JSON. It dispatches through `request()` with
+ * `responseKind: 'text'`, which mirrors the JSON path's retry / rate-limit /
+ * timeout pipeline but swaps the JSON parse step for `response.text()`.
  *
  * `addBdd` is a thin wrapper over the same multipart pipeline used by
  * `AttachmentModule.addAttachment*`. TestRail returns the updated `Case` on
@@ -24,7 +24,11 @@ export class BddModule {
      */
     async getBdd(caseId: number): Promise<string> {
         this.client.validateId(caseId, 'caseId');
-        return this.client.requestText('GET', `get_bdd/${caseId}`);
+        return this.client.request<string>({
+            method: 'GET',
+            endpoint: `get_bdd/${caseId}`,
+            responseKind: 'text',
+        });
     }
 
     /**
@@ -36,7 +40,12 @@ export class BddModule {
         this.client.validateId(caseId, 'caseId');
         return this.client.parse<Case>(
             CaseSchema,
-            await this.client.requestMultipart<unknown>(`add_bdd/${caseId}`, file, filename),
+            await this.client.request<unknown>({
+                method: 'POST',
+                endpoint: `add_bdd/${caseId}`,
+                body: { kind: 'multipart', file, filename },
+                retry: 'none',
+            }),
         );
     }
 }
