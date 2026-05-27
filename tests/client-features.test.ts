@@ -31,7 +31,7 @@ describe('TestRailClient - Enhanced Features', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         mockDnsLookup.mockReset();
-        mockDnsLookup.mockResolvedValue([]);
+        mockDnsLookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
     });
 
     describe('Configuration Validation', () => {
@@ -267,6 +267,42 @@ describe('TestRailClient - Enhanced Features', () => {
 
             await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('custom dnsLookup returning empty array is treated as fail-closed', async () => {
+            const customLookup = vi.fn().mockResolvedValue([]);
+            client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                dnsLookup: customLookup,
+            });
+
+            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('allowPrivateHosts: true bypasses both system DNS and custom dnsLookup', async () => {
+            const customLookup = vi.fn();
+            mockFetch.mockResolvedValue({
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+            });
+            client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                allowPrivateHosts: true,
+                enableCache: false,
+                dnsLookup: customLookup,
+            });
+
+            await client.getProject(1);
+
+            expect(customLookup).not.toHaveBeenCalled();
+            expect(mockDnsLookup).not.toHaveBeenCalled();
         });
     });
 

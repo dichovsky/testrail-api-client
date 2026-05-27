@@ -182,6 +182,13 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
         );
     }
 
+    if (lookups.length === 0) {
+        throw new TestRailValidationError(
+            `baseUrl DNS validation returned no addresses for "${hostname}". ` +
+                'Set allowPrivateHosts: true to allow deployments where DNS validation is not applicable.',
+        );
+    }
+
     for (const lookup of lookups) {
         if (lookup.address !== '' && isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
             throw new TestRailValidationError(
