@@ -1,4 +1,6 @@
 import { AddMilestonePayloadSchema, UpdateMilestonePayloadSchema } from '../../schemas.js';
+import { handleMilestoneGet, handleMilestoneList } from '../handlers/milestone.js';
+import { handleMilestoneAdd, handleMilestoneDelete, handleMilestoneUpdate } from '../handlers/milestone-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -17,6 +19,7 @@ export const milestoneActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
         apiEndpoint: 'GET get_milestone/{milestone_id}',
         isWrite: false,
+        handler: handleMilestoneGet,
     },
     {
         resource: 'milestone',
@@ -25,6 +28,7 @@ export const milestoneActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_milestones/{project_id}',
         isWrite: false,
+        handler: handleMilestoneList,
     },
     {
         resource: 'milestone',
@@ -33,7 +37,9 @@ export const milestoneActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_milestone/{project_id}',
         bodySchema: AddMilestonePayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleMilestoneAdd,
     },
     {
         resource: 'milestone',
@@ -42,7 +48,9 @@ export const milestoneActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'milestone_id', description: 'TestRail milestone ID' }],
         apiEndpoint: 'POST update_milestone/{milestone_id}',
         bodySchema: UpdateMilestonePayloadSchema,
+        helpExample: `--data '{"is_completed":true}'`,
         isWrite: true,
+        handler: handleMilestoneUpdate,
     },
     {
         resource: 'milestone',
@@ -52,5 +60,7 @@ export const milestoneActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_milestone/{milestone_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail)',
+        handler: handleMilestoneDelete,
     },
 ];

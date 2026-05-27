@@ -1,0 +1,359 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildHelpText > matches the committed snapshot (accidental drift fails the test) 1`] = `
+"testrail <resource> <action> [args] [options]
+
+Read actions:
+  project             get <project_id>
+      Fetch a single project by ID
+  project             list
+      List all projects (paginated)
+  suite               get <suite_id>
+      Fetch a single suite by ID
+  suite               list
+      List suites in a project
+  case                get <case_id>
+      Fetch a single test case by ID
+  case                list
+      List cases in a project (optionally filtered by suite)
+  case                history <case_id>
+      List edit history for a test case (paginated; TestRail 7.5+)
+  run                 get <run_id>
+      Fetch a single run by ID
+  run                 list
+      List runs in a project (paginated)
+  run                 watch <run_id>
+      Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll)
+  test                get <test_id>
+      Fetch a single test (run instance of a case) by ID
+  test                list <run_id>
+      List tests in a run (optionally filtered by status, paginated)
+  result              list
+      List results for a run (paginated)
+  result              list-for-test <test_id>
+      List results for a single test (paginated; --status-id / --defects-filter supported)
+  result              list-for-case <run_id> <case_id>
+      List results for a case within a run (paginated; --status-id / --defects-filter supported)
+  milestone           get <milestone_id>
+      Fetch a single milestone by ID
+  milestone           list
+      List milestones in a project (paginated)
+  user                get <user_id>
+      Fetch a single user by ID
+  user                list
+      List users (paginated)
+  user                get-by-email
+      Look up a single user by email address
+  user                get-current
+      Fetch the user identified by the auth credential (TestRail 6.6+; no positional args)
+  plan                get <plan_id>
+      Fetch a single test plan by ID
+  plan                list
+      List plans in a project (paginated)
+  section             get <section_id>
+      Fetch a single section by ID
+  section             list <project_id>
+      List sections in a project (optionally filtered by suite; paginated)
+  shared-step         get <shared_step_id>
+      Fetch a single shared step by ID
+  shared-step         list
+      List shared steps in a project
+  shared-step         history <shared_step_id>
+      List revision history for a shared step (paginated)
+  report              list <project_id>
+      List report templates configured for a project
+  report              run <report_template_id>
+      Execute a report template and return the generated report URLs
+  variable            list <project_id>
+      List variables in a project
+  group               get <group_id>
+      Fetch a single user group by ID (TestRail 7.5+)
+  group               list
+      List all user groups on the instance (TestRail 7.5+; no path params)
+  dataset             get <dataset_id>
+      Fetch a single dataset by ID
+  dataset             list <project_id>
+      List datasets in a project
+
+Metadata actions:
+  case-status         list
+      List case-level lifecycle statuses (TestRail 7.5+)
+  case-field          list
+      List all custom case fields defined on the TestRail instance
+  result-field        list
+      List all custom result fields defined on the TestRail instance
+  status              list
+      List all result statuses defined on the TestRail instance
+  template            list <project_id>
+      List case templates available in a project
+  role                list
+      List all user roles defined on the TestRail instance
+  priority            list
+      List all case priorities defined on the TestRail instance
+  case-type           list
+      List all case types defined on the TestRail instance
+
+Write actions (body via --data | --data-file | stdin):
+  case                add <section_id> --data '{"title":"..."}'
+      Create a new test case under a section
+  case                add-bulk <section_id> --data '[{"title":"..."},{"title":"..."}]'  (TestRail 7.5+; body is a JSON array)
+      Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads
+  case                update <case_id> --data '{"title":"..."}'
+      Update an existing test case (partial fields)
+  case                update-bulk <suite_id> --data '{"case_ids":[1,2],"priority_id":3}'
+      Bulk-update many cases in a suite with the same field values
+  case                delete <case_id> --yes
+      Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting)
+  case                delete-bulk <suite_id> --project-id <id> [--soft] --data '{"case_ids":[1,2]}' --yes
+      Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion)
+  case                copy-to-section <section_id> --data '{"case_ids":[1,2]}'
+      Copy cases into a target section (returns the new case copies)
+  case                move-to-section <section_id> --data '{"case_ids":[1,2],"suite_id":3}'
+      Move cases into a target section (suite_id required in body)
+  run                 add <project_id> --data '{"name":"..."}'
+      Create a new test run in a project
+  run                 update <run_id> --data '{"name":"..."}'
+      Update an existing test run (all fields optional)
+  run                 close <run_id> --yes (no body; irreversible)
+      Close a test run permanently — irreversible (no body; requires --yes)
+  run                 delete <run_id> --yes
+      Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion)
+  result              add <run_id> <case_id> --data '{"status_id":1}'
+      Record a single result for a case in a run
+  result              add-bulk <run_id> --data '{"results":[{"case_id":1,"status_id":1}]}'
+      Record multiple results for cases in one API call
+  result              add-bulk-by-test <run_id> --data '{"results":[{"test_id":1,"status_id":1}]}'
+      Record multiple results for tests (by test_id) in one API call
+  result              add-by-test <test_id> --data '{"status_id":1}'
+      Add a single test result by test ID
+  plan                add <project_id> --data '{"name":"...","entries":[{"suite_id":1}]}'
+      Create a new test plan in a project (optionally with nested entries)
+  plan                update <plan_id> --data '{"name":"..."}'
+      Update an existing test plan (partial fields)
+  plan                add-entry <plan_id> --data '{"suite_id":1,"include_all":true}'
+      Add an entry (suite + optional runs) to an existing test plan
+  plan                add-run-to-entry <plan_id> <entry_id> --data '{"config_ids":[1,2]}'
+      Add a config-specific run to an existing plan entry (config_ids required)
+  plan                update-entry <plan_id> <entry_id> --data '{"name":"..."}'
+      Update an existing plan entry (partial fields; applies to every run in the entry)
+  plan                update-run-in-entry <run_id> --data '{"description":"..."}'
+      Update a single config-specific run inside a plan entry (description/assignee/case selection only)
+  plan                close <plan_id> --yes (no body; irreversible)
+      Close a test plan permanently — irreversible (no body; requires --yes)
+  plan                delete <plan_id> --yes (no body; --soft NOT supported by TestRail)
+      Delete a test plan and all of its entries and runs (requires --yes; --soft NOT supported by TestRail)
+  plan                delete-entry <plan_id> <entry_id> --yes (no body; entry_id is a UUID string; --soft NOT supported)
+      Delete a single plan entry and its runs (requires --yes; --soft NOT supported by TestRail). entry_id is a UUID-style string.
+  plan                delete-run-from-entry <run_id> --yes (no body; --soft NOT supported)
+      Delete a single run from its plan entry, leaving sibling runs intact (requires --yes; --soft NOT supported by TestRail)
+  section             add <project_id> --data '{"name":"...","suite_id":1}'
+      Create a new section in a project (suite_id required for multi-suite-mode projects)
+  section             update <section_id> --data '{"name":"..."}'
+      Update an existing section (partial fields)
+  section             move <section_id> --data '{"parent_id":null,"after_id":42}'
+      Move a section to a new parent and/or position (TestRail 6.5.2+)
+  section             delete <section_id> --yes
+      Delete a section (recursively removes subsections and cases; requires --yes; --soft for server-side preview)
+  project             add --data '{"name":"...","suite_mode":1}'
+      Create a new project (no path params, payload-only)
+  project             update <project_id> --data '{"name":"..."}'
+      Update an existing project (partial fields)
+  project             delete <project_id> --yes (no body; --soft NOT supported by TestRail; highest blast radius)
+      Delete a project and everything inside it (highest blast radius; requires --yes; --soft NOT supported by TestRail)
+  suite               add <project_id> --data '{"name":"..."}'
+      Create a new test suite in a project
+  suite               update <suite_id> --data '{"name":"..."}'
+      Update an existing test suite (partial fields)
+  suite               delete <suite_id> --yes
+      Delete a suite and everything inside it (sections, cases, runs, plans; requires --yes; --soft for server-side preview)
+  milestone           add <project_id> --data '{"name":"..."}'
+      Create a new milestone in a project
+  milestone           update <milestone_id> --data '{"is_completed":true}'
+      Update an existing milestone (partial fields, including is_completed/is_started toggles)
+  milestone           delete <milestone_id> --yes (no body; --soft NOT supported by TestRail)
+      Delete a milestone (requires --yes; --soft NOT supported by TestRail)
+  user                add --data '{"name":"...","email":"...","password":"..."}' (TestRail 7.3+; use --data-file or stdin pipe to avoid leaking password in shell history)
+      Create a new user (no path param, payload-only; TestRail 7.3+)
+  user                update <user_id> --data '{"name":"...","is_active":true}'               (TestRail 7.3+; partial update, all fields optional)
+      Update an existing user (partial fields; TestRail 7.3+)
+  shared-step         add <project_id> --data '{"title":"..."}'  (TestRail 7.0+)
+      Create a new shared step set in a project (TestRail 7.0+)
+  shared-step         update <shared_step_id> --data '{"title":"..."}'  (TestRail 7.0+)
+      Update an existing shared step set (partial fields; TestRail 7.0+)
+  shared-step         delete <shared_step_id> --yes (no body; --soft NOT supported by TestRail; TestRail 7.0+)
+      Delete a shared step set — referencing cases keep their content but lose the step-set link (requires --yes; --soft NOT supported by TestRail; TestRail 7.0+)
+  case-field          add --data '{"type":"String","name":"foo","label":"Foo","configs":[{"context":{"is_global":true,"project_ids":[]},"options":{"is_required":false,"default_value":""}}]}' (admin-only)
+      Create a custom case field (admin-only); no path params, payload-only
+  variable            add <project_id> --data '{"name":"..."}'
+      Create a new variable in a project
+  variable            update <variable_id> --data '{"name":"..."}'
+      Update an existing variable (rename)
+  variable            delete <variable_id> --yes (no body; --soft NOT supported by TestRail)
+      Delete a variable (requires --yes; --soft NOT supported by TestRail)
+  group               add --data '{"name":"...","user_ids":[1,2]}'  (no path param; TestRail 7.5+)
+      Create a new user group (no path params, payload-only; TestRail 7.5+)
+  group               update <group_id> --data '{"name":"..."}'                   (TestRail 7.5+)
+      Update an existing user group (partial fields; TestRail 7.5+)
+  group               delete <group_id> --yes (no body; --soft NOT supported by TestRail; TestRail 7.5+)
+      Delete a user group (requires --yes; --soft NOT supported by TestRail; TestRail 7.5+)
+  dataset             add <project_id> --data '{"name":"..."}'
+      Create a new dataset in a project
+  dataset             update <dataset_id> --data '{"name":"..."}'
+      Update an existing dataset (rename)
+  dataset             delete <dataset_id> --yes (no body; --soft NOT supported by TestRail)
+      Delete a dataset (requires --yes; --soft NOT supported by TestRail)
+
+Configuration actions (project → config_groups → configs):
+  configuration       list <project_id>
+      List configuration groups (with nested configs) for a project
+  configuration-group add <project_id> --data '{"name":"Browsers"}'
+      Create a new configuration group in a project (e.g. "Browsers")
+  configuration-group update <config_group_id> --data '{"name":"..."}'
+      Update a configuration group (rename)
+  configuration-group delete <config_group_id> --yes (no body; --soft NOT supported by TestRail)
+      Delete a configuration group and every config in it (requires --yes; --soft NOT supported by TestRail)
+  configuration       add <config_group_id> --data '{"name":"Chrome"}'
+      Create a new configuration (leaf) inside a configuration group (e.g. "Chrome")
+  configuration       update <config_id> --data '{"name":"..."}'
+      Update a single configuration (rename)
+  configuration       delete <config_id> --yes (no body; --soft NOT supported)
+      Delete a single configuration (requires --yes; --soft NOT supported by TestRail)
+
+Attachment actions (binary file I/O):
+  attachment          list-for-case <case_id>
+      List attachments on a test case
+  attachment          list-for-run <run_id>
+      List attachments on a test run
+  attachment          list-for-test <test_id>
+      List attachments on a test (run instance of a case)
+  attachment          list-for-plan <plan_id>
+      List attachments on a test plan
+  attachment          list-for-plan-entry <plan_id> <entry_id>
+      List attachments on a plan entry
+  attachment          get <attachment_id> --out <path|-> [--force]
+      Download an attachment by ID to --out <path>
+  attachment          add-to-case <case_id> --file <path|-> [--filename <name>]
+      Upload an attachment to a test case
+  attachment          add-to-result <result_id> --file <path|-> [--filename <name>]
+      Upload an attachment to a test result
+  attachment          add-to-run <run_id> --file <path|-> [--filename <name>]
+      Upload an attachment to a test run
+  attachment          add-to-plan <plan_id> --file <path|-> [--filename <name>]
+      Upload an attachment to a test plan
+  attachment          add-to-plan-entry <plan_id> <entry_id> --file <path|-> [--filename <name>]
+      Upload an attachment to a plan entry
+  attachment          delete <attachment_id> --yes
+      Delete an attachment by ID (requires --yes)
+
+BDD actions (Gherkin .feature text I/O):
+  bdd                 get <case_id> --out <path|-> [--force]
+      Download a case's BDD (Gherkin .feature) content to --out <path>
+  bdd                 add <case_id> --file <path|-> [--filename <name>]
+      Upload a .feature file as the BDD content for a case
+
+Binary stdio (Unix-convention '-' sentinel):
+  --file -    Read binary upload payload from stdin (must be piped; not a TTY).
+              Capped at 100 MiB with a 30s wall-clock deadline so a stalled
+              producer cannot hold the pipe open. Cannot be combined with
+              --data, --data-file, or --api-key-stdin (each owns stdin).
+              Pass --filename to label the upload (default: 'stdin').
+              Example: curl -s https://… | testrail attachment add-to-case 42 --file - --filename crash.png
+  --out -     Stream the downloaded payload to stdout as raw bytes; the JSON
+              ack is routed to stderr so stdout stays pure binary. Rejects
+              --format table (binary is binary). Emits a TTY warning to
+              stderr if stdout is a terminal — use 'xxd' or '> file' instead.
+              Example: testrail attachment get 17 --out - | hexdump -C
+
+Meta:
+  install-skill [--global] [--force] [--print-path]
+                                    Install the testrail-cli skill to
+                                    ./.claude/skills/testrail-cli (default)
+                                    or ~/.claude/skills/testrail-cli (--global)
+  uninstall-skill [--global]        Remove a previously-installed testrail-cli
+                                    skill. ONLY removes the skill file (and
+                                    its empty parent dir); does NOT touch
+                                    .continue/rules/testrail.md or AGENTS.md
+                                    (separate lifecycle — remove manually).
+
+Auth (env var preferred — argv is visible to other processes):
+  TESTRAIL_BASE_URL / --base-url <url>
+  TESTRAIL_EMAIL    / --email <email>
+  TESTRAIL_API_KEY  (recommended) | echo "$KEY" | testrail ... --api-key-stdin
+                    NOTE: --api-key (argv) was removed in v3.0 — see CHANGELOG.
+  TESTRAIL_ALLOW_DESTRUCTIVE=1
+                    REQUIRED (in addition to --yes) to execute destructive
+                    actions (see the destructive list under --yes below).
+                    Accepts EXACTLY the string '1' — not 'true' / 'yes' /
+                    'on'. Failure exits with code 2 (distinct from the
+                    generic exit code 1) so CI can branch on "blocked by
+                    env gate" vs "invalid argv / auth / 4xx". --dry-run
+                    bypasses this gate (preview hits no API).
+
+Options:
+  --api-key-stdin       Read API key from stdin (single line; mutually
+                        exclusive with stdin-piped JSON body). Use the
+                        TESTRAIL_API_KEY env var when possible.
+  --data <json>         Inline JSON body for write actions
+  --data-file <path>    Read JSON body from file
+  --dry-run             Validate payload but don't call the API
+  --format json|table|yaml|csv
+                        Output format (default: json). yaml emits a YAML 1.2
+                        document with 2-space indent and double-quoted strings
+                        where ambiguity demands it; csv emits RFC 4180 with
+                        CRLF line terminators, sorted union of top-level keys
+                        as headers, and nested objects/arrays JSON-stringified
+                        into the cell (no dot-path flattening).
+  --quiet               Suppress output; use exit code 0/1
+  --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
+  --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
+  --file <path>         Binary file to upload (attachment add-to-* actions)
+  --filename <name>     Override the upload filename (default: basename of --file)
+  --out <path>          Local path to write the downloaded attachment to (attachment get)
+  --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
+  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete, configuration delete, configuration-group delete)
+  --soft                Server-side preview for soft-capable deletes:
+                          case delete, case delete-bulk, run delete,
+                          section delete, suite delete.
+                        TestRail returns counts without deleting; distinct
+                        from --dry-run which makes NO API call.
+                        Rejected (TestRail has no --soft support) on:
+                          milestone delete, project delete,
+                          plan close, plan delete, plan delete-entry,
+                          plan delete-run-from-entry, variable delete,
+                          group delete, dataset delete, shared-step delete,
+                          configuration delete, configuration-group delete.
+  --interval <seconds>  run watch poll interval (default: 30; min: 5; max: 600)
+  --once                run watch: poll once and exit instead of running until is_completed
+  --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
+  --print-path          install-skill: print bundled SKILL.md path and exit
+  --help                Show this help
+  --version             Print version
+
+For body-bearing write actions, exactly one body source is required
+(--data | --data-file | stdin). Stdin is auto-detected when input is piped
+(process.stdin.isTTY === false). The following write actions take NO body
+(any --data / --data-file / stdin is ignored): run close, attachment delete,
+case delete, run delete, suite delete, section delete, milestone delete,
+project delete, plan close, plan delete, plan delete-entry,
+plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete,
+configuration delete, configuration-group delete — they accept only positional id(s) (one for most
+actions; plan delete-entry and attachment add-to-plan-entry take two:
+<plan_id> <entry_id>) and the optional --soft flag on the soft-capable
+deletes. Attachment upload actions take a binary file via --file <path>
+and do not accept --data/--data-file/stdin.
+Destructive actions (attachment delete, case delete, case delete-bulk, run close,
+run delete, section delete, suite delete, milestone delete, project delete,
+plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
+variable delete, group delete, dataset delete, shared-step delete,
+configuration delete, configuration-group delete)
+require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
+alone is insufficient — this two-gate model is intentional (env var is
+process-wide audit-friendly; --yes is per-invocation explicit). Pass
+--dry-run to preview without making the API call; --yes is optional in
+dry-run mode (dry-run wins; the env var is NOT required for preview).
+'run close' and 'plan close' are irreversible — TestRail offers no reopen
+for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+pass --soft for a server-side preview that returns affected-entity counts
+without deleting; this still hits the API and remains gated by --yes
+AND TESTRAIL_ALLOW_DESTRUCTIVE=1."
+`;

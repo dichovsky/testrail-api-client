@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "ce1c3195fcfc4724de19332fbd371eded8d8f76035edd9f43808128824982494",
+  "sourceHash": "34b108415c516039b5400e984f053abf86205e79cc67c5bb0d603933cb011984",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1637,127 +1637,85 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/dispatch.ts",
       "imports": [
         "./handler-context.js",
-        "./handlers/attachment-write.js",
-        "./handlers/attachment.js",
-        "./handlers/bdd.js",
-        "./handlers/case-field-write.js",
-        "./handlers/case-field.js",
-        "./handlers/case-status.js",
-        "./handlers/case-type.js",
-        "./handlers/case-write.js",
-        "./handlers/case.js",
-        "./handlers/configuration-write.js",
-        "./handlers/configuration.js",
-        "./handlers/dataset-write.js",
-        "./handlers/dataset.js",
-        "./handlers/group-write.js",
-        "./handlers/group.js",
-        "./handlers/milestone-write.js",
-        "./handlers/milestone.js",
-        "./handlers/plan-write.js",
-        "./handlers/plan.js",
-        "./handlers/priority.js",
-        "./handlers/project-write.js",
-        "./handlers/project.js",
-        "./handlers/report.js",
-        "./handlers/result-field.js",
-        "./handlers/result-write.js",
-        "./handlers/result.js",
-        "./handlers/role.js",
-        "./handlers/run-watch.js",
-        "./handlers/run-write.js",
-        "./handlers/run.js",
-        "./handlers/section-write.js",
-        "./handlers/section.js",
-        "./handlers/shared-step-write.js",
-        "./handlers/shared-step.js",
-        "./handlers/status.js",
-        "./handlers/suite-write.js",
-        "./handlers/suite.js",
-        "./handlers/template.js",
-        "./handlers/test.js",
-        "./handlers/user-write.js",
-        "./handlers/user.js",
-        "./handlers/variable-write.js",
-        "./handlers/variable.js",
-        "./metadata.js"
+        "./metadata.js",
+        "./metadata/types.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "HANDLERS",
           "kind": "const",
-          "line": 109,
+          "line": 17,
           "exported": false,
-          "signature": "const HANDLERS: Record<string, Handler> = { 'project:get': handleProjectGet, 'project:list': handleProjectList, 'project:add': handleProjectAdd, 'project:update': handleProjectUpdate, 'project:delete'…"
+          "signature": "const HANDLERS: Record<string, Handler> = Object.fromEntries( ACTIONS.map((a) => [`${a.resource}:${a.action}`, a.handler]),\n)"
         },
         {
           "name": "RESOURCES",
           "kind": "const",
-          "line": 230,
+          "line": 21,
           "exported": false,
           "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 245,
+          "line": 36,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 252,
+          "line": 43,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "DESTRUCTIVE_ENV_VAR",
           "kind": "const",
-          "line": 268,
+          "line": 59,
           "exported": true,
           "signature": "export const DESTRUCTIVE_ENV_VAR = 'TESTRAIL_ALLOW_DESTRUCTIVE'"
         },
         {
           "name": "DESTRUCTIVE_ENV_ALLOW_VALUE",
           "kind": "const",
-          "line": 274,
+          "line": 65,
           "exported": true,
           "signature": "export const DESTRUCTIVE_ENV_ALLOW_VALUE = '1'"
         },
         {
           "name": "EnvGateResult",
           "kind": "type",
-          "line": 276,
+          "line": 67,
           "exported": true,
           "signature": "export type EnvGateResult = { ok: true } | { ok: false; error: string }"
         },
         {
           "name": "checkDestructiveEnvGate",
           "kind": "function",
-          "line": 300,
+          "line": 91,
           "exported": true,
           "signature": "export function checkDestructiveEnvGate( spec: ActionSpec | undefined, env: Readonly<Record<string, string | undefined>>, dryRun: boolean, ): EnvGateResult"
         },
         {
           "name": "PathParamCountResult",
           "kind": "type",
-          "line": 325,
+          "line": 116,
           "exported": true,
           "signature": "export type PathParamCountResult = { ok: true } | { ok: false; error: string }"
         },
         {
           "name": "checkPathParamCount",
           "kind": "function",
-          "line": 336,
+          "line": 127,
           "exported": true,
           "signature": "export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: readonly string[]): PathParamCountResult"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 365,
+          "line": 156,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -3351,6 +3309,170 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/help.ts",
+      "imports": [
+        "./metadata.js",
+        "./metadata/types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "METADATA_RESOURCES",
+          "kind": "const",
+          "line": 30,
+          "exported": false,
+          "signature": "const METADATA_RESOURCES: ReadonlySet<string> = new Set([ 'case-field', 'case-status', 'case-type', 'priority', 'result-field', 'role', 'status', 'template', ])"
+        },
+        {
+          "name": "CONFIGURATION_RESOURCES",
+          "kind": "const",
+          "line": 46,
+          "exported": false,
+          "signature": "const CONFIGURATION_RESOURCES: ReadonlySet<string> = new Set(['configuration', 'configuration-group'])"
+        },
+        {
+          "name": "SPECIAL_RESOURCES",
+          "kind": "const",
+          "line": 47,
+          "exported": false,
+          "signature": "const SPECIAL_RESOURCES: ReadonlySet<string> = new Set(['attachment', 'bdd'])"
+        },
+        {
+          "name": "isReadAction",
+          "kind": "function",
+          "line": 49,
+          "exported": false,
+          "signature": "function isReadAction(spec: ActionSpec): boolean"
+        },
+        {
+          "name": "isWriteAction",
+          "kind": "function",
+          "line": 53,
+          "exported": false,
+          "signature": "function isWriteAction(spec: ActionSpec): boolean"
+        },
+        {
+          "name": "pathParamsText",
+          "kind": "function",
+          "line": 64,
+          "exported": false,
+          "signature": "function pathParamsText(spec: ActionSpec): string"
+        },
+        {
+          "name": "actionArgvHint",
+          "kind": "function",
+          "line": 73,
+          "exported": false,
+          "signature": "function actionArgvHint(spec: ActionSpec): string"
+        },
+        {
+          "name": "renderActionLine",
+          "kind": "function",
+          "line": 107,
+          "exported": false,
+          "signature": "function renderActionLine(spec: ActionSpec): string"
+        },
+        {
+          "name": "renderSection",
+          "kind": "function",
+          "line": 116,
+          "exported": false,
+          "signature": "function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string"
+        },
+        {
+          "name": "renderReadSection",
+          "kind": "function",
+          "line": 126,
+          "exported": false,
+          "signature": "function renderReadSection(): string"
+        },
+        {
+          "name": "renderMetadataSection",
+          "kind": "function",
+          "line": 137,
+          "exported": false,
+          "signature": "function renderMetadataSection(): string"
+        },
+        {
+          "name": "renderWriteSection",
+          "kind": "function",
+          "line": 143,
+          "exported": false,
+          "signature": "function renderWriteSection(): string"
+        },
+        {
+          "name": "renderConfigurationSection",
+          "kind": "function",
+          "line": 151,
+          "exported": false,
+          "signature": "function renderConfigurationSection(): string"
+        },
+        {
+          "name": "renderAttachmentSection",
+          "kind": "function",
+          "line": 157,
+          "exported": false,
+          "signature": "function renderAttachmentSection(): string"
+        },
+        {
+          "name": "renderBddSection",
+          "kind": "function",
+          "line": 161,
+          "exported": false,
+          "signature": "function renderBddSection(): string"
+        },
+        {
+          "name": "BINARY_STDIO_BLOCK",
+          "kind": "const",
+          "line": 172,
+          "exported": false,
+          "signature": "const BINARY_STDIO_BLOCK = `Binary stdio (Unix-convention '-' sentinel):\n  --file -    Read binary upload payload from stdin (must be piped; not a TTY).\n              Capped at 100 MiB with a 30s wall…"
+        },
+        {
+          "name": "META_BLOCK",
+          "kind": "const",
+          "line": 185,
+          "exported": false,
+          "signature": "const META_BLOCK = `Meta:\n  install-skill [--global] [--force] [--print-path]\n                                    Install the testrail-cli skill to\n                                    ./.claude/skills…"
+        },
+        {
+          "name": "AUTH_BLOCK",
+          "kind": "const",
+          "line": 196,
+          "exported": false,
+          "signature": "const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other processes):\n  TESTRAIL_BASE_URL / --base-url <url>\n  TESTRAIL_EMAIL    / --email <email>\n  TESTRAIL_API_KEY  (recommended) | echo…"
+        },
+        {
+          "name": "OPTIONS_BLOCK",
+          "kind": "const",
+          "line": 210,
+          "exported": false,
+          "signature": "const OPTIONS_BLOCK = `Options:\n  --api-key-stdin       Read API key from stdin (single line; mutually\n                        exclusive with stdin-piped JSON body). Use the\n                        TE…"
+        },
+        {
+          "name": "SEMANTICS_BLOCK",
+          "kind": "const",
+          "line": 250,
+          "exported": false,
+          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY === false).…"
+        },
+        {
+          "name": "HEADER",
+          "kind": "const",
+          "line": 278,
+          "exported": false,
+          "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
+        },
+        {
+          "name": "buildHelpText",
+          "kind": "function",
+          "line": 285,
+          "exported": true,
+          "signature": "export function buildHelpText(): string"
+        }
+      ]
+    },
+    {
       "path": "src/cli/ids.ts",
       "imports": [],
       "reExports": [],
@@ -3431,6 +3553,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./file-output.js",
         "./flags.js",
         "./handler-context.js",
+        "./help.js",
         "./install-skill.js",
         "./metadata.js",
         "./output.js",
@@ -3445,28 +3568,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 21,
+          "line": 22,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 22,
+          "line": 23,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 26,
+          "line": 31,
           "exported": false,
-          "signature": "const HELP = `\ntestrail <resource> <action> [args] [options]\n\nRead actions:\n  project  get <id> | list [--limit N] [--offset N]\n  suite    get <id> | list --project-id <id>\n  case     get <id> | list …"
+          "signature": "const HELP = buildHelpText()"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 263,
+          "line": 42,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -3561,6 +3684,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/attachments.ts",
       "imports": [
+        "../handlers/attachment-write.js",
+        "../handlers/attachment.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3568,7 +3693,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "attachmentActions",
           "kind": "const",
-          "line": 18,
+          "line": 34,
           "exported": true,
           "signature": "export const attachmentActions: readonly ActionSpec[] = [ { resource: 'attachment', action: 'list-for-case', summary: 'List attachments on a test case', pathParams: [{ name: 'case_id', description: 'T…"
         }
@@ -3577,6 +3702,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/bdd.ts",
       "imports": [
+        "../handlers/bdd.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3584,7 +3710,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "bddActions",
           "kind": "const",
-          "line": 11,
+          "line": 12,
           "exported": true,
           "signature": "export const bddActions: readonly ActionSpec[] = [ { resource: 'bdd', action: 'get', summary: \"Download a case's BDD (Gherkin .feature) content to --out <path>\", pathParams: [{ name: 'case_id', descri…"
         }
@@ -3594,6 +3720,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/caseFields.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/case-field-write.js",
+        "../handlers/case-field.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3601,7 +3729,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "caseFieldActions",
           "kind": "const",
-          "line": 9,
+          "line": 11,
           "exported": true,
           "signature": "export const caseFieldActions: readonly ActionSpec[] = [ { resource: 'case-field', action: 'list', summary: 'List all custom case fields defined on the TestRail instance', pathParams: [], apiEndpoint:…"
         }
@@ -3611,6 +3739,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/cases.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/case-write.js",
+        "../handlers/case.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3618,7 +3748,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "caseActions",
           "kind": "const",
-          "line": 26,
+          "line": 37,
           "exported": true,
           "signature": "export const caseActions: readonly ActionSpec[] = [ { resource: 'case', action: 'get', summary: 'Fetch a single test case by ID', pathParams: [{ name: 'case_id', description: 'TestRail case ID' }], ap…"
         }
@@ -3627,6 +3757,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/caseStatuses.ts",
       "imports": [
+        "../handlers/case-status.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3634,7 +3765,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "caseStatusActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const caseStatusActions: readonly ActionSpec[] = [ { resource: 'case-status', action: 'list', summary: 'List case-level lifecycle statuses (TestRail 7.5+)', pathParams: [], apiEndpoint: 'GET ge…"
         }
@@ -3643,6 +3774,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/caseTypes.ts",
       "imports": [
+        "../handlers/case-type.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3650,7 +3782,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "caseTypeActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const caseTypeActions: readonly ActionSpec[] = [ { resource: 'case-type', action: 'list', summary: 'List all case types defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_…"
         }
@@ -3660,6 +3792,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/configurationGroups.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/configuration-write.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3667,7 +3800,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "configurationGroupActions",
           "kind": "const",
-          "line": 15,
+          "line": 20,
           "exported": true,
           "signature": "export const configurationGroupActions: readonly ActionSpec[] = [ { resource: 'configuration-group', action: 'add', summary: 'Create a new configuration group in a project (e.g. \"Browsers\")', pathPara…"
         }
@@ -3677,6 +3810,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/configurations.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/configuration-write.js",
+        "../handlers/configuration.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3684,7 +3819,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "configurationActions",
           "kind": "const",
-          "line": 18,
+          "line": 24,
           "exported": true,
           "signature": "export const configurationActions: readonly ActionSpec[] = [ { resource: 'configuration', action: 'list', summary: 'List configuration groups (with nested configs) for a project', pathParams: [{ name:…"
         }
@@ -3694,6 +3829,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/datasets.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/dataset-write.js",
+        "../handlers/dataset.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3701,7 +3838,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "datasetActions",
           "kind": "const",
-          "line": 12,
+          "line": 14,
           "exported": true,
           "signature": "export const datasetActions: readonly ActionSpec[] = [ { resource: 'dataset', action: 'get', summary: 'Fetch a single dataset by ID', pathParams: [{ name: 'dataset_id', description: 'TestRail dataset …"
         }
@@ -3711,6 +3848,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/groups.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/group-write.js",
+        "../handlers/group.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3718,7 +3857,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "groupActions",
           "kind": "const",
-          "line": 17,
+          "line": 19,
           "exported": true,
           "signature": "export const groupActions: readonly ActionSpec[] = [ { resource: 'group', action: 'get', summary: 'Fetch a single user group by ID (TestRail 7.5+)', pathParams: [{ name: 'group_id', description: 'Test…"
         }
@@ -3728,6 +3867,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/milestones.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/milestone-write.js",
+        "../handlers/milestone.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3735,7 +3876,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "milestoneActions",
           "kind": "const",
-          "line": 12,
+          "line": 14,
           "exported": true,
           "signature": "export const milestoneActions: readonly ActionSpec[] = [ { resource: 'milestone', action: 'get', summary: 'Fetch a single milestone by ID', pathParams: [{ name: 'milestone_id', description: 'TestRail …"
         }
@@ -3745,6 +3886,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/plans.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/plan-write.js",
+        "../handlers/plan.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3752,7 +3895,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "planActions",
           "kind": "const",
-          "line": 26,
+          "line": 39,
           "exported": true,
           "signature": "export const planActions: readonly ActionSpec[] = [ { resource: 'plan', action: 'get', summary: 'Fetch a single test plan by ID', pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }], ap…"
         }
@@ -3761,6 +3904,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/priorities.ts",
       "imports": [
+        "../handlers/priority.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3768,7 +3912,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "priorityActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const priorityActions: readonly ActionSpec[] = [ { resource: 'priority', action: 'list', summary: 'List all case priorities defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET …"
         }
@@ -3778,6 +3922,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/projects.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/project-write.js",
+        "../handlers/project.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3785,7 +3931,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "projectActions",
           "kind": "const",
-          "line": 15,
+          "line": 17,
           "exported": true,
           "signature": "export const projectActions: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project …"
         }
@@ -3794,6 +3940,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/reports.ts",
       "imports": [
+        "../handlers/report.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3801,7 +3948,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "reportActions",
           "kind": "const",
-          "line": 8,
+          "line": 9,
           "exported": true,
           "signature": "export const reportActions: readonly ActionSpec[] = [ { resource: 'report', action: 'list', summary: 'List report templates configured for a project', pathParams: [{ name: 'project_id', description: '…"
         }
@@ -3810,6 +3957,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/resultFields.ts",
       "imports": [
+        "../handlers/result-field.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3817,7 +3965,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "resultFieldActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const resultFieldActions: readonly ActionSpec[] = [ { resource: 'result-field', action: 'list', summary: 'List all custom result fields defined on the TestRail instance', pathParams: [], apiEnd…"
         }
@@ -3827,6 +3975,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/results.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/result-write.js",
+        "../handlers/result.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3834,7 +3984,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "resultActions",
           "kind": "const",
-          "line": 14,
+          "line": 21,
           "exported": true,
           "signature": "export const resultActions: readonly ActionSpec[] = [ { resource: 'result', action: 'list', summary: 'List results for a run (paginated)', pathParams: [], apiEndpoint: 'GET get_results_for_run/{run_id…"
         }
@@ -3843,6 +3993,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/roles.ts",
       "imports": [
+        "../handlers/role.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3850,7 +4001,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "roleActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const roleActions: readonly ActionSpec[] = [ { resource: 'role', action: 'list', summary: 'List all user roles defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_roles', i…"
         }
@@ -3860,6 +4011,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/runs.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/run-watch.js",
+        "../handlers/run-write.js",
+        "../handlers/run.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3867,7 +4021,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "runActions",
           "kind": "const",
-          "line": 14,
+          "line": 17,
           "exported": true,
           "signature": "export const runActions: readonly ActionSpec[] = [ { resource: 'run', action: 'get', summary: 'Fetch a single run by ID', pathParams: [{ name: 'run_id', description: 'TestRail run ID' }], apiEndpoint:…"
         }
@@ -3877,6 +4031,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/sections.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/section-write.js",
+        "../handlers/section.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3884,7 +4040,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "sectionActions",
           "kind": "const",
-          "line": 13,
+          "line": 20,
           "exported": true,
           "signature": "export const sectionActions: readonly ActionSpec[] = [ { resource: 'section', action: 'get', summary: 'Fetch a single section by ID', pathParams: [{ name: 'section_id', description: 'TestRail section …"
         }
@@ -3894,6 +4050,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/sharedSteps.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/shared-step-write.js",
+        "../handlers/shared-step.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3901,7 +4059,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "sharedStepActions",
           "kind": "const",
-          "line": 13,
+          "line": 15,
           "exported": true,
           "signature": "export const sharedStepActions: readonly ActionSpec[] = [ { resource: 'shared-step', action: 'get', summary: 'Fetch a single shared step by ID', pathParams: [{ name: 'shared_step_id', description: 'Te…"
         }
@@ -3910,6 +4068,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/statuses.ts",
       "imports": [
+        "../handlers/status.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3917,7 +4076,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "statusActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const statusActions: readonly ActionSpec[] = [ { resource: 'status', action: 'list', summary: 'List all result statuses defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_…"
         }
@@ -3927,6 +4086,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/suites.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/suite-write.js",
+        "../handlers/suite.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3934,7 +4095,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "suiteActions",
           "kind": "const",
-          "line": 12,
+          "line": 14,
           "exported": true,
           "signature": "export const suiteActions: readonly ActionSpec[] = [ { resource: 'suite', action: 'get', summary: 'Fetch a single suite by ID', pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }], ap…"
         }
@@ -3943,6 +4104,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/templates.ts",
       "imports": [
+        "../handlers/template.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3950,7 +4112,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "templateActions",
           "kind": "const",
-          "line": 7,
+          "line": 8,
           "exported": true,
           "signature": "export const templateActions: readonly ActionSpec[] = [ { resource: 'template', action: 'list', summary: 'List case templates available in a project', pathParams: [{ name: 'project_id', description: '…"
         }
@@ -3959,6 +4121,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/tests.ts",
       "imports": [
+        "../handlers/test.js",
         "./types.js"
       ],
       "reExports": [],
@@ -3966,7 +4129,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "testActions",
           "kind": "const",
-          "line": 8,
+          "line": 9,
           "exported": true,
           "signature": "export const testActions: readonly ActionSpec[] = [ { resource: 'test', action: 'get', summary: 'Fetch a single test (run instance of a case) by ID', pathParams: [{ name: 'test_id', description: 'Test…"
         }
@@ -3975,6 +4138,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/types.ts",
       "imports": [
+        "../handler-context.js",
         "zod"
       ],
       "reExports": [],
@@ -3982,16 +4146,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 10,
+          "line": 11,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 15,
+          "line": 16,
           "exported": true,
-          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
+          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; handler: Handler; apiEndpoint: string; bodySchema?: z.ZodTypeAny; helpExample?: strin…"
         }
       ]
     },
@@ -3999,6 +4163,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/users.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/user-write.js",
+        "../handlers/user.js",
         "./types.js"
       ],
       "reExports": [],
@@ -4006,7 +4172,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "userActions",
           "kind": "const",
-          "line": 13,
+          "line": 15,
           "exported": true,
           "signature": "export const userActions: readonly ActionSpec[] = [ { resource: 'user', action: 'get', summary: 'Fetch a single user by ID', pathParams: [{ name: 'user_id', description: 'TestRail user ID' }], apiEndp…"
         }
@@ -4016,6 +4182,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/metadata/variables.ts",
       "imports": [
         "../../schemas.js",
+        "../handlers/variable-write.js",
+        "../handlers/variable.js",
         "./types.js"
       ],
       "reExports": [],
@@ -4023,7 +4191,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "variableActions",
           "kind": "const",
-          "line": 11,
+          "line": 13,
           "exported": true,
           "signature": "export const variableActions: readonly ActionSpec[] = [ { resource: 'variable', action: 'list', summary: 'List variables in a project', pathParams: [{ name: 'project_id', description: 'TestRail projec…"
         }

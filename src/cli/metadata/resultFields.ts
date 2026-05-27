@@ -1,3 +1,4 @@
+import { handleResultFieldList } from '../handlers/result-field.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const resultFieldActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_result_fields',
         isWrite: false,
+        handler: handleResultFieldList,
     },
 ];

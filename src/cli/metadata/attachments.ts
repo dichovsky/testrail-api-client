@@ -1,3 +1,19 @@
+import {
+    handleAttachmentListForCase,
+    handleAttachmentListForRun,
+    handleAttachmentListForTest,
+    handleAttachmentListForPlan,
+    handleAttachmentListForPlanEntry,
+    handleAttachmentGet,
+} from '../handlers/attachment.js';
+import {
+    handleAttachmentAddToCase,
+    handleAttachmentAddToResult,
+    handleAttachmentAddToRun,
+    handleAttachmentAddToPlan,
+    handleAttachmentAddToPlanEntry,
+    handleAttachmentDelete,
+} from '../handlers/attachment-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -23,6 +39,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'GET get_attachments_for_case/{case_id}',
         isWrite: false,
+        handler: handleAttachmentListForCase,
     },
     {
         resource: 'attachment',
@@ -31,6 +48,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_attachments_for_run/{run_id}',
         isWrite: false,
+        handler: handleAttachmentListForRun,
     },
     {
         resource: 'attachment',
@@ -39,6 +57,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'GET get_attachments_for_test/{test_id}',
         isWrite: false,
+        handler: handleAttachmentListForTest,
     },
     {
         resource: 'attachment',
@@ -47,6 +66,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         apiEndpoint: 'GET get_attachments_for_plan/{plan_id}',
         isWrite: false,
+        handler: handleAttachmentListForPlan,
     },
     {
         resource: 'attachment',
@@ -58,6 +78,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         ],
         apiEndpoint: 'GET get_attachments_for_plan_entry/{plan_id}/{entry_id}',
         isWrite: false,
+        handler: handleAttachmentListForPlanEntry,
     },
     {
         resource: 'attachment',
@@ -67,6 +88,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'GET get_attachment/{attachment_id}',
         fileOutput: true,
         isWrite: false,
+        handler: handleAttachmentGet,
     },
     {
         resource: 'attachment',
@@ -76,6 +98,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_attachment_to_case/{case_id}',
         fileInput: true,
         isWrite: true,
+        handler: handleAttachmentAddToCase,
     },
     {
         resource: 'attachment',
@@ -85,6 +108,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_attachment_to_result/{result_id}',
         fileInput: true,
         isWrite: true,
+        handler: handleAttachmentAddToResult,
     },
     {
         resource: 'attachment',
@@ -94,6 +118,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_attachment_to_run/{run_id}',
         fileInput: true,
         isWrite: true,
+        handler: handleAttachmentAddToRun,
     },
     {
         resource: 'attachment',
@@ -103,6 +128,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_attachment_to_plan/{plan_id}',
         fileInput: true,
         isWrite: true,
+        handler: handleAttachmentAddToPlan,
     },
     {
         resource: 'attachment',
@@ -115,6 +141,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_attachment_to_plan_entry/{plan_id}/{entry_id}',
         fileInput: true,
         isWrite: true,
+        handler: handleAttachmentAddToPlanEntry,
     },
     {
         resource: 'attachment',
@@ -124,5 +151,6 @@ export const attachmentActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_attachment/{attachment_id}',
         isWrite: true,
         destructive: true,
+        handler: handleAttachmentDelete,
     },
 ];

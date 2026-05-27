@@ -1,4 +1,6 @@
 import { AddVariablePayloadSchema, UpdateVariablePayloadSchema } from '../../schemas.js';
+import { handleVariableList } from '../handlers/variable.js';
+import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../handlers/variable-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -16,6 +18,7 @@ export const variableActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_variables/{project_id}',
         isWrite: false,
+        handler: handleVariableList,
     },
     {
         resource: 'variable',
@@ -24,7 +27,9 @@ export const variableActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_variable/{project_id}',
         bodySchema: AddVariablePayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleVariableAdd,
     },
     {
         resource: 'variable',
@@ -33,7 +38,9 @@ export const variableActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'variable_id', description: 'TestRail variable ID' }],
         apiEndpoint: 'POST update_variable/{variable_id}',
         bodySchema: UpdateVariablePayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleVariableUpdate,
     },
     {
         resource: 'variable',
@@ -43,5 +50,7 @@ export const variableActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_variable/{variable_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail)',
+        handler: handleVariableDelete,
     },
 ];

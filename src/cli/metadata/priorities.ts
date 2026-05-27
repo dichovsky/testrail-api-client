@@ -1,3 +1,4 @@
+import { handlePriorityList } from '../handlers/priority.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const priorityActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_priorities',
         isWrite: false,
+        handler: handlePriorityList,
     },
 ];

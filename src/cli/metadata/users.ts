@@ -1,4 +1,6 @@
 import { UserAddPayloadSchema, UserUpdatePayloadSchema } from '../../schemas.js';
+import { handleUserGet, handleUserList, handleUserGetByEmail, handleUserGetCurrent } from '../handlers/user.js';
+import { handleUserAdd, handleUserUpdate } from '../handlers/user-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -18,6 +20,7 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'user_id', description: 'TestRail user ID' }],
         apiEndpoint: 'GET get_user/{user_id}',
         isWrite: false,
+        handler: handleUserGet,
     },
     {
         resource: 'user',
@@ -26,6 +29,7 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_users',
         isWrite: false,
+        handler: handleUserList,
     },
     {
         resource: 'user',
@@ -34,6 +38,7 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_user_by_email',
         isWrite: false,
+        handler: handleUserGetByEmail,
     },
     {
         resource: 'user',
@@ -42,6 +47,7 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_current_user',
         isWrite: false,
+        handler: handleUserGetCurrent,
     },
     {
         resource: 'user',
@@ -50,7 +56,9 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'POST add_user',
         bodySchema: UserAddPayloadSchema,
+        helpExample: `--data '{"name":"...","email":"...","password":"..."}' (TestRail 7.3+; use --data-file or stdin pipe to avoid leaking password in shell history)`,
         isWrite: true,
+        handler: handleUserAdd,
     },
     {
         resource: 'user',
@@ -59,6 +67,8 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'user_id', description: 'TestRail user ID' }],
         apiEndpoint: 'POST update_user/{user_id}',
         bodySchema: UserUpdatePayloadSchema,
+        helpExample: `--data '{"name":"...","is_active":true}'               (TestRail 7.3+; partial update, all fields optional)`,
         isWrite: true,
+        handler: handleUserUpdate,
     },
 ];

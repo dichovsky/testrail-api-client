@@ -1,4 +1,10 @@
 import { AddConfigurationPayloadSchema, UpdateConfigurationPayloadSchema } from '../../schemas.js';
+import { handleConfigurationList } from '../handlers/configuration.js';
+import {
+    handleConfigurationAdd,
+    handleConfigurationDelete,
+    handleConfigurationUpdate,
+} from '../handlers/configuration-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -23,6 +29,7 @@ export const configurationActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_configs/{project_id}',
         isWrite: false,
+        handler: handleConfigurationList,
     },
     {
         resource: 'configuration',
@@ -31,7 +38,9 @@ export const configurationActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'config_group_id', description: 'TestRail config group ID' }],
         apiEndpoint: 'POST add_config/{config_group_id}',
         bodySchema: AddConfigurationPayloadSchema,
+        helpExample: `--data '{"name":"Chrome"}'`,
         isWrite: true,
+        handler: handleConfigurationAdd,
     },
     {
         resource: 'configuration',
@@ -40,7 +49,9 @@ export const configurationActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'config_id', description: 'TestRail config ID' }],
         apiEndpoint: 'POST update_config/{config_id}',
         bodySchema: UpdateConfigurationPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleConfigurationUpdate,
     },
     {
         resource: 'configuration',
@@ -50,5 +61,7 @@ export const configurationActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_config/{config_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported)',
+        handler: handleConfigurationDelete,
     },
 ];

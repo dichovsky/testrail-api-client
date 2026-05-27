@@ -728,29 +728,36 @@ describe('checkPathParamCount', () => {
 
 describe('metadata vs dispatch consistency', () => {
     /**
-     * The single source of truth for "what does this CLI support" is split
-     * between two places: `HANDLERS` in dispatch.ts (runtime routing) and
-     * `ACTIONS` in metadata.ts (documentation + skill-generator input).
-     * If they drift, the CLI surface and what we tell agents diverge —
-     * exactly the silent-failure mode that motivates these tests.
+     * The single source of truth for "what does this CLI support" used to be
+     * split between two places: `HANDLERS` in dispatch.ts (runtime routing)
+     * and `ACTIONS` in metadata.ts (documentation + skill-generator input).
+     *
+     * PR-C collapsed them: each `ActionSpec` now carries its own `handler`
+     * reference, and `HANDLERS` is derived from `ACTIONS` via
+     * `Object.fromEntries`. Drift in the bidirectional metadata↔dispatch
+     * correspondence is now a TypeScript error (a missing `handler:` field
+     * fails to compile), not a runtime drift caught by a test.
+     *
+     * The two former "every entry has a handler" / "every handler has an
+     * entry" tests have therefore been removed — they assert what the type
+     * system already guarantees. The remaining tests below pin invariants
+     * (no-body writes, file-input vs body-schema exclusivity, destructive
+     * set, path-param presence) that the type system does NOT catch.
      */
-    it('every metadata entry has a registered dispatch handler', () => {
+    it('dispatch returns ok=true for every registered ACTIONS entry (smoke test of the derivation)', () => {
+        // Light end-to-end check that the `dispatch()` derivation runs
+        // cleanly: an empty `ACTIONS` would still pass type-check, so this
+        // proves the derivation produced a non-empty, fully-wired map.
+        expect(ACTIONS.length).toBeGreaterThan(0);
         for (const spec of ACTIONS) {
             const result = dispatch(spec.resource, spec.action);
-            expect(result.ok, `metadata declares ${spec.resource}:${spec.action} but no handler is registered`).toBe(
-                true,
-            );
+            expect(result.ok, `dispatch(${spec.resource}, ${spec.action}) returned !ok`).toBe(true);
         }
-    });
-
-    it('every registered dispatch handler has a metadata entry', () => {
-        for (const key of getRegisteredActions()) {
-            const [resource, action] = key.split(':');
-            expect(resource).toBeDefined();
-            expect(action).toBeDefined();
-            const spec = getActionSpec(resource as string, action as string);
-            expect(spec, `handler ${key} is registered in dispatch but has no metadata entry`).toBeDefined();
-        }
+        // Inverse: `getRegisteredActions()` reads from the same derived map,
+        // so its size MUST equal `ACTIONS.length`. A mismatch would mean two
+        // ACTIONS entries collided on the same `resource:action` key —
+        // structurally possible (two specs sharing keys) but not type-caught.
+        expect(getRegisteredActions().length).toBe(ACTIONS.length);
     });
 
     it('write actions in metadata carry a body schema except no-body or file-input writes', () => {

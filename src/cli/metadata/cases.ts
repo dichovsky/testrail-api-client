@@ -7,6 +7,17 @@ import {
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
 } from '../../schemas.js';
+import { handleCaseGet, handleCaseList, handleCaseHistory } from '../handlers/case.js';
+import {
+    handleCaseAdd,
+    handleCaseAddBulk,
+    handleCaseUpdate,
+    handleCaseUpdateBulk,
+    handleCaseDelete,
+    handleCaseDeleteBulk,
+    handleCaseCopyToSection,
+    handleCaseMoveToSection,
+} from '../handlers/case-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -31,6 +42,7 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'GET get_case/{case_id}',
         isWrite: false,
+        handler: handleCaseGet,
     },
     {
         resource: 'case',
@@ -39,6 +51,7 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_cases/{project_id}',
         isWrite: false,
+        handler: handleCaseList,
     },
     {
         resource: 'case',
@@ -47,6 +60,7 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'GET get_history_for_case/{case_id}',
         isWrite: false,
+        handler: handleCaseHistory,
     },
     {
         resource: 'case',
@@ -55,7 +69,9 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'Section to create the case under' }],
         apiEndpoint: 'POST add_case/{section_id}',
         bodySchema: AddCasePayloadSchema,
+        helpExample: `--data '{"title":"..."}'`,
         isWrite: true,
+        handler: handleCaseAdd,
     },
     {
         resource: 'case',
@@ -65,7 +81,9 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'Section to create the cases under' }],
         apiEndpoint: 'POST add_cases/{section_id}',
         bodySchema: AddCasesBulkPayloadSchema,
+        helpExample: `--data '[{"title":"..."},{"title":"..."}]'  (TestRail 7.5+; body is a JSON array)`,
         isWrite: true,
+        handler: handleCaseAddBulk,
     },
     {
         resource: 'case',
@@ -74,7 +92,9 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'POST update_case/{case_id}',
         bodySchema: UpdateCasePayloadSchema,
+        helpExample: `--data '{"title":"..."}'`,
         isWrite: true,
+        handler: handleCaseUpdate,
     },
     {
         resource: 'case',
@@ -83,7 +103,9 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
         apiEndpoint: 'POST update_cases/{suite_id}',
         bodySchema: UpdateCasesPayloadSchema,
+        helpExample: `--data '{"case_ids":[1,2],"priority_id":3}'`,
         isWrite: true,
+        handler: handleCaseUpdateBulk,
     },
     {
         resource: 'case',
@@ -94,6 +116,7 @@ export const caseActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_case/{case_id}',
         isWrite: true,
         destructive: true,
+        handler: handleCaseDelete,
     },
     {
         resource: 'case',
@@ -103,8 +126,10 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }],
         apiEndpoint: 'POST delete_cases/{suite_id}',
         bodySchema: DeleteCasesPayloadSchema,
+        helpExample: `--project-id <id> [--soft] --data '{"case_ids":[1,2]}'`,
         isWrite: true,
         destructive: true,
+        handler: handleCaseDeleteBulk,
     },
     {
         resource: 'case',
@@ -113,7 +138,9 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'Destination section ID' }],
         apiEndpoint: 'POST copy_cases_to_section/{section_id}',
         bodySchema: CopyCasesToSectionPayloadSchema,
+        helpExample: `--data '{"case_ids":[1,2]}'`,
         isWrite: true,
+        handler: handleCaseCopyToSection,
     },
     {
         resource: 'case',
@@ -122,6 +149,8 @@ export const caseActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'Destination section ID' }],
         apiEndpoint: 'POST move_cases_to_section/{section_id}',
         bodySchema: MoveCasesToSectionPayloadSchema,
+        helpExample: `--data '{"case_ids":[1,2],"suite_id":3}'`,
         isWrite: true,
+        handler: handleCaseMoveToSection,
     },
 ];

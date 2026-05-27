@@ -1,3 +1,4 @@
+import { handleRoleList } from '../handlers/role.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const roleActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_roles',
         isWrite: false,
+        handler: handleRoleList,
     },
 ];

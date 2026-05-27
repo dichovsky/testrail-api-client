@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { Handler } from '../handler-context.js';
 
 /**
  * Type definitions for CLI action metadata, consumed by the dispatcher,
@@ -17,6 +18,12 @@ export interface ActionSpec {
     action: string;
     summary: string;
     pathParams: readonly PathParam[];
+    /** The handler function invoked when this `resource:action` is dispatched.
+     *  Binding the handler directly on the spec promotes `ACTIONS` to the
+     *  single source of truth: `dispatch.ts` derives its `HANDLERS` map by
+     *  iterating `ACTIONS`, so a metadata entry without a handler is a
+     *  TypeScript error rather than a runtime drift bug caught by tests. */
+    handler: Handler;
     /** TestRail endpoint this CLI action calls, in the form `'METHOD path'`
      *  (e.g., `'POST add_case/{section_id}'`). Must agree with the
      *  `@testrail` JSDoc tag on the linked client method in
@@ -28,6 +35,14 @@ export interface ActionSpec {
      *  no-body POSTs like `run close`, and for file-input write actions
      *  (which take `--file <path>` instead of a JSON body). */
     bodySchema?: z.ZodTypeAny;
+    /** Optional concrete usage hint rendered in `--help` for body-bearing
+     *  writes. When set, replaces the generic
+     *  `--data '{...}' | --data-file <path> | stdin` placeholder with a
+     *  hand-crafted example (e.g., `--data '{"title":"..."}'`) plus any
+     *  trailing note (e.g., `(TestRail 7.5+)`). When omitted, the generic
+     *  placeholder is used. Affects HELP only — not the skill generator or
+     *  drift gates. */
+    helpExample?: string;
     /** True for actions that take a binary file via `--file <path>` instead
      *  of a JSON body. Skill generator branches on this to emit file-upload
      *  recipes; mutually exclusive with `bodySchema`. */

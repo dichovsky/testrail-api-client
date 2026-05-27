@@ -1,3 +1,4 @@
+import { handleBddGet, handleBddAdd } from '../handlers/bdd.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -18,6 +19,7 @@ export const bddActions: readonly ActionSpec[] = [
         fileOutput: true,
         outputKind: 'text',
         isWrite: false,
+        handler: handleBddGet,
     },
     {
         resource: 'bdd',
@@ -27,5 +29,6 @@ export const bddActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST add_bdd/{case_id}',
         fileInput: true,
         isWrite: true,
+        handler: handleBddAdd,
     },
 ];
