@@ -80,6 +80,14 @@ export interface TestRailConfig {
      * `destroy()` from the caller is always sufficient for cleanup.
      */
     registerProcessHandlers?: boolean;
+    /**
+     * Custom `fetch` implementation injected into every HTTP call made by this
+     * client. Must have the same signature as `globalThis.fetch`. Defaults to
+     * `globalThis.fetch`. Useful for testing (pass a spy or mock) and for
+     * environments that require a custom fetch (e.g. proxy agents, undici,
+     * node-fetch).
+     */
+    fetch?: typeof globalThis.fetch;
 }
 
 export interface UploadFilePathInput {
