@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "133aab106802335eac80126d1cfc6b393c19420e90bcfe4048db288c8468a144",
+  "sourceHash": "e34f12b982ece7d84a63788ae5a94108e202fd3e4d1e1af75fc59dcc011e0754",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5190,6 +5190,41 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/http-pipeline-types.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "RetryPolicy",
+          "kind": "interface",
+          "line": 9,
+          "exported": true,
+          "signature": "export interface RetryPolicy { isStatusRetryable(status: number, method: string): boolean; isNetworkErrorRetryable(method: string): boolean; }"
+        },
+        {
+          "name": "BodyShape",
+          "kind": "type",
+          "line": 23,
+          "exported": true,
+          "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: () => vo…"
+        },
+        {
+          "name": "CachePolicy",
+          "kind": "interface",
+          "line": 36,
+          "exported": true,
+          "signature": "export interface CachePolicy { readonly key: string | undefined; readonly skipRead: boolean; }"
+        },
+        {
+          "name": "PipelineSpec",
+          "kind": "interface",
+          "line": 45,
+          "exported": true,
+          "signature": "export interface PipelineSpec<TParsed> { readonly method: string; readonly endpoint: string; readonly body: BodyShape; readonly sendJsonContentType: boolean; readonly retryPolicy: RetryPolicy; readonl…"
+        }
+      ]
+    },
+    {
       "path": "src/index.ts",
       "imports": [],
       "reExports": [
@@ -6369,6 +6404,36 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 27
             }
           ]
+        }
+      ]
+    },
+    {
+      "path": "src/retry-policy.ts",
+      "imports": [
+        "./http-pipeline-types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "fullRetryPolicy",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export function fullRetryPolicy(): RetryPolicy"
+        },
+        {
+          "name": "binaryGetRetryPolicy",
+          "kind": "function",
+          "line": 27,
+          "exported": true,
+          "signature": "export function binaryGetRetryPolicy(): RetryPolicy"
+        },
+        {
+          "name": "noRetryPolicy",
+          "kind": "function",
+          "line": 45,
+          "exported": true,
+          "signature": "export function noRetryPolicy(): RetryPolicy"
         }
       ]
     },
