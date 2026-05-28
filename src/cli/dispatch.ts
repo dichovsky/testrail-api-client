@@ -20,15 +20,8 @@ const HANDLERS: Record<string, Handler> = Object.fromEntries(
 
 const RESOURCES: Record<string, readonly string[]> = (() => {
     const grouped: Record<string, string[]> = {};
-    for (const key of Object.keys(HANDLERS)) {
-        const [resource, action] = key.split(':');
-        if (resource === undefined || action === undefined) continue;
-        const existing = grouped[resource];
-        if (existing === undefined) {
-            grouped[resource] = [action];
-        } else {
-            existing.push(action);
-        }
+    for (const { resource, action } of ACTIONS) {
+        (grouped[resource] ??= []).push(action);
     }
     return grouped;
 })();
@@ -154,47 +147,28 @@ export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: re
 }
 
 export function dispatch(resource: string, action: string): DispatchResult {
-    // Guard against Object.prototype-key access (`toString`, `__proto__`,
-    // `constructor`, `valueOf`, etc.). `RESOURCES` is a plain object
-    // literal, so an unguarded `RESOURCES[resource]` would resolve those
-    // keys to inherited prototype methods (functions, not arrays), which
-    // then crashes the subsequent `actions.includes(...)` call.
-    // `Object.hasOwn` (Node 16.9+) returns true only for own properties,
-    // never for inherited ones — the canonical guard for this pattern.
-    // (The `HANDLERS` lookup below uses a `${resource}:${action}` key,
-    // which always contains a `:` and so cannot collide with any
-    // Object.prototype key — no guard needed there.)
+    // Look the handler up directly first. HANDLERS keys are `${resource}:${action}`
+    // — the colon means a key can never collide with an Object.prototype member
+    // (`toString`, `__proto__`, …), so no `hasOwn` guard is needed here, and a
+    // hit is the common success path.
+    const handler = HANDLERS[`${resource}:${action}`];
+    if (handler !== undefined) {
+        return { ok: true, handler };
+    }
+
+    // Miss: disambiguate the error. An unknown resource lists the valid
+    // resources; a known resource with a bad action lists that resource's
+    // actions. `Object.hasOwn` distinguishes the two (and guards against
+    // prototype keys reaching the resource check).
     if (!Object.hasOwn(RESOURCES, resource)) {
         return {
             ok: false,
             error: `Unknown resource '${resource}'. Use: ${Object.keys(RESOURCES).join(', ')}`,
         };
     }
-    const actions = RESOURCES[resource];
-    // Unreachable at runtime: `Object.hasOwn(RESOURCES, resource)` above already
-    // proved `resource` is an own key, so the lookup is always defined. The guard
-    // exists only to narrow the `string[] | undefined` type under
-    // noUncheckedIndexedAccess.
-    /* c8 ignore next 6 */
-    if (actions === undefined) {
-        return {
-            ok: false,
-            error: `Unknown resource '${resource}'. Use: ${Object.keys(RESOURCES).join(', ')}`,
-        };
-    }
-    if (!actions.includes(action)) {
-        return {
-            ok: false,
-            error: `Unknown action '${action}' for ${resource}. Use: ${actions.join(', ')}`,
-        };
-    }
-    const handler = HANDLERS[`${resource}:${action}`];
-    // Unreachable at runtime: HANDLERS and RESOURCES are both derived from the
-    // same ACTIONS array, so any `resource:action` that cleared the checks above
-    // has a registered handler. The guard narrows the lookup type only.
-    /* c8 ignore next 3 */
-    if (handler === undefined) {
-        return { ok: false, error: `No handler registered for ${resource}:${action}` };
-    }
-    return { ok: true, handler };
+    const actions = ACTIONS.filter((a) => a.resource === resource).map((a) => a.action);
+    return {
+        ok: false,
+        error: `Unknown action '${action}' for ${resource}. Use: ${actions.join(', ')}`,
+    };
 }

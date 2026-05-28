@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "69ed737572137a55ccfb9fc499fa4b62268d9c63602efb3b5d321d48abb70bc8",
+  "sourceHash": "fd6dd38f802eb40ea3b6e40b302061c895ebf9476e12a5cf688f110adab7d69d",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1596,68 +1596,68 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 21,
           "exported": false,
-          "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const key of Object.keys(HANDLERS)) { const [resource, action] = key.split(':'); if (re…"
+          "signature": "const RESOURCES: Record<string, readonly string[]> = (() => { const grouped: Record<string, string[]> = {}; for (const { resource, action } of ACTIONS) { (grouped[resource] ??= []).push(action); } ret…"
         },
         {
           "name": "DispatchResult",
           "kind": "type",
-          "line": 36,
+          "line": 29,
           "exported": true,
           "signature": "export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string }"
         },
         {
           "name": "getRegisteredActions",
           "kind": "function",
-          "line": 43,
+          "line": 36,
           "exported": true,
           "signature": "export function getRegisteredActions(): readonly string[]"
         },
         {
           "name": "DESTRUCTIVE_ENV_VAR",
           "kind": "const",
-          "line": 59,
+          "line": 52,
           "exported": true,
           "signature": "export const DESTRUCTIVE_ENV_VAR = 'TESTRAIL_ALLOW_DESTRUCTIVE'"
         },
         {
           "name": "DESTRUCTIVE_ENV_ALLOW_VALUE",
           "kind": "const",
-          "line": 65,
+          "line": 58,
           "exported": true,
           "signature": "export const DESTRUCTIVE_ENV_ALLOW_VALUE = '1'"
         },
         {
           "name": "EnvGateResult",
           "kind": "type",
-          "line": 67,
+          "line": 60,
           "exported": true,
           "signature": "export type EnvGateResult = { ok: true } | { ok: false; error: string }"
         },
         {
           "name": "checkDestructiveEnvGate",
           "kind": "function",
-          "line": 91,
+          "line": 84,
           "exported": true,
           "signature": "export function checkDestructiveEnvGate( spec: ActionSpec | undefined, env: Readonly<Record<string, string | undefined>>, dryRun: boolean, ): EnvGateResult"
         },
         {
           "name": "PathParamCountResult",
           "kind": "type",
-          "line": 116,
+          "line": 109,
           "exported": true,
           "signature": "export type PathParamCountResult = { ok: true } | { ok: false; error: string }"
         },
         {
           "name": "checkPathParamCount",
           "kind": "function",
-          "line": 127,
+          "line": 120,
           "exported": true,
           "signature": "export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: readonly string[]): PathParamCountResult"
         },
         {
           "name": "dispatch",
           "kind": "function",
-          "line": 156,
+          "line": 149,
           "exported": true,
           "signature": "export function dispatch(resource: string, action: string): DispatchResult"
         }
@@ -3273,111 +3273,111 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "name": "actionArgvHint",
           "kind": "function",
           "line": 73,
-          "exported": false,
-          "signature": "function actionArgvHint(spec: ActionSpec): string"
+          "exported": true,
+          "signature": "export function actionArgvHint(spec: ActionSpec): string"
         },
         {
           "name": "renderActionLine",
           "kind": "function",
-          "line": 111,
+          "line": 109,
           "exported": false,
           "signature": "function renderActionLine(spec: ActionSpec): string"
         },
         {
           "name": "renderSection",
           "kind": "function",
-          "line": 120,
-          "exported": false,
-          "signature": "function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string"
+          "line": 118,
+          "exported": true,
+          "signature": "export function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string"
         },
         {
           "name": "renderReadSection",
           "kind": "function",
-          "line": 132,
+          "line": 128,
           "exported": false,
           "signature": "function renderReadSection(): string"
         },
         {
           "name": "renderMetadataSection",
           "kind": "function",
-          "line": 143,
+          "line": 139,
           "exported": false,
           "signature": "function renderMetadataSection(): string"
         },
         {
           "name": "renderWriteSection",
           "kind": "function",
-          "line": 149,
+          "line": 145,
           "exported": false,
           "signature": "function renderWriteSection(): string"
         },
         {
           "name": "renderConfigurationSection",
           "kind": "function",
-          "line": 157,
+          "line": 153,
           "exported": false,
           "signature": "function renderConfigurationSection(): string"
         },
         {
           "name": "renderAttachmentSection",
           "kind": "function",
-          "line": 163,
+          "line": 159,
           "exported": false,
           "signature": "function renderAttachmentSection(): string"
         },
         {
           "name": "renderBddSection",
           "kind": "function",
-          "line": 167,
+          "line": 163,
           "exported": false,
           "signature": "function renderBddSection(): string"
         },
         {
           "name": "BINARY_STDIO_BLOCK",
           "kind": "const",
-          "line": 178,
+          "line": 174,
           "exported": false,
           "signature": "const BINARY_STDIO_BLOCK = `Binary stdio (Unix-convention '-' sentinel):\n  --file -    Read binary upload payload from stdin (must be piped; not a TTY).\n              Capped at 100 MiB with a 30s wall…"
         },
         {
           "name": "META_BLOCK",
           "kind": "const",
-          "line": 191,
+          "line": 187,
           "exported": false,
           "signature": "const META_BLOCK = `Meta:\n  install-skill [--global] [--force] [--print-path]\n                                    Install the testrail-cli skill to\n                                    ./.claude/skills…"
         },
         {
           "name": "AUTH_BLOCK",
           "kind": "const",
-          "line": 202,
+          "line": 198,
           "exported": false,
           "signature": "const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other processes):\n  TESTRAIL_BASE_URL / --base-url <url>\n  TESTRAIL_EMAIL    / --email <email>\n  TESTRAIL_API_KEY  (recommended) | echo…"
         },
         {
           "name": "OPTIONS_BLOCK",
           "kind": "const",
-          "line": 216,
+          "line": 212,
           "exported": false,
           "signature": "const OPTIONS_BLOCK = `Options:\n  --api-key-stdin       Read API key from stdin (single line; mutually\n                        exclusive with stdin-piped JSON body). Use the\n                        TE…"
         },
         {
           "name": "SEMANTICS_BLOCK",
           "kind": "const",
-          "line": 256,
+          "line": 252,
           "exported": false,
           "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY === false).…"
         },
         {
           "name": "HEADER",
           "kind": "const",
-          "line": 284,
+          "line": 280,
           "exported": false,
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 291,
+          "line": 287,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }
