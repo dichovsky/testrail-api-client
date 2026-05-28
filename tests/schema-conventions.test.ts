@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// SPEC #A.1 lint — codifies the rules in docs/SCHEMA-CONVENTIONS.md as a
+// SPEC #A.1 lint — codifies the rules in CLAUDE.md (Schema authoring conventions) as a
 // static-analysis test against src/schemas/*.ts. The cross-domain audit
 // (PR #148 wave) found zero conflation violations; this test is the
 // regression guard so future schema additions can't drift.
@@ -53,7 +53,7 @@ function extractPayloadBlocks(source: string): { name: string; body: string }[] 
 }
 
 /**
- * A schema name is a response-only base schema (per docs/SCHEMA-CONVENTIONS.md
+ * A schema name is a response-only base schema (per CLAUDE.md (Schema authoring conventions)
  * §1) when it does NOT start with `Add`/`Update` AND does NOT end with one of
  * the recognised non-base suffixes (sub-schema suffixes from §4, plus the
  * payload/response endpoint suffixes).
@@ -65,7 +65,7 @@ function isResponseBaseSchema(name: string): boolean {
 }
 
 /**
- * A schema name is a response-only sub-schema (per docs/SCHEMA-CONVENTIONS.md
+ * A schema name is a response-only sub-schema (per CLAUDE.md (Schema authoring conventions)
  * §4) when its suffix word is exactly `EmbeddedSchema`, `EntrySchema`,
  * `ConfigSchema`, or `HistorySchema`. The full-suffix check correctly
  * excludes payload-side sub-schemas like `PlanEntryRunPayloadSchema`
@@ -92,7 +92,7 @@ function referencedSchemas(block: { name: string; body: string }): string[] {
     return Array.from(refs);
 }
 
-describe('SPEC #A.1 — schema conventions lint (docs/SCHEMA-CONVENTIONS.md)', () => {
+describe('SPEC #A.1 — schema conventions lint (CLAUDE.md (Schema authoring conventions))', () => {
     // PR-B (file-split refactor) moved every Zod schema out of the
     // monolithic `src/schemas.ts` into `src/schemas/<domain>.ts` modules.
     // The lint operates on the concatenated source of those per-domain
@@ -108,7 +108,7 @@ describe('SPEC #A.1 — schema conventions lint (docs/SCHEMA-CONVENTIONS.md)', (
     const source = stripComments(sources);
     const blocks = extractPayloadBlocks(source);
 
-    it('src/schemas/*.ts contain no .extend() calls (SPEC #A.1 §3 — see docs/SCHEMA-CONVENTIONS.md)', () => {
+    it('src/schemas/*.ts contain no .extend() calls (SPEC #A.1 §3 — see CLAUDE.md (Schema authoring conventions))', () => {
         const matches = source.match(/\.extend\(/g) ?? [];
         expect(
             matches,
@@ -116,7 +116,7 @@ describe('SPEC #A.1 — schema conventions lint (docs/SCHEMA-CONVENTIONS.md)', (
         ).toHaveLength(0);
     });
 
-    it('payload schemas do not reference response-only base schemas (SPEC #A.1 §4 — see docs/SCHEMA-CONVENTIONS.md)', () => {
+    it('payload schemas do not reference response-only base schemas (SPEC #A.1 §4 — see CLAUDE.md (Schema authoring conventions))', () => {
         const violations: { payload: string; references: string[] }[] = [];
         for (const block of blocks) {
             const offenders = referencedSchemas(block).filter(isResponseBaseSchema);

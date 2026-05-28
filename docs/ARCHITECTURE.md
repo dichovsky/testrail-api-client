@@ -46,19 +46,17 @@ Two access paths exist for every endpoint: flat (`client.getProject(id)`) and na
 
 ### 2.1 Public surface (consumed by modules)
 
-| Method                                                              | Purpose                                                 |
-| ------------------------------------------------------------------- | ------------------------------------------------------- |
-| `request<T>()`                                                      | JSON pipeline (GET / POST / PUT / DELETE)               |
-| `requestText()`                                                     | Plain-text endpoint (currently only `get_bdd`)          |
-| `requestMultipart<T>()`                                             | Attachment uploads — never retried                      |
-| `requestBinary()`                                                   | Attachment downloads                                    |
-| `requestParsed<T>()`                                                | `request` + Zod parse, separate cache namespace         |
-| `parse<T>()`                                                        | Standalone Zod parse with `handleZodError` wrapping     |
-| `validateId()` / `validateEntryId()` / `validatePaginationParams()` | Pre-flight integer guards                               |
-| `buildEndpoint()`                                                   | TestRail-specific URL composer (`&` not `?` for params) |
-| `clearCache()` / `destroy()`                                        | Cache / lifecycle                                       |
+| Method                                                              | Purpose                                                                                                                        |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `request<T>(spec: RequestSpec<T>)`                                  | The single HTTP entry point (GET/POST/PUT/DELETE; JSON, text, or binary responses; optional Zod validation; multipart uploads) |
+| `parse<T>()`                                                        | Standalone Zod parse with `handleZodError` wrapping                                                                            |
+| `validateId()` / `validateEntryId()` / `validatePaginationParams()` | Pre-flight integer guards                                                                                                      |
+| `buildEndpoint()`                                                   | TestRail-specific URL composer (`&` not `?` for params)                                                                        |
+| `clearCache()` / `destroy()`                                        | Cache / lifecycle                                                                                                              |
 
 These are declared `public` (not `protected`) because modules consume them by composition, not inheritance — see §3.
+
+`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). Behavioural defaults preserve the prior surface exactly: a GET with a schema caches under `PARSED:GET:{endpoint}` (validated value only), a GET without a schema caches under `GET:{endpoint}`, and non-GET calls skip the cache and invalidate it on success. The shared core builds a `PipelineSpec` and runs it through `executePipeline()`.
 
 ### 2.2 HTTP pipeline (`request<T>()`)
 
@@ -70,7 +68,7 @@ For a single call, the operations run in this fixed order:
 4. **Rate-limit check** — sliding window over `rateLimiter.requests: number[]`; throws synthetic `TestRailApiError(429, …)` _before_ fetch when full.
 5. **URL + headers** — `{baseUrl}/index.php?/api/v2/{endpoint}`, Basic auth header, User-Agent.
 6. **`AbortController` + `setTimeout`** — per-call timeout via abort signal.
-7. **`fetch` with `redirect: 'manual'`** — all four fetch sites use manual redirect handling.
+7. **`fetch` with `redirect: 'manual'`** — the single pipeline fetch site uses manual redirect handling for every request shape (JSON, text, binary, multipart).
 8. **`assertNotRedirect`** — any 3xx → `TestRailApiError` with the blocked `Location` embedded in `response`. Never retried, thrown before any cache write, so the LRU cannot be poisoned with a redirected payload.
 9. **Error branch** — non-2xx: read body, decide retry (see §2.4), throw `TestRailApiError(status, statusText, errorText)`. Raw body lands in the structured `response` field only — never in `message` — because callers commonly log `.message` and bodies may contain stack traces or secrets.
 10. **Cache invalidation on writes** — any non-GET calls `clearCache()` _before_ parsing the body, so empty 204-style responses still invalidate.
@@ -82,11 +80,11 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 ### 2.3 LRU cache
 
 - Insertion-ordered `Map<string, { data, expiry }>`.
-- Two key namespaces: `GET:{endpoint}` for `request<T>()` and `PARSED:GET:{endpoint}` for `requestParsed<T>()`. Separation prevents (a) returning a raw cached value to a Zod-validated caller and (b) returning a Zod-stripped value to a raw caller.
+- Two key namespaces: `GET:{endpoint}` for a `request<T>(spec)` GET without a `schema`, and `PARSED:GET:{endpoint}` for a GET with a `schema`. Separation prevents (a) returning a raw cached value to a Zod-validated caller and (b) returning a Zod-stripped value to a raw caller.
 - Touch on hit (LRU semantics on a plain `Map`).
 - Eviction at `maxCacheSize`: oldest key dropped.
 - Background `setInterval` cleanup; `unref?.()` so the timer does not hold the event loop open.
-- `requestText` and `requestBinary` neither read nor write the cache. Non-GET text/multipart calls still invalidate, to keep the JSON cache consistent.
+- Text and binary GETs (`responseKind: 'text' | 'binary'`) neither read nor write the cache. Non-GET calls still invalidate, to keep the JSON cache consistent.
 
 ### 2.4 Retry policy (the GET / write asymmetry)
 
@@ -99,9 +97,9 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 
 Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly _not_ safe — server state is ambiguous.
 
-`requestMultipart` (uploads) never retries — uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the server with the attachment already persisted; retrying would duplicate the record. `requestBinary` retries 5xx / 429 / network errors for its single GET method.
+Retry behaviour is selected by the spec's `retry` policy name (`src/retry-policy.ts`). Multipart uploads (`retry: 'none'`) never retry — uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the server with the attachment already persisted; retrying would duplicate the record. Binary GETs (`retry: 'binaryGet'`) retry 5xx / 429 / network errors for their single GET method.
 
-**Streaming upload bodies.** `requestMultipart` accepts either an in-memory variant (`Blob`, `Uint8Array`, `File`) or a `{ path: string; type?: string }` descriptor. The descriptor is resolved via `node:fs.openAsBlob`, which returns a file-backed `Blob` whose `.stream()` reads bytes on demand. `fetch` consumes the multipart `FormData` through that stream, so a 100 MB attachment grows process heap by ~0 MB instead of fully buffering. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) always passes the descriptor; programmatic callers that already hold the bytes in memory may continue to pass them directly. File-open errors (ENOENT, EACCES, EISDIR, …) surface as `TestRailApiError(0, 'Network error: …')` — the open is performed inside the same try/catch that wraps `fetch`, so the error path is symmetric with a transport failure.
+**Streaming upload bodies.** A multipart `request<T>(spec)` (`body.kind === 'multipart'`) accepts either an in-memory variant (`Blob`, `Uint8Array`, `File`) or a `{ path: string; type?: string }` descriptor. The descriptor is resolved via `node:fs.openAsBlob`, which returns a file-backed `Blob` whose `.stream()` reads bytes on demand. `fetch` consumes the multipart `FormData` through that stream, so a 100 MB attachment grows process heap by ~0 MB instead of fully buffering. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) always passes the descriptor; programmatic callers that already hold the bytes in memory may continue to pass them directly. File-open errors (ENOENT, EACCES, EISDIR, …) surface as `TestRailApiError(0, 'Network error: …')` — the open is performed inside the same try/catch that wraps `fetch`, so the error path is symmetric with a transport failure.
 
 Backoff: `min(BASE_RETRY_DELAY_MS × 2^n, MAX_RETRY_DELAY_MS)` — currently `min(1000 × 2^n, 10000)` ms. `Retry-After` (numeric or HTTP-date) is honored, capped to `MAX_RETRY_DELAY_MS` to defend against a malicious server pinning the client with a huge value.
 
@@ -124,26 +122,26 @@ Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), an
 
 Eighteen stateless namespaces, one per TestRail resource:
 
-| Module              | Domain                                                          |
-| ------------------- | --------------------------------------------------------------- |
-| `projects.ts`       | Projects                                                        |
-| `suites.ts`         | Test suites                                                     |
-| `sections.ts`       | Sections (+ move)                                               |
-| `cases.ts`          | Cases (CRUD, bulk update / copy / move, soft-delete, history)   |
-| `plans.ts`          | Plans + plan entries + runs within entries                      |
-| `runs.ts`           | Runs (CRUD, close, soft-delete)                                 |
-| `tests.ts`          | Tests inside runs (read-only)                                   |
-| `results.ts`        | Results (per-test, per-case, batch)                             |
-| `milestones.ts`     | Milestones                                                      |
-| `users.ts`          | Users + groups                                                  |
-| `metadata.ts`       | Statuses, priorities, case/result fields, case types, templates |
-| `configurations.ts` | Configuration groups + configurations                           |
-| `attachments.ts`    | Upload / list / download / delete (binary I/O)                  |
-| `bdd.ts`            | BDD scenarios (text response — uses `requestText`)              |
-| `sharedSteps.ts`    | Shared steps (+ history)                                        |
-| `variables.ts`      | Project variables                                               |
-| `datasets.ts`       | Datasets                                                        |
-| `reports.ts`        | Reports (list + trigger)                                        |
+| Module              | Domain                                                                      |
+| ------------------- | --------------------------------------------------------------------------- |
+| `projects.ts`       | Projects                                                                    |
+| `suites.ts`         | Test suites                                                                 |
+| `sections.ts`       | Sections (+ move)                                                           |
+| `cases.ts`          | Cases (CRUD, bulk update / copy / move, soft-delete, history)               |
+| `plans.ts`          | Plans + plan entries + runs within entries                                  |
+| `runs.ts`           | Runs (CRUD, close, soft-delete)                                             |
+| `tests.ts`          | Tests inside runs (read-only)                                               |
+| `results.ts`        | Results (per-test, per-case, batch)                                         |
+| `milestones.ts`     | Milestones                                                                  |
+| `users.ts`          | Users + groups                                                              |
+| `metadata.ts`       | Statuses, priorities, case/result fields, case types, templates             |
+| `configurations.ts` | Configuration groups + configurations                                       |
+| `attachments.ts`    | Upload / list / download / delete (binary I/O)                              |
+| `bdd.ts`            | BDD scenarios (text response — `request(spec)` with `responseKind: 'text'`) |
+| `sharedSteps.ts`    | Shared steps (+ history)                                                    |
+| `variables.ts`      | Project variables                                                           |
+| `datasets.ts`       | Datasets                                                                    |
+| `reports.ts`        | Reports (list + trigger)                                                    |
 
 ### 3.1 Composition pattern
 
@@ -153,7 +151,7 @@ Modules do **not** extend `TestRailClientCore`. Each holds an injected reference
 constructor(private readonly client: TestRailClientCore) {}
 ```
 
-…and calls `this.client.validateId(...)`, `this.client.requestParsed<T>(...)`, `this.client.buildEndpoint(...)`, etc. (See `modules/cases.ts:30`, `modules/runs.ts:7`, `modules/attachments.ts:6`.) The typed parameter is `TestRailClientCore`, but at runtime each module receives the full `TestRailClient` subclass — `this` is downcast to the base type by the constructor signature.
+…and calls `this.client.validateId(...)`, `this.client.request<T>(spec)`, `this.client.buildEndpoint(...)`, etc. (See `modules/cases.ts:30`, `modules/runs.ts:7`, `modules/attachments.ts:6`.) The typed parameter is `TestRailClientCore`, but at runtime each module receives the full `TestRailClient` subclass — `this` is downcast to the base type by the constructor signature.
 
 This is **composition by dependency injection on top of inheritance**: the facade inherits the core, then injects itself (typed as core) into each module. Modules carry no per-module state, only a back-reference.
 
@@ -172,20 +170,22 @@ async getProject(projectId: number): Promise<Project> {
 }
 ```
 
-The wrappers exist so callers do not have to remember which module owns which endpoint, and so the public method-completion surface mirrors the resource taxonomy of the TestRail REST API. No `Object.assign`, no `Proxy`, no prototype mixing — explicit delegation is what keeps `client.ts` at 1517 lines, and it is intentional: each wrapper carries its own JSDoc and types.
+The wrappers exist so callers do not have to remember which module owns which endpoint, and so the public method-completion surface mirrors the resource taxonomy of the TestRail REST API. No `Object.assign`, no `Proxy`, no prototype mixing — explicit delegation is what keeps the flat facade in `client.ts`, and it is intentional: each wrapper carries its own JSDoc and types.
+
+> Note: this flat surface is tracked for possible removal in a future refactor (BACKLOG ARCH #7) in favour of the namespaced access path. Until then the flat methods (`client.getProject(id)`, …) remain the documented, supported usage.
 
 ---
 
 ## 4. Type system — `schemas.ts` + `types.ts`
 
-| Concern                                                                      | Lives in           | Source of truth?              |
-| ---------------------------------------------------------------------------- | ------------------ | ----------------------------- |
-| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                     | `schemas.ts` (Zod) | yes                           |
-| Parsed response shapes (when validated via `requestParsed`)                  | `schemas.ts` (Zod) | yes                           |
-| Hand-written response interfaces (`Case`, `Run`, `Project`, …)               | `types.ts`         | yes (consumed by `client.ts`) |
-| `TestRailConfig`, `RateLimiterConfig`                                        | `types.ts`         | yes                           |
-| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                 | `types.ts`         | yes                           |
-| Payloads not yet migrated to Zod (`AddUserPayload`, `AddVariablePayload`, …) | `types.ts`         | yes                           |
+| Concern                                                                        | Lives in           | Source of truth?              |
+| ------------------------------------------------------------------------------ | ------------------ | ----------------------------- |
+| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                       | `schemas.ts` (Zod) | yes                           |
+| Parsed response shapes (when validated via `request<T>(spec)` with a `schema`) | `schemas.ts` (Zod) | yes                           |
+| Hand-written response interfaces (`Case`, `Run`, `Project`, …)                 | `types.ts`         | yes (consumed by `client.ts`) |
+| `TestRailConfig`, `RateLimiterConfig`                                          | `types.ts`         | yes                           |
+| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                   | `types.ts`         | yes                           |
+| Payloads not yet migrated to Zod (`AddUserPayload`, `AddVariablePayload`, …)   | `types.ts`         | yes                           |
 
 Convention: **payloads → `schemas.ts`; responses → `types.ts`**, even though Zod can infer response shapes too. There is intentional duplication on response shapes: `client.ts` imports response types from `./types.js` while payload types come from `./schemas.js`. The split keeps Zod usage focused on the validation boundary (writes in, parsed responses out) rather than letting it own every type in the codebase.
 
@@ -240,13 +240,15 @@ package.json:bin
 
 ### 6.2 Dispatch — `src/cli/dispatch.ts`
 
-`HANDLERS: Record<'resource:action', Handler>` is a flat object literal. `RESOURCES` is derived from the keys via an IIFE bucketing on `:`. `dispatch(resource, action)` returns a tagged union (`{ ok: true, handler } | { ok: false, error }`) with three distinct error messages: unknown resource, unknown action, no handler registered.
+`HANDLERS: Record<'resource:action', Handler>` is **derived from `ACTIONS`** at module load (PR-C): each `ActionSpec` carries its own `handler` reference, so `Object.fromEntries(ACTIONS.map((a) => [`${a.resource}:${a.action}`, a.handler]))` builds the map with no parallel registry to keep in sync. `RESOURCES` is bucketed from the same array. Adding an action is a one-line change to the relevant `src/cli/metadata/{resource}.ts` entry — the TypeScript compiler enforces that every spec has a handler, so no drift test is needed for correspondence. `dispatch(resource, action)` returns a tagged union (`{ ok: true, handler } | { ok: false, error }`) with distinct error messages for unknown resource vs. unknown action.
 
 ### 6.3 Metadata — `src/cli/metadata.ts`
 
-`ACTIONS: readonly ActionSpec[]` is a flat, declarative array parallel to `HANDLERS`. Each `ActionSpec` carries:
+`ACTIONS: readonly ActionSpec[]` is the **single source of truth** (PR-C). It is composed in `src/cli/metadata.ts` from the per-resource modules in `src/cli/metadata/{resource}.ts`. Each `ActionSpec` carries:
 
 - `resource`, `action`, `summary`.
+- `handler` — the `Handler` function dispatched for this `resource:action`. `dispatch.ts` builds its `HANDLERS` map by iterating `ACTIONS`, so a spec without a handler is a TypeScript error, not a runtime drift bug.
+- `apiEndpoint` — the TestRail endpoint (`'METHOD path'`); the API-mapping generator binds it to the linked module method's `@testrail` tag.
 - `pathParams: readonly PathParam[]` — `{ name, description }` tuples.
 - `bodySchema?` — Zod schema for `--data` / `--data-file` / stdin payloads. Absent for reads, no-body POSTs (`run close`), and file-input actions.
 - `fileInput?` / `fileOutput?` — binary I/O flags (`--file <path>` / `--out <path>`).
@@ -255,11 +257,11 @@ package.json:bin
 
 Consumers:
 
-1. The skill generator (`scripts/generate-skill.js`) renders the command table and payload-schema section in `skill/SKILL.md`.
-2. Drift tests assert metadata ↔ dispatch correspondence in both directions.
-3. `getActionSpec(resource, action)` is called by `index.ts` to decide whether to suppress the stdin body thunk for file-input actions.
-
-HELP text is hand-maintained in `src/cli/index.ts:23-137`, not generated.
+1. `dispatch.ts` derives both `HANDLERS` and `RESOURCES` from `ACTIONS`.
+2. `src/cli/help.ts` generates the `--help` text from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD); only the trailing static blocks (binary stdio, meta, auth, options) are hand-written.
+3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema section in `skill/SKILL.md`.
+4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C).
+5. `getActionSpec(resource, action)` is called by `index.ts` to decide whether to suppress the stdin body thunk for file-input actions.
 
 ### 6.4 Handler conventions — `src/cli/handlers/`
 
@@ -273,23 +275,22 @@ Three shapes:
 2. Optional `optInt(ctx.args.limit)` for pagination.
 3. `ctx.out(await ctx.client.method(...))`.
 
-**Write handler** (e.g. `handlers/case-write.ts`):
+**Write handler** — built by the `createWriteHandler(spec)` factory (`src/cli/write-handler-factory.ts`, PR-D). Each `*-write.ts` file is now a small spec rather than a hand-rolled function; the shared skeleton (parse path params, resolve+validate body, branch on `--dry-run`, call the client, emit) lives in the factory once:
 
-1. `parseId` for path params.
-2. `resolveBody(ctx.bodyInput, SchemaName)` — picks exactly one of `--data` / `--data-file` / stdin, JSON-parses, Zod-validates.
+1. Parse path params via `parseId` (declared in the spec's `pathParams`).
+2. `resolveBody(ctx.bodyInput, spec.bodySchema)` — picks exactly one of `--data` / `--data-file` / stdin, JSON-parses, Zod-validates (`allowEmptyBody` resolves an absent body to `{}` for PATCH-style updates).
 3. If `ctx.dryRun`: emit `{ dryRun: true, action, ...ids, payload, source }` and return _before_ any client call.
-4. Otherwise call the client and `ctx.out(result)`.
+4. Otherwise call `spec.call(client, ids, body, entry)` and emit (`spec.formatOutput` shapes void-endpoint acks).
 
-**Destructive handler** (e.g. `attachment-write.ts`, `project-write.ts`):
+**Destructive handler** — built by the `createDestructiveHandler(spec)` factory. Before the handler runs, the CLI entry point (`src/cli/index.ts` → `checkDestructiveEnvGate`) verifies `TESTRAIL_ALLOW_DESTRUCTIVE=1` (skipped under `--dry-run`); failure exits with code 2 and the handler is never reached. The factory then:
 
-Before the handler is invoked, the dispatcher (`src/cli/index.ts` → `checkDestructiveEnvGate`) verifies `TESTRAIL_ALLOW_DESTRUCTIVE=1` (skipped under `--dry-run`); failure exits with code 2 and the handler is never reached. The handler itself then does:
-
-1. `parseId` + incompatible-flag rejection (e.g. `project delete` refuses `--soft`).
+1. Parses path params and computes `soft` from `spec.softMode` + `--soft`.
 2. `if (dryRun)` preview branch — runs first, regardless of other flags.
-3. `if (!confirmDestructive)` → throw `Destructive action; pass --yes to confirm.`.
-4. Execute. `--soft` branch (where supported) passes `{ soft: true }` to the client; non-soft branch emits `{ deleted: true }`.
+3. Rejects `--soft` when `softMode === 'reject'`.
+4. `if (!confirmDestructive)` → throw `Destructive action; pass --yes to confirm.`.
+5. Execute. `softMode === 'optional'` passes `{ soft }` and reports the preview vs. `{ deleted: true }`; `kind === 'close'` emits the returned entity.
 
-Attachment uploads share a `setupUpload()` helper that calls `resolveFile()` with `read: !ctx.dryRun` — dry-run does a stat-only check so large files are never loaded into memory just to be discarded.
+Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--project-id` + soft), attachment uploads, and `group add`. Attachment uploads share a `setupUpload()` helper that calls `resolveFile()` with `read: !ctx.dryRun` — dry-run does a stat-only check so large files are never loaded into memory just to be discarded.
 
 ### 6.5 Cross-cutting CLI infrastructure
 
@@ -337,7 +338,7 @@ The split is intentional: `TestRailApiError` represents anything the _server_ (o
 
 ## 8. Testing — `tests/`
 
-Vitest + V8 coverage. 538 cases, 98%+ coverage. Highlights:
+Vitest + V8 coverage. Highlights (see the test suite and [CODEMAP.md](../CODEMAP.md) for the current inventory):
 
 | File                              | Covers                                                                                                                |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -358,10 +359,12 @@ Subprocess-based CLI tests are deliberate — they verify the real entrypoint, a
 
 ## 9. Generated artifacts
 
-| Artifact         | Generator                                                                       | Drift guard                                |
-| ---------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
-| `CODEMAP.md`     | `scripts/generate-codemap.js` (TS Compiler API; deterministic JSON-in-Markdown) | `npm run codemap:check` (pretest + CI)     |
-| `skill/SKILL.md` | `scripts/generate-skill.js` (consumes `ACTIONS` from `src/cli/metadata.ts`)     | `npm run skill:check` (git diff exit code) |
+| Artifact              | Generator                                                                       | Drift guard                                |
+| --------------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
+| `CODEMAP.md`          | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown) | `npm run codemap:check` (pretest + CI)     |
+| `skill/SKILL.md`      | `scripts/generate-skill.ts` (consumes `ACTIONS` from `src/cli/metadata.ts`)     | `npm run skill:check` (git diff exit code) |
+| `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2)    | `npm run mapping:check` (pretest + CI)     |
+| `AGENTS.md`           | `npm run agents-md` (consumes `ACTIONS`)                                        | `npm run agents-md:check` (pretest + CI)   |
 
 Both are committed. Both are verified in `pretest` / `prepublishOnly`. Drift fails the build.
 
@@ -375,11 +378,11 @@ Each of these closes a real failure mode and exists because the obvious alternat
 2. **Separate `GET:` and `PARSED:GET:` cache namespaces.** Prevents validated and unvalidated values for the same endpoint from cross-contaminating callers.
 3. **Cache invalidation precedes body read on writes.** A 204-style empty response still wipes stale GET entries.
 4. **Per-request DNS pin.** Stops DNS rebinding from converting a public-looking baseUrl into a metadata-service request mid-session.
-5. **`redirect: 'manual'` on every fetch site.** Closes the SSRF hole where a 3xx `Location` to a private IP would bypass `validateBaseUrl` and DNS pinning.
+5. **`redirect: 'manual'` on the pipeline fetch.** The single `executePipeline` fetch handles every request shape; a 3xx `Location` to a private IP would otherwise bypass `validateBaseUrl` and DNS pinning.
 6. **GET-only retry of 5xx and network errors.** Prevents duplicate writes on `ECONNRESET`-after-send. Rate-limited writes (429) are still retried because they are rejected pre-flight.
 7. **`Retry-After` capped to `MAX_RETRY_DELAY_MS`.** A malicious server cannot freeze the client.
 8. **Raw error bodies in the structured field only, never in `message`.** Bodies may contain stack traces or secrets; `.message` flows to loggers.
-9. **`requestText` bypasses the JSON cache.** A shared key with `request<T>()` would collide if both ever hit the same path.
+9. **Text and binary responses bypass the JSON cache.** A shared key with a JSON GET to the same path would collide; `responseKind: 'text' | 'binary'` never reads or writes the cache.
 10. **Dry-run checked before `--yes` and before any disk read.** No surprise side effects from a flag intended to preview.
 11. **`safe-write` re-`lstat` under `--force`.** Closes the network-round-trip TOCTOU window on attachment downloads.
 12. **`KNOWN_FLAGS` gate.** `parseArgs` with `strict: false` accepts anything; the gate catches typos like `--dryrun` that would otherwise silently skip the dry-run branch.
