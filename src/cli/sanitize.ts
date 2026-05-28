@@ -27,6 +27,33 @@
  * remains visible without executing on the terminal.
  */
 export function sanitizeForTerminal(s: string): string {
-    // eslint-disable-next-line no-control-regex
-    return s.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+    return stripChars(s, isControlChar);
+}
+
+/**
+ * True when `code` is a C0 control (U+0000–U+001F), DEL (U+007F), or a C1
+ * control (U+0080–U+009F). Code-point predicate used in place of a control-
+ * character regex literal so no raw control byte appears in source.
+ */
+export function isControlChar(code: number): boolean {
+    return code <= 0x1f || code === 0x7f || (code >= 0x80 && code <= 0x9f);
+}
+
+/**
+ * Rebuilds `s`, dropping every character whose first UTF-16 code unit
+ * satisfies `shouldStrip(code)`. Iterates by code point (the string iterator
+ * yields full surrogate pairs) so astral characters are kept or dropped as a
+ * unit. The predicate sees `charCodeAt(0)`: every control character this module
+ * strips (C0/DEL/C1, all ≤ U+009F) is a single code unit, and an astral
+ * character's leading high surrogate (U+D800–U+DBFF) is never in the control
+ * range, so it is preserved intact. A non-regex equivalent of
+ * `s.replace(/<class>/g, '')`. `charCodeAt` (not `codePointAt`) is used because
+ * it returns a plain `number`, so there is no unreachable nullish branch.
+ */
+export function stripChars(s: string, shouldStrip: (code: number) => boolean): string {
+    let out = '';
+    for (const ch of s) {
+        if (!shouldStrip(ch.charCodeAt(0))) out += ch;
+    }
+    return out;
 }

@@ -126,8 +126,9 @@ describe('resolveBody', () => {
             const result = resolveBody(
                 {
                     readStdin: () => {
-                        // eslint-disable-next-line @typescript-eslint/only-throw-error
-                        throw 'string-shaped failure';
+                        // Typed `unknown` so this is an intentional non-Error throw.
+                        const nonError: unknown = 'string-shaped failure';
+                        throw nonError;
                     },
                 },
                 AddCasePayloadSchema,

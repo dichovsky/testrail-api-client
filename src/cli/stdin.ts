@@ -45,17 +45,16 @@ export function readBoundedStdin(maxBytes: number, fd = 0): string {
         let bytesRead: number;
         try {
             bytesRead = readSync(fd, buf, 0, CHUNK_SIZE, null);
-            /* v8 ignore start -- defensive: EAGAIN on non-blocking stdin
-               is rare in practice (Node defaults stdin to blocking) and
-               flaky to reproduce in CI. The catch path bails out cleanly
-               so the caller surfaces a structured error rather than
-               crashing the module. */
         } catch (e: unknown) {
+            // EAGAIN on non-blocking stdin: no data ready right now. Node
+            // defaults stdin to blocking, so this is rare in practice, but
+            // when it does occur we stop reading cleanly and return what was
+            // accumulated rather than crashing. Any other error is a real
+            // failure and is rethrown so the caller surfaces it.
             const code = (e as { code?: string }).code;
             if (code === 'EAGAIN') break;
             throw e;
         }
-        /* v8 ignore stop */
         if (bytesRead === 0) break;
         total += bytesRead;
         if (total > maxBytes) {

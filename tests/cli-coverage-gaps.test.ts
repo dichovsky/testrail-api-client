@@ -32,13 +32,20 @@ describe('help.actionArgvHint', () => {
     });
 
     it('prefers an explicit helpExample over the generic hint', () => {
-        const hint = actionArgvHint(spec({ bodySchema: z.object({ name: z.string() }), helpExample: "--data '{\"name\":\"x\"}'" }));
-        expect(hint).toBe("--data '{\"name\":\"x\"}'");
+        const hint = actionArgvHint(
+            spec({ bodySchema: z.object({ name: z.string() }), helpExample: '--data \'{"name":"x"}\'' }),
+        );
+        expect(hint).toBe('--data \'{"name":"x"}\'');
     });
 
     it('emits the destructive note for a no-body destructive action carrying a helpExample', () => {
         const hint = actionArgvHint(
-            spec({ action: 'delete', isWrite: true, destructive: true, helpExample: '(no body; --soft NOT supported)' }),
+            spec({
+                action: 'delete',
+                isWrite: true,
+                destructive: true,
+                helpExample: '(no body; --soft NOT supported)',
+            }),
         );
         expect(hint).toBe('--yes (no body; --soft NOT supported)');
     });
@@ -58,7 +65,10 @@ describe('help.renderSection', () => {
 
 describe('resolveBody error paths', () => {
     it('reports a read failure for a --data-file that does not exist', () => {
-        const result = resolveBody({ dataFileFlag: '/nonexistent/does-not-exist-xyz.json' }, z.object({}).passthrough());
+        const result = resolveBody(
+            { dataFileFlag: '/nonexistent/does-not-exist-xyz.json' },
+            z.object({}).passthrough(),
+        );
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.error).toMatch(/Cannot read --data-file/);
     });

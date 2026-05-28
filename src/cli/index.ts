@@ -51,19 +51,19 @@ async function main(): Promise<number> {
         });
         values = parsed.values;
         positionals = parsed.positionals;
-        /* v8 ignore start -- defensive: parseArgs with strict:false is highly
-           tolerant; this catch funnels any future-Node-version edge cases
-           through the controlled exit path rather than crashing the module. */
     } catch (e: unknown) {
         // Pre-parse failure: `values` is unavailable, so honor --quiet via
-        // a raw-argv lookup. parseArgs failures are rare under strict:false
-        // but the rule "no stderr writes under --quiet" still applies.
+        // a raw-argv lookup. parseArgs is highly tolerant under strict:false
+        // (it accepts unknown flags and `=`-malformed options), so the only
+        // reachable triggers are a non-string argv element or a future-Node
+        // tightening; this catch funnels any such failure through the
+        // controlled exit path instead of crashing the module, while still
+        // honoring the "no stderr writes under --quiet" rule.
         if (!process.argv.includes('--quiet')) {
             process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
         }
         return 1;
     }
-    /* v8 ignore stop */
 
     // Derive --quiet / --format up-front so the unknown-flag gate and the
     // --api-key-stdin gate (both below) can route their errors through the
@@ -355,7 +355,12 @@ async function main(): Promise<number> {
     }
 }
 
-/* v8 ignore start -- defensive: main() catches all reachable errors internally; this handler exists only for hypothetical failures (e.g., broken-pipe in process.stdout.write) that bypass the inner try/catch. */
+// main() catches all reachable errors internally and resolves with an exit
+// code; this rejection arm is a last-resort net for a hypothetical failure
+// that bypasses the inner try/catch (e.g. a synchronous throw from a
+// collaborator invoked outside main()'s try). It sanitizes the message before
+// writing to stderr so a control-char-laden error can't inject a terminal
+// escape, then exits non-zero.
 main().then(
     (code) => process.exit(code),
     (e: unknown) => {
@@ -363,4 +368,3 @@ main().then(
         process.exit(1);
     },
 );
-/* v8 ignore stop */

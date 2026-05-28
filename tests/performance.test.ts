@@ -102,7 +102,7 @@ describe('TestRailClient Performance & Memory', () => {
 
     it('should warn when maxCacheSize is 0 and enableCache is not explicitly set', () => {
         // Exercises the `config.enableCache ?? true` branch when enableCache is omitted
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const warnSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
         try {
             const unlimitedClient = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',

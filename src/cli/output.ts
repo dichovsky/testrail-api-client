@@ -1,5 +1,5 @@
 import { YAML_INDENT_SPACES } from '../constants.js';
-import { sanitizeForTerminal } from './sanitize.js';
+import { isControlChar, sanitizeForTerminal, stripChars } from './sanitize.js';
 
 export type OutputFormat = 'json' | 'table' | 'yaml' | 'csv';
 
@@ -182,9 +182,12 @@ function needsQuoting(s: string): boolean {
     // mapping key. Any ` #` would start an inline comment. Both unsafe in
     // plain form.
     if (/:\s/.test(s) || /:$/.test(s) || /\s#/.test(s)) return true;
-    // Control chars / non-printables — must be quoted (and escaped).
-    // eslint-disable-next-line no-control-regex
-    if (/[\x00-\x1f\x7f-\x9f]/.test(s)) return true;
+    // Control chars / non-printables — must be quoted (and escaped). Scanned
+    // by character code (no control-character regex literal): C0 (U+0000–U+001F),
+    // DEL (U+007F), and C1 (U+0080–U+009F), all single UTF-16 code units.
+    for (const ch of s) {
+        if (isControlChar(ch.charCodeAt(0))) return true;
+    }
     // Multi-line — block scalars are out of scope; double-quote with \n escapes.
     if (s.includes('\n') || s.includes('\r')) return true;
     // Embedded double-quote or backslash: plain form would round-trip but
@@ -382,10 +385,17 @@ function csvEscapeCell(cell: string): string {
     return cell;
 }
 
+// CSV's own structural characters: TAB (U+0009), LF (U+000A), CR (U+000D).
+// These must survive sanitization because CSV cells legitimately contain
+// them (and quoting handles CR/LF); every other control char is stripped.
+const TAB = 0x09;
+const LF = 0x0a;
+const CR = 0x0d;
+
 function sanitizeForCsv(cell: string): string {
-    // Strip terminal-control bytes while preserving CR/LF used by CSV itself.
-    // eslint-disable-next-line no-control-regex
-    return cell.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+    // Strip terminal-control bytes while preserving CR/LF/TAB used by CSV
+    // itself. Code-point scan (no control-character regex literal).
+    return stripChars(cell, (code) => isControlChar(code) && code !== TAB && code !== LF && code !== CR);
 }
 
 function csvCellFromValue(v: unknown): string {

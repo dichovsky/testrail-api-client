@@ -19,6 +19,28 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { resolveFile, readStdinBinary } from '../src/cli/file-input.js';
 
+// Mutable control for the post-open failure test: when `throwOnFstat` is true
+// the mocked fstatSync throws (modelling an fstat(2) failure — EIO/EACCES —
+// that strikes AFTER openSync already produced a live fd). `vi.mock` is
+// hoisted, so the factory captures this reference and individual tests arm /
+// disarm it; everything else delegates to the real node:fs so the suite's
+// real-tempfile tests are unaffected.
+const fsControl = { throwOnFstat: false };
+
+vi.mock('node:fs', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('node:fs')>();
+    return {
+        ...actual,
+        fstatSync: ((...args: Parameters<typeof actual.fstatSync>) => {
+            if (fsControl.throwOnFstat) {
+                const err = Object.assign(new Error('EIO: i/o error, fstat'), { code: 'EIO' });
+                throw err;
+            }
+            return actual.fstatSync(...args);
+        }) as typeof actual.fstatSync,
+    };
+});
+
 describe('resolveFile', () => {
     let tmp: string;
 
@@ -104,6 +126,25 @@ describe('resolveFile', () => {
             expect(r.source).toBe('file');
         } else {
             expect.fail('expected ok=true');
+        }
+    });
+
+    it('closes the fd when fstat fails after a successful open (catch fd!==undefined arm)', async () => {
+        // The "rejects nonexistent path" test reaches the catch block with
+        // fd === undefined (openSync itself threw). This test drives the
+        // OTHER arm: openSync succeeds (live fd) but the following fstatSync
+        // throws — so the catch's `if (fd !== undefined)` guard runs and the
+        // descriptor is closed before returning the structured error. Models
+        // a real fstat(2) EIO/EACCES striking a freshly opened fd.
+        const p = join(tmp, 'fstat-boom.bin');
+        writeFileSync(p, Buffer.from([1, 2, 3]));
+        fsControl.throwOnFstat = true;
+        try {
+            const r = await resolveFile({ fileFlag: p }, { read: false });
+            expect(r.ok).toBe(false);
+            if (!r.ok) expect(r.error).toContain('Cannot stat --file');
+        } finally {
+            fsControl.throwOnFstat = false;
         }
     });
 
@@ -300,9 +341,14 @@ describe('resolveFile', () => {
             // Exercises the `e instanceof Error ? e.message : String(e)` true
             // branch in resolveFromStdin's catch handler.
             const iterable: AsyncIterable<unknown> = {
-                // eslint-disable-next-line require-yield
-                async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
-                    throw new Error('mid-iteration Error');
+                [Symbol.asyncIterator](): AsyncIterator<unknown> {
+                    return {
+                        next(): Promise<IteratorResult<unknown>> {
+                            // Reject on the first pull to model stdin failing
+                            // mid-iteration before any chunk is produced.
+                            return Promise.reject(new Error('mid-iteration Error'));
+                        },
+                    };
                 },
             };
             Object.defineProperty(process, 'stdin', {
@@ -337,8 +383,9 @@ describe('resolveFile', () => {
             const iterable: AsyncIterable<unknown> = {
                 async *[Symbol.asyncIterator](): AsyncGenerator<unknown> {
                     yield Buffer.from('hi'); // first chunk
-                    // eslint-disable-next-line @typescript-eslint/only-throw-error
-                    throw 'plain-string-inner-failure';
+                    // Typed `unknown` so this is an intentional non-Error throw.
+                    const nonError: unknown = 'plain-string-inner-failure';
+                    throw nonError;
                 },
             };
             Object.defineProperty(process, 'stdin', {
@@ -347,6 +394,61 @@ describe('resolveFile', () => {
                 writable: false,
             });
             await expect(readStdinBinary(1024, 5000)).rejects.toThrow(/plain-string-inner-failure/);
+        });
+    });
+
+    describe('readStdinBinary timeout-after-clean-EOF', () => {
+        const ORIG_STDIN = process.stdin;
+        const ORIG_IS_TTY = process.stdin.isTTY;
+        afterEach(() => {
+            vi.useRealTimers();
+            Object.defineProperty(process, 'stdin', {
+                value: ORIG_STDIN,
+                configurable: true,
+                writable: false,
+            });
+            (process.stdin as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
+        });
+
+        it('throws the post-loop timeout when the timer fires but the stream EOFs cleanly (line 254 true arm)', async () => {
+            // The existing timeout test reaches the post-loop guard via the
+            // CATCH path (stream.destroy(error) makes the for-await throw). This
+            // test drives the OTHER path: the deadline timer fires (setting the
+            // internal timedOut flag) while the stream's destroy is a no-op, so
+            // the for-await loop completes via a clean `done: true` instead of
+            // throwing. Control then falls through to the `if (timedOut)` guard
+            // AFTER the loop (file-input.ts line 254), which must still surface
+            // the timeout error. Fake timers + a hand-coordinated async iterable
+            // make the interleaving deterministic.
+            vi.useFakeTimers();
+
+            let pullCount = 0;
+            const iterable: AsyncIterable<unknown> = {
+                [Symbol.asyncIterator](): AsyncIterator<unknown> {
+                    return {
+                        next(): Promise<IteratorResult<unknown>> {
+                            pullCount += 1;
+                            if (pullCount === 1) {
+                                // First pull yields a single small chunk.
+                                return Promise.resolve({ done: false, value: Buffer.from('hi') });
+                            }
+                            // Second pull: fire the deadline timer (sets timedOut
+                            // and calls destroy — a no-op here) BEFORE resolving
+                            // the iterator as cleanly done, so the loop exits
+                            // without throwing.
+                            vi.advanceTimersByTime(50);
+                            return Promise.resolve({ done: true, value: undefined });
+                        },
+                    };
+                },
+            };
+            Object.defineProperty(process, 'stdin', {
+                value: { ...iterable, isTTY: false, destroy: (): void => undefined },
+                configurable: true,
+                writable: false,
+            });
+
+            await expect(readStdinBinary(1024, 50)).rejects.toThrow(/timed out after 50ms/);
         });
     });
 

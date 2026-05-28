@@ -1205,6 +1205,14 @@ describe('renderYaml — primitives', () => {
         expect(renderYaml('\x7f\x85\x9f')).toBe('"\\x7f\\x85\\x9f"');
     });
 
+    it('detects a control char that follows a non-control char (needsQuoting scan continues)', () => {
+        // The control-char scan in needsQuoting iterates code points: the
+        // leading 'a' is NOT a control char (the scan continues past it) and
+        // the trailing BEL IS, so the value must be quoted+escaped. Exercises
+        // both arms of the per-character control-char check.
+        expect(renderYaml('a\x07')).toBe('"a\\x07"');
+    });
+
     it('escapes CR, backspace, and form-feed via their named escapes', () => {
         // The double-quoted form supports all standard C-style escapes;
         // these are uncommon in TestRail data but the emitter must handle
@@ -1515,6 +1523,16 @@ describe('renderCsv — Unicode and special chars', () => {
         const out = renderCsv({ 'safe\x9dheader': 'ok' });
         expect(out).toBe('safeheader\r\nok');
     });
+
+    it('preserves TAB inside a CSV cell while still stripping other control bytes', () => {
+        // CSV's structural whitespace (TAB/LF/CR) must survive sanitization;
+        // other control bytes are stripped. Exercises the `code !== TAB`
+        // short-circuit in sanitizeForCsv (a control char that is preserved).
+        const out = renderCsv({ id: 1, title: 'a\tb\x01c' });
+        // The cell contains a TAB (no comma/quote/newline) so it is NOT quoted;
+        // the \x01 is stripped, the \t survives.
+        expect(out).toBe('id,title\r\n1,a\tbc');
+    });
 });
 
 describe('renderYaml — additional edge cases for branch coverage', () => {
@@ -1536,8 +1554,9 @@ describe('renderYaml — additional edge cases for branch coverage', () => {
         // false branch in the catch.
         const hostile = {
             get bad() {
-                // eslint-disable-next-line @typescript-eslint/only-throw-error
-                throw 'plain string failure';
+                // Typed `unknown` so this is an intentional non-Error throw.
+                const nonError: unknown = 'plain string failure';
+                throw nonError;
             },
         };
         const out = renderYaml(hostile);
@@ -1553,8 +1572,9 @@ describe('safeJsonStringify — additional edge cases for branch coverage', () =
         // toJSON method throws a plain string.
         const hostile = {
             toJSON(): never {
-                // eslint-disable-next-line @typescript-eslint/only-throw-error
-                throw 'plain string failure';
+                // Typed `unknown` so this is an intentional non-Error throw.
+                const nonError: unknown = 'plain string failure';
+                throw nonError;
             },
         };
         const out = safeJsonStringify(hostile);
@@ -1568,11 +1588,10 @@ describe('createOutput — opts.quiet routing', () => {
     function captureStdout(fn: () => void): string {
         const original = process.stdout.write.bind(process.stdout);
         const chunks: string[] = [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        process.stdout.write = ((c: any): boolean => {
+        process.stdout.write = (c: unknown): boolean => {
             chunks.push(typeof c === 'string' ? c : String(c));
             return true;
-        }) as typeof process.stdout.write;
+        };
         try {
             fn();
         } finally {
@@ -1583,11 +1602,10 @@ describe('createOutput — opts.quiet routing', () => {
     function captureStderr(fn: () => void): string {
         const original = process.stderr.write.bind(process.stderr);
         const chunks: string[] = [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        process.stderr.write = ((c: any): boolean => {
+        process.stderr.write = (c: unknown): boolean => {
             chunks.push(typeof c === 'string' ? c : String(c));
             return true;
-        }) as typeof process.stderr.write;
+        };
         try {
             fn();
         } finally {

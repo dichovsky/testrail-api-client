@@ -69,8 +69,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                     baseUrl: 'https://example.testrail.net',
                     email: 'test@example.com',
                     apiKey: 'test-key',
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    maxRetries: '3' as any,
+                    maxRetries: '3' as never,
                 });
             }).toThrow(TestRailValidationError);
         });
@@ -136,8 +135,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                     baseUrl: 'https://example.testrail.net',
                     email: 'test@example.com',
                     apiKey: 'test-key',
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    maxCacheSize: '100' as any,
+                    maxCacheSize: '100' as never,
                 });
             }).toThrow(TestRailValidationError);
         });
@@ -298,8 +296,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                     baseUrl: 'https://example.testrail.net',
                     email: 'test@example.com',
                     apiKey: 'test-key',
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    rateLimiter: null as any,
+                    rateLimiter: null as never,
                 });
             }).toThrow(TestRailValidationError);
         });
@@ -337,8 +334,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             // Access the timeout property to cover the getter
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            expect((client as any).timeout).toBe(5000);
+            expect((client as unknown as { timeout: number }).timeout).toBe(5000);
         });
     });
 
@@ -472,9 +468,9 @@ describe('TestRailClient - Coverage Improvement', () => {
 
         it('should handle process event registration in environments without process', () => {
             // Mock environment without process
-            const originalProcess = global.process;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (global as any).process = undefined;
+            const processHolder = global as { process: typeof process | undefined };
+            const originalProcess = processHolder.process;
+            processHolder.process = undefined;
 
             // Should still create client successfully
             expect(() => {
@@ -487,7 +483,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             }).not.toThrow();
 
             // Restore original process
-            global.process = originalProcess;
+            processHolder.process = originalProcess;
         });
 
         it('should handle cleanup of all active clients', () => {
@@ -664,8 +660,11 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             // Access private cache to test expired entry cleanup
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const cache = (client as any).cache;
+            const internal = client as unknown as {
+                cache: Map<string, { data: unknown; expiry: number }>;
+                getCachedData: (key: string) => unknown;
+            };
+            const cache = internal.cache;
 
             // Add expired entry manually
             cache.set('expired-key', {
@@ -674,8 +673,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             // Call getCachedData which should clean up expired entry
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const result = (client as any).getCachedData('expired-key');
+            const result = internal.getCachedData('expired-key');
 
             expect(result).toBeUndefined();
             expect(cache.has('expired-key')).toBe(false);
@@ -692,12 +690,14 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             // Call setCachedData directly to test the early return
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (client as any).setCachedData('test-key', { test: 'data' });
+            const internal = client as unknown as {
+                cache: Map<string, { data: unknown; expiry: number }>;
+                setCachedData: (key: string, data: unknown) => void;
+            };
+            internal.setCachedData('test-key', { test: 'data' });
 
             // Cache should be empty since caching is disabled
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const cache = (client as any).cache;
+            const cache = internal.cache;
             expect(cache.size).toBe(0);
 
             client.destroy();
@@ -779,8 +779,11 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             // Manually add an expired entry to test cleanup
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const cache = (client as any).cache;
+            const internal = client as unknown as {
+                cache: Map<string, { data: unknown; expiry: number }>;
+                cleanupExpiredCache: () => void;
+            };
+            const cache = internal.cache;
             cache.set('expired-key', {
                 data: { test: 'data' },
                 expiry: Date.now() - 1000, // Already expired
@@ -788,8 +791,7 @@ describe('TestRailClient - Coverage Improvement', () => {
 
             // Advance time and trigger cleanup
             vi.advanceTimersByTime(100);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (client as any).cleanupExpiredCache();
+            internal.cleanupExpiredCache();
 
             // Expired entry should be removed
             expect(cache.has('expired-key')).toBe(false);
@@ -807,9 +809,11 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             // Directly call setCachedData to test the early return path
+            const internal = client as unknown as {
+                setCachedData: (key: string, data: unknown) => void;
+            };
             expect(() => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (client as any).setCachedData('test-key', { data: 'test' });
+                internal.setCachedData('test-key', { data: 'test' });
             }).not.toThrow();
 
             client.destroy();

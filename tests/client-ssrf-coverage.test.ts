@@ -310,6 +310,33 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         await expect(client.getProject(1)).resolves.toBeDefined();
     });
 
+    it('treats a lookup whose family is neither 4 nor 6 as non-private (ipFamily !== 6 fall-through)', async () => {
+        // Exercises the false arm of `if (ipFamily === 6)` in
+        // isPrivateOrLoopbackIP: a non-conformant resolver returns a record
+        // whose family is 0 and whose address is not a parseable IP, so
+        // `family ?? isIP(...)` yields 0 — neither the IPv4 (=== 4) nor the
+        // IPv6 (=== 6) branch is taken and the helper falls through to
+        // `return false`. The validator must then treat the entry as
+        // non-private and proceed to the valid public follow-up rather than
+        // crashing on the malformed record.
+        mockDnsLookup.mockResolvedValueOnce([
+            { address: 'weird-non-ip-host', family: 0 },
+            { address: '203.0.113.30', family: 4 }, // valid public follow-up
+        ] as never);
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+        });
+        const client = new TestRailClient({
+            baseUrl: 'https://public-host.example',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        await expect(client.getProject(1)).resolves.toBeDefined();
+    });
+
     it('rethrows TestRailValidationError raised inside the dns.lookup try block (line 154)', async () => {
         // When the dns module raises TestRailValidationError directly (a
         // synthetic mock path that mirrors how a future inner check could

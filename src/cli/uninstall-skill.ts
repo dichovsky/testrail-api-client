@@ -84,14 +84,13 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
     let stat: ReturnType<typeof lstatSync>;
     try {
         stat = lstatSync(target);
-        /* v8 ignore start -- defensive: lstat failures (race between
-           existsSync and lstat) are rare and OS-specific; the error path
-           is exercised manually if invoked under an unreadable parent. */
     } catch (e: unknown) {
+        // lstat can fail in the window between existsSync and this call
+        // (TOCTOU race) or under an unreadable parent directory. Surface a
+        // structured error rather than letting the throw escape.
         writeErr(`cannot stat ${target}: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }
-    /* v8 ignore stop */
 
     if (stat.isSymbolicLink()) {
         writeErr(
@@ -106,13 +105,12 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
 
     try {
         unlinkSync(target);
-        /* v8 ignore start -- defensive: unlink failures (permission
-           denied between lstat and unlink) are flaky to simulate in CI. */
     } catch (e: unknown) {
+        // unlink can fail between the lstat check and here (permission revoked,
+        // file removed by another process). Surface a structured error.
         writeErr(`failed to remove ${target}: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }
-    /* v8 ignore stop */
 
     // Best-effort cleanup of the enclosing testrail-cli/ directory if
     // empty. We deliberately stop here — never touch .claude/skills/ or
