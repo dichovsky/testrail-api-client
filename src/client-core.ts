@@ -5,8 +5,8 @@ import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
 import { ZodError, type ZodType } from 'zod';
-import type { PipelineSpec } from './http-pipeline-types.js';
-import { fullRetryPolicy, binaryGetRetryPolicy, noRetryPolicy } from './retry-policy.js';
+import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
+import { getRetryPolicy } from './retry-policy.js';
 
 /**
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
@@ -770,236 +770,128 @@ export class TestRailClientCore {
     }
 
     /**
-     * Makes an HTTP request to the TestRail API with caching, rate limiting, and retry logic.
+     * Executes a single HTTP request against the TestRail API. The behavior of
+     * each call is driven by the {@link RequestSpec} record (response kind,
+     * body shape, schema, retry policy). Modules dispatch every API call
+     * through this method.
      *
-     * Retry contract:
-     *   - 429 (rate limit) retries for all methods (rejected before write executes).
-     *   - 5xx retries only for GET. Non-GET 5xx surfaces immediately to prevent
-     *     duplicate writes when the server may have already processed the request.
-     *   - Network errors (fetch TypeError) retry only for GET. AbortError (timeout)
-     *     never retries.
+     * Behavioural guarantees (preserved verbatim across the refactor):
      *
-     * @param method - HTTP method (GET, POST)
-     * @param endpoint - API endpoint path (without base URL prefix)
-     * @param data - Optional request body
-     * @param retryCount - Current retry attempt (internal — do not pass)
-     * @param skipCache - Skip cache lookup and storage for this request
-     * @throws {TestRailApiError} When the API request fails or network error occurs
-     * @throws {Error} When called after `destroy()`
+     *   - GET responses are cached. Adding `spec.schema` switches the cache to
+     *     the `PARSED:GET:{endpoint}` namespace so a raw response and a
+     *     validated response for the same endpoint never collide.
+     *     Schema-invalid responses are never cached.
+     *   - Writes (non-GET) clear the entire cache before parsing.
+     *   - DNS revalidation runs fresh on every call.
+     *   - Identical in-flight GETs are coalesced (SEC #23).
+     *   - Retry contract: 429 retries for all methods; 5xx + network errors
+     *     retry only on GET; `'binaryGet'` retries 5xx/network always;
+     *     `'none'` (multipart uploads) never retries.
+     *   - `Retry-After` is honored on every retryable response, capped at
+     *     {@link MAX_RETRY_DELAY_MS}.
+     *   - 3xx is surfaced as `TestRailApiError`, never followed, never cached.
+     *   - Response-body byte cap + wall-clock deadline apply to every fetch.
+     *
+     * @throws {TestRailApiError} On any HTTP error, network error, rate-limit
+     *                            hit, timeout, oversized body, or redirect.
+     * @throws {TestRailValidationError} When a `schema` is supplied and the
+     *                                   response does not conform.
+     * @throws {Error} When called after `destroy()`.
      */
-    public async request<T>(
+    public async request<T>(spec: RequestSpec<T>): Promise<T> {
+        const { method, endpoint, body, schema, responseKind = 'json', retry = 'full' } = spec;
+
+        // Cache key namespace selection — preserves the prior split where the
+        // raw `request<T>()` and the validated `requestParsed<T>()` lived in
+        // separate namespaces (`GET:` vs `PARSED:GET:`). Without that split a
+        // raw response could be returned unvalidated, or a Zod-transformed
+        // value could surface to a raw-bytes caller.
+        let cacheKey: string | undefined;
+        if (method === 'GET' && responseKind === 'json') {
+            cacheKey = schema !== undefined ? `PARSED:GET:${endpoint}` : `GET:${endpoint}`;
+        }
+
+        // When a schema is supplied, validation gates the cache write so a
+        // malformed response never poisons the cache. We replicate the
+        // historical `requestParsed` flow here: parse the body unvalidated,
+        // then run Zod, then write the validated value to the cache.
+        // Without a schema, the pipeline writes the parsed body directly.
+        const writeValidatedAfterPipeline = schema !== undefined && method === 'GET' && responseKind === 'json';
+
+        // Custom check for in-flight coalescing for the validated case. The
+        // pipeline's own coalescing uses `cacheKey` against `pendingRequests`;
+        // for the validated path we register the *validated* Promise so two
+        // concurrent getProject(1) calls share Zod work rather than re-parsing
+        // the same body twice. Mirror of the prior requestParsed behavior.
+        if (writeValidatedAfterPipeline && cacheKey !== undefined) {
+            if (this.isDestroyed) {
+                throw new Error('Cannot use TestRailClient after destroy() has been called');
+            }
+            const cached = this.getCachedData<T>(cacheKey);
+            if (cached !== undefined) return cached;
+            const existing = this.pendingRequests.get(cacheKey) as Promise<T> | undefined;
+            if (existing !== undefined) return existing;
+        }
+
+        const validatedPromise: Promise<T> = (async () => {
+            if (responseKind === 'binary') {
+                return this.executeBinary<T>(endpoint, retry);
+            }
+            if (responseKind === 'text') {
+                return this.executeText<T>(method, endpoint, body, retry);
+            }
+            // JSON
+            if (writeValidatedAfterPipeline && schema !== undefined) {
+                // Validated GET: run the pipeline with NO cache (it would
+                // otherwise write the raw body); validate; cache the result.
+                const raw = await this.executeJson<unknown>(method, endpoint, body, retry, undefined);
+                const validated = this.parse<T>(schema, raw);
+                if (cacheKey !== undefined) {
+                    this.setCachedData(cacheKey, validated);
+                }
+                return validated;
+            }
+            // Validated POST (non-cached) or raw JSON path.
+            const result = await this.executeJson<T>(method, endpoint, body, retry, cacheKey);
+            if (schema !== undefined) {
+                return this.parse<T>(schema, result);
+            }
+            return result;
+        })();
+
+        if (writeValidatedAfterPipeline && cacheKey !== undefined) {
+            this.pendingRequests.set(cacheKey, validatedPromise);
+            validatedPromise
+                .finally(() => {
+                    this.pendingRequests.delete(cacheKey);
+                })
+                .catch(() => {});
+        }
+
+        return validatedPromise;
+    }
+
+    /**
+     * JSON pipeline (`responseKind: 'json'`). Builds the JSON `PipelineSpec`
+     * and delegates to {@link executePipeline}. The caller controls cache key
+     * directly because the validated-GET path needs to skip the pipeline's
+     * built-in cache write.
+     */
+    private async executeJson<T>(
         method: string,
         endpoint: string,
-        data?: unknown,
-        retryCount = 0,
-        skipCache = false,
+        body: RequestSpec<unknown>['body'],
+        retry: 'full' | 'binaryGet' | 'none',
+        cacheKey: string | undefined,
     ): Promise<T> {
-        const cacheKey = method === 'GET' && !skipCache ? `GET:${endpoint}` : undefined;
         const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
-        return this.executePipeline<T>(
-            {
-                method,
-                endpoint,
-                body: data !== undefined ? { kind: 'json', data } : { kind: 'none' },
-                sendJsonContentType: true,
-                retryPolicy: fullRetryPolicy(),
-                cache: { key: cacheKey, skipRead: false },
-                parseSuccess: async (response: Response) => {
-                    const responseText = await readBodyAsText(response, jsonLimits);
-                    if (!responseText) return {} as T;
-                    try {
-                        const result = JSON.parse(responseText) as T;
-                        return result;
-                    } catch {
-                        throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
-                    }
-                },
-                ...(method !== 'GET'
-                    ? {
-                          onSuccessBeforeParse: () => {
-                              this.clearCache();
-                          },
-                      }
-                    : {}),
-            },
-            retryCount,
-        );
-    }
-
-    /**
-     * Makes an HTTP request to the TestRail API and returns the raw text body.
-     * Used for endpoints whose response is **not** JSON — currently only the
-     * BDD endpoint `get_bdd/{case_id}`, which returns a Gherkin `.feature`
-     * file as `text/plain`.
-     *
-     * Mirrors the retry / rate-limit / timeout / DNS-validation pipeline of
-     * {@link request} but swaps the JSON parse for `response.text()`.
-     * Intentionally bypasses the GET-LRU cache: text-response endpoints are
-     * rare and the cache key would collide with the JSON `request<T>()`
-     * variant for the same endpoint (e.g. a future endpoint hit by both).
-     * Mutating callers (`method !== 'GET'`) still invalidate the JSON cache.
-     *
-     * @param method - HTTP method (GET, POST)
-     * @param endpoint - API endpoint path (without base URL prefix)
-     * @param data - Optional request body
-     * @param retryCount - Current retry attempt (internal — do not pass)
-     * @throws {TestRailApiError} When the API request fails or network error occurs
-     * @throws {Error} When called after `destroy()`
-     */
-    public async requestText(method: string, endpoint: string, data?: unknown, retryCount = 0): Promise<string> {
-        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
-        return this.executePipeline<string>(
-            {
-                method,
-                endpoint,
-                body: data !== undefined ? { kind: 'json', data } : { kind: 'none' },
-                sendJsonContentType: true,
-                retryPolicy: fullRetryPolicy(),
-                cache: { key: undefined, skipRead: false },
-                parseSuccess: async (response: Response) => readBodyAsText(response, jsonLimits),
-                ...(method !== 'GET'
-                    ? {
-                          onSuccessBeforeParse: () => {
-                              this.clearCache();
-                          },
-                      }
-                    : {}),
-            },
-            retryCount,
-        );
-    }
-
-    /**
-     * Makes a multipart/form-data POST request to the TestRail API.
-     * Used exclusively for file attachment uploads. Applies rate limiting
-     * and throws on failure, but does NOT retry (uploads are not idempotent —
-     * a 5xx mid-stream could leave the server with the attachment already
-     * persisted, and retrying would duplicate it).
-     *
-     * **Streaming.** When `file` is a `{ path }` descriptor the bytes are
-     * read from disk on demand via `node:fs.openAsBlob()` — the whole file
-     * never lands on the heap. A 100 MB upload grows heap by &lt;1 MB. Callers
-     * that already have the bytes in memory may still pass a `Blob`,
-     * `Uint8Array`, or `File`; those paths are unchanged for backwards
-     * compatibility but obviously do not benefit from streaming.
-     *
-     * **Abort handling.** The same `AbortSignal` that arms the header timeout
-     * is honored throughout the body upload; a timeout mid-stream surfaces as
-     * `TestRailApiError(408, ...)` and tears down the socket. Read errors on
-     * the file descriptor (e.g. file deleted between `stat` and `fetch`)
-     * surface as `TestRailApiError(0, 'Network error: ...')`.
-     *
-     * @param endpoint - API endpoint path (without base URL prefix)
-     * @param file - File content. Either an in-memory variant
-     *               (`Blob` / `Uint8Array` / `File`) or a `{ path, type? }`
-     *               descriptor for streaming from disk.
-     * @param filename - Filename to send in the multipart disposition
-     * @throws {TestRailApiError} When the API request fails or network error occurs
-     * @throws {Error} When called after `destroy()`
-     */
-    public async requestMultipart<T>(endpoint: string, file: UploadFileInput, filename: string): Promise<T> {
-        // Track the caller-supplied fd locally so we never mutate the input
-        // descriptor (SEC #30 — immutability). `fdToClose` is set to undefined
-        // as soon as we close the fd so cleanup never double-closes.
-        let fdToClose: number | undefined = isFilePathInput(file) ? file.fd : undefined;
-
-        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
-        return this.executePipeline<T>({
-            method: 'POST',
+        const pipelineSpec: PipelineSpec<T> = {
+            method,
             endpoint,
-            body: {
-                kind: 'formdata',
-                build: async () => {
-                    try {
-                        // Build the multipart body inside the try block so file-open
-                        // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
-                        // TestRailApiError rather than an unhandled TypeError. openAsBlob
-                        // returns a file-backed Blob whose stream() reads from disk on
-                        // demand, so fetch consumes the FormData via that stream and the
-                        // entire file is never resident in memory at once.
-                        const formData = new globalThis.FormData();
-                        let blob: globalThis.Blob;
-                        if (isFilePathInput(file)) {
-                            const opts: { type?: string } = {};
-                            if (file.type !== undefined) opts.type = file.type;
-
-                            let uploadPath = file.path;
-                            if (fdToClose !== undefined) {
-                                if (process.platform === 'darwin') {
-                                    uploadPath = `/dev/fd/${fdToClose}`;
-                                } else if (process.platform === 'linux') {
-                                    uploadPath = `/proc/self/fd/${fdToClose}`;
-                                } else {
-                                    // Non-POSIX: use the original path directly; close the
-                                    // fd now since /dev/fd symlinks aren't available.
-                                    try {
-                                        closeSync(fdToClose);
-                                    } catch {
-                                        // best-effort
-                                    }
-                                    fdToClose = undefined; // prevent duplicate close in cleanup
-                                }
-                            }
-
-                            blob = await openAsBlob(uploadPath, opts);
-
-                            // `/dev/fd/<N>` and `/proc/self/fd/<N>` are kernel-resolved
-                            // symlinks: the OS dereferenced the symlink and opened a new,
-                            // independent file description to the same inode. Our original
-                            // fd N is now redundant — close it early to shrink the
-                            // concurrent-fd window (SEC #30). If openAsBlob threw above,
-                            // this block is never reached and cleanup closes fd N.
-                            if (fdToClose !== undefined) {
-                                try {
-                                    closeSync(fdToClose);
-                                } catch {
-                                    // best-effort cleanup
-                                }
-                                fdToClose = undefined;
-                            }
-                        } else if (file instanceof globalThis.Blob) {
-                            blob = file;
-                        } else {
-                            // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
-                            blob = new globalThis.Blob([new Uint8Array(file)]);
-                        }
-                        formData.append('attachment', blob, filename);
-
-                        return {
-                            body: formData,
-                            cleanup: () => {
-                                // fdToClose is always undefined here (closed early on POSIX
-                                // after openAsBlob, or on non-POSIX before openAsBlob).
-                                // This guard is a defensive safety net; c8 ignore covers the
-                                // unreachable try block.
-                                /* c8 ignore next 5 */
-                                if (fdToClose !== undefined) {
-                                    try {
-                                        closeSync(fdToClose);
-                                    } catch {
-                                        // best-effort cleanup
-                                    }
-                                }
-                            },
-                        };
-                    } catch (buildErr) {
-                        // If build throws before returning cleanup, close the fd here
-                        // so executePipeline's formdataCleanup?.() (undefined) doesn't leak.
-                        if (fdToClose !== undefined) {
-                            try {
-                                closeSync(fdToClose);
-                            } catch {
-                                // best-effort
-                            }
-                            fdToClose = undefined;
-                        }
-                        throw buildErr;
-                    }
-                },
-            },
-            sendJsonContentType: false,
-            retryPolicy: noRetryPolicy(),
-            cache: { key: undefined, skipRead: false },
+            body: this.buildPipelineBody(body),
+            sendJsonContentType: body?.kind !== 'multipart',
+            retryPolicy: getRetryPolicy(retry),
+            cache: { key: cacheKey, skipRead: false },
             parseSuccess: async (response: Response) => {
                 const responseText = await readBodyAsText(response, jsonLimits);
                 if (!responseText) return {} as T;
@@ -1009,41 +901,195 @@ export class TestRailClientCore {
                     throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
                 }
             },
-            onSuccessBeforeParse: () => {
-                this.clearCache();
+            ...(method !== 'GET' || body?.kind === 'multipart'
+                ? {
+                      onSuccessBeforeParse: () => {
+                          this.clearCache();
+                      },
+                  }
+                : {}),
+        };
+        return this.executePipeline<T>(pipelineSpec);
+    }
+
+    /**
+     * Text pipeline (`responseKind: 'text'`). Returns the raw response body
+     * as a `string`. Used for the BDD endpoint (`get_bdd/{case_id}`), which
+     * returns a Gherkin `.feature` file as `text/plain`. Intentionally
+     * bypasses the GET cache so its key cannot collide with a JSON
+     * `request<T>()` to the same endpoint.
+     */
+    private async executeText<T>(
+        method: string,
+        endpoint: string,
+        body: RequestSpec<unknown>['body'],
+        retry: 'full' | 'binaryGet' | 'none',
+    ): Promise<T> {
+        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+        return this.executePipeline<T>({
+            method,
+            endpoint,
+            body: this.buildPipelineBody(body),
+            sendJsonContentType: body?.kind !== 'multipart',
+            retryPolicy: getRetryPolicy(retry),
+            cache: { key: undefined, skipRead: false },
+            parseSuccess: async (response: Response) => (await readBodyAsText(response, jsonLimits)) as T,
+            ...(method !== 'GET' || body?.kind === 'multipart'
+                ? {
+                      onSuccessBeforeParse: () => {
+                          this.clearCache();
+                      },
+                  }
+                : {}),
+        });
+    }
+
+    /**
+     * Binary pipeline (`responseKind: 'binary'`). Returns the response body
+     * as `ArrayBuffer`. GET-only by construction (the retry policy assumes a
+     * safe retry on 5xx/network).
+     */
+    private async executeBinary<T>(endpoint: string, retry: 'full' | 'binaryGet' | 'none'): Promise<T> {
+        return this.executePipeline<T>({
+            method: 'GET',
+            endpoint,
+            body: { kind: 'none' },
+            sendJsonContentType: false,
+            retryPolicy: getRetryPolicy(retry),
+            cache: { key: undefined, skipRead: false },
+            parseSuccess: async (response: Response) => {
+                const bytes = await readBodyWithLimits(response, {
+                    maxBytes: this.maxBinaryResponseBytes,
+                    deadlineMs: this.bodyTimeout,
+                });
+                const buf =
+                    bytes.byteLength === bytes.buffer.byteLength
+                        ? (bytes.buffer as ArrayBuffer)
+                        : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+                return buf as T;
             },
         });
     }
 
     /**
-     * Makes a GET request to the TestRail API and returns the raw binary response.
-     * Used for downloading attachment contents.
-     *
-     * @param endpoint - API endpoint path (without base URL prefix)
-     * @throws {TestRailApiError} When the API request fails or network error occurs
-     * @throws {Error} When called after `destroy()`
+     * Converts a {@link RequestBody} (the public-to-modules shape) into the
+     * pipeline-internal {@link BodyShape}. Multipart bodies are wrapped in
+     * the streaming builder that drives `node:fs.openAsBlob` for path inputs
+     * and closes the caller-supplied fd in `finally`.
      */
-    public async requestBinary(endpoint: string, retryCount = 0): Promise<ArrayBuffer> {
-        return this.executePipeline<ArrayBuffer>(
-            {
-                method: 'GET',
-                endpoint,
-                body: { kind: 'none' },
-                sendJsonContentType: false,
-                retryPolicy: binaryGetRetryPolicy(),
-                cache: { key: undefined, skipRead: false },
-                parseSuccess: async (response: Response) => {
-                    const bytes = await readBodyWithLimits(response, {
-                        maxBytes: this.maxBinaryResponseBytes,
-                        deadlineMs: this.bodyTimeout,
-                    });
-                    return bytes.byteLength === bytes.buffer.byteLength
-                        ? (bytes.buffer as ArrayBuffer)
-                        : (bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
-                },
+    private buildPipelineBody(body: RequestSpec<unknown>['body']): PipelineSpec<unknown>['body'] {
+        if (body === undefined) {
+            return { kind: 'none' };
+        }
+        if (body.kind === 'json') {
+            return { kind: 'json', data: body.data };
+        }
+        return this.buildMultipartBody(body.file, body.filename);
+    }
+
+    /**
+     * Constructs the streaming-multipart body builder. Mirrors the original
+     * `requestMultipart` lifecycle exactly: the caller-supplied fd is tracked
+     * locally (never mutated, SEC #30), `/dev/fd/<N>` or `/proc/self/fd/<N>`
+     * are used on POSIX to allow `openAsBlob` to take over the descriptor,
+     * and the cleanup function in `finally` closes the fd if it was never
+     * transferred to the kernel.
+     */
+    private buildMultipartBody(file: UploadFileInput, filename: string): PipelineSpec<unknown>['body'] {
+        // Track the caller-supplied fd locally so we never mutate the input
+        // descriptor (SEC #30 — immutability). `fdToClose` is set to undefined
+        // as soon as we close the fd so cleanup never double-closes.
+        let fdToClose: number | undefined = isFilePathInput(file) ? file.fd : undefined;
+        return {
+            kind: 'formdata',
+            build: async () => {
+                try {
+                    // Build the multipart body inside the try block so file-open
+                    // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
+                    // TestRailApiError rather than an unhandled TypeError. openAsBlob
+                    // returns a file-backed Blob whose stream() reads from disk on
+                    // demand, so fetch consumes the FormData via that stream and the
+                    // entire file is never resident in memory at once.
+                    const formData = new globalThis.FormData();
+                    let blob: globalThis.Blob;
+                    if (isFilePathInput(file)) {
+                        const opts: { type?: string } = {};
+                        if (file.type !== undefined) opts.type = file.type;
+
+                        let uploadPath = file.path;
+                        if (fdToClose !== undefined) {
+                            if (process.platform === 'darwin') {
+                                uploadPath = `/dev/fd/${fdToClose}`;
+                            } else if (process.platform === 'linux') {
+                                uploadPath = `/proc/self/fd/${fdToClose}`;
+                            } else {
+                                // Non-POSIX: use the original path directly; close the
+                                // fd now since /dev/fd symlinks aren't available.
+                                try {
+                                    closeSync(fdToClose);
+                                } catch {
+                                    // best-effort
+                                }
+                                fdToClose = undefined; // prevent duplicate close in cleanup
+                            }
+                        }
+
+                        blob = await openAsBlob(uploadPath, opts);
+
+                        // `/dev/fd/<N>` and `/proc/self/fd/<N>` are kernel-resolved
+                        // symlinks: the OS dereferenced the symlink and opened a new,
+                        // independent file description to the same inode. Our original
+                        // fd N is now redundant — close it early to shrink the
+                        // concurrent-fd window (SEC #30). If openAsBlob threw above,
+                        // this block is never reached and cleanup closes fd N.
+                        if (fdToClose !== undefined) {
+                            try {
+                                closeSync(fdToClose);
+                            } catch {
+                                // best-effort cleanup
+                            }
+                            fdToClose = undefined;
+                        }
+                    } else if (file instanceof globalThis.Blob) {
+                        blob = file;
+                    } else {
+                        // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
+                        blob = new globalThis.Blob([new Uint8Array(file)]);
+                    }
+                    formData.append('attachment', blob, filename);
+
+                    return {
+                        body: formData,
+                        cleanup: () => {
+                            // fdToClose is always undefined here (closed early on POSIX
+                            // after openAsBlob, or on non-POSIX before openAsBlob).
+                            // This guard is a defensive safety net; c8 ignore covers the
+                            // unreachable try block.
+                            /* c8 ignore next 5 */
+                            if (fdToClose !== undefined) {
+                                try {
+                                    closeSync(fdToClose);
+                                } catch {
+                                    // best-effort cleanup
+                                }
+                            }
+                        },
+                    };
+                } catch (buildErr) {
+                    // If build throws before returning cleanup, close the fd here
+                    // so executePipeline's formdataCleanup?.() (undefined) doesn't leak.
+                    if (fdToClose !== undefined) {
+                        try {
+                            closeSync(fdToClose);
+                        } catch {
+                            // best-effort
+                        }
+                        fdToClose = undefined;
+                    }
+                    throw buildErr;
+                }
             },
-            retryCount,
-        );
+        };
     }
 
     /**
@@ -1222,78 +1268,5 @@ export class TestRailClientCore {
             }
             throw err;
         }
-    }
-
-    /**
-     * Performs a request and validates the response against a Zod schema in a
-     * single step. For GET requests, the validated result is cached only after
-     * successful validation — schema-invalid responses are never written to the
-     * cache, eliminating the cache-poisoning failure mode where a malformed
-     * response would persist for the full TTL and re-throw on every subsequent
-     * call to the same endpoint.
-     *
-     * Mirrors the retry / rate-limit / timeout / DNS-validation pipeline of
-     * {@link request}. POST responses are validated but not cached; POSTs still
-     * clear the cache (handled inside {@link request}).
-     *
-     * Prefer this over `parse(schema, await request<unknown>(...))` in new code.
-     *
-     * @param method - HTTP method (GET, POST)
-     * @param endpoint - API endpoint path (without base URL prefix)
-     * @param schema - Zod schema to validate the response against
-     * @param data - Optional request body
-     * @throws {TestRailApiError} When the API request fails
-     * @throws {TestRailValidationError} When the response does not conform to schema
-     * @throws {Error} When called after `destroy()`
-     */
-    public async requestParsed<T>(method: string, endpoint: string, schema: ZodType, data?: unknown): Promise<T> {
-        // Validated responses live in their own cache namespace so they cannot
-        // collide with raw entries written by direct `request<T>('GET', ...)`
-        // callers. Without the split, two failure modes would re-emerge:
-        //   (1) a raw response cached by `request()` could be returned here
-        //       unvalidated, re-introducing the original cache-poisoning bug;
-        //   (2) a Zod-stripped/transformed value written here could surface to
-        //       a later `request()` caller that expects the raw JSON body.
-        // `clearCache()` (called by every POST) wipes both namespaces, so
-        // mutation invalidation still works correctly.
-        const cacheKey = method === 'GET' ? `PARSED:${method}:${endpoint}` : undefined;
-
-        if (cacheKey !== undefined) {
-            const cachedData = this.getCachedData<T>(cacheKey);
-            if (cachedData !== undefined) {
-                return cachedData;
-            }
-
-            // Coalesce concurrent identical GET requests (SEC #23): if a validated
-            // fetch for this key is already in flight, return the shared Promise.
-            const existing = this.pendingRequests.get(cacheKey) as Promise<T> | undefined;
-            if (existing !== undefined) {
-                return existing;
-            }
-        }
-
-        // Use skipCache=true to bypass request()'s own cache write — we only
-        // want to cache after validation has succeeded. POST's cache-clear
-        // still fires inside request() because clearCache() is unconditional
-        // for non-GET methods regardless of skipCache.
-        const fetchPromise: Promise<T> = (async () => {
-            const raw = await this.request<unknown>(method, endpoint, data, 0, true);
-            const validated = this.parse<T>(schema, raw);
-            if (cacheKey !== undefined) {
-                this.setCachedData(cacheKey, validated);
-            }
-            return validated;
-        })();
-
-        if (cacheKey !== undefined) {
-            this.pendingRequests.set(cacheKey, fetchPromise);
-            fetchPromise
-                .finally(() => {
-                    this.pendingRequests.delete(cacheKey);
-                })
-                .catch(() => {});
-        }
-
-        return fetchPromise;
     }
 }

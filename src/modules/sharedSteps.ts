@@ -17,40 +17,52 @@ export class SharedStepModule {
     /** @testrail GET get_shared_step/{shared_step_id} */
     async getSharedStep(sharedStepId: number): Promise<SharedStep> {
         this.client.validateId(sharedStepId, 'sharedStepId');
-        return this.client.requestParsed<SharedStep>('GET', `get_shared_step/${sharedStepId}`, SharedStepSchema);
+        return this.client.request<SharedStep>({
+            method: 'GET',
+            endpoint: `get_shared_step/${sharedStepId}`,
+            schema: SharedStepSchema,
+        });
     }
 
     /** @testrail GET get_shared_steps/{project_id} */
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<SharedStep[]>(
-            'GET',
-            `get_shared_steps/${projectId}`,
-            SharedStepSchema.array(),
-        );
+        return this.client.request<SharedStep[]>({
+            method: 'GET',
+            endpoint: `get_shared_steps/${projectId}`,
+            schema: SharedStepSchema.array(),
+        });
     }
 
     /** @testrail POST add_shared_step/{project_id} */
     async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<SharedStep>('POST', `add_shared_step/${projectId}`, SharedStepSchema, payload);
+        return this.client.request<SharedStep>({
+            method: 'POST',
+            endpoint: `add_shared_step/${projectId}`,
+            schema: SharedStepSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_shared_step/{shared_step_id} */
     async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
         this.client.validateId(sharedStepId, 'sharedStepId');
-        return this.client.requestParsed<SharedStep>(
-            'POST',
-            `update_shared_step/${sharedStepId}`,
-            SharedStepSchema,
-            payload,
-        );
+        return this.client.request<SharedStep>({
+            method: 'POST',
+            endpoint: `update_shared_step/${sharedStepId}`,
+            schema: SharedStepSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST delete_shared_step/{shared_step_id} */
     async deleteSharedStep(sharedStepId: number): Promise<void> {
         this.client.validateId(sharedStepId, 'sharedStepId');
-        await this.client.request<void>('POST', `delete_shared_step/${sharedStepId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_shared_step/${sharedStepId}`,
+        });
     }
 
     /** @testrail GET get_shared_step_history/{shared_step_id} */
@@ -63,13 +75,13 @@ export class SharedStepModule {
         });
         return (
             (
-                await this.client.requestParsed<{ history?: HistoryEntry[] }>(
-                    'GET',
+                await this.client.request<{ history?: HistoryEntry[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ history: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ history: z.array(HistoryEntrySchema).nullish() }),
-                )
+                    schema: z.object({ history: z.array(HistoryEntrySchema).nullish() }),
+                })
             ).history ?? []
         );
     }

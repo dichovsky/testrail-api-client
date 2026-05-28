@@ -10,7 +10,11 @@ export class SectionModule {
     /** @testrail GET get_section/{section_id} */
     async getSection(sectionId: number): Promise<Section> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.requestParsed<Section>('GET', `get_section/${sectionId}`, SectionSchema);
+        return this.client.request<Section>({
+            method: 'GET',
+            endpoint: `get_section/${sectionId}`,
+            schema: SectionSchema,
+        });
     }
 
     /** @testrail GET get_sections/{project_id} */
@@ -27,13 +31,13 @@ export class SectionModule {
         const endpoint = this.client.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
         return (
             (
-                await this.client.requestParsed<{ sections?: Section[] }>(
-                    'GET',
+                await this.client.request<{ sections?: Section[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ sections: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ sections: z.array(SectionSchema).nullish() }),
-                )
+                    schema: z.object({ sections: z.array(SectionSchema).nullish() }),
+                })
             ).sections ?? []
         );
     }
@@ -41,13 +45,23 @@ export class SectionModule {
     /** @testrail POST add_section/{project_id} */
     async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Section>('POST', `add_section/${projectId}`, SectionSchema, payload);
+        return this.client.request<Section>({
+            method: 'POST',
+            endpoint: `add_section/${projectId}`,
+            schema: SectionSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_section/{section_id} */
     async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.requestParsed<Section>('POST', `update_section/${sectionId}`, SectionSchema, payload);
+        return this.client.request<Section>({
+            method: 'POST',
+            endpoint: `update_section/${sectionId}`,
+            schema: SectionSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -67,7 +81,7 @@ export class SectionModule {
         const endpoint = this.client.buildEndpoint(`delete_section/${sectionId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>('POST', endpoint);
+        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
             return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
         }
@@ -89,6 +103,10 @@ export class SectionModule {
      */
     async moveSection(sectionId: number, payload: MoveSectionPayload): Promise<void> {
         this.client.validateId(sectionId, 'sectionId');
-        await this.client.request<void>('POST', `move_section/${sectionId}`, payload);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `move_section/${sectionId}`,
+            body: { kind: 'json', data: payload },
+        });
     }
 }
