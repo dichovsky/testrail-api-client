@@ -10,7 +10,11 @@ export class TestModule {
     /** @testrail GET get_test/{test_id} */
     async getTest(testId: number): Promise<Test> {
         this.client.validateId(testId, 'testId');
-        return this.client.requestParsed<Test>('GET', `get_test/${testId}`, TestSchema);
+        return this.client.request<Test>({
+            method: 'GET',
+            endpoint: `get_test/${testId}`,
+            schema: TestSchema,
+        });
     }
 
     /** @testrail GET get_tests/{run_id} */
@@ -24,13 +28,13 @@ export class TestModule {
         });
         return (
             (
-                await this.client.requestParsed<{ tests?: Test[] }>(
-                    'GET',
+                await this.client.request<{ tests?: Test[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ tests: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ tests: z.array(TestSchema).nullish() }),
-                )
+                    schema: z.object({ tests: z.array(TestSchema).nullish() }),
+                })
             ).tests ?? []
         );
     }

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { fullRetryPolicy, binaryGetRetryPolicy, noRetryPolicy } from '../src/retry-policy.js';
+import { getRetryPolicy } from '../src/retry-policy.js';
 
 const METHODS = ['GET', 'POST', 'PUT', 'DELETE'] as const;
 const STATUSES = [200, 400, 401, 403, 404, 408, 429, 500, 502, 503, 504] as const;
 
-describe('fullRetryPolicy', () => {
-    const policy = fullRetryPolicy();
+describe('getRetryPolicy("full")', () => {
+    const policy = getRetryPolicy('full');
 
     describe('isStatusRetryable', () => {
         it('retries 429 for all methods', () => {
@@ -46,8 +46,8 @@ describe('fullRetryPolicy', () => {
     });
 });
 
-describe('binaryGetRetryPolicy', () => {
-    const policy = binaryGetRetryPolicy();
+describe('getRetryPolicy("binaryGet")', () => {
+    const policy = getRetryPolicy('binaryGet');
 
     describe('isStatusRetryable', () => {
         it('retries 429 regardless of method', () => {
@@ -84,8 +84,8 @@ describe('binaryGetRetryPolicy', () => {
     });
 });
 
-describe('noRetryPolicy', () => {
-    const policy = noRetryPolicy();
+describe('getRetryPolicy("none")', () => {
+    const policy = getRetryPolicy('none');
 
     describe('isStatusRetryable', () => {
         it('never retries any status for any method', () => {
@@ -103,5 +103,13 @@ describe('noRetryPolicy', () => {
                 expect(policy.isNetworkErrorRetryable(method)).toBe(false);
             }
         });
+    });
+});
+
+describe('getRetryPolicy() returns singletons', () => {
+    it('returns the same instance across calls (no per-request allocation)', () => {
+        expect(getRetryPolicy('full')).toBe(getRetryPolicy('full'));
+        expect(getRetryPolicy('binaryGet')).toBe(getRetryPolicy('binaryGet'));
+        expect(getRetryPolicy('none')).toBe(getRetryPolicy('none'));
     });
 });

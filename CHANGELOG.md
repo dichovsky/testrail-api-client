@@ -71,7 +71,7 @@ so the breaker timeline is auditable.
 ### Added (continued)
 
 - **CLI: `--format yaml` and `--format csv` output formats.** Closes [BACKLOG CLI
-  format yaml/csv](BACKLOG-ARCHIVE.md). Every read, list, and write action now
+  format yaml/csv](docs/archive/BACKLOG-ARCHIVE.md). Every read, list, and write action now
   accepts `--format <json|table|yaml|csv>` (default unchanged: `json`).
     - `yaml` emits a zero-dependency YAML 1.2 document with 2-space indent.
       Strings that could parse as numbers, booleans, null tokens, or carry
@@ -219,7 +219,7 @@ not introduce a parallel hazard but does not fix the existing one.
 
 ### Changed (BREAKING) — Destructive-ops env-var gate
 
-Closes [BACKLOG CLI: destructive env-var gate](BACKLOG-ARCHIVE.md). Adds a
+Closes [BACKLOG CLI: destructive env-var gate](docs/archive/BACKLOG-ARCHIVE.md). Adds a
 **second gate** for destructive CLI actions (`*:delete`, `run close`,
 `plan close`): a `TESTRAIL_ALLOW_DESTRUCTIVE=1` environment variable that
 must be set **in addition to** the existing `--yes` flag. The check runs in
@@ -307,7 +307,7 @@ from `set-to-allow` at a glance.
 
 ## [3.5.0] — 2026-05-18 — Stop hijacking host signal handling (opt-in process handlers)
 
-Closes [BACKLOG SEC #8](BACKLOG-ARCHIVE.md). Before this release, **every**
+Closes [BACKLOG SEC #8](docs/archive/BACKLOG-ARCHIVE.md). Before this release, **every**
 `TestRailClient` construction silently registered three process-level listeners
 (`exit`, `SIGINT`, `SIGTERM`) on the Node.js `process` object. The SIGINT and
 SIGTERM handlers additionally called `process.exit(130)` / `process.exit(143)`.

@@ -21,21 +21,13 @@ export interface GetHistoryForCaseOptions {
     offset?: number;
 }
 
-/** @deprecated Use {@link SoftDeleteOptions} from `../types.js` — kept as an
- *  alias for back-compat. */
-export type DeleteCasesOptions = SoftDeleteOptions;
-
-/** @deprecated Use {@link SoftDeletePreview} (re-exported from the package
- *  root) — kept as an alias for back-compat. */
-export type DeleteCasesPreview = SoftDeletePreview;
-
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_case/{case_id} */
     async getCase(caseId: number): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
-        return this.client.requestParsed<Case>('GET', `get_case/${caseId}`, CaseSchema);
+        return this.client.request<Case>({ method: 'GET', endpoint: `get_case/${caseId}`, schema: CaseSchema });
     }
 
     /** @testrail GET get_cases/{project_id} */
@@ -78,13 +70,13 @@ export class CaseModule {
         });
         return (
             (
-                await this.client.requestParsed<{ cases?: Case[] }>(
-                    'GET',
+                await this.client.request<{ cases?: Case[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ cases: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ cases: z.array(CaseSchema).nullish() }),
-                )
+                    schema: z.object({ cases: z.array(CaseSchema).nullish() }),
+                })
             ).cases ?? []
         );
     }
@@ -92,7 +84,12 @@ export class CaseModule {
     /** @testrail POST add_case/{section_id} */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.requestParsed<Case>('POST', `add_case/${sectionId}`, CaseSchema, payload);
+        return this.client.request<Case>({
+            method: 'POST',
+            endpoint: `add_case/${sectionId}`,
+            schema: CaseSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -112,12 +109,12 @@ export class CaseModule {
     async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
         this.client.validateId(sectionId, 'sectionId');
         try {
-            return await this.client.requestParsed<Case[]>(
-                'POST',
-                `add_cases/${sectionId}`,
-                z.array(CaseSchema),
-                payload,
-            );
+            return await this.client.request<Case[]>({
+                method: 'POST',
+                endpoint: `add_cases/${sectionId}`,
+                schema: z.array(CaseSchema),
+                body: { kind: 'json', data: payload },
+            });
         } catch (e: unknown) {
             if (e instanceof TestRailApiError && (e.status === 400 || e.status === 404)) {
                 const responseStr = typeof e.response === 'string' ? e.response : JSON.stringify(e.response ?? '');
@@ -147,7 +144,12 @@ export class CaseModule {
     /** @testrail POST update_case/{case_id} */
     async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
         this.client.validateId(caseId, 'caseId');
-        return this.client.requestParsed<Case>('POST', `update_case/${caseId}`, CaseSchema, payload);
+        return this.client.request<Case>({
+            method: 'POST',
+            endpoint: `update_case/${caseId}`,
+            schema: CaseSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -172,7 +174,7 @@ export class CaseModule {
         const endpoint = this.client.buildEndpoint(`delete_case/${caseId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>('POST', endpoint);
+        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
             return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
         }
@@ -193,7 +195,12 @@ export class CaseModule {
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
         this.client.validateId(suiteId, 'suiteId');
-        return this.client.requestParsed<Case[]>('POST', `update_cases/${suiteId}`, z.array(CaseSchema), payload);
+        return this.client.request<Case[]>({
+            method: 'POST',
+            endpoint: `update_cases/${suiteId}`,
+            schema: z.array(CaseSchema),
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -235,7 +242,11 @@ export class CaseModule {
             project_id: projectId,
             ...(options?.soft === true && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>('POST', endpoint, payload);
+        const raw = await this.client.request<unknown>({
+            method: 'POST',
+            endpoint,
+            body: { kind: 'json', data: payload },
+        });
         if (options?.soft === true) {
             return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
         }
@@ -248,12 +259,12 @@ export class CaseModule {
      */
     async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<Case[]> {
         this.client.validateId(sectionId, 'sectionId');
-        return this.client.requestParsed<Case[]>(
-            'POST',
-            `copy_cases_to_section/${sectionId}`,
-            z.array(CaseSchema),
-            payload,
-        );
+        return this.client.request<Case[]>({
+            method: 'POST',
+            endpoint: `copy_cases_to_section/${sectionId}`,
+            schema: z.array(CaseSchema),
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -265,7 +276,11 @@ export class CaseModule {
      */
     async moveCasesToSection(sectionId: number, payload: MoveCasesToSectionPayload): Promise<void> {
         this.client.validateId(sectionId, 'sectionId');
-        await this.client.request<void>('POST', `move_cases_to_section/${sectionId}`, payload);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `move_cases_to_section/${sectionId}`,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail GET get_history_for_case/{case_id} */
@@ -278,13 +293,13 @@ export class CaseModule {
         });
         return (
             (
-                await this.client.requestParsed<{ history?: HistoryEntry[] }>(
-                    'GET',
+                await this.client.request<{ history?: HistoryEntry[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ history: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ history: z.array(HistoryEntrySchema).nullish() }),
-                )
+                    schema: z.object({ history: z.array(HistoryEntrySchema).nullish() }),
+                })
             ).history ?? []
         );
     }

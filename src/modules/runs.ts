@@ -10,7 +10,7 @@ export class RunModule {
     /** @testrail GET get_run/{run_id} */
     async getRun(runId: number): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestParsed<Run>('GET', `get_run/${runId}`, RunSchema);
+        return this.client.request<Run>({ method: 'GET', endpoint: `get_run/${runId}`, schema: RunSchema });
     }
 
     /** @testrail GET get_runs/{project_id} */
@@ -42,13 +42,13 @@ export class RunModule {
         });
         return (
             (
-                await this.client.requestParsed<{ runs?: Run[] }>(
-                    'GET',
+                await this.client.request<{ runs?: Run[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ runs: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ runs: z.array(RunSchema).nullish() }),
-                )
+                    schema: z.object({ runs: z.array(RunSchema).nullish() }),
+                })
             ).runs ?? []
         );
     }
@@ -56,19 +56,33 @@ export class RunModule {
     /** @testrail POST add_run/{project_id} */
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Run>('POST', `add_run/${projectId}`, RunSchema, payload);
+        return this.client.request<Run>({
+            method: 'POST',
+            endpoint: `add_run/${projectId}`,
+            schema: RunSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_run/{run_id} */
     async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestParsed<Run>('POST', `update_run/${runId}`, RunSchema, payload);
+        return this.client.request<Run>({
+            method: 'POST',
+            endpoint: `update_run/${runId}`,
+            schema: RunSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST close_run/{run_id} */
     async closeRun(runId: number): Promise<Run> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestParsed<Run>('POST', `close_run/${runId}`, RunSchema);
+        return this.client.request<Run>({
+            method: 'POST',
+            endpoint: `close_run/${runId}`,
+            schema: RunSchema,
+        });
     }
 
     /**
@@ -89,7 +103,7 @@ export class RunModule {
         const endpoint = this.client.buildEndpoint(`delete_run/${runId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>('POST', endpoint);
+        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
             return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
         }

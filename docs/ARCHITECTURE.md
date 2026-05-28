@@ -202,7 +202,7 @@ Exported:
 - Every Zod schema **value** (so consumers can re-validate).
 - Every payload **type** (`AddCasePayload`, `UpdateRunPayload`, …).
 - Every response / option **type** from `types.ts`.
-- Three module-local option types: `DeleteCasesOptions`, `DeleteCasesPreview`, `GetHistoryForCaseOptions`, `GetSharedStepHistoryOptions`.
+- Two module-local option types: `GetHistoryForCaseOptions`, `GetSharedStepHistoryOptions`.
 
 Deliberately not exported:
 

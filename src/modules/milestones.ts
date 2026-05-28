@@ -10,7 +10,11 @@ export class MilestoneModule {
     /** @testrail GET get_milestone/{milestone_id} */
     async getMilestone(milestoneId: number): Promise<Milestone> {
         this.client.validateId(milestoneId, 'milestoneId');
-        return this.client.requestParsed<Milestone>('GET', `get_milestone/${milestoneId}`, MilestoneSchema);
+        return this.client.request<Milestone>({
+            method: 'GET',
+            endpoint: `get_milestone/${milestoneId}`,
+            schema: MilestoneSchema,
+        });
     }
 
     /** @testrail GET get_milestones/{project_id} */
@@ -24,13 +28,13 @@ export class MilestoneModule {
         });
         return (
             (
-                await this.client.requestParsed<{ milestones?: Milestone[] }>(
-                    'GET',
+                await this.client.request<{ milestones?: Milestone[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ milestones: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ milestones: z.array(MilestoneSchema).nullish() }),
-                )
+                    schema: z.object({ milestones: z.array(MilestoneSchema).nullish() }),
+                })
             ).milestones ?? []
         );
     }
@@ -38,23 +42,31 @@ export class MilestoneModule {
     /** @testrail POST add_milestone/{project_id} */
     async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Milestone>('POST', `add_milestone/${projectId}`, MilestoneSchema, payload);
+        return this.client.request<Milestone>({
+            method: 'POST',
+            endpoint: `add_milestone/${projectId}`,
+            schema: MilestoneSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_milestone/{milestone_id} */
     async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
         this.client.validateId(milestoneId, 'milestoneId');
-        return this.client.requestParsed<Milestone>(
-            'POST',
-            `update_milestone/${milestoneId}`,
-            MilestoneSchema,
-            payload,
-        );
+        return this.client.request<Milestone>({
+            method: 'POST',
+            endpoint: `update_milestone/${milestoneId}`,
+            schema: MilestoneSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST delete_milestone/{milestone_id} */
     async deleteMilestone(milestoneId: number): Promise<void> {
         this.client.validateId(milestoneId, 'milestoneId');
-        await this.client.request<void>('POST', `delete_milestone/${milestoneId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_milestone/${milestoneId}`,
+        });
     }
 }

@@ -171,6 +171,11 @@ export function dispatch(resource: string, action: string): DispatchResult {
         };
     }
     const actions = RESOURCES[resource];
+    // Unreachable at runtime: `Object.hasOwn(RESOURCES, resource)` above already
+    // proved `resource` is an own key, so the lookup is always defined. The guard
+    // exists only to narrow the `string[] | undefined` type under
+    // noUncheckedIndexedAccess.
+    /* c8 ignore next 6 */
     if (actions === undefined) {
         return {
             ok: false,
@@ -184,6 +189,10 @@ export function dispatch(resource: string, action: string): DispatchResult {
         };
     }
     const handler = HANDLERS[`${resource}:${action}`];
+    // Unreachable at runtime: HANDLERS and RESOURCES are both derived from the
+    // same ACTIONS array, so any `resource:action` that cleared the checks above
+    // has a registered handler. The guard narrows the lookup type only.
+    /* c8 ignore next 3 */
     if (handler === undefined) {
         return { ok: false, error: `No handler registered for ${resource}:${action}` };
     }
