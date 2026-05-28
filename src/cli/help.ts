@@ -73,6 +73,10 @@ function pathParamsText(spec: ActionSpec): string {
 function actionArgvHint(spec: ActionSpec): string {
     const parts: string[] = [];
     if (spec.bodySchema !== undefined) {
+        // The `??` fallback is currently unreachable: every body-bearing ActionSpec
+        // carries an explicit `helpExample`. Retained as a safety net for future
+        // actions added without one.
+        /* c8 ignore next */
         parts.push(spec.helpExample ?? "--data '{...}' | --data-file <path> | stdin");
     }
     if (spec.fileInput === true) {
@@ -115,6 +119,8 @@ function renderActionLine(spec: ActionSpec): string {
 
 function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string {
     const lines = ACTIONS.filter(predicate).map(renderActionLine);
+    // Defensive: no current section predicate matches zero actions.
+    /* c8 ignore next */
     if (lines.length === 0) return '';
     return `${title}\n${lines.join('\n')}`;
 }

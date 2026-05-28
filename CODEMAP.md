@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "6fd382b25257e49d44fd8d85390856a0c3f7c86604876cc89f014290ee0e85cf",
+  "sourceHash": "69ed737572137a55ccfb9fc499fa4b62268d9c63602efb3b5d321d48abb70bc8",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3279,105 +3279,105 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "renderActionLine",
           "kind": "function",
-          "line": 107,
+          "line": 111,
           "exported": false,
           "signature": "function renderActionLine(spec: ActionSpec): string"
         },
         {
           "name": "renderSection",
           "kind": "function",
-          "line": 116,
+          "line": 120,
           "exported": false,
           "signature": "function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string"
         },
         {
           "name": "renderReadSection",
           "kind": "function",
-          "line": 126,
+          "line": 132,
           "exported": false,
           "signature": "function renderReadSection(): string"
         },
         {
           "name": "renderMetadataSection",
           "kind": "function",
-          "line": 137,
+          "line": 143,
           "exported": false,
           "signature": "function renderMetadataSection(): string"
         },
         {
           "name": "renderWriteSection",
           "kind": "function",
-          "line": 143,
+          "line": 149,
           "exported": false,
           "signature": "function renderWriteSection(): string"
         },
         {
           "name": "renderConfigurationSection",
           "kind": "function",
-          "line": 151,
+          "line": 157,
           "exported": false,
           "signature": "function renderConfigurationSection(): string"
         },
         {
           "name": "renderAttachmentSection",
           "kind": "function",
-          "line": 157,
+          "line": 163,
           "exported": false,
           "signature": "function renderAttachmentSection(): string"
         },
         {
           "name": "renderBddSection",
           "kind": "function",
-          "line": 161,
+          "line": 167,
           "exported": false,
           "signature": "function renderBddSection(): string"
         },
         {
           "name": "BINARY_STDIO_BLOCK",
           "kind": "const",
-          "line": 172,
+          "line": 178,
           "exported": false,
           "signature": "const BINARY_STDIO_BLOCK = `Binary stdio (Unix-convention '-' sentinel):\n  --file -    Read binary upload payload from stdin (must be piped; not a TTY).\n              Capped at 100 MiB with a 30s wall…"
         },
         {
           "name": "META_BLOCK",
           "kind": "const",
-          "line": 185,
+          "line": 191,
           "exported": false,
           "signature": "const META_BLOCK = `Meta:\n  install-skill [--global] [--force] [--print-path]\n                                    Install the testrail-cli skill to\n                                    ./.claude/skills…"
         },
         {
           "name": "AUTH_BLOCK",
           "kind": "const",
-          "line": 196,
+          "line": 202,
           "exported": false,
           "signature": "const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other processes):\n  TESTRAIL_BASE_URL / --base-url <url>\n  TESTRAIL_EMAIL    / --email <email>\n  TESTRAIL_API_KEY  (recommended) | echo…"
         },
         {
           "name": "OPTIONS_BLOCK",
           "kind": "const",
-          "line": 210,
+          "line": 216,
           "exported": false,
           "signature": "const OPTIONS_BLOCK = `Options:\n  --api-key-stdin       Read API key from stdin (single line; mutually\n                        exclusive with stdin-piped JSON body). Use the\n                        TE…"
         },
         {
           "name": "SEMANTICS_BLOCK",
           "kind": "const",
-          "line": 250,
+          "line": 256,
           "exported": false,
           "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY === false).…"
         },
         {
           "name": "HEADER",
           "kind": "const",
-          "line": 278,
+          "line": 284,
           "exported": false,
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 285,
+          "line": 291,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }
