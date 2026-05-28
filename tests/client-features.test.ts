@@ -653,7 +653,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(malformedRaw),
                 });
-                const rawValue = await client.request<unknown>('GET', 'get_project/1');
+                const rawValue = await client.request<unknown>({ method: 'GET', endpoint: 'get_project/1' });
                 expect(rawValue).toEqual(malformedRaw);
 
                 // Step 2: getProject() goes through requestParsed(). It MUST
@@ -694,7 +694,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 });
                 // The raw caller MUST refetch (separate namespace) and see
                 // the full raw body, untouched by validation.
-                const raw = await client.request<typeof rawBody>('GET', 'get_project/1');
+                const raw = await client.request<typeof rawBody>({ method: 'GET', endpoint: 'get_project/1' });
                 expect(raw).toEqual(rawBody);
                 expect(mockFetch).toHaveBeenCalledTimes(2);
             });
@@ -713,8 +713,8 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(raw),
                 });
 
-                const first = await client.request<typeof raw>('GET', 'get_custom/42');
-                const second = await client.request<typeof raw>('GET', 'get_custom/42');
+                const first = await client.request<typeof raw>({ method: 'GET', endpoint: 'get_custom/42' });
+                const second = await client.request<typeof raw>({ method: 'GET', endpoint: 'get_custom/42' });
 
                 expect(first).toEqual(raw);
                 expect(second).toEqual(raw);
@@ -1828,7 +1828,14 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(freshClient.requestText('POST', 'noop_endpoint', { x: 1 })).rejects.toThrow(TestRailApiError);
+            await expect(
+                freshClient.request<string>({
+                    method: 'POST',
+                    endpoint: 'noop_endpoint',
+                    responseKind: 'text',
+                    body: { kind: 'json', data: { x: 1 } },
+                }),
+            ).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
@@ -1842,7 +1849,14 @@ describe('TestRailClient - Enhanced Features', () => {
             });
             mockFetch.mockRejectedValue(new Error('ECONNRESET'));
 
-            await expect(freshClient.requestText('POST', 'noop_endpoint', { x: 1 })).rejects.toThrow(TestRailApiError);
+            await expect(
+                freshClient.request<string>({
+                    method: 'POST',
+                    endpoint: 'noop_endpoint',
+                    responseKind: 'text',
+                    body: { kind: 'json', data: { x: 1 } },
+                }),
+            ).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
@@ -1870,7 +1884,12 @@ describe('TestRailClient - Enhanced Features', () => {
                     headers: { get: () => null },
                 });
 
-            const result = await freshClient.requestText('POST', 'noop_endpoint', { x: 1 });
+            const result = await freshClient.request<string>({
+                method: 'POST',
+                endpoint: 'noop_endpoint',
+                responseKind: 'text',
+                body: { kind: 'json', data: { x: 1 } },
+            });
             expect(result).toBe('ack');
             expect(mockFetch).toHaveBeenCalledTimes(2);
             expect(sleep).toHaveBeenCalledWith(1000);
@@ -1895,7 +1914,12 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const payload = { foo: 'bar', n: 1 };
-            const result = await freshClient.requestText('POST', 'noop_endpoint', payload);
+            const result = await freshClient.request<string>({
+                method: 'POST',
+                endpoint: 'noop_endpoint',
+                responseKind: 'text',
+                body: { kind: 'json', data: payload },
+            });
 
             expect(result).toBe('ack');
             const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
@@ -1931,7 +1955,11 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => 'ok',
                 headers: { get: () => null },
             });
-            await freshClient.requestText('POST', 'noop_endpoint');
+            await freshClient.request<string>({
+                method: 'POST',
+                endpoint: 'noop_endpoint',
+                responseKind: 'text',
+            });
 
             // After cache clear, GET will hit the network again.
             mockFetch.mockResolvedValueOnce({
@@ -2316,7 +2344,12 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
 
-        it('does not coalesce requests with skipCache=true', async () => {
+        it('does not coalesce raw and validated GETs to the same endpoint (namespace isolation)', async () => {
+            // The unified request(spec) keeps two cache namespaces: raw GET:
+            // (no schema) and PARSED:GET: (with schema). Concurrent calls that
+            // straddle namespaces must not share an in-flight promise even
+            // when they hit the same endpoint, because the parsed branch
+            // applies Zod and the raw branch does not.
             const wt = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
                 email: 'test@example.com',
@@ -2330,8 +2363,8 @@ describe('TestRailClient - Enhanced Features', () => {
                     .mockResolvedValueOnce(mockOk({ id: 1, name: 'B', suite_mode: 1, url: 'u', is_completed: false }));
 
                 const [r1, r2] = await Promise.all([
-                    wt.request<{ id: number; name: string }>('GET', 'get_project/1', undefined, 0, true),
-                    wt.request<{ id: number; name: string }>('GET', 'get_project/1', undefined, 0, true),
+                    wt.request<{ id: number; name: string }>({ method: 'GET', endpoint: 'get_project/1' }),
+                    wt.getProject(1),
                 ]);
 
                 expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -2367,17 +2400,24 @@ describe('TestRailClient - Enhanced Features', () => {
                         mockOk({ id: 1, name: 'Fresh', suite_mode: 1, url: 'u', is_completed: false }),
                     ); // second GET after POST
 
-                const firstGet = wt.request<{ id: number }>('GET', 'get_project/1');
+                const firstGet = wt.request<{ id: number }>({ method: 'GET', endpoint: 'get_project/1' });
 
                 // POST fires and resolves → clearCache() is called → pendingRequests cleared.
-                await wt.request<Record<string, never>>('POST', 'update_project/1', {});
+                await wt.request<Record<string, never>>({
+                    method: 'POST',
+                    endpoint: 'update_project/1',
+                    body: { kind: 'json', data: {} },
+                });
 
                 // Now resolve the first GET *after* the POST cleared pendingRequests.
                 resolveGet(mockOk({ id: 1, name: 'Stale', suite_mode: 1, url: 'u', is_completed: false }));
                 await firstGet;
 
                 // A new GET should not coalesce on the now-cleared map; it must issue a fresh fetch.
-                const secondGet = await wt.request<{ id: number; name: string }>('GET', 'get_project/1');
+                const secondGet = await wt.request<{ id: number; name: string }>({
+                    method: 'GET',
+                    endpoint: 'get_project/1',
+                });
 
                 // 3 total fetches: first GET + POST + second GET
                 expect(mockFetch).toHaveBeenCalledTimes(3);

@@ -31,13 +31,13 @@ export class AttachmentModule {
         });
         return (
             (
-                await this.client.requestParsed<{ attachments?: Attachment[] }>(
-                    'GET',
+                await this.client.request<{ attachments?: Attachment[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                )
+                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+                })
             ).attachments ?? []
         );
     }
@@ -52,13 +52,13 @@ export class AttachmentModule {
         });
         return (
             (
-                await this.client.requestParsed<{ attachments?: Attachment[] }>(
-                    'GET',
+                await this.client.request<{ attachments?: Attachment[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                )
+                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+                })
             ).attachments ?? []
         );
     }
@@ -73,13 +73,13 @@ export class AttachmentModule {
         });
         return (
             (
-                await this.client.requestParsed<{ attachments?: Attachment[] }>(
-                    'GET',
+                await this.client.request<{ attachments?: Attachment[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                )
+                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+                })
             ).attachments ?? []
         );
     }
@@ -89,13 +89,13 @@ export class AttachmentModule {
         this.client.validateId(planId, 'planId');
         return (
             (
-                await this.client.requestParsed<{ attachments?: Attachment[] }>(
-                    'GET',
-                    `get_attachments_for_plan/${planId}`,
+                await this.client.request<{ attachments?: Attachment[] }>({
+                    method: 'GET',
+                    endpoint: `get_attachments_for_plan/${planId}`,
                     // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                )
+                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+                })
             ).attachments ?? []
         );
     }
@@ -106,13 +106,13 @@ export class AttachmentModule {
         this.client.validateId(entryId, 'entryId');
         return (
             (
-                await this.client.requestParsed<{ attachments?: Attachment[] }>(
-                    'GET',
-                    `get_attachments_for_plan_entry/${planId}/${entryId}`,
+                await this.client.request<{ attachments?: Attachment[] }>({
+                    method: 'GET',
+                    endpoint: `get_attachments_for_plan_entry/${planId}/${entryId}`,
                     // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                )
+                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+                })
             ).attachments ?? []
         );
     }
@@ -120,31 +120,56 @@ export class AttachmentModule {
     /** @testrail GET get_attachment/{attachment_id} */
     async getAttachment(attachmentId: number): Promise<ArrayBuffer> {
         this.client.validateId(attachmentId, 'attachmentId');
-        return this.client.requestBinary(`get_attachment/${attachmentId}`);
+        return this.client.request<ArrayBuffer>({
+            method: 'GET',
+            endpoint: `get_attachment/${attachmentId}`,
+            responseKind: 'binary',
+            retry: 'binaryGet',
+        });
     }
 
     /** @testrail POST add_attachment_to_case/{case_id} */
     async addAttachmentToCase(caseId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(caseId, 'caseId');
-        return this.client.requestMultipart<Attachment>(`add_attachment_to_case/${caseId}`, file, filename);
+        return this.client.request<Attachment>({
+            method: 'POST',
+            endpoint: `add_attachment_to_case/${caseId}`,
+            body: { kind: 'multipart', file, filename },
+            retry: 'none',
+        });
     }
 
     /** @testrail POST add_attachment_to_result/{result_id} */
     async addAttachmentToResult(resultId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(resultId, 'resultId');
-        return this.client.requestMultipart<Attachment>(`add_attachment_to_result/${resultId}`, file, filename);
+        return this.client.request<Attachment>({
+            method: 'POST',
+            endpoint: `add_attachment_to_result/${resultId}`,
+            body: { kind: 'multipart', file, filename },
+            retry: 'none',
+        });
     }
 
     /** @testrail POST add_attachment_to_run/{run_id} */
     async addAttachmentToRun(runId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(runId, 'runId');
-        return this.client.requestMultipart<Attachment>(`add_attachment_to_run/${runId}`, file, filename);
+        return this.client.request<Attachment>({
+            method: 'POST',
+            endpoint: `add_attachment_to_run/${runId}`,
+            body: { kind: 'multipart', file, filename },
+            retry: 'none',
+        });
     }
 
     /** @testrail POST add_attachment_to_plan/{plan_id} */
     async addAttachmentToPlan(planId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
         this.client.validateId(planId, 'planId');
-        return this.client.requestMultipart<Attachment>(`add_attachment_to_plan/${planId}`, file, filename);
+        return this.client.request<Attachment>({
+            method: 'POST',
+            endpoint: `add_attachment_to_plan/${planId}`,
+            body: { kind: 'multipart', file, filename },
+            retry: 'none',
+        });
     }
 
     /** @testrail POST add_attachment_to_plan_entry/{plan_id}/{entry_id} */
@@ -156,16 +181,20 @@ export class AttachmentModule {
     ): Promise<Attachment> {
         this.client.validateId(planId, 'planId');
         this.client.validateId(entryId, 'entryId');
-        return this.client.requestMultipart<Attachment>(
-            `add_attachment_to_plan_entry/${planId}/${entryId}`,
-            file,
-            filename,
-        );
+        return this.client.request<Attachment>({
+            method: 'POST',
+            endpoint: `add_attachment_to_plan_entry/${planId}/${entryId}`,
+            body: { kind: 'multipart', file, filename },
+            retry: 'none',
+        });
     }
 
     /** @testrail POST delete_attachment/{attachment_id} */
     async deleteAttachment(attachmentId: number): Promise<void> {
         this.client.validateId(attachmentId, 'attachmentId');
-        await this.client.request<void>('POST', `delete_attachment/${attachmentId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_attachment/${attachmentId}`,
+        });
     }
 }

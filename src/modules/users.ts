@@ -13,7 +13,11 @@ export class UsersModule {
     /** @testrail GET get_user/{user_id} */
     async getUser(userId: number): Promise<User> {
         this.client.validateId(userId, 'userId');
-        return this.client.requestParsed<User>('GET', `get_user/${userId}`, UserSchema);
+        return this.client.request<User>({
+            method: 'GET',
+            endpoint: `get_user/${userId}`,
+            schema: UserSchema,
+        });
     }
 
     /** @testrail GET get_user_by_email */
@@ -23,7 +27,7 @@ export class UsersModule {
         }
 
         const endpoint = this.client.buildEndpoint('get_user_by_email', { email });
-        return this.client.requestParsed<User>('GET', endpoint, UserSchema);
+        return this.client.request<User>({ method: 'GET', endpoint, schema: UserSchema });
     }
 
     /** @testrail GET get_users */
@@ -40,58 +44,93 @@ export class UsersModule {
 
         return (
             (
-                await this.client.requestParsed<{ users?: User[] }>(
-                    'GET',
+                await this.client.request<{ users?: User[] }>({
+                    method: 'GET',
                     endpoint,
                     // SPEC #1.5 — TestRail can return `{ users: null }` for empty list wrappers;
                     // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    z.object({ users: z.array(UserSchema).nullish() }),
-                )
+                    schema: z.object({ users: z.array(UserSchema).nullish() }),
+                })
             ).users ?? []
         );
     }
 
     /** @testrail GET get_current_user */
     async getCurrentUser(): Promise<User> {
-        return this.client.requestParsed<User>('GET', 'get_current_user', UserSchema);
+        return this.client.request<User>({
+            method: 'GET',
+            endpoint: 'get_current_user',
+            schema: UserSchema,
+        });
     }
 
     /** @testrail POST add_user */
     async addUser(payload: UserAddPayload): Promise<User> {
-        return this.client.requestParsed<User>('POST', 'add_user', UserSchema, payload);
+        return this.client.request<User>({
+            method: 'POST',
+            endpoint: 'add_user',
+            schema: UserSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_user/{user_id} */
     async updateUser(userId: number, payload: UserUpdatePayload): Promise<User> {
         this.client.validateId(userId, 'userId');
-        return this.client.requestParsed<User>('POST', `update_user/${userId}`, UserSchema, payload);
+        return this.client.request<User>({
+            method: 'POST',
+            endpoint: `update_user/${userId}`,
+            schema: UserSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail GET get_group/{group_id} */
     async getGroup(groupId: number): Promise<Group> {
         this.client.validateId(groupId, 'groupId');
-        return this.client.requestParsed<Group>('GET', `get_group/${groupId}`, GroupSchema);
+        return this.client.request<Group>({
+            method: 'GET',
+            endpoint: `get_group/${groupId}`,
+            schema: GroupSchema,
+        });
     }
 
     /** @testrail GET get_groups */
     async getGroups(): Promise<Group[]> {
-        return this.client.requestParsed<Group[]>('GET', 'get_groups', z.array(GroupSchema));
+        return this.client.request<Group[]>({
+            method: 'GET',
+            endpoint: 'get_groups',
+            schema: z.array(GroupSchema),
+        });
     }
 
     /** @testrail POST add_group */
     async addGroup(payload: AddGroupPayload): Promise<Group> {
-        return this.client.requestParsed<Group>('POST', 'add_group', GroupSchema, payload);
+        return this.client.request<Group>({
+            method: 'POST',
+            endpoint: 'add_group',
+            schema: GroupSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST update_group/{group_id} */
     async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
         this.client.validateId(groupId, 'groupId');
-        return this.client.requestParsed<Group>('POST', `update_group/${groupId}`, GroupSchema, payload);
+        return this.client.request<Group>({
+            method: 'POST',
+            endpoint: `update_group/${groupId}`,
+            schema: GroupSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail POST delete_group/{group_id} */
     async deleteGroup(groupId: number): Promise<void> {
         this.client.validateId(groupId, 'groupId');
-        await this.client.request<void>('POST', `delete_group/${groupId}`);
+        await this.client.request<void>({
+            method: 'POST',
+            endpoint: `delete_group/${groupId}`,
+        });
     }
 }

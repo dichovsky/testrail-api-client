@@ -15,7 +15,11 @@ export class SuiteModule {
      */
     async getSuite(suiteId: number): Promise<Suite> {
         this.client.validateId(suiteId, 'suiteId');
-        return this.client.requestParsed<Suite>('GET', `get_suite/${suiteId}`, SuiteSchema);
+        return this.client.request<Suite>({
+            method: 'GET',
+            endpoint: `get_suite/${suiteId}`,
+            schema: SuiteSchema,
+        });
     }
 
     /**
@@ -26,7 +30,11 @@ export class SuiteModule {
      */
     async getSuites(projectId: number): Promise<Suite[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Suite[]>('GET', `get_suites/${projectId}`, z.array(SuiteSchema));
+        return this.client.request<Suite[]>({
+            method: 'GET',
+            endpoint: `get_suites/${projectId}`,
+            schema: z.array(SuiteSchema),
+        });
     }
 
     /**
@@ -37,7 +45,12 @@ export class SuiteModule {
      */
     async addSuite(projectId: number, payload: AddSuitePayload): Promise<Suite> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Suite>('POST', `add_suite/${projectId}`, SuiteSchema, payload);
+        return this.client.request<Suite>({
+            method: 'POST',
+            endpoint: `add_suite/${projectId}`,
+            schema: SuiteSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -48,7 +61,12 @@ export class SuiteModule {
      */
     async updateSuite(suiteId: number, payload: UpdateSuitePayload): Promise<Suite> {
         this.client.validateId(suiteId, 'suiteId');
-        return this.client.requestParsed<Suite>('POST', `update_suite/${suiteId}`, SuiteSchema, payload);
+        return this.client.request<Suite>({
+            method: 'POST',
+            endpoint: `update_suite/${suiteId}`,
+            schema: SuiteSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /**
@@ -70,7 +88,7 @@ export class SuiteModule {
         const endpoint = this.client.buildEndpoint(`delete_suite/${suiteId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
-        const raw = await this.client.request<unknown>('POST', endpoint);
+        const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
             return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
         }

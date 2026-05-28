@@ -19,27 +19,47 @@ export class MetadataModule {
 
     /** @testrail GET get_statuses */
     async getStatuses(): Promise<Status[]> {
-        return this.client.requestParsed<Status[]>('GET', 'get_statuses', z.array(StatusSchema));
+        return this.client.request<Status[]>({
+            method: 'GET',
+            endpoint: 'get_statuses',
+            schema: z.array(StatusSchema),
+        });
     }
 
     /** @testrail GET get_case_statuses */
     async getCaseStatuses(): Promise<CaseStatus[]> {
-        return this.client.requestParsed<CaseStatus[]>('GET', 'get_case_statuses', z.array(CaseStatusSchema));
+        return this.client.request<CaseStatus[]>({
+            method: 'GET',
+            endpoint: 'get_case_statuses',
+            schema: z.array(CaseStatusSchema),
+        });
     }
 
     /** @testrail GET get_priorities */
     async getPriorities(): Promise<Priority[]> {
-        return this.client.requestParsed<Priority[]>('GET', 'get_priorities', z.array(PrioritySchema));
+        return this.client.request<Priority[]>({
+            method: 'GET',
+            endpoint: 'get_priorities',
+            schema: z.array(PrioritySchema),
+        });
     }
 
     /** @testrail GET get_result_fields */
     async getResultFields(): Promise<ResultField[]> {
-        return this.client.requestParsed<ResultField[]>('GET', 'get_result_fields', z.array(ResultFieldSchema));
+        return this.client.request<ResultField[]>({
+            method: 'GET',
+            endpoint: 'get_result_fields',
+            schema: z.array(ResultFieldSchema),
+        });
     }
 
     /** @testrail GET get_case_fields */
     async getCaseFields(): Promise<CaseField[]> {
-        return this.client.requestParsed<CaseField[]>('GET', 'get_case_fields', z.array(CaseFieldSchema));
+        return this.client.request<CaseField[]>({
+            method: 'GET',
+            endpoint: 'get_case_fields',
+            schema: z.array(CaseFieldSchema),
+        });
     }
 
     /**
@@ -66,27 +86,39 @@ export class MetadataModule {
      * @testrail POST add_case_field
      */
     async addCaseField(payload: AddCaseFieldPayload): Promise<AddCaseFieldResponse> {
-        return this.client.requestParsed<AddCaseFieldResponse>(
-            'POST',
-            'add_case_field',
-            AddCaseFieldResponseSchema,
-            payload,
-        );
+        return this.client.request<AddCaseFieldResponse>({
+            method: 'POST',
+            endpoint: 'add_case_field',
+            schema: AddCaseFieldResponseSchema,
+            body: { kind: 'json', data: payload },
+        });
     }
 
     /** @testrail GET get_case_types */
     async getCaseTypes(): Promise<CaseType[]> {
-        return this.client.requestParsed<CaseType[]>('GET', 'get_case_types', z.array(CaseTypeSchema));
+        return this.client.request<CaseType[]>({
+            method: 'GET',
+            endpoint: 'get_case_types',
+            schema: z.array(CaseTypeSchema),
+        });
     }
 
     /** @testrail GET get_templates/{project_id} */
     async getTemplates(projectId: number): Promise<Template[]> {
         this.client.validateId(projectId, 'projectId');
-        return this.client.requestParsed<Template[]>('GET', `get_templates/${projectId}`, z.array(TemplateSchema));
+        return this.client.request<Template[]>({
+            method: 'GET',
+            endpoint: `get_templates/${projectId}`,
+            schema: z.array(TemplateSchema),
+        });
     }
 
     /** @testrail GET get_roles */
     async getRoles(): Promise<Role[]> {
-        return this.client.requestParsed<Role[]>('GET', 'get_roles', z.array(RoleSchema));
+        return this.client.request<Role[]>({
+            method: 'GET',
+            endpoint: 'get_roles',
+            schema: z.array(RoleSchema),
+        });
     }
 }
