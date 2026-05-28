@@ -14,50 +14,6 @@ export class TestRailApiError extends Error {
     }
 }
 
-/** Thrown when TestRail returns 429 Too Many Requests or the client-side rate limiter fires. */
-export class TestRailRateLimitError extends TestRailApiError {
-    constructor(status: number, statusText: string, response?: unknown) {
-        super(status, statusText, response);
-        this.name = 'TestRailRateLimitError';
-    }
-}
-
-/** Thrown when TestRail returns 401 Unauthorized or 403 Forbidden. */
-export class TestRailAuthError extends TestRailApiError {
-    constructor(status: number, statusText: string, response?: unknown) {
-        super(status, statusText, response);
-        this.name = 'TestRailAuthError';
-    }
-}
-
-/** Thrown when TestRail returns 404 Not Found. */
-export class TestRailNotFoundError extends TestRailApiError {
-    constructor(status: number, statusText: string, response?: unknown) {
-        super(status, statusText, response);
-        this.name = 'TestRailNotFoundError';
-    }
-}
-
-/** Thrown when TestRail returns 408 or the fetch is aborted (AbortError / request-header timeout). Body-read deadline timeouts surface as plain `TestRailApiError(0, 'Body read timeout')`. */
-export class TestRailTimeoutError extends TestRailApiError {
-    constructor(status: number, statusText: string, response?: unknown) {
-        super(status, statusText, response);
-        this.name = 'TestRailTimeoutError';
-    }
-}
-
-/**
- * Returns the most specific TestRailApiError subclass for a given HTTP status.
- * Falls back to TestRailApiError for unclassified statuses.
- */
-export function createApiError(status: number, statusText: string, response?: unknown): TestRailApiError {
-    if (status === 429) return new TestRailRateLimitError(status, statusText, response);
-    if (status === 401 || status === 403) return new TestRailAuthError(status, statusText, response);
-    if (status === 404) return new TestRailNotFoundError(status, statusText, response);
-    if (status === 408) return new TestRailTimeoutError(status, statusText, response);
-    return new TestRailApiError(status, statusText, response);
-}
-
 /**
  * Thrown when client configuration or method parameters fail validation.
  */
