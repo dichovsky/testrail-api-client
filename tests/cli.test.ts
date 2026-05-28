@@ -70,8 +70,9 @@ vi.mock('../src/cli/stdin.js', async (importOriginal) => {
                 return real.readBoundedStdin(maxBytes, fd);
             }
             if (stubbedStdin.throwNonError) {
-                // eslint-disable-next-line @typescript-eslint/only-throw-error
-                throw 'non-error-string-failure';
+                // Typed `unknown` so this is an intentional non-Error throw.
+                const nonError: unknown = 'non-error-string-failure';
+                throw nonError;
             }
             if (stubbedStdin.value === null) {
                 throw new Error('readBoundedStdin not stubbed for this test');
@@ -192,8 +193,7 @@ const AUTH_ENV = {
 // ── Fetch mock ────────────────────────────────────────────────────────────────
 
 const mockFetch = vi.fn();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(globalThis as any).fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 function jsonResponse(data: unknown, status = 200): Response {
     return new Response(JSON.stringify(data), {
@@ -352,6 +352,75 @@ describe('CLI', () => {
             const { stderr, exitCodes } = await runCli(['project']);
             expect(stderr).toContain('Usage: testrail <resource> <action>');
             expect(exitCodes).toContain(1);
+        });
+    });
+
+    // ── parseArgs failure path ────────────────────────────────────────────────
+    //
+    // Covers the `try { parseArgs(...) } catch` arm in main() (src/cli/index.ts).
+    // parseArgs under `strict: false` is extremely tolerant — unknown flags and
+    // `=`-malformed options are accepted, not thrown. The only inputs that make
+    // it throw are a non-string argv element (it calls `.length` / String() on
+    // each element) or a future-Node tightening. A real shell can never put a
+    // non-string into process.argv, so we inject one directly to exercise the
+    // controlled exit-1 path (raw-argv --quiet lookup + sanitized stderr).
+    describe('parseArgs throw (pre-parse failure)', () => {
+        // Runs the CLI with a hand-built process.argv that contains a
+        // non-string element, forcing parseArgs to throw. Mirrors runCli's
+        // module/spy lifecycle but bypasses the string[] argv typing.
+        async function runCliRawArgv(rawArgv: unknown[]): Promise<{ stderr: string; exitCodes: number[] }> {
+            vi.resetModules();
+            mockFetch.mockReset();
+            mockFetch.mockResolvedValue(jsonResponse({ error: 'Not found' }, 404));
+            // Build a deliberately non-string argv (a Symbol element makes
+            // parseArgs throw) and assign it via an `unknown` cast — the
+            // string[] typing of process.argv is exactly what we're subverting.
+            process.argv = ['node', 'testrail', ...rawArgv] as unknown as string[];
+            setEnv(AUTH_ENV);
+
+            const stderrChunks: string[] = [];
+            const exitCodes: number[] = [];
+            const spyOut = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+            const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+                stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
+                return true;
+            });
+            let exitResolve!: () => void;
+            const exitPromise = new Promise<void>((resolve) => {
+                exitResolve = resolve;
+            });
+            const spyExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+                exitCodes.push(code ?? 0);
+                exitResolve();
+            }) as never);
+            try {
+                await import('../src/cli.js');
+                await Promise.race([exitPromise, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
+            } catch {
+                // Secondary errors after exit() no-op are irrelevant; assertions
+                // use the recorded exit code.
+            } finally {
+                spyOut.mockRestore();
+                spyErr.mockRestore();
+                spyExit.mockRestore();
+            }
+            return { stderr: stderrChunks.join(''), exitCodes };
+        }
+
+        it('exits 1 and writes a sanitized error to stderr when parseArgs throws', async () => {
+            // A Symbol element makes parseArgs throw "Cannot convert a Symbol
+            // value to a string". --quiet is absent, so the error is written.
+            const { stderr, exitCodes } = await runCliRawArgv([Symbol('boom'), 'project', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Error:');
+        });
+
+        it('suppresses the stderr error when --quiet is present in raw argv', async () => {
+            // The catch honors --quiet via a raw-argv lookup (values is
+            // unavailable post-throw). With --quiet present, no stderr write.
+            const { stderr, exitCodes } = await runCliRawArgv(['--quiet', Symbol('boom'), 'project', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toBe('');
         });
     });
 

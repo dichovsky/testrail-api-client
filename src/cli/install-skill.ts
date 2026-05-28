@@ -122,11 +122,12 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         // existing directories or symlinks depending on the OS version.
         renameSync(tempPath, target);
         tempPath = undefined;
-        /* v8 ignore start -- defensive: triggered only by filesystem failures
-           (permission denied, full disk, etc.) that are flaky to simulate in
-           CI. The error path is exercised manually if invoked under an
-           unwritable HOME. */
     } catch (e: unknown) {
+        // A filesystem failure (permission denied, full disk, rename race,
+        // etc.) anywhere in the write sequence lands here. If the temp file
+        // was already created, remove it best-effort so a failed install
+        // leaves no stray sibling; swallow any cleanup error since the
+        // original failure is the one worth surfacing.
         if (tempPath !== undefined) {
             try {
                 unlinkSync(tempPath);
@@ -137,7 +138,6 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }
-    /* v8 ignore stop */
 
     if (!opts.quiet) {
         process.stdout.write(`Installed testrail-cli skill → ${target}\n`);

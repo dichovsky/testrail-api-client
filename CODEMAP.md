@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "fd6dd38f802eb40ea3b6e40b302061c895ebf9476e12a5cf688f110adab7d69d",
+  "sourceHash": "98d803041f6619f30a474c0e9c164a9a67c48514dad56f411aac3cc6942d6af4",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1476,14 +1476,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "readBodyAsText",
           "kind": "function",
-          "line": 146,
+          "line": 159,
           "exported": true,
           "signature": "export async function readBodyAsText(response: Response, limits: BodyLimits): Promise<string>"
         },
         {
           "name": "readBodyViaFallback",
           "kind": "function",
-          "line": 159,
+          "line": 172,
           "exported": false,
           "signature": "async function readBodyViaFallback(response: Response, maxBytes: number): Promise<Uint8Array>"
         }
@@ -4182,84 +4182,105 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "escapeDoubleQuoted",
           "kind": "function",
-          "line": 197,
+          "line": 200,
           "exported": false,
           "signature": "function escapeDoubleQuoted(s: string): string"
         },
         {
           "name": "renderYamlScalar",
           "kind": "function",
-          "line": 240,
+          "line": 243,
           "exported": false,
           "signature": "function renderYamlScalar(v: unknown): string"
         },
         {
           "name": "isPlainObject",
           "kind": "function",
-          "line": 262,
+          "line": 265,
           "exported": false,
           "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
         },
         {
           "name": "renderYamlNode",
           "kind": "function",
-          "line": 271,
+          "line": 274,
           "exported": false,
           "signature": "function renderYamlNode(v: unknown, depth: number): string"
         },
         {
           "name": "renderYaml",
           "kind": "function",
-          "line": 352,
+          "line": 355,
           "exported": true,
           "signature": "export function renderYaml(value: unknown): string"
         },
         {
           "name": "CSV_LINE_TERMINATOR",
           "kind": "const",
-          "line": 372,
+          "line": 375,
           "exported": false,
           "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
         },
         {
           "name": "csvCellRequiresQuoting",
           "kind": "function",
-          "line": 374,
+          "line": 377,
           "exported": false,
           "signature": "function csvCellRequiresQuoting(cell: string): boolean"
         },
         {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 378,
+          "line": 381,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
+          "name": "TAB",
+          "kind": "const",
+          "line": 391,
+          "exported": false,
+          "signature": "const TAB = 0x09"
+        },
+        {
+          "name": "LF",
+          "kind": "const",
+          "line": 392,
+          "exported": false,
+          "signature": "const LF = 0x0a"
+        },
+        {
+          "name": "CR",
+          "kind": "const",
+          "line": 393,
+          "exported": false,
+          "signature": "const CR = 0x0d"
+        },
+        {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 385,
+          "line": 395,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
           "name": "csvCellFromValue",
           "kind": "function",
-          "line": 391,
+          "line": 401,
           "exported": false,
           "signature": "function csvCellFromValue(v: unknown): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 427,
+          "line": 437,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 481,
+          "line": 491,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -4313,6 +4334,20 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 29,
           "exported": true,
           "signature": "export function sanitizeForTerminal(s: string): string"
+        },
+        {
+          "name": "isControlChar",
+          "kind": "function",
+          "line": 38,
+          "exported": true,
+          "signature": "export function isControlChar(code: number): boolean"
+        },
+        {
+          "name": "stripChars",
+          "kind": "function",
+          "line": 53,
+          "exported": true,
+          "signature": "export function stripChars(s: string, shouldStrip: (code: number) => boolean): string"
         }
       ]
     },
@@ -4650,127 +4685,127 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 335
+              "line": 333
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 491
+              "line": 489
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 516
+              "line": 514
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 557
+              "line": 555
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 575
+              "line": 573
             },
             {
               "name": "validateId",
               "kind": "method",
-              "line": 603
+              "line": 601
             },
             {
               "name": "validateEntryId",
               "kind": "method",
-              "line": 616
+              "line": 614
             },
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 626
+              "line": 624
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 645
+              "line": 643
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 657
+              "line": 655
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 678
+              "line": 676
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 700
+              "line": 698
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 708
+              "line": 706
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 719
+              "line": 717
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 726
+              "line": 724
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 753
+              "line": 751
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 801
+              "line": 799
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 880
+              "line": 878
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 922
+              "line": 920
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 952
+              "line": 950
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 980
+              "line": 978
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 998
+              "line": 996
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 1106
+              "line": 1100
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1253
+              "line": 1247
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1262
+              "line": 1256
             }
           ]
         }

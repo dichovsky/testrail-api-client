@@ -278,9 +278,8 @@ export class TestRailClientCore {
         // maxCacheSize=0 means unbounded and risks memory exhaustion.
         // Warn at construction time so callers are aware of the risk.
         if (config.maxCacheSize === 0 && (config.enableCache ?? true)) {
-            // eslint-disable-next-line no-console
-            console.warn(
-                'Warning: maxCacheSize is set to 0 (unlimited). ' +
+            process.emitWarning(
+                'maxCacheSize is set to 0 (unlimited). ' +
                     'This can cause unbounded memory growth. Consider setting a positive limit.',
             );
         }
@@ -300,9 +299,8 @@ export class TestRailClientCore {
         this.dnsLookup = config.dnsLookup;
 
         if (config.allowInsecure === true && new URL(config.baseUrl).protocol === 'http:') {
-            // eslint-disable-next-line no-console
-            console.warn(
-                '[testrail-api-client] WARNING: allowInsecure is enabled. ' +
+            process.emitWarning(
+                '[testrail-api-client] allowInsecure is enabled. ' +
                     'HTTP transmits credentials in cleartext. Use HTTPS in production.',
             );
         }
@@ -1059,21 +1057,17 @@ export class TestRailClientCore {
                     formData.append('attachment', blob, filename);
 
                     return {
+                        // By the time this `cleanup` runs (via executePipeline's
+                        // `finally`), the caller-supplied fd has already been closed and
+                        // `fdToClose` reset to undefined on every path that reaches this
+                        // return: on POSIX after `openAsBlob` succeeds (the early-close
+                        // block above), on non-POSIX before `openAsBlob`, and in the
+                        // `catch (buildErr)` arm before it rethrows (so this object is
+                        // never returned in that case). There is therefore no fd left to
+                        // close here — cleanup is an intentional no-op. The descriptor is
+                        // still tracked so the `catch` arm can close it if build throws.
                         body: formData,
-                        cleanup: () => {
-                            // fdToClose is always undefined here (closed early on POSIX
-                            // after openAsBlob, or on non-POSIX before openAsBlob).
-                            // This guard is a defensive safety net; c8 ignore covers the
-                            // unreachable try block.
-                            /* c8 ignore next 5 */
-                            if (fdToClose !== undefined) {
-                                try {
-                                    closeSync(fdToClose);
-                                } catch {
-                                    // best-effort cleanup
-                                }
-                            }
-                        },
+                        cleanup: () => undefined,
                     };
                 } catch (buildErr) {
                     // If build throws before returning cleanup, close the fd here

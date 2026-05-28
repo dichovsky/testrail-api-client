@@ -145,6 +145,28 @@ describe('TestRailClient - Enhanced Features', () => {
                 }),
             });
         });
+
+        it('computes the oldest request when the window is full of distinct timestamps', async () => {
+            // Seeds the sliding-window `requests[]` with strictly distinct,
+            // ascending timestamps inside the window so the oldest-request
+            // min-scan exercises both arms of its `requestTime < oldestRequest`
+            // comparison deterministically (the first element is the min; a
+            // later, larger element is not). Real back-to-back requests can
+            // share a millisecond, which leaves the false arm flaky — seeding
+            // explicit values removes that timing dependence.
+            const now = Date.now();
+            const internal = client as unknown as { rateLimiter: { requests: number[]; windowMs: number } };
+            // Two in-window timestamps, oldest first; both newer than now-window.
+            internal.rateLimiter.requests = [now - 100, now - 10];
+
+            await expect(client.getProject(9)).rejects.toMatchObject({
+                status: 429,
+                statusText: 'Too Many Requests',
+                response: expect.objectContaining({
+                    waitTimeMs: expect.any(Number),
+                }),
+            });
+        });
     });
 
     describe('DNS validation', () => {
@@ -2222,7 +2244,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
     describe('allowInsecure warning (SEC #26)', () => {
         it('warns when allowInsecure is enabled with an http:// baseUrl', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            const warnSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
             try {
                 const c = new TestRailClient({
                     baseUrl: 'http://localhost/testrail',
@@ -2239,7 +2261,7 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('does not warn for https:// baseUrl even with allowInsecure set', () => {
-            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+            const warnSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
             try {
                 const c = new TestRailClient({
                     baseUrl: 'https://example.testrail.io',
@@ -2339,6 +2361,55 @@ describe('TestRailClient - Enhanced Features', () => {
                 expect(mockFetch).toHaveBeenCalledTimes(1);
                 expect(r1).toEqual(r2);
                 expect(r2).toEqual(r3);
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('deduplicates concurrent identical RAW GETs via the pipeline coalescer (executePipeline)', async () => {
+            // The first coalescing test above uses getProject() — the *validated*
+            // (`PARSED:GET:`) namespace, whose dedup lives in request() (client-core
+            // line 830-831). This test exercises the *raw* (`GET:`) namespace whose
+            // dedup lives inside executePipeline (line 1115-1116): two concurrent
+            // schema-less GETs to the same endpoint must share one in-flight fetch.
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                // Skip the per-request DNS await so the synchronous path from
+                // executePipeline entry to pendingRequests.set is deterministic:
+                // the first call registers its in-flight promise before the
+                // second call's coalescing read at line 1115 runs.
+                allowPrivateHosts: true,
+            });
+            try {
+                // A single delayed response keeps both GETs in flight simultaneously
+                // so the second one observes the first's pending promise.
+                let resolveGet!: (v: Response) => void;
+                const delayedGet = new Promise<Response>((res) => {
+                    resolveGet = res;
+                });
+                mockFetch.mockReturnValueOnce(delayedGet);
+
+                const p1 = wt.request<{ id: number; name: string }>({ method: 'GET', endpoint: 'get_project/1' });
+                // Yield enough microtasks for the first call to clear its DNS
+                // await and register itself in pendingRequests before the second
+                // call reads the map.
+                await Promise.resolve();
+                await Promise.resolve();
+                const p2 = wt.request<{ id: number; name: string }>({ method: 'GET', endpoint: 'get_project/1' });
+
+                resolveGet(mockOk({ id: 1, name: 'Raw' }));
+                const [r1, r2] = await Promise.all([p1, p2]);
+
+                // Only one upstream fetch — the second call coalesced onto the
+                // first's in-flight promise (executePipeline line 1115-1116)
+                // rather than issuing its own network request.
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+                expect(r1).toEqual(r2);
+                expect(r1.name).toBe('Raw');
             } finally {
                 wt.destroy();
             }

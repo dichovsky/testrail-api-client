@@ -76,50 +76,63 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
         timeoutId.unref?.();
     }
 
-    try {
-        while (true) {
-            // eslint-disable-next-line no-await-in-loop -- streaming read is sequential by design
-            const { done, value } = await reader.read();
-            if (timedOut) {
-                throw new TestRailApiError(
-                    0,
-                    'Body read timeout',
-                    `body read exceeded ${deadlineMs}ms before the response body finished streaming`,
-                );
-            }
-            if (done) {
-                break;
-            }
-            if (value === undefined) {
-                continue;
-            }
-            const newTotal = total + value.byteLength;
-            if (newTotal > maxBytes) {
-                // Best-effort cancel; reader.cancel() resolves once the
-                // underlying source releases its resources. Swallow rejection.
-                // eslint-disable-next-line no-await-in-loop -- single cancel before throwing out of the loop
-                await reader.cancel(new Error(`response body exceeded ${maxBytes} bytes`)).catch(() => undefined);
-                throw new TestRailApiError(
-                    0,
-                    'Response body too large',
-                    `response body exceeded ${maxBytes} bytes before the stream closed`,
-                );
-            }
-            // Grow the buffer if the incoming chunk does not fit.  Double the
-            // capacity each time (capped at maxBytes) to amortise allocations.
-            // After the copy the previous buffer is GC-eligible.
-            if (newTotal > buf.byteLength) {
-                let newCap = buf.byteLength;
-                while (newCap < newTotal) {
-                    newCap = Math.min(newCap * 2, maxBytes);
-                }
-                const grown = new Uint8Array(newCap);
-                grown.set(buf.subarray(0, total));
-                buf = grown;
-            }
-            buf.set(value, total);
-            total = newTotal;
+    // Sequential async recursion instead of a `while (await reader.read())`
+    // loop. The streaming read is inherently sequential (each chunk depends on
+    // the prior `read()` settling) so it cannot be parallelised; expressing it
+    // as a self-tail-calling async function keeps that intent explicit and
+    // avoids an `await` inside a loop body. Each `await` yields to the
+    // microtask queue rather than nesting a synchronous frame, so the recursion
+    // is stack-safe for an unbounded chunk count. The manual `reader.read()` +
+    // `reader.cancel()` pair is load-bearing for SEC #21: `reader.cancel()`
+    // settles the in-flight `read()` with `{ done: true }`, which a `for await`
+    // over the stream cannot do (cancelling the stream does not interrupt the
+    // iterator's pending `next()`), so a slowloris-on-body server would hang
+    // the read forever under `for await`.
+    const drain = async (): Promise<void> => {
+        const { done, value } = await reader.read();
+        if (timedOut) {
+            throw new TestRailApiError(
+                0,
+                'Body read timeout',
+                `body read exceeded ${deadlineMs}ms before the response body finished streaming`,
+            );
         }
+        if (done) {
+            return;
+        }
+        if (value === undefined) {
+            return drain();
+        }
+        const newTotal = total + value.byteLength;
+        if (newTotal > maxBytes) {
+            // Best-effort cancel; reader.cancel() resolves once the
+            // underlying source releases its resources. Swallow rejection.
+            await reader.cancel(new Error(`response body exceeded ${maxBytes} bytes`)).catch(() => undefined);
+            throw new TestRailApiError(
+                0,
+                'Response body too large',
+                `response body exceeded ${maxBytes} bytes before the stream closed`,
+            );
+        }
+        // Grow the buffer if the incoming chunk does not fit.  Double the
+        // capacity each time (capped at maxBytes) to amortise allocations.
+        // After the copy the previous buffer is GC-eligible.
+        if (newTotal > buf.byteLength) {
+            let newCap = buf.byteLength;
+            while (newCap < newTotal) {
+                newCap = Math.min(newCap * 2, maxBytes);
+            }
+            const grown = new Uint8Array(newCap);
+            grown.set(buf.subarray(0, total));
+            buf = grown;
+        }
+        buf.set(value, total);
+        total = newTotal;
+        return drain();
+    };
+
+    try {
+        await drain();
     } finally {
         if (timeoutId !== undefined) {
             clearTimeout(timeoutId);

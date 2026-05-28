@@ -27,10 +27,9 @@ describe('Utils', () => {
 
         it('should use btoa fallback when Buffer is unavailable (browser path)', () => {
             // Temporarily hide the Buffer global to exercise the browser code path
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const savedBuffer = (globalThis as any).Buffer;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (globalThis as any).Buffer = undefined;
+            const bufferHolder = globalThis as { Buffer: typeof Buffer | undefined };
+            const savedBuffer = bufferHolder.Buffer;
+            bufferHolder.Buffer = undefined;
 
             try {
                 expect(base64Encode('hello')).toBe('aGVsbG8=');
@@ -38,8 +37,7 @@ describe('Utils', () => {
                 // Unicode still encodes correctly via the btoa + encodeURIComponent path
                 expect(base64Encode('café')).toBe('Y2Fmw6k=');
             } finally {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (globalThis as any).Buffer = savedBuffer;
+                bufferHolder.Buffer = savedBuffer;
             }
         });
     });

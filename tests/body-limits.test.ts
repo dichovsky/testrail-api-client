@@ -41,16 +41,28 @@ function streamingResponse(
     init: { status?: number; statusText?: string; delayMs?: number } = {},
 ): Response {
     const { status = 200, statusText = 'OK', delayMs = 0 } = init;
+    const delay = (): Promise<void> =>
+        delayMs > 0 ? new Promise<void>((resolve) => setTimeout(resolve, delayMs)) : Promise.resolve();
     const body = new globalThis.ReadableStream<Uint8Array>({
-        async start(controller) {
-            for (const chunk of chunks) {
-                if (delayMs > 0) {
-                    // eslint-disable-next-line no-await-in-loop -- sequential delay between chunks is the point of this helper
-                    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
-                }
-                controller.enqueue(chunk);
-            }
-            controller.close();
+        // Fold the chunks into a sequential promise chain so the inter-chunk
+        // delay is awaited without an `await` lexically inside a loop. Each
+        // link optionally sleeps `delayMs` then enqueues its chunk, preserving
+        // the exact sequential timing the SEC #21 slowloris deadline test
+        // relies on. `controller` is contextually typed by the stream source.
+        start(controller) {
+            return chunks
+                .reduce(
+                    (chain, chunk) =>
+                        chain.then(() =>
+                            delay().then(() => {
+                                controller.enqueue(chunk);
+                            }),
+                        ),
+                    Promise.resolve(),
+                )
+                .then(() => {
+                    controller.close();
+                });
         },
     });
     return new Response(body, { status, statusText });

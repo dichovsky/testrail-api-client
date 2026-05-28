@@ -328,6 +328,46 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         }
     });
 
+    it('uploads via { path, fd } descriptor on Darwin (covers /dev/fd rewrite branch)', async () => {
+        // Mirrors the Linux test above for the `process.platform === 'darwin'`
+        // true branch at src/client-core.ts:1019-1020. CI runs on Linux (where
+        // /dev/fd/<fd> resolves differently, or the host arm is the only one
+        // exercised), so without this forced-platform test the Darwin arm is
+        // uncovered on Linux CI — the env-dependent gap that drops branch
+        // coverage under the 98% gate. We stub process.platform to 'darwin'
+        // AND capture the path argument via openAsBlobRecorder. The tightened
+        // contract: regardless of whether openAsBlob ultimately resolves on
+        // this platform, the path passed to it MUST be the rewritten
+        // /dev/fd/<fd> form — never the original path.
+        const origPlatform = process.platform;
+        Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+        try {
+            const client = buildClient();
+            mockOk({ attachment_id: 11, name: 'darwin-fd.bin' });
+            const fd = openSync(smallPath, 'r');
+            try {
+                try {
+                    await client.addAttachmentToCase(1, { path: smallPath, fd }, 'darwin-fd.bin');
+                } catch (e) {
+                    // On non-Darwin runners /dev/fd/<fd> may not resolve to the
+                    // expected inode, so openAsBlob can reject → surfaces as a
+                    // TestRailApiError. The rewrite-arg assertion below still
+                    // pins the contract.
+                    expect(e).toBeInstanceOf(TestRailApiError);
+                }
+                expect(openAsBlobRecorder.lastPath).toBe(`/dev/fd/${fd}`);
+            } finally {
+                try {
+                    closeSync(fd);
+                } catch {
+                    // already closed by requestMultipart on POSIX
+                }
+            }
+        } finally {
+            Object.defineProperty(process, 'platform', { value: origPlatform, configurable: true });
+        }
+    });
+
     it('rethrows a body-read TestRailApiError from the error path (covers requestMultipart 1108 branch)', async () => {
         // For requestMultipart's error path: a 500 with an oversized body
         // causes the body-read to throw TestRailApiError(0, "Response body too large").

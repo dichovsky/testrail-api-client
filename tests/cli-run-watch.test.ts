@@ -21,6 +21,7 @@
  *     propagates so main() exits 1
  */
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import type { Mock } from 'vitest';
 import { handleRunWatch } from '../src/cli/handlers/run-watch.js';
 import { TestRailApiError } from '../src/errors.js';
 import type { TestRailClient } from '../src/client.js';
@@ -28,11 +29,11 @@ import type { HandlerContext } from '../src/cli/handler-context.js';
 import type { Run } from '../src/types.js';
 
 interface MockedClient {
-    getRun: ReturnType<typeof vi.fn>;
+    getRun: Mock<(runId: number) => Promise<Run>>;
 }
 
 function buildClient(): MockedClient {
-    return { getRun: vi.fn() };
+    return { getRun: vi.fn<(runId: number) => Promise<Run>>() };
 }
 
 function mockRun(overrides: Partial<Run> = {}): Run {
@@ -347,8 +348,7 @@ describe('handleRunWatch', () => {
         // getRun() is still pending.
         const client = buildClient();
         // First poll: never resolves until we cancel.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        client.getRun.mockImplementationOnce(() => new Promise(() => undefined));
+        client.getRun.mockImplementationOnce(() => new Promise<Run>(() => undefined));
 
         const stderrWrites: string[] = [];
         const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -462,10 +462,14 @@ describe('handleRunWatch', () => {
         // branch — a thunk that rejects with a plain string must still
         // surface as an Error to main().
         const client = buildClient();
-        client.getRun.mockImplementationOnce(
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises, @typescript-eslint/prefer-promise-reject-errors
-            (): Promise<never> => Promise.reject('plain-string-failure'),
-        );
+        // An async function that throws yields a rejected promise; routing the
+        // non-Error through an `unknown` local keeps the rejection a plain
+        // string (the point of this test) while satisfying the lint rules
+        // (`only-throw-error` permits throwing `unknown`).
+        client.getRun.mockImplementationOnce(async (): Promise<never> => {
+            const nonError: unknown = 'plain-string-failure';
+            throw nonError;
+        });
         const { ctx } = buildCtx(client);
         await expect(handleRunWatch(ctx)).rejects.toThrow(/plain-string-failure/);
     });
@@ -478,7 +482,6 @@ describe('handleRunWatch', () => {
         // snapshot event is emitted.
         const client = buildClient();
         let release: ((run: Run) => void) | undefined;
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         client.getRun.mockImplementationOnce(() => {
             return new Promise<Run>((resolve) => {
                 release = resolve;
@@ -541,7 +544,6 @@ describe('handleRunWatch', () => {
         // transient-retry decision.
         const client = buildClient();
         let reject: ((e: unknown) => void) | undefined;
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         client.getRun.mockImplementationOnce(() => {
             return new Promise<Run>((_resolve, rej) => {
                 reject = rej;
@@ -583,10 +585,11 @@ describe('handleRunWatch', () => {
  * arm is unreachable without this seam.
  */
 describe('handleRunWatch – String(e) branch via non-Error transient mock', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let handleRunWatchIsolated: (ctx: any) => Promise<void>;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let MockApiError: new (status: number, statusText: string) => any;
+    let handleRunWatchIsolated: (ctx: HandlerContext) => Promise<void>;
+    let MockApiError: new (
+        status: number,
+        statusText: string,
+    ) => { status: number; statusText: string; message: string };
 
     beforeAll(async () => {
         // Replace the errors module with a version where TestRailApiError is a
@@ -608,8 +611,7 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
         // Reset so subsequent imports pick up the mock.
         vi.resetModules();
         const errMod = await import('../src/errors.js');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        MockApiError = (errMod as any).TestRailApiError as typeof MockApiError;
+        MockApiError = (errMod as unknown as { TestRailApiError: typeof MockApiError }).TestRailApiError;
         const mod = await import('../src/cli/handlers/run-watch.js');
         handleRunWatchIsolated = mod.handleRunWatch;
     });
