@@ -1,14 +1,5 @@
 export { TestRailClient } from './client.js';
-export {
-    TestRailApiError,
-    TestRailRateLimitError,
-    TestRailAuthError,
-    TestRailNotFoundError,
-    TestRailTimeoutError,
-    TestRailValidationError,
-    createApiError,
-    handleZodError,
-} from './errors.js';
+export { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
 export {
     TestRailConfigSchema,
     PaginationSchema,
@@ -150,7 +141,7 @@ export type {
     UserUpdatePayload,
     LabelEmbedded,
 } from './schemas.js';
-export type { DeleteCasesOptions, DeleteCasesPreview, GetHistoryForCaseOptions } from './modules/cases.js';
+export type { GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 export type { GetAttachmentsOptions } from './modules/attachments.js';
 export type {
