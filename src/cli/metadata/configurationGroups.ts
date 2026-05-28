@@ -1,4 +1,9 @@
 import { AddConfigurationGroupPayloadSchema, UpdateConfigurationGroupPayloadSchema } from '../../schemas.js';
+import {
+    handleConfigurationGroupAdd,
+    handleConfigurationGroupDelete,
+    handleConfigurationGroupUpdate,
+} from '../handlers/configuration-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -20,7 +25,9 @@ export const configurationGroupActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_config_group/{project_id}',
         bodySchema: AddConfigurationGroupPayloadSchema,
+        helpExample: `--data '{"name":"Browsers"}'`,
         isWrite: true,
+        handler: handleConfigurationGroupAdd,
     },
     {
         resource: 'configuration-group',
@@ -29,7 +36,9 @@ export const configurationGroupActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'config_group_id', description: 'TestRail config group ID' }],
         apiEndpoint: 'POST update_config_group/{config_group_id}',
         bodySchema: UpdateConfigurationGroupPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleConfigurationGroupUpdate,
     },
     {
         resource: 'configuration-group',
@@ -40,5 +49,7 @@ export const configurationGroupActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_config_group/{config_group_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail)',
+        handler: handleConfigurationGroupDelete,
     },
 ];

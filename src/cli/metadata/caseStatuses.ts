@@ -1,3 +1,4 @@
+import { handleCaseStatusList } from '../handlers/case-status.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const caseStatusActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_case_statuses',
         isWrite: false,
+        handler: handleCaseStatusList,
     },
 ];

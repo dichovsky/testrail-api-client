@@ -1,3 +1,4 @@
+import { handleStatusList } from '../handlers/status.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const statusActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_statuses',
         isWrite: false,
+        handler: handleStatusList,
     },
 ];

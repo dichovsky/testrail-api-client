@@ -1,3 +1,4 @@
+import { handleReportList, handleReportRun } from '../handlers/report.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -13,6 +14,7 @@ export const reportActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_reports/{project_id}',
         isWrite: false,
+        handler: handleReportList,
     },
     {
         resource: 'report',
@@ -21,5 +23,6 @@ export const reportActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'report_template_id', description: 'TestRail report template ID' }],
         apiEndpoint: 'GET run_report/{report_template_id}',
         isWrite: false,
+        handler: handleReportRun,
     },
 ];

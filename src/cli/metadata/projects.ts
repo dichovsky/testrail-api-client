@@ -1,4 +1,6 @@
 import { AddProjectPayloadSchema, UpdateProjectPayloadSchema } from '../../schemas.js';
+import { handleProjectGet, handleProjectList } from '../handlers/project.js';
+import { handleProjectAdd, handleProjectDelete, handleProjectUpdate } from '../handlers/project-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -20,6 +22,7 @@ export const projectActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_project/{project_id}',
         isWrite: false,
+        handler: handleProjectGet,
     },
     {
         resource: 'project',
@@ -28,6 +31,7 @@ export const projectActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_projects',
         isWrite: false,
+        handler: handleProjectList,
     },
     {
         resource: 'project',
@@ -36,7 +40,9 @@ export const projectActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'POST add_project',
         bodySchema: AddProjectPayloadSchema,
+        helpExample: `--data '{"name":"...","suite_mode":1}'`,
         isWrite: true,
+        handler: handleProjectAdd,
     },
     {
         resource: 'project',
@@ -45,7 +51,9 @@ export const projectActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST update_project/{project_id}',
         bodySchema: UpdateProjectPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleProjectUpdate,
     },
     {
         resource: 'project',
@@ -56,5 +64,7 @@ export const projectActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_project/{project_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail; highest blast radius)',
+        handler: handleProjectDelete,
     },
 ];

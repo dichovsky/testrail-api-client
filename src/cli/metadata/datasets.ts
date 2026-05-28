@@ -1,4 +1,6 @@
 import { AddDatasetPayloadSchema, UpdateDatasetPayloadSchema } from '../../schemas.js';
+import { handleDatasetGet, handleDatasetList } from '../handlers/dataset.js';
+import { handleDatasetAdd, handleDatasetDelete, handleDatasetUpdate } from '../handlers/dataset-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -17,6 +19,7 @@ export const datasetActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'dataset_id', description: 'TestRail dataset ID' }],
         apiEndpoint: 'GET get_dataset/{dataset_id}',
         isWrite: false,
+        handler: handleDatasetGet,
     },
     {
         resource: 'dataset',
@@ -25,6 +28,7 @@ export const datasetActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_datasets/{project_id}',
         isWrite: false,
+        handler: handleDatasetList,
     },
     {
         resource: 'dataset',
@@ -33,7 +37,9 @@ export const datasetActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_dataset/{project_id}',
         bodySchema: AddDatasetPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleDatasetAdd,
     },
     {
         resource: 'dataset',
@@ -42,7 +48,9 @@ export const datasetActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'dataset_id', description: 'TestRail dataset ID' }],
         apiEndpoint: 'POST update_dataset/{dataset_id}',
         bodySchema: UpdateDatasetPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleDatasetUpdate,
     },
     {
         resource: 'dataset',
@@ -52,5 +60,7 @@ export const datasetActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_dataset/{dataset_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail)',
+        handler: handleDatasetDelete,
     },
 ];

@@ -1,3 +1,4 @@
+import { handleTestGet, handleTestList } from '../handlers/test.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -13,6 +14,7 @@ export const testActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'GET get_test/{test_id}',
         isWrite: false,
+        handler: handleTestGet,
     },
     {
         resource: 'test',
@@ -21,5 +23,6 @@ export const testActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_tests/{run_id}',
         isWrite: false,
+        handler: handleTestList,
     },
 ];

@@ -1,4 +1,6 @@
 import { AddGroupPayloadSchema, UpdateGroupPayloadSchema } from '../../schemas.js';
+import { handleGroupGet, handleGroupList } from '../handlers/group.js';
+import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from '../handlers/group-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -22,6 +24,7 @@ export const groupActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'group_id', description: 'TestRail group ID' }],
         apiEndpoint: 'GET get_group/{group_id}',
         isWrite: false,
+        handler: handleGroupGet,
     },
     {
         resource: 'group',
@@ -30,6 +33,7 @@ export const groupActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_groups',
         isWrite: false,
+        handler: handleGroupList,
     },
     {
         resource: 'group',
@@ -38,7 +42,9 @@ export const groupActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'POST add_group',
         bodySchema: AddGroupPayloadSchema,
+        helpExample: `--data '{"name":"...","user_ids":[1,2]}'  (no path param; TestRail 7.5+)`,
         isWrite: true,
+        handler: handleGroupAdd,
     },
     {
         resource: 'group',
@@ -47,7 +53,9 @@ export const groupActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'group_id', description: 'TestRail group ID' }],
         apiEndpoint: 'POST update_group/{group_id}',
         bodySchema: UpdateGroupPayloadSchema,
+        helpExample: `--data '{"name":"..."}'                   (TestRail 7.5+)`,
         isWrite: true,
+        handler: handleGroupUpdate,
     },
     {
         resource: 'group',
@@ -57,5 +65,7 @@ export const groupActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_group/{group_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.5+)',
+        handler: handleGroupDelete,
     },
 ];

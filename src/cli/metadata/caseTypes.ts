@@ -1,3 +1,4 @@
+import { handleCaseTypeList } from '../handlers/case-type.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const caseTypeActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_case_types',
         isWrite: false,
+        handler: handleCaseTypeList,
     },
 ];

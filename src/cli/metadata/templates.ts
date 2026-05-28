@@ -1,3 +1,4 @@
+import { handleTemplateList } from '../handlers/template.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -12,5 +13,6 @@ export const templateActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_templates/{project_id}',
         isWrite: false,
+        handler: handleTemplateList,
     },
 ];

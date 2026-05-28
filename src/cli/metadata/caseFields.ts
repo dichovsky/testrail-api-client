@@ -1,4 +1,6 @@
 import { AddCaseFieldPayloadSchema } from '../../schemas.js';
+import { handleCaseFieldList } from '../handlers/case-field.js';
+import { handleCaseFieldAdd } from '../handlers/case-field-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -14,6 +16,7 @@ export const caseFieldActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_case_fields',
         isWrite: false,
+        handler: handleCaseFieldList,
     },
     {
         resource: 'case-field',
@@ -22,6 +25,8 @@ export const caseFieldActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'POST add_case_field',
         bodySchema: AddCaseFieldPayloadSchema,
+        helpExample: `--data '{"type":"String","name":"foo","label":"Foo","configs":[{"context":{"is_global":true,"project_ids":[]},"options":{"is_required":false,"default_value":""}}]}' (admin-only)`,
         isWrite: true,
+        handler: handleCaseFieldAdd,
     },
 ];

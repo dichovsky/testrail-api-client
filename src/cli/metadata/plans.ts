@@ -6,6 +6,19 @@ import {
     UpdatePlanEntryPayloadSchema,
     UpdateRunInPlanEntryPayloadSchema,
 } from '../../schemas.js';
+import { handlePlanGet, handlePlanList } from '../handlers/plan.js';
+import {
+    handlePlanAdd,
+    handlePlanUpdate,
+    handlePlanAddEntry,
+    handlePlanAddRunToEntry,
+    handlePlanUpdateEntry,
+    handlePlanUpdateRunInEntry,
+    handlePlanClose,
+    handlePlanDelete,
+    handlePlanDeleteEntry,
+    handlePlanDeleteRunFromEntry,
+} from '../handlers/plan-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -31,6 +44,7 @@ export const planActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         apiEndpoint: 'GET get_plan/{plan_id}',
         isWrite: false,
+        handler: handlePlanGet,
     },
     {
         resource: 'plan',
@@ -39,6 +53,7 @@ export const planActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_plans/{project_id}',
         isWrite: false,
+        handler: handlePlanList,
     },
     {
         resource: 'plan',
@@ -47,7 +62,9 @@ export const planActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_plan/{project_id}',
         bodySchema: AddPlanPayloadSchema,
+        helpExample: `--data '{"name":"...","entries":[{"suite_id":1}]}'`,
         isWrite: true,
+        handler: handlePlanAdd,
     },
     {
         resource: 'plan',
@@ -56,7 +73,9 @@ export const planActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         apiEndpoint: 'POST update_plan/{plan_id}',
         bodySchema: UpdatePlanPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handlePlanUpdate,
     },
     {
         resource: 'plan',
@@ -65,7 +84,9 @@ export const planActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         apiEndpoint: 'POST add_plan_entry/{plan_id}',
         bodySchema: AddPlanEntryPayloadSchema,
+        helpExample: `--data '{"suite_id":1,"include_all":true}'`,
         isWrite: true,
+        handler: handlePlanAddEntry,
     },
     {
         resource: 'plan',
@@ -77,7 +98,9 @@ export const planActions: readonly ActionSpec[] = [
         ],
         apiEndpoint: 'POST add_run_to_plan_entry/{plan_id}/{entry_id}',
         bodySchema: AddRunToPlanEntryPayloadSchema,
+        helpExample: `--data '{"config_ids":[1,2]}'`,
         isWrite: true,
+        handler: handlePlanAddRunToEntry,
     },
     {
         resource: 'plan',
@@ -89,7 +112,9 @@ export const planActions: readonly ActionSpec[] = [
         ],
         apiEndpoint: 'POST update_plan_entry/{plan_id}/{entry_id}',
         bodySchema: UpdatePlanEntryPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handlePlanUpdateEntry,
     },
     {
         resource: 'plan',
@@ -98,7 +123,9 @@ export const planActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'POST update_run_in_plan_entry/{run_id}',
         bodySchema: UpdateRunInPlanEntryPayloadSchema,
+        helpExample: `--data '{"description":"..."}'`,
         isWrite: true,
+        handler: handlePlanUpdateRunInEntry,
     },
     {
         resource: 'plan',
@@ -108,6 +135,8 @@ export const planActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST close_plan/{plan_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; irreversible)',
+        handler: handlePlanClose,
     },
     {
         resource: 'plan',
@@ -118,6 +147,8 @@ export const planActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_plan/{plan_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail)',
+        handler: handlePlanDelete,
     },
     {
         resource: 'plan',
@@ -131,6 +162,8 @@ export const planActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_plan_entry/{plan_id}/{entry_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; entry_id is a UUID string; --soft NOT supported)',
+        handler: handlePlanDeleteEntry,
     },
     {
         resource: 'plan',
@@ -141,5 +174,7 @@ export const planActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_run_from_plan_entry/{run_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported)',
+        handler: handlePlanDeleteRunFromEntry,
     },
 ];

@@ -1,4 +1,11 @@
 import { AddSectionPayloadSchema, UpdateSectionPayloadSchema, MoveSectionPayloadSchema } from '../../schemas.js';
+import { handleSectionGet, handleSectionList } from '../handlers/section.js';
+import {
+    handleSectionAdd,
+    handleSectionDelete,
+    handleSectionMove,
+    handleSectionUpdate,
+} from '../handlers/section-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -18,6 +25,7 @@ export const sectionActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
         apiEndpoint: 'GET get_section/{section_id}',
         isWrite: false,
+        handler: handleSectionGet,
     },
     {
         resource: 'section',
@@ -26,6 +34,7 @@ export const sectionActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_sections/{project_id}',
         isWrite: false,
+        handler: handleSectionList,
     },
     {
         resource: 'section',
@@ -34,7 +43,9 @@ export const sectionActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_section/{project_id}',
         bodySchema: AddSectionPayloadSchema,
+        helpExample: `--data '{"name":"...","suite_id":1}'`,
         isWrite: true,
+        handler: handleSectionAdd,
     },
     {
         resource: 'section',
@@ -43,7 +54,9 @@ export const sectionActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
         apiEndpoint: 'POST update_section/{section_id}',
         bodySchema: UpdateSectionPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleSectionUpdate,
     },
     {
         resource: 'section',
@@ -52,7 +65,9 @@ export const sectionActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'section_id', description: 'TestRail section ID' }],
         apiEndpoint: 'POST move_section/{section_id}',
         bodySchema: MoveSectionPayloadSchema,
+        helpExample: `--data '{"parent_id":null,"after_id":42}'`,
         isWrite: true,
+        handler: handleSectionMove,
     },
     {
         resource: 'section',
@@ -63,5 +78,6 @@ export const sectionActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_section/{section_id}',
         isWrite: true,
         destructive: true,
+        handler: handleSectionDelete,
     },
 ];

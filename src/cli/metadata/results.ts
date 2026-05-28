@@ -1,4 +1,11 @@
 import { AddResultPayloadSchema, AddResultsForCasesPayloadSchema, AddResultsPayloadSchema } from '../../schemas.js';
+import { handleResultList, handleResultListForCase, handleResultListForTest } from '../handlers/result.js';
+import {
+    handleResultAdd,
+    handleResultAddBulk,
+    handleResultAddBulkByTest,
+    handleResultAddByTest,
+} from '../handlers/result-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -19,6 +26,7 @@ export const resultActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_results_for_run/{run_id}',
         isWrite: false,
+        handler: handleResultList,
     },
     {
         resource: 'result',
@@ -27,6 +35,7 @@ export const resultActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'GET get_results/{test_id}',
         isWrite: false,
+        handler: handleResultListForTest,
     },
     {
         resource: 'result',
@@ -38,6 +47,7 @@ export const resultActions: readonly ActionSpec[] = [
         ],
         apiEndpoint: 'GET get_results_for_case/{run_id}/{case_id}',
         isWrite: false,
+        handler: handleResultListForCase,
     },
     {
         resource: 'result',
@@ -49,7 +59,9 @@ export const resultActions: readonly ActionSpec[] = [
         ],
         apiEndpoint: 'POST add_result_for_case/{run_id}/{case_id}',
         bodySchema: AddResultPayloadSchema,
+        helpExample: `--data '{"status_id":1}'`,
         isWrite: true,
+        handler: handleResultAdd,
     },
     {
         resource: 'result',
@@ -58,7 +70,9 @@ export const resultActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'POST add_results_for_cases/{run_id}',
         bodySchema: AddResultsForCasesPayloadSchema,
+        helpExample: `--data '{"results":[{"case_id":1,"status_id":1}]}'`,
         isWrite: true,
+        handler: handleResultAddBulk,
     },
     {
         resource: 'result',
@@ -67,7 +81,9 @@ export const resultActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'POST add_results/{run_id}',
         bodySchema: AddResultsPayloadSchema,
+        helpExample: `--data '{"results":[{"test_id":1,"status_id":1}]}'`,
         isWrite: true,
+        handler: handleResultAddBulkByTest,
     },
     {
         resource: 'result',
@@ -76,6 +92,8 @@ export const resultActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'POST add_result/{test_id}',
         bodySchema: AddResultPayloadSchema,
+        helpExample: `--data '{"status_id":1}'`,
         isWrite: true,
+        handler: handleResultAddByTest,
     },
 ];

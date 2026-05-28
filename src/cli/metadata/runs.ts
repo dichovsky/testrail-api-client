@@ -1,4 +1,7 @@
 import { AddRunPayloadSchema, UpdateRunPayloadSchema } from '../../schemas.js';
+import { handleRunGet, handleRunList } from '../handlers/run.js';
+import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../handlers/run-write.js';
+import { handleRunWatch } from '../handlers/run-watch.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -19,6 +22,7 @@ export const runActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_run/{run_id}',
         isWrite: false,
+        handler: handleRunGet,
     },
     {
         resource: 'run',
@@ -27,6 +31,7 @@ export const runActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_runs/{project_id}',
         isWrite: false,
+        handler: handleRunList,
     },
     {
         resource: 'run',
@@ -36,6 +41,7 @@ export const runActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_run/{run_id}',
         isWrite: false,
+        handler: handleRunWatch,
     },
     {
         resource: 'run',
@@ -44,7 +50,9 @@ export const runActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_run/{project_id}',
         bodySchema: AddRunPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleRunAdd,
     },
     {
         resource: 'run',
@@ -53,7 +61,9 @@ export const runActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'POST update_run/{run_id}',
         bodySchema: UpdateRunPayloadSchema,
+        helpExample: `--data '{"name":"..."}'`,
         isWrite: true,
+        handler: handleRunUpdate,
     },
     {
         resource: 'run',
@@ -63,6 +73,8 @@ export const runActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST close_run/{run_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; irreversible)',
+        handler: handleRunClose,
     },
     {
         resource: 'run',
@@ -73,5 +85,6 @@ export const runActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_run/{run_id}',
         isWrite: true,
         destructive: true,
+        handler: handleRunDelete,
     },
 ];

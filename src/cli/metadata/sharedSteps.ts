@@ -1,4 +1,6 @@
 import { AddSharedStepPayloadSchema, UpdateSharedStepPayloadSchema } from '../../schemas.js';
+import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from '../handlers/shared-step.js';
+import { handleSharedStepAdd, handleSharedStepUpdate, handleSharedStepDelete } from '../handlers/shared-step-write.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -18,6 +20,7 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
         apiEndpoint: 'GET get_shared_step/{shared_step_id}',
         isWrite: false,
+        handler: handleSharedStepGet,
     },
     {
         resource: 'shared-step',
@@ -26,6 +29,7 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_shared_steps/{project_id}',
         isWrite: false,
+        handler: handleSharedStepList,
     },
     {
         resource: 'shared-step',
@@ -34,6 +38,7 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
         apiEndpoint: 'GET get_shared_step_history/{shared_step_id}',
         isWrite: false,
+        handler: handleSharedStepHistory,
     },
     {
         resource: 'shared-step',
@@ -42,7 +47,9 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'POST add_shared_step/{project_id}',
         bodySchema: AddSharedStepPayloadSchema,
+        helpExample: `--data '{"title":"..."}'  (TestRail 7.0+)`,
         isWrite: true,
+        handler: handleSharedStepAdd,
     },
     {
         resource: 'shared-step',
@@ -51,7 +58,9 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
         apiEndpoint: 'POST update_shared_step/{shared_step_id}',
         bodySchema: UpdateSharedStepPayloadSchema,
+        helpExample: `--data '{"title":"..."}'  (TestRail 7.0+)`,
         isWrite: true,
+        handler: handleSharedStepUpdate,
     },
     {
         resource: 'shared-step',
@@ -62,5 +71,7 @@ export const sharedStepActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_shared_step/{shared_step_id}',
         isWrite: true,
         destructive: true,
+        helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.0+)',
+        handler: handleSharedStepDelete,
     },
 ];
