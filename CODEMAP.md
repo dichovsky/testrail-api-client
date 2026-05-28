@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "47415b827e45239c0521ed2770d9622804a2e68f7fdc050dae3557b680699349",
+  "sourceHash": "d6fb7e4cf618341c7ce0d9b5ae7c5b9483230d4cee91798e53a2cc848795b6cb",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -20,349 +20,349 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "AddCaseFieldConfigPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1193,
+      "file": "src/schemas/metadata.ts",
+      "line": 237,
       "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddCaseFieldConfigPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1179,
+      "file": "src/schemas/metadata.ts",
+      "line": 223,
       "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), }), options: zObject({ is_required: z.boolean(), default_value: z.…"
     },
     {
       "name": "AddCaseFieldPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1205,
+      "file": "src/schemas/metadata.ts",
+      "line": 249,
       "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddCaseFieldPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1195,
+      "file": "src/schemas/metadata.ts",
+      "line": 239,
       "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), template_ids: z.array…"
     },
     {
       "name": "AddCaseFieldResponse",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 708,
+      "file": "src/schemas/metadata.ts",
+      "line": 165,
       "signature": "export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>",
       "typeOnly": true
     },
     {
       "name": "AddCaseFieldResponseSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 683,
+      "file": "src/schemas/metadata.ts",
+      "line": 140,
       "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
     },
     {
       "name": "AddCasePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1058,
+      "file": "src/schemas/cases.ts",
+      "line": 94,
       "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddCasePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1047,
+      "file": "src/schemas/cases.ts",
+      "line": 83,
       "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
     },
     {
       "name": "AddCasesBulkPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1085,
+      "file": "src/schemas/cases.ts",
+      "line": 121,
       "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddCasesBulkPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1083,
+      "file": "src/schemas/cases.ts",
+      "line": 119,
       "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
     },
     {
       "name": "AddConfigurationGroupPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1559,
+      "file": "src/schemas/configurations.ts",
+      "line": 35,
       "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddConfigurationGroupPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1555,
+      "file": "src/schemas/configurations.ts",
+      "line": 31,
       "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "AddConfigurationPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1571,
+      "file": "src/schemas/configurations.ts",
+      "line": 47,
       "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddConfigurationPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1567,
+      "file": "src/schemas/configurations.ts",
+      "line": 43,
       "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "AddDatasetPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 975,
+      "file": "src/schemas/datasets.ts",
+      "line": 49,
       "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddDatasetPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 971,
+      "file": "src/schemas/datasets.ts",
+      "line": 45,
       "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), })"
     },
     {
       "name": "AddGroupPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 99,
+      "file": "src/schemas/users.ts",
+      "line": 66,
       "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddGroupPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 94,
+      "file": "src/schemas/users.ts",
+      "line": 61,
       "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })",
       "jsdoc": "Group write-payload schemas (TestRail 7.5+). Mirror the variable/shared-step/milestone payload-migration precedent: each schema is declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future `custom_*`-style fields TestRail may add to either endpoint."
     },
     {
       "name": "AddMilestonePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1494,
+      "file": "src/schemas/milestones.ts",
+      "line": 44,
       "signature": "export type AddMilestonePayload = z.infer<typeof AddMilestonePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddMilestonePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1485,
+      "file": "src/schemas/milestones.ts",
+      "line": 35,
       "signature": "export const AddMilestonePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.number().optional(…"
     },
     {
       "name": "AddPlanEntryPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1369,
+      "file": "src/schemas/plans.ts",
+      "line": 139,
       "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddPlanEntryPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1346,
+      "file": "src/schemas/plans.ts",
+      "line": 116,
       "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
     },
     {
       "name": "AddPlanPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1406,
+      "file": "src/schemas/plans.ts",
+      "line": 176,
       "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddPlanPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1393,
+      "file": "src/schemas/plans.ts",
+      "line": 163,
       "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
     },
     {
       "name": "AddProjectPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1438,
+      "file": "src/schemas/projects.ts",
+      "line": 66,
       "signature": "export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddProjectPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1431,
+      "file": "src/schemas/projects.ts",
+      "line": 59,
       "signature": "export const AddProjectPayloadSchema = zObject({ name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
     },
     {
       "name": "AddResultForCasePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1268,
+      "file": "src/schemas/results.ts",
+      "line": 67,
       "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddResultForCasePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1257,
+      "file": "src/schemas/results.ts",
+      "line": 56,
       "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
     },
     {
       "name": "AddResultForTestPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1291,
+      "file": "src/schemas/results.ts",
+      "line": 90,
       "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddResultForTestPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1280,
+      "file": "src/schemas/results.ts",
+      "line": 79,
       "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
     },
     {
       "name": "AddResultPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1252,
+      "file": "src/schemas/results.ts",
+      "line": 51,
       "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddResultPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1242,
+      "file": "src/schemas/results.ts",
+      "line": 41,
       "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…",
       "jsdoc": "SPEC #A.1 — canonical exemplar for **request** payload schemas."
     },
     {
       "name": "AddResultsForCasesPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1274,
+      "file": "src/schemas/results.ts",
+      "line": 73,
       "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddResultsForCasesPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1270,
+      "file": "src/schemas/results.ts",
+      "line": 69,
       "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
     },
     {
       "name": "AddResultsPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1297,
+      "file": "src/schemas/results.ts",
+      "line": 96,
       "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddResultsPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1293,
+      "file": "src/schemas/results.ts",
+      "line": 92,
       "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
     },
     {
       "name": "AddRunPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1218,
+      "file": "src/schemas/runs.ts",
+      "line": 68,
       "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddRunPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1207,
+      "file": "src/schemas/runs.ts",
+      "line": 57,
       "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
     },
     {
       "name": "AddRunToPlanEntryPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1332,
+      "file": "src/schemas/plans.ts",
+      "line": 102,
       "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddRunToPlanEntryPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1323,
+      "file": "src/schemas/plans.ts",
+      "line": 93,
       "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
     },
     {
       "name": "AddSectionPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1476,
+      "file": "src/schemas/sections.ts",
+      "line": 50,
       "signature": "export type AddSectionPayload = z.infer<typeof AddSectionPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddSectionPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1469,
+      "file": "src/schemas/sections.ts",
+      "line": 43,
       "signature": "export const AddSectionPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), parent_id: z.number().optional(), description: z.string().optional(), })"
     },
     {
       "name": "AddSharedStepPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1529,
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 70,
       "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddSharedStepPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1524,
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 65,
       "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
       "jsdoc": "SPEC #2.1.15 — verified against the `add_shared_step` request-body field table (Support article 7077919815572): only `title` is `required=true`; `custom_steps_separated` is `required=false`. The doc's request example also shows step entries with a subset of fields (just `content`), which the `z.record(string, unknown())` per-step shape accepts."
     },
     {
       "name": "AddSuitePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1454,
+      "file": "src/schemas/suites.ts",
+      "line": 27,
       "signature": "export type AddSuitePayload = z.infer<typeof AddSuitePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddSuitePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1449,
+      "file": "src/schemas/suites.ts",
+      "line": 22,
       "signature": "export const AddSuitePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), })"
     },
     {
@@ -377,16 +377,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "AddVariablePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 916,
+      "file": "src/schemas/variables.ts",
+      "line": 30,
       "signature": "export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "AddVariablePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 912,
+      "file": "src/schemas/variables.ts",
+      "line": 26,
       "signature": "export const AddVariablePayloadSchema = zObject({ name: z.string(), })"
     },
     {
@@ -401,8 +401,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "AttachmentSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 818,
+      "file": "src/schemas/attachments.ts",
+      "line": 52,
       "signature": "export const AttachmentSchema = zObject({ attachment_id: z.number().nullish(), id: z.union([z.number(), z.string()]).nullish(), name: z.string().nullish(), filename: z.string().nullish(), filetype: z.…"
     },
     {
@@ -434,22 +434,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "CaseFieldConfigSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 641,
+      "file": "src/schemas/metadata.ts",
+      "line": 98,
       "signature": "export const CaseFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
     },
     {
       "name": "CaseFieldSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 648,
+      "file": "src/schemas/metadata.ts",
+      "line": 105,
       "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
     },
     {
       "name": "CaseSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 259,
+      "file": "src/schemas/cases.ts",
+      "line": 7,
       "signature": "export const CaseSchema = zObject({ id: z.number(), title: z.string(), section_id: z.number(), template_id: z.number().nullish(), type_id: z.number().nullish(), priority_id: z.number().nullish(), mile…"
     },
     {
@@ -463,8 +463,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "CaseStatusSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 569,
+      "file": "src/schemas/metadata.ts",
+      "line": 72,
       "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean(), })"
     },
     {
@@ -479,8 +479,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "CaseTypeSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 735,
+      "file": "src/schemas/metadata.ts",
+      "line": 192,
       "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
     },
     {
@@ -504,77 +504,77 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "ConfigurationGroupSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 761,
+      "file": "src/schemas/configurations.ts",
+      "line": 14,
       "signature": "export const ConfigurationGroupSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number(), configs: z.array(ConfigurationSchema), })"
     },
     {
       "name": "ConfigurationSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 753,
+      "file": "src/schemas/configurations.ts",
+      "line": 6,
       "signature": "export const ConfigurationSchema = zObject({ id: z.number(), name: z.string(), group_id: z.number(), })"
     },
     {
       "name": "CopyCasesToSectionPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1149,
+      "file": "src/schemas/cases.ts",
+      "line": 185,
       "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "CopyCasesToSectionPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1145,
+      "file": "src/schemas/cases.ts",
+      "line": 181,
       "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
     },
     {
       "name": "Dataset",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 969,
+      "file": "src/schemas/datasets.ts",
+      "line": 43,
       "signature": "export type Dataset = z.infer<typeof DatasetSchema>",
       "typeOnly": true
     },
     {
       "name": "DatasetSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 963,
+      "file": "src/schemas/datasets.ts",
+      "line": 37,
       "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Datasets\" API doc (support article 7077300491540) on 2026-05-23. Documented response fields are `id`, `name`, and `variables[]`; `id` and `name` are required scalars, `variables` is the array of `DatasetVariable` entries. `variables` is modelled as `.nullish()` for defensive back-compat — TestRail's `add_dataset` example also shows the same shape but older API revisions or edge cases (e.g. an empty dataset mid-creation) may omit the key. Any forward-compat keys the server might add (e.g. `project_id`, `created_on`, `created_by`) survive at runtime via `zObject()`'s passthrough; they are intentionally not declared here until the upstream doc lists them (SPEC #1.5)."
     },
     {
       "name": "DatasetVariable",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 948,
+      "file": "src/schemas/datasets.ts",
+      "line": 22,
       "signature": "export type DatasetVariable = z.infer<typeof DatasetVariableSchema>",
       "typeOnly": true
     },
     {
       "name": "DatasetVariableSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 942,
+      "file": "src/schemas/datasets.ts",
+      "line": 16,
       "signature": "export const DatasetVariableSchema = zObject({ id: z.number(), name: z.string(), value: z.string().nullable(), })",
       "jsdoc": "SPEC #2.1.16 — embedded variable/value entry inside a Dataset response. Per the official TestRail \"Datasets\" API doc (support article 7077300491540), `get_dataset` returns a `variables` array where each entry has `id` (integer), `name` (string), and `value`. `id` and `name` are documented as plain non-nullable scalars; `value` may be null when the variable is unset/cleared on the server side, so it is modelled as nullable per SPEC #2.1.16 review. `zObject()`'s passthrough preserves any forward-compat keys."
     },
     {
       "name": "DeleteCasesPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1122,
+      "file": "src/schemas/cases.ts",
+      "line": 158,
       "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "DeleteCasesPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1114,
+      "file": "src/schemas/cases.ts",
+      "line": 150,
       "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
     },
     {
@@ -658,16 +658,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "Group",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 79,
+      "file": "src/schemas/users.ts",
+      "line": 46,
       "signature": "export type Group = z.infer<typeof GroupSchema>",
       "typeOnly": true
     },
     {
       "name": "GroupSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 73,
+      "file": "src/schemas/users.ts",
+      "line": 40,
       "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
     },
     {
@@ -697,23 +697,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "HistoryEntrySchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 615,
+      "file": "src/schemas/cases.ts",
+      "line": 70,
       "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
     },
     {
       "name": "LabelEmbedded",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 255,
+      "file": "src/schemas/metadata.ts",
+      "line": 39,
       "signature": "export type LabelEmbedded = z.infer<typeof LabelEmbeddedSchema>",
       "typeOnly": true
     },
     {
       "name": "LabelEmbeddedSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 247,
+      "file": "src/schemas/metadata.ts",
+      "line": 31,
       "signature": "export const LabelEmbeddedSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.number().nullish(), created_on: z.number().nullish(), })",
       "jsdoc": "Shape of a Label object as embedded inside a parent resource response — notably `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two endpoints emit the same logical shape but the wider TestRail Labels API has historically diverged on naming (`title` on embedded forms vs `name` on the stand-alone `get_label`), so the inner schema accepts both."
     },
@@ -728,44 +728,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "MilestoneSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 511,
+      "file": "src/schemas/milestones.ts",
+      "line": 6,
       "signature": "export const MilestoneSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), start_on: z.number().nullish(), started_on: z.number().nullish(), is_completed: z.boolean(…"
     },
     {
       "name": "MoveCasesToSectionPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1162,
+      "file": "src/schemas/cases.ts",
+      "line": 198,
       "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "MoveCasesToSectionPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1157,
+      "file": "src/schemas/cases.ts",
+      "line": 193,
       "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
     },
     {
       "name": "MoveSectionPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 314,
+      "file": "src/schemas/sections.ts",
+      "line": 33,
       "signature": "export type MoveSectionPayload = z.infer<typeof MoveSectionPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "MoveSectionPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 309,
+      "file": "src/schemas/sections.ts",
+      "line": 28,
       "signature": "export const MoveSectionPayloadSchema = zObject({ parent_id: z.number().nullable().optional(), after_id: z.number().nullable().optional(), })"
     },
     {
       "name": "PaginationSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
+      "file": "src/schemas/common.ts",
       "line": 12,
       "signature": "export const PaginationSchema = zObject({ limit: z.number().optional(), offset: z.number().optional(), })",
       "jsdoc": "Core schemas for common TestRail API structures. These are used to validate API responses and provide static type inference via `z.infer`."
@@ -789,30 +789,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "PlanEntryRunPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1316,
+      "file": "src/schemas/plans.ts",
+      "line": 86,
       "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "PlanEntryRunPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1306,
+      "file": "src/schemas/plans.ts",
+      "line": 76,
       "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
     },
     {
       "name": "PlanEntrySchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 369,
+      "file": "src/schemas/plans.ts",
+      "line": 7,
       "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), assignedto_id: z.number().nullish(), include_all: z.boolean(), case_…"
     },
     {
       "name": "PlanSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 391,
+      "file": "src/schemas/plans.ts",
+      "line": 29,
       "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), is_completed: z.boolea…"
     },
     {
@@ -826,8 +826,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "PrioritySchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 554,
+      "file": "src/schemas/metadata.ts",
+      "line": 57,
       "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
     },
     {
@@ -841,8 +841,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "ProjectSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 155,
+      "file": "src/schemas/projects.ts",
+      "line": 6,
       "signature": "export const ProjectSchema = zObject({ id: z.number(), name: z.string(), announcement: z.string().nullish(), show_announcement: z.boolean().nullish(), is_completed: z.boolean().nullish(), completed_on…"
     },
     {
@@ -874,16 +874,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "ReportResultSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1031,
+      "file": "src/schemas/reports.ts",
+      "line": 46,
       "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. `run_report` returns three URLs per the current doc example: `report_url` (the report view), `report_html`, and `report_pdf`. `report_url` is required; `report_html` and `report_pdf` are modelled as `.nullish()` since the endpoint requires TestRail 5.7+ and older servers may emit fewer keys. `user_report_url` is NOT in the current doc but remains `.nullish()` as a forward/legacy-compat placeholder for TestRail revisions that emitted it."
     },
     {
       "name": "ReportSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1005,
+      "file": "src/schemas/reports.ts",
+      "line": 20,
       "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Reports and Cross-Project Reports\" API doc (support article 7077825062036) on 2026-05-23. Per the \"system fields always included in the response\" table, `get_reports` returns `id`, `name`, `description`, and six `notify_*` fields. `id` and `name` are required scalars; `description` is documented as a string but the doc example shows `\"description\": null`, so `.nullish()` matches the wire. The six `notify_*` fields are always-included per the doc, but modelled as `.nullish()` for defensive back-compat: older TestRail versions may omit them and `notify_link_recipients` is documented as a string that the doc example also shows as `null`. `is_shared` is NOT in the current doc field table; it remains `.nullish()` as a forward-compat placeholder."
     },
@@ -914,22 +914,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "ResultFieldConfigSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 710,
+      "file": "src/schemas/metadata.ts",
+      "line": 167,
       "signature": "export const ResultFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
     },
     {
       "name": "ResultFieldSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 717,
+      "file": "src/schemas/metadata.ts",
+      "line": 174,
       "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
     },
     {
       "name": "ResultSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 493,
+      "file": "src/schemas/results.ts",
+      "line": 13,
       "signature": "export const ResultSchema = zObject({ id: z.number(), test_id: z.number(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().nullish(), defects: …",
       "jsdoc": "SPEC #A.1 — canonical exemplar for **response** schemas."
     },
@@ -945,8 +945,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "RoleSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 65,
+      "file": "src/schemas/users.ts",
+      "line": 32,
       "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
     },
     {
@@ -960,8 +960,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "RunSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 318,
+      "file": "src/schemas/runs.ts",
+      "line": 6,
       "signature": "export const RunSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), i…"
     },
     {
@@ -975,23 +975,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "SectionSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 287,
+      "file": "src/schemas/sections.ts",
+      "line": 6,
       "signature": "export const SectionSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), parent_id: z.number().nullish(), display_order: z.number(), depth: z.n…"
     },
     {
       "name": "SharedStep",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 888,
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 48,
       "signature": "export type SharedStep = z.infer<typeof SharedStepSchema>",
       "typeOnly": true
     },
     {
       "name": "SharedStepSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 876,
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 36,
       "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().nullish(), case_ids: z.array(z.number()).nullish(), created_on: z.number().nullish(), created_by: z.…",
       "jsdoc": "SPEC #2.1.15 — verified against the official Shared Steps API doc (TestRail Support article 7077919815572). Endpoint requires TestRail 7.0+."
     },
@@ -1007,16 +1007,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "SoftDeletePreview",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1140,
+      "file": "src/schemas/cases.ts",
+      "line": 176,
       "signature": "export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>",
       "typeOnly": true
     },
     {
       "name": "SoftDeletePreviewSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1130,
+      "file": "src/schemas/cases.ts",
+      "line": 166,
       "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().optional(), affected_cases: z.number().optional(), affected_sections: z.number().optional(), affected_runs: z.number().optio…"
     },
     {
@@ -1030,8 +1030,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "StatusSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 540,
+      "file": "src/schemas/metadata.ts",
+      "line": 43,
       "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
     },
     {
@@ -1045,8 +1045,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "SuiteSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 206,
+      "file": "src/schemas/suites.ts",
+      "line": 6,
       "signature": "export const SuiteSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_id: z.number(), is_master: z.boolean().nullish(), is_baseline: z.boolean().nullish(), …"
     },
     {
@@ -1061,8 +1061,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "TemplateSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 743,
+      "file": "src/schemas/metadata.ts",
+      "line": 200,
       "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
     },
     {
@@ -1101,7 +1101,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "TestRailConfigSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
+      "file": "src/schemas/common.ts",
       "line": 17,
       "signature": "export const TestRailConfigSchema = zObject({ baseUrl: z.string().url(), email: z.string().email(), apiKey: z.string().min(1), timeout: z.number().optional(), maxRetries: z.number().int().nonnegative(…"
     },
@@ -1116,235 +1116,235 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "TestSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 433,
+      "file": "src/schemas/tests.ts",
+      "line": 6,
       "signature": "export const TestSchema = zObject({ id: z.number(), case_id: z.number(), status_id: z.number(), assignedto_id: z.number().nullish(), run_id: z.number(), title: z.string(), template_id: z.number().null…"
     },
     {
       "name": "UpdateCasePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1071,
+      "file": "src/schemas/cases.ts",
+      "line": 107,
       "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateCasePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1060,
+      "file": "src/schemas/cases.ts",
+      "line": 96,
       "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
     },
     {
       "name": "UpdateCasesPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1105,
+      "file": "src/schemas/cases.ts",
+      "line": 141,
       "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateCasesPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1093,
+      "file": "src/schemas/cases.ts",
+      "line": 129,
       "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number…"
     },
     {
       "name": "UpdateConfigurationGroupPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1565,
+      "file": "src/schemas/configurations.ts",
+      "line": 41,
       "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateConfigurationGroupPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1561,
+      "file": "src/schemas/configurations.ts",
+      "line": 37,
       "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
       "name": "UpdateConfigurationPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1577,
+      "file": "src/schemas/configurations.ts",
+      "line": 53,
       "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateConfigurationPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1573,
+      "file": "src/schemas/configurations.ts",
+      "line": 49,
       "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
     },
     {
       "name": "UpdateDatasetPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 987,
+      "file": "src/schemas/datasets.ts",
+      "line": 61,
       "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateDatasetPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 983,
+      "file": "src/schemas/datasets.ts",
+      "line": 57,
       "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), })",
       "jsdoc": "`update_dataset` accepts a partial body (rename-only at the moment). Mirrors the `UpdateVariablePayloadSchema` precedent — empty `{}` body is intentionally allowed and forwarded to TestRail, which treats it as a no-op. `custom_*` extras flow through `zObject()`'s passthrough."
     },
     {
       "name": "UpdateGroupPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 106,
+      "file": "src/schemas/users.ts",
+      "line": 73,
       "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateGroupPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 101,
+      "file": "src/schemas/users.ts",
+      "line": 68,
       "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
     },
     {
       "name": "UpdateMilestonePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1507,
+      "file": "src/schemas/milestones.ts",
+      "line": 57,
       "signature": "export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateMilestonePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1496,
+      "file": "src/schemas/milestones.ts",
+      "line": 46,
       "signature": "export const UpdateMilestonePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.numb…"
     },
     {
       "name": "UpdatePlanEntryPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1391,
+      "file": "src/schemas/plans.ts",
+      "line": 161,
       "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdatePlanEntryPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1371,
+      "file": "src/schemas/plans.ts",
+      "line": 141,
       "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
     },
     {
       "name": "UpdatePlanPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1421,
+      "file": "src/schemas/plans.ts",
+      "line": 191,
       "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdatePlanPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1408,
+      "file": "src/schemas/plans.ts",
+      "line": 178,
       "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), start_on: z…"
     },
     {
       "name": "UpdateProjectPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1447,
+      "file": "src/schemas/projects.ts",
+      "line": 75,
       "signature": "export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateProjectPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1440,
+      "file": "src/schemas/projects.ts",
+      "line": 68,
       "signature": "export const UpdateProjectPayloadSchema = zObject({ name: z.string().optional(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
     },
     {
       "name": "UpdateRunInPlanEntryPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1344,
+      "file": "src/schemas/plans.ts",
+      "line": 114,
       "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateRunInPlanEntryPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1337,
+      "file": "src/schemas/plans.ts",
+      "line": 107,
       "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
     },
     {
       "name": "UpdateRunPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1230,
+      "file": "src/schemas/runs.ts",
+      "line": 80,
       "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateRunPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1220,
+      "file": "src/schemas/runs.ts",
+      "line": 70,
       "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
     },
     {
       "name": "UpdateSectionPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1483,
+      "file": "src/schemas/sections.ts",
+      "line": 57,
       "signature": "export type UpdateSectionPayload = z.infer<typeof UpdateSectionPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateSectionPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1478,
+      "file": "src/schemas/sections.ts",
+      "line": 52,
       "signature": "export const UpdateSectionPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
     },
     {
       "name": "UpdateSharedStepPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1545,
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 86,
       "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateSharedStepPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1540,
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 81,
       "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })",
       "jsdoc": "Update payload for `update_shared_step`. Every field is optional — TestRail accepts an empty object (`{}`) as a no-op update, so the CLI's `shared-step update <id> --data '{}'` is intentionally a valid call. This mirrors `UpdateMilestonePayloadSchema` and `UpdateCasePayloadSchema`: empty bodies are accepted at the schema layer; rejecting them is the API's responsibility, not the client's. Callers that want to enforce \"non-empty update\" must do so above this schema."
     },
     {
       "name": "UpdateSuitePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 1461,
+      "file": "src/schemas/suites.ts",
+      "line": 34,
       "signature": "export type UpdateSuitePayload = z.infer<typeof UpdateSuitePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateSuitePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 1456,
+      "file": "src/schemas/suites.ts",
+      "line": 29,
       "signature": "export const UpdateSuitePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
     },
     {
@@ -1359,16 +1359,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "UpdateVariablePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 930,
+      "file": "src/schemas/variables.ts",
+      "line": 44,
       "signature": "export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UpdateVariablePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 926,
+      "file": "src/schemas/variables.ts",
+      "line": 40,
       "signature": "export const UpdateVariablePayloadSchema = zObject({ name: z.string().optional(), })",
       "jsdoc": "`update_variable` accepts an empty body as a no-op: every field is optional. We intentionally do NOT enforce \"at least one field set\" client-side — TestRail itself accepts `{}` and returns the unchanged variable. Mirrors the `UpdateSectionPayloadSchema` precedent below, where empty-body updates are also passed through. `custom_*` extras flow through `zObject()`'s passthrough."
     },
@@ -1399,54 +1399,54 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "name": "UserAddPayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 137,
+      "file": "src/schemas/users.ts",
+      "line": 104,
       "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UserAddPayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 125,
+      "file": "src/schemas/users.ts",
+      "line": 92,
       "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: z.string().email(), password: z.string().min(1), is_active: z.boolean().optional(), role_id: z.number().int().positive().o…",
       "jsdoc": "User write-payload schemas (TestRail 7.3+). Mirror the group/milestone payload pattern: declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future fields TestRail may add to either endpoint."
     },
     {
       "name": "UserSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 39,
+      "file": "src/schemas/users.ts",
+      "line": 6,
       "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications:…"
     },
     {
       "name": "UserUpdatePayload",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 151,
+      "file": "src/schemas/users.ts",
+      "line": 118,
       "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>",
       "typeOnly": true
     },
     {
       "name": "UserUpdatePayloadSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 139,
+      "file": "src/schemas/users.ts",
+      "line": 106,
       "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: z.string().email().optional(), password: z.string().min(1).optional(), is_active: z.boolean().optional(), ro…"
     },
     {
       "name": "Variable",
       "kind": "type",
-      "file": "src/schemas.ts",
-      "line": 910,
+      "file": "src/schemas/variables.ts",
+      "line": 24,
       "signature": "export type Variable = z.infer<typeof VariableSchema>",
       "typeOnly": true
     },
     {
       "name": "VariableSchema",
       "kind": "const",
-      "file": "src/schemas.ts",
-      "line": 905,
+      "file": "src/schemas/variables.ts",
+      "line": 19,
       "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Variables\" API doc (support article 7077979742868) on 2026-05-23. The documented Variable response object has exactly two fields, both required and non-nullable: `id: integer` and `name: string`. No back-compat `.nullish()` is added on either field — TestRail has emitted this shape since the endpoint was introduced and the doc shows no version gating. `zObject()`'s passthrough still preserves any forward-compat keys TestRail may add. The doc-level `get_variables` pagination envelope (`offset` / `limit` / `size` / `_links` / `variables[]`) is handled outside the schema by the `getVariables()` module method, which unwraps the envelope before parsing."
     }
@@ -3451,7 +3451,472 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata.ts",
       "imports": [
-        "../schemas.js",
+        "./metadata/attachments.js",
+        "./metadata/bdd.js",
+        "./metadata/caseFields.js",
+        "./metadata/caseStatuses.js",
+        "./metadata/caseTypes.js",
+        "./metadata/cases.js",
+        "./metadata/configurationGroups.js",
+        "./metadata/configurations.js",
+        "./metadata/datasets.js",
+        "./metadata/groups.js",
+        "./metadata/milestones.js",
+        "./metadata/plans.js",
+        "./metadata/priorities.js",
+        "./metadata/projects.js",
+        "./metadata/reports.js",
+        "./metadata/resultFields.js",
+        "./metadata/results.js",
+        "./metadata/roles.js",
+        "./metadata/runs.js",
+        "./metadata/sections.js",
+        "./metadata/sharedSteps.js",
+        "./metadata/statuses.js",
+        "./metadata/suites.js",
+        "./metadata/templates.js",
+        "./metadata/tests.js",
+        "./metadata/types.js",
+        "./metadata/users.js",
+        "./metadata/variables.js"
+      ],
+      "reExports": [
+        "./metadata/types.js"
+      ],
+      "symbols": [
+        {
+          "name": "ACTIONS",
+          "kind": "const",
+          "line": 61,
+          "exported": true,
+          "signature": "export const ACTIONS: readonly ActionSpec[] = [ ...projectActions.slice(0, 2), ...suiteActions.slice(0, 2), ...caseActions.slice(0, 3), ...runActions.slice(0, 3), ...testActions, ...resultActions.slic…"
+        },
+        {
+          "name": "getActionSpec",
+          "kind": "function",
+          "line": 136,
+          "exported": true,
+          "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/attachments.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "attachmentActions",
+          "kind": "const",
+          "line": 18,
+          "exported": true,
+          "signature": "export const attachmentActions: readonly ActionSpec[] = [ { resource: 'attachment', action: 'list-for-case', summary: 'List attachments on a test case', pathParams: [{ name: 'case_id', description: 'T…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/bdd.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "bddActions",
+          "kind": "const",
+          "line": 11,
+          "exported": true,
+          "signature": "export const bddActions: readonly ActionSpec[] = [ { resource: 'bdd', action: 'get', summary: \"Download a case's BDD (Gherkin .feature) content to --out <path>\", pathParams: [{ name: 'case_id', descri…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/caseFields.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "caseFieldActions",
+          "kind": "const",
+          "line": 9,
+          "exported": true,
+          "signature": "export const caseFieldActions: readonly ActionSpec[] = [ { resource: 'case-field', action: 'list', summary: 'List all custom case fields defined on the TestRail instance', pathParams: [], apiEndpoint:…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/cases.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "caseActions",
+          "kind": "const",
+          "line": 26,
+          "exported": true,
+          "signature": "export const caseActions: readonly ActionSpec[] = [ { resource: 'case', action: 'get', summary: 'Fetch a single test case by ID', pathParams: [{ name: 'case_id', description: 'TestRail case ID' }], ap…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/caseStatuses.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "caseStatusActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const caseStatusActions: readonly ActionSpec[] = [ { resource: 'case-status', action: 'list', summary: 'List case-level lifecycle statuses (TestRail 7.5+)', pathParams: [], apiEndpoint: 'GET ge…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/caseTypes.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "caseTypeActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const caseTypeActions: readonly ActionSpec[] = [ { resource: 'case-type', action: 'list', summary: 'List all case types defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/configurationGroups.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "configurationGroupActions",
+          "kind": "const",
+          "line": 15,
+          "exported": true,
+          "signature": "export const configurationGroupActions: readonly ActionSpec[] = [ { resource: 'configuration-group', action: 'add', summary: 'Create a new configuration group in a project (e.g. \"Browsers\")', pathPara…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/configurations.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "configurationActions",
+          "kind": "const",
+          "line": 18,
+          "exported": true,
+          "signature": "export const configurationActions: readonly ActionSpec[] = [ { resource: 'configuration', action: 'list', summary: 'List configuration groups (with nested configs) for a project', pathParams: [{ name:…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/datasets.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "datasetActions",
+          "kind": "const",
+          "line": 12,
+          "exported": true,
+          "signature": "export const datasetActions: readonly ActionSpec[] = [ { resource: 'dataset', action: 'get', summary: 'Fetch a single dataset by ID', pathParams: [{ name: 'dataset_id', description: 'TestRail dataset …"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/groups.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "groupActions",
+          "kind": "const",
+          "line": 17,
+          "exported": true,
+          "signature": "export const groupActions: readonly ActionSpec[] = [ { resource: 'group', action: 'get', summary: 'Fetch a single user group by ID (TestRail 7.5+)', pathParams: [{ name: 'group_id', description: 'Test…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/milestones.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "milestoneActions",
+          "kind": "const",
+          "line": 12,
+          "exported": true,
+          "signature": "export const milestoneActions: readonly ActionSpec[] = [ { resource: 'milestone', action: 'get', summary: 'Fetch a single milestone by ID', pathParams: [{ name: 'milestone_id', description: 'TestRail …"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/plans.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "planActions",
+          "kind": "const",
+          "line": 26,
+          "exported": true,
+          "signature": "export const planActions: readonly ActionSpec[] = [ { resource: 'plan', action: 'get', summary: 'Fetch a single test plan by ID', pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }], ap…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/priorities.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "priorityActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const priorityActions: readonly ActionSpec[] = [ { resource: 'priority', action: 'list', summary: 'List all case priorities defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET …"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/projects.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "projectActions",
+          "kind": "const",
+          "line": 15,
+          "exported": true,
+          "signature": "export const projectActions: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project …"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/reports.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "reportActions",
+          "kind": "const",
+          "line": 8,
+          "exported": true,
+          "signature": "export const reportActions: readonly ActionSpec[] = [ { resource: 'report', action: 'list', summary: 'List report templates configured for a project', pathParams: [{ name: 'project_id', description: '…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/resultFields.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "resultFieldActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const resultFieldActions: readonly ActionSpec[] = [ { resource: 'result-field', action: 'list', summary: 'List all custom result fields defined on the TestRail instance', pathParams: [], apiEnd…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/results.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "resultActions",
+          "kind": "const",
+          "line": 14,
+          "exported": true,
+          "signature": "export const resultActions: readonly ActionSpec[] = [ { resource: 'result', action: 'list', summary: 'List results for a run (paginated)', pathParams: [], apiEndpoint: 'GET get_results_for_run/{run_id…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/roles.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "roleActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const roleActions: readonly ActionSpec[] = [ { resource: 'role', action: 'list', summary: 'List all user roles defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_roles', i…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/runs.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "runActions",
+          "kind": "const",
+          "line": 14,
+          "exported": true,
+          "signature": "export const runActions: readonly ActionSpec[] = [ { resource: 'run', action: 'get', summary: 'Fetch a single run by ID', pathParams: [{ name: 'run_id', description: 'TestRail run ID' }], apiEndpoint:…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/sections.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "sectionActions",
+          "kind": "const",
+          "line": 13,
+          "exported": true,
+          "signature": "export const sectionActions: readonly ActionSpec[] = [ { resource: 'section', action: 'get', summary: 'Fetch a single section by ID', pathParams: [{ name: 'section_id', description: 'TestRail section …"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/sharedSteps.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "sharedStepActions",
+          "kind": "const",
+          "line": 13,
+          "exported": true,
+          "signature": "export const sharedStepActions: readonly ActionSpec[] = [ { resource: 'shared-step', action: 'get', summary: 'Fetch a single shared step by ID', pathParams: [{ name: 'shared_step_id', description: 'Te…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/statuses.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "statusActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const statusActions: readonly ActionSpec[] = [ { resource: 'status', action: 'list', summary: 'List all result statuses defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/suites.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "suiteActions",
+          "kind": "const",
+          "line": 12,
+          "exported": true,
+          "signature": "export const suiteActions: readonly ActionSpec[] = [ { resource: 'suite', action: 'get', summary: 'Fetch a single suite by ID', pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }], ap…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/templates.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "templateActions",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const templateActions: readonly ActionSpec[] = [ { resource: 'template', action: 'list', summary: 'List case templates available in a project', pathParams: [{ name: 'project_id', description: '…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/tests.ts",
+      "imports": [
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "testActions",
+          "kind": "const",
+          "line": 8,
+          "exported": true,
+          "signature": "export const testActions: readonly ActionSpec[] = [ { resource: 'test', action: 'get', summary: 'Fetch a single test (run instance of a case) by ID', pathParams: [{ name: 'test_id', description: 'Test…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/types.ts",
+      "imports": [
         "zod"
       ],
       "reExports": [],
@@ -3459,30 +3924,50 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PathParam",
           "kind": "interface",
-          "line": 68,
+          "line": 10,
           "exported": true,
           "signature": "export interface PathParam { name: string; description: string; }"
         },
         {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 73,
+          "line": 15,
           "exported": true,
           "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; apiEndpoint: string; bodySchema?: z.ZodTypeAny; fileInput?: boolean; fileOutput?: boo…"
-        },
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/users.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
         {
-          "name": "ACTIONS",
+          "name": "userActions",
           "kind": "const",
-          "line": 121,
+          "line": 13,
           "exported": true,
-          "signature": "export const ACTIONS: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],…"
-        },
+          "signature": "export const userActions: readonly ActionSpec[] = [ { resource: 'user', action: 'get', summary: 'Fetch a single user by ID', pathParams: [{ name: 'user_id', description: 'TestRail user ID' }], apiEndp…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/variables.ts",
+      "imports": [
+        "../../schemas.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
         {
-          "name": "getActionSpec",
-          "kind": "function",
-          "line": 1217,
+          "name": "variableActions",
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
+          "signature": "export const variableActions: readonly ActionSpec[] = [ { resource: 'variable', action: 'list', summary: 'List variables in a project', pathParams: [{ name: 'project_id', description: 'TestRail projec…"
         }
       ]
     },
@@ -6348,6 +6833,213 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "path": "src/schemas.ts",
+      "imports": [],
+      "reExports": [
+        "./schemas/attachments.js",
+        "./schemas/cases.js",
+        "./schemas/common.js",
+        "./schemas/configurations.js",
+        "./schemas/datasets.js",
+        "./schemas/metadata.js",
+        "./schemas/milestones.js",
+        "./schemas/plans.js",
+        "./schemas/projects.js",
+        "./schemas/reports.js",
+        "./schemas/results.js",
+        "./schemas/runs.js",
+        "./schemas/sections.js",
+        "./schemas/sharedSteps.js",
+        "./schemas/suites.js",
+        "./schemas/tests.js",
+        "./schemas/users.js",
+        "./schemas/variables.js"
+      ],
+      "symbols": []
+    },
+    {
+      "path": "src/schemas/attachments.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "AttachmentSchema",
+          "kind": "const",
+          "line": 52,
+          "exported": true,
+          "signature": "export const AttachmentSchema = zObject({ attachment_id: z.number().nullish(), id: z.union([z.number(), z.string()]).nullish(), name: z.string().nullish(), filename: z.string().nullish(), filetype: z.…"
+        },
+        {
+          "name": "Attachment",
+          "kind": "type",
+          "line": 76,
+          "exported": true,
+          "signature": "export type Attachment = z.infer<typeof AttachmentSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/cases.ts",
+      "imports": [
+        "./common.js",
+        "./metadata.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "CaseSchema",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const CaseSchema = zObject({ id: z.number(), title: z.string(), section_id: z.number(), template_id: z.number().nullish(), type_id: z.number().nullish(), priority_id: z.number().nullish(), mile…"
+        },
+        {
+          "name": "Case",
+          "kind": "type",
+          "line": 33,
+          "exported": true,
+          "signature": "export type Case = z.infer<typeof CaseSchema>"
+        },
+        {
+          "name": "HistoryChangeSchema",
+          "kind": "const",
+          "line": 39,
+          "exported": false,
+          "signature": "const HistoryChangeSchema = zObject({ field: z.string().nullish(), type_id: z.number().nullish(), old_text: z.string().nullish(), new_text: z.string().nullish(), label: z.string().nullish(), options: …"
+        },
+        {
+          "name": "HistoryEntrySchema",
+          "kind": "const",
+          "line": 70,
+          "exported": true,
+          "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
+        },
+        {
+          "name": "HistoryEntry",
+          "kind": "type",
+          "line": 79,
+          "exported": true,
+          "signature": "export type HistoryEntry = z.infer<typeof HistoryEntrySchema>"
+        },
+        {
+          "name": "AddCasePayloadSchema",
+          "kind": "const",
+          "line": 83,
+          "exported": true,
+          "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
+        },
+        {
+          "name": "AddCasePayload",
+          "kind": "type",
+          "line": 94,
+          "exported": true,
+          "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>"
+        },
+        {
+          "name": "UpdateCasePayloadSchema",
+          "kind": "const",
+          "line": 96,
+          "exported": true,
+          "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
+        },
+        {
+          "name": "UpdateCasePayload",
+          "kind": "type",
+          "line": 107,
+          "exported": true,
+          "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>"
+        },
+        {
+          "name": "AddCasesBulkPayloadSchema",
+          "kind": "const",
+          "line": 119,
+          "exported": true,
+          "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
+        },
+        {
+          "name": "AddCasesBulkPayload",
+          "kind": "type",
+          "line": 121,
+          "exported": true,
+          "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>"
+        },
+        {
+          "name": "UpdateCasesPayloadSchema",
+          "kind": "const",
+          "line": 129,
+          "exported": true,
+          "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number…"
+        },
+        {
+          "name": "UpdateCasesPayload",
+          "kind": "type",
+          "line": 141,
+          "exported": true,
+          "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>"
+        },
+        {
+          "name": "DeleteCasesPayloadSchema",
+          "kind": "const",
+          "line": 150,
+          "exported": true,
+          "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
+        },
+        {
+          "name": "DeleteCasesPayload",
+          "kind": "type",
+          "line": 158,
+          "exported": true,
+          "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>"
+        },
+        {
+          "name": "SoftDeletePreviewSchema",
+          "kind": "const",
+          "line": 166,
+          "exported": true,
+          "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().optional(), affected_cases: z.number().optional(), affected_sections: z.number().optional(), affected_runs: z.number().optio…"
+        },
+        {
+          "name": "SoftDeletePreview",
+          "kind": "type",
+          "line": 176,
+          "exported": true,
+          "signature": "export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>"
+        },
+        {
+          "name": "CopyCasesToSectionPayloadSchema",
+          "kind": "const",
+          "line": 181,
+          "exported": true,
+          "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
+        },
+        {
+          "name": "CopyCasesToSectionPayload",
+          "kind": "type",
+          "line": 185,
+          "exported": true,
+          "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>"
+        },
+        {
+          "name": "MoveCasesToSectionPayloadSchema",
+          "kind": "const",
+          "line": 193,
+          "exported": true,
+          "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
+        },
+        {
+          "name": "MoveCasesToSectionPayload",
+          "kind": "type",
+          "line": 198,
+          "exported": true,
+          "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/common.ts",
       "imports": [
         "zod"
       ],
@@ -6357,8 +7049,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "name": "zObject",
           "kind": "const",
           "line": 3,
-          "exported": false,
-          "signature": "const zObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).passthrough()"
+          "exported": true,
+          "signature": "export const zObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).passthrough()"
         },
         {
           "name": "PaginationSchema",
@@ -6380,1161 +7072,1151 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 35,
           "exported": true,
           "signature": "export type TestRailConfig = z.infer<typeof TestRailConfigSchema>"
-        },
-        {
-          "name": "UserSchema",
-          "kind": "const",
-          "line": 39,
-          "exported": true,
-          "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications:…"
-        },
-        {
-          "name": "User",
-          "kind": "type",
-          "line": 63,
-          "exported": true,
-          "signature": "export type User = z.infer<typeof UserSchema>"
-        },
-        {
-          "name": "RoleSchema",
-          "kind": "const",
-          "line": 65,
-          "exported": true,
-          "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
-        },
-        {
-          "name": "Role",
-          "kind": "type",
-          "line": 71,
-          "exported": true,
-          "signature": "export type Role = z.infer<typeof RoleSchema>"
-        },
-        {
-          "name": "GroupSchema",
-          "kind": "const",
-          "line": 73,
-          "exported": true,
-          "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
-        },
-        {
-          "name": "Group",
-          "kind": "type",
-          "line": 79,
-          "exported": true,
-          "signature": "export type Group = z.infer<typeof GroupSchema>"
-        },
-        {
-          "name": "AddGroupPayloadSchema",
-          "kind": "const",
-          "line": 94,
-          "exported": true,
-          "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })"
-        },
-        {
-          "name": "AddGroupPayload",
-          "kind": "type",
-          "line": 99,
-          "exported": true,
-          "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>"
-        },
-        {
-          "name": "UpdateGroupPayloadSchema",
-          "kind": "const",
-          "line": 101,
-          "exported": true,
-          "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
-        },
-        {
-          "name": "UpdateGroupPayload",
-          "kind": "type",
-          "line": 106,
-          "exported": true,
-          "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>"
-        },
-        {
-          "name": "UserAddPayloadSchema",
-          "kind": "const",
-          "line": 125,
-          "exported": true,
-          "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: z.string().email(), password: z.string().min(1), is_active: z.boolean().optional(), role_id: z.number().int().positive().o…"
-        },
-        {
-          "name": "UserAddPayload",
-          "kind": "type",
-          "line": 137,
-          "exported": true,
-          "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>"
-        },
-        {
-          "name": "UserUpdatePayloadSchema",
-          "kind": "const",
-          "line": 139,
-          "exported": true,
-          "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: z.string().email().optional(), password: z.string().min(1).optional(), is_active: z.boolean().optional(), ro…"
-        },
-        {
-          "name": "UserUpdatePayload",
-          "kind": "type",
-          "line": 151,
-          "exported": true,
-          "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>"
-        },
-        {
-          "name": "ProjectSchema",
-          "kind": "const",
-          "line": 155,
-          "exported": true,
-          "signature": "export const ProjectSchema = zObject({ id: z.number(), name: z.string(), announcement: z.string().nullish(), show_announcement: z.boolean().nullish(), is_completed: z.boolean().nullish(), completed_on…"
-        },
-        {
-          "name": "Project",
-          "kind": "type",
-          "line": 204,
-          "exported": true,
-          "signature": "export type Project = z.infer<typeof ProjectSchema>"
-        },
-        {
-          "name": "SuiteSchema",
-          "kind": "const",
-          "line": 206,
-          "exported": true,
-          "signature": "export const SuiteSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_id: z.number(), is_master: z.boolean().nullish(), is_baseline: z.boolean().nullish(), …"
-        },
-        {
-          "name": "Suite",
-          "kind": "type",
-          "line": 218,
-          "exported": true,
-          "signature": "export type Suite = z.infer<typeof SuiteSchema>"
-        },
-        {
-          "name": "LabelEmbeddedSchema",
-          "kind": "const",
-          "line": 247,
-          "exported": true,
-          "signature": "export const LabelEmbeddedSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.number().nullish(), created_on: z.number().nullish(), })"
-        },
-        {
-          "name": "LabelEmbedded",
-          "kind": "type",
-          "line": 255,
-          "exported": true,
-          "signature": "export type LabelEmbedded = z.infer<typeof LabelEmbeddedSchema>"
-        },
-        {
-          "name": "CaseSchema",
-          "kind": "const",
-          "line": 259,
-          "exported": true,
-          "signature": "export const CaseSchema = zObject({ id: z.number(), title: z.string(), section_id: z.number(), template_id: z.number().nullish(), type_id: z.number().nullish(), priority_id: z.number().nullish(), mile…"
-        },
-        {
-          "name": "Case",
-          "kind": "type",
-          "line": 285,
-          "exported": true,
-          "signature": "export type Case = z.infer<typeof CaseSchema>"
-        },
-        {
-          "name": "SectionSchema",
-          "kind": "const",
-          "line": 287,
-          "exported": true,
-          "signature": "export const SectionSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), parent_id: z.number().nullish(), display_order: z.number(), depth: z.n…"
-        },
-        {
-          "name": "Section",
-          "kind": "type",
-          "line": 297,
-          "exported": true,
-          "signature": "export type Section = z.infer<typeof SectionSchema>"
-        },
-        {
-          "name": "MoveSectionPayloadSchema",
-          "kind": "const",
-          "line": 309,
-          "exported": true,
-          "signature": "export const MoveSectionPayloadSchema = zObject({ parent_id: z.number().nullable().optional(), after_id: z.number().nullable().optional(), })"
-        },
-        {
-          "name": "MoveSectionPayload",
-          "kind": "type",
-          "line": 314,
-          "exported": true,
-          "signature": "export type MoveSectionPayload = z.infer<typeof MoveSectionPayloadSchema>"
-        },
-        {
-          "name": "RunSchema",
-          "kind": "const",
-          "line": 318,
-          "exported": true,
-          "signature": "export const RunSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), i…"
-        },
-        {
-          "name": "Run",
-          "kind": "type",
-          "line": 365,
-          "exported": true,
-          "signature": "export type Run = z.infer<typeof RunSchema>"
-        },
-        {
-          "name": "PlanEntrySchema",
-          "kind": "const",
-          "line": 369,
-          "exported": true,
-          "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), assignedto_id: z.number().nullish(), include_all: z.boolean(), case_…"
-        },
-        {
-          "name": "PlanEntry",
-          "kind": "type",
-          "line": 389,
-          "exported": true,
-          "signature": "export type PlanEntry = z.infer<typeof PlanEntrySchema>"
-        },
-        {
-          "name": "PlanSchema",
-          "kind": "const",
-          "line": 391,
-          "exported": true,
-          "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), is_completed: z.boolea…"
-        },
-        {
-          "name": "Plan",
-          "kind": "type",
-          "line": 429,
-          "exported": true,
-          "signature": "export type Plan = z.infer<typeof PlanSchema>"
-        },
-        {
-          "name": "TestSchema",
-          "kind": "const",
-          "line": 433,
-          "exported": true,
-          "signature": "export const TestSchema = zObject({ id: z.number(), case_id: z.number(), status_id: z.number(), assignedto_id: z.number().nullish(), run_id: z.number(), title: z.string(), template_id: z.number().null…"
-        },
-        {
-          "name": "Test",
-          "kind": "type",
-          "line": 484,
-          "exported": true,
-          "signature": "export type Test = z.infer<typeof TestSchema>"
-        },
-        {
-          "name": "ResultSchema",
-          "kind": "const",
-          "line": 493,
-          "exported": true,
-          "signature": "export const ResultSchema = zObject({ id: z.number(), test_id: z.number(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().nullish(), defects: …"
-        },
-        {
-          "name": "Result",
-          "kind": "type",
-          "line": 507,
-          "exported": true,
-          "signature": "export type Result = z.infer<typeof ResultSchema>"
-        },
-        {
-          "name": "MilestoneSchema",
-          "kind": "const",
-          "line": 511,
-          "exported": true,
-          "signature": "export const MilestoneSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), start_on: z.number().nullish(), started_on: z.number().nullish(), is_completed: z.boolean(…"
-        },
-        {
-          "name": "Milestone",
-          "kind": "type",
-          "line": 536,
-          "exported": true,
-          "signature": "export type Milestone = z.infer<typeof MilestoneSchema>"
-        },
-        {
-          "name": "StatusSchema",
-          "kind": "const",
-          "line": 540,
-          "exported": true,
-          "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
-        },
-        {
-          "name": "Status",
-          "kind": "type",
-          "line": 552,
-          "exported": true,
-          "signature": "export type Status = z.infer<typeof StatusSchema>"
-        },
-        {
-          "name": "PrioritySchema",
-          "kind": "const",
-          "line": 554,
-          "exported": true,
-          "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
-        },
-        {
-          "name": "Priority",
-          "kind": "type",
-          "line": 562,
-          "exported": true,
-          "signature": "export type Priority = z.infer<typeof PrioritySchema>"
-        },
-        {
-          "name": "CaseStatusSchema",
-          "kind": "const",
-          "line": 569,
-          "exported": true,
-          "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean(), })"
-        },
-        {
-          "name": "CaseStatus",
-          "kind": "type",
-          "line": 578,
-          "exported": true,
-          "signature": "export type CaseStatus = z.infer<typeof CaseStatusSchema>"
-        },
-        {
-          "name": "HistoryChangeSchema",
-          "kind": "const",
-          "line": 584,
-          "exported": false,
-          "signature": "const HistoryChangeSchema = zObject({ field: z.string().nullish(), type_id: z.number().nullish(), old_text: z.string().nullish(), new_text: z.string().nullish(), label: z.string().nullish(), options: …"
-        },
-        {
-          "name": "HistoryEntrySchema",
-          "kind": "const",
-          "line": 615,
-          "exported": true,
-          "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
-        },
-        {
-          "name": "HistoryEntry",
-          "kind": "type",
-          "line": 624,
-          "exported": true,
-          "signature": "export type HistoryEntry = z.infer<typeof HistoryEntrySchema>"
-        },
-        {
-          "name": "FieldConfigOptionsSchema",
-          "kind": "const",
-          "line": 628,
-          "exported": false,
-          "signature": "const FieldConfigOptionsSchema = zObject({ is_required: z.boolean(), default_value: z.string(), items: z.string().nullish(), format: z.string().nullish(), rows: z.string().nullish(), })"
-        },
-        {
-          "name": "FieldConfigContextSchema",
-          "kind": "const",
-          "line": 636,
-          "exported": false,
-          "signature": "const FieldConfigContextSchema = zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), })"
-        },
-        {
-          "name": "CaseFieldConfigSchema",
-          "kind": "const",
-          "line": 641,
-          "exported": true,
-          "signature": "export const CaseFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
-        },
-        {
-          "name": "CaseFieldConfig",
-          "kind": "type",
-          "line": 646,
-          "exported": true,
-          "signature": "export type CaseFieldConfig = z.infer<typeof CaseFieldConfigSchema>"
-        },
-        {
-          "name": "CaseFieldSchema",
-          "kind": "const",
-          "line": 648,
-          "exported": true,
-          "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
-        },
-        {
-          "name": "CaseField",
-          "kind": "type",
-          "line": 662,
-          "exported": true,
-          "signature": "export type CaseField = z.infer<typeof CaseFieldSchema>"
-        },
-        {
-          "name": "AddCaseFieldResponseSchema",
-          "kind": "const",
-          "line": 683,
-          "exported": true,
-          "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
-        },
-        {
-          "name": "AddCaseFieldResponse",
-          "kind": "type",
-          "line": 708,
-          "exported": true,
-          "signature": "export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>"
-        },
-        {
-          "name": "ResultFieldConfigSchema",
-          "kind": "const",
-          "line": 710,
-          "exported": true,
-          "signature": "export const ResultFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
-        },
-        {
-          "name": "ResultFieldConfig",
-          "kind": "type",
-          "line": 715,
-          "exported": true,
-          "signature": "export type ResultFieldConfig = z.infer<typeof ResultFieldConfigSchema>"
-        },
-        {
-          "name": "ResultFieldSchema",
-          "kind": "const",
-          "line": 717,
-          "exported": true,
-          "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
-        },
-        {
-          "name": "ResultField",
-          "kind": "type",
-          "line": 731,
-          "exported": true,
-          "signature": "export type ResultField = z.infer<typeof ResultFieldSchema>"
-        },
-        {
-          "name": "CaseTypeSchema",
-          "kind": "const",
-          "line": 735,
-          "exported": true,
-          "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
-        },
-        {
-          "name": "CaseType",
-          "kind": "type",
-          "line": 741,
-          "exported": true,
-          "signature": "export type CaseType = z.infer<typeof CaseTypeSchema>"
-        },
-        {
-          "name": "TemplateSchema",
-          "kind": "const",
-          "line": 743,
-          "exported": true,
-          "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
-        },
-        {
-          "name": "Template",
-          "kind": "type",
-          "line": 749,
-          "exported": true,
-          "signature": "export type Template = z.infer<typeof TemplateSchema>"
-        },
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/configurations.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
         {
           "name": "ConfigurationSchema",
           "kind": "const",
-          "line": 753,
+          "line": 6,
           "exported": true,
           "signature": "export const ConfigurationSchema = zObject({ id: z.number(), name: z.string(), group_id: z.number(), })"
         },
         {
           "name": "Configuration",
           "kind": "type",
-          "line": 759,
+          "line": 12,
           "exported": true,
           "signature": "export type Configuration = z.infer<typeof ConfigurationSchema>"
         },
         {
           "name": "ConfigurationGroupSchema",
           "kind": "const",
-          "line": 761,
+          "line": 14,
           "exported": true,
           "signature": "export const ConfigurationGroupSchema = zObject({ id: z.number(), name: z.string(), project_id: z.number(), configs: z.array(ConfigurationSchema), })"
         },
         {
           "name": "ConfigurationGroup",
           "kind": "type",
-          "line": 768,
+          "line": 21,
           "exported": true,
           "signature": "export type ConfigurationGroup = z.infer<typeof ConfigurationGroupSchema>"
         },
         {
-          "name": "AttachmentSchema",
-          "kind": "const",
-          "line": 818,
-          "exported": true,
-          "signature": "export const AttachmentSchema = zObject({ attachment_id: z.number().nullish(), id: z.union([z.number(), z.string()]).nullish(), name: z.string().nullish(), filename: z.string().nullish(), filetype: z.…"
-        },
-        {
-          "name": "Attachment",
-          "kind": "type",
-          "line": 842,
-          "exported": true,
-          "signature": "export type Attachment = z.infer<typeof AttachmentSchema>"
-        },
-        {
-          "name": "SharedStepSchema",
-          "kind": "const",
-          "line": 876,
-          "exported": true,
-          "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().nullish(), case_ids: z.array(z.number()).nullish(), created_on: z.number().nullish(), created_by: z.…"
-        },
-        {
-          "name": "SharedStep",
-          "kind": "type",
-          "line": 888,
-          "exported": true,
-          "signature": "export type SharedStep = z.infer<typeof SharedStepSchema>"
-        },
-        {
-          "name": "VariableSchema",
-          "kind": "const",
-          "line": 905,
-          "exported": true,
-          "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })"
-        },
-        {
-          "name": "Variable",
-          "kind": "type",
-          "line": 910,
-          "exported": true,
-          "signature": "export type Variable = z.infer<typeof VariableSchema>"
-        },
-        {
-          "name": "AddVariablePayloadSchema",
-          "kind": "const",
-          "line": 912,
-          "exported": true,
-          "signature": "export const AddVariablePayloadSchema = zObject({ name: z.string(), })"
-        },
-        {
-          "name": "AddVariablePayload",
-          "kind": "type",
-          "line": 916,
-          "exported": true,
-          "signature": "export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>"
-        },
-        {
-          "name": "UpdateVariablePayloadSchema",
-          "kind": "const",
-          "line": 926,
-          "exported": true,
-          "signature": "export const UpdateVariablePayloadSchema = zObject({ name: z.string().optional(), })"
-        },
-        {
-          "name": "UpdateVariablePayload",
-          "kind": "type",
-          "line": 930,
-          "exported": true,
-          "signature": "export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>"
-        },
-        {
-          "name": "DatasetVariableSchema",
-          "kind": "const",
-          "line": 942,
-          "exported": true,
-          "signature": "export const DatasetVariableSchema = zObject({ id: z.number(), name: z.string(), value: z.string().nullable(), })"
-        },
-        {
-          "name": "DatasetVariable",
-          "kind": "type",
-          "line": 948,
-          "exported": true,
-          "signature": "export type DatasetVariable = z.infer<typeof DatasetVariableSchema>"
-        },
-        {
-          "name": "DatasetSchema",
-          "kind": "const",
-          "line": 963,
-          "exported": true,
-          "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })"
-        },
-        {
-          "name": "Dataset",
-          "kind": "type",
-          "line": 969,
-          "exported": true,
-          "signature": "export type Dataset = z.infer<typeof DatasetSchema>"
-        },
-        {
-          "name": "AddDatasetPayloadSchema",
-          "kind": "const",
-          "line": 971,
-          "exported": true,
-          "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), })"
-        },
-        {
-          "name": "AddDatasetPayload",
-          "kind": "type",
-          "line": 975,
-          "exported": true,
-          "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>"
-        },
-        {
-          "name": "UpdateDatasetPayloadSchema",
-          "kind": "const",
-          "line": 983,
-          "exported": true,
-          "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), })"
-        },
-        {
-          "name": "UpdateDatasetPayload",
-          "kind": "type",
-          "line": 987,
-          "exported": true,
-          "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>"
-        },
-        {
-          "name": "ReportSchema",
-          "kind": "const",
-          "line": 1005,
-          "exported": true,
-          "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…"
-        },
-        {
-          "name": "Report",
-          "kind": "type",
-          "line": 1018,
-          "exported": true,
-          "signature": "export type Report = z.infer<typeof ReportSchema>"
-        },
-        {
-          "name": "ReportResultSchema",
-          "kind": "const",
-          "line": 1031,
-          "exported": true,
-          "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })"
-        },
-        {
-          "name": "ReportResult",
-          "kind": "type",
-          "line": 1038,
-          "exported": true,
-          "signature": "export type ReportResult = z.infer<typeof ReportResultSchema>"
-        },
-        {
-          "name": "AddCasePayloadSchema",
-          "kind": "const",
-          "line": 1047,
-          "exported": true,
-          "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
-        },
-        {
-          "name": "AddCasePayload",
-          "kind": "type",
-          "line": 1058,
-          "exported": true,
-          "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>"
-        },
-        {
-          "name": "UpdateCasePayloadSchema",
-          "kind": "const",
-          "line": 1060,
-          "exported": true,
-          "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
-        },
-        {
-          "name": "UpdateCasePayload",
-          "kind": "type",
-          "line": 1071,
-          "exported": true,
-          "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>"
-        },
-        {
-          "name": "AddCasesBulkPayloadSchema",
-          "kind": "const",
-          "line": 1083,
-          "exported": true,
-          "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
-        },
-        {
-          "name": "AddCasesBulkPayload",
-          "kind": "type",
-          "line": 1085,
-          "exported": true,
-          "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>"
-        },
-        {
-          "name": "UpdateCasesPayloadSchema",
-          "kind": "const",
-          "line": 1093,
-          "exported": true,
-          "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number…"
-        },
-        {
-          "name": "UpdateCasesPayload",
-          "kind": "type",
-          "line": 1105,
-          "exported": true,
-          "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>"
-        },
-        {
-          "name": "DeleteCasesPayloadSchema",
-          "kind": "const",
-          "line": 1114,
-          "exported": true,
-          "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
-        },
-        {
-          "name": "DeleteCasesPayload",
-          "kind": "type",
-          "line": 1122,
-          "exported": true,
-          "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>"
-        },
-        {
-          "name": "SoftDeletePreviewSchema",
-          "kind": "const",
-          "line": 1130,
-          "exported": true,
-          "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().optional(), affected_cases: z.number().optional(), affected_sections: z.number().optional(), affected_runs: z.number().optio…"
-        },
-        {
-          "name": "SoftDeletePreview",
-          "kind": "type",
-          "line": 1140,
-          "exported": true,
-          "signature": "export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>"
-        },
-        {
-          "name": "CopyCasesToSectionPayloadSchema",
-          "kind": "const",
-          "line": 1145,
-          "exported": true,
-          "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
-        },
-        {
-          "name": "CopyCasesToSectionPayload",
-          "kind": "type",
-          "line": 1149,
-          "exported": true,
-          "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>"
-        },
-        {
-          "name": "MoveCasesToSectionPayloadSchema",
-          "kind": "const",
-          "line": 1157,
-          "exported": true,
-          "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
-        },
-        {
-          "name": "MoveCasesToSectionPayload",
-          "kind": "type",
-          "line": 1162,
-          "exported": true,
-          "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>"
-        },
-        {
-          "name": "AddCaseFieldConfigPayloadSchema",
-          "kind": "const",
-          "line": 1179,
-          "exported": true,
-          "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), }), options: zObject({ is_required: z.boolean(), default_value: z.…"
-        },
-        {
-          "name": "AddCaseFieldConfigPayload",
-          "kind": "type",
-          "line": 1193,
-          "exported": true,
-          "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>"
-        },
-        {
-          "name": "AddCaseFieldPayloadSchema",
-          "kind": "const",
-          "line": 1195,
-          "exported": true,
-          "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), template_ids: z.array…"
-        },
-        {
-          "name": "AddCaseFieldPayload",
-          "kind": "type",
-          "line": 1205,
-          "exported": true,
-          "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>"
-        },
-        {
-          "name": "AddRunPayloadSchema",
-          "kind": "const",
-          "line": 1207,
-          "exported": true,
-          "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
-        },
-        {
-          "name": "AddRunPayload",
-          "kind": "type",
-          "line": 1218,
-          "exported": true,
-          "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>"
-        },
-        {
-          "name": "UpdateRunPayloadSchema",
-          "kind": "const",
-          "line": 1220,
-          "exported": true,
-          "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
-        },
-        {
-          "name": "UpdateRunPayload",
-          "kind": "type",
-          "line": 1230,
-          "exported": true,
-          "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>"
-        },
-        {
-          "name": "AddResultPayloadSchema",
-          "kind": "const",
-          "line": 1242,
-          "exported": true,
-          "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
-        },
-        {
-          "name": "AddResultPayload",
-          "kind": "type",
-          "line": 1252,
-          "exported": true,
-          "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>"
-        },
-        {
-          "name": "AddResultForCasePayloadSchema",
-          "kind": "const",
-          "line": 1257,
-          "exported": true,
-          "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
-        },
-        {
-          "name": "AddResultForCasePayload",
-          "kind": "type",
-          "line": 1268,
-          "exported": true,
-          "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>"
-        },
-        {
-          "name": "AddResultsForCasesPayloadSchema",
-          "kind": "const",
-          "line": 1270,
-          "exported": true,
-          "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
-        },
-        {
-          "name": "AddResultsForCasesPayload",
-          "kind": "type",
-          "line": 1274,
-          "exported": true,
-          "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>"
-        },
-        {
-          "name": "AddResultForTestPayloadSchema",
-          "kind": "const",
-          "line": 1280,
-          "exported": true,
-          "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
-        },
-        {
-          "name": "AddResultForTestPayload",
-          "kind": "type",
-          "line": 1291,
-          "exported": true,
-          "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>"
-        },
-        {
-          "name": "AddResultsPayloadSchema",
-          "kind": "const",
-          "line": 1293,
-          "exported": true,
-          "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
-        },
-        {
-          "name": "AddResultsPayload",
-          "kind": "type",
-          "line": 1297,
-          "exported": true,
-          "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>"
-        },
-        {
-          "name": "PlanEntryRunPayloadSchema",
-          "kind": "const",
-          "line": 1306,
-          "exported": true,
-          "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
-        },
-        {
-          "name": "PlanEntryRunPayload",
-          "kind": "type",
-          "line": 1316,
-          "exported": true,
-          "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>"
-        },
-        {
-          "name": "AddRunToPlanEntryPayloadSchema",
-          "kind": "const",
-          "line": 1323,
-          "exported": true,
-          "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
-        },
-        {
-          "name": "AddRunToPlanEntryPayload",
-          "kind": "type",
-          "line": 1332,
-          "exported": true,
-          "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>"
-        },
-        {
-          "name": "UpdateRunInPlanEntryPayloadSchema",
-          "kind": "const",
-          "line": 1337,
-          "exported": true,
-          "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
-        },
-        {
-          "name": "UpdateRunInPlanEntryPayload",
-          "kind": "type",
-          "line": 1344,
-          "exported": true,
-          "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>"
-        },
-        {
-          "name": "AddPlanEntryPayloadSchema",
-          "kind": "const",
-          "line": 1346,
-          "exported": true,
-          "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
-        },
-        {
-          "name": "AddPlanEntryPayload",
-          "kind": "type",
-          "line": 1369,
-          "exported": true,
-          "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>"
-        },
-        {
-          "name": "UpdatePlanEntryPayloadSchema",
-          "kind": "const",
-          "line": 1371,
-          "exported": true,
-          "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
-        },
-        {
-          "name": "UpdatePlanEntryPayload",
-          "kind": "type",
-          "line": 1391,
-          "exported": true,
-          "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>"
-        },
-        {
-          "name": "AddPlanPayloadSchema",
-          "kind": "const",
-          "line": 1393,
-          "exported": true,
-          "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
-        },
-        {
-          "name": "AddPlanPayload",
-          "kind": "type",
-          "line": 1406,
-          "exported": true,
-          "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>"
-        },
-        {
-          "name": "UpdatePlanPayloadSchema",
-          "kind": "const",
-          "line": 1408,
-          "exported": true,
-          "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), start_on: z…"
-        },
-        {
-          "name": "UpdatePlanPayload",
-          "kind": "type",
-          "line": 1421,
-          "exported": true,
-          "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>"
-        },
-        {
-          "name": "AddProjectPayloadSchema",
-          "kind": "const",
-          "line": 1431,
-          "exported": true,
-          "signature": "export const AddProjectPayloadSchema = zObject({ name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
-        },
-        {
-          "name": "AddProjectPayload",
-          "kind": "type",
-          "line": 1438,
-          "exported": true,
-          "signature": "export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>"
-        },
-        {
-          "name": "UpdateProjectPayloadSchema",
-          "kind": "const",
-          "line": 1440,
-          "exported": true,
-          "signature": "export const UpdateProjectPayloadSchema = zObject({ name: z.string().optional(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
-        },
-        {
-          "name": "UpdateProjectPayload",
-          "kind": "type",
-          "line": 1447,
-          "exported": true,
-          "signature": "export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>"
-        },
-        {
-          "name": "AddSuitePayloadSchema",
-          "kind": "const",
-          "line": 1449,
-          "exported": true,
-          "signature": "export const AddSuitePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), })"
-        },
-        {
-          "name": "AddSuitePayload",
-          "kind": "type",
-          "line": 1454,
-          "exported": true,
-          "signature": "export type AddSuitePayload = z.infer<typeof AddSuitePayloadSchema>"
-        },
-        {
-          "name": "UpdateSuitePayloadSchema",
-          "kind": "const",
-          "line": 1456,
-          "exported": true,
-          "signature": "export const UpdateSuitePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
-        },
-        {
-          "name": "UpdateSuitePayload",
-          "kind": "type",
-          "line": 1461,
-          "exported": true,
-          "signature": "export type UpdateSuitePayload = z.infer<typeof UpdateSuitePayloadSchema>"
-        },
-        {
-          "name": "AddSectionPayloadSchema",
-          "kind": "const",
-          "line": 1469,
-          "exported": true,
-          "signature": "export const AddSectionPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), parent_id: z.number().optional(), description: z.string().optional(), })"
-        },
-        {
-          "name": "AddSectionPayload",
-          "kind": "type",
-          "line": 1476,
-          "exported": true,
-          "signature": "export type AddSectionPayload = z.infer<typeof AddSectionPayloadSchema>"
-        },
-        {
-          "name": "UpdateSectionPayloadSchema",
-          "kind": "const",
-          "line": 1478,
-          "exported": true,
-          "signature": "export const UpdateSectionPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
-        },
-        {
-          "name": "UpdateSectionPayload",
-          "kind": "type",
-          "line": 1483,
-          "exported": true,
-          "signature": "export type UpdateSectionPayload = z.infer<typeof UpdateSectionPayloadSchema>"
-        },
-        {
-          "name": "AddMilestonePayloadSchema",
-          "kind": "const",
-          "line": 1485,
-          "exported": true,
-          "signature": "export const AddMilestonePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.number().optional(…"
-        },
-        {
-          "name": "AddMilestonePayload",
-          "kind": "type",
-          "line": 1494,
-          "exported": true,
-          "signature": "export type AddMilestonePayload = z.infer<typeof AddMilestonePayloadSchema>"
-        },
-        {
-          "name": "UpdateMilestonePayloadSchema",
-          "kind": "const",
-          "line": 1496,
-          "exported": true,
-          "signature": "export const UpdateMilestonePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.numb…"
-        },
-        {
-          "name": "UpdateMilestonePayload",
-          "kind": "type",
-          "line": 1507,
-          "exported": true,
-          "signature": "export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>"
-        },
-        {
-          "name": "AddSharedStepPayloadSchema",
-          "kind": "const",
-          "line": 1524,
-          "exported": true,
-          "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
-        },
-        {
-          "name": "AddSharedStepPayload",
-          "kind": "type",
-          "line": 1529,
-          "exported": true,
-          "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>"
-        },
-        {
-          "name": "UpdateSharedStepPayloadSchema",
-          "kind": "const",
-          "line": 1540,
-          "exported": true,
-          "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
-        },
-        {
-          "name": "UpdateSharedStepPayload",
-          "kind": "type",
-          "line": 1545,
-          "exported": true,
-          "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
-        },
-        {
           "name": "AddConfigurationGroupPayloadSchema",
           "kind": "const",
-          "line": 1555,
+          "line": 31,
           "exported": true,
           "signature": "export const AddConfigurationGroupPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddConfigurationGroupPayload",
           "kind": "type",
-          "line": 1559,
+          "line": 35,
           "exported": true,
           "signature": "export type AddConfigurationGroupPayload = z.infer<typeof AddConfigurationGroupPayloadSchema>"
         },
         {
           "name": "UpdateConfigurationGroupPayloadSchema",
           "kind": "const",
-          "line": 1561,
+          "line": 37,
           "exported": true,
           "signature": "export const UpdateConfigurationGroupPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateConfigurationGroupPayload",
           "kind": "type",
-          "line": 1565,
+          "line": 41,
           "exported": true,
           "signature": "export type UpdateConfigurationGroupPayload = z.infer<typeof UpdateConfigurationGroupPayloadSchema>"
         },
         {
           "name": "AddConfigurationPayloadSchema",
           "kind": "const",
-          "line": 1567,
+          "line": 43,
           "exported": true,
           "signature": "export const AddConfigurationPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddConfigurationPayload",
           "kind": "type",
-          "line": 1571,
+          "line": 47,
           "exported": true,
           "signature": "export type AddConfigurationPayload = z.infer<typeof AddConfigurationPayloadSchema>"
         },
         {
           "name": "UpdateConfigurationPayloadSchema",
           "kind": "const",
-          "line": 1573,
+          "line": 49,
           "exported": true,
           "signature": "export const UpdateConfigurationPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateConfigurationPayload",
           "kind": "type",
-          "line": 1577,
+          "line": 53,
           "exported": true,
           "signature": "export type UpdateConfigurationPayload = z.infer<typeof UpdateConfigurationPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/datasets.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "DatasetVariableSchema",
+          "kind": "const",
+          "line": 16,
+          "exported": true,
+          "signature": "export const DatasetVariableSchema = zObject({ id: z.number(), name: z.string(), value: z.string().nullable(), })"
+        },
+        {
+          "name": "DatasetVariable",
+          "kind": "type",
+          "line": 22,
+          "exported": true,
+          "signature": "export type DatasetVariable = z.infer<typeof DatasetVariableSchema>"
+        },
+        {
+          "name": "DatasetSchema",
+          "kind": "const",
+          "line": 37,
+          "exported": true,
+          "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })"
+        },
+        {
+          "name": "Dataset",
+          "kind": "type",
+          "line": 43,
+          "exported": true,
+          "signature": "export type Dataset = z.infer<typeof DatasetSchema>"
+        },
+        {
+          "name": "AddDatasetPayloadSchema",
+          "kind": "const",
+          "line": 45,
+          "exported": true,
+          "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), })"
+        },
+        {
+          "name": "AddDatasetPayload",
+          "kind": "type",
+          "line": 49,
+          "exported": true,
+          "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>"
+        },
+        {
+          "name": "UpdateDatasetPayloadSchema",
+          "kind": "const",
+          "line": 57,
+          "exported": true,
+          "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), })"
+        },
+        {
+          "name": "UpdateDatasetPayload",
+          "kind": "type",
+          "line": 61,
+          "exported": true,
+          "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/metadata.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "LabelEmbeddedSchema",
+          "kind": "const",
+          "line": 31,
+          "exported": true,
+          "signature": "export const LabelEmbeddedSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.number().nullish(), created_on: z.number().nullish(), })"
+        },
+        {
+          "name": "LabelEmbedded",
+          "kind": "type",
+          "line": 39,
+          "exported": true,
+          "signature": "export type LabelEmbedded = z.infer<typeof LabelEmbeddedSchema>"
+        },
+        {
+          "name": "StatusSchema",
+          "kind": "const",
+          "line": 43,
+          "exported": true,
+          "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
+        },
+        {
+          "name": "Status",
+          "kind": "type",
+          "line": 55,
+          "exported": true,
+          "signature": "export type Status = z.infer<typeof StatusSchema>"
+        },
+        {
+          "name": "PrioritySchema",
+          "kind": "const",
+          "line": 57,
+          "exported": true,
+          "signature": "export const PrioritySchema = zObject({ id: z.number(), name: z.string(), short_name: z.string(), is_default: z.boolean(), priority: z.number(), })"
+        },
+        {
+          "name": "Priority",
+          "kind": "type",
+          "line": 65,
+          "exported": true,
+          "signature": "export type Priority = z.infer<typeof PrioritySchema>"
+        },
+        {
+          "name": "CaseStatusSchema",
+          "kind": "const",
+          "line": 72,
+          "exported": true,
+          "signature": "export const CaseStatusSchema = zObject({ case_status_id: z.number(), name: z.string(), abbreviation: z.string(), is_default: z.boolean(), is_approved: z.boolean(), is_untested: z.boolean(), })"
+        },
+        {
+          "name": "CaseStatus",
+          "kind": "type",
+          "line": 81,
+          "exported": true,
+          "signature": "export type CaseStatus = z.infer<typeof CaseStatusSchema>"
+        },
+        {
+          "name": "FieldConfigOptionsSchema",
+          "kind": "const",
+          "line": 85,
+          "exported": false,
+          "signature": "const FieldConfigOptionsSchema = zObject({ is_required: z.boolean(), default_value: z.string(), items: z.string().nullish(), format: z.string().nullish(), rows: z.string().nullish(), })"
+        },
+        {
+          "name": "FieldConfigContextSchema",
+          "kind": "const",
+          "line": 93,
+          "exported": false,
+          "signature": "const FieldConfigContextSchema = zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), })"
+        },
+        {
+          "name": "CaseFieldConfigSchema",
+          "kind": "const",
+          "line": 98,
+          "exported": true,
+          "signature": "export const CaseFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
+        },
+        {
+          "name": "CaseFieldConfig",
+          "kind": "type",
+          "line": 103,
+          "exported": true,
+          "signature": "export type CaseFieldConfig = z.infer<typeof CaseFieldConfigSchema>"
+        },
+        {
+          "name": "CaseFieldSchema",
+          "kind": "const",
+          "line": 105,
+          "exported": true,
+          "signature": "export const CaseFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(CaseFieldConfigS…"
+        },
+        {
+          "name": "CaseField",
+          "kind": "type",
+          "line": 119,
+          "exported": true,
+          "signature": "export type CaseField = z.infer<typeof CaseFieldSchema>"
+        },
+        {
+          "name": "AddCaseFieldResponseSchema",
+          "kind": "const",
+          "line": 140,
+          "exported": true,
+          "signature": "export const AddCaseFieldResponseSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.string(), i…"
+        },
+        {
+          "name": "AddCaseFieldResponse",
+          "kind": "type",
+          "line": 165,
+          "exported": true,
+          "signature": "export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>"
+        },
+        {
+          "name": "ResultFieldConfigSchema",
+          "kind": "const",
+          "line": 167,
+          "exported": true,
+          "signature": "export const ResultFieldConfigSchema = zObject({ context: FieldConfigContextSchema, options: FieldConfigOptionsSchema, })"
+        },
+        {
+          "name": "ResultFieldConfig",
+          "kind": "type",
+          "line": 172,
+          "exported": true,
+          "signature": "export type ResultFieldConfig = z.infer<typeof ResultFieldConfigSchema>"
+        },
+        {
+          "name": "ResultFieldSchema",
+          "kind": "const",
+          "line": 174,
+          "exported": true,
+          "signature": "export const ResultFieldSchema = zObject({ id: z.number(), system_name: z.string(), label: z.string(), name: z.string(), type_id: z.number(), display_order: z.number(), configs: z.array(ResultFieldCon…"
+        },
+        {
+          "name": "ResultField",
+          "kind": "type",
+          "line": 188,
+          "exported": true,
+          "signature": "export type ResultField = z.infer<typeof ResultFieldSchema>"
+        },
+        {
+          "name": "CaseTypeSchema",
+          "kind": "const",
+          "line": 192,
+          "exported": true,
+          "signature": "export const CaseTypeSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+        },
+        {
+          "name": "CaseType",
+          "kind": "type",
+          "line": 198,
+          "exported": true,
+          "signature": "export type CaseType = z.infer<typeof CaseTypeSchema>"
+        },
+        {
+          "name": "TemplateSchema",
+          "kind": "const",
+          "line": 200,
+          "exported": true,
+          "signature": "export const TemplateSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+        },
+        {
+          "name": "Template",
+          "kind": "type",
+          "line": 206,
+          "exported": true,
+          "signature": "export type Template = z.infer<typeof TemplateSchema>"
+        },
+        {
+          "name": "AddCaseFieldConfigPayloadSchema",
+          "kind": "const",
+          "line": 223,
+          "exported": true,
+          "signature": "export const AddCaseFieldConfigPayloadSchema = zObject({ context: zObject({ is_global: z.boolean(), project_ids: z.array(z.number()), }), options: zObject({ is_required: z.boolean(), default_value: z.…"
+        },
+        {
+          "name": "AddCaseFieldConfigPayload",
+          "kind": "type",
+          "line": 237,
+          "exported": true,
+          "signature": "export type AddCaseFieldConfigPayload = z.infer<typeof AddCaseFieldConfigPayloadSchema>"
+        },
+        {
+          "name": "AddCaseFieldPayloadSchema",
+          "kind": "const",
+          "line": 239,
+          "exported": true,
+          "signature": "export const AddCaseFieldPayloadSchema = zObject({ type: z.string(), name: z.string(), label: z.string(), description: z.string().optional(), include_all: z.boolean().optional(), template_ids: z.array…"
+        },
+        {
+          "name": "AddCaseFieldPayload",
+          "kind": "type",
+          "line": 249,
+          "exported": true,
+          "signature": "export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/milestones.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "MilestoneSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const MilestoneSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), start_on: z.number().nullish(), started_on: z.number().nullish(), is_completed: z.boolean(…"
+        },
+        {
+          "name": "Milestone",
+          "kind": "type",
+          "line": 31,
+          "exported": true,
+          "signature": "export type Milestone = z.infer<typeof MilestoneSchema>"
+        },
+        {
+          "name": "AddMilestonePayloadSchema",
+          "kind": "const",
+          "line": 35,
+          "exported": true,
+          "signature": "export const AddMilestonePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.number().optional(…"
+        },
+        {
+          "name": "AddMilestonePayload",
+          "kind": "type",
+          "line": 44,
+          "exported": true,
+          "signature": "export type AddMilestonePayload = z.infer<typeof AddMilestonePayloadSchema>"
+        },
+        {
+          "name": "UpdateMilestonePayloadSchema",
+          "kind": "const",
+          "line": 46,
+          "exported": true,
+          "signature": "export const UpdateMilestonePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), due_on: z.number().optional(), start_on: z.number().optional(), parent_id: z.numb…"
+        },
+        {
+          "name": "UpdateMilestonePayload",
+          "kind": "type",
+          "line": 57,
+          "exported": true,
+          "signature": "export type UpdateMilestonePayload = z.infer<typeof UpdateMilestonePayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/plans.ts",
+      "imports": [
+        "./common.js",
+        "./runs.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "PlanEntrySchema",
+          "kind": "const",
+          "line": 7,
+          "exported": true,
+          "signature": "export const PlanEntrySchema = zObject({ id: z.string(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), assignedto_id: z.number().nullish(), include_all: z.boolean(), case_…"
+        },
+        {
+          "name": "PlanEntry",
+          "kind": "type",
+          "line": 27,
+          "exported": true,
+          "signature": "export type PlanEntry = z.infer<typeof PlanEntrySchema>"
+        },
+        {
+          "name": "PlanSchema",
+          "kind": "const",
+          "line": 29,
+          "exported": true,
+          "signature": "export const PlanSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), is_completed: z.boolea…"
+        },
+        {
+          "name": "Plan",
+          "kind": "type",
+          "line": 67,
+          "exported": true,
+          "signature": "export type Plan = z.infer<typeof PlanSchema>"
+        },
+        {
+          "name": "PlanEntryRunPayloadSchema",
+          "kind": "const",
+          "line": 76,
+          "exported": true,
+          "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
+        },
+        {
+          "name": "PlanEntryRunPayload",
+          "kind": "type",
+          "line": 86,
+          "exported": true,
+          "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>"
+        },
+        {
+          "name": "AddRunToPlanEntryPayloadSchema",
+          "kind": "const",
+          "line": 93,
+          "exported": true,
+          "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
+        },
+        {
+          "name": "AddRunToPlanEntryPayload",
+          "kind": "type",
+          "line": 102,
+          "exported": true,
+          "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>"
+        },
+        {
+          "name": "UpdateRunInPlanEntryPayloadSchema",
+          "kind": "const",
+          "line": 107,
+          "exported": true,
+          "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
+        },
+        {
+          "name": "UpdateRunInPlanEntryPayload",
+          "kind": "type",
+          "line": 114,
+          "exported": true,
+          "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>"
+        },
+        {
+          "name": "AddPlanEntryPayloadSchema",
+          "kind": "const",
+          "line": 116,
+          "exported": true,
+          "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
+        },
+        {
+          "name": "AddPlanEntryPayload",
+          "kind": "type",
+          "line": 139,
+          "exported": true,
+          "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>"
+        },
+        {
+          "name": "UpdatePlanEntryPayloadSchema",
+          "kind": "const",
+          "line": 141,
+          "exported": true,
+          "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
+        },
+        {
+          "name": "UpdatePlanEntryPayload",
+          "kind": "type",
+          "line": 161,
+          "exported": true,
+          "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>"
+        },
+        {
+          "name": "AddPlanPayloadSchema",
+          "kind": "const",
+          "line": 163,
+          "exported": true,
+          "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
+        },
+        {
+          "name": "AddPlanPayload",
+          "kind": "type",
+          "line": 176,
+          "exported": true,
+          "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>"
+        },
+        {
+          "name": "UpdatePlanPayloadSchema",
+          "kind": "const",
+          "line": 178,
+          "exported": true,
+          "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), start_on: z…"
+        },
+        {
+          "name": "UpdatePlanPayload",
+          "kind": "type",
+          "line": 191,
+          "exported": true,
+          "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/projects.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ProjectSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const ProjectSchema = zObject({ id: z.number(), name: z.string(), announcement: z.string().nullish(), show_announcement: z.boolean().nullish(), is_completed: z.boolean().nullish(), completed_on…"
+        },
+        {
+          "name": "Project",
+          "kind": "type",
+          "line": 55,
+          "exported": true,
+          "signature": "export type Project = z.infer<typeof ProjectSchema>"
+        },
+        {
+          "name": "AddProjectPayloadSchema",
+          "kind": "const",
+          "line": 59,
+          "exported": true,
+          "signature": "export const AddProjectPayloadSchema = zObject({ name: z.string(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
+        },
+        {
+          "name": "AddProjectPayload",
+          "kind": "type",
+          "line": 66,
+          "exported": true,
+          "signature": "export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>"
+        },
+        {
+          "name": "UpdateProjectPayloadSchema",
+          "kind": "const",
+          "line": 68,
+          "exported": true,
+          "signature": "export const UpdateProjectPayloadSchema = zObject({ name: z.string().optional(), announcement: z.string().optional(), show_announcement: z.boolean().optional(), suite_mode: z.number().optional(), })"
+        },
+        {
+          "name": "UpdateProjectPayload",
+          "kind": "type",
+          "line": 75,
+          "exported": true,
+          "signature": "export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/reports.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ReportSchema",
+          "kind": "const",
+          "line": 20,
+          "exported": true,
+          "signature": "export const ReportSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), notify_user: z.boolean().nullish(), notify_link: z.boolean().nullish(), notify_link_recipient…"
+        },
+        {
+          "name": "Report",
+          "kind": "type",
+          "line": 33,
+          "exported": true,
+          "signature": "export type Report = z.infer<typeof ReportSchema>"
+        },
+        {
+          "name": "ReportResultSchema",
+          "kind": "const",
+          "line": 46,
+          "exported": true,
+          "signature": "export const ReportResultSchema = zObject({ report_url: z.string(), report_html: z.string().nullish(), report_pdf: z.string().nullish(), user_report_url: z.string().nullish(), })"
+        },
+        {
+          "name": "ReportResult",
+          "kind": "type",
+          "line": 53,
+          "exported": true,
+          "signature": "export type ReportResult = z.infer<typeof ReportResultSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/results.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ResultSchema",
+          "kind": "const",
+          "line": 13,
+          "exported": true,
+          "signature": "export const ResultSchema = zObject({ id: z.number(), test_id: z.number(), status_id: z.number(), comment: z.string().nullish(), version: z.string().nullish(), elapsed: z.string().nullish(), defects: …"
+        },
+        {
+          "name": "Result",
+          "kind": "type",
+          "line": 27,
+          "exported": true,
+          "signature": "export type Result = z.infer<typeof ResultSchema>"
+        },
+        {
+          "name": "AddResultPayloadSchema",
+          "kind": "const",
+          "line": 41,
+          "exported": true,
+          "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
+        },
+        {
+          "name": "AddResultPayload",
+          "kind": "type",
+          "line": 51,
+          "exported": true,
+          "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>"
+        },
+        {
+          "name": "AddResultForCasePayloadSchema",
+          "kind": "const",
+          "line": 56,
+          "exported": true,
+          "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
+        },
+        {
+          "name": "AddResultForCasePayload",
+          "kind": "type",
+          "line": 67,
+          "exported": true,
+          "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>"
+        },
+        {
+          "name": "AddResultsForCasesPayloadSchema",
+          "kind": "const",
+          "line": 69,
+          "exported": true,
+          "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
+        },
+        {
+          "name": "AddResultsForCasesPayload",
+          "kind": "type",
+          "line": 73,
+          "exported": true,
+          "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>"
+        },
+        {
+          "name": "AddResultForTestPayloadSchema",
+          "kind": "const",
+          "line": 79,
+          "exported": true,
+          "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
+        },
+        {
+          "name": "AddResultForTestPayload",
+          "kind": "type",
+          "line": 90,
+          "exported": true,
+          "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>"
+        },
+        {
+          "name": "AddResultsPayloadSchema",
+          "kind": "const",
+          "line": 92,
+          "exported": true,
+          "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
+        },
+        {
+          "name": "AddResultsPayload",
+          "kind": "type",
+          "line": 96,
+          "exported": true,
+          "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/runs.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "RunSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const RunSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), milestone_id: z.number().nullish(), assignedto_id: z.number().nullish(), i…"
+        },
+        {
+          "name": "Run",
+          "kind": "type",
+          "line": 53,
+          "exported": true,
+          "signature": "export type Run = z.infer<typeof RunSchema>"
+        },
+        {
+          "name": "AddRunPayloadSchema",
+          "kind": "const",
+          "line": 57,
+          "exported": true,
+          "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
+        },
+        {
+          "name": "AddRunPayload",
+          "kind": "type",
+          "line": 68,
+          "exported": true,
+          "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>"
+        },
+        {
+          "name": "UpdateRunPayloadSchema",
+          "kind": "const",
+          "line": 70,
+          "exported": true,
+          "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
+        },
+        {
+          "name": "UpdateRunPayload",
+          "kind": "type",
+          "line": 80,
+          "exported": true,
+          "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/sections.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "SectionSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const SectionSchema = zObject({ id: z.number(), suite_id: z.number(), name: z.string(), description: z.string().nullish(), parent_id: z.number().nullish(), display_order: z.number(), depth: z.n…"
+        },
+        {
+          "name": "Section",
+          "kind": "type",
+          "line": 16,
+          "exported": true,
+          "signature": "export type Section = z.infer<typeof SectionSchema>"
+        },
+        {
+          "name": "MoveSectionPayloadSchema",
+          "kind": "const",
+          "line": 28,
+          "exported": true,
+          "signature": "export const MoveSectionPayloadSchema = zObject({ parent_id: z.number().nullable().optional(), after_id: z.number().nullable().optional(), })"
+        },
+        {
+          "name": "MoveSectionPayload",
+          "kind": "type",
+          "line": 33,
+          "exported": true,
+          "signature": "export type MoveSectionPayload = z.infer<typeof MoveSectionPayloadSchema>"
+        },
+        {
+          "name": "AddSectionPayloadSchema",
+          "kind": "const",
+          "line": 43,
+          "exported": true,
+          "signature": "export const AddSectionPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), parent_id: z.number().optional(), description: z.string().optional(), })"
+        },
+        {
+          "name": "AddSectionPayload",
+          "kind": "type",
+          "line": 50,
+          "exported": true,
+          "signature": "export type AddSectionPayload = z.infer<typeof AddSectionPayloadSchema>"
+        },
+        {
+          "name": "UpdateSectionPayloadSchema",
+          "kind": "const",
+          "line": 52,
+          "exported": true,
+          "signature": "export const UpdateSectionPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
+        },
+        {
+          "name": "UpdateSectionPayload",
+          "kind": "type",
+          "line": 57,
+          "exported": true,
+          "signature": "export type UpdateSectionPayload = z.infer<typeof UpdateSectionPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/sharedSteps.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "SharedStepSchema",
+          "kind": "const",
+          "line": 36,
+          "exported": true,
+          "signature": "export const SharedStepSchema = zObject({ id: z.number(), title: z.string(), project_id: z.number().nullish(), case_ids: z.array(z.number()).nullish(), created_on: z.number().nullish(), created_by: z.…"
+        },
+        {
+          "name": "SharedStep",
+          "kind": "type",
+          "line": 48,
+          "exported": true,
+          "signature": "export type SharedStep = z.infer<typeof SharedStepSchema>"
+        },
+        {
+          "name": "AddSharedStepPayloadSchema",
+          "kind": "const",
+          "line": 65,
+          "exported": true,
+          "signature": "export const AddSharedStepPayloadSchema = zObject({ title: z.string(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
+        },
+        {
+          "name": "AddSharedStepPayload",
+          "kind": "type",
+          "line": 70,
+          "exported": true,
+          "signature": "export type AddSharedStepPayload = z.infer<typeof AddSharedStepPayloadSchema>"
+        },
+        {
+          "name": "UpdateSharedStepPayloadSchema",
+          "kind": "const",
+          "line": 81,
+          "exported": true,
+          "signature": "export const UpdateSharedStepPayloadSchema = zObject({ title: z.string().optional(), custom_steps_separated: z.array(z.record(z.string(), z.unknown())).optional(), })"
+        },
+        {
+          "name": "UpdateSharedStepPayload",
+          "kind": "type",
+          "line": 86,
+          "exported": true,
+          "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/suites.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "SuiteSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const SuiteSchema = zObject({ id: z.number(), name: z.string(), description: z.string().nullish(), project_id: z.number(), is_master: z.boolean().nullish(), is_baseline: z.boolean().nullish(), …"
+        },
+        {
+          "name": "Suite",
+          "kind": "type",
+          "line": 18,
+          "exported": true,
+          "signature": "export type Suite = z.infer<typeof SuiteSchema>"
+        },
+        {
+          "name": "AddSuitePayloadSchema",
+          "kind": "const",
+          "line": 22,
+          "exported": true,
+          "signature": "export const AddSuitePayloadSchema = zObject({ name: z.string(), description: z.string().optional(), })"
+        },
+        {
+          "name": "AddSuitePayload",
+          "kind": "type",
+          "line": 27,
+          "exported": true,
+          "signature": "export type AddSuitePayload = z.infer<typeof AddSuitePayloadSchema>"
+        },
+        {
+          "name": "UpdateSuitePayloadSchema",
+          "kind": "const",
+          "line": 29,
+          "exported": true,
+          "signature": "export const UpdateSuitePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
+        },
+        {
+          "name": "UpdateSuitePayload",
+          "kind": "type",
+          "line": 34,
+          "exported": true,
+          "signature": "export type UpdateSuitePayload = z.infer<typeof UpdateSuitePayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/tests.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "TestSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const TestSchema = zObject({ id: z.number(), case_id: z.number(), status_id: z.number(), assignedto_id: z.number().nullish(), run_id: z.number(), title: z.string(), template_id: z.number().null…"
+        },
+        {
+          "name": "Test",
+          "kind": "type",
+          "line": 57,
+          "exported": true,
+          "signature": "export type Test = z.infer<typeof TestSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/users.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "UserSchema",
+          "kind": "const",
+          "line": 6,
+          "exported": true,
+          "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications:…"
+        },
+        {
+          "name": "User",
+          "kind": "type",
+          "line": 30,
+          "exported": true,
+          "signature": "export type User = z.infer<typeof UserSchema>"
+        },
+        {
+          "name": "RoleSchema",
+          "kind": "const",
+          "line": 32,
+          "exported": true,
+          "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
+        },
+        {
+          "name": "Role",
+          "kind": "type",
+          "line": 38,
+          "exported": true,
+          "signature": "export type Role = z.infer<typeof RoleSchema>"
+        },
+        {
+          "name": "GroupSchema",
+          "kind": "const",
+          "line": 40,
+          "exported": true,
+          "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
+        },
+        {
+          "name": "Group",
+          "kind": "type",
+          "line": 46,
+          "exported": true,
+          "signature": "export type Group = z.infer<typeof GroupSchema>"
+        },
+        {
+          "name": "AddGroupPayloadSchema",
+          "kind": "const",
+          "line": 61,
+          "exported": true,
+          "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })"
+        },
+        {
+          "name": "AddGroupPayload",
+          "kind": "type",
+          "line": 66,
+          "exported": true,
+          "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>"
+        },
+        {
+          "name": "UpdateGroupPayloadSchema",
+          "kind": "const",
+          "line": 68,
+          "exported": true,
+          "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
+        },
+        {
+          "name": "UpdateGroupPayload",
+          "kind": "type",
+          "line": 73,
+          "exported": true,
+          "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>"
+        },
+        {
+          "name": "UserAddPayloadSchema",
+          "kind": "const",
+          "line": 92,
+          "exported": true,
+          "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: z.string().email(), password: z.string().min(1), is_active: z.boolean().optional(), role_id: z.number().int().positive().o…"
+        },
+        {
+          "name": "UserAddPayload",
+          "kind": "type",
+          "line": 104,
+          "exported": true,
+          "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>"
+        },
+        {
+          "name": "UserUpdatePayloadSchema",
+          "kind": "const",
+          "line": 106,
+          "exported": true,
+          "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: z.string().email().optional(), password: z.string().min(1).optional(), is_active: z.boolean().optional(), ro…"
+        },
+        {
+          "name": "UserUpdatePayload",
+          "kind": "type",
+          "line": 118,
+          "exported": true,
+          "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/variables.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "VariableSchema",
+          "kind": "const",
+          "line": 19,
+          "exported": true,
+          "signature": "export const VariableSchema = zObject({ id: z.number(), name: z.string(), })"
+        },
+        {
+          "name": "Variable",
+          "kind": "type",
+          "line": 24,
+          "exported": true,
+          "signature": "export type Variable = z.infer<typeof VariableSchema>"
+        },
+        {
+          "name": "AddVariablePayloadSchema",
+          "kind": "const",
+          "line": 26,
+          "exported": true,
+          "signature": "export const AddVariablePayloadSchema = zObject({ name: z.string(), })"
+        },
+        {
+          "name": "AddVariablePayload",
+          "kind": "type",
+          "line": 30,
+          "exported": true,
+          "signature": "export type AddVariablePayload = z.infer<typeof AddVariablePayloadSchema>"
+        },
+        {
+          "name": "UpdateVariablePayloadSchema",
+          "kind": "const",
+          "line": 40,
+          "exported": true,
+          "signature": "export const UpdateVariablePayloadSchema = zObject({ name: z.string().optional(), })"
+        },
+        {
+          "name": "UpdateVariablePayload",
+          "kind": "type",
+          "line": 44,
+          "exported": true,
+          "signature": "export type UpdateVariablePayload = z.infer<typeof UpdateVariablePayloadSchema>"
         }
       ]
     },
