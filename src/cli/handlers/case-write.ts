@@ -10,78 +10,74 @@ import {
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
 } from '../../schemas.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
-export async function handleCaseAdd(ctx: HandlerContext): Promise<void> {
-    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
-    const body = resolveBody(ctx.bodyInput, AddCasePayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'case add', sectionId, payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.addCase(sectionId, body.payload));
-}
+export const handleCaseAdd = createWriteHandler({
+    action: 'case add',
+    pathParams: ['section_id'],
+    bodySchema: AddCasePayloadSchema,
+    call: (client, [sectionId], body) => client.addCase(sectionId, body),
+});
 
 /**
- * Bulk-create cases under a section in one API call (TestRail 7.5+). The
- * `--data` / `--data-file` / stdin payload is a JSON **array** of case
- * payloads (each item the same shape as `case add`). A non-array body is
- * rejected by Zod before any API call. Server-version errors (TestRail < 7.5)
- * are rethrown inside the module as a clearer "TestRail 7.5+ required"
- * message; the handler does not need to repeat that logic.
+ * Bulk-create cases under a section in one API call (TestRail 7.5+). The body
+ * is a JSON **array** of case payloads. A non-array body is rejected by Zod.
+ * Server-version errors (TestRail < 7.5) are rethrown inside the module as a
+ * clearer "TestRail 7.5+ required" message.
  */
-export async function handleCaseAddBulk(ctx: HandlerContext): Promise<void> {
-    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
-    const body = resolveBody(ctx.bodyInput, AddCasesBulkPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'case add-bulk',
-            sectionId,
-            count: body.payload.length,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addCases(sectionId, body.payload));
-}
+export const handleCaseAddBulk = createWriteHandler({
+    action: 'case add-bulk',
+    pathParams: ['section_id'],
+    bodySchema: AddCasesBulkPayloadSchema,
+    previewExtras: (body) => ({ count: body.length }),
+    call: (client, [sectionId], body) => client.addCases(sectionId, body),
+});
 
-export async function handleCaseUpdate(ctx: HandlerContext): Promise<void> {
-    const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    const body = resolveBody(ctx.bodyInput, UpdateCasePayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'case update', caseId, payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.updateCase(caseId, body.payload));
-}
+export const handleCaseUpdate = createWriteHandler({
+    action: 'case update',
+    pathParams: ['case_id'],
+    bodySchema: UpdateCasePayloadSchema,
+    call: (client, [caseId], body) => client.updateCase(caseId, body),
+});
 
-export async function handleCaseUpdateBulk(ctx: HandlerContext): Promise<void> {
-    const suiteId = parseId(ctx.args.pathParams[0], 'suite_id');
-    const body = resolveBody(ctx.bodyInput, UpdateCasesPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'case update-bulk',
-            suiteId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateCases(suiteId, body.payload));
-}
+export const handleCaseUpdateBulk = createWriteHandler({
+    action: 'case update-bulk',
+    pathParams: ['suite_id'],
+    bodySchema: UpdateCasesPayloadSchema,
+    call: (client, [suiteId], body) => client.updateCases(suiteId, body),
+});
+
+export const handleCaseCopyToSection = createWriteHandler({
+    action: 'case copy-to-section',
+    pathParams: ['section_id'],
+    bodySchema: CopyCasesToSectionPayloadSchema,
+    call: (client, [sectionId], body) => client.copyCasesToSection(sectionId, body),
+});
+
+export const handleCaseMoveToSection = createWriteHandler({
+    action: 'case move-to-section',
+    pathParams: ['section_id'],
+    bodySchema: MoveCasesToSectionPayloadSchema,
+    call: (client, [sectionId], body) => client.moveCasesToSection(sectionId, body),
+    formatOutput: ([sectionId]) => ({ sectionId, moved: true }),
+});
 
 /**
- * Destructive: bulk-deletes cases. Gated by `--yes`. `--soft` adds TestRail's
- * server-side preview (`soft=1`) — distinct from `--dry-run` which short-
- * circuits before any API call. When both `--dry-run` and `--yes` are
- * passed, dry-run wins (no API call) and emits a preview with
- * `destructive: true` so callers can spot it in audit output.
+ * Destructive: deletes a single case. `--soft` invokes TestRail's server-side
+ * preview (`soft=1`).
+ */
+export const handleCaseDelete = createDestructiveHandler({
+    action: 'case delete',
+    pathParams: ['case_id'],
+    softMode: 'optional',
+    call: (client, [caseId], _entry, soft) => client.deleteCase(caseId, { soft }),
+});
+
+/**
+ * Destructive bulk delete. Hand-written rather than factory-built: it is the
+ * only destructive action that combines a JSON body, a required `--project-id`
+ * flag, and the soft-preview branch. `--soft` adds TestRail's server-side
+ * preview (`soft=1`); `--dry-run` short-circuits before any API call.
  */
 export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
     const suiteId = parseId(ctx.args.pathParams[0], 'suite_id');
@@ -120,67 +116,4 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
     }
     await ctx.client.deleteCases(suiteId, projectId, body.payload, { soft: false });
     ctx.out({ suiteId, projectId, soft: false, deleted: true });
-}
-
-export async function handleCaseCopyToSection(ctx: HandlerContext): Promise<void> {
-    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
-    const body = resolveBody(ctx.bodyInput, CopyCasesToSectionPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'case copy-to-section',
-            sectionId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.copyCasesToSection(sectionId, body.payload));
-}
-
-export async function handleCaseMoveToSection(ctx: HandlerContext): Promise<void> {
-    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
-    const body = resolveBody(ctx.bodyInput, MoveCasesToSectionPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'case move-to-section',
-            sectionId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    await ctx.client.moveCasesToSection(sectionId, body.payload);
-    ctx.out({ sectionId, moved: true });
-}
-
-/**
- * Destructive: deletes a single case. Gated by `--yes`; `--dry-run` wins
- * for preview-without-API. `--soft` invokes TestRail's server-side preview
- * (`soft=1`) — distinct from `--dry-run` which short-circuits before any
- * API call.
- */
-export async function handleCaseDelete(ctx: HandlerContext): Promise<void> {
-    const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    const soft = ctx.args.soft === true;
-
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'case delete', caseId, soft, destructive: true });
-        return;
-    }
-
-    if (!ctx.confirmDestructive) {
-        throw new Error('Destructive action; pass --yes to confirm.');
-    }
-
-    if (soft) {
-        const preview = await ctx.client.deleteCase(caseId, { soft: true });
-        ctx.out({ caseId, soft: true, deleted: false, preview });
-        return;
-    }
-    await ctx.client.deleteCase(caseId, { soft: false });
-    ctx.out({ caseId, soft: false, deleted: true });
 }

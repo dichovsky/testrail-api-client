@@ -1,136 +1,65 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
-import { resolveBody } from '../body.js';
 import {
     AddConfigurationGroupPayloadSchema,
     UpdateConfigurationGroupPayloadSchema,
     AddConfigurationPayloadSchema,
     UpdateConfigurationPayloadSchema,
 } from '../../schemas.js';
-import { runDestructive } from '../run-destructive.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
 // ── Config group CRUD ────────────────────────────────────────────────────────
-// `configuration-group` is a separate CLI resource from `configuration` because
-// the parent/child shape on the server is asymmetric: groups live at the
-// project level and own a `configs[]` array, while configs are addressed by
-// their own `config_id` and never appear standalone. Splitting the resource
-// namespace keeps the path-param contract unambiguous (`<project_id>` for
-// groups vs `<config_group_id>` / `<config_id>` for configs).
+// `configuration-group` is a separate CLI resource from `configuration`: groups
+// live at the project level and own a `configs[]` array, while configs are
+// addressed by their own `config_id` and never appear standalone.
 
-export async function handleConfigurationGroupAdd(ctx: HandlerContext): Promise<void> {
-    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
-    const body = resolveBody(ctx.bodyInput, AddConfigurationGroupPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'configuration-group add',
-            projectId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addConfigurationGroup(projectId, body.payload));
-}
+export const handleConfigurationGroupAdd = createWriteHandler({
+    action: 'configuration-group add',
+    pathParams: ['project_id'],
+    bodySchema: AddConfigurationGroupPayloadSchema,
+    call: (client, [projectId], body) => client.addConfigurationGroup(projectId, body),
+});
 
-export async function handleConfigurationGroupUpdate(ctx: HandlerContext): Promise<void> {
-    const configGroupId = parseId(ctx.args.pathParams[0], 'config_group_id');
-    const body = resolveBody(ctx.bodyInput, UpdateConfigurationGroupPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'configuration-group update',
-            configGroupId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateConfigurationGroup(configGroupId, body.payload));
-}
+export const handleConfigurationGroupUpdate = createWriteHandler({
+    action: 'configuration-group update',
+    pathParams: ['config_group_id'],
+    bodySchema: UpdateConfigurationGroupPayloadSchema,
+    call: (client, [configGroupId], body) => client.updateConfigurationGroup(configGroupId, body),
+});
 
 /**
- * Destructive: deletes a configuration group along with every config inside
- * it. Gated by `--yes`; `--dry-run` wins for preview-without-API. TestRail's
- * `delete_config_group` does NOT support `soft=1`, so `--soft` is rejected
- * here rather than silently dropped — keeping destructive intent unambiguous
- * (mirrors `milestone delete` / `project delete`).
- *
- * Cascade caveat: deleting a group invalidates every plan entry that
- * references one of its configs. Prefer deleting individual configs first
- * (`configuration delete`) if you only need to retire a subset.
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: deletes a configuration group and every config inside it.
+ * TestRail's `delete_config_group` has no `soft=1` preview, so `--soft` is
+ * rejected. Cascade caveat: deleting a group invalidates every plan entry that
+ * references one of its configs.
  */
-export async function handleConfigurationGroupDelete(ctx: HandlerContext): Promise<void> {
-    const configGroupId = parseId(ctx.args.pathParams[0], 'config_group_id');
-    await runDestructive(
-        ctx,
-        { action: 'configuration-group delete', configGroupId },
-        async () => {
-            await ctx.client.deleteConfigurationGroup(configGroupId);
-            ctx.out({ configGroupId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleConfigurationGroupDelete = createDestructiveHandler({
+    action: 'configuration-group delete',
+    pathParams: ['config_group_id'],
+    call: (client, [configGroupId]) => client.deleteConfigurationGroup(configGroupId),
+});
 
 // ── Config (leaf) CRUD ───────────────────────────────────────────────────────
 
-export async function handleConfigurationAdd(ctx: HandlerContext): Promise<void> {
-    const configGroupId = parseId(ctx.args.pathParams[0], 'config_group_id');
-    const body = resolveBody(ctx.bodyInput, AddConfigurationPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'configuration add',
-            configGroupId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addConfiguration(configGroupId, body.payload));
-}
+export const handleConfigurationAdd = createWriteHandler({
+    action: 'configuration add',
+    pathParams: ['config_group_id'],
+    bodySchema: AddConfigurationPayloadSchema,
+    call: (client, [configGroupId], body) => client.addConfiguration(configGroupId, body),
+});
 
-export async function handleConfigurationUpdate(ctx: HandlerContext): Promise<void> {
-    const configId = parseId(ctx.args.pathParams[0], 'config_id');
-    const body = resolveBody(ctx.bodyInput, UpdateConfigurationPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'configuration update',
-            configId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateConfiguration(configId, body.payload));
-}
+export const handleConfigurationUpdate = createWriteHandler({
+    action: 'configuration update',
+    pathParams: ['config_id'],
+    bodySchema: UpdateConfigurationPayloadSchema,
+    call: (client, [configId], body) => client.updateConfiguration(configId, body),
+});
 
 /**
- * Destructive: deletes a single configuration (leaf). Gated by `--yes`;
- * `--dry-run` wins for preview-without-API. TestRail's `delete_config` does
- * NOT support `soft=1`; `--soft` is rejected. Deleting a config removes it
- * from any plan entries that referenced it (no cascade across runs/results,
- * but plan entry config selections lose this option).
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: deletes a single configuration (leaf). TestRail's
+ * `delete_config` has no `soft=1` preview, so `--soft` is rejected. Removing a
+ * config strips it from any plan entries that referenced it.
  */
-export async function handleConfigurationDelete(ctx: HandlerContext): Promise<void> {
-    const configId = parseId(ctx.args.pathParams[0], 'config_id');
-    await runDestructive(
-        ctx,
-        { action: 'configuration delete', configId },
-        async () => {
-            await ctx.client.deleteConfiguration(configId);
-            ctx.out({ configId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleConfigurationDelete = createDestructiveHandler({
+    action: 'configuration delete',
+    pathParams: ['config_id'],
+    call: (client, [configId]) => client.deleteConfiguration(configId),
+});

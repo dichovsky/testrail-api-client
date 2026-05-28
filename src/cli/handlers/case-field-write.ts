@@ -1,19 +1,12 @@
-import type { HandlerContext } from '../handler-context.js';
-import { resolveBody } from '../body.js';
 import { AddCaseFieldPayloadSchema } from '../../schemas.js';
+import { createWriteHandler } from '../write-handler-factory.js';
 
 /**
- * `case-field add` — create a custom case field (admin-only). No path
- * params; the payload carries `type`, `name`, `label`, and `configs[]`.
- * Dry-run emits the parsed payload plus the action label without hitting
- * the API.
+ * `case-field add` — create a custom case field (admin-only). No path params;
+ * the payload carries `type`, `name`, `label`, and `configs[]`.
  */
-export async function handleCaseFieldAdd(ctx: HandlerContext): Promise<void> {
-    const body = resolveBody(ctx.bodyInput, AddCaseFieldPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'case-field add', payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.addCaseField(body.payload));
-}
+export const handleCaseFieldAdd = createWriteHandler({
+    action: 'case-field add',
+    bodySchema: AddCaseFieldPayloadSchema,
+    call: (client, _nums, body) => client.addCaseField(body),
+});

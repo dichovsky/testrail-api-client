@@ -1,6 +1,3 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId, parseEntryId } from '../ids.js';
-import { resolveBody } from '../body.js';
 import {
     AddPlanPayloadSchema,
     UpdatePlanPayloadSchema,
@@ -9,183 +6,90 @@ import {
     UpdatePlanEntryPayloadSchema,
     UpdateRunInPlanEntryPayloadSchema,
 } from '../../schemas.js';
-import { runDestructive } from '../run-destructive.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
-export async function handlePlanAdd(ctx: HandlerContext): Promise<void> {
-    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
-    const body = resolveBody(ctx.bodyInput, AddPlanPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'plan add', projectId, payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.addPlan(projectId, body.payload));
-}
+export const handlePlanAdd = createWriteHandler({
+    action: 'plan add',
+    pathParams: ['project_id'],
+    bodySchema: AddPlanPayloadSchema,
+    call: (client, [projectId], body) => client.addPlan(projectId, body),
+});
 
-export async function handlePlanUpdate(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const body = resolveBody(ctx.bodyInput, UpdatePlanPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'plan update', planId, payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.updatePlan(planId, body.payload));
-}
+export const handlePlanUpdate = createWriteHandler({
+    action: 'plan update',
+    pathParams: ['plan_id'],
+    bodySchema: UpdatePlanPayloadSchema,
+    call: (client, [planId], body) => client.updatePlan(planId, body),
+});
 
-export async function handlePlanAddEntry(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const body = resolveBody(ctx.bodyInput, AddPlanEntryPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'plan add-entry', planId, payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.addPlanEntry(planId, body.payload));
-}
+export const handlePlanAddEntry = createWriteHandler({
+    action: 'plan add-entry',
+    pathParams: ['plan_id'],
+    bodySchema: AddPlanEntryPayloadSchema,
+    call: (client, [planId], body) => client.addPlanEntry(planId, body),
+});
 
-export async function handlePlanAddRunToEntry(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
-    const body = resolveBody(ctx.bodyInput, AddRunToPlanEntryPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'plan add-run-to-entry',
-            planId,
-            entryId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addRunToPlanEntry(planId, entryId, body.payload));
-}
+export const handlePlanAddRunToEntry = createWriteHandler({
+    action: 'plan add-run-to-entry',
+    pathParams: ['plan_id'],
+    entryParam: 'entry_id',
+    bodySchema: AddRunToPlanEntryPayloadSchema,
+    call: (client, [planId], body, entryId) => client.addRunToPlanEntry(planId, entryId, body),
+});
 
-export async function handlePlanUpdateEntry(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
-    const body = resolveBody(ctx.bodyInput, UpdatePlanEntryPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'plan update-entry',
-            planId,
-            entryId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updatePlanEntry(planId, entryId, body.payload));
-}
+export const handlePlanUpdateEntry = createWriteHandler({
+    action: 'plan update-entry',
+    pathParams: ['plan_id'],
+    entryParam: 'entry_id',
+    bodySchema: UpdatePlanEntryPayloadSchema,
+    call: (client, [planId], body, entryId) => client.updatePlanEntry(planId, entryId, body),
+});
 
-export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<void> {
-    const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    const body = resolveBody(ctx.bodyInput, UpdateRunInPlanEntryPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'plan update-run-in-entry',
-            runId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateRunInPlanEntry(runId, body.payload));
-}
+export const handlePlanUpdateRunInEntry = createWriteHandler({
+    action: 'plan update-run-in-entry',
+    pathParams: ['run_id'],
+    bodySchema: UpdateRunInPlanEntryPayloadSchema,
+    call: (client, [runId], body) => client.updateRunInPlanEntry(runId, body),
+});
 
 /**
- * Destructive: closes a plan. TestRail offers no `open_plan` endpoint —
- * once closed, the plan accepts no new entries/runs and existing runs in
- * the plan can no longer receive results. Gated by `--yes`; if `--dry-run`
- * is also passed, dry-run wins (no API call) and emits a preview with
- * `destructive: true`. Mirrors `handleRunClose`.
- *
- * No body is taken — any `--data` / `--data-file` / stdin supplied for
- * this action is silently ignored, matching the no-body close pattern
- * locked in by `run close`.
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: closes a plan. TestRail has no `open_plan` — once closed, the
+ * plan accepts no new entries/runs. Takes no body; returns the closed plan.
  */
-export async function handlePlanClose(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    await runDestructive(
-        ctx,
-        { action: 'plan close', planId },
-        async () => {
-            ctx.out(await ctx.client.closePlan(planId));
-        },
-        { softUnsupported: true },
-    );
-}
+export const handlePlanClose = createDestructiveHandler({
+    action: 'plan close',
+    pathParams: ['plan_id'],
+    kind: 'close',
+    call: (client, [planId]) => client.closePlan(planId),
+});
 
 /**
  * Destructive: deletes a plan and all of its entries and associated runs.
- * Gated by `--yes`; `--dry-run` wins for preview-without-API. TestRail does
- * NOT support `?soft=1` on `delete_plan` — there's no server-side preview;
- * the only safety net is the client-side `--dry-run`. Mirrors
- * `handleMilestoneDelete` / `handleProjectDelete` (no-`--soft` deletes).
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * TestRail's `delete_plan` has no `soft=1` preview, so `--soft` is rejected.
  */
-export async function handlePlanDelete(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    await runDestructive(
-        ctx,
-        { action: 'plan delete', planId },
-        async () => {
-            await ctx.client.deletePlan(planId);
-            ctx.out({ planId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handlePlanDelete = createDestructiveHandler({
+    action: 'plan delete',
+    pathParams: ['plan_id'],
+    call: (client, [planId]) => client.deletePlan(planId),
+});
 
 /**
- * Destructive: deletes a single plan entry (which removes every run in
- * that entry). `entry_id` is a UUID-style string (not a number); it's
- * validated against the non-empty-string rule via `parseEntryId` before
- * the destructive gate is even checked. Gated by `--yes`; `--dry-run`
- * wins for preview-without-API. No `--soft` support upstream.
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: deletes a single plan entry (and every run in it). `entry_id`
+ * is a UUID string validated via `parseEntryId`. No `--soft` support upstream.
  */
-export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void> {
-    const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
-    await runDestructive(
-        ctx,
-        { action: 'plan delete-entry', planId, entryId },
-        async () => {
-            await ctx.client.deletePlanEntry(planId, entryId);
-            ctx.out({ planId, entryId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handlePlanDeleteEntry = createDestructiveHandler({
+    action: 'plan delete-entry',
+    pathParams: ['plan_id'],
+    entryParam: 'entry_id',
+    call: (client, [planId], entryId) => client.deletePlanEntry(planId, entryId),
+});
 
 /**
  * Destructive: deletes a single run from its plan entry. Takes only the
- * `run_id` (numeric) — the entry/plan are looked up server-side. Gated
- * by `--yes`; `--dry-run` wins for preview-without-API. No `--soft`
- * support upstream.
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * numeric `run_id` — the entry/plan are looked up server-side. No `--soft`.
  */
-export async function handlePlanDeleteRunFromEntry(ctx: HandlerContext): Promise<void> {
-    const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    await runDestructive(
-        ctx,
-        { action: 'plan delete-run-from-entry', runId },
-        async () => {
-            await ctx.client.deleteRunFromPlanEntry(runId);
-            ctx.out({ runId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handlePlanDeleteRunFromEntry = createDestructiveHandler({
+    action: 'plan delete-run-from-entry',
+    pathParams: ['run_id'],
+    call: (client, [runId]) => client.deleteRunFromPlanEntry(runId),
+});

@@ -70,9 +70,11 @@ function pathParamsText(spec: ActionSpec): string {
  * Builds the trailing argv hint for a spec — body source, file I/O, gates.
  * Returns an empty string when there is nothing to hint at (most read actions).
  */
-function actionArgvHint(spec: ActionSpec): string {
+export function actionArgvHint(spec: ActionSpec): string {
     const parts: string[] = [];
     if (spec.bodySchema !== undefined) {
+        // Every body-bearing ActionSpec ships an explicit `helpExample`; the
+        // fallback covers a future action added without one.
         parts.push(spec.helpExample ?? "--data '{...}' | --data-file <path> | stdin");
     }
     if (spec.fileInput === true) {
@@ -113,7 +115,7 @@ function renderActionLine(spec: ActionSpec): string {
     return `  ${resourceCol}${usage}\n      ${spec.summary}`;
 }
 
-function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string {
+export function renderSection(title: string, predicate: (spec: ActionSpec) => boolean): string {
     const lines = ACTIONS.filter(predicate).map(renderActionLine);
     if (lines.length === 0) return '';
     return `${title}\n${lines.join('\n')}`;

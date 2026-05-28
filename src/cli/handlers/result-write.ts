@@ -1,74 +1,30 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
-import { resolveBody } from '../body.js';
 import { AddResultPayloadSchema, AddResultsForCasesPayloadSchema, AddResultsPayloadSchema } from '../../schemas.js';
+import { createWriteHandler } from '../write-handler-factory.js';
 
-export async function handleResultAddByTest(ctx: HandlerContext): Promise<void> {
-    const testId = parseId(ctx.args.pathParams[0], 'test_id');
-    const body = resolveBody(ctx.bodyInput, AddResultPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'result add-by-test',
-            testId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addResult(testId, body.payload));
-}
+export const handleResultAddByTest = createWriteHandler({
+    action: 'result add-by-test',
+    pathParams: ['test_id'],
+    bodySchema: AddResultPayloadSchema,
+    call: (client, [testId], body) => client.addResult(testId, body),
+});
 
-export async function handleResultAdd(ctx: HandlerContext): Promise<void> {
-    const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    const caseId = parseId(ctx.args.pathParams[1], 'case_id');
-    const body = resolveBody(ctx.bodyInput, AddResultPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'result add',
-            runId,
-            caseId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addResultForCase(runId, caseId, body.payload));
-}
+export const handleResultAdd = createWriteHandler({
+    action: 'result add',
+    pathParams: ['run_id', 'case_id'],
+    bodySchema: AddResultPayloadSchema,
+    call: (client, [runId, caseId], body) => client.addResultForCase(runId, caseId, body),
+});
 
-export async function handleResultAddBulk(ctx: HandlerContext): Promise<void> {
-    const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    const body = resolveBody(ctx.bodyInput, AddResultsForCasesPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'result add-bulk',
-            runId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addResultsForCases(runId, body.payload));
-}
+export const handleResultAddBulk = createWriteHandler({
+    action: 'result add-bulk',
+    pathParams: ['run_id'],
+    bodySchema: AddResultsForCasesPayloadSchema,
+    call: (client, [runId], body) => client.addResultsForCases(runId, body),
+});
 
-export async function handleResultAddBulkByTest(ctx: HandlerContext): Promise<void> {
-    const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    const body = resolveBody(ctx.bodyInput, AddResultsPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'result add-bulk-by-test',
-            runId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addResults(runId, body.payload));
-}
+export const handleResultAddBulkByTest = createWriteHandler({
+    action: 'result add-bulk-by-test',
+    pathParams: ['run_id'],
+    bodySchema: AddResultsPayloadSchema,
+    call: (client, [runId], body) => client.addResults(runId, body),
+});

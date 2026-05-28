@@ -1,80 +1,33 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
-import { resolveBody } from '../body.js';
-import type { BodyResolution } from '../body.js';
 import { AddDatasetPayloadSchema, UpdateDatasetPayloadSchema } from '../../schemas.js';
-import type { UpdateDatasetPayload } from '../../schemas.js';
-import { runDestructive } from '../run-destructive.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
-export async function handleDatasetAdd(ctx: HandlerContext): Promise<void> {
-    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
-    const body = resolveBody(ctx.bodyInput, AddDatasetPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'dataset add',
-            projectId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addDataset(projectId, body.payload));
-}
+export const handleDatasetAdd = createWriteHandler({
+    action: 'dataset add',
+    pathParams: ['project_id'],
+    bodySchema: AddDatasetPayloadSchema,
+    call: (client, [projectId], body) => client.addDataset(projectId, body),
+});
 
 /**
  * Update a dataset. `UpdateDatasetPayloadSchema` makes every field optional
- * (rename-only at the moment), so an absent body is a legitimate no-op
- * forwarded to TestRail. Rather than rejecting with the generic
- * `Body required` message, default `--data` / `--data-file` / stdin
- * being all unset to `{}` — the agent gets the same outcome as if it had
- * typed `--data '{}'` explicitly. When a body IS supplied it still flows
- * through `resolveBody` so JSON parse errors and Zod validation failures
- * surface unchanged. Source label flips to `'default'` so dry-run output
- * still makes the input mechanism explicit.
+ * (rename-only at the moment), so an absent body is a legitimate no-op:
+ * `allowEmptyBody` resolves it to `{}` with source `'default'` rather than
+ * erroring with "Body required".
  */
-export async function handleDatasetUpdate(ctx: HandlerContext): Promise<void> {
-    const datasetId = parseId(ctx.args.pathParams[0], 'dataset_id');
-    const noBody =
-        ctx.bodyInput.dataFlag === undefined &&
-        ctx.bodyInput.dataFileFlag === undefined &&
-        ctx.bodyInput.readStdin === undefined;
-    const body: BodyResolution<UpdateDatasetPayload> = noBody
-        ? { ok: true, payload: {}, source: 'default' }
-        : resolveBody(ctx.bodyInput, UpdateDatasetPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'dataset update',
-            datasetId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateDataset(datasetId, body.payload));
-}
+export const handleDatasetUpdate = createWriteHandler({
+    action: 'dataset update',
+    pathParams: ['dataset_id'],
+    bodySchema: UpdateDatasetPayloadSchema,
+    allowEmptyBody: true,
+    call: (client, [datasetId], body) => client.updateDataset(datasetId, body),
+});
 
 /**
- * Destructive: deletes a dataset. Gated by `--yes`; `--dry-run` wins for
- * preview-without-API. TestRail's `delete_dataset` does NOT support the
- * `soft=1` server-side preview, so `--soft` is rejected — keeping
- * destructive intent unambiguous (mirrors the `variable delete` /
- * `milestone delete` / `project delete` pattern).
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: deletes a dataset. TestRail's `delete_dataset` has no `soft=1`
+ * preview, so `--soft` is rejected.
  */
-export async function handleDatasetDelete(ctx: HandlerContext): Promise<void> {
-    const datasetId = parseId(ctx.args.pathParams[0], 'dataset_id');
-    await runDestructive(
-        ctx,
-        { action: 'dataset delete', datasetId },
-        async () => {
-            await ctx.client.deleteDataset(datasetId);
-            ctx.out({ datasetId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleDatasetDelete = createDestructiveHandler({
+    action: 'dataset delete',
+    pathParams: ['dataset_id'],
+    call: (client, [datasetId]) => client.deleteDataset(datasetId),
+});

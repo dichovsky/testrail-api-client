@@ -1,64 +1,28 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
-import { resolveBody } from '../body.js';
 import { AddSharedStepPayloadSchema, UpdateSharedStepPayloadSchema } from '../../schemas.js';
-import { runDestructive } from '../run-destructive.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
-export async function handleSharedStepAdd(ctx: HandlerContext): Promise<void> {
-    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
-    const body = resolveBody(ctx.bodyInput, AddSharedStepPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'shared-step add',
-            projectId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addSharedStep(projectId, body.payload));
-}
+export const handleSharedStepAdd = createWriteHandler({
+    action: 'shared-step add',
+    pathParams: ['project_id'],
+    bodySchema: AddSharedStepPayloadSchema,
+    call: (client, [projectId], body) => client.addSharedStep(projectId, body),
+});
 
-export async function handleSharedStepUpdate(ctx: HandlerContext): Promise<void> {
-    const sharedStepId = parseId(ctx.args.pathParams[0], 'shared_step_id');
-    const body = resolveBody(ctx.bodyInput, UpdateSharedStepPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'shared-step update',
-            sharedStepId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateSharedStep(sharedStepId, body.payload));
-}
+export const handleSharedStepUpdate = createWriteHandler({
+    action: 'shared-step update',
+    pathParams: ['shared_step_id'],
+    bodySchema: UpdateSharedStepPayloadSchema,
+    call: (client, [sharedStepId], body) => client.updateSharedStep(sharedStepId, body),
+});
 
 /**
- * Destructive: deletes a shared step. The deletion does NOT delete the test
- * cases that reference this shared step — those cases lose their reference to
- * the step set but remain intact (per TestRail's documented behavior for
- * `delete_shared_step`). Gated by `--yes`; `--dry-run` wins for
- * preview-without-API. TestRail does NOT support `?soft=1` on
- * `delete_shared_step` — there's no server-side preview; the only safety net
- * is the client-side `--dry-run`. Mirrors `handleMilestoneDelete` /
- * `handlePlanDelete` (no-`--soft` deletes).
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: deletes a shared step. Cases that reference it keep their step
+ * content but lose the shared reference (per TestRail's documented behavior).
+ * TestRail's `delete_shared_step` has no `soft=1` preview, so `--soft` is
+ * rejected.
  */
-export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void> {
-    const sharedStepId = parseId(ctx.args.pathParams[0], 'shared_step_id');
-    await runDestructive(
-        ctx,
-        { action: 'shared-step delete', sharedStepId },
-        async () => {
-            await ctx.client.deleteSharedStep(sharedStepId);
-            ctx.out({ sharedStepId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleSharedStepDelete = createDestructiveHandler({
+    action: 'shared-step delete',
+    pathParams: ['shared_step_id'],
+    call: (client, [sharedStepId]) => client.deleteSharedStep(sharedStepId),
+});
