@@ -1,45 +1,24 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
-import { resolveBody } from '../body.js';
 import { UserAddPayloadSchema, UserUpdatePayloadSchema } from '../../schemas.js';
+import { createWriteHandler } from '../write-handler-factory.js';
 
 /**
- * `user add` — create a new TestRail user (TestRail 7.3+).
- *
- * Requires `name`, `email`, and `password` in the JSON body. Pass the body via
- * `--data-file <path>` or stdin pipe to avoid leaking the password through
- * shell history. `--dry-run` previews the validated payload without issuing
- * any API call.
+ * `user add` — create a new TestRail user (TestRail 7.3+). Requires `name`,
+ * `email`, and `password` in the body. Pass it via `--data-file <path>` or a
+ * stdin pipe to avoid leaking the password through shell history.
  */
-export async function handleUserAdd(ctx: HandlerContext): Promise<void> {
-    const body = resolveBody(ctx.bodyInput, UserAddPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({ dryRun: true, action: 'user add', payload: body.payload, source: body.source });
-        return;
-    }
-    ctx.out(await ctx.client.addUser(body.payload));
-}
+export const handleUserAdd = createWriteHandler({
+    action: 'user add',
+    bodySchema: UserAddPayloadSchema,
+    call: (client, _nums, body) => client.addUser(body),
+});
 
 /**
- * `user update <user_id>` — update an existing TestRail user (TestRail 7.3+).
- *
- * All body fields are optional (PATCH semantics). `--dry-run` previews the
- * validated payload without issuing any API call.
+ * `user update <user_id>` — partial update (PATCH semantics; all body fields
+ * optional).
  */
-export async function handleUserUpdate(ctx: HandlerContext): Promise<void> {
-    const userId = parseId(ctx.args.pathParams[0], 'user_id');
-    const body = resolveBody(ctx.bodyInput, UserUpdatePayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'user update',
-            userId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateUser(userId, body.payload));
-}
+export const handleUserUpdate = createWriteHandler({
+    action: 'user update',
+    pathParams: ['user_id'],
+    bodySchema: UserUpdatePayloadSchema,
+    call: (client, [userId], body) => client.updateUser(userId, body),
+});

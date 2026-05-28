@@ -1,61 +1,26 @@
-import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
-import { resolveBody } from '../body.js';
 import { AddVariablePayloadSchema, UpdateVariablePayloadSchema } from '../../schemas.js';
-import { runDestructive } from '../run-destructive.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
-export async function handleVariableAdd(ctx: HandlerContext): Promise<void> {
-    const projectId = parseId(ctx.args.pathParams[0], 'project_id');
-    const body = resolveBody(ctx.bodyInput, AddVariablePayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'variable add',
-            projectId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.addVariable(projectId, body.payload));
-}
+export const handleVariableAdd = createWriteHandler({
+    action: 'variable add',
+    pathParams: ['project_id'],
+    bodySchema: AddVariablePayloadSchema,
+    call: (client, [projectId], body) => client.addVariable(projectId, body),
+});
 
-export async function handleVariableUpdate(ctx: HandlerContext): Promise<void> {
-    const variableId = parseId(ctx.args.pathParams[0], 'variable_id');
-    const body = resolveBody(ctx.bodyInput, UpdateVariablePayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'variable update',
-            variableId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateVariable(variableId, body.payload));
-}
+export const handleVariableUpdate = createWriteHandler({
+    action: 'variable update',
+    pathParams: ['variable_id'],
+    bodySchema: UpdateVariablePayloadSchema,
+    call: (client, [variableId], body) => client.updateVariable(variableId, body),
+});
 
 /**
- * Destructive: deletes a variable. Gated by `--yes`; `--dry-run` wins for
- * preview-without-API. TestRail's `delete_variable` does NOT support the
- * `soft=1` server-side preview, so `--soft` is rejected — keeping
- * destructive intent unambiguous (mirrors the `milestone delete` /
- * `project delete` pattern).
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
+ * Destructive: deletes a variable. TestRail's `delete_variable` has no
+ * `soft=1` preview, so `--soft` is rejected.
  */
-export async function handleVariableDelete(ctx: HandlerContext): Promise<void> {
-    const variableId = parseId(ctx.args.pathParams[0], 'variable_id');
-    await runDestructive(
-        ctx,
-        { action: 'variable delete', variableId },
-        async () => {
-            await ctx.client.deleteVariable(variableId);
-            ctx.out({ variableId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleVariableDelete = createDestructiveHandler({
+    action: 'variable delete',
+    pathParams: ['variable_id'],
+    call: (client, [variableId]) => client.deleteVariable(variableId),
+});

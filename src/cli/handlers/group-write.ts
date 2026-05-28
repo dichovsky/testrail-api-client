@@ -1,13 +1,15 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId, IdParseError } from '../ids.js';
+import { IdParseError } from '../ids.js';
 import { resolveBody } from '../body.js';
 import { AddGroupPayloadSchema, UpdateGroupPayloadSchema } from '../../schemas.js';
-import { runDestructive } from '../run-destructive.js';
+import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
 
 /**
- * `group add` — create a new user group (TestRail 7.5+). No path param;
- * the entire payload (name + optional user_ids) travels in the JSON body.
- * Mirrors the `project add` / `case-field add` no-path-param write shape.
+ * `group add` — create a new user group (TestRail 7.5+). Hand-written rather
+ * than factory-built because it actively rejects positional arguments (the
+ * group is identified entirely by the JSON body, not a path param). The
+ * dispatcher's path-param-count check covers the CLI path, but this guard also
+ * protects direct callers.
  */
 export async function handleGroupAdd(ctx: HandlerContext): Promise<void> {
     if (ctx.args.pathParams.length > 0) {
@@ -30,48 +32,23 @@ export async function handleGroupAdd(ctx: HandlerContext): Promise<void> {
 }
 
 /**
- * `group update <group_id>` — partial update of an existing group. Empty
- * body (`{}`) is accepted; TestRail itself returns the unchanged group in
- * that case (mirrors `variable update` / `section update`).
+ * `group update <group_id>` — partial update; an empty `{}` body is accepted
+ * (TestRail returns the unchanged group).
  */
-export async function handleGroupUpdate(ctx: HandlerContext): Promise<void> {
-    const groupId = parseId(ctx.args.pathParams[0], 'group_id');
-    const body = resolveBody(ctx.bodyInput, UpdateGroupPayloadSchema);
-    if (!body.ok) throw new Error(body.error);
-    if (ctx.dryRun) {
-        ctx.out({
-            dryRun: true,
-            action: 'group update',
-            groupId,
-            payload: body.payload,
-            source: body.source,
-        });
-        return;
-    }
-    ctx.out(await ctx.client.updateGroup(groupId, body.payload));
-}
+export const handleGroupUpdate = createWriteHandler({
+    action: 'group update',
+    pathParams: ['group_id'],
+    bodySchema: UpdateGroupPayloadSchema,
+    call: (client, [groupId], body) => client.updateGroup(groupId, body),
+});
 
 /**
- * Destructive: deletes a user group. Gated by `--yes`; `--dry-run` wins for
- * preview-without-API. TestRail's `delete_group` does NOT support the
- * `soft=1` server-side preview, so `--soft` is rejected here rather than
- * silently dropped — keeping destructive intent unambiguous.
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft reject → yes gate → API.
- *
- * Cascade caveat: deleting a group removes its membership claims but does
- * NOT delete the users themselves (TestRail keeps users at the instance
- * level; groups are a many-to-many bag).
+ * Destructive: deletes a user group. TestRail's `delete_group` has no `soft=1`
+ * preview, so `--soft` is rejected. Deleting a group removes its membership
+ * claims but not the users themselves.
  */
-export async function handleGroupDelete(ctx: HandlerContext): Promise<void> {
-    const groupId = parseId(ctx.args.pathParams[0], 'group_id');
-    await runDestructive(
-        ctx,
-        { action: 'group delete', groupId },
-        async () => {
-            await ctx.client.deleteGroup(groupId);
-            ctx.out({ groupId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleGroupDelete = createDestructiveHandler({
+    action: 'group delete',
+    pathParams: ['group_id'],
+    call: (client, [groupId]) => client.deleteGroup(groupId),
+});

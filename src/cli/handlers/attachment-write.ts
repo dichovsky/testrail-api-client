@@ -1,7 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveFile } from '../file-input.js';
-import { runDestructive } from '../run-destructive.js';
+import { createDestructiveHandler } from '../write-handler-factory.js';
 
 /**
  * Resolved file ready for upload. Returned by `setupUpload` only on the
@@ -129,21 +129,11 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
 }
 
 /**
- * Destructive: deletes the attachment permanently. Gated by `--yes`; if
- * `--dry-run` is also passed, dry-run wins (no API call) and emits a preview
- * with `destructive: true` so callers can spot it in audit output.
- *
- * Gate order (Pattern B): parseId → dryRun (wins) → soft-reject → yes gate → API.
+ * Destructive: deletes the attachment permanently. TestRail's
+ * `delete_attachment` has no `soft=1` preview, so `--soft` is rejected.
  */
-export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void> {
-    const attachmentId = parseId(ctx.args.pathParams[0], 'attachment_id');
-    await runDestructive(
-        ctx,
-        { action: 'attachment delete', attachmentId },
-        async () => {
-            await ctx.client.deleteAttachment(attachmentId);
-            ctx.out({ attachmentId, deleted: true });
-        },
-        { softUnsupported: true },
-    );
-}
+export const handleAttachmentDelete = createDestructiveHandler({
+    action: 'attachment delete',
+    pathParams: ['attachment_id'],
+    call: (client, [attachmentId]) => client.deleteAttachment(attachmentId),
+});

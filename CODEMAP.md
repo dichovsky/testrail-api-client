@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "4.1.0"
   },
-  "sourceHash": "34b108415c516039b5400e984f053abf86205e79cc67c5bb0d603933cb011984",
+  "sourceHash": "eb24960ccc9b8509b58eefeb028e5cf468bcce61ffe43525f0ceac26d7443d84",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1889,7 +1889,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../file-input.js",
         "../handler-context.js",
         "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
@@ -1951,10 +1951,10 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         },
         {
           "name": "handleAttachmentDelete",
-          "kind": "function",
-          "line": 138,
+          "kind": "const",
+          "line": 135,
           "exported": true,
-          "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleAttachmentDelete = createDestructiveHandler({ action: 'attachment delete', pathParams: ['attachment_id'], call: (client, [attachmentId]) => client.deleteAttachment(attachmentId), })"
         }
       ]
     },
@@ -2052,17 +2052,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/case-field-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleCaseFieldAdd",
-          "kind": "function",
-          "line": 11,
+          "kind": "const",
+          "line": 8,
           "exported": true,
-          "signature": "export async function handleCaseFieldAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleCaseFieldAdd = createWriteHandler({ action: 'case-field add', bodySchema: AddCaseFieldPayloadSchema, call: (client, _nums, body) => client.addCaseField(body), })"
         }
       ]
     },
@@ -2123,65 +2122,66 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../../schemas.js",
         "../body.js",
         "../handler-context.js",
-        "../ids.js"
+        "../ids.js",
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleCaseAdd",
-          "kind": "function",
-          "line": 14,
+          "kind": "const",
+          "line": 15,
           "exported": true,
-          "signature": "export async function handleCaseAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleCaseAdd = createWriteHandler({ action: 'case add', pathParams: ['section_id'], bodySchema: AddCasePayloadSchema, call: (client, [sectionId], body) => client.addCase(sectionId, body)…"
         },
         {
           "name": "handleCaseAddBulk",
-          "kind": "function",
-          "line": 33,
+          "kind": "const",
+          "line": 28,
           "exported": true,
-          "signature": "export async function handleCaseAddBulk(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleCaseAddBulk = createWriteHandler({ action: 'case add-bulk', pathParams: ['section_id'], bodySchema: AddCasesBulkPayloadSchema, previewExtras: (body) => ({ count: body.length }), cal…"
         },
         {
           "name": "handleCaseUpdate",
-          "kind": "function",
-          "line": 51,
+          "kind": "const",
+          "line": 36,
           "exported": true,
-          "signature": "export async function handleCaseUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleCaseUpdate = createWriteHandler({ action: 'case update', pathParams: ['case_id'], bodySchema: UpdateCasePayloadSchema, call: (client, [caseId], body) => client.updateCase(caseId, bo…"
         },
         {
           "name": "handleCaseUpdateBulk",
-          "kind": "function",
-          "line": 62,
+          "kind": "const",
+          "line": 43,
           "exported": true,
-          "signature": "export async function handleCaseUpdateBulk(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleCaseUpdateBulk = createWriteHandler({ action: 'case update-bulk', pathParams: ['suite_id'], bodySchema: UpdateCasesPayloadSchema, call: (client, [suiteId], body) => client.updateCas…"
+        },
+        {
+          "name": "handleCaseCopyToSection",
+          "kind": "const",
+          "line": 50,
+          "exported": true,
+          "signature": "export const handleCaseCopyToSection = createWriteHandler({ action: 'case copy-to-section', pathParams: ['section_id'], bodySchema: CopyCasesToSectionPayloadSchema, call: (client, [sectionId], body) =…"
+        },
+        {
+          "name": "handleCaseMoveToSection",
+          "kind": "const",
+          "line": 57,
+          "exported": true,
+          "signature": "export const handleCaseMoveToSection = createWriteHandler({ action: 'case move-to-section', pathParams: ['section_id'], bodySchema: MoveCasesToSectionPayloadSchema, call: (client, [sectionId], body) =…"
+        },
+        {
+          "name": "handleCaseDelete",
+          "kind": "const",
+          "line": 69,
+          "exported": true,
+          "signature": "export const handleCaseDelete = createDestructiveHandler({ action: 'case delete', pathParams: ['case_id'], softMode: 'optional', call: (client, [caseId], _entry, soft) => client.deleteCase(caseId, { s…"
         },
         {
           "name": "handleCaseDeleteBulk",
           "kind": "function",
-          "line": 86,
+          "line": 82,
           "exported": true,
           "signature": "export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void>"
-        },
-        {
-          "name": "handleCaseCopyToSection",
-          "kind": "function",
-          "line": 125,
-          "exported": true,
-          "signature": "export async function handleCaseCopyToSection(ctx: HandlerContext): Promise<void>"
-        },
-        {
-          "name": "handleCaseMoveToSection",
-          "kind": "function",
-          "line": 142,
-          "exported": true,
-          "signature": "export async function handleCaseMoveToSection(ctx: HandlerContext): Promise<void>"
-        },
-        {
-          "name": "handleCaseDelete",
-          "kind": "function",
-          "line": 166,
-          "exported": true,
-          "signature": "export async function handleCaseDelete(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -2220,54 +2220,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/configuration-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleConfigurationGroupAdd",
-          "kind": "function",
-          "line": 20,
+          "kind": "const",
+          "line": 14,
           "exported": true,
-          "signature": "export async function handleConfigurationGroupAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleConfigurationGroupAdd = createWriteHandler({ action: 'configuration-group add', pathParams: ['project_id'], bodySchema: AddConfigurationGroupPayloadSchema, call: (client, [projectId…"
         },
         {
           "name": "handleConfigurationGroupUpdate",
-          "kind": "function",
-          "line": 37,
+          "kind": "const",
+          "line": 21,
           "exported": true,
-          "signature": "export async function handleConfigurationGroupUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleConfigurationGroupUpdate = createWriteHandler({ action: 'configuration-group update', pathParams: ['config_group_id'], bodySchema: UpdateConfigurationGroupPayloadSchema, call: (clie…"
         },
         {
           "name": "handleConfigurationGroupDelete",
-          "kind": "function",
-          "line": 67,
+          "kind": "const",
+          "line": 34,
           "exported": true,
-          "signature": "export async function handleConfigurationGroupDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleConfigurationGroupDelete = createDestructiveHandler({ action: 'configuration-group delete', pathParams: ['config_group_id'], call: (client, [configGroupId]) => client.deleteConfigur…"
         },
         {
           "name": "handleConfigurationAdd",
-          "kind": "function",
-          "line": 82,
+          "kind": "const",
+          "line": 42,
           "exported": true,
-          "signature": "export async function handleConfigurationAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleConfigurationAdd = createWriteHandler({ action: 'configuration add', pathParams: ['config_group_id'], bodySchema: AddConfigurationPayloadSchema, call: (client, [configGroupId], body…"
         },
         {
           "name": "handleConfigurationUpdate",
-          "kind": "function",
-          "line": 99,
+          "kind": "const",
+          "line": 49,
           "exported": true,
-          "signature": "export async function handleConfigurationUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleConfigurationUpdate = createWriteHandler({ action: 'configuration update', pathParams: ['config_id'], bodySchema: UpdateConfigurationPayloadSchema, call: (client, [configId], body) …"
         },
         {
           "name": "handleConfigurationDelete",
-          "kind": "function",
-          "line": 125,
+          "kind": "const",
+          "line": 61,
           "exported": true,
-          "signature": "export async function handleConfigurationDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleConfigurationDelete = createDestructiveHandler({ action: 'configuration delete', pathParams: ['config_id'], call: (client, [configId]) => client.deleteConfiguration(configId), })"
         }
       ]
     },
@@ -2292,33 +2289,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/dataset-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleDatasetAdd",
-          "kind": "function",
-          "line": 9,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleDatasetAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleDatasetAdd = createWriteHandler({ action: 'dataset add', pathParams: ['project_id'], bodySchema: AddDatasetPayloadSchema, call: (client, [projectId], body) => client.addDataset(proj…"
         },
         {
           "name": "handleDatasetUpdate",
-          "kind": "function",
-          "line": 37,
+          "kind": "const",
+          "line": 17,
           "exported": true,
-          "signature": "export async function handleDatasetUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleDatasetUpdate = createWriteHandler({ action: 'dataset update', pathParams: ['dataset_id'], bodySchema: UpdateDatasetPayloadSchema, allowEmptyBody: true, call: (client, [datasetId], …"
         },
         {
           "name": "handleDatasetDelete",
-          "kind": "function",
-          "line": 69,
+          "kind": "const",
+          "line": 29,
           "exported": true,
-          "signature": "export async function handleDatasetDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleDatasetDelete = createDestructiveHandler({ action: 'dataset delete', pathParams: ['dataset_id'], call: (client, [datasetId]) => client.deleteDataset(datasetId), })"
         }
       ]
     },
@@ -2353,30 +2347,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../body.js",
         "../handler-context.js",
         "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleGroupAdd",
           "kind": "function",
-          "line": 12,
+          "line": 14,
           "exported": true,
           "signature": "export async function handleGroupAdd(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleGroupUpdate",
-          "kind": "function",
-          "line": 37,
+          "kind": "const",
+          "line": 38,
           "exported": true,
-          "signature": "export async function handleGroupUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleGroupUpdate = createWriteHandler({ action: 'group update', pathParams: ['group_id'], bodySchema: UpdateGroupPayloadSchema, call: (client, [groupId], body) => client.updateGroup(grou…"
         },
         {
           "name": "handleGroupDelete",
-          "kind": "function",
-          "line": 66,
+          "kind": "const",
+          "line": 50,
           "exported": true,
-          "signature": "export async function handleGroupDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleGroupDelete = createDestructiveHandler({ action: 'group delete', pathParams: ['group_id'], call: (client, [groupId]) => client.deleteGroup(groupId), })"
         }
       ]
     },
@@ -2408,33 +2402,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/milestone-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleMilestoneAdd",
-          "kind": "function",
-          "line": 7,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleMilestoneAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleMilestoneAdd = createWriteHandler({ action: 'milestone add', pathParams: ['project_id'], bodySchema: AddMilestonePayloadSchema, call: (client, [projectId], body) => client.addMilest…"
         },
         {
           "name": "handleMilestoneUpdate",
-          "kind": "function",
-          "line": 24,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleMilestoneUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleMilestoneUpdate = createWriteHandler({ action: 'milestone update', pathParams: ['milestone_id'], bodySchema: UpdateMilestonePayloadSchema, call: (client, [milestoneId], body) => cli…"
         },
         {
           "name": "handleMilestoneDelete",
-          "kind": "function",
-          "line": 49,
+          "kind": "const",
+          "line": 22,
           "exported": true,
-          "signature": "export async function handleMilestoneDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleMilestoneDelete = createDestructiveHandler({ action: 'milestone delete', pathParams: ['milestone_id'], call: (client, [milestoneId]) => client.deleteMilestone(milestoneId), })"
         }
       ]
     },
@@ -2466,82 +2457,79 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/plan-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handlePlanAdd",
-          "kind": "function",
-          "line": 14,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handlePlanAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanAdd = createWriteHandler({ action: 'plan add', pathParams: ['project_id'], bodySchema: AddPlanPayloadSchema, call: (client, [projectId], body) => client.addPlan(projectId, body)…"
         },
         {
           "name": "handlePlanUpdate",
-          "kind": "function",
-          "line": 25,
+          "kind": "const",
+          "line": 18,
           "exported": true,
-          "signature": "export async function handlePlanUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanUpdate = createWriteHandler({ action: 'plan update', pathParams: ['plan_id'], bodySchema: UpdatePlanPayloadSchema, call: (client, [planId], body) => client.updatePlan(planId, bo…"
         },
         {
           "name": "handlePlanAddEntry",
-          "kind": "function",
-          "line": 36,
+          "kind": "const",
+          "line": 25,
           "exported": true,
-          "signature": "export async function handlePlanAddEntry(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanAddEntry = createWriteHandler({ action: 'plan add-entry', pathParams: ['plan_id'], bodySchema: AddPlanEntryPayloadSchema, call: (client, [planId], body) => client.addPlanEntry(p…"
         },
         {
           "name": "handlePlanAddRunToEntry",
-          "kind": "function",
-          "line": 47,
+          "kind": "const",
+          "line": 32,
           "exported": true,
-          "signature": "export async function handlePlanAddRunToEntry(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanAddRunToEntry = createWriteHandler({ action: 'plan add-run-to-entry', pathParams: ['plan_id'], entryParam: 'entry_id', bodySchema: AddRunToPlanEntryPayloadSchema, call: (client,…"
         },
         {
           "name": "handlePlanUpdateEntry",
-          "kind": "function",
-          "line": 66,
+          "kind": "const",
+          "line": 40,
           "exported": true,
-          "signature": "export async function handlePlanUpdateEntry(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanUpdateEntry = createWriteHandler({ action: 'plan update-entry', pathParams: ['plan_id'], entryParam: 'entry_id', bodySchema: UpdatePlanEntryPayloadSchema, call: (client, [planId…"
         },
         {
           "name": "handlePlanUpdateRunInEntry",
-          "kind": "function",
-          "line": 85,
+          "kind": "const",
+          "line": 48,
           "exported": true,
-          "signature": "export async function handlePlanUpdateRunInEntry(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanUpdateRunInEntry = createWriteHandler({ action: 'plan update-run-in-entry', pathParams: ['run_id'], bodySchema: UpdateRunInPlanEntryPayloadSchema, call: (client, [runId], body) …"
         },
         {
           "name": "handlePlanClose",
-          "kind": "function",
-          "line": 115,
+          "kind": "const",
+          "line": 59,
           "exported": true,
-          "signature": "export async function handlePlanClose(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanClose = createDestructiveHandler({ action: 'plan close', pathParams: ['plan_id'], kind: 'close', call: (client, [planId]) => client.closePlan(planId), })"
         },
         {
           "name": "handlePlanDelete",
-          "kind": "function",
-          "line": 136,
+          "kind": "const",
+          "line": 70,
           "exported": true,
-          "signature": "export async function handlePlanDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanDelete = createDestructiveHandler({ action: 'plan delete', pathParams: ['plan_id'], call: (client, [planId]) => client.deletePlan(planId), })"
         },
         {
           "name": "handlePlanDeleteEntry",
-          "kind": "function",
-          "line": 158,
+          "kind": "const",
+          "line": 80,
           "exported": true,
-          "signature": "export async function handlePlanDeleteEntry(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanDeleteEntry = createDestructiveHandler({ action: 'plan delete-entry', pathParams: ['plan_id'], entryParam: 'entry_id', call: (client, [planId], entryId) => client.deletePlanEntr…"
         },
         {
           "name": "handlePlanDeleteRunFromEntry",
-          "kind": "function",
-          "line": 180,
+          "kind": "const",
+          "line": 91,
           "exported": true,
-          "signature": "export async function handlePlanDeleteRunFromEntry(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handlePlanDeleteRunFromEntry = createDestructiveHandler({ action: 'plan delete-run-from-entry', pathParams: ['run_id'], call: (client, [runId]) => client.deleteRunFromPlanEntry(runId), })"
         }
       ]
     },
@@ -2590,33 +2578,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/project-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleProjectAdd",
-          "kind": "function",
-          "line": 7,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleProjectAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleProjectAdd = createWriteHandler({ action: 'project add', bodySchema: AddProjectPayloadSchema, call: (client, _nums, body) => client.addProject(body), })"
         },
         {
           "name": "handleProjectUpdate",
-          "kind": "function",
-          "line": 17,
+          "kind": "const",
+          "line": 10,
           "exported": true,
-          "signature": "export async function handleProjectUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleProjectUpdate = createWriteHandler({ action: 'project update', pathParams: ['project_id'], bodySchema: UpdateProjectPayloadSchema, call: (client, [projectId], body) => client.update…"
         },
         {
           "name": "handleProjectDelete",
-          "kind": "function",
-          "line": 44,
+          "kind": "const",
+          "line": 22,
           "exported": true,
-          "signature": "export async function handleProjectDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleProjectDelete = createDestructiveHandler({ action: 'project delete', pathParams: ['project_id'], call: (client, [projectId]) => client.deleteProject(projectId), })"
         }
       ]
     },
@@ -2689,39 +2674,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/result-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleResultAddByTest",
-          "kind": "function",
-          "line": 6,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleResultAddByTest(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleResultAddByTest = createWriteHandler({ action: 'result add-by-test', pathParams: ['test_id'], bodySchema: AddResultPayloadSchema, call: (client, [testId], body) => client.addResult(…"
         },
         {
           "name": "handleResultAdd",
-          "kind": "function",
-          "line": 23,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleResultAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleResultAdd = createWriteHandler({ action: 'result add', pathParams: ['run_id', 'case_id'], bodySchema: AddResultPayloadSchema, call: (client, [runId, caseId], body) => client.addResu…"
         },
         {
           "name": "handleResultAddBulk",
-          "kind": "function",
-          "line": 42,
+          "kind": "const",
+          "line": 18,
           "exported": true,
-          "signature": "export async function handleResultAddBulk(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleResultAddBulk = createWriteHandler({ action: 'result add-bulk', pathParams: ['run_id'], bodySchema: AddResultsForCasesPayloadSchema, call: (client, [runId], body) => client.addResul…"
         },
         {
           "name": "handleResultAddBulkByTest",
-          "kind": "function",
-          "line": 59,
+          "kind": "const",
+          "line": 25,
           "exported": true,
-          "signature": "export async function handleResultAddBulkByTest(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleResultAddBulkByTest = createWriteHandler({ action: 'result add-bulk-by-test', pathParams: ['run_id'], bodySchema: AddResultsPayloadSchema, call: (client, [runId], body) => client.ad…"
         }
       ]
     },
@@ -2882,39 +2865,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/run-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleRunAdd",
-          "kind": "function",
-          "line": 6,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleRunAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleRunAdd = createWriteHandler({ action: 'run add', pathParams: ['project_id'], bodySchema: AddRunPayloadSchema, call: (client, [projectId], body) => client.addRun(projectId, body), })"
         },
         {
           "name": "handleRunUpdate",
-          "kind": "function",
-          "line": 23,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleRunUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleRunUpdate = createWriteHandler({ action: 'run update', pathParams: ['run_id'], bodySchema: UpdateRunPayloadSchema, call: (client, [runId], body) => client.updateRun(runId, body), })"
         },
         {
           "name": "handleRunClose",
-          "kind": "function",
-          "line": 45,
+          "kind": "const",
+          "line": 23,
           "exported": true,
-          "signature": "export async function handleRunClose(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleRunClose = createDestructiveHandler({ action: 'run close', pathParams: ['run_id'], softMode: 'ignore', kind: 'close', call: (client, [runId]) => client.closeRun(runId), })"
         },
         {
           "name": "handleRunDelete",
-          "kind": "function",
-          "line": 64,
+          "kind": "const",
+          "line": 35,
           "exported": true,
-          "signature": "export async function handleRunDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleRunDelete = createDestructiveHandler({ action: 'run delete', pathParams: ['run_id'], softMode: 'optional', call: (client, [runId], _entry, soft) => client.deleteRun(runId, { soft })…"
         }
       ]
     },
@@ -2946,39 +2927,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/section-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleSectionAdd",
-          "kind": "function",
-          "line": 6,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleSectionAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSectionAdd = createWriteHandler({ action: 'section add', pathParams: ['project_id'], bodySchema: AddSectionPayloadSchema, call: (client, [projectId], body) => client.addSection(proj…"
         },
         {
           "name": "handleSectionUpdate",
-          "kind": "function",
-          "line": 23,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleSectionUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSectionUpdate = createWriteHandler({ action: 'section update', pathParams: ['section_id'], bodySchema: UpdateSectionPayloadSchema, call: (client, [sectionId], body) => client.update…"
         },
         {
           "name": "handleSectionMove",
-          "kind": "function",
-          "line": 52,
+          "kind": "const",
+          "line": 24,
           "exported": true,
-          "signature": "export async function handleSectionMove(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSectionMove = createWriteHandler({ action: 'section move', pathParams: ['section_id'], bodySchema: MoveSectionPayloadSchema, call: (client, [sectionId], body) => client.moveSection(…"
         },
         {
           "name": "handleSectionDelete",
-          "kind": "function",
-          "line": 75,
+          "kind": "const",
+          "line": 36,
           "exported": true,
-          "signature": "export async function handleSectionDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSectionDelete = createDestructiveHandler({ action: 'section delete', pathParams: ['section_id'], softMode: 'optional', call: (client, [sectionId], _entry, soft) => client.deleteSect…"
         }
       ]
     },
@@ -3010,33 +2989,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/shared-step-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleSharedStepAdd",
-          "kind": "function",
-          "line": 7,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleSharedStepAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSharedStepAdd = createWriteHandler({ action: 'shared-step add', pathParams: ['project_id'], bodySchema: AddSharedStepPayloadSchema, call: (client, [projectId], body) => client.addSh…"
         },
         {
           "name": "handleSharedStepUpdate",
-          "kind": "function",
-          "line": 24,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleSharedStepUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSharedStepUpdate = createWriteHandler({ action: 'shared-step update', pathParams: ['shared_step_id'], bodySchema: UpdateSharedStepPayloadSchema, call: (client, [sharedStepId], body)…"
         },
         {
           "name": "handleSharedStepDelete",
-          "kind": "function",
-          "line": 53,
+          "kind": "const",
+          "line": 24,
           "exported": true,
-          "signature": "export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSharedStepDelete = createDestructiveHandler({ action: 'shared-step delete', pathParams: ['shared_step_id'], call: (client, [sharedStepId]) => client.deleteSharedStep(sharedStepId), …"
         }
       ]
     },
@@ -3092,32 +3068,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/suite-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleSuiteAdd",
-          "kind": "function",
-          "line": 6,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleSuiteAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSuiteAdd = createWriteHandler({ action: 'suite add', pathParams: ['project_id'], bodySchema: AddSuitePayloadSchema, call: (client, [projectId], body) => client.addSuite(projectId, b…"
         },
         {
           "name": "handleSuiteUpdate",
-          "kind": "function",
-          "line": 23,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleSuiteUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSuiteUpdate = createWriteHandler({ action: 'suite update', pathParams: ['suite_id'], bodySchema: UpdateSuitePayloadSchema, call: (client, [suiteId], body) => client.updateSuite(suit…"
         },
         {
           "name": "handleSuiteDelete",
-          "kind": "function",
-          "line": 45,
+          "kind": "const",
+          "line": 22,
           "exported": true,
-          "signature": "export async function handleSuiteDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleSuiteDelete = createDestructiveHandler({ action: 'suite delete', pathParams: ['suite_id'], softMode: 'optional', call: (client, [suiteId], _entry, soft) => client.deleteSuite(suiteI…"
         }
       ]
     },
@@ -3197,25 +3171,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/user-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleUserAdd",
-          "kind": "function",
-          "line": 14,
+          "kind": "const",
+          "line": 9,
           "exported": true,
-          "signature": "export async function handleUserAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleUserAdd = createWriteHandler({ action: 'user add', bodySchema: UserAddPayloadSchema, call: (client, _nums, body) => client.addUser(body), })"
         },
         {
           "name": "handleUserUpdate",
-          "kind": "function",
-          "line": 30,
+          "kind": "const",
+          "line": 19,
           "exported": true,
-          "signature": "export async function handleUserUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleUserUpdate = createWriteHandler({ action: 'user update', pathParams: ['user_id'], bodySchema: UserUpdatePayloadSchema, call: (client, [userId], body) => client.updateUser(userId, bo…"
         }
       ]
     },
@@ -3261,33 +3233,30 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/handlers/variable-write.ts",
       "imports": [
         "../../schemas.js",
-        "../body.js",
-        "../handler-context.js",
-        "../ids.js",
-        "../run-destructive.js"
+        "../write-handler-factory.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "handleVariableAdd",
-          "kind": "function",
-          "line": 7,
+          "kind": "const",
+          "line": 4,
           "exported": true,
-          "signature": "export async function handleVariableAdd(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleVariableAdd = createWriteHandler({ action: 'variable add', pathParams: ['project_id'], bodySchema: AddVariablePayloadSchema, call: (client, [projectId], body) => client.addVariable(…"
         },
         {
           "name": "handleVariableUpdate",
-          "kind": "function",
-          "line": 24,
+          "kind": "const",
+          "line": 11,
           "exported": true,
-          "signature": "export async function handleVariableUpdate(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleVariableUpdate = createWriteHandler({ action: 'variable update', pathParams: ['variable_id'], bodySchema: UpdateVariablePayloadSchema, call: (client, [variableId], body) => client.u…"
         },
         {
           "name": "handleVariableDelete",
-          "kind": "function",
-          "line": 50,
+          "kind": "const",
+          "line": 22,
           "exported": true,
-          "signature": "export async function handleVariableDelete(ctx: HandlerContext): Promise<void>"
+          "signature": "export const handleVariableDelete = createDestructiveHandler({ action: 'variable delete', pathParams: ['variable_id'], call: (client, [variableId]) => client.deleteVariable(variableId), })"
         }
       ]
     },
@@ -4355,22 +4324,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
-      "path": "src/cli/run-destructive.ts",
-      "imports": [
-        "./handler-context.js"
-      ],
-      "reExports": [],
-      "symbols": [
-        {
-          "name": "runDestructive",
-          "kind": "function",
-          "line": 14,
-          "exported": true,
-          "signature": "export async function runDestructive( ctx: HandlerContext, preview: Record<string, unknown>, execute: () => Promise<void>, opts?: { softUnsupported?: boolean }, ): Promise<void>"
-        }
-      ]
-    },
-    {
       "path": "src/cli/safe-write.ts",
       "imports": [
         "node:fs"
@@ -4467,6 +4420,75 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 61,
           "exported": true,
           "signature": "export function runUninstallSkill(opts: UninstallSkillOptions): number"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/write-handler-factory.ts",
+      "imports": [
+        "../client.js",
+        "./body.js",
+        "./handler-context.js",
+        "./ids.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "camelCase",
+          "kind": "function",
+          "line": 30,
+          "exported": false,
+          "signature": "function camelCase(snake: string): string"
+        },
+        {
+          "name": "NumIds",
+          "kind": "type",
+          "line": 45,
+          "exported": true,
+          "signature": "export type NumIds = readonly [number, number]"
+        },
+        {
+          "name": "ParsedPath",
+          "kind": "interface",
+          "line": 47,
+          "exported": false,
+          "signature": "interface ParsedPath { nums: number[]; entry: string; idBag: Record<string, number | string>; }"
+        },
+        {
+          "name": "parsePathArgs",
+          "kind": "function",
+          "line": 57,
+          "exported": false,
+          "signature": "function parsePathArgs(ctx: HandlerContext, pathParams: readonly string[], entryParam: string | undefined): ParsedPath"
+        },
+        {
+          "name": "WriteHandlerSpec",
+          "kind": "interface",
+          "line": 73,
+          "exported": true,
+          "signature": "export interface WriteHandlerSpec<S extends z.ZodTypeAny> { action: string; pathParams?: readonly string[]; entryParam?: string; bodySchema: S; allowEmptyBody?: boolean; call: (client: TestRailClient,…"
+        },
+        {
+          "name": "createWriteHandler",
+          "kind": "function",
+          "line": 98,
+          "exported": true,
+          "signature": "export function createWriteHandler<S extends z.ZodTypeAny>(spec: WriteHandlerSpec<S>): Handler"
+        },
+        {
+          "name": "DestructiveHandlerSpec",
+          "kind": "interface",
+          "line": 131,
+          "exported": true,
+          "signature": "export interface DestructiveHandlerSpec { action: string; pathParams?: readonly string[]; entryParam?: string; softMode?: 'reject' | 'ignore' | 'optional'; kind?: 'delete' | 'close'; call: (client: Te…"
+        },
+        {
+          "name": "createDestructiveHandler",
+          "kind": "function",
+          "line": 157,
+          "exported": true,
+          "signature": "export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler"
         }
       ]
     },
