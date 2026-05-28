@@ -21,14 +21,6 @@ export interface GetHistoryForCaseOptions {
     offset?: number;
 }
 
-/** @deprecated Use {@link SoftDeleteOptions} from `../types.js` — kept as an
- *  alias for back-compat. */
-export type DeleteCasesOptions = SoftDeleteOptions;
-
-/** @deprecated Use {@link SoftDeletePreview} (re-exported from the package
- *  root) — kept as an alias for back-compat. */
-export type DeleteCasesPreview = SoftDeletePreview;
-
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
 

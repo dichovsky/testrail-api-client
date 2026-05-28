@@ -585,24 +585,6 @@ npm run lint
 npm run typecheck
 ```
 
-### Project Structure
-
-```
-src/
-├── client.ts          # Main TestRail client with advanced features
-├── types.ts           # TypeScript interfaces and type definitions
-├── utils.ts           # Shared utility functions
-└── index.ts           # Public API exports
-
-tests/
-├── client.test.ts              # Core client functionality tests
-├── enhanced-features.test.ts   # Advanced features tests (caching, rate limiting, retry logic)
-├── coverage-improvement.test.ts # Additional edge case and validation tests
-├── index.test.ts               # Export and integration tests
-├── performance.test.ts         # Performance and memory tests
-└── types.test.ts               # Type definition tests
-```
-
 ## Contributing
 
 1. Fork the repository
@@ -628,39 +610,6 @@ This project maintains high code quality standards:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Changelog
-
-### 1.0.0
-
-Initial release with comprehensive TestRail API support and advanced features:
-
-**Core Features:**
-
-- Full CRUD operations for projects, suites, cases, plans, runs, and results
-- Complete TypeScript support with strict type checking
-
-**Performance & Reliability:**
-
-- Intelligent caching system for GET requests with automatic cleanup
-- Rate limiting with configurable sliding window
-- Retry logic with exponential backoff for resilient API calls
-- Request timeouts with proper AbortController usage
-
-**Security & Validation:**
-
-- Comprehensive input validation for all parameters
-- Custom error classes (TestRailApiError, TestRailValidationError)
-- Security warnings for insecure protocols
-- Protection against SSRF, credential exposure, and parameter injection
-
-**Developer Experience:**
-
-- 97.6%+ test coverage with 456+ test cases
-- Strict ESLint configuration with security rules
-- Comprehensive JSDoc documentation
-- Modern ES2022+ features and async/await throughout
-- Automatic resource cleanup and graceful shutdown handling
 
 ## Support
 
