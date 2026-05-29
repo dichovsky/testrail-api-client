@@ -580,8 +580,8 @@ export class TestRailClientCore {
         if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
             // requests[] is push-appended and order-preserving-filtered, so it is
             // always ascending — the oldest in-window timestamp is requests[0].
-            // Fall back to `now` when empty (maxRequests === 0) to preserve the
-            // original full-window wait estimate.
+            // This branch only runs when length >= maxRequests (>= 1, validated),
+            // so the array is non-empty; `?? now` only satisfies the index type.
             const oldestRequest = this.rateLimiter.requests[0] ?? now;
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
             throw new TestRailApiError(429, 'Too Many Requests', {
