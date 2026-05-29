@@ -4203,3 +4203,27 @@ batch. Each is confirmed against the current state of `main`.
 - [x] **ARCH #2: Write-handler factory** — Shipped in PR-D (#190, `refactor(cli): collapse write handlers into createWriteHandler factory`). `src/cli/write-handler-factory.ts` exposes `createWriteHandler` and `createDestructiveHandler`; the per-file `*-write.ts` handlers are now small specs over the shared skeleton (parse path params, resolve+validate body, branch on `--dry-run`, call the client, emit). `run-destructive.ts` was removed (its protocol is now inside `createDestructiveHandler`). Genuinely irregular handlers (`case delete-bulk`, attachment uploads, `group add`) stay hand-written.
 
 - [x] **ARCH #3: Promote `ACTIONS` to single source of truth** — Shipped in PR-C (#189, `refactor(cli): derive HANDLERS and HELP from ACTIONS`). Each `ActionSpec` now carries its `handler`; `dispatch.ts` derives the `HANDLERS` map and `RESOURCES` buckets from `ACTIONS`, and `src/cli/help.ts` generates the `--help` text from `ACTIONS`. Adding an action is a one-line metadata edit, enforced by the TypeScript compiler rather than a drift test. Related: PR-B (#184) split `schemas.ts` and `cli/metadata.ts` by domain into `src/schemas/*.ts` and `src/cli/metadata/*.ts` (barrels preserve import paths); PR-A (#183) removed dead error subclasses; PR #191 removed all rule suppressions from `src/`.
+
+## BACKLOG sync — 2026-05-30 (stale-item cleanup — verified-shipped sweep)
+
+This sync removes four items from `BACKLOG.md` that were already shipped on
+`main` before today's orchestrator session opened. Each was carried in the
+active backlog because the closure sweep that should have happened with the
+merging PR was skipped. Evidence for each closure is the merge commit on
+`main` and (where applicable) the GitHub PR record. No new code shipped; this
+is a metadata reconcile only.
+
+### From User — verified shipped
+
+- [x] **USER: merge `tsconfig.eslint.json` into `tsconfig.json` and remove `tsconfig.eslint.json`. all dev scripts should use `tsconfig.json`** — Shipped in PR #178 (`chore: merge tsconfig.eslint.json into tsconfig.json`, merged 2026-05-27, commit `d72f48b`). `tsconfig.eslint.json` no longer exists in the tree; the only remaining tsconfigs are `tsconfig.json` (used by `typecheck`, `lint`, `test`, and the `codemap`/`mapping`/`agents-md`/`skill` generators via `tsx`) and `tsconfig.prod.json` (extends the base, flips `noEmit: false` + sets `outDir: ./dist` + `rootDir: ./src`, used only by `npm run build`). Every dev script in `package.json` now resolves through `tsconfig.json`.
+
+### Security — verified shipped
+
+- [x] **SEC #31: Custom DNS Server / Host Mappings in Config** — Shipped in PR #172 (`feat(security): injectable dnsLookup for SSRF validation in restricted DNS environments`, merged 2026-05-27). `TestRailConfig` now accepts an injectable DNS resolver so callers in restricted DNS environments can run the SSRF guard against their own resolver mapping without giving up the public-IP check. Closes the carve-out that originally listed this as "PR #172 open" in BACKLOG.
+
+- [x] **SEC #34: Automated Trusted Publishing (OIDC) & Provenance Attestations** — Shipped in PR #174 (`ci(security): OIDC trusted publishing + provenance attestations`, merged 2026-05-27). `.github/workflows/publish.yml` uses GitHub OIDC (`id-token: write`) to mint a Trusted Publisher token against npm and publishes with `--provenance`. The persistent `NPM_TOKEN` secret is no longer required for releases; each published tarball carries a cryptographic build attestation linked to the originating GitHub Actions runner.
+
+### Architecture — verified shipped
+
+- [x] **ARCH #7: Eliminate hand-written 1517-line facade (`client.ts`)** — Shipped in PR-F (#193, `refactor(client)!: collapse flat facade; namespaced modules are the only access path`, merged 2026-05-29, commit `21fc48f`). The 131 flat `async` wrapper methods on `TestRailClient` are gone — `src/client.ts` is now **76 LOC** of module composition only (18 `public readonly` namespaced fields, zero `async` methods). Callers reach every endpoint through the namespaced surface (`client.projects.getProject(id)`, `client.cases.addCase(...)`, etc.). The ARCHITECTURE.md §3.2 contradiction that motivated re-opening this item is resolved: the flat facade is no longer the load-bearing surface, so the JSDoc/types argument is moot. Confirmed by `wc -l src/client.ts → 76` and `grep -c '^\s*\(public\s\+\)\?async\s' src/client.ts → 0`.
+
