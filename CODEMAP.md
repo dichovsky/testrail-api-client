@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "5.0.0"
+    "version": "5.1.0"
   },
-  "sourceHash": "2cfaf09905a8412f5e0dad097f03e40684e84f00e8d34bec44fa618ec01fa20d",
+  "sourceHash": "91458fb6cc99e312bfe43e324e9c3eeb191b3751d80f779ce50b36dc3a01738b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -572,7 +572,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetAttachmentsOptions",
       "kind": "interface",
       "file": "src/modules/attachments.ts",
-      "line": 14,
+      "line": 16,
       "signature": "export interface GetAttachmentsOptions { limit?: number; offset?: number; }",
       "jsdoc": "Optional pagination params shared by `getAttachmentsForCase`, `getAttachmentsForRun`, and `getAttachmentsForTest`. TestRail's `get_attachments_for_*` endpoints accept `limit`/`offset` query params (default page size 250). Plan-scoped endpoints (`get_attachments_for_plan`, `get_attachments_for_plan_entry`) intentionally don't accept these — they return every attachment under the plan tree.",
       "typeOnly": true
@@ -590,7 +590,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetHistoryForCaseOptions",
       "kind": "interface",
       "file": "src/modules/cases.ts",
-      "line": 17,
+      "line": 19,
       "signature": "export interface GetHistoryForCaseOptions { limit?: number; offset?: number; }",
       "typeOnly": true
     },
@@ -633,7 +633,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetSharedStepHistoryOptions",
       "kind": "interface",
       "file": "src/modules/sharedSteps.ts",
-      "line": 7,
+      "line": 9,
       "signature": "export interface GetSharedStepHistoryOptions { limit?: number; offset?: number; }",
       "typeOnly": true
     },
@@ -3367,50 +3367,45 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     },
     {
       "path": "src/cli/ids.ts",
-      "imports": [],
+      "imports": [
+        "../validation.js"
+      ],
       "reExports": [],
       "symbols": [
         {
           "name": "IdParseError",
           "kind": "class",
-          "line": 1,
+          "line": 3,
           "exported": true,
           "signature": "export class IdParseError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 2
+              "line": 4
             }
           ]
         },
         {
           "name": "POSITIVE_INT_RE",
           "kind": "const",
-          "line": 14,
+          "line": 16,
           "exported": false,
           "signature": "const POSITIVE_INT_RE = /^[1-9]\\d*$/"
         },
         {
           "name": "NON_NEG_INT_RE",
           "kind": "const",
-          "line": 26,
+          "line": 28,
           "exported": false,
           "signature": "const NON_NEG_INT_RE = /^(0|[1-9]\\d*)$/"
         },
         {
           "name": "parseId",
           "kind": "function",
-          "line": 28,
+          "line": 30,
           "exported": true,
           "signature": "export function parseId(raw: string | undefined, name: string): number"
-        },
-        {
-          "name": "ENTRY_ID_RE",
-          "kind": "const",
-          "line": 41,
-          "exported": false,
-          "signature": "const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i"
         },
         {
           "name": "parseEntryId",
@@ -4468,7 +4463,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./http-pipeline-types.js",
         "./retry-policy.js",
         "./types.js",
+        "./url.js",
         "./utils.js",
+        "./validation.js",
         "node:fs",
         "node:net",
         "zod"
@@ -4478,328 +4475,321 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 21,
+          "line": 27,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 31,
+          "line": 37,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
         },
         {
           "name": "PRIVATE_HOST_PATTERNS",
           "kind": "const",
-          "line": 58,
+          "line": 64,
           "exported": false,
           "signature": "const PRIVATE_HOST_PATTERNS: RegExp[] = [ /^localhost\\.?$/i, /^127\\./, /^10\\./, /^172\\.(1[6-9]|2\\d|3[01])\\./, /^192\\.168\\./, /^169\\.254\\./, /^::1$/, /^fe80:/i, /^f[cd][0-9a-f]{2}:/i, /^fe[c-f][0-9a-f]…"
         },
         {
           "name": "isPrivateOrLoopbackIPv4",
           "kind": "function",
-          "line": 74,
+          "line": 80,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIPv4(ip: string): boolean"
         },
         {
           "name": "isPrivateOrLoopbackIP",
           "kind": "function",
-          "line": 96,
+          "line": 102,
           "exported": false,
           "signature": "function isPrivateOrLoopbackIP(ip: string, family?: number): boolean"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 135,
+          "line": 141,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 137,
+          "line": 143,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
         },
         {
-          "name": "ENTRY_ID_RE",
-          "kind": "const",
-          "line": 199,
-          "exported": false,
-          "signature": "const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i"
-        },
-        {
           "name": "activeClients",
           "kind": "const",
-          "line": 201,
+          "line": 203,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 202,
+          "line": 204,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 205,
+          "line": 207,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 215,
+          "line": 217,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 238,
+          "line": 240,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 239
+              "line": 241
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 242
+              "line": 244
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 243
+              "line": 245
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 244
+              "line": 246
             },
             {
               "name": "enableCache",
               "kind": "property",
-              "line": 245
+              "line": 247
             },
             {
               "name": "cacheTtl",
               "kind": "property",
-              "line": 246
+              "line": 248
             },
             {
               "name": "cacheCleanupInterval",
               "kind": "property",
-              "line": 247
+              "line": 249
             },
             {
               "name": "maxCacheSize",
               "kind": "property",
-              "line": 248
+              "line": 250
             },
             {
               "name": "cache",
               "kind": "property",
-              "line": 249
+              "line": 251
             },
             {
               "name": "pendingRequests",
               "kind": "property",
-              "line": 250
+              "line": 252
             },
             {
               "name": "cacheCleanupTimer",
               "kind": "property",
-              "line": 251
+              "line": 253
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 252
+              "line": 254
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 253
+              "line": 255
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 254
+              "line": 256
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 255
+              "line": 257
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 256
+              "line": 258
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 257
+              "line": 259
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 262
+              "line": 264
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 263
+              "line": 265
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 264
+              "line": 266
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 266
+              "line": 268
             },
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 333
+              "line": 335
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 489
+              "line": 491
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 514
+              "line": 516
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 555
+              "line": 557
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 573
+              "line": 575
             },
             {
               "name": "validateId",
               "kind": "method",
-              "line": 600
+              "line": 603
             },
             {
               "name": "validateEntryId",
               "kind": "method",
-              "line": 613
+              "line": 612
             },
             {
               "name": "validatePaginationParams",
               "kind": "method",
-              "line": 623
+              "line": 621
             },
             {
               "name": "buildEndpoint",
               "kind": "method",
-              "line": 642
+              "line": 629
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 654
+              "line": 633
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 675
+              "line": 654
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 697
+              "line": 676
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 705
+              "line": 684
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 716
+              "line": 695
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 723
+              "line": 702
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 750
+              "line": 729
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 798
+              "line": 777
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 877
+              "line": 856
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 912
+              "line": 891
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 932
+              "line": 911
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 956
+              "line": 935
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 984
+              "line": 963
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 1002
+              "line": 981
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 1106
+              "line": 1085
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1253
+              "line": 1232
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1262
+              "line": 1241
             }
           ]
         }
@@ -5188,6 +5178,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5195,81 +5187,81 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetAttachmentsOptions",
           "kind": "interface",
-          "line": 14,
+          "line": 16,
           "exported": true,
           "signature": "export interface GetAttachmentsOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "AttachmentModule",
           "kind": "class",
-          "line": 21,
+          "line": 23,
           "exported": true,
           "signature": "export class AttachmentModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 22
+              "line": 24
             },
             {
               "name": "getAttachmentsForCase",
               "kind": "method",
-              "line": 25
+              "line": 27
             },
             {
               "name": "getAttachmentsForRun",
               "kind": "method",
-              "line": 46
+              "line": 48
             },
             {
               "name": "getAttachmentsForTest",
               "kind": "method",
-              "line": 67
+              "line": 69
             },
             {
               "name": "getAttachmentsForPlan",
               "kind": "method",
-              "line": 88
+              "line": 90
             },
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 104
+              "line": 106
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 121
+              "line": 123
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 132
+              "line": 134
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 143
+              "line": 145
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 154
+              "line": 156
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 165
+              "line": 167
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 176
+              "line": 178
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 193
+              "line": 195
             }
           ]
         }
@@ -5280,31 +5272,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../client-core.js",
         "../schemas.js",
-        "../types.js"
+        "../types.js",
+        "../validation.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "BddModule",
           "kind": "class",
-          "line": 17,
+          "line": 18,
           "exported": true,
           "signature": "export class BddModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 18
+              "line": 19
             },
             {
               "name": "getBdd",
               "kind": "method",
-              "line": 25
+              "line": 26
             },
             {
               "name": "addBdd",
               "kind": "method",
-              "line": 39
+              "line": 40
             }
           ]
         }
@@ -5317,6 +5310,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../errors.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5324,106 +5319,106 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetHistoryForCaseOptions",
           "kind": "interface",
-          "line": 17,
+          "line": 19,
           "exported": true,
           "signature": "export interface GetHistoryForCaseOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "CaseModule",
           "kind": "class",
-          "line": 24,
+          "line": 26,
           "exported": true,
           "signature": "export class CaseModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 25
+              "line": 27
             },
             {
               "name": "getCase",
               "kind": "method",
-              "line": 28
+              "line": 30
             },
             {
               "name": "getCases",
               "kind": "method",
-              "line": 34
+              "line": 36
             },
             {
               "name": "addCase",
               "kind": "method",
-              "line": 85
+              "line": 87
             },
             {
               "name": "addCases",
               "kind": "method",
-              "line": 109
+              "line": 111
             },
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 145
+              "line": 147
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 164
+              "line": 166
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 165
+              "line": 167
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 171
+              "line": 173
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 172
+              "line": 174
             },
             {
               "name": "updateCases",
               "kind": "method",
-              "line": 196
+              "line": 198
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 214
+              "line": 216
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 220
+              "line": 222
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 227
+              "line": 229
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 233
+              "line": 235
             },
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 260
+              "line": 262
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 277
+              "line": 279
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 287
+              "line": 289
             }
           ]
         }
@@ -5435,6 +5430,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5442,49 +5438,49 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ConfigurationModule",
           "kind": "class",
-          "line": 13,
+          "line": 14,
           "exported": true,
           "signature": "export class ConfigurationModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 14
+              "line": 15
             },
             {
               "name": "getConfigurations",
               "kind": "method",
-              "line": 17
+              "line": 18
             },
             {
               "name": "addConfigurationGroup",
               "kind": "method",
-              "line": 27
+              "line": 28
             },
             {
               "name": "updateConfigurationGroup",
               "kind": "method",
-              "line": 38
+              "line": 39
             },
             {
               "name": "deleteConfigurationGroup",
               "kind": "method",
-              "line": 52
+              "line": 53
             },
             {
               "name": "addConfiguration",
               "kind": "method",
-              "line": 61
+              "line": 62
             },
             {
               "name": "updateConfiguration",
               "kind": "method",
-              "line": 72
+              "line": 73
             },
             {
               "name": "deleteConfiguration",
               "kind": "method",
-              "line": 83
+              "line": 84
             }
           ]
         }
@@ -5494,46 +5490,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/modules/datasets.ts",
       "imports": [
         "../client-core.js",
-        "../schemas.js"
+        "../schemas.js",
+        "../validation.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "DatasetModule",
           "kind": "class",
-          "line": 5,
+          "line": 6,
           "exported": true,
           "signature": "export class DatasetModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 6
+              "line": 7
             },
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 9
+              "line": 10
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 19
+              "line": 20
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 29
+              "line": 30
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 40
+              "line": 41
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 51
+              "line": 52
             }
           ]
         }
@@ -5545,6 +5542,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5552,59 +5550,59 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "MetadataModule",
           "kind": "class",
-          "line": 17,
+          "line": 18,
           "exported": true,
           "signature": "export class MetadataModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 18
+              "line": 19
             },
             {
               "name": "getStatuses",
               "kind": "method",
-              "line": 21
+              "line": 22
             },
             {
               "name": "getCaseStatuses",
               "kind": "method",
-              "line": 30
+              "line": 31
             },
             {
               "name": "getPriorities",
               "kind": "method",
-              "line": 39
+              "line": 40
             },
             {
               "name": "getResultFields",
               "kind": "method",
-              "line": 48
+              "line": 49
             },
             {
               "name": "getCaseFields",
               "kind": "method",
-              "line": 57
+              "line": 58
             },
             {
               "name": "addCaseField",
               "kind": "method",
-              "line": 88
+              "line": 89
             },
             {
               "name": "getCaseTypes",
               "kind": "method",
-              "line": 98
+              "line": 99
             },
             {
               "name": "getTemplates",
               "kind": "method",
-              "line": 107
+              "line": 108
             },
             {
               "name": "getRoles",
               "kind": "method",
-              "line": 117
+              "line": 118
             }
           ]
         }
@@ -5616,6 +5614,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5623,39 +5623,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "MilestoneModule",
           "kind": "class",
-          "line": 7,
+          "line": 9,
           "exported": true,
           "signature": "export class MilestoneModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 8
+              "line": 10
             },
             {
               "name": "getMilestone",
               "kind": "method",
-              "line": 11
+              "line": 13
             },
             {
               "name": "getMilestones",
               "kind": "method",
-              "line": 21
+              "line": 23
             },
             {
               "name": "addMilestone",
               "kind": "method",
-              "line": 43
+              "line": 45
             },
             {
               "name": "updateMilestone",
               "kind": "method",
-              "line": 54
+              "line": 56
             },
             {
               "name": "deleteMilestone",
               "kind": "method",
-              "line": 65
+              "line": 67
             }
           ]
         }
@@ -5667,7 +5667,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
         "../utils.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5675,74 +5677,74 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PlanModule",
           "kind": "class",
-          "line": 17,
+          "line": 19,
           "exported": true,
           "signature": "export class PlanModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 18
+              "line": 20
             },
             {
               "name": "getPlan",
               "kind": "method",
-              "line": 21
+              "line": 23
             },
             {
               "name": "getPlans",
               "kind": "method",
-              "line": 27
+              "line": 29
             },
             {
               "name": "addPlan",
               "kind": "method",
-              "line": 53
+              "line": 55
             },
             {
               "name": "updatePlan",
               "kind": "method",
-              "line": 64
+              "line": 66
             },
             {
               "name": "closePlan",
               "kind": "method",
-              "line": 75
+              "line": 77
             },
             {
               "name": "deletePlan",
               "kind": "method",
-              "line": 85
+              "line": 87
             },
             {
               "name": "addPlanEntry",
               "kind": "method",
-              "line": 91
+              "line": 93
             },
             {
               "name": "updatePlanEntry",
               "kind": "method",
-              "line": 102
+              "line": 104
             },
             {
               "name": "deletePlanEntry",
               "kind": "method",
-              "line": 114
+              "line": 116
             },
             {
               "name": "addRunToPlanEntry",
               "kind": "method",
-              "line": 124
+              "line": 126
             },
             {
               "name": "updateRunInPlanEntry",
               "kind": "method",
-              "line": 136
+              "line": 138
             },
             {
               "name": "deleteRunFromPlanEntry",
               "kind": "method",
-              "line": 147
+              "line": 149
             }
           ]
         }
@@ -5754,6 +5756,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5761,39 +5765,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ProjectModule",
           "kind": "class",
-          "line": 7,
+          "line": 9,
           "exported": true,
           "signature": "export class ProjectModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 8
+              "line": 10
             },
             {
               "name": "getProject",
               "kind": "method",
-              "line": 16
+              "line": 18
             },
             {
               "name": "getProjects",
               "kind": "method",
-              "line": 31
+              "line": 33
             },
             {
               "name": "addProject",
               "kind": "method",
-              "line": 52
+              "line": 54
             },
             {
               "name": "updateProject",
               "kind": "method",
-              "line": 67
+              "line": 69
             },
             {
               "name": "deleteProject",
               "kind": "method",
-              "line": 83
+              "line": 85
             }
           ]
         }
@@ -5804,31 +5808,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../client-core.js",
         "../schemas.js",
-        "../types.js"
+        "../types.js",
+        "../validation.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "ReportModule",
           "kind": "class",
-          "line": 5,
+          "line": 6,
           "exported": true,
           "signature": "export class ReportModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 6
+              "line": 7
             },
             {
               "name": "getReports",
               "kind": "method",
-              "line": 9
+              "line": 10
             },
             {
               "name": "runReport",
               "kind": "method",
-              "line": 19
+              "line": 20
             }
           ]
         }
@@ -5840,7 +5845,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
         "../utils.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5848,49 +5855,49 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ResultModule",
           "kind": "class",
-          "line": 8,
+          "line": 10,
           "exported": true,
           "signature": "export class ResultModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 9
+              "line": 11
             },
             {
               "name": "getResults",
               "kind": "method",
-              "line": 12
+              "line": 14
             },
             {
               "name": "getResultsForCase",
               "kind": "method",
-              "line": 38
+              "line": 40
             },
             {
               "name": "getResultsForRun",
               "kind": "method",
-              "line": 65
+              "line": 67
             },
             {
               "name": "addResult",
               "kind": "method",
-              "line": 90
+              "line": 92
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 101
+              "line": 103
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 113
+              "line": 115
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 124
+              "line": 126
             }
           ]
         }
@@ -5902,7 +5909,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
         "../utils.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5910,59 +5919,59 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "RunModule",
           "kind": "class",
-          "line": 8,
+          "line": 10,
           "exported": true,
           "signature": "export class RunModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 9
+              "line": 11
             },
             {
               "name": "getRun",
               "kind": "method",
-              "line": 12
+              "line": 14
             },
             {
               "name": "getRuns",
               "kind": "method",
-              "line": 18
+              "line": 20
             },
             {
               "name": "addRun",
               "kind": "method",
-              "line": 57
+              "line": 59
             },
             {
               "name": "updateRun",
               "kind": "method",
-              "line": 68
+              "line": 70
             },
             {
               "name": "closeRun",
               "kind": "method",
-              "line": 79
+              "line": 81
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 96
+              "line": 98
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 97
+              "line": 99
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 100
+              "line": 102
             },
             {
               "name": "deleteRun",
               "kind": "method",
-              "line": 101
+              "line": 103
             }
           ]
         }
@@ -5974,6 +5983,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -5981,44 +5992,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "SectionModule",
           "kind": "class",
-          "line": 7,
+          "line": 9,
           "exported": true,
           "signature": "export class SectionModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 8
+              "line": 10
             },
             {
               "name": "getSection",
               "kind": "method",
-              "line": 11
+              "line": 13
             },
             {
               "name": "getSections",
               "kind": "method",
-              "line": 21
+              "line": 23
             },
             {
               "name": "addSection",
               "kind": "method",
-              "line": 46
+              "line": 48
             },
             {
               "name": "updateSection",
               "kind": "method",
-              "line": 57
+              "line": 59
             },
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 75
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 76
+              "line": 77
             },
             {
               "name": "deleteSection",
@@ -6028,12 +6034,17 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteSection",
               "kind": "method",
-              "line": 79
+              "line": 80
+            },
+            {
+              "name": "deleteSection",
+              "kind": "method",
+              "line": 81
             },
             {
               "name": "moveSection",
               "kind": "method",
-              "line": 104
+              "line": 106
             }
           ]
         }
@@ -6045,6 +6056,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -6052,51 +6065,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetSharedStepHistoryOptions",
           "kind": "interface",
-          "line": 7,
+          "line": 9,
           "exported": true,
           "signature": "export interface GetSharedStepHistoryOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "SharedStepModule",
           "kind": "class",
-          "line": 14,
+          "line": 16,
           "exported": true,
           "signature": "export class SharedStepModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 15
+              "line": 17
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 18
+              "line": 20
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 28
+              "line": 30
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 38
+              "line": 40
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 49
+              "line": 51
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 60
+              "line": 62
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 69
+              "line": 71
             }
           ]
         }
@@ -6108,6 +6121,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -6115,44 +6130,39 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "SuiteModule",
           "kind": "class",
-          "line": 7,
+          "line": 9,
           "exported": true,
           "signature": "export class SuiteModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 8
+              "line": 10
             },
             {
               "name": "getSuite",
               "kind": "method",
-              "line": 16
+              "line": 18
             },
             {
               "name": "getSuites",
               "kind": "method",
-              "line": 31
+              "line": 33
             },
             {
               "name": "addSuite",
               "kind": "method",
-              "line": 46
+              "line": 48
             },
             {
               "name": "updateSuite",
               "kind": "method",
-              "line": 62
+              "line": 64
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 82
-            },
-            {
-              "name": "deleteSuite",
-              "kind": "method",
-              "line": 83
+              "line": 84
             },
             {
               "name": "deleteSuite",
@@ -6162,7 +6172,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 86
+              "line": 87
+            },
+            {
+              "name": "deleteSuite",
+              "kind": "method",
+              "line": 88
             }
           ]
         }
@@ -6174,7 +6189,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../client-core.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
         "../utils.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -6182,24 +6199,24 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "TestModule",
           "kind": "class",
-          "line": 7,
+          "line": 9,
           "exported": true,
           "signature": "export class TestModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 8
+              "line": 10
             },
             {
               "name": "getTest",
               "kind": "method",
-              "line": 11
+              "line": 13
             },
             {
               "name": "getTests",
               "kind": "method",
-              "line": 21
+              "line": 23
             }
           ]
         }
@@ -6212,6 +6229,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../errors.js",
         "../schemas.js",
         "../types.js",
+        "../url.js",
+        "../validation.js",
         "zod"
       ],
       "reExports": [],
@@ -6219,76 +6238,76 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "EMAIL_REGEX",
           "kind": "const",
-          "line": 8,
+          "line": 10,
           "exported": false,
           "signature": "const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/"
         },
         {
           "name": "UsersModule",
           "kind": "class",
-          "line": 10,
+          "line": 12,
           "exported": true,
           "signature": "export class UsersModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 11
+              "line": 13
             },
             {
               "name": "getUser",
               "kind": "method",
-              "line": 14
+              "line": 16
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 24
+              "line": 26
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 34
+              "line": 36
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 59
+              "line": 61
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 68
+              "line": 70
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 78
+              "line": 80
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 89
+              "line": 91
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 99
+              "line": 101
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 108
+              "line": 110
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 118
+              "line": 120
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 129
+              "line": 131
             }
           ]
         }
@@ -6298,41 +6317,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/modules/variables.ts",
       "imports": [
         "../client-core.js",
-        "../schemas.js"
+        "../schemas.js",
+        "../validation.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "VariableModule",
           "kind": "class",
-          "line": 5,
+          "line": 6,
           "exported": true,
           "signature": "export class VariableModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 6
+              "line": 7
             },
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 9
+              "line": 10
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 19
+              "line": 20
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 30
+              "line": 31
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 41
+              "line": 42
             }
           ]
         }
@@ -8055,6 +8075,20 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/url.ts",
+      "imports": [],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "buildEndpoint",
+          "kind": "function",
+          "line": 7,
+          "exported": true,
+          "signature": "export function buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string"
+        }
+      ]
+    },
+    {
       "path": "src/utils.ts",
       "imports": [],
       "reExports": [],
@@ -8079,6 +8113,43 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 18,
           "exported": true,
           "signature": "export function serializeIdList(ids?: number[]): string | undefined"
+        }
+      ]
+    },
+    {
+      "path": "src/validation.ts",
+      "imports": [
+        "./errors.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ENTRY_ID_RE",
+          "kind": "const",
+          "line": 11,
+          "exported": true,
+          "signature": "export const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i"
+        },
+        {
+          "name": "validateId",
+          "kind": "function",
+          "line": 17,
+          "exported": true,
+          "signature": "export function validateId(id: number, name: string): void"
+        },
+        {
+          "name": "validateEntryId",
+          "kind": "function",
+          "line": 30,
+          "exported": true,
+          "signature": "export function validateEntryId(entryId: string): void"
+        },
+        {
+          "name": "validatePaginationParams",
+          "kind": "function",
+          "line": 40,
+          "exported": true,
+          "signature": "export function validatePaginationParams(limit?: number, offset?: number): void"
         }
       ]
     }

@@ -4,32 +4,34 @@ import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class RunModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_run/{run_id} */
     async getRun(runId: number): Promise<Run> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Run>({ method: 'GET', endpoint: `get_run/${runId}`, schema: RunSchema });
     }
 
     /** @testrail GET get_runs/{project_id} */
     async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
             options ?? {};
-        this.client.validatePaginationParams(limit, offset);
+        validatePaginationParams(limit, offset);
         if (milestoneId !== undefined) {
-            this.client.validateId(milestoneId, 'milestoneId');
+            validateId(milestoneId, 'milestoneId');
         }
         if (suiteId !== undefined) {
-            this.client.validateId(suiteId, 'suiteId');
+            validateId(suiteId, 'suiteId');
         }
         if (createdBy !== undefined) {
-            createdBy.forEach((userId) => this.client.validateId(userId, 'createdBy'));
+            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
         }
-        const endpoint = this.client.buildEndpoint(`get_runs/${projectId}`, {
+        const endpoint = buildEndpoint(`get_runs/${projectId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
             created_by: serializeIdList(createdBy),
@@ -55,7 +57,7 @@ export class RunModule {
 
     /** @testrail POST add_run/{project_id} */
     async addRun(projectId: number, payload: AddRunPayload): Promise<Run> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Run>({
             method: 'POST',
             endpoint: `add_run/${projectId}`,
@@ -66,7 +68,7 @@ export class RunModule {
 
     /** @testrail POST update_run/{run_id} */
     async updateRun(runId: number, payload: UpdateRunPayload): Promise<Run> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Run>({
             method: 'POST',
             endpoint: `update_run/${runId}`,
@@ -77,7 +79,7 @@ export class RunModule {
 
     /** @testrail POST close_run/{run_id} */
     async closeRun(runId: number): Promise<Run> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Run>({
             method: 'POST',
             endpoint: `close_run/${runId}`,
@@ -99,8 +101,8 @@ export class RunModule {
     // boolean `soft` computed at runtime; returns the union.
     async deleteRun(runId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteRun(runId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
-        this.client.validateId(runId, 'runId');
-        const endpoint = this.client.buildEndpoint(`delete_run/${runId}`, {
+        validateId(runId, 'runId');
+        const endpoint = buildEndpoint(`delete_run/${runId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });

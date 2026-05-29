@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Status, Priority, ResultField, CaseField, CaseType, Template, Role, CaseStatus } from '../types.js';
+import { validateId } from '../validation.js';
 import {
     StatusSchema,
     PrioritySchema,
@@ -105,7 +106,7 @@ export class MetadataModule {
 
     /** @testrail GET get_templates/{project_id} */
     async getTemplates(projectId: number): Promise<Template[]> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Template[]>({
             method: 'GET',
             endpoint: `get_templates/${projectId}`,

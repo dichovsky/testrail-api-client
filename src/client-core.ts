@@ -1,6 +1,12 @@
 import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
+import {
+    validateId as validateIdImpl,
+    validateEntryId as validateEntryIdImpl,
+    validatePaginationParams as validatePaginationParamsImpl,
+} from './validation.js';
+import { buildEndpoint as buildEndpointImpl } from './url.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
@@ -193,10 +199,6 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
         }
     }
 }
-
-// UUID format for plan entry IDs (SEC #29). All five groups are hex-only so
-// path-traversal sequences cannot appear in a validated entry ID.
-const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const activeClients = new Set<TestRailClientCore>();
 let processHandlersRegistered = false;
@@ -596,59 +598,36 @@ export class TestRailClientCore {
     /**
      * Validates that an ID is a positive integer.
      * @throws {TestRailValidationError} When ID is invalid
+     * @deprecated Will be removed in 6.0.0 (ARCH #6). No public replacement; roll your own with `Number.isInteger(id) && id > 0`.
      */
     public validateId(id: number, name: string): void {
-        if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
-            throw new TestRailValidationError(`${name} must be a positive integer`);
-        }
+        validateIdImpl(id, name);
     }
 
     /**
-     * Validates that an entry ID is a well-formed UUID string.
-     * TestRail plan-entry IDs are RFC 4122 UUIDs; accepting arbitrary strings
-     * allows path-traversal sequences (e.g. `../../admin`) to be injected into
-     * the URL (SEC #29).
+     * Validates that an entry ID is a well-formed UUID string (SEC #29).
      * @throws {TestRailValidationError} When entryId is not a UUID string
+     * @deprecated Will be removed in 6.0.0 (ARCH #6).
      */
     public validateEntryId(entryId: string): void {
-        if (!ENTRY_ID_RE.test(entryId)) {
-            throw new TestRailValidationError('entryId must be a UUID string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)');
-        }
+        validateEntryIdImpl(entryId);
     }
 
     /**
      * Validates optional pagination parameters.
      * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
+     * @deprecated Will be removed in 6.0.0 (ARCH #6).
      */
     public validatePaginationParams(limit?: number, offset?: number): void {
-        if (limit !== undefined) {
-            if (typeof limit !== 'number' || !Number.isInteger(limit) || limit <= 0) {
-                throw new TestRailValidationError('limit must be a positive integer');
-            }
-        }
-        if (offset !== undefined) {
-            if (typeof offset !== 'number' || !Number.isInteger(offset) || offset < 0) {
-                throw new TestRailValidationError('offset must be a non-negative integer');
-            }
-        }
+        validatePaginationParamsImpl(limit, offset);
     }
 
     /**
-     * Builds a TestRail endpoint URL with optional query parameters.
-     * Appends params using `&key=value` (TestRail URL quirk — uses `&`, not `?`).
-     * Keys and values are automatically percent-encoded via `encodeURIComponent`.
-     * Do NOT pre-encode values before passing them; doing so will cause double-encoding.
+     * Builds a TestRail endpoint URL with optional query parameters (TestRail uses `&`, not `?`).
+     * @deprecated Will be removed in 6.0.0 (ARCH #6).
      */
     public buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string {
-        const parts: string[] = [];
-        for (const [key, value] of Object.entries(params)) {
-            if (value !== undefined) {
-                // Encode values to prevent parameter injection via string values
-                // containing `&`, `=`, or `#`.
-                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-            }
-        }
-        return parts.length > 0 ? `${base}&${parts.join('&')}` : base;
+        return buildEndpointImpl(base, params);
     }
 
     private getCachedData<T>(cacheKey: string): T | undefined {

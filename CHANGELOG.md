@@ -5,6 +5,48 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] — Validation/URL helpers extracted (ARCH #6, phase 1)
+
+Internal refactor. **No public API or CLI behaviour change.** Phase 1 of a
+two-phase split (phase 2 ships as 6.0.0).
+
+### Changed (internal)
+
+- **`validateId` / `validateEntryId` / `validatePaginationParams` extracted to
+  `src/validation.ts`.** The three validators are now pure functions; their
+  former homes on `TestRailClientCore` are thin one-line delegates marked
+  `@deprecated` with a 6.0.0 removal note. Internal callers in
+  `src/modules/*.ts` (18 files, 158 sites across all 4 helpers) now import
+  directly from the leaf module rather than routing through
+  `this.client.<helper>(...)`. Behaviour, error messages, error classes, and
+  thrown types are byte-identical to 5.0.0.
+- **`buildEndpoint` extracted to `src/url.ts`.** Same pattern — pure function
+  in a leaf module, internal callers in `src/modules/*.ts` migrated, public
+  method on `TestRailClientCore` becomes a one-line `@deprecated` delegate.
+- **`ENTRY_ID_RE` is now a single source of truth.** Both
+  `src/validation.ts:validateEntryId` and `src/cli/ids.ts:parseEntryId` import
+  the same exported constant from `src/validation.ts`. The duplicated regex
+  is gone, and so is the apologetic comment in `cli/ids.ts` that explained
+  why it had been kept in sync as a module-level const ("avoid pulling the
+  entire HTTP layer into the CLI layer") — `validation.ts` is a leaf module,
+  so the original concern no longer applies.
+
+### Deprecated
+
+- `TestRailClient.validateId`, `validateEntryId`, `validatePaginationParams`,
+  `buildEndpoint` — will be removed in 6.0.0 (ARCH #6 phase 2). There is no
+  public replacement; the helpers were always internal validation machinery.
+  External callers (if any) should roll their own — `validateId` is one line:
+  `Number.isInteger(id) && id > 0`.
+
+### Added (tests)
+
+- `tests/validation.test.ts` (~25 cases) — direct unit coverage for the three
+  validators, including the path-traversal-rejection case for `validateEntryId`
+  (SEC #29).
+- `tests/url.test.ts` (~12 cases) — direct unit coverage for `buildEndpoint`,
+  including parameter-injection-encoding cases.
+
 ## [5.0.0] — Facade collapse release
 
 One library-API breaking change ships in this major: the flat client facade is
@@ -42,8 +84,8 @@ unreleased 4.x line — no other public API or CLI behaviour change.
 
     Full mapping, grouped by module:
 
-    <details>
-    <summary>117 flat methods → namespaced (click to expand)</summary>
+        <details>
+        <summary>117 flat methods → namespaced (click to expand)</summary>
 
     #### `projects`
 
@@ -252,7 +294,7 @@ unreleased 4.x line — no other public API or CLI behaviour change.
     | `client.getReports(…)` | `client.reports.getReports(…)` |
     | `client.runReport(…)`  | `client.reports.runReport(…)`  |
 
-    </details>
+        </details>
 
 ### Changed
 

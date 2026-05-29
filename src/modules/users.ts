@@ -4,6 +4,8 @@ import { UserSchema, GroupSchema } from '../schemas.js';
 import type { AddGroupPayload, Group, UpdateGroupPayload, UserAddPayload, UserUpdatePayload } from '../schemas.js';
 import { TestRailClientCore } from '../client-core.js';
 import type { User } from '../types.js';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,7 +14,7 @@ export class UsersModule {
 
     /** @testrail GET get_user/{user_id} */
     async getUser(userId: number): Promise<User> {
-        this.client.validateId(userId, 'userId');
+        validateId(userId, 'userId');
         return this.client.request<User>({
             method: 'GET',
             endpoint: `get_user/${userId}`,
@@ -26,18 +28,18 @@ export class UsersModule {
             throw new TestRailValidationError('Invalid email format');
         }
 
-        const endpoint = this.client.buildEndpoint('get_user_by_email', { email });
+        const endpoint = buildEndpoint('get_user_by_email', { email });
         return this.client.request<User>({ method: 'GET', endpoint, schema: UserSchema });
     }
 
     /** @testrail GET get_users */
     async getUsers(limit?: number, offset?: number, projectId?: number): Promise<User[]> {
-        this.client.validatePaginationParams(limit, offset);
+        validatePaginationParams(limit, offset);
         if (projectId !== undefined) {
-            this.client.validateId(projectId, 'projectId');
+            validateId(projectId, 'projectId');
         }
 
-        const endpoint = this.client.buildEndpoint(projectId !== undefined ? `get_users/${projectId}` : 'get_users', {
+        const endpoint = buildEndpoint(projectId !== undefined ? `get_users/${projectId}` : 'get_users', {
             limit,
             offset,
         });
@@ -76,7 +78,7 @@ export class UsersModule {
 
     /** @testrail POST update_user/{user_id} */
     async updateUser(userId: number, payload: UserUpdatePayload): Promise<User> {
-        this.client.validateId(userId, 'userId');
+        validateId(userId, 'userId');
         return this.client.request<User>({
             method: 'POST',
             endpoint: `update_user/${userId}`,
@@ -87,7 +89,7 @@ export class UsersModule {
 
     /** @testrail GET get_group/{group_id} */
     async getGroup(groupId: number): Promise<Group> {
-        this.client.validateId(groupId, 'groupId');
+        validateId(groupId, 'groupId');
         return this.client.request<Group>({
             method: 'GET',
             endpoint: `get_group/${groupId}`,
@@ -116,7 +118,7 @@ export class UsersModule {
 
     /** @testrail POST update_group/{group_id} */
     async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
-        this.client.validateId(groupId, 'groupId');
+        validateId(groupId, 'groupId');
         return this.client.request<Group>({
             method: 'POST',
             endpoint: `update_group/${groupId}`,
@@ -127,7 +129,7 @@ export class UsersModule {
 
     /** @testrail POST delete_group/{group_id} */
     async deleteGroup(groupId: number): Promise<void> {
-        this.client.validateId(groupId, 'groupId');
+        validateId(groupId, 'groupId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_group/${groupId}`,

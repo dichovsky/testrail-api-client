@@ -3,13 +3,15 @@ import type { Section, SoftDeleteOptions } from '../types.js';
 import type { AddSectionPayload, MoveSectionPayload, SoftDeletePreview, UpdateSectionPayload } from '../schemas.js';
 import { SectionSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class SectionModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_section/{section_id} */
     async getSection(sectionId: number): Promise<Section> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         return this.client.request<Section>({
             method: 'GET',
             endpoint: `get_section/${sectionId}`,
@@ -22,13 +24,13 @@ export class SectionModule {
         projectId: number,
         options?: { suiteId?: number; limit?: number; offset?: number },
     ): Promise<Section[]> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         const { suiteId, limit, offset } = options ?? {};
         if (suiteId !== undefined) {
-            this.client.validateId(suiteId, 'suiteId');
+            validateId(suiteId, 'suiteId');
         }
-        this.client.validatePaginationParams(limit, offset);
-        const endpoint = this.client.buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
+        validatePaginationParams(limit, offset);
+        const endpoint = buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
         return (
             (
                 await this.client.request<{ sections?: Section[] }>({
@@ -44,7 +46,7 @@ export class SectionModule {
 
     /** @testrail POST add_section/{project_id} */
     async addSection(projectId: number, payload: AddSectionPayload): Promise<Section> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Section>({
             method: 'POST',
             endpoint: `add_section/${projectId}`,
@@ -55,7 +57,7 @@ export class SectionModule {
 
     /** @testrail POST update_section/{section_id} */
     async updateSection(sectionId: number, payload: UpdateSectionPayload): Promise<Section> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         return this.client.request<Section>({
             method: 'POST',
             endpoint: `update_section/${sectionId}`,
@@ -77,8 +79,8 @@ export class SectionModule {
     // General overload: dynamic boolean `soft` → union return.
     async deleteSection(sectionId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteSection(sectionId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
-        this.client.validateId(sectionId, 'sectionId');
-        const endpoint = this.client.buildEndpoint(`delete_section/${sectionId}`, {
+        validateId(sectionId, 'sectionId');
+        const endpoint = buildEndpoint(`delete_section/${sectionId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
@@ -102,7 +104,7 @@ export class SectionModule {
      * @testrail POST move_section/{section_id}
      */
     async moveSection(sectionId: number, payload: MoveSectionPayload): Promise<void> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `move_section/${sectionId}`,
