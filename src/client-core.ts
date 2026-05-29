@@ -185,7 +185,7 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
     }
 
     for (const lookup of lookups) {
-        if (lookup.address !== '' && isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
+        if (isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
             throw new TestRailValidationError(
                 `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
                     'Set allowPrivateHosts: true to allow on-premise deployments.',
@@ -578,12 +578,11 @@ export class TestRailClientCore {
         this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
 
         if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
-            let oldestRequest = now;
-            for (const requestTime of this.rateLimiter.requests) {
-                if (requestTime < oldestRequest) {
-                    oldestRequest = requestTime;
-                }
-            }
+            // requests[] is push-appended and order-preserving-filtered, so it is
+            // always ascending — the oldest in-window timestamp is requests[0].
+            // This branch only runs when length >= maxRequests (>= 1, validated),
+            // so the array is non-empty; `?? now` only satisfies the index type.
+            const oldestRequest = this.rateLimiter.requests[0] ?? now;
             const waitTime = oldestRequest + this.rateLimiter.windowMs - now;
             throw new TestRailApiError(429, 'Too Many Requests', {
                 message: `Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds before making another request.`,

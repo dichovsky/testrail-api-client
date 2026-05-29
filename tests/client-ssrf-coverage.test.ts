@@ -246,25 +246,6 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         mockDnsLookup.mockResolvedValue([]);
     });
 
-    it('skips empty-string addresses in the lookup result (defensive guard at line 163)', async () => {
-        mockDnsLookup.mockResolvedValueOnce([
-            { address: '', family: 4 },
-            { address: '203.0.113.5', family: 4 }, // public TEST-NET-3
-        ] as never);
-        mockFetch.mockResolvedValueOnce({
-            ok: true,
-            status: 200,
-            statusText: 'OK',
-            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
-        });
-        const client = new TestRailClient({
-            baseUrl: 'https://public-host.example',
-            email: 'test@example.com',
-            apiKey: 'key',
-        });
-        await expect(client.projects.getProject(1)).resolves.toBeDefined();
-    });
-
     it('handles malformed IPv4 from DNS gracefully (non-4-part, non-numeric octet)', async () => {
         // isPrivateOrLoopbackIPv4 returns false for malformed input; if all
         // lookups are malformed, the validator should allow the request
