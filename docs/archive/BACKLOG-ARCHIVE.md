@@ -4190,3 +4190,16 @@ the 2026-05-27 orchestrator session. Items were verified against merge commits o
 ## BACKLOG sync — 2026-05-27 (scripts/ TypeScript conversion)
 
 - [x] **USER: all scripts from `./scripts/` folder should be written in TypeScript** — Shipped in this PR (`refactor(scripts): convert scripts/ from JavaScript to TypeScript`). Converted all 7 generator scripts from JavaScript (`.js`/`.mjs`) to TypeScript (`.ts`) with `tsx` as the runner. New files: `generate-agents-md.ts`, `generate-codemap.ts`, `generate-mapping.ts`, `generate-skill.ts`, `mapping-renderer.ts`, `rules-content.ts`, `skill-renderer.ts`. Old JS files deleted. `package.json` scripts updated to use `tsx`. `tsconfig.json` extended to include `scripts/**/*`. All ESLint constraints honored (`no-unsafe-assignment`, `no-explicit-any`, `strict-boolean-expressions`, `exactOptionalPropertyTypes`, etc.). All 2945 tests pass; 0 type errors; 0 lint errors.
+
+## BACKLOG sync — 2026-05-29 (Architecture cluster — PRs #188–#190)
+
+This sync archives three Architecture items shipped in the PR-C/D/E refactor
+batch. Each is confirmed against the current state of `main`.
+
+### Architecture — verified shipped
+
+- [x] **ARCH #1: Extract `HttpPipeline` seam** — Shipped in PR-E (#188, `refactor(arch): unify HTTP pipeline behind single request(spec)`). The five historical entry points (`request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed`) collapsed into one `request<T>(spec: RequestSpec<T>)` that builds a `PipelineSpec` and drives a shared `executePipeline()` (`src/client-core.ts`). `RequestSpec` (`src/http-pipeline-types.ts`) carries method, endpoint, optional body (`json` / `multipart`), optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`), and a named `retry` policy (`src/retry-policy.ts`). Cache namespaces, the GET/write retry asymmetry, and upload no-retry are preserved exactly. ARCH #1 phases 3–4 landed earlier (PRs #181, #182); this PR completed the unification.
+
+- [x] **ARCH #2: Write-handler factory** — Shipped in PR-D (#190, `refactor(cli): collapse write handlers into createWriteHandler factory`). `src/cli/write-handler-factory.ts` exposes `createWriteHandler` and `createDestructiveHandler`; the per-file `*-write.ts` handlers are now small specs over the shared skeleton (parse path params, resolve+validate body, branch on `--dry-run`, call the client, emit). `run-destructive.ts` was removed (its protocol is now inside `createDestructiveHandler`). Genuinely irregular handlers (`case delete-bulk`, attachment uploads, `group add`) stay hand-written.
+
+- [x] **ARCH #3: Promote `ACTIONS` to single source of truth** — Shipped in PR-C (#189, `refactor(cli): derive HANDLERS and HELP from ACTIONS`). Each `ActionSpec` now carries its `handler`; `dispatch.ts` derives the `HANDLERS` map and `RESOURCES` buckets from `ACTIONS`, and `src/cli/help.ts` generates the `--help` text from `ACTIONS`. Adding an action is a one-line metadata edit, enforced by the TypeScript compiler rather than a drift test. Related: PR-B (#184) split `schemas.ts` and `cli/metadata.ts` by domain into `src/schemas/*.ts` and `src/cli/metadata/*.ts` (barrels preserve import paths); PR-A (#183) removed dead error subclasses; PR #191 removed all rule suppressions from `src/`.

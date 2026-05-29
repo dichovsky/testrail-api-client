@@ -7,7 +7,38 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-_No changes yet — next release in flight._
+Internal refactors — no public API or CLI behaviour change.
+
+### Changed
+
+- **HTTP pipeline unified behind a single `request<T>(spec)` method.** The
+  five historical entry points (`request` / `requestText` / `requestMultipart`
+  / `requestBinary` / `requestParsed`) collapsed into one `request<T>(spec: RequestSpec<T>)`
+  that drives a shared `executePipeline`. `RequestSpec` carries the method,
+  endpoint, optional body (`json` / `multipart`), optional response `schema`,
+  `responseKind` (`'json' | 'text' | 'binary'`), and a named `retry` policy.
+  Behavioural defaults (cache namespaces, retry asymmetry, upload no-retry)
+  are preserved exactly.
+- **`schemas.ts` and `cli/metadata.ts` split by domain** into `src/schemas/*.ts`
+  and `src/cli/metadata/*.ts`. Barrel re-exports (`src/schemas.ts`,
+  `src/cli/metadata.ts`) preserve every existing import path.
+- **`ACTIONS` promoted to the single source of truth for the CLI.** Each
+  `ActionSpec` now carries its `handler`; `dispatch.ts` derives the `HANDLERS`
+  map and `--help` text (`src/cli/help.ts`) from `ACTIONS`, so adding an action
+  is a one-line metadata edit enforced by the TypeScript compiler rather than a
+  drift test.
+- **CLI write handlers collapsed into `createWriteHandler` /
+  `createDestructiveHandler` factories** (`src/cli/write-handler-factory.ts`).
+  The repeated parse / validate / dry-run / call / emit skeleton lives in the
+  factory once; genuinely irregular handlers stay hand-written.
+
+### Removed
+
+- **Dead error subclasses** — only `TestRailApiError`, `TestRailValidationError`,
+  and the `handleZodError` helper remain in `src/errors.ts`.
+- **`run-destructive.ts`** — superseded by `createDestructiveHandler`.
+- **All rule suppressions** (`eslint-disable`, `c8`/`v8 ignore`) removed from
+  `src/`; the lint and coverage gates are satisfied without local opt-outs.
 
 ## [4.0.0] — 2026-05-20 — CLI hardening release
 
