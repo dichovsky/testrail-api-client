@@ -41,20 +41,6 @@ export const DEFAULT_MAX_BINARY_RESPONSE_BYTES = 100 * 1024 * 1024;
 export const MAX_RESPONSE_BYTES_LIMIT = 1024 * 1024 * 1024;
 
 /**
- * Wall-clock deadline applied to the response-body read (SEC #21 — slowloris-on-body).
- *
- * Before this cap, the request timeout was cleared as soon as response headers
- * arrived. An attacker (or a buggy intermediary) could then dribble the body
- * one byte at a time indefinitely while holding the socket open. The body
- * read now runs against `bodyTimeout` (default: same as `timeout`).
- *
- * `undefined` here means "fall back to `config.timeout`"; explicit `0` means
- * "no body deadline" (only the byte cap protects). Most callers want the
- * default.
- */
-export const DEFAULT_BODY_TIMEOUT_MS: number | undefined = undefined;
-
-/**
  * Maximum size in bytes for a --data-file payload (1 MiB).
  *
  * SEC #17: `readFileSync` with no size cap could exhaust memory on a

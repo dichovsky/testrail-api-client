@@ -238,8 +238,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRun`](../src/modules/runs.ts#L11) | `run get` | [recipe #7](../skill/SKILL.md#7-count-passfail-for-a-run) |
-| [`GET get_runs/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRuns`](../src/modules/runs.ts#L17) | `run list` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
+| [`GET get_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRun`](../src/modules/runs.ts#L12) | `run get` | [recipe #7](../skill/SKILL.md#7-count-passfail-for-a-run) |
+| [`GET get_runs/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRuns`](../src/modules/runs.ts#L18) | `run list` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
 | [`POST add_run/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addRun`](../src/modules/runs.ts#L57) | `run add` | [recipe #11](../skill/SKILL.md#11-create-a-ci-test-run) |
 | [`POST close_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`closeRun`](../src/modules/runs.ts#L79) | `run close` | [recipe #13](../skill/SKILL.md#13-close-a-run-when-ci-finishes) |
 | [`POST delete_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteRun`](../src/modules/runs.ts#L96) | `run delete` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |

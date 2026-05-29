@@ -401,7 +401,7 @@ function extractFileSymbols(sourceFile: ts.SourceFile, maxLen: number): SymbolEn
             }
         } else if (ts.isModuleDeclaration(stmt) && stmt.name !== undefined) {
             symbols.push({
-                name: ts.isIdentifier(stmt.name) ? stmt.name.text : stmt.name.text,
+                name: stmt.name.text,
                 kind: 'namespace',
                 line,
                 exported,

@@ -31,5 +31,3 @@ export const TestRailConfigSchema = zObject({
     allowInsecure: z.boolean().optional(),
     allowPrivateHosts: z.boolean().optional(),
 });
-
-export type TestRailConfig = z.infer<typeof TestRailConfigSchema>;

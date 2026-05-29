@@ -174,8 +174,6 @@ export type {
     Template,
     ConfigurationGroup,
     Configuration,
-    AddUserPayload,
-    UpdateUserPayload,
     Role,
     Attachment,
     Report,

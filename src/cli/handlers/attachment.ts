@@ -2,7 +2,7 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId, optInt } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteBinary } from '../safe-write.js';
-import { safeJsonStringify } from '../output.js';
+import { emitStdoutAck } from '../output.js';
 
 /**
  * Build the `{ limit?, offset? }` options object for the per-resource
@@ -89,19 +89,8 @@ export async function handleAttachmentGet(ctx: HandlerContext): Promise<void> {
         if (process.stdout.isTTY === true) {
             ctx.err?.('--out - is writing binary to a TTY; pipe to a tool like xxd or redirect to a file.');
         }
-        process.stdout.write(bytes);
-        // Route the JSON ack to stderr so the stdout stream is pure binary.
-        // Honor --quiet by checking ctx.err (the createOutput err() helper
-        // already gates on --quiet); fall back to direct stderr only when
-        // ctx.err is absent (defensive for handlers wired with a minimal ctx).
-        const ack = {
-            attachmentId,
-            out: '<stdout>',
-            size: bytes.byteLength,
-        };
-        if (ctx.errRaw !== undefined) {
-            ctx.errRaw(`${safeJsonStringify(ack)}\n`);
-        }
+        // Route the JSON ack to stderr so the stdout stream stays pure binary.
+        emitStdoutAck(bytes, { attachmentId, out: '<stdout>', size: bytes.byteLength }, ctx.errRaw);
         return;
     }
 

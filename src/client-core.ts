@@ -898,15 +898,28 @@ export class TestRailClientCore {
                     throw new TestRailApiError(0, 'Invalid JSON response from TestRail API');
                 }
             },
-            ...(method !== 'GET' || body?.kind === 'multipart'
-                ? {
-                      onSuccessBeforeParse: () => {
-                          this.clearCache();
-                      },
-                  }
-                : {}),
+            ...this.cacheInvalidationHook(method, body),
         };
         return this.executePipeline<T>(pipelineSpec);
+    }
+
+    /**
+     * Cache-invalidation hook shared by the JSON and text pipelines. Any write
+     * (non-GET) or multipart upload flushes the entire GET cache before the
+     * response is parsed; a plain GET returns an empty spread so reads never
+     * clear the cache.
+     */
+    private cacheInvalidationHook(
+        method: string,
+        body: RequestSpec<unknown>['body'],
+    ): { onSuccessBeforeParse?: () => void } {
+        return method !== 'GET' || body?.kind === 'multipart'
+            ? {
+                  onSuccessBeforeParse: (): void => {
+                      this.clearCache();
+                  },
+              }
+            : {};
     }
 
     /**
@@ -931,13 +944,7 @@ export class TestRailClientCore {
             retryPolicy: getRetryPolicy(retry),
             cache: { key: undefined, skipRead: false },
             parseSuccess: async (response: Response) => (await readBodyAsText(response, jsonLimits)) as T,
-            ...(method !== 'GET' || body?.kind === 'multipart'
-                ? {
-                      onSuccessBeforeParse: () => {
-                          this.clearCache();
-                      },
-                  }
-                : {}),
+            ...this.cacheInvalidationHook(method, body),
         });
     }
 

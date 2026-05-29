@@ -165,6 +165,15 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
     // never runs → process hangs even after the client's exit handler runs).
     let resolveLoop: (() => void) | undefined;
 
+    // Quiet-aware, sanitized status line to stderr. `--quiet` is read from
+    // process.argv (the same fallback index.ts uses pre-parse) because the
+    // handler context carries no parsed quiet flag.
+    const writeStatus = (line: string): void => {
+        if (!process.argv.includes('--quiet')) {
+            process.stderr.write(sanitizeForTerminal(line));
+        }
+    };
+
     const onSignal = (): void => {
         if (cancelled) return;
         cancelled = true;
@@ -176,11 +185,7 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
         // watcher's own status text is constant, but defense-in-depth keeps
         // the path uniform with `createOutput().err`.
         const lastStr = lastSnapshot !== undefined ? JSON.stringify(lastSnapshot) : '(no successful poll)';
-        if (!process.argv.includes('--quiet')) {
-            process.stderr.write(
-                sanitizeForTerminal(`run watch: interrupted at runId=${runId}; lastSnapshot=${lastStr}\n`),
-            );
-        }
+        writeStatus(`run watch: interrupted at runId=${runId}; lastSnapshot=${lastStr}\n`);
         // Settle the loop so the handler's `await` returns. The client's
         // SIGINT handler still runs after this (we use prependListener so
         // ours runs first) and calls process.exit(130); without that the
@@ -243,14 +248,10 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
                         if (isTransientError(e)) {
                             // Transient failure (network blip, 5xx, 429): log to
                             // stderr and continue polling on the next interval.
-                            if (!process.argv.includes('--quiet')) {
-                                const msg = e instanceof Error ? e.message : String(e);
-                                process.stderr.write(
-                                    sanitizeForTerminal(
-                                        `run watch: transient error for runId=${runId}; retrying in ${intervalSeconds}s: ${msg}\n`,
-                                    ),
-                                );
-                            }
+                            const msg = e instanceof Error ? e.message : String(e);
+                            writeStatus(
+                                `run watch: transient error for runId=${runId}; retrying in ${intervalSeconds}s: ${msg}\n`,
+                            );
                             pendingTimer = setTimeout(poll, intervalSeconds * 1000);
                         } else {
                             // Unrecoverable rejection (auth lost, 404, etc.)
