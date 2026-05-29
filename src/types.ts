@@ -1,3 +1,5 @@
+import type { LabelEmbedded } from './schemas.js';
+
 /**
  * TestRail API client configuration options
  */
@@ -148,28 +150,11 @@ export interface Case {
     display_order?: number | null;
     is_deleted?: number | null;
     custom_fields?: Record<string, unknown> | null;
-    // Mirror of the `labels` array on `CaseSchema` (SPEC #2.1.3) — uses the shared
-    // `LabelEmbedded` shape from schemas.ts so a Label object can be carried
-    // between `get_case` and `get_test` responses without re-casting.
-    //
-    // Inner shape conventions (per the TestRail Cases API doc):
-    //   - `id` is required — every documented response example emits a concrete
-    //     integer ID; a missing id would be a malformed-response regression.
-    //   - `title` is the canonical name field on Case-embedded labels per the
-    //     `get_case` example. Wire responses from `get_case` populate `title`,
-    //     not `name`.
-    //   - `name` is accepted for cross-endpoint compatibility with the
-    //     stand-alone `get_label` endpoint, which uses `name` instead of `title`.
-    //     Will be undefined on a parsed `get_case` response.
-    //   - `created_by` / `created_on` are present on `get_case` examples but
-    //     absent on `get_test` examples — both shapes accepted.
-    labels?: Array<{
-        id: number;
-        title?: string | null;
-        name?: string | null;
-        created_by?: number | null;
-        created_on?: number | null;
-    }> | null;
+    // Mirror of the `labels` array on `CaseSchema` (SPEC #2.1.3) — uses the
+    // shared `LabelEmbedded` shape so a Label object can be carried between
+    // `get_case` and `get_test` responses without re-casting. See
+    // `LabelEmbeddedSchema` for inner field choices.
+    labels?: LabelEmbedded[] | null;
 }
 
 export interface Suite {
@@ -348,31 +333,11 @@ export interface Test {
     refs?: string | null;
     milestone_id?: number | null;
     custom_fields?: Record<string, unknown> | null;
-    // Mirror of the `labels` array on `TestSchema` (SPEC #2.1.7).
-    //
-    // Inner shape conventions (per the TestRail Tests API doc):
-    //   - `id` is required — every documented response example emits a
-    //     concrete integer ID; a missing id would be a malformed-response
-    //     regression worth surfacing rather than hiding.
-    //   - `title` is the canonical name field on Test-embedded labels per the
-    //     `get_test` example. Wire responses populate `title`, not `name`.
-    //   - `name` is accepted for cross-endpoint compatibility with the
-    //     stand-alone `get_label` endpoint (which uses `name`). Will be
-    //     undefined on a parsed `get_test` response.
-    //   - `created_by` / `created_on` are emitted by `get_case` but NOT by
-    //     `get_test` per the documented examples. Accepted as optional so a
-    //     Label object can be carried between Case and Test contexts.
-    //
-    // TODO: after SPEC #2.1.3 (PR #138) introduces `LabelEmbeddedSchema` /
-    // `LabelEmbedded`, replace this inline object type with the shared one to
-    // eliminate the drift surface.
-    labels?: Array<{
-        id: number;
-        title?: string | null;
-        name?: string | null;
-        created_by?: number | null;
-        created_on?: number | null;
-    }> | null;
+    // Mirror of the `labels` array on `TestSchema` (SPEC #2.1.7) — uses the
+    // shared `LabelEmbedded` shape so a Label object can be carried between
+    // `get_test` and `get_case` responses without re-casting. See
+    // `LabelEmbeddedSchema` for inner field choices.
+    labels?: LabelEmbedded[] | null;
 }
 
 export interface Result {
