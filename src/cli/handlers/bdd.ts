@@ -3,7 +3,7 @@ import { parseId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { resolveFile } from '../file-input.js';
 import { safeWriteText } from '../safe-write.js';
-import { safeJsonStringify } from '../output.js';
+import { emitStdoutAck } from '../output.js';
 
 /**
  * Download a case's BDD (Gherkin `.feature`) content to a local file or to
@@ -40,15 +40,7 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
     const text = await ctx.client.bdd.getBdd(caseId);
 
     if (resolved.target === 'stdout') {
-        process.stdout.write(text);
-        const ack = {
-            caseId,
-            out: '<stdout>',
-            size: Buffer.byteLength(text, 'utf-8'),
-        };
-        if (ctx.errRaw !== undefined) {
-            ctx.errRaw(`${safeJsonStringify(ack)}\n`);
-        }
+        emitStdoutAck(text, { caseId, out: '<stdout>', size: Buffer.byteLength(text, 'utf-8') }, ctx.errRaw);
         return;
     }
 

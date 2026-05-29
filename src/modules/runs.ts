@@ -1,4 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
+import { serializeIdList } from '../utils.js';
 import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
@@ -28,11 +29,10 @@ export class RunModule {
         if (createdBy !== undefined) {
             createdBy.forEach((userId) => this.client.validateId(userId, 'createdBy'));
         }
-        const createdByFilter = createdBy && createdBy.length > 0 ? createdBy.join(',') : undefined;
         const endpoint = this.client.buildEndpoint(`get_runs/${projectId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
-            created_by: createdByFilter,
+            created_by: serializeIdList(createdBy),
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
             milestone_id: milestoneId,
             refs_filter: refsFilter,

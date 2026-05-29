@@ -730,36 +730,6 @@ export interface GetMilestonesOptions {
     offset?: number;
 }
 
-// ── User Management (TASK-024, requires TestRail 7.3+) ────────────────────────
-
-/** Payload for creating a new user via POST /add_user (TestRail 7.3+) */
-export interface AddUserPayload {
-    /** User's email address */
-    email: string;
-    /** User's full name */
-    name: string;
-    /** Whether the user account is active (default: true) */
-    is_active?: boolean;
-    /** Role ID to assign to the user */
-    role_id?: number;
-    /** Password for the new user */
-    password?: string;
-}
-
-/** Payload for updating an existing user via POST /update_user/{user_id} (TestRail 7.3+) */
-export interface UpdateUserPayload {
-    /** User's email address */
-    email?: string;
-    /** User's full name */
-    name?: string;
-    /** Whether the user account is active */
-    is_active?: boolean;
-    /** Role ID to assign to the user */
-    role_id?: number;
-    /** New password for the user */
-    password?: string;
-}
-
 // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────────
 
 /** A user role returned by GET /get_roles (TestRail 7.3+) */

@@ -318,6 +318,11 @@ export interface GroupedResource {
     rows: MappingRow[];
 }
 
+/** Anchor slug for a resource section heading (lowercase, spaces → hyphens). */
+function resourceSlug(resource: string): string {
+    return resource.toLowerCase().replace(/\s+/g, '-');
+}
+
 export function renderSummaryTable(grouped: GroupedResource[], recipes?: Map<string, SkillRecipe>): string {
     const lines = [
         '| Resource | TestRail endpoints | Client methods | CLI commands | Skill exposure |',
@@ -334,7 +339,7 @@ export function renderSummaryTable(grouped: GroupedResource[], recipes?: Map<str
         totals.client += client;
         totals.cli += cli;
         totals.skill += skill;
-        const slug = resource.toLowerCase().replace(/\s+/g, '-');
+        const slug = resourceSlug(resource);
         lines.push(`| [${resource}](#${slug}) | ${ep} | ${client} | ${cli} | ${skill} |`);
     }
     lines.push(`| **Total** | **${totals.ep}** | **${totals.client}** | **${totals.cli}** | **${totals.skill}** |`);
@@ -347,7 +352,7 @@ export function renderResourceSection(
     rootPrefix: string,
     recipes?: Map<string, SkillRecipe>,
 ): string {
-    const slug = resource.toLowerCase().replace(/\s+/g, '-');
+    const slug = resourceSlug(resource);
     const header = [`## ${resource}`, '', `<a id="${slug}"></a>`, ''];
     const table = ['| Endpoint | Client method | CLI command | Skill recipe |', '| --- | --- | --- | --- |'];
     for (const row of rows) {

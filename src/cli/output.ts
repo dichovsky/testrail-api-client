@@ -109,6 +109,24 @@ export function safeJsonStringify(data: unknown): string {
     }
 }
 
+/**
+ * Write a download payload to stdout and emit its JSON ack to stderr, so the
+ * stdout stream stays a pure binary/text payload for downstream tools. Shared
+ * by the `attachment get --out -` and `bdd get --out -` handlers. `errRaw` is
+ * the quiet-aware raw stderr writer; when absent (minimal-ctx callers) the ack
+ * is dropped.
+ */
+export function emitStdoutAck(
+    payload: Uint8Array | string,
+    ack: Record<string, unknown>,
+    errRaw?: (chunk: string) => void,
+): void {
+    process.stdout.write(payload);
+    if (errRaw !== undefined) {
+        errRaw(`${safeJsonStringify(ack)}\n`);
+    }
+}
+
 // ── YAML renderer ────────────────────────────────────────────────────────────
 //
 // Zero-dependency YAML 1.2-compatible emitter for the CLI `--format yaml`
