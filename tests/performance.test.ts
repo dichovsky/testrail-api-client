@@ -39,11 +39,11 @@ describe('TestRailClient Performance & Memory', () => {
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(1)));
 
         // First request - should be cached
-        await client.getProject(1);
+        await client.projects.getProject(1);
 
         // Second request - should be cached
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
-        await client.getProject(2);
+        await client.projects.getProject(2);
 
         // Check if both are in cache (private access for test)
         const cache = (client as unknown as { cache: Map<string, unknown> }).cache;
@@ -51,7 +51,7 @@ describe('TestRailClient Performance & Memory', () => {
 
         // Third request - should evict the oldest entry (Project 1)
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(3)));
-        await client.getProject(3);
+        await client.projects.getProject(3);
 
         expect(cache.size).toBe(2);
         expect(cache.has('PARSED:GET:get_project/1')).toBe(false);
@@ -69,21 +69,21 @@ describe('TestRailClient Performance & Memory', () => {
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(1)));
 
         // First request - should be cached
-        await client.getProject(1);
+        await client.projects.getProject(1);
 
         // Second request - should be cached
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
-        await client.getProject(2);
+        await client.projects.getProject(2);
 
         const cache = (client as unknown as { cache: Map<string, unknown> }).cache;
         expect(cache.size).toBe(2);
 
         // Access project 1 again to mark it as recently used
-        await client.getProject(1); // Should come from cache
+        await client.projects.getProject(1); // Should come from cache
 
         // Add project 3 - should evict project 2 (least recently used), not project 1
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(3)));
-        await client.getProject(3);
+        await client.projects.getProject(3);
 
         expect(cache.size).toBe(2);
         expect(cache.has('PARSED:GET:get_project/1')).toBe(true); // Recently accessed

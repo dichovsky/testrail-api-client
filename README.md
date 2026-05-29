@@ -28,17 +28,17 @@ const client = new TestRailClient({
 
 try {
     // Read
-    const project = await client.getProject(1);
+    const project = await client.projects.getProject(1);
     console.log(project.name);
 
     // Write
-    const run = await client.addRun(project.id, {
+    const run = await client.runs.addRun(project.id, {
         suite_id: 12,
         name: 'CI build',
         include_all: false,
         case_ids: [42, 43, 44],
     });
-    await client.addResultForCase(run.id, 42, { status_id: 1, comment: 'Passed' });
+    await client.results.addResultForCase(run.id, 42, { status_id: 1, comment: 'Passed' });
 } catch (error) {
     if (error instanceof TestRailApiError) {
         console.error(`HTTP ${error.status}: ${error.statusText}`);
@@ -131,7 +131,7 @@ The client throws two error classes:
 import { TestRailApiError, TestRailValidationError } from '@dichovsky/testrail-api-client';
 
 try {
-    await client.getProject(999);
+    await client.projects.getProject(999);
 } catch (error) {
     if (error instanceof TestRailApiError) {
         // HTTP non-2xx, network error, rate limit, timeout, invalid JSON, blocked redirect

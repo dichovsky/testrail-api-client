@@ -16,5 +16,5 @@ export async function handleCaseStatusList(ctx: HandlerContext): Promise<void> {
             `case-status list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getCaseStatuses());
+    ctx.out(await ctx.client.metadata.getCaseStatuses());
 }

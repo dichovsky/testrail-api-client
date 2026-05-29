@@ -24,28 +24,28 @@ function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: numb
 
 export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    ctx.out(await ctx.client.getAttachmentsForCase(caseId, paginationFromCtx(ctx)));
+    ctx.out(await ctx.client.attachments.getAttachmentsForCase(caseId, paginationFromCtx(ctx)));
 }
 
 export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    ctx.out(await ctx.client.getAttachmentsForRun(runId, paginationFromCtx(ctx)));
+    ctx.out(await ctx.client.attachments.getAttachmentsForRun(runId, paginationFromCtx(ctx)));
 }
 
 export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void> {
     const testId = parseId(ctx.args.pathParams[0], 'test_id');
-    ctx.out(await ctx.client.getAttachmentsForTest(testId, paginationFromCtx(ctx)));
+    ctx.out(await ctx.client.attachments.getAttachmentsForTest(testId, paginationFromCtx(ctx)));
 }
 
 export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    ctx.out(await ctx.client.getAttachmentsForPlan(planId));
+    ctx.out(await ctx.client.attachments.getAttachmentsForPlan(planId));
 }
 
 export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
     const entryId = parseId(ctx.args.pathParams[1], 'entry_id');
-    ctx.out(await ctx.client.getAttachmentsForPlanEntry(planId, entryId));
+    ctx.out(await ctx.client.attachments.getAttachmentsForPlanEntry(planId, entryId));
 }
 
 /**
@@ -78,7 +78,7 @@ export async function handleAttachmentGet(ctx: HandlerContext): Promise<void> {
         return;
     }
 
-    const buf = await ctx.client.getAttachment(attachmentId);
+    const buf = await ctx.client.attachments.getAttachment(attachmentId);
     const bytes = new Uint8Array(buf);
 
     if (resolved.target === 'stdout') {

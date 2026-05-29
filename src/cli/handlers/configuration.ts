@@ -10,5 +10,5 @@ import { parseId } from '../ids.js';
  */
 export async function handleConfigurationList(ctx: HandlerContext): Promise<void> {
     const projectId = parseId(ctx.args.pathParams[0], 'project_id');
-    ctx.out(await ctx.client.getConfigurations(projectId));
+    ctx.out(await ctx.client.configurations.getConfigurations(projectId));
 }

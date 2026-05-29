@@ -13,5 +13,5 @@ export async function handleResultFieldList(ctx: HandlerContext): Promise<void> 
             `result-field list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getResultFields());
+    ctx.out(await ctx.client.metadata.getResultFields());
 }

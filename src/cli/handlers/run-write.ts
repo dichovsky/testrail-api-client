@@ -5,14 +5,14 @@ export const handleRunAdd = createWriteHandler({
     action: 'run add',
     pathParams: ['project_id'],
     bodySchema: AddRunPayloadSchema,
-    call: (client, [projectId], body) => client.addRun(projectId, body),
+    call: (client, [projectId], body) => client.runs.addRun(projectId, body),
 });
 
 export const handleRunUpdate = createWriteHandler({
     action: 'run update',
     pathParams: ['run_id'],
     bodySchema: UpdateRunPayloadSchema,
-    call: (client, [runId], body) => client.updateRun(runId, body),
+    call: (client, [runId], body) => client.runs.updateRun(runId, body),
 });
 
 /**
@@ -25,7 +25,7 @@ export const handleRunClose = createDestructiveHandler({
     pathParams: ['run_id'],
     softMode: 'ignore',
     kind: 'close',
-    call: (client, [runId]) => client.closeRun(runId),
+    call: (client, [runId]) => client.runs.closeRun(runId),
 });
 
 /**
@@ -36,5 +36,5 @@ export const handleRunDelete = createDestructiveHandler({
     action: 'run delete',
     pathParams: ['run_id'],
     softMode: 'optional',
-    call: (client, [runId], _entry, soft) => client.deleteRun(runId, { soft }),
+    call: (client, [runId], _entry, soft) => client.runs.deleteRun(runId, { soft }),
 });

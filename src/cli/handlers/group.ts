@@ -9,7 +9,7 @@ import { parseId, IdParseError } from '../ids.js';
  */
 export async function handleGroupGet(ctx: HandlerContext): Promise<void> {
     const groupId = parseId(ctx.args.pathParams[0], 'group_id');
-    ctx.out(await ctx.client.getGroup(groupId));
+    ctx.out(await ctx.client.users.getGroup(groupId));
 }
 
 /**
@@ -25,5 +25,5 @@ export async function handleGroupList(ctx: HandlerContext): Promise<void> {
             `group list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getGroups());
+    ctx.out(await ctx.client.users.getGroups());
 }

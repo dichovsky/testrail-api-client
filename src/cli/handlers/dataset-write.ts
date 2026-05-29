@@ -5,7 +5,7 @@ export const handleDatasetAdd = createWriteHandler({
     action: 'dataset add',
     pathParams: ['project_id'],
     bodySchema: AddDatasetPayloadSchema,
-    call: (client, [projectId], body) => client.addDataset(projectId, body),
+    call: (client, [projectId], body) => client.datasets.addDataset(projectId, body),
 });
 
 /**
@@ -19,7 +19,7 @@ export const handleDatasetUpdate = createWriteHandler({
     pathParams: ['dataset_id'],
     bodySchema: UpdateDatasetPayloadSchema,
     allowEmptyBody: true,
-    call: (client, [datasetId], body) => client.updateDataset(datasetId, body),
+    call: (client, [datasetId], body) => client.datasets.updateDataset(datasetId, body),
 });
 
 /**
@@ -29,5 +29,5 @@ export const handleDatasetUpdate = createWriteHandler({
 export const handleDatasetDelete = createDestructiveHandler({
     action: 'dataset delete',
     pathParams: ['dataset_id'],
-    call: (client, [datasetId]) => client.deleteDataset(datasetId),
+    call: (client, [datasetId]) => client.datasets.deleteDataset(datasetId),
 });

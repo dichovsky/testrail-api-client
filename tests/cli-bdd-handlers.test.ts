@@ -18,14 +18,18 @@ import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
-    getBdd: ReturnType<typeof vi.fn>;
-    addBdd: ReturnType<typeof vi.fn>;
+    bdd: {
+        getBdd: ReturnType<typeof vi.fn>;
+        addBdd: ReturnType<typeof vi.fn>;
+    };
 }
 
 function buildClient(): MockedClient {
     return {
-        getBdd: vi.fn().mockResolvedValue('Feature: Login\n  Scenario: ok\n'),
-        addBdd: vi.fn().mockResolvedValue({ id: 42, title: 'BDD case' }),
+        bdd: {
+            getBdd: vi.fn().mockResolvedValue('Feature: Login\n  Scenario: ok\n'),
+            addBdd: vi.fn().mockResolvedValue({ id: 42, title: 'BDD case' }),
+        },
     };
 }
 
@@ -78,7 +82,7 @@ describe('handleBddGet', () => {
         const p = join(tmp, 'login.feature');
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: p });
         await handleBddGet(ctx);
-        expect(client.getBdd).toHaveBeenCalledWith(42);
+        expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
         expect(existsSync(p)).toBe(true);
         const written = readFileSync(p, 'utf-8');
         expect(written).toBe('Feature: Login\n  Scenario: ok\n');
@@ -92,7 +96,7 @@ describe('handleBddGet', () => {
     it('counts UTF-8 bytes (not characters) for multibyte content', async () => {
         const client = buildClient();
         // 4-byte emoji + ASCII; size must reflect bytes, not chars.
-        client.getBdd.mockResolvedValueOnce('Feature: 🚀\n');
+        client.bdd.getBdd.mockResolvedValueOnce('Feature: 🚀\n');
         const p = join(tmp, 'unicode.feature');
         const { ctx, out } = buildCtx(client, { pathParams: ['1'], out: p });
         await handleBddGet(ctx);
@@ -102,7 +106,7 @@ describe('handleBddGet', () => {
 
     it('writes empty string when case has no BDD content', async () => {
         const client = buildClient();
-        client.getBdd.mockResolvedValueOnce('');
+        client.bdd.getBdd.mockResolvedValueOnce('');
         const p = join(tmp, 'empty.feature');
         const { ctx, out } = buildCtx(client, { pathParams: ['1'], out: p });
         await handleBddGet(ctx);
@@ -114,7 +118,7 @@ describe('handleBddGet', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'] });
         await expect(handleBddGet(ctx)).rejects.toThrow('--out <path> required');
-        expect(client.getBdd).not.toHaveBeenCalled();
+        expect(client.bdd.getBdd).not.toHaveBeenCalled();
     });
 
     it('refuses to overwrite without --force', async () => {
@@ -123,7 +127,7 @@ describe('handleBddGet', () => {
         writeFileSync(p, 'old');
         const { ctx } = buildCtx(client, { pathParams: ['42'], out: p });
         await expect(handleBddGet(ctx)).rejects.toThrow('Refusing to overwrite');
-        expect(client.getBdd).not.toHaveBeenCalled();
+        expect(client.bdd.getBdd).not.toHaveBeenCalled();
     });
 
     it('--force overwrites existing file', async () => {
@@ -140,7 +144,7 @@ describe('handleBddGet', () => {
         const p = join(tmp, 'preview.feature');
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: p, dryRun: true });
         await handleBddGet(ctx);
-        expect(client.getBdd).not.toHaveBeenCalled();
+        expect(client.bdd.getBdd).not.toHaveBeenCalled();
         expect(existsSync(p)).toBe(false);
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
@@ -154,7 +158,7 @@ describe('handleBddGet', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'], out: join(tmp, 'x.feature') });
         await expect(handleBddGet(ctx)).rejects.toThrow();
-        expect(client.getBdd).not.toHaveBeenCalled();
+        expect(client.bdd.getBdd).not.toHaveBeenCalled();
     });
 
     describe("--out '-' (stdout)", () => {
@@ -181,7 +185,7 @@ describe('handleBddGet', () => {
             const client = buildClient();
             const { ctx, errRaw } = buildCtx(client, { pathParams: ['42'], out: '-' });
             await handleBddGet(ctx);
-            expect(client.getBdd).toHaveBeenCalledWith(42);
+            expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
             expect(stdoutChunks.join('')).toBe('Feature: Login\n  Scenario: ok\n');
             expect(errRaw).toHaveBeenCalledTimes(1);
             const ackCall = errRaw.mock.calls[0] as [string];
@@ -202,7 +206,7 @@ describe('handleBddGet', () => {
             const minimalCtx: HandlerContext = { ...ctx };
             delete (minimalCtx as { errRaw?: unknown }).errRaw;
             await handleBddGet(minimalCtx);
-            expect(client.getBdd).toHaveBeenCalledWith(42);
+            expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
             expect(stdoutChunks.join('')).toBe('Feature: Login\n  Scenario: ok\n');
         });
     });
@@ -226,7 +230,11 @@ describe('handleBddAdd', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath });
         await handleBddAdd(ctx);
-        expect(client.addBdd).toHaveBeenCalledWith(42, expect.objectContaining({ path: filePath }), 'login.feature');
+        expect(client.bdd.addBdd).toHaveBeenCalledWith(
+            42,
+            expect.objectContaining({ path: filePath }),
+            'login.feature',
+        );
         expect(out).toHaveBeenCalledWith({ id: 42, title: 'BDD case' });
     });
 
@@ -238,21 +246,25 @@ describe('handleBddAdd', () => {
             filename: 'renamed.feature',
         });
         await handleBddAdd(ctx);
-        expect(client.addBdd).toHaveBeenCalledWith(42, expect.objectContaining({ path: filePath }), 'renamed.feature');
+        expect(client.bdd.addBdd).toHaveBeenCalledWith(
+            42,
+            expect.objectContaining({ path: filePath }),
+            'renamed.feature',
+        );
     });
 
     it('rejects missing --file', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'] });
         await expect(handleBddAdd(ctx)).rejects.toThrow('--file <path> required');
-        expect(client.addBdd).not.toHaveBeenCalled();
+        expect(client.bdd.addBdd).not.toHaveBeenCalled();
     });
 
     it('dry-run skips API call and emits stat preview', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath, dryRun: true });
         await handleBddAdd(ctx);
-        expect(client.addBdd).not.toHaveBeenCalled();
+        expect(client.bdd.addBdd).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'bdd add',
@@ -267,7 +279,7 @@ describe('handleBddAdd', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'], file: filePath });
         await expect(handleBddAdd(ctx)).rejects.toThrow();
-        expect(client.addBdd).not.toHaveBeenCalled();
+        expect(client.bdd.addBdd).not.toHaveBeenCalled();
     });
 
     describe("--file '-' (stdin)", () => {
@@ -301,7 +313,7 @@ describe('handleBddAdd', () => {
             const client = buildClient();
             const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-' });
             await handleBddAdd(ctx);
-            const call = client.addBdd.mock.calls[0];
+            const call = client.bdd.addBdd.mock.calls[0];
             expect(call).toBeDefined();
             if (call === undefined) return;
             expect(call[0]).toBe(42);
@@ -319,7 +331,7 @@ describe('handleBddAdd', () => {
             const client = buildClient();
             const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: '-', dryRun: true });
             await handleBddAdd(ctx);
-            expect(client.addBdd).not.toHaveBeenCalled();
+            expect(client.bdd.addBdd).not.toHaveBeenCalled();
             expect(out).toHaveBeenCalledWith(
                 expect.objectContaining({
                     dryRun: true,

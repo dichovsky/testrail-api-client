@@ -209,7 +209,7 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
             maxRetries: 0,
             allowPrivateHosts: true,
         });
-        await expect(client.getBdd(1)).rejects.toMatchObject({
+        await expect(client.bdd.getBdd(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -228,7 +228,7 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
             maxRetries: 0,
             allowPrivateHosts: true,
         });
-        await expect(client.getAttachment(1)).rejects.toMatchObject({
+        await expect(client.attachments.getAttachment(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -258,7 +258,7 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
             maxRetries: 0,
             allowPrivateHosts: true,
         });
-        await expect(client.getBdd(1)).rejects.toMatchObject({
+        await expect(client.bdd.getBdd(1)).rejects.toMatchObject({
             status: 500,
             statusText: 'Server Error',
             response: 'Unknown error',
@@ -285,7 +285,7 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
             maxRetries: 0,
             allowPrivateHosts: true,
         });
-        await expect(client.getAttachment(1)).rejects.toMatchObject({
+        await expect(client.attachments.getAttachment(1)).rejects.toMatchObject({
             status: 500,
             statusText: 'Server Error',
             response: 'Unknown error',
@@ -391,7 +391,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const huge = new globalThis.TextEncoder().encode(JSON.stringify({ data: 'x'.repeat(2048) }));
         mockFetch.mockResolvedValueOnce(streamingResponse([huge]));
         const client = new TestRailClient({ ...baseConfig, maxJsonResponseBytes: 256 });
-        await expect(client.getProject(1)).rejects.toMatchObject({
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -404,7 +404,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         );
         mockFetch.mockResolvedValueOnce(streamingResponse([body]));
         const client = new TestRailClient({ ...baseConfig, maxJsonResponseBytes: 1024 });
-        const project = await client.getProject(1);
+        const project = await client.projects.getProject(1);
         expect(project.id).toBe(1);
         client.destroy();
     });
@@ -413,7 +413,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const huge = new Uint8Array(2048);
         mockFetch.mockResolvedValueOnce(streamingResponse([huge]));
         const client = new TestRailClient({ ...baseConfig, maxBinaryResponseBytes: 512 });
-        await expect(client.getAttachment(1)).rejects.toMatchObject({
+        await expect(client.attachments.getAttachment(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -424,7 +424,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const data = new Uint8Array([1, 2, 3, 4]);
         mockFetch.mockResolvedValueOnce(streamingResponse([data]));
         const client = new TestRailClient({ ...baseConfig });
-        const buf = await client.getAttachment(1);
+        const buf = await client.attachments.getAttachment(1);
         expect(new Uint8Array(buf)).toEqual(data);
         client.destroy();
     });
@@ -439,7 +439,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
             maxJsonResponseBytes: 1024,
             maxBinaryResponseBytes: 1024 * 1024,
         });
-        const buf = await client.getAttachment(1);
+        const buf = await client.attachments.getAttachment(1);
         expect(buf.byteLength).toBe(50 * 1024);
         client.destroy();
     });
@@ -448,7 +448,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const huge = new globalThis.TextEncoder().encode('x'.repeat(2048));
         mockFetch.mockResolvedValueOnce(streamingResponse([huge]));
         const client = new TestRailClient({ ...baseConfig, maxJsonResponseBytes: 256 });
-        await expect(client.getBdd(1)).rejects.toMatchObject({
+        await expect(client.bdd.getBdd(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -459,7 +459,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const text = 'Feature: x';
         mockFetch.mockResolvedValueOnce(streamingResponse([new globalThis.TextEncoder().encode(text)]));
         const client = new TestRailClient({ ...baseConfig });
-        const out = await client.getBdd(1);
+        const out = await client.bdd.getBdd(1);
         expect(out).toBe(text);
         client.destroy();
     });
@@ -472,7 +472,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const huge = new globalThis.TextEncoder().encode('e'.repeat(4096));
         mockFetch.mockResolvedValueOnce(streamingResponse([huge], { status: 500, statusText: 'Server Error' }));
         const client = new TestRailClient({ ...baseConfig, maxJsonResponseBytes: 256 });
-        await expect(client.getProject(1)).rejects.toMatchObject({
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -486,7 +486,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
         const huge = new globalThis.TextEncoder().encode('e'.repeat(4096));
         mockFetch.mockResolvedValue(streamingResponse([huge], { status: 503, statusText: 'Service Unavailable' }));
         const client = new TestRailClient({ ...baseConfig, maxRetries: 3, maxJsonResponseBytes: 256 });
-        await expect(client.getProject(1)).rejects.toMatchObject({
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -505,7 +505,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
             bodyTimeout: 20,
             timeout: 60_000,
         });
-        await expect(client.getProject(1)).rejects.toMatchObject({
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Body read timeout',
         });
@@ -521,7 +521,7 @@ describe('TestRailClient — body-limit enforcement across fetch sites', () => {
             // Disable the header timeout so it cannot fire first.
             timeout: 60_000,
         });
-        await expect(client.getProject(1)).rejects.toMatchObject({
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({
             status: 0,
             statusText: 'Body read timeout',
         });

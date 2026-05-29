@@ -4,14 +4,14 @@ import { createWriteHandler, createDestructiveHandler } from '../write-handler-f
 export const handleProjectAdd = createWriteHandler({
     action: 'project add',
     bodySchema: AddProjectPayloadSchema,
-    call: (client, _nums, body) => client.addProject(body),
+    call: (client, _nums, body) => client.projects.addProject(body),
 });
 
 export const handleProjectUpdate = createWriteHandler({
     action: 'project update',
     pathParams: ['project_id'],
     bodySchema: UpdateProjectPayloadSchema,
-    call: (client, [projectId], body) => client.updateProject(projectId, body),
+    call: (client, [projectId], body) => client.projects.updateProject(projectId, body),
 });
 
 /**
@@ -22,5 +22,5 @@ export const handleProjectUpdate = createWriteHandler({
 export const handleProjectDelete = createDestructiveHandler({
     action: 'project delete',
     pathParams: ['project_id'],
-    call: (client, [projectId]) => client.deleteProject(projectId),
+    call: (client, [projectId]) => client.projects.deleteProject(projectId),
 });

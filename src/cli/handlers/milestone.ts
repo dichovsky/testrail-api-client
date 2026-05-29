@@ -3,7 +3,7 @@ import { parseId, optInt } from '../ids.js';
 
 export async function handleMilestoneGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'milestone id');
-    ctx.out(await ctx.client.getMilestone(id));
+    ctx.out(await ctx.client.milestones.getMilestone(id));
 }
 
 export async function handleMilestoneList(ctx: HandlerContext): Promise<void> {
@@ -11,7 +11,7 @@ export async function handleMilestoneList(ctx: HandlerContext): Promise<void> {
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
     ctx.out(
-        await ctx.client.getMilestones(pid, {
+        await ctx.client.milestones.getMilestones(pid, {
             ...(limit !== undefined && { limit }),
             ...(offset !== undefined && { offset }),
         }),

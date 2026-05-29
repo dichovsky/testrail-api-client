@@ -17,6 +17,46 @@ describe('Index exports', () => {
         expect(client.metadata).toBeDefined();
     });
 
+    it('should expose all 18 domain modules as the single access path', () => {
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.net',
+            email: 'test@example.com',
+            apiKey: 'test-key',
+        });
+        const modules = [
+            'projects',
+            'suites',
+            'sections',
+            'cases',
+            'plans',
+            'runs',
+            'tests',
+            'results',
+            'milestones',
+            'users',
+            'metadata',
+            'configurations',
+            'attachments',
+            'bdd',
+            'sharedSteps',
+            'variables',
+            'datasets',
+            'reports',
+        ] as const;
+        for (const name of modules) {
+            expect(client[name], `client.${name} should be defined`).toBeDefined();
+        }
+        // v5.0.0: the flat facade is gone — endpoint methods live only on the
+        // module fields, never directly on the client.
+        const flat = client as unknown as Record<string, unknown>;
+        expect(flat['getProject']).toBeUndefined();
+        expect(flat['addRun']).toBeUndefined();
+        expect(flat['addResultForCase']).toBeUndefined();
+        expect(typeof client.projects.getProject).toBe('function');
+        expect(typeof client.runs.addRun).toBe('function');
+        expect(typeof client.results.addResultForCase).toBe('function');
+    });
+
     it('should export and create TestRailApiError instances', () => {
         expect(TestRailApiError).toBeDefined();
         expect(typeof TestRailApiError).toBe('function');

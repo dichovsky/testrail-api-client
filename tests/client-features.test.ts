@@ -127,17 +127,17 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('should allow requests within rate limit', async () => {
-            await client.getProject(1);
-            await client.getProject(2);
+            await client.projects.getProject(1);
+            await client.projects.getProject(2);
 
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
 
         it('should throw error when rate limit exceeded', async () => {
-            await client.getProject(1);
-            await client.getProject(2);
+            await client.projects.getProject(1);
+            await client.projects.getProject(2);
 
-            await expect(client.getProject(3)).rejects.toMatchObject({
+            await expect(client.projects.getProject(3)).rejects.toMatchObject({
                 status: 429,
                 statusText: 'Too Many Requests',
                 response: expect.objectContaining({
@@ -159,7 +159,7 @@ describe('TestRailClient - Enhanced Features', () => {
             // Two in-window timestamps, oldest first; both newer than now-window.
             internal.rateLimiter.requests = [now - 100, now - 10];
 
-            await expect(client.getProject(9)).rejects.toMatchObject({
+            await expect(client.projects.getProject(9)).rejects.toMatchObject({
                 status: 429,
                 statusText: 'Too Many Requests',
                 response: expect.objectContaining({
@@ -178,7 +178,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -193,7 +193,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -217,8 +217,8 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
             });
 
-            await client.getProject(1);
-            await client.getProject(2);
+            await client.projects.getProject(1);
+            await client.projects.getProject(2);
 
             expect(mockDnsLookup).toHaveBeenCalledTimes(2);
         });
@@ -238,7 +238,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 enableCache: false,
             });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
 
             expect(mockDnsLookup).not.toHaveBeenCalled();
         });
@@ -259,7 +259,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
 
             expect(customLookup).toHaveBeenCalledWith('public-host.example');
             expect(mockDnsLookup).not.toHaveBeenCalled();
@@ -274,7 +274,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -287,7 +287,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -300,7 +300,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -321,7 +321,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 dnsLookup: customLookup,
             });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
 
             expect(customLookup).not.toHaveBeenCalled();
             expect(mockDnsLookup).not.toHaveBeenCalled();
@@ -350,12 +350,12 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             // First request should hit the API
-            const result1 = await client.getProject(1);
+            const result1 = await client.projects.getProject(1);
             expect(result1).toEqual(mockProject);
             expect(mockFetch).toHaveBeenCalledTimes(1);
 
             // Second request should use cache
-            const result2 = await client.getProject(1);
+            const result2 = await client.projects.getProject(1);
             expect(result2).toEqual(mockProject);
             expect(mockFetch).toHaveBeenCalledTimes(1); // Still 1, not 2
         });
@@ -379,8 +379,8 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => JSON.stringify(mockCase),
             });
 
-            await client.addCase(1, { title: 'Test Case' });
-            await client.addCase(1, { title: 'Test Case' });
+            await client.cases.addCase(1, { title: 'Test Case' });
+            await client.cases.addCase(1, { title: 'Test Case' });
 
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
@@ -395,12 +395,12 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => JSON.stringify(mockProject),
             });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             expect(mockFetch).toHaveBeenCalledTimes(1);
 
             client.clearCache();
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
 
@@ -429,14 +429,14 @@ describe('TestRailClient - Enhanced Features', () => {
                 });
 
                 // Make a request to populate cache
-                await shortLivedClient.getProject(1);
+                await shortLivedClient.projects.getProject(1);
                 expect(mockFetch).toHaveBeenCalledTimes(1);
 
                 // Advance time to expire cache and trigger cleanup
                 await vi.advanceTimersByTimeAsync(200);
 
                 // Next request should hit the API again because cache was cleaned up
-                await shortLivedClient.getProject(1);
+                await shortLivedClient.projects.getProject(1);
                 expect(mockFetch).toHaveBeenCalledTimes(2);
 
                 // Cleanup resources
@@ -480,7 +480,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => JSON.stringify(mockProject),
             });
 
-            await testClient.getProject(1);
+            await testClient.projects.getProject(1);
 
             // Destroy should clear cache and stop cleanup
             testClient.destroy();
@@ -506,7 +506,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => JSON.stringify(mockProject),
             });
 
-            await testClient.getProject(1);
+            await testClient.projects.getProject(1);
 
             // First destroy
             testClient.destroy();
@@ -529,7 +529,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
             testClient.destroy();
 
-            await expect(testClient.getProject(1)).rejects.toThrow(
+            await expect(testClient.projects.getProject(1)).rejects.toThrow(
                 'Cannot use TestRailClient after destroy() has been called',
             );
         });
@@ -558,12 +558,12 @@ describe('TestRailClient - Enhanced Features', () => {
                 });
 
                 // First call: schema validation throws; nothing should be cached.
-                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
 
                 // Second call: cache MUST be empty, so this re-fetches and
                 // resolves with the valid response. Pre-fix behavior was to
                 // hit the poisoned cache entry and re-throw indefinitely.
-                const result = await client.getProject(1);
+                const result = await client.projects.getProject(1);
                 expect(result).toEqual(validProject);
                 expect(mockFetch).toHaveBeenCalledTimes(2);
             });
@@ -578,8 +578,8 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(validProject),
                 });
 
-                const first = await client.getProject(1);
-                const second = await client.getProject(1);
+                const first = await client.projects.getProject(1);
+                const second = await client.projects.getProject(1);
 
                 expect(first).toEqual(validProject);
                 expect(second).toEqual(validProject);
@@ -597,7 +597,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(validProject),
                 });
-                await client.getProject(1);
+                await client.projects.getProject(1);
                 expect(mockFetch).toHaveBeenCalledTimes(1);
 
                 // POST returns a schema-invalid body — request() clears the
@@ -609,7 +609,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(invalidProject),
                 });
-                await expect(client.addProject({ name: 'New' })).rejects.toThrow(TestRailValidationError);
+                await expect(client.projects.addProject({ name: 'New' })).rejects.toThrow(TestRailValidationError);
 
                 // Subsequent GET re-fetches because the POST invalidated the
                 // earlier cache entry.
@@ -619,7 +619,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(validProject),
                 });
-                const result = await client.getProject(1);
+                const result = await client.projects.getProject(1);
                 expect(result).toEqual(validProject);
                 expect(mockFetch).toHaveBeenCalledTimes(3);
             });
@@ -649,14 +649,14 @@ describe('TestRailClient - Enhanced Features', () => {
                 });
 
                 // Project 1 caches normally.
-                expect(await client.getProject(1)).toEqual(validProject1);
+                expect(await client.projects.getProject(1)).toEqual(validProject1);
                 // Project 2 fails validation — its slot must NOT be cached.
-                await expect(client.getProject(2)).rejects.toThrow(TestRailValidationError);
+                await expect(client.projects.getProject(2)).rejects.toThrow(TestRailValidationError);
                 // Project 2 retried fresh — succeeds — and DOES cache.
-                expect(await client.getProject(2)).toEqual(validProject2);
+                expect(await client.projects.getProject(2)).toEqual(validProject2);
 
                 // Sanity: project 1 still cached (no fourth fetch).
-                expect(await client.getProject(1)).toEqual(validProject1);
+                expect(await client.projects.getProject(1)).toEqual(validProject1);
                 expect(mockFetch).toHaveBeenCalledTimes(3);
             });
 
@@ -686,7 +686,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(validProject),
                 });
-                const parsed = await client.getProject(1);
+                const parsed = await client.projects.getProject(1);
                 expect(parsed).toEqual(validProject);
                 expect(mockFetch).toHaveBeenCalledTimes(2);
             });
@@ -706,7 +706,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(rawBody),
                 });
                 // Prime the validated namespace.
-                await client.getProject(1);
+                await client.projects.getProject(1);
 
                 mockFetch.mockResolvedValueOnce({
                     ok: true,
@@ -753,9 +753,9 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(malformed),
                 });
 
-                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
-                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
-                await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
 
                 // Three calls = three fetches. Pre-fix, the second and third
                 // would have hit a poisoned cache entry and never reached
@@ -797,7 +797,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            const result = await client.getProject(1);
+            const result = await client.projects.getProject(1);
             expect(result.id).toBe(1);
             expect(mockFetch).toHaveBeenCalledTimes(3);
         });
@@ -819,7 +819,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            const result = await client.getProject(1);
+            const result = await client.projects.getProject(1);
             expect(result.id).toBe(1);
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
@@ -844,7 +844,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             expect(mockSleep).toHaveBeenCalledWith(5000);
         });
 
@@ -876,7 +876,7 @@ describe('TestRailClient - Enhanced Features', () => {
                         text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                     });
 
-                await client.getProject(1);
+                await client.projects.getProject(1);
                 expect(mockSleep).toHaveBeenCalledWith(3000);
             } finally {
                 vi.useRealTimers();
@@ -904,7 +904,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
             expect(mockSleep).toHaveBeenCalledWith(10000);
         });
@@ -937,7 +937,7 @@ describe('TestRailClient - Enhanced Features', () => {
                         text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                     });
 
-                await client.getProject(1);
+                await client.projects.getProject(1);
                 // Delay must be capped at MAX_RETRY_DELAY_MS (10000 ms)
                 expect(mockSleep).toHaveBeenCalledWith(10000);
             } finally {
@@ -965,7 +965,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             // First retry (retryCount=0): 1000 * 2^0 = 1000ms
             expect(mockSleep).toHaveBeenCalledWith(1000);
         });
@@ -978,7 +978,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => 'Not found',
             });
 
-            await expect(client.getProject(999)).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.getProject(999)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
@@ -992,7 +992,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 })
                 .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
 
-            const result = await client.getAttachment(1);
+            const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(mockFetch).toHaveBeenCalledTimes(2);
             expect(vi.mocked(sleep)).toHaveBeenCalledWith(1000);
@@ -1012,7 +1012,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 })
                 .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
 
-            await client.getAttachment(1);
+            await client.attachments.getAttachment(1);
             expect(mockSleep).toHaveBeenCalledWith(5000);
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
@@ -1022,7 +1022,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 .mockRejectedValueOnce(new Error('network error'))
                 .mockResolvedValueOnce(new Response(new ArrayBuffer(4), { status: 200 }));
 
-            const result = await client.getAttachment(1);
+            const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(mockFetch).toHaveBeenCalledTimes(2);
             expect(vi.mocked(sleep)).toHaveBeenCalledWith(1000);
@@ -1044,7 +1044,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
@@ -1057,14 +1057,14 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.updateProject(1, { name: 'p' })).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.updateProject(1, { name: 'p' })).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
         it('should NOT retry POST on network error (mid-flight write ambiguous)', async () => {
             mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
 
-            await expect(client.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
 
@@ -1085,7 +1085,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'test' }),
                 });
 
-            const result = await client.addProject({ name: 'p' });
+            const result = await client.projects.addProject({ name: 'p' });
             expect(result.id).toBe(1);
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
@@ -1110,7 +1110,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.addProject({ name: 'p' });
+            await client.projects.addProject({ name: 'p' });
             expect(mockSleep).toHaveBeenCalledWith(2000);
         });
 
@@ -1144,7 +1144,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             expect(mockSleep).toHaveBeenCalledWith(7000);
         });
 
@@ -1175,7 +1175,7 @@ describe('TestRailClient - Enhanced Features', () => {
                         text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                     });
 
-                await client.getProject(1);
+                await client.projects.getProject(1);
                 expect(mockSleep).toHaveBeenCalledWith(4000);
             } finally {
                 vi.useRealTimers();
@@ -1202,7 +1202,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             expect(mockSleep).toHaveBeenCalledWith(10000);
         });
 
@@ -1226,7 +1226,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             // First retry (retryCount=0): 1000 * 2^0 = 1000ms
             expect(mockSleep).toHaveBeenCalledWith(1000);
         });
@@ -1252,7 +1252,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             // parseRetryAfterMs returns null for "0" → exponential backoff (1000 ms)
             expect(mockSleep).toHaveBeenCalledWith(1000);
         });
@@ -1277,7 +1277,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify({ id: 1, name: 'Test', suite_mode: 1, url: 'test' }),
                 });
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
             expect(mockSleep).toHaveBeenCalledWith(1000);
         });
 
@@ -1294,7 +1294,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => 'maintenance',
             });
 
-            await expect(client.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.addProject({ name: 'p' })).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
     });
@@ -1317,7 +1317,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             try {
-                await client.getProject(999);
+                await client.projects.getProject(999);
             } catch (error) {
                 expect(error).toBeInstanceOf(TestRailApiError);
                 const apiError = error as TestRailApiError;
@@ -1346,7 +1346,7 @@ describe('TestRailClient - Enhanced Features', () => {
             // and that its message contains network error information
             let caughtError: unknown;
             try {
-                await isolatedClient.getProject(1);
+                await isolatedClient.projects.getProject(1);
             } catch (error) {
                 caughtError = error;
             }
@@ -1371,7 +1371,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 text: async () => 'invalid json',
             });
 
-            await expect(freshClient.getProject(1)).rejects.toThrow(TestRailApiError);
+            await expect(freshClient.projects.getProject(1)).rejects.toThrow(TestRailApiError);
         });
     });
 
@@ -1385,8 +1385,8 @@ describe('TestRailClient - Enhanced Features', () => {
         });
 
         it('should validate email format in getUserByEmail', async () => {
-            await expect(client.getUserByEmail('invalid-email')).rejects.toThrow(TestRailValidationError);
-            await expect(client.getUserByEmail('invalid-email')).rejects.toThrow('Invalid email format');
+            await expect(client.users.getUserByEmail('invalid-email')).rejects.toThrow(TestRailValidationError);
+            await expect(client.users.getUserByEmail('invalid-email')).rejects.toThrow('Invalid email format');
         });
 
         it('should accept valid email in getUserByEmail', async () => {
@@ -1398,7 +1398,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     JSON.stringify({ id: 1, name: 'Test User', email: 'test@example.com', is_active: true }),
             });
 
-            const result = await client.getUserByEmail('test@example.com');
+            const result = await client.users.getUserByEmail('test@example.com');
             expect(result.email).toBe('test@example.com');
         });
     });
@@ -1431,7 +1431,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     arrayBuffer: async () => buffer,
                 });
 
-            const result = await client.getAttachment(1);
+            const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(mockFetch).toHaveBeenCalledTimes(2);
             expect(sleep).toHaveBeenCalledTimes(1);
@@ -1454,7 +1454,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     arrayBuffer: async () => buffer,
                 });
 
-            const result = await client.getAttachment(1);
+            const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(sleep).toHaveBeenCalledWith(1000); // 1 second from Retry-After
         });
@@ -1476,7 +1476,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     arrayBuffer: async () => buffer,
                 });
 
-            const result = await client.getAttachment(1);
+            const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(sleep).toHaveBeenCalledWith(2000);
         });
@@ -1490,7 +1490,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.getAttachment(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.getAttachment(1)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
         });
 
@@ -1501,7 +1501,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 return Promise.reject(err);
             });
 
-            await expect(client.getAttachment(1)).rejects.toThrow('Request timeout after');
+            await expect(client.attachments.getAttachment(1)).rejects.toThrow('Request timeout after');
         });
 
         it('should retry requestBinary on network error and succeed', async () => {
@@ -1513,7 +1513,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 arrayBuffer: async () => buffer,
             });
 
-            const result = await client.getAttachment(1);
+            const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
@@ -1521,7 +1521,7 @@ describe('TestRailClient - Enhanced Features', () => {
         it('should throw TestRailApiError after exhausting retries on network error', async () => {
             mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
-            await expect(client.getAttachment(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.getAttachment(1)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
         });
 
@@ -1538,7 +1538,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
             });
 
-            const downloadPromise = client.getAttachment(1);
+            const downloadPromise = client.attachments.getAttachment(1);
             await Promise.resolve();
             expect(mockFetch).not.toHaveBeenCalled();
 
@@ -1570,7 +1570,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const uint8 = new Uint8Array([1, 2, 3, 4]);
-            const result = await client.addAttachmentToCase(1, uint8, 'data.bin');
+            const result = await client.attachments.addAttachmentToCase(1, uint8, 'data.bin');
             expect(result).toEqual(attachment);
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('add_attachment_to_case/1'),
@@ -1586,14 +1586,16 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow('Request timeout after');
+            await expect(client.attachments.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(
+                'Request timeout after',
+            );
         });
 
         it('should handle network error in requestMultipart', async () => {
             mockFetch.mockRejectedValueOnce(new Error('Network failure'));
 
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
         });
 
         it('should handle API error response in requestMultipart', async () => {
@@ -1605,7 +1607,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
         });
 
         it('should return empty object when multipart response body is empty', async () => {
@@ -1617,7 +1619,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const blob = new globalThis.Blob(['data']);
-            const result = await client.addAttachmentToCase(1, blob, 'file.txt');
+            const result = await client.attachments.addAttachmentToCase(1, blob, 'file.txt');
             expect(result).toEqual({});
         });
 
@@ -1630,7 +1632,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const blob = new globalThis.Blob(['data']);
-            await expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(TestRailApiError);
         });
 
         it('should await DNS validation before multipart upload request', async () => {
@@ -1647,7 +1649,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const blob = new globalThis.Blob(['x'], { type: 'text/plain' });
-            const uploadPromise = client.addAttachmentToCase(1, blob, 'x.txt');
+            const uploadPromise = client.attachments.addAttachmentToCase(1, blob, 'x.txt');
             await Promise.resolve();
             expect(mockFetch).not.toHaveBeenCalled();
 
@@ -1674,7 +1676,7 @@ describe('TestRailClient - Enhanced Features', () => {
             destroyedClient.destroy();
 
             const blob = new globalThis.Blob(['data']);
-            await expect(destroyedClient.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(
+            await expect(destroyedClient.attachments.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(
                 'Cannot use TestRailClient after destroy() has been called',
             );
         });
@@ -1689,7 +1691,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
             destroyedClient.destroy();
 
-            await expect(destroyedClient.getAttachment(1)).rejects.toThrow(
+            await expect(destroyedClient.attachments.getAttachment(1)).rejects.toThrow(
                 'Cannot use TestRailClient after destroy() has been called',
             );
         });
@@ -1723,7 +1725,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     headers: { get: () => null },
                 });
 
-            const result = await client.getBdd(1);
+            const result = await client.bdd.getBdd(1);
             expect(result).toBe('Feature: ok\n');
             expect(mockFetch).toHaveBeenCalledTimes(2);
             expect(sleep).toHaveBeenCalledTimes(1);
@@ -1746,7 +1748,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     headers: { get: () => null },
                 });
 
-            const result = await client.getBdd(1);
+            const result = await client.bdd.getBdd(1);
             expect(result).toBe('Feature: ok\n');
             expect(sleep).toHaveBeenCalledWith(1000);
         });
@@ -1768,7 +1770,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     headers: { get: () => null },
                 });
 
-            const result = await client.getBdd(1);
+            const result = await client.bdd.getBdd(1);
             expect(result).toBe('Feature: ok\n');
             expect(sleep).toHaveBeenCalledWith(2000);
         });
@@ -1782,7 +1784,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.getBdd(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.bdd.getBdd(1)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
         });
 
@@ -1793,7 +1795,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 return Promise.reject(err);
             });
 
-            await expect(client.getBdd(1)).rejects.toThrow('Request timeout after');
+            await expect(client.bdd.getBdd(1)).rejects.toThrow('Request timeout after');
         });
 
         it('should retry on network error and succeed', async () => {
@@ -1805,7 +1807,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            const result = await client.getBdd(1);
+            const result = await client.bdd.getBdd(1);
             expect(result).toBe('Feature: ok\n');
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });
@@ -1813,7 +1815,7 @@ describe('TestRailClient - Enhanced Features', () => {
         it('should throw TestRailApiError after exhausting retries on network error', async () => {
             mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
-            await expect(client.getBdd(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.bdd.getBdd(1)).rejects.toThrow(TestRailApiError);
             expect(mockFetch).toHaveBeenCalledTimes(2); // 1 original + 1 retry
         });
 
@@ -1825,7 +1827,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
             destroyedClient.destroy();
 
-            await expect(destroyedClient.getBdd(1)).rejects.toThrow(
+            await expect(destroyedClient.bdd.getBdd(1)).rejects.toThrow(
                 'Cannot use TestRailClient after destroy() has been called',
             );
         });
@@ -1965,7 +1967,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 apiKey: 'api-key',
                 maxRetries: 0,
             });
-            await freshClient.getProject(1);
+            await freshClient.projects.getProject(1);
 
             // Now invoke requestText with a POST method via the public API surface:
             // BddModule does GET only, so call requestText directly to exercise the
@@ -1992,7 +1994,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     JSON.stringify({ id: 1, name: 'Proj', suite_mode: 1, url: 'https://example.testrail.io/p/1' }),
                 headers: { get: () => null },
             });
-            await freshClient.getProject(1);
+            await freshClient.projects.getProject(1);
             // 3 calls total: initial GET, POST via requestText, second GET after cache invalidation.
             expect(mockFetch).toHaveBeenCalledTimes(3);
         });
@@ -2038,7 +2040,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(mockProject),
                 });
 
-            const result = await client.getProject(1);
+            const result = await client.projects.getProject(1);
             expect(result.id).toBe(1);
             // sleep was called with the exponential backoff delay (not Retry-After)
             expect(sleep).toHaveBeenCalledWith(1000);
@@ -2072,7 +2074,7 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(mockProject),
                 });
 
-            const result = await client.getProject(1);
+            const result = await client.projects.getProject(1);
             expect(result.id).toBe(1);
             // Invalid format → parseRetryAfterMs returns null → exponential backoff
             expect(sleep).toHaveBeenCalledWith(1000);
@@ -2099,7 +2101,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailApiError);
         });
 
         it('should use "Unknown error" when response.text() throws in requestMultipart()', async () => {
@@ -2122,7 +2124,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.addAttachmentToCase(1, blob, 'test.txt')).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.addAttachmentToCase(1, blob, 'test.txt')).rejects.toThrow(TestRailApiError);
         });
 
         it('should use "Unknown error" when response.text() throws in requestBinary()', async () => {
@@ -2144,7 +2146,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 headers: { get: () => null },
             });
 
-            await expect(client.getAttachment(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.attachments.getAttachment(1)).rejects.toThrow(TestRailApiError);
         });
     });
 
@@ -2177,7 +2179,9 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             // Attach rejection handler BEFORE advancing timers to avoid unhandled-rejection reports
-            const assertion = expect(client.getProject(1)).rejects.toThrow(`Request timeout after ${timeoutMs}ms`);
+            const assertion = expect(client.projects.getProject(1)).rejects.toThrow(
+                `Request timeout after ${timeoutMs}ms`,
+            );
             await vi.runAllTimersAsync();
             await assertion;
         });
@@ -2205,7 +2209,9 @@ describe('TestRailClient - Enhanced Features', () => {
                 });
             });
 
-            const assertion = expect(client.getAttachment(1)).rejects.toThrow(`Request timeout after ${timeoutMs}ms`);
+            const assertion = expect(client.attachments.getAttachment(1)).rejects.toThrow(
+                `Request timeout after ${timeoutMs}ms`,
+            );
             await vi.runAllTimersAsync();
             await assertion;
         });
@@ -2234,7 +2240,7 @@ describe('TestRailClient - Enhanced Features', () => {
             });
 
             const blob = new globalThis.Blob(['data'], { type: 'text/plain' });
-            const assertion = expect(client.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(
+            const assertion = expect(client.attachments.addAttachmentToCase(1, blob, 'file.txt')).rejects.toThrow(
                 `Request timeout after ${timeoutMs}ms`,
             );
             await vi.runAllTimersAsync();
@@ -2329,9 +2335,9 @@ describe('TestRailClient - Enhanced Features', () => {
                 mockFetch.mockResolvedValueOnce(
                     mockOk({ id: 1, name: 'Original', suite_mode: 1, url: 'u', is_completed: false }),
                 );
-                const first = await wt.getProject(1);
+                const first = await wt.projects.getProject(1);
                 (first as { name: string }).name = 'Tampered';
-                const second = await wt.getProject(1);
+                const second = await wt.projects.getProject(1);
                 expect(second.name).toBe('Original');
                 expect(mockFetch).toHaveBeenCalledTimes(1);
             } finally {
@@ -2356,7 +2362,11 @@ describe('TestRailClient - Enhanced Features', () => {
                     mockOk({ id: 1, name: 'Proj', suite_mode: 1, url: 'u', is_completed: false }),
                 );
 
-                const [r1, r2, r3] = await Promise.all([wt.getProject(1), wt.getProject(1), wt.getProject(1)]);
+                const [r1, r2, r3] = await Promise.all([
+                    wt.projects.getProject(1),
+                    wt.projects.getProject(1),
+                    wt.projects.getProject(1),
+                ]);
 
                 expect(mockFetch).toHaveBeenCalledTimes(1);
                 expect(r1).toEqual(r2);
@@ -2435,7 +2445,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
                 const [r1, r2] = await Promise.all([
                     wt.request<{ id: number; name: string }>({ method: 'GET', endpoint: 'get_project/1' }),
-                    wt.getProject(1),
+                    wt.projects.getProject(1),
                 ]);
 
                 expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -2516,7 +2526,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 // pendingRequests.  If the retry re-uses skipCache=false it would pick up
                 // its own promise → deadlock.  With the fix it passes skipCache=true and
                 // resolves cleanly.
-                const result = await wt.getProject(1);
+                const result = await wt.projects.getProject(1);
                 expect(result.name).toBe('OK');
                 expect(mockFetch).toHaveBeenCalledTimes(2);
             } finally {
@@ -2539,10 +2549,10 @@ describe('TestRailClient - Enhanced Features', () => {
                     .mockResolvedValueOnce(mockOk({ id: 1, name: 'OK', suite_mode: 1, url: 'u', is_completed: false }));
 
                 // First call fails
-                await expect(wt.getProject(1)).rejects.toThrow();
+                await expect(wt.projects.getProject(1)).rejects.toThrow();
 
                 // Second call (after rejection) must retry, not return the rejected promise
-                const result = await wt.getProject(1);
+                const result = await wt.projects.getProject(1);
                 expect(result.name).toBe('OK');
                 expect(mockFetch).toHaveBeenCalledTimes(2);
             } finally {

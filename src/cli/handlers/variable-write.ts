@@ -5,14 +5,14 @@ export const handleVariableAdd = createWriteHandler({
     action: 'variable add',
     pathParams: ['project_id'],
     bodySchema: AddVariablePayloadSchema,
-    call: (client, [projectId], body) => client.addVariable(projectId, body),
+    call: (client, [projectId], body) => client.variables.addVariable(projectId, body),
 });
 
 export const handleVariableUpdate = createWriteHandler({
     action: 'variable update',
     pathParams: ['variable_id'],
     bodySchema: UpdateVariablePayloadSchema,
-    call: (client, [variableId], body) => client.updateVariable(variableId, body),
+    call: (client, [variableId], body) => client.variables.updateVariable(variableId, body),
 });
 
 /**
@@ -22,5 +22,5 @@ export const handleVariableUpdate = createWriteHandler({
 export const handleVariableDelete = createDestructiveHandler({
     action: 'variable delete',
     pathParams: ['variable_id'],
-    call: (client, [variableId]) => client.deleteVariable(variableId),
+    call: (client, [variableId]) => client.variables.deleteVariable(variableId),
 });

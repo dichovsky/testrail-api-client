@@ -29,11 +29,17 @@ import type { HandlerContext } from '../src/cli/handler-context.js';
 import type { Run } from '../src/types.js';
 
 interface MockedClient {
-    getRun: Mock<(runId: number) => Promise<Run>>;
+    runs: {
+        getRun: Mock<(runId: number) => Promise<Run>>;
+    };
 }
 
 function buildClient(): MockedClient {
-    return { getRun: vi.fn<(runId: number) => Promise<Run>>() };
+    return {
+        runs: {
+            getRun: vi.fn<(runId: number) => Promise<Run>>(),
+        },
+    };
 }
 
 function mockRun(overrides: Partial<Run> = {}): Run {
@@ -95,12 +101,12 @@ describe('handleRunWatch', () => {
 
     it('emits an initial snapshot then a completed event on first completed poll, returning code 0', async () => {
         const client = buildClient();
-        client.getRun.mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 10, untested_count: 0 }));
+        client.runs.getRun.mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 10, untested_count: 0 }));
         const { ctx, out } = buildCtx(client);
 
         await handleRunWatch(ctx);
 
-        expect(client.getRun).toHaveBeenCalledTimes(1);
+        expect(client.runs.getRun).toHaveBeenCalledTimes(1);
         // First poll: snapshot event because lastSnapshot was undefined.
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ event: 'snapshot', runId: 42 }));
         // Same poll: completed event because is_completed flipped on the very
@@ -110,7 +116,7 @@ describe('handleRunWatch', () => {
 
     it('emits a change event when a watched field diffs between polls', async () => {
         const client = buildClient();
-        client.getRun
+        client.runs.getRun
             .mockResolvedValueOnce(mockRun({ passed_count: 0, untested_count: 10 }))
             .mockResolvedValueOnce(mockRun({ passed_count: 3, untested_count: 7 }))
             .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 10, untested_count: 0 }));
@@ -125,7 +131,7 @@ describe('handleRunWatch', () => {
         await vi.advanceTimersByTimeAsync(30_000);
         await promise;
 
-        expect(client.getRun).toHaveBeenCalledTimes(3);
+        expect(client.runs.getRun).toHaveBeenCalledTimes(3);
         // Snapshot first, then change, then change+completed on the final poll.
         const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
         expect(events).toContain('snapshot');
@@ -136,7 +142,7 @@ describe('handleRunWatch', () => {
     it('does NOT emit a change event when no watched field diffs between polls', async () => {
         const client = buildClient();
         const stable = mockRun({ passed_count: 5, untested_count: 5 });
-        client.getRun
+        client.runs.getRun
             .mockResolvedValueOnce(stable)
             .mockResolvedValueOnce(stable)
             .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
@@ -159,12 +165,12 @@ describe('handleRunWatch', () => {
 
     it('--once polls a single time and resolves even when is_completed is false', async () => {
         const client = buildClient();
-        client.getRun.mockResolvedValueOnce(mockRun({ is_completed: false }));
+        client.runs.getRun.mockResolvedValueOnce(mockRun({ is_completed: false }));
         const { ctx, out } = buildCtx(client, { once: true });
 
         await handleRunWatch(ctx);
 
-        expect(client.getRun).toHaveBeenCalledTimes(1);
+        expect(client.runs.getRun).toHaveBeenCalledTimes(1);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ event: 'snapshot' }));
         // No `completed` event since is_completed was false; that's by design
         // for --once.
@@ -176,7 +182,7 @@ describe('handleRunWatch', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { interval: '60', dryRun: true });
         await handleRunWatch(ctx);
-        expect(client.getRun).not.toHaveBeenCalled();
+        expect(client.runs.getRun).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'run watch', runId: 42, intervalSeconds: 60 }),
         );
@@ -186,21 +192,21 @@ describe('handleRunWatch', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { interval: '1' });
         await expect(handleRunWatch(ctx)).rejects.toThrow(/--interval must be between 5 and 600/);
-        expect(client.getRun).not.toHaveBeenCalled();
+        expect(client.runs.getRun).not.toHaveBeenCalled();
     });
 
     it('rejects --interval above the 600-second ceiling', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { interval: '3600' });
         await expect(handleRunWatch(ctx)).rejects.toThrow(/--interval must be between 5 and 600/);
-        expect(client.getRun).not.toHaveBeenCalled();
+        expect(client.runs.getRun).not.toHaveBeenCalled();
     });
 
     it('rejects malformed --interval (non-positive-integer)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { interval: 'abc' });
         await expect(handleRunWatch(ctx)).rejects.toThrow(/--interval must be a positive integer/);
-        expect(client.getRun).not.toHaveBeenCalled();
+        expect(client.runs.getRun).not.toHaveBeenCalled();
     });
 
     it('rejects --interval with leading zero (silent-coercion guard)', async () => {
@@ -213,19 +219,19 @@ describe('handleRunWatch', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'] });
         await expect(handleRunWatch(ctx)).rejects.toThrow(/run_id/);
-        expect(client.getRun).not.toHaveBeenCalled();
+        expect(client.runs.getRun).not.toHaveBeenCalled();
     });
 
     it('propagates an unrecoverable getRun rejection so main() exits 1', async () => {
         const client = buildClient();
-        client.getRun.mockRejectedValueOnce(new Error('Auth lost mid-watch'));
+        client.runs.getRun.mockRejectedValueOnce(new Error('Auth lost mid-watch'));
         const { ctx } = buildCtx(client);
         await expect(handleRunWatch(ctx)).rejects.toThrow(/Auth lost mid-watch/);
     });
 
     it('propagates a 401 unrecoverable API error so main() exits 1', async () => {
         const client = buildClient();
-        client.getRun.mockRejectedValueOnce(new TestRailApiError(401, 'Unauthorized'));
+        client.runs.getRun.mockRejectedValueOnce(new TestRailApiError(401, 'Unauthorized'));
         const { ctx } = buildCtx(client);
         await expect(handleRunWatch(ctx)).rejects.toThrow(/401/);
     });
@@ -233,7 +239,7 @@ describe('handleRunWatch', () => {
     it('logs a 5xx transient error to stderr and continues polling until completion', async () => {
         const client = buildClient();
         // First poll: 503 (transient). Second poll: completed.
-        client.getRun
+        client.runs.getRun
             .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
             .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
 
@@ -249,7 +255,7 @@ describe('handleRunWatch', () => {
         await vi.advanceTimersByTimeAsync(30_000);
         await promise;
 
-        expect(client.getRun).toHaveBeenCalledTimes(2);
+        expect(client.runs.getRun).toHaveBeenCalledTimes(2);
         // Transient error written to stderr.
         expect(stderrWrites.join('')).toMatch(/transient error for runId=42/);
         // Watcher continued and completed on the second poll.
@@ -262,7 +268,7 @@ describe('handleRunWatch', () => {
 
     it('logs a network error (status 0) transiently and continues polling', async () => {
         const client = buildClient();
-        client.getRun
+        client.runs.getRun
             .mockRejectedValueOnce(new TestRailApiError(0, 'Network error'))
             .mockResolvedValueOnce(mockRun({ is_completed: false }))
             .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 3, untested_count: 0 }));
@@ -279,7 +285,7 @@ describe('handleRunWatch', () => {
         await vi.advanceTimersByTimeAsync(30_000); // second successful poll
         await promise;
 
-        expect(client.getRun).toHaveBeenCalledTimes(3);
+        expect(client.runs.getRun).toHaveBeenCalledTimes(3);
         expect(stderrWrites.join('')).toMatch(/transient error/);
         const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
         expect(events).toContain('completed');
@@ -290,7 +296,7 @@ describe('handleRunWatch', () => {
     it('SIGINT during transient-retry wait cancels the watcher cleanly', async () => {
         const client = buildClient();
         // First poll: transient 500. SIGINT fires during the retry wait.
-        client.getRun.mockRejectedValueOnce(new TestRailApiError(500, 'Internal Server Error'));
+        client.runs.getRun.mockRejectedValueOnce(new TestRailApiError(500, 'Internal Server Error'));
 
         const stderrWrites: string[] = [];
         const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -317,7 +323,7 @@ describe('handleRunWatch', () => {
     it('SIGINT prepends a listener that cancels the pending poll and writes a status summary', async () => {
         const client = buildClient();
         // First poll succeeds, then we emit SIGINT before the second poll fires.
-        client.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+        client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
 
         const stderrWrites: string[] = [];
         const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -348,7 +354,7 @@ describe('handleRunWatch', () => {
         // getRun() is still pending.
         const client = buildClient();
         // First poll: never resolves until we cancel.
-        client.getRun.mockImplementationOnce(() => new Promise<Run>(() => undefined));
+        client.runs.getRun.mockImplementationOnce(() => new Promise<Run>(() => undefined));
 
         const stderrWrites: string[] = [];
         const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -372,7 +378,7 @@ describe('handleRunWatch', () => {
         // Exercises the `if (cancelled) return;` true branch in onSignal.
         // Two consecutive signals must not double-write the status summary.
         const client = buildClient();
-        client.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+        client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
 
         const stderrWrites: string[] = [];
         const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -402,7 +408,7 @@ describe('handleRunWatch', () => {
         process.argv.push('--quiet');
         try {
             const client = buildClient();
-            client.getRun
+            client.runs.getRun
                 .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
                 .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
 
@@ -433,7 +439,7 @@ describe('handleRunWatch', () => {
         process.argv.push('--quiet');
         try {
             const client = buildClient();
-            client.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+            client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
 
             const stderrWrites: string[] = [];
             const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
@@ -466,7 +472,7 @@ describe('handleRunWatch', () => {
         // non-Error through an `unknown` local keeps the rejection a plain
         // string (the point of this test) while satisfying the lint rules
         // (`only-throw-error` permits throwing `unknown`).
-        client.getRun.mockImplementationOnce(async (): Promise<never> => {
+        client.runs.getRun.mockImplementationOnce(async (): Promise<never> => {
             const nonError: unknown = 'plain-string-failure';
             throw nonError;
         });
@@ -482,7 +488,7 @@ describe('handleRunWatch', () => {
         // snapshot event is emitted.
         const client = buildClient();
         let release: ((run: Run) => void) | undefined;
-        client.getRun.mockImplementationOnce(() => {
+        client.runs.getRun.mockImplementationOnce(() => {
             return new Promise<Run>((resolve) => {
                 release = resolve;
             });
@@ -534,7 +540,7 @@ describe('handleRunWatch', () => {
             prependSpy.mockRestore();
         }
         // getRun must not have been called because cancelled was true at poll entry.
-        expect(client.getRun).not.toHaveBeenCalled();
+        expect(client.runs.getRun).not.toHaveBeenCalled();
     });
 
     it('SIGINT during a failing getRun retry-window cancels gracefully (covers catch-block cancelled branch)', async () => {
@@ -544,7 +550,7 @@ describe('handleRunWatch', () => {
         // transient-retry decision.
         const client = buildClient();
         let reject: ((e: unknown) => void) | undefined;
-        client.getRun.mockImplementationOnce(() => {
+        client.runs.getRun.mockImplementationOnce(() => {
             return new Promise<Run>((_resolve, rej) => {
                 reject = rej;
             });
@@ -644,7 +650,7 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
 
         const out = vi.fn();
         const ctx = {
-            client: { getRun } as unknown as TestRailClient,
+            client: { runs: { getRun } } as unknown as TestRailClient,
             args: { pathParams: ['42'] },
             bodyInput: {},
             dryRun: false,

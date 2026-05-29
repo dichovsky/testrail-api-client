@@ -16,7 +16,7 @@ REST API. ESM only. Ships two surfaces:
 Today the CLI exposes 118 actions across 27 resources
 (51 read, 67 write, 19 destructive). The
 programmatic API is a strict superset — every CLI action calls a
-method on `TestRailClient`.
+method on one of the `TestRailClient` domain modules.
 
 ## When to use which surface
 
@@ -26,7 +26,8 @@ method on `TestRailClient`.
 - **Programmatic** — TypeScript/JavaScript code that needs typed
   responses, retry/rate-limit reuse across many calls, or response
   caching. Construct `new TestRailClient({ baseUrl, email, apiKey })`
-  and call methods directly.
+  and call methods through the domain modules, e.g.
+  `client.projects.getProject(1)`.
 
 ## Quick start (CLI)
 
@@ -58,7 +59,7 @@ const client = new TestRailClient({
 });
 
 try {
-    const project = await client.getProject(1);
+    const project = await client.projects.getProject(1);
     console.log(project.name);
 } catch (e) {
     if (e instanceof TestRailApiError) {

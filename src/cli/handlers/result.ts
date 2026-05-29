@@ -7,7 +7,7 @@ export async function handleResultList(ctx: HandlerContext): Promise<void> {
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
     ctx.out(
-        await ctx.client.getResultsForRun(rid, {
+        await ctx.client.results.getResultsForRun(rid, {
             ...(limit !== undefined && { limit }),
             ...(offset !== undefined && { offset }),
         }),
@@ -39,11 +39,11 @@ function buildResultOptions(ctx: HandlerContext): GetResultsOptions {
 
 export async function handleResultListForTest(ctx: HandlerContext): Promise<void> {
     const testId = parseId(ctx.args.pathParams[0], 'test id');
-    ctx.out(await ctx.client.getResults(testId, buildResultOptions(ctx)));
+    ctx.out(await ctx.client.results.getResults(testId, buildResultOptions(ctx)));
 }
 
 export async function handleResultListForCase(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run id');
     const caseId = parseId(ctx.args.pathParams[1], 'case id');
-    ctx.out(await ctx.client.getResultsForCase(runId, caseId, buildResultOptions(ctx)));
+    ctx.out(await ctx.client.results.getResultsForCase(runId, caseId, buildResultOptions(ctx)));
 }

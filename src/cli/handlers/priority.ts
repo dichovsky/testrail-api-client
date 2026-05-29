@@ -15,5 +15,5 @@ export async function handlePriorityList(ctx: HandlerContext): Promise<void> {
             `priority list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getPriorities());
+    ctx.out(await ctx.client.metadata.getPriorities());
 }

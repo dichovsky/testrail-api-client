@@ -204,7 +204,7 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
                     resolve();
                     return;
                 }
-                ctx.client
+                ctx.client.runs
                     .getRun(runId)
                     .then((run) => {
                         if (cancelled) {

@@ -122,7 +122,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         const client = buildClient();
         mockOk({ attachment_id: 99, name: 'small.bin' });
 
-        const result = await client.addAttachmentToCase(1, { path: smallPath }, 'small.bin');
+        const result = await client.attachments.addAttachmentToCase(1, { path: smallPath }, 'small.bin');
         expect(result).toEqual({ attachment_id: 99, name: 'small.bin' });
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -146,7 +146,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         mockOk({ attachment_id: 7, name: 'fd-shot.bin' });
         const fd = openSync(smallPath, 'r');
         try {
-            const result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'fd-shot.bin');
+            const result = await client.attachments.addAttachmentToCase(1, { path: smallPath, fd }, 'fd-shot.bin');
             expect(result).toEqual({ attachment_id: 7, name: 'fd-shot.bin' });
             expect(mockFetch).toHaveBeenCalledTimes(1);
             const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
@@ -171,7 +171,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         const fd = openSync(smallPath, 'r');
         const descriptor = { path: smallPath, fd };
         try {
-            await client.addAttachmentToCase(1, descriptor, 'immut.bin');
+            await client.attachments.addAttachmentToCase(1, descriptor, 'immut.bin');
             // The descriptor must be unchanged; requestMultipart tracks fd
             // via an internal variable, not by zeroing the input object.
             expect(descriptor.fd).toBe(fd);
@@ -194,7 +194,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
     it('respects --filename override (renames the multipart part)', async () => {
         const client = buildClient();
         mockOk();
-        await client.addAttachmentToCase(1, { path: smallPath }, 'renamed.bin');
+        await client.attachments.addAttachmentToCase(1, { path: smallPath }, 'renamed.bin');
 
         const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
         const fd = init.body as globalThis.FormData;
@@ -207,7 +207,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
     it('forwards optional content-type from descriptor', async () => {
         const client = buildClient();
         mockOk();
-        await client.addAttachmentToCase(1, { path: smallPath, type: 'image/png' }, 'shot.png');
+        await client.attachments.addAttachmentToCase(1, { path: smallPath, type: 'image/png' }, 'shot.png');
 
         const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
         const fd = init.body as globalThis.FormData;
@@ -218,9 +218,9 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
     it('surfaces ENOENT as TestRailApiError (Network error), no unhandled rejection', async () => {
         const client = buildClient();
         // No mockFetch — openAsBlob should fail before fetch runs.
-        await expect(client.addAttachmentToCase(1, { path: join(tmp, 'does-not-exist.bin') }, 'x.bin')).rejects.toThrow(
-            TestRailApiError,
-        );
+        await expect(
+            client.attachments.addAttachmentToCase(1, { path: join(tmp, 'does-not-exist.bin') }, 'x.bin'),
+        ).rejects.toThrow(TestRailApiError);
         expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -255,7 +255,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         if (global.gc) global.gc();
         const before = process.memoryUsage().heapUsed;
 
-        await client.addAttachmentToCase(1, { path: bigPath }, 'big.bin');
+        await client.attachments.addAttachmentToCase(1, { path: bigPath }, 'big.bin');
 
         if (global.gc) global.gc();
         const after = process.memoryUsage().heapUsed;
@@ -279,7 +279,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         try {
             const client = buildClient();
             mockOk({ attachment_id: 8, name: 'fallback.bin' });
-            const result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 'fallback.bin');
+            const result = await client.attachments.addAttachmentToCase(1, { path: smallPath, fd }, 'fallback.bin');
             expect(result).toEqual({ attachment_id: 8, name: 'fallback.bin' });
         } finally {
             try {
@@ -308,7 +308,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             const fd = openSync(smallPath, 'r');
             try {
                 try {
-                    await client.addAttachmentToCase(1, { path: smallPath, fd }, 'linux-fd.bin');
+                    await client.attachments.addAttachmentToCase(1, { path: smallPath, fd }, 'linux-fd.bin');
                 } catch (e) {
                     // On non-Linux runners, /proc/self/fd/<fd> doesn't exist
                     // so openAsBlob rejects → surfaces as TestRailApiError.
@@ -347,7 +347,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             const fd = openSync(smallPath, 'r');
             try {
                 try {
-                    await client.addAttachmentToCase(1, { path: smallPath, fd }, 'darwin-fd.bin');
+                    await client.attachments.addAttachmentToCase(1, { path: smallPath, fd }, 'darwin-fd.bin');
                 } catch (e) {
                     // On non-Darwin runners /dev/fd/<fd> may not resolve to the
                     // expected inode, so openAsBlob can reject → surfaces as a
@@ -394,7 +394,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             }),
             headers: { get: (): null => null },
         });
-        await expect(client.addAttachmentToCase(1, { path: smallPath }, 'shot.bin')).rejects.toMatchObject({
+        await expect(client.attachments.addAttachmentToCase(1, { path: smallPath }, 'shot.bin')).rejects.toMatchObject({
             status: 0,
             statusText: 'Response body too large',
         });
@@ -419,7 +419,9 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             headers: { get: () => null },
         });
 
-        await expect(client.addAttachmentToCase(1, { path: smallPath }, 's.bin')).rejects.toThrow(TestRailApiError);
+        await expect(client.attachments.addAttachmentToCase(1, { path: smallPath }, 's.bin')).rejects.toThrow(
+            TestRailApiError,
+        );
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -439,7 +441,9 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             headers: { get: () => null },
         });
 
-        await expect(client.addAttachmentToCase(1, { path: smallPath }, 's.bin')).rejects.toThrow(TestRailApiError);
+        await expect(client.attachments.addAttachmentToCase(1, { path: smallPath }, 's.bin')).rejects.toThrow(
+            TestRailApiError,
+        );
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -453,7 +457,9 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         });
         mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
 
-        await expect(client.addAttachmentToCase(1, { path: smallPath }, 's.bin')).rejects.toThrow(TestRailApiError);
+        await expect(client.attachments.addAttachmentToCase(1, { path: smallPath }, 's.bin')).rejects.toThrow(
+            TestRailApiError,
+        );
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -470,7 +476,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         });
 
         let captured: unknown = null;
-        await client.addAttachmentToCase(1, { path: smallPath }, 's.bin').catch((e: unknown) => {
+        await client.attachments.addAttachmentToCase(1, { path: smallPath }, 's.bin').catch((e: unknown) => {
             captured = e;
         });
         expect(captured).toBeInstanceOf(TestRailApiError);
@@ -487,7 +493,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         mockOk({ attachment_id: 7 });
 
         const u8 = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
-        const result = await client.addAttachmentToCase(1, u8, 'mem.bin');
+        const result = await client.attachments.addAttachmentToCase(1, u8, 'mem.bin');
         expect(result).toEqual({ attachment_id: 7 });
 
         const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
@@ -499,7 +505,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         mockOk({ attachment_id: 8 });
 
         const blob = new globalThis.Blob(['hello'], { type: 'text/plain' });
-        const result = await client.addAttachmentToCase(1, blob, 'mem.txt');
+        const result = await client.attachments.addAttachmentToCase(1, blob, 'mem.txt');
         expect(result).toEqual({ attachment_id: 8 });
     });
 
@@ -523,7 +529,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
             });
         });
 
-        const promise = client.addAttachmentToCase(1, { path: smallPath }, 's.bin');
+        const promise = client.attachments.addAttachmentToCase(1, { path: smallPath }, 's.bin');
         // Attach handler BEFORE advancing timers to avoid unhandled-rejection noise
         const assertion = expect(promise).rejects.toThrow(/Request timeout after 50ms/);
         await vi.runAllTimersAsync();
@@ -558,7 +564,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
 
         let caught: unknown = null;
         try {
-            await client.addAttachmentToCase(1, descriptor, 's.bin');
+            await client.attachments.addAttachmentToCase(1, descriptor, 's.bin');
         } catch (e) {
             caught = e;
         } finally {
@@ -592,7 +598,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
 
         let result: unknown;
         try {
-            result = await client.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
+            result = await client.attachments.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
         } finally {
             process.off('unhandledRejection', unhandledHandler);
             // Un-arm the mock BEFORE real cleanup — otherwise the mocked
@@ -646,7 +652,7 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         };
         process.on('unhandledRejection', unhandledHandler);
 
-        const promise = client.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
+        const promise = client.attachments.addAttachmentToCase(1, { path: smallPath, fd }, 's.bin');
         const assertion = expect(promise).rejects.toThrow(/Request timeout after 50ms/);
         await vi.runAllTimersAsync();
 

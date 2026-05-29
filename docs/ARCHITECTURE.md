@@ -36,7 +36,7 @@ This document describes how the code is organized, why the layers are split the 
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Two access paths exist for every endpoint: flat (`client.getProject(id)`) and namespaced (`client.projects.getProject(id)`). They are equivalent — the flat one is a one-line wrapper.
+Every endpoint is reached through its domain module: `client.projects.getProject(id)`, `client.runs.addRun(projectId, payload)`, `client.results.addResultForCase(runId, caseId, payload)`. The 18 module fields are the single access path; there is no flat facade. (Removed in v5.0.0 — see CHANGELOG for the migration map.)
 
 ---
 
@@ -155,24 +155,24 @@ constructor(private readonly client: TestRailClientCore) {}
 
 This is **composition by dependency injection on top of inheritance**: the facade inherits the core, then injects itself (typed as core) into each module. Modules carry no per-module state, only a back-reference.
 
-### 3.2 Facade — `src/client.ts`
+### 3.2 Composition root — `src/client.ts`
 
 `TestRailClient`:
 
 1. `extends TestRailClientCore` — inherits the whole HTTP pipeline.
 2. Declares each module as a `public readonly` field.
 3. Constructs them in the body: `super(args); this.projects = new ProjectModule(this); …`.
-4. Exposes hand-written wrappers for every endpoint, each forwarding to the module:
+
+That is the whole class — module composition only, no flat wrappers. Endpoints are reached through the module fields:
 
 ```ts
-async getProject(projectId: number): Promise<Project> {
-    return this.projects.getProject(projectId);
-}
+const project = await client.projects.getProject(1);
+const run = await client.runs.addRun(projectId, payload);
 ```
 
-The wrappers exist so callers do not have to remember which module owns which endpoint, and so the public method-completion surface mirrors the resource taxonomy of the TestRail REST API. No `Object.assign`, no `Proxy`, no prototype mixing — explicit delegation is what keeps the flat facade in `client.ts`, and it is intentional: each wrapper carries its own JSDoc and types.
+No `Object.assign`, no `Proxy`, no prototype mixing — the modules hold their own methods, JSDoc, and types, and the client is a thin composition root over `TestRailClientCore`. Method completion is scoped per resource (`client.runs.`), mirroring the resource taxonomy of the TestRail REST API.
 
-> Note: this flat surface is tracked for possible removal in a future refactor (BACKLOG ARCH #7) in favour of the namespaced access path. Until then the flat methods (`client.getProject(id)`, …) remain the documented, supported usage.
+> The flat facade (`client.getProject(id)`, …) that mirrored every endpoint directly on the client was removed in v5.0.0 (ARCH #7). The namespaced module surface is the single access path; see CHANGELOG for the flat→namespaced migration map.
 
 ---
 
@@ -182,7 +182,7 @@ The wrappers exist so callers do not have to remember which module owns which en
 | ------------------------------------------------------------------------------ | ------------------ | ----------------------------- |
 | Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                       | `schemas.ts` (Zod) | yes                           |
 | Parsed response shapes (when validated via `request<T>(spec)` with a `schema`) | `schemas.ts` (Zod) | yes                           |
-| Hand-written response interfaces (`Case`, `Run`, `Project`, …)                 | `types.ts`         | yes (consumed by `client.ts`) |
+| Hand-written response interfaces (`Case`, `Run`, `Project`, …)                 | `types.ts`         | yes (consumed by the modules) |
 | `TestRailConfig`, `RateLimiterConfig`                                          | `types.ts`         | yes                           |
 | `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                   | `types.ts`         | yes                           |
 | Payloads not yet migrated to Zod (`AddUserPayload`, `AddVariablePayload`, …)   | `types.ts`         | yes                           |

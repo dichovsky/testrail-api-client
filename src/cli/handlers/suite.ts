@@ -3,10 +3,10 @@ import { parseId } from '../ids.js';
 
 export async function handleSuiteGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'suite id');
-    ctx.out(await ctx.client.getSuite(id));
+    ctx.out(await ctx.client.suites.getSuite(id));
 }
 
 export async function handleSuiteList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
-    ctx.out(await ctx.client.getSuites(pid));
+    ctx.out(await ctx.client.suites.getSuites(pid));
 }
