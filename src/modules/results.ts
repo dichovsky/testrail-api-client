@@ -4,15 +4,17 @@ import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload } f
 import { ResultSchema } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class ResultModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_results/{test_id} */
     async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
-        this.client.validateId(testId, 'testId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_results/${testId}`, {
+        validateId(testId, 'testId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_results/${testId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
             created_by: serializeIdList(options?.created_by),
@@ -36,10 +38,10 @@ export class ResultModule {
 
     /** @testrail GET get_results_for_case/{run_id}/{case_id} */
     async getResultsForCase(runId: number, caseId: number, options?: GetResultsOptions): Promise<Result[]> {
-        this.client.validateId(runId, 'runId');
-        this.client.validateId(caseId, 'caseId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
+        validateId(runId, 'runId');
+        validateId(caseId, 'caseId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
             created_by: serializeIdList(options?.created_by),
@@ -63,9 +65,9 @@ export class ResultModule {
 
     /** @testrail GET get_results_for_run/{run_id} */
     async getResultsForRun(runId: number, options?: GetResultsOptions): Promise<Result[]> {
-        this.client.validateId(runId, 'runId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_results_for_run/${runId}`, {
+        validateId(runId, 'runId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_results_for_run/${runId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
             created_by: serializeIdList(options?.created_by),
@@ -88,7 +90,7 @@ export class ResultModule {
 
     /** @testrail POST add_result/{test_id} */
     async addResult(testId: number, payload: AddResultPayload): Promise<Result> {
-        this.client.validateId(testId, 'testId');
+        validateId(testId, 'testId');
         return this.client.request<Result>({
             method: 'POST',
             endpoint: `add_result/${testId}`,
@@ -99,8 +101,8 @@ export class ResultModule {
 
     /** @testrail POST add_result_for_case/{run_id}/{case_id} */
     async addResultForCase(runId: number, caseId: number, payload: AddResultPayload): Promise<Result> {
-        this.client.validateId(runId, 'runId');
-        this.client.validateId(caseId, 'caseId');
+        validateId(runId, 'runId');
+        validateId(caseId, 'caseId');
         return this.client.request<Result>({
             method: 'POST',
             endpoint: `add_result_for_case/${runId}/${caseId}`,
@@ -111,7 +113,7 @@ export class ResultModule {
 
     /** @testrail POST add_results_for_cases/{run_id} */
     async addResultsForCases(runId: number, payload: AddResultsForCasesPayload): Promise<Result[]> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Result[]>({
             method: 'POST',
             endpoint: `add_results_for_cases/${runId}`,
@@ -122,7 +124,7 @@ export class ResultModule {
 
     /** @testrail POST add_results/{run_id} */
     async addResults(runId: number, payload: AddResultsPayload): Promise<Result[]> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Result[]>({
             method: 'POST',
             endpoint: `add_results/${runId}`,

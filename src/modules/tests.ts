@@ -3,13 +3,15 @@ import type { Test, GetTestsOptions } from '../types.js';
 import { TestSchema } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class TestModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_test/{test_id} */
     async getTest(testId: number): Promise<Test> {
-        this.client.validateId(testId, 'testId');
+        validateId(testId, 'testId');
         return this.client.request<Test>({
             method: 'GET',
             endpoint: `get_test/${testId}`,
@@ -19,9 +21,9 @@ export class TestModule {
 
     /** @testrail GET get_tests/{run_id} */
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
-        this.client.validateId(runId, 'runId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_tests/${runId}`, {
+        validateId(runId, 'runId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_tests/${runId}`, {
             status_id: serializeIdList(options?.status_id),
             limit: options?.limit,
             offset: options?.offset,

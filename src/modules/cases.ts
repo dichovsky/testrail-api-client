@@ -1,5 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
 import { TestRailApiError } from '../errors.js';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
 import type {
     AddCasePayload,
@@ -26,13 +28,13 @@ export class CaseModule {
 
     /** @testrail GET get_case/{case_id} */
     async getCase(caseId: number): Promise<Case> {
-        this.client.validateId(caseId, 'caseId');
+        validateId(caseId, 'caseId');
         return this.client.request<Case>({ method: 'GET', endpoint: `get_case/${caseId}`, schema: CaseSchema });
     }
 
     /** @testrail GET get_cases/{project_id} */
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         const {
             suiteId,
             sectionId,
@@ -47,14 +49,14 @@ export class CaseModule {
             limit,
             offset,
         } = options ?? {};
-        if (suiteId !== undefined) this.client.validateId(suiteId, 'suiteId');
-        if (sectionId !== undefined) this.client.validateId(sectionId, 'sectionId');
-        if (typeId !== undefined) this.client.validateId(typeId, 'typeId');
-        if (priorityId !== undefined) this.client.validateId(priorityId, 'priorityId');
-        if (templateId !== undefined) this.client.validateId(templateId, 'templateId');
-        if (milestoneId !== undefined) this.client.validateId(milestoneId, 'milestoneId');
-        this.client.validatePaginationParams(limit, offset);
-        const endpoint = this.client.buildEndpoint(`get_cases/${projectId}`, {
+        if (suiteId !== undefined) validateId(suiteId, 'suiteId');
+        if (sectionId !== undefined) validateId(sectionId, 'sectionId');
+        if (typeId !== undefined) validateId(typeId, 'typeId');
+        if (priorityId !== undefined) validateId(priorityId, 'priorityId');
+        if (templateId !== undefined) validateId(templateId, 'templateId');
+        if (milestoneId !== undefined) validateId(milestoneId, 'milestoneId');
+        validatePaginationParams(limit, offset);
+        const endpoint = buildEndpoint(`get_cases/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
             type_id: typeId,
@@ -83,7 +85,7 @@ export class CaseModule {
 
     /** @testrail POST add_case/{section_id} */
     async addCase(sectionId: number, payload: AddCasePayload): Promise<Case> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         return this.client.request<Case>({
             method: 'POST',
             endpoint: `add_case/${sectionId}`,
@@ -107,7 +109,7 @@ export class CaseModule {
      * @testrail POST add_cases/{section_id}
      */
     async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         try {
             return await this.client.request<Case[]>({
                 method: 'POST',
@@ -143,7 +145,7 @@ export class CaseModule {
 
     /** @testrail POST update_case/{case_id} */
     async updateCase(caseId: number, payload: UpdateCasePayload): Promise<Case> {
-        this.client.validateId(caseId, 'caseId');
+        validateId(caseId, 'caseId');
         return this.client.request<Case>({
             method: 'POST',
             endpoint: `update_case/${caseId}`,
@@ -170,8 +172,8 @@ export class CaseModule {
     // dynamic case and returns the union, matching the implementation.
     async deleteCase(caseId: number, options: SoftDeleteOptions): Promise<void | SoftDeletePreview>;
     async deleteCase(caseId: number, options?: SoftDeleteOptions): Promise<void | SoftDeletePreview> {
-        this.client.validateId(caseId, 'caseId');
-        const endpoint = this.client.buildEndpoint(`delete_case/${caseId}`, {
+        validateId(caseId, 'caseId');
+        const endpoint = buildEndpoint(`delete_case/${caseId}`, {
             ...(options?.soft === true && { soft: 1 }),
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
@@ -194,7 +196,7 @@ export class CaseModule {
      * @testrail POST update_cases/{suite_id}
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
-        this.client.validateId(suiteId, 'suiteId');
+        validateId(suiteId, 'suiteId');
         return this.client.request<Case[]>({
             method: 'POST',
             endpoint: `update_cases/${suiteId}`,
@@ -236,9 +238,9 @@ export class CaseModule {
         payload: DeleteCasesPayload,
         options?: SoftDeleteOptions,
     ): Promise<void | SoftDeletePreview> {
-        this.client.validateId(suiteId, 'suiteId');
-        this.client.validateId(projectId, 'projectId');
-        const endpoint = this.client.buildEndpoint(`delete_cases/${suiteId}`, {
+        validateId(suiteId, 'suiteId');
+        validateId(projectId, 'projectId');
+        const endpoint = buildEndpoint(`delete_cases/${suiteId}`, {
             project_id: projectId,
             ...(options?.soft === true && { soft: 1 }),
         });
@@ -258,7 +260,7 @@ export class CaseModule {
      * @testrail POST copy_cases_to_section/{section_id}
      */
     async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<Case[]> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         return this.client.request<Case[]>({
             method: 'POST',
             endpoint: `copy_cases_to_section/${sectionId}`,
@@ -275,7 +277,7 @@ export class CaseModule {
      * @testrail POST move_cases_to_section/{section_id}
      */
     async moveCasesToSection(sectionId: number, payload: MoveCasesToSectionPayload): Promise<void> {
-        this.client.validateId(sectionId, 'sectionId');
+        validateId(sectionId, 'sectionId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `move_cases_to_section/${sectionId}`,
@@ -285,9 +287,9 @@ export class CaseModule {
 
     /** @testrail GET get_history_for_case/{case_id} */
     async getHistoryForCase(caseId: number, options?: GetHistoryForCaseOptions): Promise<HistoryEntry[]> {
-        this.client.validateId(caseId, 'caseId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_history_for_case/${caseId}`, {
+        validateId(caseId, 'caseId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_history_for_case/${caseId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });

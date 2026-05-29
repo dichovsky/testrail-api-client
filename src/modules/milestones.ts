@@ -3,13 +3,15 @@ import type { Milestone, GetMilestonesOptions } from '../types.js';
 import type { AddMilestonePayload, UpdateMilestonePayload } from '../schemas.js';
 import { MilestoneSchema } from '../schemas.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class MilestoneModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_milestone/{milestone_id} */
     async getMilestone(milestoneId: number): Promise<Milestone> {
-        this.client.validateId(milestoneId, 'milestoneId');
+        validateId(milestoneId, 'milestoneId');
         return this.client.request<Milestone>({
             method: 'GET',
             endpoint: `get_milestone/${milestoneId}`,
@@ -19,9 +21,9 @@ export class MilestoneModule {
 
     /** @testrail GET get_milestones/{project_id} */
     async getMilestones(projectId: number, options?: GetMilestonesOptions): Promise<Milestone[]> {
-        this.client.validateId(projectId, 'projectId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_milestones/${projectId}`, {
+        validateId(projectId, 'projectId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_milestones/${projectId}`, {
             is_completed: options?.is_completed,
             limit: options?.limit,
             offset: options?.offset,
@@ -41,7 +43,7 @@ export class MilestoneModule {
 
     /** @testrail POST add_milestone/{project_id} */
     async addMilestone(projectId: number, payload: AddMilestonePayload): Promise<Milestone> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Milestone>({
             method: 'POST',
             endpoint: `add_milestone/${projectId}`,
@@ -52,7 +54,7 @@ export class MilestoneModule {
 
     /** @testrail POST update_milestone/{milestone_id} */
     async updateMilestone(milestoneId: number, payload: UpdateMilestonePayload): Promise<Milestone> {
-        this.client.validateId(milestoneId, 'milestoneId');
+        validateId(milestoneId, 'milestoneId');
         return this.client.request<Milestone>({
             method: 'POST',
             endpoint: `update_milestone/${milestoneId}`,
@@ -63,7 +65,7 @@ export class MilestoneModule {
 
     /** @testrail POST delete_milestone/{milestone_id} */
     async deleteMilestone(milestoneId: number): Promise<void> {
-        this.client.validateId(milestoneId, 'milestoneId');
+        validateId(milestoneId, 'milestoneId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_milestone/${milestoneId}`,

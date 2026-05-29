@@ -3,6 +3,8 @@ import type { Project } from '../types.js';
 import { ProjectSchema } from '../schemas.js';
 import type { AddProjectPayload, UpdateProjectPayload } from '../schemas.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class ProjectModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -14,7 +16,7 @@ export class ProjectModule {
      * @testrail GET get_project/{project_id}
      */
     async getProject(projectId: number): Promise<Project> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Project>({
             method: 'GET',
             endpoint: `get_project/${projectId}`,
@@ -29,8 +31,8 @@ export class ProjectModule {
      * @testrail GET get_projects
      */
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
-        this.client.validatePaginationParams(limit, offset);
-        const endpoint = this.client.buildEndpoint('get_projects', { limit, offset });
+        validatePaginationParams(limit, offset);
+        const endpoint = buildEndpoint('get_projects', { limit, offset });
         return (
             (
                 await this.client.request<{ projects?: Project[] }>({
@@ -65,7 +67,7 @@ export class ProjectModule {
      * @testrail POST update_project/{project_id}
      */
     async updateProject(projectId: number, payload: UpdateProjectPayload): Promise<Project> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Project>({
             method: 'POST',
             endpoint: `update_project/${projectId}`,
@@ -81,7 +83,7 @@ export class ProjectModule {
      * @testrail POST delete_project/{project_id}
      */
     async deleteProject(projectId: number): Promise<void> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_project/${projectId}`,

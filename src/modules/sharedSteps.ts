@@ -3,6 +3,8 @@ import type { HistoryEntry } from '../types.js';
 import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload } from '../schemas.js';
 import { SharedStepSchema, HistoryEntrySchema } from '../schemas.js';
 import { z } from 'zod';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export interface GetSharedStepHistoryOptions {
     /** Maximum number of history entries to return */
@@ -16,7 +18,7 @@ export class SharedStepModule {
 
     /** @testrail GET get_shared_step/{shared_step_id} */
     async getSharedStep(sharedStepId: number): Promise<SharedStep> {
-        this.client.validateId(sharedStepId, 'sharedStepId');
+        validateId(sharedStepId, 'sharedStepId');
         return this.client.request<SharedStep>({
             method: 'GET',
             endpoint: `get_shared_step/${sharedStepId}`,
@@ -26,7 +28,7 @@ export class SharedStepModule {
 
     /** @testrail GET get_shared_steps/{project_id} */
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<SharedStep[]>({
             method: 'GET',
             endpoint: `get_shared_steps/${projectId}`,
@@ -36,7 +38,7 @@ export class SharedStepModule {
 
     /** @testrail POST add_shared_step/{project_id} */
     async addSharedStep(projectId: number, payload: AddSharedStepPayload): Promise<SharedStep> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<SharedStep>({
             method: 'POST',
             endpoint: `add_shared_step/${projectId}`,
@@ -47,7 +49,7 @@ export class SharedStepModule {
 
     /** @testrail POST update_shared_step/{shared_step_id} */
     async updateSharedStep(sharedStepId: number, payload: UpdateSharedStepPayload): Promise<SharedStep> {
-        this.client.validateId(sharedStepId, 'sharedStepId');
+        validateId(sharedStepId, 'sharedStepId');
         return this.client.request<SharedStep>({
             method: 'POST',
             endpoint: `update_shared_step/${sharedStepId}`,
@@ -58,7 +60,7 @@ export class SharedStepModule {
 
     /** @testrail POST delete_shared_step/{shared_step_id} */
     async deleteSharedStep(sharedStepId: number): Promise<void> {
-        this.client.validateId(sharedStepId, 'sharedStepId');
+        validateId(sharedStepId, 'sharedStepId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_shared_step/${sharedStepId}`,
@@ -67,9 +69,9 @@ export class SharedStepModule {
 
     /** @testrail GET get_shared_step_history/{shared_step_id} */
     async getSharedStepHistory(sharedStepId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
-        this.client.validateId(sharedStepId, 'sharedStepId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_shared_step_history/${sharedStepId}`, {
+        validateId(sharedStepId, 'sharedStepId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_shared_step_history/${sharedStepId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });

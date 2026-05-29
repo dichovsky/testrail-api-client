@@ -1,5 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { ConfigurationGroup, Configuration } from '../types.js';
+import { validateId } from '../validation.js';
 import {
     ConfigurationGroupSchema,
     ConfigurationSchema,
@@ -15,7 +16,7 @@ export class ConfigurationModule {
 
     /** @testrail GET get_configs/{project_id} */
     async getConfigurations(projectId: number): Promise<ConfigurationGroup[]> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<ConfigurationGroup[]>({
             method: 'GET',
             endpoint: `get_configs/${projectId}`,
@@ -25,7 +26,7 @@ export class ConfigurationModule {
 
     /** @testrail POST add_config_group/{project_id} */
     async addConfigurationGroup(projectId: number, payload: AddConfigurationGroupPayload): Promise<ConfigurationGroup> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<ConfigurationGroup>({
             method: 'POST',
             endpoint: `add_config_group/${projectId}`,
@@ -39,7 +40,7 @@ export class ConfigurationModule {
         configGroupId: number,
         payload: UpdateConfigurationGroupPayload,
     ): Promise<ConfigurationGroup> {
-        this.client.validateId(configGroupId, 'configGroupId');
+        validateId(configGroupId, 'configGroupId');
         return this.client.request<ConfigurationGroup>({
             method: 'POST',
             endpoint: `update_config_group/${configGroupId}`,
@@ -50,7 +51,7 @@ export class ConfigurationModule {
 
     /** @testrail POST delete_config_group/{config_group_id} */
     async deleteConfigurationGroup(configGroupId: number): Promise<void> {
-        this.client.validateId(configGroupId, 'configGroupId');
+        validateId(configGroupId, 'configGroupId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_config_group/${configGroupId}`,
@@ -59,7 +60,7 @@ export class ConfigurationModule {
 
     /** @testrail POST add_config/{config_group_id} */
     async addConfiguration(configGroupId: number, payload: AddConfigurationPayload): Promise<Configuration> {
-        this.client.validateId(configGroupId, 'configGroupId');
+        validateId(configGroupId, 'configGroupId');
         return this.client.request<Configuration>({
             method: 'POST',
             endpoint: `add_config/${configGroupId}`,
@@ -70,7 +71,7 @@ export class ConfigurationModule {
 
     /** @testrail POST update_config/{config_id} */
     async updateConfiguration(configId: number, payload: UpdateConfigurationPayload): Promise<Configuration> {
-        this.client.validateId(configId, 'configId');
+        validateId(configId, 'configId');
         return this.client.request<Configuration>({
             method: 'POST',
             endpoint: `update_config/${configId}`,
@@ -81,7 +82,7 @@ export class ConfigurationModule {
 
     /** @testrail POST delete_config/{config_id} */
     async deleteConfiguration(configId: number): Promise<void> {
-        this.client.validateId(configId, 'configId');
+        validateId(configId, 'configId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_config/${configId}`,

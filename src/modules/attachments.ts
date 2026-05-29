@@ -2,6 +2,8 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Attachment, UploadFileInput } from '../types.js';
 import { z } from 'zod';
 import { AttachmentSchema } from '../schemas.js';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 /**
  * Optional pagination params shared by `getAttachmentsForCase`,
@@ -23,9 +25,9 @@ export class AttachmentModule {
 
     /** @testrail GET get_attachments_for_case/{case_id} */
     async getAttachmentsForCase(caseId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
-        this.client.validateId(caseId, 'caseId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_attachments_for_case/${caseId}`, {
+        validateId(caseId, 'caseId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_attachments_for_case/${caseId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -44,9 +46,9 @@ export class AttachmentModule {
 
     /** @testrail GET get_attachments_for_run/{run_id} */
     async getAttachmentsForRun(runId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
-        this.client.validateId(runId, 'runId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_attachments_for_run/${runId}`, {
+        validateId(runId, 'runId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_attachments_for_run/${runId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -65,9 +67,9 @@ export class AttachmentModule {
 
     /** @testrail GET get_attachments_for_test/{test_id} */
     async getAttachmentsForTest(testId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
-        this.client.validateId(testId, 'testId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_attachments_for_test/${testId}`, {
+        validateId(testId, 'testId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_attachments_for_test/${testId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -86,7 +88,7 @@ export class AttachmentModule {
 
     /** @testrail GET get_attachments_for_plan/{plan_id} */
     async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         return (
             (
                 await this.client.request<{ attachments?: Attachment[] }>({
@@ -102,8 +104,8 @@ export class AttachmentModule {
 
     /** @testrail GET get_attachments_for_plan_entry/{plan_id}/{entry_id} */
     async getAttachmentsForPlanEntry(planId: number, entryId: number): Promise<Attachment[]> {
-        this.client.validateId(planId, 'planId');
-        this.client.validateId(entryId, 'entryId');
+        validateId(planId, 'planId');
+        validateId(entryId, 'entryId');
         return (
             (
                 await this.client.request<{ attachments?: Attachment[] }>({
@@ -119,7 +121,7 @@ export class AttachmentModule {
 
     /** @testrail GET get_attachment/{attachment_id} */
     async getAttachment(attachmentId: number): Promise<ArrayBuffer> {
-        this.client.validateId(attachmentId, 'attachmentId');
+        validateId(attachmentId, 'attachmentId');
         return this.client.request<ArrayBuffer>({
             method: 'GET',
             endpoint: `get_attachment/${attachmentId}`,
@@ -130,7 +132,7 @@ export class AttachmentModule {
 
     /** @testrail POST add_attachment_to_case/{case_id} */
     async addAttachmentToCase(caseId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        this.client.validateId(caseId, 'caseId');
+        validateId(caseId, 'caseId');
         return this.client.request<Attachment>({
             method: 'POST',
             endpoint: `add_attachment_to_case/${caseId}`,
@@ -141,7 +143,7 @@ export class AttachmentModule {
 
     /** @testrail POST add_attachment_to_result/{result_id} */
     async addAttachmentToResult(resultId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        this.client.validateId(resultId, 'resultId');
+        validateId(resultId, 'resultId');
         return this.client.request<Attachment>({
             method: 'POST',
             endpoint: `add_attachment_to_result/${resultId}`,
@@ -152,7 +154,7 @@ export class AttachmentModule {
 
     /** @testrail POST add_attachment_to_run/{run_id} */
     async addAttachmentToRun(runId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Attachment>({
             method: 'POST',
             endpoint: `add_attachment_to_run/${runId}`,
@@ -163,7 +165,7 @@ export class AttachmentModule {
 
     /** @testrail POST add_attachment_to_plan/{plan_id} */
     async addAttachmentToPlan(planId: number, file: UploadFileInput, filename: string): Promise<Attachment> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         return this.client.request<Attachment>({
             method: 'POST',
             endpoint: `add_attachment_to_plan/${planId}`,
@@ -179,8 +181,8 @@ export class AttachmentModule {
         file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
-        this.client.validateId(planId, 'planId');
-        this.client.validateId(entryId, 'entryId');
+        validateId(planId, 'planId');
+        validateId(entryId, 'entryId');
         return this.client.request<Attachment>({
             method: 'POST',
             endpoint: `add_attachment_to_plan_entry/${planId}/${entryId}`,
@@ -191,7 +193,7 @@ export class AttachmentModule {
 
     /** @testrail POST delete_attachment/{attachment_id} */
     async deleteAttachment(attachmentId: number): Promise<void> {
-        this.client.validateId(attachmentId, 'attachmentId');
+        validateId(attachmentId, 'attachmentId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_attachment/${attachmentId}`,

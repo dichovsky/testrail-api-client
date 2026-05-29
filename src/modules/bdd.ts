@@ -1,6 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Case, UploadFileInput } from '../types.js';
 import { CaseSchema } from '../schemas.js';
+import { validateId } from '../validation.js';
 
 /**
  * BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints — TestRail 7.5+.
@@ -23,7 +24,7 @@ export class BddModule {
      * @testrail GET get_bdd/{case_id}
      */
     async getBdd(caseId: number): Promise<string> {
-        this.client.validateId(caseId, 'caseId');
+        validateId(caseId, 'caseId');
         return this.client.request<string>({
             method: 'GET',
             endpoint: `get_bdd/${caseId}`,
@@ -37,7 +38,7 @@ export class BddModule {
      * @testrail POST add_bdd/{case_id}
      */
     async addBdd(caseId: number, file: UploadFileInput, filename: string): Promise<Case> {
-        this.client.validateId(caseId, 'caseId');
+        validateId(caseId, 'caseId');
         return this.client.parse<Case>(
             CaseSchema,
             await this.client.request<unknown>({

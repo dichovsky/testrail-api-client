@@ -13,21 +13,23 @@ import {
 } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
+import { validateId, validateEntryId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 
 export class PlanModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_plan/{plan_id} */
     async getPlan(planId: number): Promise<Plan> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         return this.client.request<Plan>({ method: 'GET', endpoint: `get_plan/${planId}`, schema: PlanSchema });
     }
 
     /** @testrail GET get_plans/{project_id} */
     async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
-        this.client.validateId(projectId, 'projectId');
-        this.client.validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = this.client.buildEndpoint(`get_plans/${projectId}`, {
+        validateId(projectId, 'projectId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_plans/${projectId}`, {
             created_after: options?.created_after,
             created_before: options?.created_before,
             created_by: serializeIdList(options?.created_by),
@@ -51,7 +53,7 @@ export class PlanModule {
 
     /** @testrail POST add_plan/{project_id} */
     async addPlan(projectId: number, payload: AddPlanPayload): Promise<Plan> {
-        this.client.validateId(projectId, 'projectId');
+        validateId(projectId, 'projectId');
         return this.client.request<Plan>({
             method: 'POST',
             endpoint: `add_plan/${projectId}`,
@@ -62,7 +64,7 @@ export class PlanModule {
 
     /** @testrail POST update_plan/{plan_id} */
     async updatePlan(planId: number, payload: UpdatePlanPayload): Promise<Plan> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         return this.client.request<Plan>({
             method: 'POST',
             endpoint: `update_plan/${planId}`,
@@ -73,7 +75,7 @@ export class PlanModule {
 
     /** @testrail POST close_plan/{plan_id} */
     async closePlan(planId: number): Promise<Plan> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         return this.client.request<Plan>({
             method: 'POST',
             endpoint: `close_plan/${planId}`,
@@ -83,13 +85,13 @@ export class PlanModule {
 
     /** @testrail POST delete_plan/{plan_id} */
     async deletePlan(planId: number): Promise<void> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         await this.client.request<void>({ method: 'POST', endpoint: `delete_plan/${planId}` });
     }
 
     /** @testrail POST add_plan_entry/{plan_id} */
     async addPlanEntry(planId: number, payload: AddPlanEntryPayload): Promise<PlanEntry> {
-        this.client.validateId(planId, 'planId');
+        validateId(planId, 'planId');
         return this.client.request<PlanEntry>({
             method: 'POST',
             endpoint: `add_plan_entry/${planId}`,
@@ -100,8 +102,8 @@ export class PlanModule {
 
     /** @testrail POST update_plan_entry/{plan_id}/{entry_id} */
     async updatePlanEntry(planId: number, entryId: string, payload: UpdatePlanEntryPayload): Promise<PlanEntry> {
-        this.client.validateId(planId, 'planId');
-        this.client.validateEntryId(entryId);
+        validateId(planId, 'planId');
+        validateEntryId(entryId);
         return this.client.request<PlanEntry>({
             method: 'POST',
             endpoint: `update_plan_entry/${planId}/${entryId}`,
@@ -112,8 +114,8 @@ export class PlanModule {
 
     /** @testrail POST delete_plan_entry/{plan_id}/{entry_id} */
     async deletePlanEntry(planId: number, entryId: string): Promise<void> {
-        this.client.validateId(planId, 'planId');
-        this.client.validateEntryId(entryId);
+        validateId(planId, 'planId');
+        validateEntryId(entryId);
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_plan_entry/${planId}/${entryId}`,
@@ -122,8 +124,8 @@ export class PlanModule {
 
     /** @testrail POST add_run_to_plan_entry/{plan_id}/{entry_id} */
     async addRunToPlanEntry(planId: number, entryId: string, payload: AddRunToPlanEntryPayload): Promise<Run> {
-        this.client.validateId(planId, 'planId');
-        this.client.validateEntryId(entryId);
+        validateId(planId, 'planId');
+        validateEntryId(entryId);
         return this.client.request<Run>({
             method: 'POST',
             endpoint: `add_run_to_plan_entry/${planId}/${entryId}`,
@@ -134,7 +136,7 @@ export class PlanModule {
 
     /** @testrail POST update_run_in_plan_entry/{run_id} */
     async updateRunInPlanEntry(runId: number, payload: UpdateRunInPlanEntryPayload): Promise<Run> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         return this.client.request<Run>({
             method: 'POST',
             endpoint: `update_run_in_plan_entry/${runId}`,
@@ -145,7 +147,7 @@ export class PlanModule {
 
     /** @testrail POST delete_run_from_plan_entry/{run_id} */
     async deleteRunFromPlanEntry(runId: number): Promise<void> {
-        this.client.validateId(runId, 'runId');
+        validateId(runId, 'runId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_run_from_plan_entry/${runId}`,
