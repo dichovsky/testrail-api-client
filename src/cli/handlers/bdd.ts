@@ -37,7 +37,7 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
         return;
     }
 
-    const text = await ctx.client.getBdd(caseId);
+    const text = await ctx.client.bdd.getBdd(caseId);
 
     if (resolved.target === 'stdout') {
         process.stdout.write(text);
@@ -99,5 +99,5 @@ export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
         resolved.source === 'stdin' && resolved.contents !== undefined
             ? resolved.contents
             : { path: resolved.path, fd: resolved.fd };
-    ctx.out(await ctx.client.addBdd(caseId, payload, resolved.filename));
+    ctx.out(await ctx.client.bdd.addBdd(caseId, payload, resolved.filename));
 }

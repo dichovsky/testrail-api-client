@@ -12,21 +12,21 @@ export const handlePlanAdd = createWriteHandler({
     action: 'plan add',
     pathParams: ['project_id'],
     bodySchema: AddPlanPayloadSchema,
-    call: (client, [projectId], body) => client.addPlan(projectId, body),
+    call: (client, [projectId], body) => client.plans.addPlan(projectId, body),
 });
 
 export const handlePlanUpdate = createWriteHandler({
     action: 'plan update',
     pathParams: ['plan_id'],
     bodySchema: UpdatePlanPayloadSchema,
-    call: (client, [planId], body) => client.updatePlan(planId, body),
+    call: (client, [planId], body) => client.plans.updatePlan(planId, body),
 });
 
 export const handlePlanAddEntry = createWriteHandler({
     action: 'plan add-entry',
     pathParams: ['plan_id'],
     bodySchema: AddPlanEntryPayloadSchema,
-    call: (client, [planId], body) => client.addPlanEntry(planId, body),
+    call: (client, [planId], body) => client.plans.addPlanEntry(planId, body),
 });
 
 export const handlePlanAddRunToEntry = createWriteHandler({
@@ -34,7 +34,7 @@ export const handlePlanAddRunToEntry = createWriteHandler({
     pathParams: ['plan_id'],
     entryParam: 'entry_id',
     bodySchema: AddRunToPlanEntryPayloadSchema,
-    call: (client, [planId], body, entryId) => client.addRunToPlanEntry(planId, entryId, body),
+    call: (client, [planId], body, entryId) => client.plans.addRunToPlanEntry(planId, entryId, body),
 });
 
 export const handlePlanUpdateEntry = createWriteHandler({
@@ -42,14 +42,14 @@ export const handlePlanUpdateEntry = createWriteHandler({
     pathParams: ['plan_id'],
     entryParam: 'entry_id',
     bodySchema: UpdatePlanEntryPayloadSchema,
-    call: (client, [planId], body, entryId) => client.updatePlanEntry(planId, entryId, body),
+    call: (client, [planId], body, entryId) => client.plans.updatePlanEntry(planId, entryId, body),
 });
 
 export const handlePlanUpdateRunInEntry = createWriteHandler({
     action: 'plan update-run-in-entry',
     pathParams: ['run_id'],
     bodySchema: UpdateRunInPlanEntryPayloadSchema,
-    call: (client, [runId], body) => client.updateRunInPlanEntry(runId, body),
+    call: (client, [runId], body) => client.plans.updateRunInPlanEntry(runId, body),
 });
 
 /**
@@ -60,7 +60,7 @@ export const handlePlanClose = createDestructiveHandler({
     action: 'plan close',
     pathParams: ['plan_id'],
     kind: 'close',
-    call: (client, [planId]) => client.closePlan(planId),
+    call: (client, [planId]) => client.plans.closePlan(planId),
 });
 
 /**
@@ -70,7 +70,7 @@ export const handlePlanClose = createDestructiveHandler({
 export const handlePlanDelete = createDestructiveHandler({
     action: 'plan delete',
     pathParams: ['plan_id'],
-    call: (client, [planId]) => client.deletePlan(planId),
+    call: (client, [planId]) => client.plans.deletePlan(planId),
 });
 
 /**
@@ -81,7 +81,7 @@ export const handlePlanDeleteEntry = createDestructiveHandler({
     action: 'plan delete-entry',
     pathParams: ['plan_id'],
     entryParam: 'entry_id',
-    call: (client, [planId], entryId) => client.deletePlanEntry(planId, entryId),
+    call: (client, [planId], entryId) => client.plans.deletePlanEntry(planId, entryId),
 });
 
 /**
@@ -91,5 +91,5 @@ export const handlePlanDeleteEntry = createDestructiveHandler({
 export const handlePlanDeleteRunFromEntry = createDestructiveHandler({
     action: 'plan delete-run-from-entry',
     pathParams: ['run_id'],
-    call: (client, [runId]) => client.deleteRunFromPlanEntry(runId),
+    call: (client, [runId]) => client.plans.deleteRunFromPlanEntry(runId),
 });

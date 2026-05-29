@@ -357,7 +357,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             abortError.name = 'AbortError';
             global.fetch = vi.fn().mockRejectedValue(abortError);
 
-            await expect(client.getProject(1)).rejects.toThrow('Request timeout after 1000ms');
+            await expect(client.projects.getProject(1)).rejects.toThrow('Request timeout after 1000ms');
         });
     });
 
@@ -379,7 +379,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 json: vi.fn().mockResolvedValue({ error: 'Server error' }),
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailApiError);
 
             // Verify multiple calls were made due to retries
             expect(global.fetch).toHaveBeenCalledTimes(3); // initial + 2 retries
@@ -398,7 +398,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             networkError.name = 'NetworkError';
             global.fetch = vi.fn().mockRejectedValue(networkError);
 
-            await expect(client.getProject(1)).rejects.toThrow('Network error: Network request failed');
+            await expect(client.projects.getProject(1)).rejects.toThrow('Network error: Network request failed');
 
             // Should have made 2 attempts (initial + 1 retry)
             expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -418,7 +418,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             abortError.name = 'AbortError';
             global.fetch = vi.fn().mockRejectedValue(abortError);
 
-            await expect(client.getProject(1)).rejects.toThrow('Request timeout after 50ms');
+            await expect(client.projects.getProject(1)).rejects.toThrow('Request timeout after 50ms');
         });
 
         it('should not retry timeout errors even when maxRetries is set', async () => {
@@ -435,7 +435,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             abortError.name = 'AbortError';
             global.fetch = vi.fn().mockRejectedValue(abortError);
 
-            await expect(client.getProject(1)).rejects.toThrow('Request timeout after 50ms');
+            await expect(client.projects.getProject(1)).rejects.toThrow('Request timeout after 50ms');
 
             // Should only have made 1 attempt, no retries for timeout errors
             expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -762,7 +762,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 json: vi.fn().mockRejectedValue(new Error('Not JSON')),
             });
 
-            await expect(client.getProject(1)).rejects.toThrow(TestRailApiError);
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailApiError);
         });
     });
 
@@ -880,7 +880,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 }),
             );
 
-            await client.getProject(1);
+            await client.projects.getProject(1);
 
             expect(global.fetch).toHaveBeenCalledTimes(1);
             expect(lastFetchInit()?.redirect).toBe('manual');
@@ -897,7 +897,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 headers: new globalThis.Headers({ 'Content-Type': 'text/plain' }),
             });
 
-            await client.getBdd(1);
+            await client.bdd.getBdd(1);
 
             expect(global.fetch).toHaveBeenCalledTimes(1);
             expect(lastFetchInit()?.redirect).toBe('manual');
@@ -909,7 +909,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             global.fetch = vi.fn().mockResolvedValue(makeOkJsonResponse({ attachment_id: 'abc123' }));
 
             const blob = new globalThis.Blob([new Uint8Array([1, 2, 3])]);
-            await client.addAttachmentToCase(1, blob, 'a.bin');
+            await client.attachments.addAttachmentToCase(1, blob, 'a.bin');
 
             expect(global.fetch).toHaveBeenCalledTimes(1);
             expect(lastFetchInit()?.redirect).toBe('manual');
@@ -926,7 +926,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 headers: new globalThis.Headers({ 'Content-Type': 'application/octet-stream' }),
             });
 
-            await client.getAttachment(1);
+            await client.attachments.getAttachment(1);
 
             expect(global.fetch).toHaveBeenCalledTimes(1);
             expect(lastFetchInit()?.redirect).toBe('manual');
@@ -937,12 +937,12 @@ describe('TestRailClient - Coverage Improvement', () => {
             const client = makeClient();
             global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(302, REDIRECT_TARGET));
 
-            await expect(client.getProject(1)).rejects.toMatchObject({
+            await expect(client.projects.getProject(1)).rejects.toMatchObject({
                 name: 'TestRailApiError',
                 status: 302,
                 response: expect.stringContaining('Redirect blocked'),
             });
-            await expect(client.getProject(1)).rejects.toMatchObject({
+            await expect(client.projects.getProject(1)).rejects.toMatchObject({
                 response: expect.stringContaining(REDIRECT_TARGET),
             });
             client.destroy();
@@ -952,7 +952,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             const client = makeClient();
             global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(301, REDIRECT_TARGET));
 
-            await expect(client.addProject({ name: 'demo' })).rejects.toMatchObject({
+            await expect(client.projects.addProject({ name: 'demo' })).rejects.toMatchObject({
                 name: 'TestRailApiError',
                 status: 301,
             });
@@ -966,7 +966,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             const client = makeClient();
             global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(307, REDIRECT_TARGET));
 
-            await expect(client.getBdd(1)).rejects.toMatchObject({
+            await expect(client.bdd.getBdd(1)).rejects.toMatchObject({
                 name: 'TestRailApiError',
                 status: 307,
                 response: expect.stringContaining('Redirect blocked'),
@@ -980,7 +980,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(308, REDIRECT_TARGET));
 
             const blob = new globalThis.Blob([new Uint8Array([1, 2, 3])]);
-            await expect(client.addAttachmentToCase(1, blob, 'a.bin')).rejects.toMatchObject({
+            await expect(client.attachments.addAttachmentToCase(1, blob, 'a.bin')).rejects.toMatchObject({
                 name: 'TestRailApiError',
                 status: 308,
                 response: expect.stringContaining('Redirect blocked'),
@@ -994,7 +994,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             const client = makeClient();
             global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(303, REDIRECT_TARGET));
 
-            await expect(client.getAttachment(1)).rejects.toMatchObject({
+            await expect(client.attachments.getAttachment(1)).rejects.toMatchObject({
                 name: 'TestRailApiError',
                 status: 303,
                 response: expect.stringContaining('Redirect blocked'),
@@ -1009,7 +1009,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 const client = makeClient();
                 global.fetch = vi.fn().mockResolvedValue(makeRedirectResponse(status, REDIRECT_TARGET));
 
-                await expect(client.getProject(1)).rejects.toMatchObject({
+                await expect(client.projects.getProject(1)).rejects.toMatchObject({
                     name: 'TestRailApiError',
                     status,
                 });
@@ -1032,11 +1032,11 @@ describe('TestRailClient - Coverage Improvement', () => {
                 );
             global.fetch = fetchMock;
 
-            await expect(client.getProject(1)).rejects.toMatchObject({ status: 302 });
+            await expect(client.projects.getProject(1)).rejects.toMatchObject({ status: 302 });
             // If the rejected redirect leaked into cache, the second call would
             // resolve to the cached redirect value (or skip fetch entirely). It
             // must reach the network again.
-            const project = await client.getProject(1);
+            const project = await client.projects.getProject(1);
             expect(project).toMatchObject({ id: 1, name: 'Real Project' });
             expect(fetchMock).toHaveBeenCalledTimes(2);
             client.destroy();
@@ -1053,7 +1053,7 @@ describe('TestRailClient - Coverage Improvement', () => {
             } as unknown as Response;
             global.fetch = vi.fn().mockResolvedValue(response);
 
-            await expect(client.getProject(1)).rejects.toMatchObject({
+            await expect(client.projects.getProject(1)).rejects.toMatchObject({
                 name: 'TestRailApiError',
                 status: 302,
                 response: expect.stringContaining('Redirect blocked'),

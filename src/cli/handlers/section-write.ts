@@ -5,14 +5,14 @@ export const handleSectionAdd = createWriteHandler({
     action: 'section add',
     pathParams: ['project_id'],
     bodySchema: AddSectionPayloadSchema,
-    call: (client, [projectId], body) => client.addSection(projectId, body),
+    call: (client, [projectId], body) => client.sections.addSection(projectId, body),
 });
 
 export const handleSectionUpdate = createWriteHandler({
     action: 'section update',
     pathParams: ['section_id'],
     bodySchema: UpdateSectionPayloadSchema,
-    call: (client, [sectionId], body) => client.updateSection(sectionId, body),
+    call: (client, [sectionId], body) => client.sections.updateSection(sectionId, body),
 });
 
 /**
@@ -25,7 +25,7 @@ export const handleSectionMove = createWriteHandler({
     action: 'section move',
     pathParams: ['section_id'],
     bodySchema: MoveSectionPayloadSchema,
-    call: (client, [sectionId], body) => client.moveSection(sectionId, body),
+    call: (client, [sectionId], body) => client.sections.moveSection(sectionId, body),
     formatOutput: ([sectionId]) => ({ sectionId, moved: true }),
 });
 
@@ -37,5 +37,5 @@ export const handleSectionDelete = createDestructiveHandler({
     action: 'section delete',
     pathParams: ['section_id'],
     softMode: 'optional',
-    call: (client, [sectionId], _entry, soft) => client.deleteSection(sectionId, { soft }),
+    call: (client, [sectionId], _entry, soft) => client.sections.deleteSection(sectionId, { soft }),
 });

@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "4.1.0"
+    "version": "5.0.0"
   },
-  "sourceHash": "cff888c1a1f3be0683f07f0534f43369bb3b34036cdbbc156b929e5e2b834f05",
+  "sourceHash": "c7a54610f4ecd87603baf803dce52e127ec29b1cab9fda820f1752e053620314",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1085,7 +1085,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
-      "line": 118,
+      "line": 34,
       "signature": "export class TestRailClient extends TestRailClientCore",
       "jsdoc": "TestRail API Client"
     },
@@ -1894,9 +1894,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleAttachmentDelete",
           "kind": "const",
-          "line": 135,
+          "line": 137,
           "exported": true,
-          "signature": "export const handleAttachmentDelete = createDestructiveHandler({ action: 'attachment delete', pathParams: ['attachment_id'], call: (client, [attachmentId]) => client.deleteAttachment(attachmentId), })"
+          "signature": "export const handleAttachmentDelete = createDestructiveHandler({ action: 'attachment delete', pathParams: ['attachment_id'], call: (client, [attachmentId]) => client.attachments.deleteAttachment(attac…"
         }
       ]
     },
@@ -2003,7 +2003,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const handleCaseFieldAdd = createWriteHandler({ action: 'case-field add', bodySchema: AddCaseFieldPayloadSchema, call: (client, _nums, body) => client.addCaseField(body), })"
+          "signature": "export const handleCaseFieldAdd = createWriteHandler({ action: 'case-field add', bodySchema: AddCaseFieldPayloadSchema, call: (client, _nums, body) => client.metadata.addCaseField(body), })"
         }
       ]
     },
@@ -2074,7 +2074,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 15,
           "exported": true,
-          "signature": "export const handleCaseAdd = createWriteHandler({ action: 'case add', pathParams: ['section_id'], bodySchema: AddCasePayloadSchema, call: (client, [sectionId], body) => client.addCase(sectionId, body)…"
+          "signature": "export const handleCaseAdd = createWriteHandler({ action: 'case add', pathParams: ['section_id'], bodySchema: AddCasePayloadSchema, call: (client, [sectionId], body) => client.cases.addCase(sectionId,…"
         },
         {
           "name": "handleCaseAddBulk",
@@ -2088,14 +2088,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 36,
           "exported": true,
-          "signature": "export const handleCaseUpdate = createWriteHandler({ action: 'case update', pathParams: ['case_id'], bodySchema: UpdateCasePayloadSchema, call: (client, [caseId], body) => client.updateCase(caseId, bo…"
+          "signature": "export const handleCaseUpdate = createWriteHandler({ action: 'case update', pathParams: ['case_id'], bodySchema: UpdateCasePayloadSchema, call: (client, [caseId], body) => client.cases.updateCase(case…"
         },
         {
           "name": "handleCaseUpdateBulk",
           "kind": "const",
           "line": 43,
           "exported": true,
-          "signature": "export const handleCaseUpdateBulk = createWriteHandler({ action: 'case update-bulk', pathParams: ['suite_id'], bodySchema: UpdateCasesPayloadSchema, call: (client, [suiteId], body) => client.updateCas…"
+          "signature": "export const handleCaseUpdateBulk = createWriteHandler({ action: 'case update-bulk', pathParams: ['suite_id'], bodySchema: UpdateCasesPayloadSchema, call: (client, [suiteId], body) => client.cases.upd…"
         },
         {
           "name": "handleCaseCopyToSection",
@@ -2116,7 +2116,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 69,
           "exported": true,
-          "signature": "export const handleCaseDelete = createDestructiveHandler({ action: 'case delete', pathParams: ['case_id'], softMode: 'optional', call: (client, [caseId], _entry, soft) => client.deleteCase(caseId, { s…"
+          "signature": "export const handleCaseDelete = createDestructiveHandler({ action: 'case delete', pathParams: ['case_id'], softMode: 'optional', call: (client, [caseId], _entry, soft) => client.cases.deleteCase(caseI…"
         },
         {
           "name": "handleCaseDeleteBulk",
@@ -2185,7 +2185,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 34,
           "exported": true,
-          "signature": "export const handleConfigurationGroupDelete = createDestructiveHandler({ action: 'configuration-group delete', pathParams: ['config_group_id'], call: (client, [configGroupId]) => client.deleteConfigur…"
+          "signature": "export const handleConfigurationGroupDelete = createDestructiveHandler({ action: 'configuration-group delete', pathParams: ['config_group_id'], call: (client, [configGroupId]) => client.configurations…"
         },
         {
           "name": "handleConfigurationAdd",
@@ -2206,7 +2206,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 61,
           "exported": true,
-          "signature": "export const handleConfigurationDelete = createDestructiveHandler({ action: 'configuration delete', pathParams: ['config_id'], call: (client, [configId]) => client.deleteConfiguration(configId), })"
+          "signature": "export const handleConfigurationDelete = createDestructiveHandler({ action: 'configuration delete', pathParams: ['config_id'], call: (client, [configId]) => client.configurations.deleteConfiguration(c…"
         }
       ]
     },
@@ -2240,7 +2240,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleDatasetAdd = createWriteHandler({ action: 'dataset add', pathParams: ['project_id'], bodySchema: AddDatasetPayloadSchema, call: (client, [projectId], body) => client.addDataset(proj…"
+          "signature": "export const handleDatasetAdd = createWriteHandler({ action: 'dataset add', pathParams: ['project_id'], bodySchema: AddDatasetPayloadSchema, call: (client, [projectId], body) => client.datasets.addDat…"
         },
         {
           "name": "handleDatasetUpdate",
@@ -2254,7 +2254,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 29,
           "exported": true,
-          "signature": "export const handleDatasetDelete = createDestructiveHandler({ action: 'dataset delete', pathParams: ['dataset_id'], call: (client, [datasetId]) => client.deleteDataset(datasetId), })"
+          "signature": "export const handleDatasetDelete = createDestructiveHandler({ action: 'dataset delete', pathParams: ['dataset_id'], call: (client, [datasetId]) => client.datasets.deleteDataset(datasetId), })"
         }
       ]
     },
@@ -2305,14 +2305,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 38,
           "exported": true,
-          "signature": "export const handleGroupUpdate = createWriteHandler({ action: 'group update', pathParams: ['group_id'], bodySchema: UpdateGroupPayloadSchema, call: (client, [groupId], body) => client.updateGroup(grou…"
+          "signature": "export const handleGroupUpdate = createWriteHandler({ action: 'group update', pathParams: ['group_id'], bodySchema: UpdateGroupPayloadSchema, call: (client, [groupId], body) => client.users.updateGrou…"
         },
         {
           "name": "handleGroupDelete",
           "kind": "const",
           "line": 50,
           "exported": true,
-          "signature": "export const handleGroupDelete = createDestructiveHandler({ action: 'group delete', pathParams: ['group_id'], call: (client, [groupId]) => client.deleteGroup(groupId), })"
+          "signature": "export const handleGroupDelete = createDestructiveHandler({ action: 'group delete', pathParams: ['group_id'], call: (client, [groupId]) => client.users.deleteGroup(groupId), })"
         }
       ]
     },
@@ -2353,7 +2353,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleMilestoneAdd = createWriteHandler({ action: 'milestone add', pathParams: ['project_id'], bodySchema: AddMilestonePayloadSchema, call: (client, [projectId], body) => client.addMilest…"
+          "signature": "export const handleMilestoneAdd = createWriteHandler({ action: 'milestone add', pathParams: ['project_id'], bodySchema: AddMilestonePayloadSchema, call: (client, [projectId], body) => client.milestone…"
         },
         {
           "name": "handleMilestoneUpdate",
@@ -2367,7 +2367,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 22,
           "exported": true,
-          "signature": "export const handleMilestoneDelete = createDestructiveHandler({ action: 'milestone delete', pathParams: ['milestone_id'], call: (client, [milestoneId]) => client.deleteMilestone(milestoneId), })"
+          "signature": "export const handleMilestoneDelete = createDestructiveHandler({ action: 'milestone delete', pathParams: ['milestone_id'], call: (client, [milestoneId]) => client.milestones.deleteMilestone(milestoneId…"
         }
       ]
     },
@@ -2408,21 +2408,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const handlePlanAdd = createWriteHandler({ action: 'plan add', pathParams: ['project_id'], bodySchema: AddPlanPayloadSchema, call: (client, [projectId], body) => client.addPlan(projectId, body)…"
+          "signature": "export const handlePlanAdd = createWriteHandler({ action: 'plan add', pathParams: ['project_id'], bodySchema: AddPlanPayloadSchema, call: (client, [projectId], body) => client.plans.addPlan(projectId,…"
         },
         {
           "name": "handlePlanUpdate",
           "kind": "const",
           "line": 18,
           "exported": true,
-          "signature": "export const handlePlanUpdate = createWriteHandler({ action: 'plan update', pathParams: ['plan_id'], bodySchema: UpdatePlanPayloadSchema, call: (client, [planId], body) => client.updatePlan(planId, bo…"
+          "signature": "export const handlePlanUpdate = createWriteHandler({ action: 'plan update', pathParams: ['plan_id'], bodySchema: UpdatePlanPayloadSchema, call: (client, [planId], body) => client.plans.updatePlan(plan…"
         },
         {
           "name": "handlePlanAddEntry",
           "kind": "const",
           "line": 25,
           "exported": true,
-          "signature": "export const handlePlanAddEntry = createWriteHandler({ action: 'plan add-entry', pathParams: ['plan_id'], bodySchema: AddPlanEntryPayloadSchema, call: (client, [planId], body) => client.addPlanEntry(p…"
+          "signature": "export const handlePlanAddEntry = createWriteHandler({ action: 'plan add-entry', pathParams: ['plan_id'], bodySchema: AddPlanEntryPayloadSchema, call: (client, [planId], body) => client.plans.addPlanE…"
         },
         {
           "name": "handlePlanAddRunToEntry",
@@ -2450,28 +2450,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 59,
           "exported": true,
-          "signature": "export const handlePlanClose = createDestructiveHandler({ action: 'plan close', pathParams: ['plan_id'], kind: 'close', call: (client, [planId]) => client.closePlan(planId), })"
+          "signature": "export const handlePlanClose = createDestructiveHandler({ action: 'plan close', pathParams: ['plan_id'], kind: 'close', call: (client, [planId]) => client.plans.closePlan(planId), })"
         },
         {
           "name": "handlePlanDelete",
           "kind": "const",
           "line": 70,
           "exported": true,
-          "signature": "export const handlePlanDelete = createDestructiveHandler({ action: 'plan delete', pathParams: ['plan_id'], call: (client, [planId]) => client.deletePlan(planId), })"
+          "signature": "export const handlePlanDelete = createDestructiveHandler({ action: 'plan delete', pathParams: ['plan_id'], call: (client, [planId]) => client.plans.deletePlan(planId), })"
         },
         {
           "name": "handlePlanDeleteEntry",
           "kind": "const",
           "line": 80,
           "exported": true,
-          "signature": "export const handlePlanDeleteEntry = createDestructiveHandler({ action: 'plan delete-entry', pathParams: ['plan_id'], entryParam: 'entry_id', call: (client, [planId], entryId) => client.deletePlanEntr…"
+          "signature": "export const handlePlanDeleteEntry = createDestructiveHandler({ action: 'plan delete-entry', pathParams: ['plan_id'], entryParam: 'entry_id', call: (client, [planId], entryId) => client.plans.deletePl…"
         },
         {
           "name": "handlePlanDeleteRunFromEntry",
           "kind": "const",
           "line": 91,
           "exported": true,
-          "signature": "export const handlePlanDeleteRunFromEntry = createDestructiveHandler({ action: 'plan delete-run-from-entry', pathParams: ['run_id'], call: (client, [runId]) => client.deleteRunFromPlanEntry(runId), })"
+          "signature": "export const handlePlanDeleteRunFromEntry = createDestructiveHandler({ action: 'plan delete-run-from-entry', pathParams: ['run_id'], call: (client, [runId]) => client.plans.deleteRunFromPlanEntry(runI…"
         }
       ]
     },
@@ -2529,21 +2529,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleProjectAdd = createWriteHandler({ action: 'project add', bodySchema: AddProjectPayloadSchema, call: (client, _nums, body) => client.addProject(body), })"
+          "signature": "export const handleProjectAdd = createWriteHandler({ action: 'project add', bodySchema: AddProjectPayloadSchema, call: (client, _nums, body) => client.projects.addProject(body), })"
         },
         {
           "name": "handleProjectUpdate",
           "kind": "const",
           "line": 10,
           "exported": true,
-          "signature": "export const handleProjectUpdate = createWriteHandler({ action: 'project update', pathParams: ['project_id'], bodySchema: UpdateProjectPayloadSchema, call: (client, [projectId], body) => client.update…"
+          "signature": "export const handleProjectUpdate = createWriteHandler({ action: 'project update', pathParams: ['project_id'], bodySchema: UpdateProjectPayloadSchema, call: (client, [projectId], body) => client.projec…"
         },
         {
           "name": "handleProjectDelete",
           "kind": "const",
           "line": 22,
           "exported": true,
-          "signature": "export const handleProjectDelete = createDestructiveHandler({ action: 'project delete', pathParams: ['project_id'], call: (client, [projectId]) => client.deleteProject(projectId), })"
+          "signature": "export const handleProjectDelete = createDestructiveHandler({ action: 'project delete', pathParams: ['project_id'], call: (client, [projectId]) => client.projects.deleteProject(projectId), })"
         }
       ]
     },
@@ -2625,28 +2625,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleResultAddByTest = createWriteHandler({ action: 'result add-by-test', pathParams: ['test_id'], bodySchema: AddResultPayloadSchema, call: (client, [testId], body) => client.addResult(…"
+          "signature": "export const handleResultAddByTest = createWriteHandler({ action: 'result add-by-test', pathParams: ['test_id'], bodySchema: AddResultPayloadSchema, call: (client, [testId], body) => client.results.ad…"
         },
         {
           "name": "handleResultAdd",
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const handleResultAdd = createWriteHandler({ action: 'result add', pathParams: ['run_id', 'case_id'], bodySchema: AddResultPayloadSchema, call: (client, [runId, caseId], body) => client.addResu…"
+          "signature": "export const handleResultAdd = createWriteHandler({ action: 'result add', pathParams: ['run_id', 'case_id'], bodySchema: AddResultPayloadSchema, call: (client, [runId, caseId], body) => client.results…"
         },
         {
           "name": "handleResultAddBulk",
           "kind": "const",
           "line": 18,
           "exported": true,
-          "signature": "export const handleResultAddBulk = createWriteHandler({ action: 'result add-bulk', pathParams: ['run_id'], bodySchema: AddResultsForCasesPayloadSchema, call: (client, [runId], body) => client.addResul…"
+          "signature": "export const handleResultAddBulk = createWriteHandler({ action: 'result add-bulk', pathParams: ['run_id'], bodySchema: AddResultsForCasesPayloadSchema, call: (client, [runId], body) => client.results.…"
         },
         {
           "name": "handleResultAddBulkByTest",
           "kind": "const",
           "line": 25,
           "exported": true,
-          "signature": "export const handleResultAddBulkByTest = createWriteHandler({ action: 'result add-bulk-by-test', pathParams: ['run_id'], bodySchema: AddResultsPayloadSchema, call: (client, [runId], body) => client.ad…"
+          "signature": "export const handleResultAddBulkByTest = createWriteHandler({ action: 'result add-bulk-by-test', pathParams: ['run_id'], bodySchema: AddResultsPayloadSchema, call: (client, [runId], body) => client.re…"
         }
       ]
     },
@@ -2816,28 +2816,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleRunAdd = createWriteHandler({ action: 'run add', pathParams: ['project_id'], bodySchema: AddRunPayloadSchema, call: (client, [projectId], body) => client.addRun(projectId, body), })"
+          "signature": "export const handleRunAdd = createWriteHandler({ action: 'run add', pathParams: ['project_id'], bodySchema: AddRunPayloadSchema, call: (client, [projectId], body) => client.runs.addRun(projectId, body…"
         },
         {
           "name": "handleRunUpdate",
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const handleRunUpdate = createWriteHandler({ action: 'run update', pathParams: ['run_id'], bodySchema: UpdateRunPayloadSchema, call: (client, [runId], body) => client.updateRun(runId, body), })"
+          "signature": "export const handleRunUpdate = createWriteHandler({ action: 'run update', pathParams: ['run_id'], bodySchema: UpdateRunPayloadSchema, call: (client, [runId], body) => client.runs.updateRun(runId, body…"
         },
         {
           "name": "handleRunClose",
           "kind": "const",
           "line": 23,
           "exported": true,
-          "signature": "export const handleRunClose = createDestructiveHandler({ action: 'run close', pathParams: ['run_id'], softMode: 'ignore', kind: 'close', call: (client, [runId]) => client.closeRun(runId), })"
+          "signature": "export const handleRunClose = createDestructiveHandler({ action: 'run close', pathParams: ['run_id'], softMode: 'ignore', kind: 'close', call: (client, [runId]) => client.runs.closeRun(runId), })"
         },
         {
           "name": "handleRunDelete",
           "kind": "const",
           "line": 35,
           "exported": true,
-          "signature": "export const handleRunDelete = createDestructiveHandler({ action: 'run delete', pathParams: ['run_id'], softMode: 'optional', call: (client, [runId], _entry, soft) => client.deleteRun(runId, { soft })…"
+          "signature": "export const handleRunDelete = createDestructiveHandler({ action: 'run delete', pathParams: ['run_id'], softMode: 'optional', call: (client, [runId], _entry, soft) => client.runs.deleteRun(runId, { so…"
         }
       ]
     },
@@ -2878,28 +2878,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleSectionAdd = createWriteHandler({ action: 'section add', pathParams: ['project_id'], bodySchema: AddSectionPayloadSchema, call: (client, [projectId], body) => client.addSection(proj…"
+          "signature": "export const handleSectionAdd = createWriteHandler({ action: 'section add', pathParams: ['project_id'], bodySchema: AddSectionPayloadSchema, call: (client, [projectId], body) => client.sections.addSec…"
         },
         {
           "name": "handleSectionUpdate",
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const handleSectionUpdate = createWriteHandler({ action: 'section update', pathParams: ['section_id'], bodySchema: UpdateSectionPayloadSchema, call: (client, [sectionId], body) => client.update…"
+          "signature": "export const handleSectionUpdate = createWriteHandler({ action: 'section update', pathParams: ['section_id'], bodySchema: UpdateSectionPayloadSchema, call: (client, [sectionId], body) => client.sectio…"
         },
         {
           "name": "handleSectionMove",
           "kind": "const",
           "line": 24,
           "exported": true,
-          "signature": "export const handleSectionMove = createWriteHandler({ action: 'section move', pathParams: ['section_id'], bodySchema: MoveSectionPayloadSchema, call: (client, [sectionId], body) => client.moveSection(…"
+          "signature": "export const handleSectionMove = createWriteHandler({ action: 'section move', pathParams: ['section_id'], bodySchema: MoveSectionPayloadSchema, call: (client, [sectionId], body) => client.sections.mov…"
         },
         {
           "name": "handleSectionDelete",
           "kind": "const",
           "line": 36,
           "exported": true,
-          "signature": "export const handleSectionDelete = createDestructiveHandler({ action: 'section delete', pathParams: ['section_id'], softMode: 'optional', call: (client, [sectionId], _entry, soft) => client.deleteSect…"
+          "signature": "export const handleSectionDelete = createDestructiveHandler({ action: 'section delete', pathParams: ['section_id'], softMode: 'optional', call: (client, [sectionId], _entry, soft) => client.sections.d…"
         }
       ]
     },
@@ -2940,7 +2940,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleSharedStepAdd = createWriteHandler({ action: 'shared-step add', pathParams: ['project_id'], bodySchema: AddSharedStepPayloadSchema, call: (client, [projectId], body) => client.addSh…"
+          "signature": "export const handleSharedStepAdd = createWriteHandler({ action: 'shared-step add', pathParams: ['project_id'], bodySchema: AddSharedStepPayloadSchema, call: (client, [projectId], body) => client.share…"
         },
         {
           "name": "handleSharedStepUpdate",
@@ -2954,7 +2954,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 24,
           "exported": true,
-          "signature": "export const handleSharedStepDelete = createDestructiveHandler({ action: 'shared-step delete', pathParams: ['shared_step_id'], call: (client, [sharedStepId]) => client.deleteSharedStep(sharedStepId), …"
+          "signature": "export const handleSharedStepDelete = createDestructiveHandler({ action: 'shared-step delete', pathParams: ['shared_step_id'], call: (client, [sharedStepId]) => client.sharedSteps.deleteSharedStep(sha…"
         }
       ]
     },
@@ -3019,21 +3019,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleSuiteAdd = createWriteHandler({ action: 'suite add', pathParams: ['project_id'], bodySchema: AddSuitePayloadSchema, call: (client, [projectId], body) => client.addSuite(projectId, b…"
+          "signature": "export const handleSuiteAdd = createWriteHandler({ action: 'suite add', pathParams: ['project_id'], bodySchema: AddSuitePayloadSchema, call: (client, [projectId], body) => client.suites.addSuite(proje…"
         },
         {
           "name": "handleSuiteUpdate",
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const handleSuiteUpdate = createWriteHandler({ action: 'suite update', pathParams: ['suite_id'], bodySchema: UpdateSuitePayloadSchema, call: (client, [suiteId], body) => client.updateSuite(suit…"
+          "signature": "export const handleSuiteUpdate = createWriteHandler({ action: 'suite update', pathParams: ['suite_id'], bodySchema: UpdateSuitePayloadSchema, call: (client, [suiteId], body) => client.suites.updateSui…"
         },
         {
           "name": "handleSuiteDelete",
           "kind": "const",
           "line": 22,
           "exported": true,
-          "signature": "export const handleSuiteDelete = createDestructiveHandler({ action: 'suite delete', pathParams: ['suite_id'], softMode: 'optional', call: (client, [suiteId], _entry, soft) => client.deleteSuite(suiteI…"
+          "signature": "export const handleSuiteDelete = createDestructiveHandler({ action: 'suite delete', pathParams: ['suite_id'], softMode: 'optional', call: (client, [suiteId], _entry, soft) => client.suites.deleteSuite…"
         }
       ]
     },
@@ -3122,14 +3122,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 9,
           "exported": true,
-          "signature": "export const handleUserAdd = createWriteHandler({ action: 'user add', bodySchema: UserAddPayloadSchema, call: (client, _nums, body) => client.addUser(body), })"
+          "signature": "export const handleUserAdd = createWriteHandler({ action: 'user add', bodySchema: UserAddPayloadSchema, call: (client, _nums, body) => client.users.addUser(body), })"
         },
         {
           "name": "handleUserUpdate",
           "kind": "const",
           "line": 19,
           "exported": true,
-          "signature": "export const handleUserUpdate = createWriteHandler({ action: 'user update', pathParams: ['user_id'], bodySchema: UserUpdatePayloadSchema, call: (client, [userId], body) => client.updateUser(userId, bo…"
+          "signature": "export const handleUserUpdate = createWriteHandler({ action: 'user update', pathParams: ['user_id'], bodySchema: UserUpdatePayloadSchema, call: (client, [userId], body) => client.users.updateUser(user…"
         }
       ]
     },
@@ -3184,21 +3184,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 4,
           "exported": true,
-          "signature": "export const handleVariableAdd = createWriteHandler({ action: 'variable add', pathParams: ['project_id'], bodySchema: AddVariablePayloadSchema, call: (client, [projectId], body) => client.addVariable(…"
+          "signature": "export const handleVariableAdd = createWriteHandler({ action: 'variable add', pathParams: ['project_id'], bodySchema: AddVariablePayloadSchema, call: (client, [projectId], body) => client.variables.ad…"
         },
         {
           "name": "handleVariableUpdate",
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const handleVariableUpdate = createWriteHandler({ action: 'variable update', pathParams: ['variable_id'], bodySchema: UpdateVariablePayloadSchema, call: (client, [variableId], body) => client.u…"
+          "signature": "export const handleVariableUpdate = createWriteHandler({ action: 'variable update', pathParams: ['variable_id'], bodySchema: UpdateVariablePayloadSchema, call: (client, [variableId], body) => client.v…"
         },
         {
           "name": "handleVariableDelete",
           "kind": "const",
           "line": 22,
           "exported": true,
-          "signature": "export const handleVariableDelete = createDestructiveHandler({ action: 'variable delete', pathParams: ['variable_id'], call: (client, [variableId]) => client.deleteVariable(variableId), })"
+          "signature": "export const handleVariableDelete = createDestructiveHandler({ action: 'variable delete', pathParams: ['variable_id'], call: (client, [variableId]) => client.variables.deleteVariable(variableId), })"
         }
       ]
     },
@@ -4832,9 +4832,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./modules/suites.js",
         "./modules/tests.js",
         "./modules/users.js",
-        "./modules/variables.js",
-        "./schemas.js",
-        "./types.js"
+        "./modules/variables.js"
       ],
       "reExports": [
         "./errors.js"
@@ -4843,764 +4841,104 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "TestRailClient",
           "kind": "class",
-          "line": 118,
+          "line": 34,
           "exported": true,
           "signature": "export class TestRailClient extends TestRailClientCore",
           "members": [
             {
               "name": "projects",
               "kind": "property",
-              "line": 120
+              "line": 36
             },
             {
               "name": "suites",
               "kind": "property",
-              "line": 121
+              "line": 37
             },
             {
               "name": "sections",
               "kind": "property",
-              "line": 122
+              "line": 38
             },
             {
               "name": "cases",
               "kind": "property",
-              "line": 123
+              "line": 39
             },
             {
               "name": "plans",
               "kind": "property",
-              "line": 124
+              "line": 40
             },
             {
               "name": "runs",
               "kind": "property",
-              "line": 125
+              "line": 41
             },
             {
               "name": "tests",
               "kind": "property",
-              "line": 126
+              "line": 42
             },
             {
               "name": "results",
               "kind": "property",
-              "line": 127
+              "line": 43
             },
             {
               "name": "milestones",
               "kind": "property",
-              "line": 128
+              "line": 44
             },
             {
               "name": "users",
               "kind": "property",
-              "line": 129
+              "line": 45
             },
             {
               "name": "metadata",
               "kind": "property",
-              "line": 130
+              "line": 46
             },
             {
               "name": "configurations",
               "kind": "property",
-              "line": 131
+              "line": 47
             },
             {
               "name": "attachments",
               "kind": "property",
-              "line": 132
+              "line": 48
             },
             {
               "name": "bdd",
               "kind": "property",
-              "line": 133
+              "line": 49
             },
             {
               "name": "sharedSteps",
               "kind": "property",
-              "line": 134
+              "line": 50
             },
             {
               "name": "variables",
               "kind": "property",
-              "line": 135
+              "line": 51
             },
             {
               "name": "datasets",
               "kind": "property",
-              "line": 136
+              "line": 52
             },
             {
               "name": "reports",
               "kind": "property",
-              "line": 137
+              "line": 53
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 139
-            },
-            {
-              "name": "getProject",
-              "kind": "method",
-              "line": 168
-            },
-            {
-              "name": "getProjects",
-              "kind": "method",
-              "line": 177
-            },
-            {
-              "name": "addProject",
-              "kind": "method",
-              "line": 185
-            },
-            {
-              "name": "updateProject",
-              "kind": "method",
-              "line": 194
-            },
-            {
-              "name": "deleteProject",
-              "kind": "method",
-              "line": 203
-            },
-            {
-              "name": "getSuite",
-              "kind": "method",
-              "line": 214
-            },
-            {
-              "name": "getSuites",
-              "kind": "method",
-              "line": 223
-            },
-            {
-              "name": "addSuite",
-              "kind": "method",
-              "line": 232
-            },
-            {
-              "name": "updateSuite",
-              "kind": "method",
-              "line": 241
-            },
-            {
-              "name": "deleteSuite",
-              "kind": "method",
-              "line": 251
-            },
-            {
-              "name": "deleteSuite",
-              "kind": "method",
-              "line": 252
-            },
-            {
-              "name": "deleteSuite",
-              "kind": "method",
-              "line": 254
-            },
-            {
-              "name": "deleteSuite",
-              "kind": "method",
-              "line": 255
-            },
-            {
-              "name": "getSection",
-              "kind": "method",
-              "line": 269
-            },
-            {
-              "name": "getSections",
-              "kind": "method",
-              "line": 281
-            },
-            {
-              "name": "addSection",
-              "kind": "method",
-              "line": 293
-            },
-            {
-              "name": "updateSection",
-              "kind": "method",
-              "line": 302
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 312
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 313
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 315
-            },
-            {
-              "name": "deleteSection",
-              "kind": "method",
-              "line": 316
-            },
-            {
-              "name": "moveSection",
-              "kind": "method",
-              "line": 331
-            },
-            {
-              "name": "getCase",
-              "kind": "method",
-              "line": 342
-            },
-            {
-              "name": "getCases",
-              "kind": "method",
-              "line": 363
-            },
-            {
-              "name": "addCase",
-              "kind": "method",
-              "line": 372
-            },
-            {
-              "name": "addCases",
-              "kind": "method",
-              "line": 385
-            },
-            {
-              "name": "updateCase",
-              "kind": "method",
-              "line": 394
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 405
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 406
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 408
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 409
-            },
-            {
-              "name": "updateCases",
-              "kind": "method",
-              "line": 421
-            },
-            {
-              "name": "deleteCases",
-              "kind": "method",
-              "line": 432
-            },
-            {
-              "name": "deleteCases",
-              "kind": "method",
-              "line": 438
-            },
-            {
-              "name": "deleteCases",
-              "kind": "method",
-              "line": 445
-            },
-            {
-              "name": "deleteCases",
-              "kind": "method",
-              "line": 451
-            },
-            {
-              "name": "copyCasesToSection",
-              "kind": "method",
-              "line": 471
-            },
-            {
-              "name": "moveCasesToSection",
-              "kind": "method",
-              "line": 480
-            },
-            {
-              "name": "getHistoryForCase",
-              "kind": "method",
-              "line": 489
-            },
-            {
-              "name": "getPlan",
-              "kind": "method",
-              "line": 500
-            },
-            {
-              "name": "getPlans",
-              "kind": "method",
-              "line": 512
-            },
-            {
-              "name": "addPlan",
-              "kind": "method",
-              "line": 521
-            },
-            {
-              "name": "updatePlan",
-              "kind": "method",
-              "line": 530
-            },
-            {
-              "name": "closePlan",
-              "kind": "method",
-              "line": 539
-            },
-            {
-              "name": "deletePlan",
-              "kind": "method",
-              "line": 548
-            },
-            {
-              "name": "addPlanEntry",
-              "kind": "method",
-              "line": 557
-            },
-            {
-              "name": "updatePlanEntry",
-              "kind": "method",
-              "line": 566
-            },
-            {
-              "name": "deletePlanEntry",
-              "kind": "method",
-              "line": 575
-            },
-            {
-              "name": "addRunToPlanEntry",
-              "kind": "method",
-              "line": 584
-            },
-            {
-              "name": "updateRunInPlanEntry",
-              "kind": "method",
-              "line": 593
-            },
-            {
-              "name": "deleteRunFromPlanEntry",
-              "kind": "method",
-              "line": 602
-            },
-            {
-              "name": "getRun",
-              "kind": "method",
-              "line": 613
-            },
-            {
-              "name": "getRuns",
-              "kind": "method",
-              "line": 625
-            },
-            {
-              "name": "addRun",
-              "kind": "method",
-              "line": 634
-            },
-            {
-              "name": "updateRun",
-              "kind": "method",
-              "line": 643
-            },
-            {
-              "name": "closeRun",
-              "kind": "method",
-              "line": 652
-            },
-            {
-              "name": "deleteRun",
-              "kind": "method",
-              "line": 662
-            },
-            {
-              "name": "deleteRun",
-              "kind": "method",
-              "line": 663
-            },
-            {
-              "name": "deleteRun",
-              "kind": "method",
-              "line": 665
-            },
-            {
-              "name": "deleteRun",
-              "kind": "method",
-              "line": 666
-            },
-            {
-              "name": "getTest",
-              "kind": "method",
-              "line": 680
-            },
-            {
-              "name": "getTests",
-              "kind": "method",
-              "line": 691
-            },
-            {
-              "name": "getResults",
-              "kind": "method",
-              "line": 705
-            },
-            {
-              "name": "getResultsForCase",
-              "kind": "method",
-              "line": 718
-            },
-            {
-              "name": "getResultsForRun",
-              "kind": "method",
-              "line": 730
-            },
-            {
-              "name": "addResult",
-              "kind": "method",
-              "line": 739
-            },
-            {
-              "name": "addResultForCase",
-              "kind": "method",
-              "line": 748
-            },
-            {
-              "name": "addResultsForCases",
-              "kind": "method",
-              "line": 757
-            },
-            {
-              "name": "addResults",
-              "kind": "method",
-              "line": 766
-            },
-            {
-              "name": "getMilestone",
-              "kind": "method",
-              "line": 777
-            },
-            {
-              "name": "getMilestones",
-              "kind": "method",
-              "line": 789
-            },
-            {
-              "name": "addMilestone",
-              "kind": "method",
-              "line": 801
-            },
-            {
-              "name": "updateMilestone",
-              "kind": "method",
-              "line": 813
-            },
-            {
-              "name": "deleteMilestone",
-              "kind": "method",
-              "line": 824
-            },
-            {
-              "name": "getUser",
-              "kind": "method",
-              "line": 837
-            },
-            {
-              "name": "getUserByEmail",
-              "kind": "method",
-              "line": 848
-            },
-            {
-              "name": "getUsers",
-              "kind": "method",
-              "line": 861
-            },
-            {
-              "name": "getCurrentUser",
-              "kind": "method",
-              "line": 869
-            },
-            {
-              "name": "addUser",
-              "kind": "method",
-              "line": 879
-            },
-            {
-              "name": "updateUser",
-              "kind": "method",
-              "line": 891
-            },
-            {
-              "name": "getStatuses",
-              "kind": "method",
-              "line": 901
-            },
-            {
-              "name": "getCaseStatuses",
-              "kind": "method",
-              "line": 910
-            },
-            {
-              "name": "getPriorities",
-              "kind": "method",
-              "line": 920
-            },
-            {
-              "name": "getResultFields",
-              "kind": "method",
-              "line": 930
-            },
-            {
-              "name": "getCaseFields",
-              "kind": "method",
-              "line": 940
-            },
-            {
-              "name": "addCaseField",
-              "kind": "method",
-              "line": 962
-            },
-            {
-              "name": "getCaseTypes",
-              "kind": "method",
-              "line": 970
-            },
-            {
-              "name": "getTemplates",
-              "kind": "method",
-              "line": 983
-            },
-            {
-              "name": "getConfigurations",
-              "kind": "method",
-              "line": 996
-            },
-            {
-              "name": "addConfigurationGroup",
-              "kind": "method",
-              "line": 1008
-            },
-            {
-              "name": "updateConfigurationGroup",
-              "kind": "method",
-              "line": 1020
-            },
-            {
-              "name": "deleteConfigurationGroup",
-              "kind": "method",
-              "line": 1034
-            },
-            {
-              "name": "addConfiguration",
-              "kind": "method",
-              "line": 1046
-            },
-            {
-              "name": "updateConfiguration",
-              "kind": "method",
-              "line": 1058
-            },
-            {
-              "name": "deleteConfiguration",
-              "kind": "method",
-              "line": 1069
-            },
-            {
-              "name": "getRoles",
-              "kind": "method",
-              "line": 1079
-            },
-            {
-              "name": "getGroup",
-              "kind": "method",
-              "line": 1092
-            },
-            {
-              "name": "getGroups",
-              "kind": "method",
-              "line": 1100
-            },
-            {
-              "name": "addGroup",
-              "kind": "method",
-              "line": 1110
-            },
-            {
-              "name": "updateGroup",
-              "kind": "method",
-              "line": 1122
-            },
-            {
-              "name": "deleteGroup",
-              "kind": "method",
-              "line": 1133
-            },
-            {
-              "name": "getAttachmentsForCase",
-              "kind": "method",
-              "line": 1147
-            },
-            {
-              "name": "getAttachmentsForRun",
-              "kind": "method",
-              "line": 1159
-            },
-            {
-              "name": "getAttachmentsForTest",
-              "kind": "method",
-              "line": 1171
-            },
-            {
-              "name": "getAttachmentsForPlan",
-              "kind": "method",
-              "line": 1182
-            },
-            {
-              "name": "getAttachmentsForPlanEntry",
-              "kind": "method",
-              "line": 1194
-            },
-            {
-              "name": "getAttachment",
-              "kind": "method",
-              "line": 1205
-            },
-            {
-              "name": "addAttachmentToCase",
-              "kind": "method",
-              "line": 1218
-            },
-            {
-              "name": "addAttachmentToResult",
-              "kind": "method",
-              "line": 1231
-            },
-            {
-              "name": "addAttachmentToRun",
-              "kind": "method",
-              "line": 1244
-            },
-            {
-              "name": "addAttachmentToPlan",
-              "kind": "method",
-              "line": 1257
-            },
-            {
-              "name": "addAttachmentToPlanEntry",
-              "kind": "method",
-              "line": 1271
-            },
-            {
-              "name": "deleteAttachment",
-              "kind": "method",
-              "line": 1287
-            },
-            {
-              "name": "getBdd",
-              "kind": "method",
-              "line": 1304
-            },
-            {
-              "name": "addBdd",
-              "kind": "method",
-              "line": 1317
-            },
-            {
-              "name": "getSharedStep",
-              "kind": "method",
-              "line": 1330
-            },
-            {
-              "name": "getSharedSteps",
-              "kind": "method",
-              "line": 1341
-            },
-            {
-              "name": "addSharedStep",
-              "kind": "method",
-              "line": 1353
-            },
-            {
-              "name": "updateSharedStep",
-              "kind": "method",
-              "line": 1365
-            },
-            {
-              "name": "deleteSharedStep",
-              "kind": "method",
-              "line": 1376
-            },
-            {
-              "name": "getSharedStepHistory",
-              "kind": "method",
-              "line": 1385
-            },
-            {
-              "name": "getVariables",
-              "kind": "method",
-              "line": 1398
-            },
-            {
-              "name": "addVariable",
-              "kind": "method",
-              "line": 1410
-            },
-            {
-              "name": "updateVariable",
-              "kind": "method",
-              "line": 1422
-            },
-            {
-              "name": "deleteVariable",
-              "kind": "method",
-              "line": 1433
-            },
-            {
-              "name": "getDataset",
-              "kind": "method",
-              "line": 1446
-            },
-            {
-              "name": "getDatasets",
-              "kind": "method",
-              "line": 1457
-            },
-            {
-              "name": "addDataset",
-              "kind": "method",
-              "line": 1469
-            },
-            {
-              "name": "updateDataset",
-              "kind": "method",
-              "line": 1481
-            },
-            {
-              "name": "deleteDataset",
-              "kind": "method",
-              "line": 1492
-            },
-            {
-              "name": "getReports",
-              "kind": "method",
-              "line": 1505
-            },
-            {
-              "name": "runReport",
-              "kind": "method",
-              "line": 1516
+              "line": 55
             }
           ]
         }

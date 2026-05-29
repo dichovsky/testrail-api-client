@@ -18,7 +18,7 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | File                                                    | Purpose                                                                                                                                           |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/client-core.ts`                                    | HTTP pipeline, cache, rate limiter, retry, lifecycle                                                                                              |
-| `src/client.ts`                                         | `TestRailClient` facade composing domain modules; re-exports their methods                                                                        |
+| `src/client.ts`                                         | `TestRailClient` composition root: 18 `public readonly` module fields, module composition only, no flat wrappers                                  |
 | `src/modules/*.ts`                                      | Per-domain endpoint methods (cases, runs, results, projects, suites, sections, plans, tests, milestones, …)                                       |
 | `src/types.ts`                                          | Response interfaces + payload types that aren't Zod-derived (e.g., `GetCasesOptions`, `GetPlansOptions`, `AddSuitePayload`)                       |
 | `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for `AddCasePayload`, `AddRunPayload`, `AddPlanPayload`, etc. via `z.infer` |
@@ -55,7 +55,7 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 
 ## Architecture Invariants
 
-**Class hierarchy:** `TestRailClientCore` (client-core.ts) → `TestRailClient` (client.ts). Infrastructure lives in core; endpoint methods in client.
+**Class hierarchy:** `TestRailClientCore` (client-core.ts) → `TestRailClient` (client.ts). Infrastructure lives in core; endpoint methods live in the domain modules. `client.ts` is module composition only (18 `public readonly` fields, no flat wrappers) — the namespaced surface (`client.projects.getProject(id)`) is the single access path (flat facade removed in v5.0.0, ARCH #7).
 
 **URL construction:** `{baseUrl}/index.php?/api/v2/{endpoint}`. Query params appended with `&` (not `?`): `get_sections/1&suite_id=2`. Use `buildEndpoint(base, params)`.
 
@@ -121,7 +121,7 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 **Add API endpoint:**
 
 1. Add the response Zod schema + inferred type to the matching `src/schemas/{domain}.ts` (re-exported via the `src/schemas.ts` barrel). For write endpoints, also add a payload schema there
-2. Add the method to the relevant module in `src/modules/` (e.g., `cases.ts` for case endpoints) — modules expose methods via the `TestRailClient` facade
+2. Add the method to the relevant module in `src/modules/` (e.g., `cases.ts` for case endpoints) — the method is reached via its namespaced module field (`client.cases.getCase(id)`); there is no flat facade wrapper to add
 3. Validate IDs with `this.client.validateId(id, 'paramName')` before any network call
 4. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, retry? })`
 5. Add response schema and inferred type re-exports to `src/index.ts` if they're public

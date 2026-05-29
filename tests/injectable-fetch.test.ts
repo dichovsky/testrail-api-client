@@ -34,7 +34,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
     it('uses the provided fetch instead of globalThis.fetch for JSON requests', async () => {
         const customFetch = vi.fn().mockResolvedValue(okJson(MOCK_PROJECT));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
-        await client.getProject(1);
+        await client.projects.getProject(1);
         expect(customFetch).toHaveBeenCalledTimes(1);
         client.destroy();
     });
@@ -43,7 +43,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         const globalSpy = vi.spyOn(globalThis, 'fetch');
         const customFetch = vi.fn().mockResolvedValue(okJson(MOCK_PROJECT));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
-        await client.getProject(1);
+        await client.projects.getProject(1);
         expect(globalSpy).not.toHaveBeenCalled();
         globalSpy.mockRestore();
         client.destroy();
@@ -55,7 +55,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
             .mockResolvedValue(okJson({ ...MOCK_PROJECT, id: 2, name: 'P2' }));
         const client = new TestRailClient({ ...BASE_CONFIG });
         try {
-            await client.getProject(2);
+            await client.projects.getProject(2);
             expect(globalSpy).toHaveBeenCalledTimes(1);
         } finally {
             globalSpy.mockRestore();
@@ -66,7 +66,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
     it('passes URL and init to the custom fetch', async () => {
         const customFetch = vi.fn().mockResolvedValue(okJson({ ...MOCK_PROJECT, id: 3, name: 'P3' }));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
-        await client.getProject(3);
+        await client.projects.getProject(3);
         const [url, init] = customFetch.mock.calls[0] as [string, RequestInit];
         expect(url).toContain('/index.php?/api/v2/get_project/3');
         expect(init.method).toBe('GET');
@@ -81,7 +81,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
                 okJson({ id: 5, name: 'Suite', project_id: 1, url: 'https://example.testrail.io/suites/view/5' }),
             );
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
-        await client.addSuite(1, { name: 'Suite' });
+        await client.suites.addSuite(1, { name: 'Suite' });
         const [, init] = customFetch.mock.calls[0] as [string, RequestInit];
         expect(init.method).toBe('POST');
         client.destroy();
@@ -92,7 +92,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         const binaryResponse = new Response(binaryBody, { status: 200 });
         const customFetch = vi.fn().mockResolvedValue(binaryResponse);
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
-        await client.getAttachment(42);
+        await client.attachments.getAttachment(42);
         expect(customFetch).toHaveBeenCalledTimes(1);
         const [url, init] = customFetch.mock.calls[0] as [string, RequestInit];
         expect(url).toContain('get_attachment/42');
@@ -105,7 +105,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         const textResponse = new Response(bddText, { status: 200, headers: { 'Content-Type': 'text/plain' } });
         const customFetch = vi.fn().mockResolvedValue(textResponse);
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
-        const result = await client.getBdd(7);
+        const result = await client.bdd.getBdd(7);
         expect(customFetch).toHaveBeenCalledTimes(1);
         const [url] = customFetch.mock.calls[0] as [string, RequestInit];
         expect(url).toContain('get_bdd/7');
@@ -118,7 +118,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         const customFetch = vi.fn().mockResolvedValue(attachmentResponse);
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
         const blob = new globalThis.Blob(['hello'], { type: 'text/plain' });
-        await client.addAttachmentToCase(1, blob, 'hello.txt');
+        await client.attachments.addAttachmentToCase(1, blob, 'hello.txt');
         expect(customFetch).toHaveBeenCalledTimes(1);
         const [url, init] = customFetch.mock.calls[0] as [string, RequestInit];
         expect(url).toContain('add_attachment_to_case/1');
@@ -135,7 +135,7 @@ describe('injectable fetch adapter (ARCH #14)', () => {
     it('custom fetch network errors surface as a rejected promise', async () => {
         const customFetch = vi.fn().mockRejectedValue(new TypeError('Network failure'));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch, maxRetries: 0 });
-        const error = await client.getProject(1).catch((e: unknown) => e);
+        const error = await client.projects.getProject(1).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(TestRailApiError);
         expect((error as TestRailApiError).message).toContain('Network failure');
         client.destroy();

@@ -15,7 +15,7 @@ function parseStatusIdList(raw: string | undefined): number[] | undefined {
 
 export async function handleTestGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'test id');
-    ctx.out(await ctx.client.getTest(id));
+    ctx.out(await ctx.client.tests.getTest(id));
 }
 
 export async function handleTestList(ctx: HandlerContext): Promise<void> {
@@ -24,7 +24,7 @@ export async function handleTestList(ctx: HandlerContext): Promise<void> {
     const offset = optInt(ctx.args.offset);
     const statusIds = parseStatusIdList(ctx.args.statusId);
     ctx.out(
-        await ctx.client.getTests(runId, {
+        await ctx.client.tests.getTests(runId, {
             ...(statusIds !== undefined && { status_id: statusIds }),
             ...(limit !== undefined && { limit }),
             ...(offset !== undefined && { offset }),

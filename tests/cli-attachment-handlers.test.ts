@@ -36,34 +36,38 @@ import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
-    getAttachmentsForCase: ReturnType<typeof vi.fn>;
-    getAttachmentsForRun: ReturnType<typeof vi.fn>;
-    getAttachmentsForTest: ReturnType<typeof vi.fn>;
-    getAttachmentsForPlan: ReturnType<typeof vi.fn>;
-    getAttachmentsForPlanEntry: ReturnType<typeof vi.fn>;
-    getAttachment: ReturnType<typeof vi.fn>;
-    addAttachmentToCase: ReturnType<typeof vi.fn>;
-    addAttachmentToResult: ReturnType<typeof vi.fn>;
-    addAttachmentToRun: ReturnType<typeof vi.fn>;
-    addAttachmentToPlan: ReturnType<typeof vi.fn>;
-    addAttachmentToPlanEntry: ReturnType<typeof vi.fn>;
-    deleteAttachment: ReturnType<typeof vi.fn>;
+    attachments: {
+        getAttachmentsForCase: ReturnType<typeof vi.fn>;
+        getAttachmentsForRun: ReturnType<typeof vi.fn>;
+        getAttachmentsForTest: ReturnType<typeof vi.fn>;
+        getAttachmentsForPlan: ReturnType<typeof vi.fn>;
+        getAttachmentsForPlanEntry: ReturnType<typeof vi.fn>;
+        getAttachment: ReturnType<typeof vi.fn>;
+        addAttachmentToCase: ReturnType<typeof vi.fn>;
+        addAttachmentToResult: ReturnType<typeof vi.fn>;
+        addAttachmentToRun: ReturnType<typeof vi.fn>;
+        addAttachmentToPlan: ReturnType<typeof vi.fn>;
+        addAttachmentToPlanEntry: ReturnType<typeof vi.fn>;
+        deleteAttachment: ReturnType<typeof vi.fn>;
+    };
 }
 
 function buildClient(): MockedClient {
     return {
-        getAttachmentsForCase: vi.fn().mockResolvedValue([{ id: 1 }]),
-        getAttachmentsForRun: vi.fn().mockResolvedValue([{ id: 2 }]),
-        getAttachmentsForTest: vi.fn().mockResolvedValue([{ id: 3 }]),
-        getAttachmentsForPlan: vi.fn().mockResolvedValue([{ id: 4 }]),
-        getAttachmentsForPlanEntry: vi.fn().mockResolvedValue([{ id: 5 }]),
-        getAttachment: vi.fn().mockResolvedValue(new Uint8Array([7, 8, 9]).buffer),
-        addAttachmentToCase: vi.fn().mockResolvedValue({ attachment_id: 100 }),
-        addAttachmentToResult: vi.fn().mockResolvedValue({ attachment_id: 101 }),
-        addAttachmentToRun: vi.fn().mockResolvedValue({ attachment_id: 102 }),
-        addAttachmentToPlan: vi.fn().mockResolvedValue({ attachment_id: 103 }),
-        addAttachmentToPlanEntry: vi.fn().mockResolvedValue({ attachment_id: 104 }),
-        deleteAttachment: vi.fn().mockResolvedValue(undefined),
+        attachments: {
+            getAttachmentsForCase: vi.fn().mockResolvedValue([{ id: 1 }]),
+            getAttachmentsForRun: vi.fn().mockResolvedValue([{ id: 2 }]),
+            getAttachmentsForTest: vi.fn().mockResolvedValue([{ id: 3 }]),
+            getAttachmentsForPlan: vi.fn().mockResolvedValue([{ id: 4 }]),
+            getAttachmentsForPlanEntry: vi.fn().mockResolvedValue([{ id: 5 }]),
+            getAttachment: vi.fn().mockResolvedValue(new Uint8Array([7, 8, 9]).buffer),
+            addAttachmentToCase: vi.fn().mockResolvedValue({ attachment_id: 100 }),
+            addAttachmentToResult: vi.fn().mockResolvedValue({ attachment_id: 101 }),
+            addAttachmentToRun: vi.fn().mockResolvedValue({ attachment_id: 102 }),
+            addAttachmentToPlan: vi.fn().mockResolvedValue({ attachment_id: 103 }),
+            addAttachmentToPlanEntry: vi.fn().mockResolvedValue({ attachment_id: 104 }),
+            deleteAttachment: vi.fn().mockResolvedValue(undefined),
+        },
     };
 }
 
@@ -118,7 +122,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'] });
         await handleAttachmentListForCase(ctx);
-        expect(client.getAttachmentsForCase).toHaveBeenCalledWith(42, {});
+        expect(client.attachments.getAttachmentsForCase).toHaveBeenCalledWith(42, {});
         expect(out).toHaveBeenCalledWith([{ id: 1 }]);
     });
 
@@ -126,7 +130,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
         await handleAttachmentListForRun(ctx);
-        expect(client.getAttachmentsForRun).toHaveBeenCalledWith(7, {});
+        expect(client.attachments.getAttachmentsForRun).toHaveBeenCalledWith(7, {});
         expect(out).toHaveBeenCalledWith([{ id: 2 }]);
     });
 
@@ -134,7 +138,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['8'] });
         await handleAttachmentListForTest(ctx);
-        expect(client.getAttachmentsForTest).toHaveBeenCalledWith(8, {});
+        expect(client.attachments.getAttachmentsForTest).toHaveBeenCalledWith(8, {});
         expect(out).toHaveBeenCalledWith([{ id: 3 }]);
     });
 
@@ -142,7 +146,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['9'] });
         await handleAttachmentListForPlan(ctx);
-        expect(client.getAttachmentsForPlan).toHaveBeenCalledWith(9);
+        expect(client.attachments.getAttachmentsForPlan).toHaveBeenCalledWith(9);
         expect(out).toHaveBeenCalledWith([{ id: 4 }]);
     });
 
@@ -150,7 +154,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['9', '10'] });
         await handleAttachmentListForPlanEntry(ctx);
-        expect(client.getAttachmentsForPlanEntry).toHaveBeenCalledWith(9, 10);
+        expect(client.attachments.getAttachmentsForPlanEntry).toHaveBeenCalledWith(9, 10);
         expect(out).toHaveBeenCalledWith([{ id: 5 }]);
     });
 
@@ -158,7 +162,7 @@ describe('attachment list handlers', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'] });
         await expect(handleAttachmentListForCase(ctx)).rejects.toThrow();
-        expect(client.getAttachmentsForCase).not.toHaveBeenCalled();
+        expect(client.attachments.getAttachmentsForCase).not.toHaveBeenCalled();
     });
 });
 
@@ -178,7 +182,7 @@ describe('handleAttachmentGet', () => {
         const p = join(tmp, 'fetched.bin');
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: p });
         await handleAttachmentGet(ctx);
-        expect(client.getAttachment).toHaveBeenCalledWith(42);
+        expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
         expect(existsSync(p)).toBe(true);
         expect(Array.from(readFileSync(p))).toEqual([7, 8, 9]);
         expect(out).toHaveBeenCalledWith({ attachmentId: 42, out: p, size: 3 });
@@ -188,7 +192,7 @@ describe('handleAttachmentGet', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'] });
         await expect(handleAttachmentGet(ctx)).rejects.toThrow('--out <path> required');
-        expect(client.getAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.getAttachment).not.toHaveBeenCalled();
     });
 
     it('refuses to overwrite without --force', async () => {
@@ -197,7 +201,7 @@ describe('handleAttachmentGet', () => {
         writeFileSync(p, 'old');
         const { ctx } = buildCtx(client, { pathParams: ['42'], out: p });
         await expect(handleAttachmentGet(ctx)).rejects.toThrow('Refusing to overwrite');
-        expect(client.getAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.getAttachment).not.toHaveBeenCalled();
     });
 
     it('--force overwrites', async () => {
@@ -214,7 +218,7 @@ describe('handleAttachmentGet', () => {
         const p = join(tmp, 'preview.bin');
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: p, dryRun: true });
         await handleAttachmentGet(ctx);
-        expect(client.getAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.getAttachment).not.toHaveBeenCalled();
         expect(existsSync(p)).toBe(false);
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
@@ -243,7 +247,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath });
         await handleAttachmentAddToCase(ctx);
-        expect(client.addAttachmentToCase).toHaveBeenCalledWith(
+        expect(client.attachments.addAttachmentToCase).toHaveBeenCalledWith(
             42,
             expect.objectContaining({ path: filePath }),
             'shot.png',
@@ -255,14 +259,14 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'] });
         await expect(handleAttachmentAddToCase(ctx)).rejects.toThrow('--file <path> required');
-        expect(client.addAttachmentToCase).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToCase).not.toHaveBeenCalled();
     });
 
     it('add-to-case dry-run skips API call and emits stat preview', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath, dryRun: true });
         await handleAttachmentAddToCase(ctx);
-        expect(client.addAttachmentToCase).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToCase).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'attachment add-to-case',
@@ -281,7 +285,7 @@ describe('attachment upload handlers', () => {
             filename: 'renamed.png',
         });
         await handleAttachmentAddToCase(ctx);
-        expect(client.addAttachmentToCase).toHaveBeenCalledWith(
+        expect(client.attachments.addAttachmentToCase).toHaveBeenCalledWith(
             42,
             expect.objectContaining({ path: filePath }),
             'renamed.png',
@@ -292,7 +296,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['77'], file: filePath });
         await handleAttachmentAddToResult(ctx);
-        expect(client.addAttachmentToResult).toHaveBeenCalledWith(
+        expect(client.attachments.addAttachmentToResult).toHaveBeenCalledWith(
             77,
             expect.objectContaining({ path: filePath }),
             'shot.png',
@@ -306,7 +310,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['77'], file: filePath, dryRun: true });
         await handleAttachmentAddToResult(ctx);
-        expect(client.addAttachmentToResult).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToResult).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'attachment add-to-result', resultId: 77 }),
         );
@@ -316,7 +320,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['88'], file: filePath });
         await handleAttachmentAddToRun(ctx);
-        expect(client.addAttachmentToRun).toHaveBeenCalledWith(
+        expect(client.attachments.addAttachmentToRun).toHaveBeenCalledWith(
             88,
             expect.objectContaining({ path: filePath }),
             'shot.png',
@@ -327,7 +331,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['88'], file: filePath, dryRun: true });
         await handleAttachmentAddToRun(ctx);
-        expect(client.addAttachmentToRun).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToRun).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'attachment add-to-run', runId: 88 }),
         );
@@ -337,7 +341,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['99'], file: filePath });
         await handleAttachmentAddToPlan(ctx);
-        expect(client.addAttachmentToPlan).toHaveBeenCalledWith(
+        expect(client.attachments.addAttachmentToPlan).toHaveBeenCalledWith(
             99,
             expect.objectContaining({ path: filePath }),
             'shot.png',
@@ -348,7 +352,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['99'], file: filePath, dryRun: true });
         await handleAttachmentAddToPlan(ctx);
-        expect(client.addAttachmentToPlan).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToPlan).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({ dryRun: true, action: 'attachment add-to-plan', planId: 99 }),
         );
@@ -358,7 +362,7 @@ describe('attachment upload handlers', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['9', '10'], file: filePath });
         await handleAttachmentAddToPlanEntry(ctx);
-        expect(client.addAttachmentToPlanEntry).toHaveBeenCalledWith(
+        expect(client.attachments.addAttachmentToPlanEntry).toHaveBeenCalledWith(
             9,
             10,
             expect.objectContaining({ path: filePath }),
@@ -374,7 +378,7 @@ describe('attachment upload handlers', () => {
             dryRun: true,
         });
         await handleAttachmentAddToPlanEntry(ctx);
-        expect(client.addAttachmentToPlanEntry).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToPlanEntry).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'attachment add-to-plan-entry',
@@ -417,7 +421,7 @@ describe("attachment upload handlers with --file '-'", () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-' });
         await handleAttachmentAddToCase(ctx);
-        const call = client.addAttachmentToCase.mock.calls[0];
+        const call = client.attachments.addAttachmentToCase.mock.calls[0];
         expect(call).toBeDefined();
         if (call === undefined) return;
         expect(call[0]).toBe(42);
@@ -430,7 +434,7 @@ describe("attachment upload handlers with --file '-'", () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-', filename: 'crash.txt' });
         await handleAttachmentAddToCase(ctx);
-        expect(client.addAttachmentToCase).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'crash.txt');
+        expect(client.attachments.addAttachmentToCase).toHaveBeenCalledWith(42, expect.any(Uint8Array), 'crash.txt');
     });
 
     it('add-to-case --file - --dry-run does NOT drain stdin and reports source', async () => {
@@ -452,7 +456,7 @@ describe("attachment upload handlers with --file '-'", () => {
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: '-', dryRun: true });
         await handleAttachmentAddToCase(ctx);
         expect(drainedBytes).toBe(0);
-        expect(client.addAttachmentToCase).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToCase).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'attachment add-to-case',
@@ -469,7 +473,7 @@ describe("attachment upload handlers with --file '-'", () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'], file: '-' });
         await expect(handleAttachmentAddToCase(ctx)).rejects.toThrow(/stdin to be piped/);
-        expect(client.addAttachmentToCase).not.toHaveBeenCalled();
+        expect(client.attachments.addAttachmentToCase).not.toHaveBeenCalled();
     });
 });
 
@@ -502,7 +506,7 @@ describe("attachment get with --out '-'", () => {
         const client = buildClient();
         const { ctx, out, errRaw } = buildCtx(client, { pathParams: ['42'], out: '-' });
         await handleAttachmentGet(ctx);
-        expect(client.getAttachment).toHaveBeenCalledWith(42);
+        expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
         // out (stdout JSON) must not be called; the binary went straight to stdout.write
         expect(out).not.toHaveBeenCalled();
         expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
@@ -526,7 +530,7 @@ describe("attachment get with --out '-'", () => {
         const minimalCtx = { ...ctx };
         delete (minimalCtx as { errRaw?: unknown }).errRaw;
         await handleAttachmentGet(minimalCtx);
-        expect(client.getAttachment).toHaveBeenCalledWith(42);
+        expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
         expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
     });
 
@@ -546,7 +550,7 @@ describe("attachment get with --out '-'", () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: '-', dryRun: true });
         await handleAttachmentGet(ctx);
-        expect(client.getAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.getAttachment).not.toHaveBeenCalled();
         expect(stdoutBytes.length).toBe(0);
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
@@ -564,14 +568,14 @@ describe('handleAttachmentDelete', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['42'] });
         await expect(handleAttachmentDelete(ctx)).rejects.toThrow('--yes to confirm');
-        expect(client.deleteAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
     });
 
     it('deletes when --yes is set', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true });
         await handleAttachmentDelete(ctx);
-        expect(client.deleteAttachment).toHaveBeenCalledWith(42);
+        expect(client.attachments.deleteAttachment).toHaveBeenCalledWith(42);
         expect(out).toHaveBeenCalledWith({ attachmentId: 42, deleted: true });
     });
 
@@ -583,7 +587,7 @@ describe('handleAttachmentDelete', () => {
             confirmDestructive: true,
         });
         await handleAttachmentDelete(ctx);
-        expect(client.deleteAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'attachment delete',
@@ -596,7 +600,7 @@ describe('handleAttachmentDelete', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['42'], dryRun: true });
         await handleAttachmentDelete(ctx);
-        expect(client.deleteAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'attachment delete',
@@ -609,6 +613,6 @@ describe('handleAttachmentDelete', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'], confirmDestructive: true });
         await expect(handleAttachmentDelete(ctx)).rejects.toThrow();
-        expect(client.deleteAttachment).not.toHaveBeenCalled();
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
     });
 });

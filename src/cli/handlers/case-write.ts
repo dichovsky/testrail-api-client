@@ -16,7 +16,7 @@ export const handleCaseAdd = createWriteHandler({
     action: 'case add',
     pathParams: ['section_id'],
     bodySchema: AddCasePayloadSchema,
-    call: (client, [sectionId], body) => client.addCase(sectionId, body),
+    call: (client, [sectionId], body) => client.cases.addCase(sectionId, body),
 });
 
 /**
@@ -30,35 +30,35 @@ export const handleCaseAddBulk = createWriteHandler({
     pathParams: ['section_id'],
     bodySchema: AddCasesBulkPayloadSchema,
     previewExtras: (body) => ({ count: body.length }),
-    call: (client, [sectionId], body) => client.addCases(sectionId, body),
+    call: (client, [sectionId], body) => client.cases.addCases(sectionId, body),
 });
 
 export const handleCaseUpdate = createWriteHandler({
     action: 'case update',
     pathParams: ['case_id'],
     bodySchema: UpdateCasePayloadSchema,
-    call: (client, [caseId], body) => client.updateCase(caseId, body),
+    call: (client, [caseId], body) => client.cases.updateCase(caseId, body),
 });
 
 export const handleCaseUpdateBulk = createWriteHandler({
     action: 'case update-bulk',
     pathParams: ['suite_id'],
     bodySchema: UpdateCasesPayloadSchema,
-    call: (client, [suiteId], body) => client.updateCases(suiteId, body),
+    call: (client, [suiteId], body) => client.cases.updateCases(suiteId, body),
 });
 
 export const handleCaseCopyToSection = createWriteHandler({
     action: 'case copy-to-section',
     pathParams: ['section_id'],
     bodySchema: CopyCasesToSectionPayloadSchema,
-    call: (client, [sectionId], body) => client.copyCasesToSection(sectionId, body),
+    call: (client, [sectionId], body) => client.cases.copyCasesToSection(sectionId, body),
 });
 
 export const handleCaseMoveToSection = createWriteHandler({
     action: 'case move-to-section',
     pathParams: ['section_id'],
     bodySchema: MoveCasesToSectionPayloadSchema,
-    call: (client, [sectionId], body) => client.moveCasesToSection(sectionId, body),
+    call: (client, [sectionId], body) => client.cases.moveCasesToSection(sectionId, body),
     formatOutput: ([sectionId]) => ({ sectionId, moved: true }),
 });
 
@@ -70,7 +70,7 @@ export const handleCaseDelete = createDestructiveHandler({
     action: 'case delete',
     pathParams: ['case_id'],
     softMode: 'optional',
-    call: (client, [caseId], _entry, soft) => client.deleteCase(caseId, { soft }),
+    call: (client, [caseId], _entry, soft) => client.cases.deleteCase(caseId, { soft }),
 });
 
 /**
@@ -110,10 +110,10 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
     }
 
     if (soft) {
-        const preview = await ctx.client.deleteCases(suiteId, projectId, body.payload, { soft: true });
+        const preview = await ctx.client.cases.deleteCases(suiteId, projectId, body.payload, { soft: true });
         ctx.out({ suiteId, projectId, soft: true, deleted: false, preview });
         return;
     }
-    await ctx.client.deleteCases(suiteId, projectId, body.payload, { soft: false });
+    await ctx.client.cases.deleteCases(suiteId, projectId, body.payload, { soft: false });
     ctx.out({ suiteId, projectId, soft: false, deleted: true });
 }

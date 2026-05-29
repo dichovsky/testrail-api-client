@@ -16,5 +16,5 @@ export async function handleCaseFieldList(ctx: HandlerContext): Promise<void> {
             `case-field list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getCaseFields());
+    ctx.out(await ctx.client.metadata.getCaseFields());
 }

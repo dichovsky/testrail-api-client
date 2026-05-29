@@ -28,7 +28,7 @@ export async function handleGroupAdd(ctx: HandlerContext): Promise<void> {
         });
         return;
     }
-    ctx.out(await ctx.client.addGroup(body.payload));
+    ctx.out(await ctx.client.users.addGroup(body.payload));
 }
 
 /**
@@ -39,7 +39,7 @@ export const handleGroupUpdate = createWriteHandler({
     action: 'group update',
     pathParams: ['group_id'],
     bodySchema: UpdateGroupPayloadSchema,
-    call: (client, [groupId], body) => client.updateGroup(groupId, body),
+    call: (client, [groupId], body) => client.users.updateGroup(groupId, body),
 });
 
 /**
@@ -50,5 +50,5 @@ export const handleGroupUpdate = createWriteHandler({
 export const handleGroupDelete = createDestructiveHandler({
     action: 'group delete',
     pathParams: ['group_id'],
-    call: (client, [groupId]) => client.deleteGroup(groupId),
+    call: (client, [groupId]) => client.users.deleteGroup(groupId),
 });

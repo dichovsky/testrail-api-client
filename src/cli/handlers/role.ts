@@ -14,5 +14,5 @@ export async function handleRoleList(ctx: HandlerContext): Promise<void> {
             `role list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getRoles());
+    ctx.out(await ctx.client.metadata.getRoles());
 }

@@ -5,9 +5,254 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.0.0] — Facade collapse release
 
-Internal refactors — no public API or CLI behaviour change.
+One library-API breaking change ships in this major: the flat client facade is
+gone. Everything else in 5.0.0 is internal refactoring carried over from the
+unreleased 4.x line — no other public API or CLI behaviour change.
+
+### Removed (BREAKING)
+
+- **The flat `TestRailClient` facade is removed (ARCH #7).** Every endpoint used
+  to be reachable two ways — flat (`client.getProject(1)`) and namespaced
+  (`client.projects.getProject(1)`). The ~131 flat wrapper methods on
+  `client.ts` were pure pass-throughs to the module fields and have been
+  deleted. The 18 `public readonly` domain modules
+  (`client.projects`, `client.runs`, `client.results`, …) are now the **single
+  access path**. This is a **pure rename — no behaviour, signature, argument, or
+  return-type change**; only the call path moved from `client.<method>(…)` to
+  `client.<module>.<method>(…)`.
+
+    **Migration.** Insert the owning module field between `client` and the method
+    name. Most flat names map to the namesake module (`getProject` →
+    `projects.getProject`); the non-obvious ones are: the metadata reads
+    (`getStatuses`, `getCaseStatuses`, `getPriorities`, `getResultFields`,
+    `getCaseFields`, `addCaseField`, `getCaseTypes`, `getTemplates`, `getRoles`)
+    → `metadata.*`; the group methods (`getGroup`, `getGroups`, `addGroup`,
+    `updateGroup`, `deleteGroup`) → `users.*`; the plan-entry run methods
+    (`addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry`) →
+    `plans.*`; and the BDD methods (`getBdd`, `addBdd`) → `bdd.*`.
+
+    A mechanical rename covers the common case (run per flat method name):
+
+    ```bash
+    # e.g. for the projects module
+    sed -i '' -E 's/\bclient\.(getProject|getProjects|addProject|updateProject|deleteProject)\b/client.projects.\1/g' your-file.ts
+    ```
+
+    Full mapping, grouped by module:
+
+    <details>
+    <summary>117 flat methods → namespaced (click to expand)</summary>
+
+    #### `projects`
+
+    | Before (removed)          | After                              |
+    | ------------------------- | ---------------------------------- |
+    | `client.getProject(…)`    | `client.projects.getProject(…)`    |
+    | `client.getProjects(…)`   | `client.projects.getProjects(…)`   |
+    | `client.addProject(…)`    | `client.projects.addProject(…)`    |
+    | `client.updateProject(…)` | `client.projects.updateProject(…)` |
+    | `client.deleteProject(…)` | `client.projects.deleteProject(…)` |
+
+    #### `suites`
+
+    | Before (removed)        | After                          |
+    | ----------------------- | ------------------------------ |
+    | `client.getSuite(…)`    | `client.suites.getSuite(…)`    |
+    | `client.getSuites(…)`   | `client.suites.getSuites(…)`   |
+    | `client.addSuite(…)`    | `client.suites.addSuite(…)`    |
+    | `client.updateSuite(…)` | `client.suites.updateSuite(…)` |
+    | `client.deleteSuite(…)` | `client.suites.deleteSuite(…)` |
+
+    #### `sections`
+
+    | Before (removed)          | After                              |
+    | ------------------------- | ---------------------------------- |
+    | `client.getSection(…)`    | `client.sections.getSection(…)`    |
+    | `client.getSections(…)`   | `client.sections.getSections(…)`   |
+    | `client.addSection(…)`    | `client.sections.addSection(…)`    |
+    | `client.updateSection(…)` | `client.sections.updateSection(…)` |
+    | `client.deleteSection(…)` | `client.sections.deleteSection(…)` |
+    | `client.moveSection(…)`   | `client.sections.moveSection(…)`   |
+
+    #### `cases`
+
+    | Before (removed)               | After                                |
+    | ------------------------------ | ------------------------------------ |
+    | `client.getCase(…)`            | `client.cases.getCase(…)`            |
+    | `client.getCases(…)`           | `client.cases.getCases(…)`           |
+    | `client.addCase(…)`            | `client.cases.addCase(…)`            |
+    | `client.addCases(…)`           | `client.cases.addCases(…)`           |
+    | `client.updateCase(…)`         | `client.cases.updateCase(…)`         |
+    | `client.updateCases(…)`        | `client.cases.updateCases(…)`        |
+    | `client.deleteCase(…)`         | `client.cases.deleteCase(…)`         |
+    | `client.deleteCases(…)`        | `client.cases.deleteCases(…)`        |
+    | `client.copyCasesToSection(…)` | `client.cases.copyCasesToSection(…)` |
+    | `client.moveCasesToSection(…)` | `client.cases.moveCasesToSection(…)` |
+    | `client.getHistoryForCase(…)`  | `client.cases.getHistoryForCase(…)`  |
+
+    #### `plans`
+
+    | Before (removed)                   | After                                    |
+    | ---------------------------------- | ---------------------------------------- |
+    | `client.getPlan(…)`                | `client.plans.getPlan(…)`                |
+    | `client.getPlans(…)`               | `client.plans.getPlans(…)`               |
+    | `client.addPlan(…)`                | `client.plans.addPlan(…)`                |
+    | `client.updatePlan(…)`             | `client.plans.updatePlan(…)`             |
+    | `client.closePlan(…)`              | `client.plans.closePlan(…)`              |
+    | `client.deletePlan(…)`             | `client.plans.deletePlan(…)`             |
+    | `client.addPlanEntry(…)`           | `client.plans.addPlanEntry(…)`           |
+    | `client.updatePlanEntry(…)`        | `client.plans.updatePlanEntry(…)`        |
+    | `client.deletePlanEntry(…)`        | `client.plans.deletePlanEntry(…)`        |
+    | `client.addRunToPlanEntry(…)`      | `client.plans.addRunToPlanEntry(…)`      |
+    | `client.updateRunInPlanEntry(…)`   | `client.plans.updateRunInPlanEntry(…)`   |
+    | `client.deleteRunFromPlanEntry(…)` | `client.plans.deleteRunFromPlanEntry(…)` |
+
+    #### `runs`
+
+    | Before (removed)      | After                      |
+    | --------------------- | -------------------------- |
+    | `client.getRun(…)`    | `client.runs.getRun(…)`    |
+    | `client.getRuns(…)`   | `client.runs.getRuns(…)`   |
+    | `client.addRun(…)`    | `client.runs.addRun(…)`    |
+    | `client.updateRun(…)` | `client.runs.updateRun(…)` |
+    | `client.closeRun(…)`  | `client.runs.closeRun(…)`  |
+    | `client.deleteRun(…)` | `client.runs.deleteRun(…)` |
+
+    #### `tests`
+
+    | Before (removed)     | After                      |
+    | -------------------- | -------------------------- |
+    | `client.getTest(…)`  | `client.tests.getTest(…)`  |
+    | `client.getTests(…)` | `client.tests.getTests(…)` |
+
+    #### `results`
+
+    | Before (removed)               | After                                  |
+    | ------------------------------ | -------------------------------------- |
+    | `client.getResults(…)`         | `client.results.getResults(…)`         |
+    | `client.getResultsForCase(…)`  | `client.results.getResultsForCase(…)`  |
+    | `client.getResultsForRun(…)`   | `client.results.getResultsForRun(…)`   |
+    | `client.addResult(…)`          | `client.results.addResult(…)`          |
+    | `client.addResultForCase(…)`   | `client.results.addResultForCase(…)`   |
+    | `client.addResultsForCases(…)` | `client.results.addResultsForCases(…)` |
+    | `client.addResults(…)`         | `client.results.addResults(…)`         |
+
+    #### `milestones`
+
+    | Before (removed)            | After                                  |
+    | --------------------------- | -------------------------------------- |
+    | `client.getMilestone(…)`    | `client.milestones.getMilestone(…)`    |
+    | `client.getMilestones(…)`   | `client.milestones.getMilestones(…)`   |
+    | `client.addMilestone(…)`    | `client.milestones.addMilestone(…)`    |
+    | `client.updateMilestone(…)` | `client.milestones.updateMilestone(…)` |
+    | `client.deleteMilestone(…)` | `client.milestones.deleteMilestone(…)` |
+
+    #### `users` (includes groups)
+
+    | Before (removed)           | After                            |
+    | -------------------------- | -------------------------------- |
+    | `client.getUser(…)`        | `client.users.getUser(…)`        |
+    | `client.getUserByEmail(…)` | `client.users.getUserByEmail(…)` |
+    | `client.getUsers(…)`       | `client.users.getUsers(…)`       |
+    | `client.getCurrentUser(…)` | `client.users.getCurrentUser(…)` |
+    | `client.addUser(…)`        | `client.users.addUser(…)`        |
+    | `client.updateUser(…)`     | `client.users.updateUser(…)`     |
+    | `client.getGroup(…)`       | `client.users.getGroup(…)`       |
+    | `client.getGroups(…)`      | `client.users.getGroups(…)`      |
+    | `client.addGroup(…)`       | `client.users.addGroup(…)`       |
+    | `client.updateGroup(…)`    | `client.users.updateGroup(…)`    |
+    | `client.deleteGroup(…)`    | `client.users.deleteGroup(…)`    |
+
+    #### `metadata` (statuses, priorities, fields, types, templates, roles)
+
+    | Before (removed)            | After                                |
+    | --------------------------- | ------------------------------------ |
+    | `client.getStatuses(…)`     | `client.metadata.getStatuses(…)`     |
+    | `client.getCaseStatuses(…)` | `client.metadata.getCaseStatuses(…)` |
+    | `client.getPriorities(…)`   | `client.metadata.getPriorities(…)`   |
+    | `client.getResultFields(…)` | `client.metadata.getResultFields(…)` |
+    | `client.getCaseFields(…)`   | `client.metadata.getCaseFields(…)`   |
+    | `client.addCaseField(…)`    | `client.metadata.addCaseField(…)`    |
+    | `client.getCaseTypes(…)`    | `client.metadata.getCaseTypes(…)`    |
+    | `client.getTemplates(…)`    | `client.metadata.getTemplates(…)`    |
+    | `client.getRoles(…)`        | `client.metadata.getRoles(…)`        |
+
+    #### `configurations`
+
+    | Before (removed)                     | After                                               |
+    | ------------------------------------ | --------------------------------------------------- |
+    | `client.getConfigurations(…)`        | `client.configurations.getConfigurations(…)`        |
+    | `client.addConfigurationGroup(…)`    | `client.configurations.addConfigurationGroup(…)`    |
+    | `client.updateConfigurationGroup(…)` | `client.configurations.updateConfigurationGroup(…)` |
+    | `client.deleteConfigurationGroup(…)` | `client.configurations.deleteConfigurationGroup(…)` |
+    | `client.addConfiguration(…)`         | `client.configurations.addConfiguration(…)`         |
+    | `client.updateConfiguration(…)`      | `client.configurations.updateConfiguration(…)`      |
+    | `client.deleteConfiguration(…)`      | `client.configurations.deleteConfiguration(…)`      |
+
+    #### `attachments`
+
+    | Before (removed)                       | After                                              |
+    | -------------------------------------- | -------------------------------------------------- |
+    | `client.getAttachmentsForCase(…)`      | `client.attachments.getAttachmentsForCase(…)`      |
+    | `client.getAttachmentsForRun(…)`       | `client.attachments.getAttachmentsForRun(…)`       |
+    | `client.getAttachmentsForTest(…)`      | `client.attachments.getAttachmentsForTest(…)`      |
+    | `client.getAttachmentsForPlan(…)`      | `client.attachments.getAttachmentsForPlan(…)`      |
+    | `client.getAttachmentsForPlanEntry(…)` | `client.attachments.getAttachmentsForPlanEntry(…)` |
+    | `client.getAttachment(…)`              | `client.attachments.getAttachment(…)`              |
+    | `client.addAttachmentToCase(…)`        | `client.attachments.addAttachmentToCase(…)`        |
+    | `client.addAttachmentToResult(…)`      | `client.attachments.addAttachmentToResult(…)`      |
+    | `client.addAttachmentToRun(…)`         | `client.attachments.addAttachmentToRun(…)`         |
+    | `client.addAttachmentToPlan(…)`        | `client.attachments.addAttachmentToPlan(…)`        |
+    | `client.addAttachmentToPlanEntry(…)`   | `client.attachments.addAttachmentToPlanEntry(…)`   |
+    | `client.deleteAttachment(…)`           | `client.attachments.deleteAttachment(…)`           |
+
+    #### `bdd`
+
+    | Before (removed)   | After                  |
+    | ------------------ | ---------------------- |
+    | `client.getBdd(…)` | `client.bdd.getBdd(…)` |
+    | `client.addBdd(…)` | `client.bdd.addBdd(…)` |
+
+    #### `sharedSteps`
+
+    | Before (removed)                 | After                                        |
+    | -------------------------------- | -------------------------------------------- |
+    | `client.getSharedStep(…)`        | `client.sharedSteps.getSharedStep(…)`        |
+    | `client.getSharedSteps(…)`       | `client.sharedSteps.getSharedSteps(…)`       |
+    | `client.addSharedStep(…)`        | `client.sharedSteps.addSharedStep(…)`        |
+    | `client.updateSharedStep(…)`     | `client.sharedSteps.updateSharedStep(…)`     |
+    | `client.deleteSharedStep(…)`     | `client.sharedSteps.deleteSharedStep(…)`     |
+    | `client.getSharedStepHistory(…)` | `client.sharedSteps.getSharedStepHistory(…)` |
+
+    #### `variables`
+
+    | Before (removed)           | After                                |
+    | -------------------------- | ------------------------------------ |
+    | `client.getVariables(…)`   | `client.variables.getVariables(…)`   |
+    | `client.addVariable(…)`    | `client.variables.addVariable(…)`    |
+    | `client.updateVariable(…)` | `client.variables.updateVariable(…)` |
+    | `client.deleteVariable(…)` | `client.variables.deleteVariable(…)` |
+
+    #### `datasets`
+
+    | Before (removed)          | After                              |
+    | ------------------------- | ---------------------------------- |
+    | `client.getDataset(…)`    | `client.datasets.getDataset(…)`    |
+    | `client.getDatasets(…)`   | `client.datasets.getDatasets(…)`   |
+    | `client.addDataset(…)`    | `client.datasets.addDataset(…)`    |
+    | `client.updateDataset(…)` | `client.datasets.updateDataset(…)` |
+    | `client.deleteDataset(…)` | `client.datasets.deleteDataset(…)` |
+
+    #### `reports`
+
+    | Before (removed)       | After                          |
+    | ---------------------- | ------------------------------ |
+    | `client.getReports(…)` | `client.reports.getReports(…)` |
+    | `client.runReport(…)`  | `client.reports.runReport(…)`  |
+
+    </details>
 
 ### Changed
 

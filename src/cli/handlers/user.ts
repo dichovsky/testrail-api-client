@@ -3,13 +3,13 @@ import { parseId, optInt, IdParseError } from '../ids.js';
 
 export async function handleUserGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'user id');
-    ctx.out(await ctx.client.getUser(id));
+    ctx.out(await ctx.client.users.getUser(id));
 }
 
 export async function handleUserList(ctx: HandlerContext): Promise<void> {
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
-    ctx.out(await ctx.client.getUsers(limit, offset));
+    ctx.out(await ctx.client.users.getUsers(limit, offset));
 }
 
 /**
@@ -37,7 +37,7 @@ export async function handleUserGetByEmail(ctx: HandlerContext): Promise<void> {
     if (email === undefined || email.trim() === '') {
         throw new IdParseError('user get-by-email requires --email <addr> (non-empty).');
     }
-    ctx.out(await ctx.client.getUserByEmail(email.trim()));
+    ctx.out(await ctx.client.users.getUserByEmail(email.trim()));
 }
 
 /**
@@ -52,5 +52,5 @@ export async function handleUserGetCurrent(ctx: HandlerContext): Promise<void> {
             `user get-current takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.getCurrentUser());
+    ctx.out(await ctx.client.users.getCurrentUser());
 }

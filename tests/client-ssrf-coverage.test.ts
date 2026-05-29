@@ -51,7 +51,7 @@ describe('SSRF defense — DNS-resolved private IPv4 (isPrivateOrLoopbackIPv4 br
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+        await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
         expect(mockFetch).not.toHaveBeenCalled();
     }
 
@@ -68,7 +68,7 @@ describe('SSRF defense — DNS-resolved private IPv4 (isPrivateOrLoopbackIPv4 br
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     }
 
     it('rejects 10.x.x.x — exercises the o0 === 10 branch', async () => {
@@ -134,7 +134,7 @@ describe('SSRF defense — DNS-resolved IPv6 (isPrivateOrLoopbackIP branches)', 
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).rejects.toThrow(TestRailValidationError);
+        await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
         expect(mockFetch).not.toHaveBeenCalled();
     }
 
@@ -235,7 +235,7 @@ describe('SSRF defense — DNS-resolved IPv6 (isPrivateOrLoopbackIP branches)', 
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 });
 
@@ -262,7 +262,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 
     it('handles malformed IPv4 from DNS gracefully (non-4-part, non-numeric octet)', async () => {
@@ -285,7 +285,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 
     it('handles an out-of-range IPv4 octet from DNS (e.g. "1.2.3.999")', async () => {
@@ -307,7 +307,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 
     it('treats a lookup whose family is neither 4 nor 6 as non-private (ipFamily !== 6 fall-through)', async () => {
@@ -334,7 +334,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 
     it('rethrows TestRailValidationError raised inside the dns.lookup try block (line 154)', async () => {
@@ -350,7 +350,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).rejects.toThrow(inner);
+        await expect(client.projects.getProject(1)).rejects.toThrow(inner);
     });
 
     it('accepts a public IPv6 URL literal at request time (exercises validatePublicHost IP-literal pass-through)', async () => {
@@ -375,7 +375,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             apiKey: 'key',
             allowInsecure: true,
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -396,7 +396,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             apiKey: 'key',
             allowInsecure: true,
         });
-        await expect(client.getProject(1)).resolves.toBeDefined();
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -410,6 +410,6 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.getProject(1)).rejects.toThrow(/Unknown error|DNS validation failed/);
+        await expect(client.projects.getProject(1)).rejects.toThrow(/Unknown error|DNS validation failed/);
     });
 });

@@ -9,7 +9,7 @@ import { createWriteHandler } from '../write-handler-factory.js';
 export const handleUserAdd = createWriteHandler({
     action: 'user add',
     bodySchema: UserAddPayloadSchema,
-    call: (client, _nums, body) => client.addUser(body),
+    call: (client, _nums, body) => client.users.addUser(body),
 });
 
 /**
@@ -20,5 +20,5 @@ export const handleUserUpdate = createWriteHandler({
     action: 'user update',
     pathParams: ['user_id'],
     bodySchema: UserUpdatePayloadSchema,
-    call: (client, [userId], body) => client.updateUser(userId, body),
+    call: (client, [userId], body) => client.users.updateUser(userId, body),
 });

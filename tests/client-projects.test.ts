@@ -22,7 +22,7 @@ describe('Project CRUD', () => {
             const mockProject: Project = { id: 10, name: 'New Project', suite_mode: 1, url: 'url' };
             mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
-            const result = await client.addProject(payload);
+            const result = await client.projects.addProject(payload);
             expect(result).toEqual(mockProject);
         });
 
@@ -30,7 +30,7 @@ describe('Project CRUD', () => {
             const payload: AddProjectPayload = { name: 'New Project', suite_mode: 1 };
             mockFetch.mockResolvedValueOnce(mockErr(500, 'Server Error', 'Boom'));
 
-            await expect(client.addProject(payload)).rejects.toThrow('TestRail API error: 500 Server Error');
+            await expect(client.projects.addProject(payload)).rejects.toThrow('TestRail API error: 500 Server Error');
         });
     });
 
@@ -40,34 +40,34 @@ describe('Project CRUD', () => {
             const mockProject: Project = { id: 1, name: 'Updated', suite_mode: 1, url: 'url' };
             mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
-            const result = await client.updateProject(1, payload);
+            const result = await client.projects.updateProject(1, payload);
             expect(result).toEqual(mockProject);
         });
 
         it('invalid id', async () => {
-            await expect(client.updateProject(0, {})).rejects.toThrow('projectId must be a positive integer');
+            await expect(client.projects.updateProject(0, {})).rejects.toThrow('projectId must be a positive integer');
         });
 
         it('api error', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', 'Invalid'));
-            await expect(client.updateProject(1, {})).rejects.toThrow('TestRail API error: 400 Bad Request');
+            await expect(client.projects.updateProject(1, {})).rejects.toThrow('TestRail API error: 400 Bad Request');
         });
     });
 
     describe('deleteProject', () => {
         it('success', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            const result = await client.deleteProject(1);
+            const result = await client.projects.deleteProject(1);
             expect(result).toBeUndefined();
         });
 
         it('invalid id', async () => {
-            await expect(client.deleteProject(-1)).rejects.toThrow('projectId must be a positive integer');
+            await expect(client.projects.deleteProject(-1)).rejects.toThrow('projectId must be a positive integer');
         });
 
         it('api error', async () => {
             mockFetch.mockResolvedValueOnce(mockErr(500, 'Server Error', 'Boom'));
-            await expect(client.deleteProject(1)).rejects.toThrow('TestRail API error: 500 Server Error');
+            await expect(client.projects.deleteProject(1)).rejects.toThrow('TestRail API error: 500 Server Error');
         });
     });
 });

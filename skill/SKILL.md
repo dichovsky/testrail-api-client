@@ -1361,7 +1361,7 @@ testrail user add --data-file ./new-user.json --dry-run
 // Programmatic equivalent
 import { TestRailClient } from '@dichovsky/testrail-api-client';
 const client = new TestRailClient({ baseUrl, email, apiKey });
-const user = await client.addUser({ name: 'Alice Smith', email: 'alice@example.com', password: 's3cr3t', role_id: 3 });
+const user = await client.users.addUser({ name: 'Alice Smith', email: 'alice@example.com', password: 's3cr3t', role_id: 3 });
 console.log(user.id); // assigned user ID
 ```
 
@@ -1399,7 +1399,7 @@ testrail user update 42 --data '{"name":"Preview Name"}' --dry-run
 
 ```typescript
 // Programmatic equivalent
-const updated = await client.updateUser(42, { name: 'Alice Smith-Jones', role_id: 5 });
+const updated = await client.users.updateUser(42, { name: 'Alice Smith-Jones', role_id: 5 });
 ```
 
 ### 34. Add a single test result by test ID
@@ -1675,13 +1675,13 @@ import { TestRailClient } from '@dichovsky/testrail-api-client';
 const client = new TestRailClient({...});
 
 // Rename a configuration group.
-await client.updateConfigGroup(7, { name: 'Desktop Browsers' });
+await client.configurations.updateConfigurationGroup(7, { name: 'Desktop Browsers' });
 
 // Rename a leaf configuration.
-await client.updateConfig(12, { name: 'Chrome (v120+)' });
+await client.configurations.updateConfiguration(12, { name: 'Chrome (v120+)' });
 
 // List the tree to verify.
-const groups = await client.getConfigs(5);
+const groups = await client.configurations.getConfigurations(5);
 groups.forEach((g) => console.log(g.name, g.configs.map((c) => c.name)));
 ```
 
@@ -2066,9 +2066,9 @@ testrail user get-by-email --email alice@example.com | jq '.id'
 **Programmatic equivalents:**
 
 ```typescript
-const current = await client.getCurrentUser();
-const user = await client.getUser(5);
-const userByEmail = await client.getUserByEmail('alice@example.com');
+const current = await client.users.getCurrentUser();
+const user = await client.users.getUser(5);
+const userByEmail = await client.users.getUserByEmail('alice@example.com');
 ```
 
 ### 42. Group CRUD lifecycle (TestRail 7.5+)
@@ -2166,11 +2166,11 @@ testrail group delete 12 --dry-run
 **Programmatic equivalents:**
 
 ```typescript
-const group = await client.getGroup(12);
-const allGroups = await client.getGroups();
-const created = await client.addGroup({ name: 'QA West', user_ids: [5, 6] });
-const updated = await client.updateGroup(12, { name: 'QA West + Central' });
-await client.deleteGroup(12);
+const group = await client.users.getGroup(12);
+const allGroups = await client.users.getGroups();
+const created = await client.users.addGroup({ name: 'QA West', user_ids: [5, 6] });
+const updated = await client.users.updateGroup(12, { name: 'QA West + Central' });
+await client.users.deleteGroup(12);
 ```
 
 ### 43. Role list (TestRail permission roles)
@@ -2211,7 +2211,7 @@ testrail user add --data '{"name":"Charlie","email":"charlie@example.com","passw
 **Programmatic equivalent:**
 
 ```typescript
-const roles = await client.getRoles();
+const roles = await client.metadata.getRoles();
 ```
 
 
@@ -3049,9 +3049,9 @@ testrail case add 456 --data '{"title": "Critical path test", "priority_id": 5}'
 All three return typed arrays from the client:
 
 ```typescript
-const resultFields = await client.getResultFields();
-const statuses = await client.getStatuses();
-const priorities = await client.getPriorities();
+const resultFields = await client.metadata.getResultFields();
+const statuses = await client.metadata.getStatuses();
+const priorities = await client.metadata.getPriorities();
 
 // Find status ID for "Failed"
 const failedStatus = statuses.find(s => s.label === 'Failed');
@@ -3181,9 +3181,9 @@ testrail project delete 5 --yes
 
 ```typescript
 // Programmatic equivalents
-const created = await client.addProject({ name: 'Mobile QA', suite_mode: 1 });
-const renamed = await client.updateProject(created.id, { name: 'Mobile QA v2' });
-await client.deleteProject(renamed.id);
+const created = await client.projects.addProject({ name: 'Mobile QA', suite_mode: 1 });
+const renamed = await client.projects.updateProject(created.id, { name: 'Mobile QA v2' });
+await client.projects.deleteProject(renamed.id);
 ```
 
 ### 57. Tests: fetch by ID and list per run
@@ -3225,9 +3225,9 @@ testrail test list 42 | jq '.[] | select(.status_id == 3) | .id'
 
 ```typescript
 // Programmatic equivalent — drive a per-test CI publisher
-const tests = await client.getTests(42, { status_id: '3' }); // 3 = Untested
+const tests = await client.tests.getTests(42, { status_id: '3' }); // 3 = Untested
 for (const t of tests) {
-  await client.addResult(t.id, { status_id: 1, comment: 'auto-passed' });
+  await client.results.addResult(t.id, { status_id: 1, comment: 'auto-passed' });
 }
 ```
 
@@ -3257,7 +3257,7 @@ const client = new TestRailClient({
 });
 
 try {
-    const project = await client.getProject(1);
+    const project = await client.projects.getProject(1);
     console.log(project.name);
 } catch (e) {
     if (e instanceof TestRailApiError) {
@@ -3285,30 +3285,30 @@ for bad input).
 
 ```typescript
 // List projects (paginated by TestRail; the client returns the full page).
-const projects = await client.getProjects();
+const projects = await client.projects.getProjects();
 
 // Fetch one.
-const project = await client.getProject(1);
+const project = await client.projects.getProject(1);
 
 // Create (Zod-validated against AddProjectPayloadSchema).
-const created = await client.addProject({ name: 'CI', suite_mode: 1 });
+const created = await client.projects.addProject({ name: 'CI', suite_mode: 1 });
 
 // Update (partial fields).
-await client.updateProject(created.id, { name: 'CI (renamed)' });
+await client.projects.updateProject(created.id, { name: 'CI (renamed)' });
 
 // Delete — destructive; the client method runs immediately, so wrap it
 // behind your own --yes equivalent.
-await client.deleteProject(created.id);
+await client.projects.deleteProject(created.id);
 ```
 
 ### Suites & sections
 
 ```typescript
-const suites = await client.getSuites(1); // by project_id
-const suite = await client.addSuite(1, { name: 'Smoke' });
+const suites = await client.suites.getSuites(1); // by project_id
+const suite = await client.suites.addSuite(1, { name: 'Smoke' });
 
-const sections = await client.getSections(1, { suite_id: suite.id });
-const section = await client.addSection(1, {
+const sections = await client.sections.getSections(1, { suite_id: suite.id });
+const section = await client.sections.addSection(1, {
     suite_id: suite.id,
     name: 'Login',
 });
@@ -3317,52 +3317,52 @@ const section = await client.addSection(1, {
 ### Cases
 
 ```typescript
-const cases = await client.getCases(1, { suite_id: 5 });
-const c = await client.getCase(42);
+const cases = await client.cases.getCases(1, { suite_id: 5 });
+const c = await client.cases.getCase(42);
 
-const created = await client.addCase(section.id, {
+const created = await client.cases.addCase(section.id, {
     title: 'Login page accepts SSO redirect',
     type_id: 1,
     priority_id: 3,
 });
 
 // Bulk update many cases in a suite to the same field values.
-await client.updateCases(suite.id, {
+await client.cases.updateCases(suite.id, {
     case_ids: [1, 2, 3],
     priority_id: 4,
 });
 
 // Edit history (TestRail 7.5+; paginated).
-const history = await client.getHistoryForCase(42, { limit: 100 });
+const history = await client.cases.getHistoryForCase(42, { limit: 100 });
 ```
 
 ### Runs
 
 ```typescript
-const run = await client.addRun(1, {
+const run = await client.runs.addRun(1, {
     name: `CI build ${process.env.CI_BUILD_NUMBER}`,
     include_all: false,
     case_ids: [42, 43, 44],
 });
 
-const runs = await client.getRuns(1, { limit: 25 });
-await client.updateRun(run.id, { milestone_id: 7 });
+const runs = await client.runs.getRuns(1, { limit: 25 });
+await client.runs.updateRun(run.id, { milestone_id: 7 });
 
 // Close is irreversible — TestRail has no open_run.
-await client.closeRun(run.id);
+await client.runs.closeRun(run.id);
 ```
 
 ### Results
 
 ```typescript
 // One result at a time.
-const r1 = await client.addResultForCase(run.id, 42, {
+const r1 = await client.results.addResultForCase(run.id, 42, {
     status_id: 1,
     comment: 'passed',
 });
 
 // Bulk by case_id.
-await client.addResultsForCases(run.id, {
+await client.results.addResultsForCases(run.id, {
     results: [
         { case_id: 42, status_id: 1 },
         { case_id: 43, status_id: 5, comment: 'failed: timeout' },
@@ -3370,24 +3370,24 @@ await client.addResultsForCases(run.id, {
 });
 
 // Bulk by test_id (already-known test instances inside the run).
-await client.addResults(run.id, {
+await client.results.addResults(run.id, {
     results: [{ test_id: 1001, status_id: 1 }],
 });
 
 // Read.
-const results = await client.getResultsForRun(run.id, { limit: 100 });
-const forCase = await client.getResultsForCase(run.id, 42);
+const results = await client.results.getResultsForRun(run.id, { limit: 100 });
+const forCase = await client.results.getResultsForCase(run.id, 42);
 ```
 
 ### Milestones
 
 ```typescript
-const m = await client.addMilestone(1, {
+const m = await client.milestones.addMilestone(1, {
     name: 'v2.0',
     description: 'Q2 release',
 });
-await client.updateMilestone(m.id, { is_completed: true });
-const milestones = await client.getMilestones(1);
+await client.milestones.updateMilestone(m.id, { is_completed: true });
+const milestones = await client.milestones.getMilestones(1);
 ```
 
 ### Attachments
@@ -3397,77 +3397,77 @@ import { readFileSync } from 'node:fs';
 
 // Upload — pass a Buffer (or a Blob) plus a filename.
 const buf = readFileSync('./screenshot.png');
-const ack = await client.addAttachmentToCase(42, buf, 'screenshot.png');
+const ack = await client.attachments.addAttachmentToCase(42, buf, 'screenshot.png');
 console.log(ack.attachment_id);
 
 // Download — returns a Buffer; the caller writes to disk.
-const blob = await client.getAttachment(ack.attachment_id);
+const blob = await client.attachments.getAttachment(ack.attachment_id);
 // blob is Uint8Array | ArrayBuffer | Buffer depending on Node version;
 // see CODEMAP.md for the exact return type on your Node target.
 
 // Listings come from the case/run/test/plan/plan-entry the attachment is on.
-const list = await client.getAttachmentsForCase(42);
+const list = await client.attachments.getAttachmentsForCase(42);
 
 // Destructive — no built-in --yes gate; guard yourself.
-await client.deleteAttachment(ack.attachment_id);
+await client.attachments.deleteAttachment(ack.attachment_id);
 ```
 
 ### Plans
 
 ```typescript
-const plan = await client.addPlan(1, {
+const plan = await client.plans.addPlan(1, {
     name: 'Release smoke',
     entries: [{ suite_id: 5, include_all: true }],
 });
 
 // Add a config-specific run to an existing plan entry. Entry IDs are
 // UUID-style strings (NOT integers) — use the value from plan.entries[].id.
-await client.addRunToPlanEntry(plan.id, plan.entries[0].id, {
+await client.plans.addRunToPlanEntry(plan.id, plan.entries[0].id, {
     config_ids: [101, 102],
 });
 
-await client.updatePlanEntry(plan.id, plan.entries[0].id, {
+await client.plans.updatePlanEntry(plan.id, plan.entries[0].id, {
     name: 'Smoke (config matrix)',
 });
 
 // Close + delete are irreversible / destructive — guard with your own
 // confirmation step.
-await client.closePlan(plan.id);
+await client.plans.closePlan(plan.id);
 ```
 
 ### Users
 
 ```typescript
-const me = await client.getCurrentUser(); // TestRail 6.6+
-const byEmail = await client.getUserByEmail('alice@example.com');
-const user = await client.getUser(7);
-const users = await client.getUsers({ limit: 100 });
+const me = await client.users.getCurrentUser(); // TestRail 6.6+
+const byEmail = await client.users.getUserByEmail('alice@example.com');
+const user = await client.users.getUser(7);
+const users = await client.users.getUsers({ limit: 100 });
 ```
 
 ### Datasets & variables (data-driven testing)
 
 ```typescript
 // Variables live on the project; datasets reference them by name.
-const v = await client.addVariable(1, { name: 'env' });
-const d = await client.addDataset(1, { name: 'Staging matrix' });
+const v = await client.variables.addVariable(1, { name: 'env' });
+const d = await client.datasets.addDataset(1, { name: 'Staging matrix' });
 
-const datasets = await client.getDatasets(1);
-await client.updateDataset(d.id, { name: 'Production matrix' });
+const datasets = await client.datasets.getDatasets(1);
+await client.datasets.updateDataset(d.id, { name: 'Production matrix' });
 ```
 
 ### Groups (TestRail 7.5+)
 
 ```typescript
 // Instance-scoped — no project_id path param.
-const group = await client.addGroup({ name: 'QA', user_ids: [1, 2, 3] });
-const groups = await client.getGroups();
-await client.updateGroup(group.id, { name: 'QA (renamed)' });
+const group = await client.users.addGroup({ name: 'QA', user_ids: [1, 2, 3] });
+const groups = await client.users.getGroups();
+await client.users.updateGroup(group.id, { name: 'QA (renamed)' });
 ```
 
 ### Shared steps (TestRail 7.0+)
 
 ```typescript
-const step = await client.addSharedStep(1, {
+const step = await client.sharedSteps.addSharedStep(1, {
     title: 'Login as admin',
     custom_steps_separated: [
         { content: 'Open /login', expected: '200 OK' },
@@ -3478,18 +3478,18 @@ const step = await client.addSharedStep(1, {
 // Cases reference shared steps via the `custom_steps_separated[].shared_step_id`
 // field. Revising a shared step propagates to every referencing case on
 // the next read.
-await client.updateSharedStep(step.id, { title: 'Login as admin (v2)' });
+await client.sharedSteps.updateSharedStep(step.id, { title: 'Login as admin (v2)' });
 ```
 
 ### Configuration matrix (project → config_groups → configs)
 
 ```typescript
 // Tree fetch — one call returns groups with nested configs.
-const groups = await client.getConfigs(1);
+const groups = await client.configurations.getConfigurations(1);
 
 // Create a group (e.g. "Browsers") then a leaf config (e.g. "Chrome").
-const browsers = await client.addConfigGroup(1, { name: 'Browsers' });
-const chrome = await client.addConfig(browsers.id, { name: 'Chrome' });
+const browsers = await client.configurations.addConfigurationGroup(1, { name: 'Browsers' });
+const chrome = await client.configurations.addConfiguration(browsers.id, { name: 'Chrome' });
 
 // Wire into a plan entry's config matrix:
 //   plan_entry.config_ids = [chrome.id, ...]
@@ -3519,7 +3519,7 @@ const tuned = new TestRailClient({
 ```typescript
 async function safelyDeleteCase(id: number) {
     try {
-        await client.deleteCase(id);
+        await client.cases.deleteCase(id);
         return { ok: true as const };
     } catch (e) {
         if (e instanceof TestRailApiError) {

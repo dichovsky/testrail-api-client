@@ -5,14 +5,14 @@ export const handleSharedStepAdd = createWriteHandler({
     action: 'shared-step add',
     pathParams: ['project_id'],
     bodySchema: AddSharedStepPayloadSchema,
-    call: (client, [projectId], body) => client.addSharedStep(projectId, body),
+    call: (client, [projectId], body) => client.sharedSteps.addSharedStep(projectId, body),
 });
 
 export const handleSharedStepUpdate = createWriteHandler({
     action: 'shared-step update',
     pathParams: ['shared_step_id'],
     bodySchema: UpdateSharedStepPayloadSchema,
-    call: (client, [sharedStepId], body) => client.updateSharedStep(sharedStepId, body),
+    call: (client, [sharedStepId], body) => client.sharedSteps.updateSharedStep(sharedStepId, body),
 });
 
 /**
@@ -24,5 +24,5 @@ export const handleSharedStepUpdate = createWriteHandler({
 export const handleSharedStepDelete = createDestructiveHandler({
     action: 'shared-step delete',
     pathParams: ['shared_step_id'],
-    call: (client, [sharedStepId]) => client.deleteSharedStep(sharedStepId),
+    call: (client, [sharedStepId]) => client.sharedSteps.deleteSharedStep(sharedStepId),
 });

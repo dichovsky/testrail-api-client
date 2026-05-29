@@ -96,28 +96,28 @@ export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<vo
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
     const upload = await setupUpload(ctx, 'attachment add-to-case', { caseId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToCase(caseId, uploadPayload(upload), upload.filename));
+    ctx.out(await ctx.client.attachments.addAttachmentToCase(caseId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void> {
     const resultId = parseId(ctx.args.pathParams[0], 'result_id');
     const upload = await setupUpload(ctx, 'attachment add-to-result', { resultId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToResult(resultId, uploadPayload(upload), upload.filename));
+    ctx.out(await ctx.client.attachments.addAttachmentToResult(resultId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
     const upload = await setupUpload(ctx, 'attachment add-to-run', { runId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToRun(runId, uploadPayload(upload), upload.filename));
+    ctx.out(await ctx.client.attachments.addAttachmentToRun(runId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
     const upload = await setupUpload(ctx, 'attachment add-to-plan', { planId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToPlan(planId, uploadPayload(upload), upload.filename));
+    ctx.out(await ctx.client.attachments.addAttachmentToPlan(planId, uploadPayload(upload), upload.filename));
 }
 
 export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void> {
@@ -125,7 +125,9 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
     const entryId = parseId(ctx.args.pathParams[1], 'entry_id');
     const upload = await setupUpload(ctx, 'attachment add-to-plan-entry', { planId, entryId });
     if (upload === null) return;
-    ctx.out(await ctx.client.addAttachmentToPlanEntry(planId, entryId, uploadPayload(upload), upload.filename));
+    ctx.out(
+        await ctx.client.attachments.addAttachmentToPlanEntry(planId, entryId, uploadPayload(upload), upload.filename),
+    );
 }
 
 /**
@@ -135,5 +137,5 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
 export const handleAttachmentDelete = createDestructiveHandler({
     action: 'attachment delete',
     pathParams: ['attachment_id'],
-    call: (client, [attachmentId]) => client.deleteAttachment(attachmentId),
+    call: (client, [attachmentId]) => client.attachments.deleteAttachment(attachmentId),
 });

@@ -38,144 +38,180 @@ import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
-    getSection: ReturnType<typeof vi.fn>;
-    getSections: ReturnType<typeof vi.fn>;
-    getTest: ReturnType<typeof vi.fn>;
-    getTests: ReturnType<typeof vi.fn>;
-    getResults: ReturnType<typeof vi.fn>;
-    getResultsForCase: ReturnType<typeof vi.fn>;
-    getReports: ReturnType<typeof vi.fn>;
-    runReport: ReturnType<typeof vi.fn>;
-    getCaseFields: ReturnType<typeof vi.fn>;
-    getCaseStatuses: ReturnType<typeof vi.fn>;
-    getResultFields: ReturnType<typeof vi.fn>;
-    getStatuses: ReturnType<typeof vi.fn>;
-    getTemplates: ReturnType<typeof vi.fn>;
-    getVariables: ReturnType<typeof vi.fn>;
-    getGroup: ReturnType<typeof vi.fn>;
-    getGroups: ReturnType<typeof vi.fn>;
-    getDataset: ReturnType<typeof vi.fn>;
-    getDatasets: ReturnType<typeof vi.fn>;
-    getConfigurations: ReturnType<typeof vi.fn>;
-    getRoles: ReturnType<typeof vi.fn>;
-    getPriorities: ReturnType<typeof vi.fn>;
-    getCaseTypes: ReturnType<typeof vi.fn>;
-    getUserByEmail: ReturnType<typeof vi.fn>;
-    getCurrentUser: ReturnType<typeof vi.fn>;
+    configurations: {
+        getConfigurations: ReturnType<typeof vi.fn>;
+    };
+    datasets: {
+        getDataset: ReturnType<typeof vi.fn>;
+        getDatasets: ReturnType<typeof vi.fn>;
+    };
+    metadata: {
+        getCaseFields: ReturnType<typeof vi.fn>;
+        getCaseStatuses: ReturnType<typeof vi.fn>;
+        getResultFields: ReturnType<typeof vi.fn>;
+        getStatuses: ReturnType<typeof vi.fn>;
+        getTemplates: ReturnType<typeof vi.fn>;
+        getRoles: ReturnType<typeof vi.fn>;
+        getPriorities: ReturnType<typeof vi.fn>;
+        getCaseTypes: ReturnType<typeof vi.fn>;
+    };
+    reports: {
+        getReports: ReturnType<typeof vi.fn>;
+        runReport: ReturnType<typeof vi.fn>;
+    };
+    results: {
+        getResults: ReturnType<typeof vi.fn>;
+        getResultsForCase: ReturnType<typeof vi.fn>;
+    };
+    sections: {
+        getSection: ReturnType<typeof vi.fn>;
+        getSections: ReturnType<typeof vi.fn>;
+    };
+    tests: {
+        getTest: ReturnType<typeof vi.fn>;
+        getTests: ReturnType<typeof vi.fn>;
+    };
+    users: {
+        getGroup: ReturnType<typeof vi.fn>;
+        getGroups: ReturnType<typeof vi.fn>;
+        getUserByEmail: ReturnType<typeof vi.fn>;
+        getCurrentUser: ReturnType<typeof vi.fn>;
+    };
+    variables: {
+        getVariables: ReturnType<typeof vi.fn>;
+    };
 }
 
 function buildClient(): MockedClient {
     return {
-        getSection: vi.fn().mockResolvedValue({
-            id: 1,
-            suite_id: 1,
-            name: 'Sec',
-            display_order: 1,
-            depth: 0,
-        }),
-        getSections: vi.fn().mockResolvedValue([{ id: 1, suite_id: 1, name: 'Sec', display_order: 1, depth: 0 }]),
-        getTest: vi.fn().mockResolvedValue({ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }),
-        getTests: vi.fn().mockResolvedValue([{ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }]),
-        getResults: vi.fn().mockResolvedValue([{ id: 1, test_id: 4242, status_id: 1 }]),
-        getResultsForCase: vi.fn().mockResolvedValue([{ id: 7, test_id: 99, status_id: 5 }]),
-        getReports: vi
-            .fn()
-            .mockResolvedValue([{ id: 11, name: 'Coverage Report', description: 'desc', is_shared: true }]),
-        runReport: vi.fn().mockResolvedValue({
-            report_url: 'https://example.testrail.io/reports/view/11',
-            user_report_url: 'https://example.testrail.io/reports/user/11',
-        }),
-        getCaseFields: vi.fn().mockResolvedValue([
-            {
+        configurations: {
+            getConfigurations: vi.fn().mockResolvedValue([
+                {
+                    id: 55,
+                    name: 'Browsers',
+                    project_id: 7,
+                    configs: [
+                        { id: 66, name: 'Chrome', group_id: 55 },
+                        { id: 67, name: 'Firefox', group_id: 55 },
+                    ],
+                },
+            ]),
+        },
+        datasets: {
+            getDataset: vi.fn().mockResolvedValue({ id: 77, name: 'Staging matrix', project_id: 7 }),
+            getDatasets: vi.fn().mockResolvedValue([
+                { id: 77, name: 'Staging matrix', project_id: 7 },
+                { id: 78, name: 'Production matrix', project_id: 7 },
+            ]),
+        },
+        metadata: {
+            getCaseFields: vi.fn().mockResolvedValue([
+                {
+                    id: 1,
+                    system_name: 'custom_steps',
+                    label: 'Steps',
+                    name: 'steps',
+                    type_id: 6,
+                    display_order: 1,
+                    configs: [],
+                    is_active: true,
+                    include_all: true,
+                    template_ids: [],
+                },
+            ]),
+            getCaseStatuses: vi.fn().mockResolvedValue([
+                {
+                    case_status_id: 1,
+                    name: 'Approved',
+                    abbreviation: 'APP',
+                    is_default: true,
+                    is_approved: true,
+                    is_untested: false,
+                },
+            ]),
+            getResultFields: vi.fn().mockResolvedValue([
+                {
+                    id: 5,
+                    system_name: 'custom_step_results',
+                    label: 'Steps',
+                    name: 'step_results',
+                    type_id: 11,
+                    display_order: 1,
+                    configs: [],
+                    is_active: true,
+                    include_all: true,
+                    template_ids: [],
+                },
+            ]),
+            getStatuses: vi.fn().mockResolvedValue([
+                {
+                    id: 1,
+                    name: 'passed',
+                    label: 'Passed',
+                    color_dark: 1,
+                    color_medium: 1,
+                    color_bright: 1,
+                    is_system: true,
+                },
+            ]),
+            getTemplates: vi.fn().mockResolvedValue([{ id: 1, name: 'Test Case (Text)', is_default: true }]),
+            getRoles: vi.fn().mockResolvedValue([
+                { id: 1, name: 'Lead', is_default: true },
+                { id: 2, name: 'Tester', is_default: false },
+            ]),
+            getPriorities: vi.fn().mockResolvedValue([
+                { id: 1, name: 'Low', short_name: 'Low', is_default: false, priority: 1 },
+                { id: 4, name: 'Must Test', short_name: 'Must', is_default: true, priority: 4 },
+            ]),
+            getCaseTypes: vi.fn().mockResolvedValue([
+                { id: 1, name: 'Automated', is_default: false },
+                { id: 7, name: 'Functional', is_default: true },
+            ]),
+        },
+        reports: {
+            getReports: vi
+                .fn()
+                .mockResolvedValue([{ id: 11, name: 'Coverage Report', description: 'desc', is_shared: true }]),
+            runReport: vi.fn().mockResolvedValue({
+                report_url: 'https://example.testrail.io/reports/view/11',
+                user_report_url: 'https://example.testrail.io/reports/user/11',
+            }),
+        },
+        results: {
+            getResults: vi.fn().mockResolvedValue([{ id: 1, test_id: 4242, status_id: 1 }]),
+            getResultsForCase: vi.fn().mockResolvedValue([{ id: 7, test_id: 99, status_id: 5 }]),
+        },
+        sections: {
+            getSection: vi.fn().mockResolvedValue({
                 id: 1,
-                system_name: 'custom_steps',
-                label: 'Steps',
-                name: 'steps',
-                type_id: 6,
+                suite_id: 1,
+                name: 'Sec',
                 display_order: 1,
-                configs: [],
-                is_active: true,
-                include_all: true,
-                template_ids: [],
-            },
-        ]),
-        getResultFields: vi.fn().mockResolvedValue([
-            {
-                id: 5,
-                system_name: 'custom_step_results',
-                label: 'Steps',
-                name: 'step_results',
-                type_id: 11,
-                display_order: 1,
-                configs: [],
-                is_active: true,
-                include_all: true,
-                template_ids: [],
-            },
-        ]),
-        getStatuses: vi.fn().mockResolvedValue([
-            {
-                id: 1,
-                name: 'passed',
-                label: 'Passed',
-                color_dark: 1,
-                color_medium: 1,
-                color_bright: 1,
-                is_system: true,
-            },
-        ]),
-        getCaseStatuses: vi.fn().mockResolvedValue([
-            {
-                case_status_id: 1,
-                name: 'Approved',
-                abbreviation: 'APP',
-                is_default: true,
-                is_approved: true,
-                is_untested: false,
-            },
-        ]),
-        getTemplates: vi.fn().mockResolvedValue([{ id: 1, name: 'Test Case (Text)', is_default: true }]),
-        getVariables: vi.fn().mockResolvedValue([
-            { id: 1, name: 'env' },
-            { id: 2, name: 'region' },
-        ]),
-        getGroup: vi.fn().mockResolvedValue({ id: 7, name: 'QA Group', user_ids: [1, 2] }),
-        getGroups: vi.fn().mockResolvedValue([
-            { id: 7, name: 'QA Group', user_ids: [1, 2] },
-            { id: 8, name: 'Devs', user_ids: [3] },
-        ]),
-        getDataset: vi.fn().mockResolvedValue({ id: 77, name: 'Staging matrix', project_id: 7 }),
-        getDatasets: vi.fn().mockResolvedValue([
-            { id: 77, name: 'Staging matrix', project_id: 7 },
-            { id: 78, name: 'Production matrix', project_id: 7 },
-        ]),
-        getConfigurations: vi.fn().mockResolvedValue([
-            {
-                id: 55,
-                name: 'Browsers',
-                project_id: 7,
-                configs: [
-                    { id: 66, name: 'Chrome', group_id: 55 },
-                    { id: 67, name: 'Firefox', group_id: 55 },
-                ],
-            },
-        ]),
-        getRoles: vi.fn().mockResolvedValue([
-            { id: 1, name: 'Lead', is_default: true },
-            { id: 2, name: 'Tester', is_default: false },
-        ]),
-        getPriorities: vi.fn().mockResolvedValue([
-            { id: 1, name: 'Low', short_name: 'Low', is_default: false, priority: 1 },
-            { id: 4, name: 'Must Test', short_name: 'Must', is_default: true, priority: 4 },
-        ]),
-        getCaseTypes: vi.fn().mockResolvedValue([
-            { id: 1, name: 'Automated', is_default: false },
-            { id: 7, name: 'Functional', is_default: true },
-        ]),
-        getUserByEmail: vi
-            .fn()
-            .mockResolvedValue({ id: 42, name: 'Alice', email: 'alice@example.com', is_active: true }),
-        getCurrentUser: vi.fn().mockResolvedValue({ id: 1, name: 'Me', email: 'me@example.com', is_active: true }),
+                depth: 0,
+            }),
+            getSections: vi.fn().mockResolvedValue([{ id: 1, suite_id: 1, name: 'Sec', display_order: 1, depth: 0 }]),
+        },
+        tests: {
+            getTest: vi.fn().mockResolvedValue({ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }),
+            getTests: vi.fn().mockResolvedValue([{ id: 100, case_id: 1, status_id: 1, run_id: 1, title: 't' }]),
+        },
+        users: {
+            getGroup: vi.fn().mockResolvedValue({ id: 7, name: 'QA Group', user_ids: [1, 2] }),
+            getGroups: vi.fn().mockResolvedValue([
+                { id: 7, name: 'QA Group', user_ids: [1, 2] },
+                { id: 8, name: 'Devs', user_ids: [3] },
+            ]),
+            getUserByEmail: vi
+                .fn()
+                .mockResolvedValue({ id: 42, name: 'Alice', email: 'alice@example.com', is_active: true }),
+            getCurrentUser: vi.fn().mockResolvedValue({ id: 1, name: 'Me', email: 'me@example.com', is_active: true }),
+        },
+        variables: {
+            getVariables: vi.fn().mockResolvedValue([
+                { id: 1, name: 'env' },
+                { id: 2, name: 'region' },
+            ]),
+        },
     };
 }
 
@@ -228,8 +264,8 @@ describe('handleSectionGet', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
         await handleSectionGet(ctx);
-        expect(client.getSection).toHaveBeenCalledTimes(1);
-        expect(client.getSection).toHaveBeenCalledWith(7);
+        expect(client.sections.getSection).toHaveBeenCalledTimes(1);
+        expect(client.sections.getSection).toHaveBeenCalledWith(7);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 1, name: 'Sec' }));
     });
 
@@ -247,7 +283,7 @@ describe('handleSectionGet', () => {
         const pathParams = raw === undefined ? [] : [raw];
         const { ctx } = buildCtx(client, { pathParams });
         await expect(handleSectionGet(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getSection).not.toHaveBeenCalled();
+        expect(client.sections.getSection).not.toHaveBeenCalled();
     });
 });
 
@@ -258,8 +294,8 @@ describe('handleSectionList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
         await handleSectionList(ctx);
-        expect(client.getSections).toHaveBeenCalledTimes(1);
-        expect(client.getSections).toHaveBeenCalledWith(3, {});
+        expect(client.sections.getSections).toHaveBeenCalledTimes(1);
+        expect(client.sections.getSections).toHaveBeenCalledWith(3, {});
         expect(out).toHaveBeenCalledTimes(1);
     });
 
@@ -267,21 +303,21 @@ describe('handleSectionList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['3'], suiteId: '9' });
         await handleSectionList(ctx);
-        expect(client.getSections).toHaveBeenCalledWith(3, { suiteId: 9 });
+        expect(client.sections.getSections).toHaveBeenCalledWith(3, { suiteId: 9 });
     });
 
     it('passes parsed --limit and --offset through to client.getSections', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['3'], limit: '5', offset: '10' });
         await handleSectionList(ctx);
-        expect(client.getSections).toHaveBeenCalledWith(3, { limit: 5, offset: 10 });
+        expect(client.sections.getSections).toHaveBeenCalledWith(3, { limit: 5, offset: 10 });
     });
 
     it('combines --suite-id and pagination into one options object', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['3'], suiteId: '9', limit: '5', offset: '10' });
         await handleSectionList(ctx);
-        expect(client.getSections).toHaveBeenCalledWith(3, { suiteId: 9, limit: 5, offset: 10 });
+        expect(client.sections.getSections).toHaveBeenCalledWith(3, { suiteId: 9, limit: 5, offset: 10 });
     });
 
     it.each([
@@ -298,21 +334,21 @@ describe('handleSectionList', () => {
         const pathParams = raw === undefined ? [] : [raw];
         const { ctx } = buildCtx(client, { pathParams });
         await expect(handleSectionList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getSections).not.toHaveBeenCalled();
+        expect(client.sections.getSections).not.toHaveBeenCalled();
     });
 
     it('rejects non-integer --suite-id before calling the client', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['3'], suiteId: 'abc' });
         await expect(handleSectionList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getSections).not.toHaveBeenCalled();
+        expect(client.sections.getSections).not.toHaveBeenCalled();
     });
 
     it('rejects --suite-id=0 (positive-integer gate)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['3'], suiteId: '0' });
         await expect(handleSectionList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getSections).not.toHaveBeenCalled();
+        expect(client.sections.getSections).not.toHaveBeenCalled();
     });
 });
 
@@ -323,8 +359,8 @@ describe('handleTestGet', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['100'] });
         await handleTestGet(ctx);
-        expect(client.getTest).toHaveBeenCalledTimes(1);
-        expect(client.getTest).toHaveBeenCalledWith(100);
+        expect(client.tests.getTest).toHaveBeenCalledTimes(1);
+        expect(client.tests.getTest).toHaveBeenCalledWith(100);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 100 }));
     });
 
@@ -339,7 +375,7 @@ describe('handleTestGet', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, raw === undefined ? {} : { pathParams: [raw] });
         await expect(handleTestGet(ctx)).rejects.toThrow(/positive integer/);
-        expect(client.getTest).not.toHaveBeenCalled();
+        expect(client.tests.getTest).not.toHaveBeenCalled();
     });
 });
 
@@ -350,58 +386,58 @@ describe('handleTestList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await handleTestList(ctx);
-        expect(client.getTests).toHaveBeenCalledTimes(1);
+        expect(client.tests.getTests).toHaveBeenCalledTimes(1);
         // No keys forwarded — second arg is an empty object literal
-        expect(client.getTests).toHaveBeenCalledWith(5, {});
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, {});
     });
 
     it('forwards limit and offset as numbers (not strings)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], limit: '50', offset: '10' });
         await handleTestList(ctx);
-        expect(client.getTests).toHaveBeenCalledWith(5, { limit: 50, offset: 10 });
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, { limit: 50, offset: 10 });
     });
 
     it('parses --status-id into a number[] (single value)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], statusId: '1' });
         await handleTestList(ctx);
-        expect(client.getTests).toHaveBeenCalledWith(5, { status_id: [1] });
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, { status_id: [1] });
     });
 
     it('parses --status-id into a number[] (multiple comma-separated values)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], statusId: '1,5,3' });
         await handleTestList(ctx);
-        expect(client.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5, 3] });
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5, 3] });
     });
 
     it('trims whitespace around comma-separated --status-id tokens', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], statusId: ' 1 , 5 ' });
         await handleTestList(ctx);
-        expect(client.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5] });
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5] });
     });
 
     it('rejects malformed --status-id token without calling the client', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], statusId: '1,abc' });
         await expect(handleTestList(ctx)).rejects.toThrow(/--status-id/);
-        expect(client.getTests).not.toHaveBeenCalled();
+        expect(client.tests.getTests).not.toHaveBeenCalled();
     });
 
     it('rejects non-positive --status-id (zero)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], statusId: '0' });
         await expect(handleTestList(ctx)).rejects.toThrow(/--status-id/);
-        expect(client.getTests).not.toHaveBeenCalled();
+        expect(client.tests.getTests).not.toHaveBeenCalled();
     });
 
     it('combines status_id with limit and offset', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['5'], statusId: '1,5', limit: '50', offset: '10' });
         await handleTestList(ctx);
-        expect(client.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5], limit: 50, offset: 10 });
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, { status_id: [1, 5], limit: 50, offset: 10 });
     });
 
     it('silently drops invalid --limit / --offset (optInt fallback) without rejecting the call', async () => {
@@ -409,7 +445,7 @@ describe('handleTestList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'], limit: 'foo', offset: 'bar' });
         await handleTestList(ctx);
         // optInt returns undefined for non-integer; handler omits both keys
-        expect(client.getTests).toHaveBeenCalledWith(5, {});
+        expect(client.tests.getTests).toHaveBeenCalledWith(5, {});
     });
 
     it.each([
@@ -423,7 +459,7 @@ describe('handleTestList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, raw === undefined ? {} : { pathParams: [raw] });
         await expect(handleTestList(ctx)).rejects.toThrow(/positive integer/);
-        expect(client.getTests).not.toHaveBeenCalled();
+        expect(client.tests.getTests).not.toHaveBeenCalled();
     });
 });
 
@@ -434,7 +470,7 @@ describe('handleResultListForTest', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['4242'] });
         await handleResultListForTest(ctx);
-        expect(client.getResults).toHaveBeenCalledWith(4242, {});
+        expect(client.results.getResults).toHaveBeenCalledWith(4242, {});
         expect(out).toHaveBeenCalledWith([{ id: 1, test_id: 4242, status_id: 1 }]);
     });
 
@@ -442,21 +478,21 @@ describe('handleResultListForTest', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['4242'], limit: '50', offset: '100' });
         await handleResultListForTest(ctx);
-        expect(client.getResults).toHaveBeenCalledWith(4242, { limit: 50, offset: 100 });
+        expect(client.results.getResults).toHaveBeenCalledWith(4242, { limit: 50, offset: 100 });
     });
 
     it('parses --status-id comma list into number[] under status_id key', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['4242'], statusId: '1,5,7' });
         await handleResultListForTest(ctx);
-        expect(client.getResults).toHaveBeenCalledWith(4242, { status_id: [1, 5, 7] });
+        expect(client.results.getResults).toHaveBeenCalledWith(4242, { status_id: [1, 5, 7] });
     });
 
     it('forwards --defects-filter as a verbatim string', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['4242'], defectsFilter: 'JIRA-1234' });
         await handleResultListForTest(ctx);
-        expect(client.getResults).toHaveBeenCalledWith(4242, { defects_filter: 'JIRA-1234' });
+        expect(client.results.getResults).toHaveBeenCalledWith(4242, { defects_filter: 'JIRA-1234' });
     });
 
     it('combines all filter flags into one options bag', async () => {
@@ -469,7 +505,7 @@ describe('handleResultListForTest', () => {
             defectsFilter: 'JIRA-9',
         });
         await handleResultListForTest(ctx);
-        expect(client.getResults).toHaveBeenCalledWith(4242, {
+        expect(client.results.getResults).toHaveBeenCalledWith(4242, {
             limit: 25,
             offset: 0,
             status_id: [1, 5],
@@ -510,7 +546,7 @@ describe('handleResultListForCase', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['100', '87'] });
         await handleResultListForCase(ctx);
-        expect(client.getResultsForCase).toHaveBeenCalledWith(100, 87, {});
+        expect(client.results.getResultsForCase).toHaveBeenCalledWith(100, 87, {});
         expect(out).toHaveBeenCalledWith([{ id: 7, test_id: 99, status_id: 5 }]);
     });
 
@@ -518,7 +554,7 @@ describe('handleResultListForCase', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['100', '87'], limit: '10', offset: '20' });
         await handleResultListForCase(ctx);
-        expect(client.getResultsForCase).toHaveBeenCalledWith(100, 87, { limit: 10, offset: 20 });
+        expect(client.results.getResultsForCase).toHaveBeenCalledWith(100, 87, { limit: 10, offset: 20 });
     });
 
     it('forwards --status-id and --defects-filter together', async () => {
@@ -529,7 +565,7 @@ describe('handleResultListForCase', () => {
             defectsFilter: 'JIRA-7',
         });
         await handleResultListForCase(ctx);
-        expect(client.getResultsForCase).toHaveBeenCalledWith(100, 87, {
+        expect(client.results.getResultsForCase).toHaveBeenCalledWith(100, 87, {
             status_id: [5],
             defects_filter: 'JIRA-7',
         });
@@ -568,8 +604,8 @@ describe('handleReportList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
         await handleReportList(ctx);
-        expect(client.getReports).toHaveBeenCalledTimes(1);
-        expect(client.getReports).toHaveBeenCalledWith(3);
+        expect(client.reports.getReports).toHaveBeenCalledTimes(1);
+        expect(client.reports.getReports).toHaveBeenCalledWith(3);
         expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 11, name: 'Coverage Report' })]);
     });
 
@@ -577,14 +613,14 @@ describe('handleReportList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [badId] });
         await expect(handleReportList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getReports).not.toHaveBeenCalled();
+        expect(client.reports.getReports).not.toHaveBeenCalled();
     });
 
     it('rejects missing project_id (pathParams empty)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleReportList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getReports).not.toHaveBeenCalled();
+        expect(client.reports.getReports).not.toHaveBeenCalled();
     });
 });
 
@@ -595,8 +631,8 @@ describe('handleReportRun', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['11'] });
         await handleReportRun(ctx);
-        expect(client.runReport).toHaveBeenCalledTimes(1);
-        expect(client.runReport).toHaveBeenCalledWith(11);
+        expect(client.reports.runReport).toHaveBeenCalledTimes(1);
+        expect(client.reports.runReport).toHaveBeenCalledWith(11);
         expect(out).toHaveBeenCalledWith(
             expect.objectContaining({
                 report_url: 'https://example.testrail.io/reports/view/11',
@@ -608,14 +644,14 @@ describe('handleReportRun', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [badId] });
         await expect(handleReportRun(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.runReport).not.toHaveBeenCalled();
+        expect(client.reports.runReport).not.toHaveBeenCalled();
     });
 
     it('rejects missing report_template_id (pathParams empty)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleReportRun(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.runReport).not.toHaveBeenCalled();
+        expect(client.reports.runReport).not.toHaveBeenCalled();
     });
 });
 
@@ -636,8 +672,8 @@ describe('handleCaseFieldList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleCaseFieldList(ctx);
-        expect(client.getCaseFields).toHaveBeenCalledTimes(1);
-        expect(client.getCaseFields).toHaveBeenCalledWith();
+        expect(client.metadata.getCaseFields).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getCaseFields).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 1, system_name: 'custom_steps' })]);
     });
 
@@ -646,7 +682,7 @@ describe('handleCaseFieldList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handleCaseFieldList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseFieldList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCaseFields).not.toHaveBeenCalled();
+        expect(client.metadata.getCaseFields).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -654,7 +690,7 @@ describe('handleCaseFieldList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleCaseFieldList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseFieldList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCaseFields).not.toHaveBeenCalled();
+        expect(client.metadata.getCaseFields).not.toHaveBeenCalled();
     });
 });
 
@@ -665,8 +701,8 @@ describe('handleCaseStatusList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleCaseStatusList(ctx);
-        expect(client.getCaseStatuses).toHaveBeenCalledTimes(1);
-        expect(client.getCaseStatuses).toHaveBeenCalledWith();
+        expect(client.metadata.getCaseStatuses).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getCaseStatuses).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([expect.objectContaining({ case_status_id: 1, name: 'Approved' })]);
     });
 
@@ -675,7 +711,7 @@ describe('handleCaseStatusList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handleCaseStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseStatusList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCaseStatuses).not.toHaveBeenCalled();
+        expect(client.metadata.getCaseStatuses).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -683,7 +719,7 @@ describe('handleCaseStatusList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleCaseStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseStatusList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCaseStatuses).not.toHaveBeenCalled();
+        expect(client.metadata.getCaseStatuses).not.toHaveBeenCalled();
     });
 });
 
@@ -694,8 +730,8 @@ describe('handleResultFieldList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleResultFieldList(ctx);
-        expect(client.getResultFields).toHaveBeenCalledTimes(1);
-        expect(client.getResultFields).toHaveBeenCalledWith();
+        expect(client.metadata.getResultFields).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getResultFields).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 5, system_name: 'custom_step_results' })]);
     });
 
@@ -704,7 +740,7 @@ describe('handleResultFieldList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['7'] });
         await expect(handleResultFieldList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleResultFieldList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getResultFields).not.toHaveBeenCalled();
+        expect(client.metadata.getResultFields).not.toHaveBeenCalled();
     });
 });
 
@@ -715,8 +751,8 @@ describe('handleStatusList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleStatusList(ctx);
-        expect(client.getStatuses).toHaveBeenCalledTimes(1);
-        expect(client.getStatuses).toHaveBeenCalledWith();
+        expect(client.metadata.getStatuses).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getStatuses).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 1, name: 'passed' })]);
     });
 
@@ -725,7 +761,7 @@ describe('handleStatusList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1'] });
         await expect(handleStatusList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleStatusList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getStatuses).not.toHaveBeenCalled();
+        expect(client.metadata.getStatuses).not.toHaveBeenCalled();
     });
 });
 
@@ -742,8 +778,8 @@ describe('handleRoleList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleRoleList(ctx);
-        expect(client.getRoles).toHaveBeenCalledTimes(1);
-        expect(client.getRoles).toHaveBeenCalledWith();
+        expect(client.metadata.getRoles).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getRoles).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([
             expect.objectContaining({ id: 1, name: 'Lead' }),
             expect.objectContaining({ id: 2, name: 'Tester' }),
@@ -755,7 +791,7 @@ describe('handleRoleList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handleRoleList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleRoleList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getRoles).not.toHaveBeenCalled();
+        expect(client.metadata.getRoles).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -763,7 +799,7 @@ describe('handleRoleList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleRoleList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleRoleList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getRoles).not.toHaveBeenCalled();
+        expect(client.metadata.getRoles).not.toHaveBeenCalled();
     });
 });
 
@@ -774,8 +810,8 @@ describe('handlePriorityList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handlePriorityList(ctx);
-        expect(client.getPriorities).toHaveBeenCalledTimes(1);
-        expect(client.getPriorities).toHaveBeenCalledWith();
+        expect(client.metadata.getPriorities).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getPriorities).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([
             expect.objectContaining({ id: 1, short_name: 'Low' }),
             expect.objectContaining({ id: 4, is_default: true }),
@@ -787,7 +823,7 @@ describe('handlePriorityList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handlePriorityList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handlePriorityList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getPriorities).not.toHaveBeenCalled();
+        expect(client.metadata.getPriorities).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -795,7 +831,7 @@ describe('handlePriorityList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handlePriorityList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handlePriorityList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getPriorities).not.toHaveBeenCalled();
+        expect(client.metadata.getPriorities).not.toHaveBeenCalled();
     });
 });
 
@@ -806,8 +842,8 @@ describe('handleCaseTypeList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleCaseTypeList(ctx);
-        expect(client.getCaseTypes).toHaveBeenCalledTimes(1);
-        expect(client.getCaseTypes).toHaveBeenCalledWith();
+        expect(client.metadata.getCaseTypes).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getCaseTypes).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([
             expect.objectContaining({ id: 1, name: 'Automated' }),
             expect.objectContaining({ id: 7, is_default: true }),
@@ -819,7 +855,7 @@ describe('handleCaseTypeList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handleCaseTypeList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseTypeList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCaseTypes).not.toHaveBeenCalled();
+        expect(client.metadata.getCaseTypes).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -827,7 +863,7 @@ describe('handleCaseTypeList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleCaseTypeList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleCaseTypeList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCaseTypes).not.toHaveBeenCalled();
+        expect(client.metadata.getCaseTypes).not.toHaveBeenCalled();
     });
 });
 
@@ -842,8 +878,8 @@ describe('handleTemplateList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
         await handleTemplateList(ctx);
-        expect(client.getTemplates).toHaveBeenCalledTimes(1);
-        expect(client.getTemplates).toHaveBeenCalledWith(3);
+        expect(client.metadata.getTemplates).toHaveBeenCalledTimes(1);
+        expect(client.metadata.getTemplates).toHaveBeenCalledWith(3);
         expect(out).toHaveBeenCalledWith([expect.objectContaining({ id: 1, name: 'Test Case (Text)' })]);
     });
 
@@ -851,14 +887,14 @@ describe('handleTemplateList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleTemplateList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getTemplates).not.toHaveBeenCalled();
+        expect(client.metadata.getTemplates).not.toHaveBeenCalled();
     });
 
     it.each(INVALID_IDS)('rejects project_id %s before calling the client', async (raw) => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [raw] });
         await expect(handleTemplateList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getTemplates).not.toHaveBeenCalled();
+        expect(client.metadata.getTemplates).not.toHaveBeenCalled();
     });
 });
 
@@ -869,8 +905,8 @@ describe('handleVariableList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
         await handleVariableList(ctx);
-        expect(client.getVariables).toHaveBeenCalledTimes(1);
-        expect(client.getVariables).toHaveBeenCalledWith(3);
+        expect(client.variables.getVariables).toHaveBeenCalledTimes(1);
+        expect(client.variables.getVariables).toHaveBeenCalledWith(3);
         expect(out).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: 1, name: 'env' })]));
     });
 
@@ -888,7 +924,7 @@ describe('handleVariableList', () => {
         const pathParams = raw === undefined ? [] : [raw];
         const { ctx } = buildCtx(client, { pathParams });
         await expect(handleVariableList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getVariables).not.toHaveBeenCalled();
+        expect(client.variables.getVariables).not.toHaveBeenCalled();
     });
 });
 
@@ -899,8 +935,8 @@ describe('handleConfigurationList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
         await handleConfigurationList(ctx);
-        expect(client.getConfigurations).toHaveBeenCalledTimes(1);
-        expect(client.getConfigurations).toHaveBeenCalledWith(7);
+        expect(client.configurations.getConfigurations).toHaveBeenCalledTimes(1);
+        expect(client.configurations.getConfigurations).toHaveBeenCalledWith(7);
         // The full ConfigurationGroup[] tree (with nested configs[]) must be
         // emitted verbatim — there's no client-side filtering.
         expect(out).toHaveBeenCalledWith(
@@ -918,14 +954,14 @@ describe('handleConfigurationList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [raw] });
         await expect(handleConfigurationList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getConfigurations).not.toHaveBeenCalled();
+        expect(client.configurations.getConfigurations).not.toHaveBeenCalled();
     });
 
     it('rejects missing project_id (no positional arg)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleConfigurationList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getConfigurations).not.toHaveBeenCalled();
+        expect(client.configurations.getConfigurations).not.toHaveBeenCalled();
     });
 });
 
@@ -946,8 +982,8 @@ describe('handleUserGetByEmail', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { email: '  alice@example.com  ' });
         await handleUserGetByEmail(ctx);
-        expect(client.getUserByEmail).toHaveBeenCalledTimes(1);
-        expect(client.getUserByEmail).toHaveBeenCalledWith('alice@example.com');
+        expect(client.users.getUserByEmail).toHaveBeenCalledTimes(1);
+        expect(client.users.getUserByEmail).toHaveBeenCalledWith('alice@example.com');
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 42, email: 'alice@example.com' }));
     });
 
@@ -956,7 +992,7 @@ describe('handleUserGetByEmail', () => {
         const { ctx } = buildCtx(client);
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--email/);
-        expect(client.getUserByEmail).not.toHaveBeenCalled();
+        expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
     it('rejects empty --email value', async () => {
@@ -964,14 +1000,14 @@ describe('handleUserGetByEmail', () => {
         const { ctx } = buildCtx(client, { email: '' });
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--email/);
-        expect(client.getUserByEmail).not.toHaveBeenCalled();
+        expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
     it('rejects whitespace-only --email value', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { email: '   ' });
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getUserByEmail).not.toHaveBeenCalled();
+        expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
     it('rejects extra positional args before any client call', async () => {
@@ -979,7 +1015,7 @@ describe('handleUserGetByEmail', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'], email: 'alice@example.com' });
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getUserByEmail).not.toHaveBeenCalled();
+        expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
     it('passes the email through verbatim (no client-side format validation)', async () => {
@@ -990,7 +1026,7 @@ describe('handleUserGetByEmail', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { email: 'not-an-email' });
         await handleUserGetByEmail(ctx);
-        expect(client.getUserByEmail).toHaveBeenCalledWith('not-an-email');
+        expect(client.users.getUserByEmail).toHaveBeenCalledWith('not-an-email');
     });
 });
 
@@ -1005,8 +1041,8 @@ describe('handleUserGetCurrent', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleUserGetCurrent(ctx);
-        expect(client.getCurrentUser).toHaveBeenCalledTimes(1);
-        expect(client.getCurrentUser).toHaveBeenCalledWith();
+        expect(client.users.getCurrentUser).toHaveBeenCalledTimes(1);
+        expect(client.users.getCurrentUser).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 1, name: 'Me' }));
     });
 
@@ -1015,7 +1051,7 @@ describe('handleUserGetCurrent', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handleUserGetCurrent(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetCurrent(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCurrentUser).not.toHaveBeenCalled();
+        expect(client.users.getCurrentUser).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -1023,7 +1059,7 @@ describe('handleUserGetCurrent', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleUserGetCurrent(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetCurrent(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getCurrentUser).not.toHaveBeenCalled();
+        expect(client.users.getCurrentUser).not.toHaveBeenCalled();
     });
 });
 
@@ -1039,8 +1075,8 @@ describe('handleGroupGet', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
         await handleGroupGet(ctx);
-        expect(client.getGroup).toHaveBeenCalledTimes(1);
-        expect(client.getGroup).toHaveBeenCalledWith(7);
+        expect(client.users.getGroup).toHaveBeenCalledTimes(1);
+        expect(client.users.getGroup).toHaveBeenCalledWith(7);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 7, name: 'QA Group' }));
     });
 
@@ -1058,7 +1094,7 @@ describe('handleGroupGet', () => {
         const pathParams = raw === undefined ? [] : [raw];
         const { ctx } = buildCtx(client, { pathParams });
         await expect(handleGroupGet(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getGroup).not.toHaveBeenCalled();
+        expect(client.users.getGroup).not.toHaveBeenCalled();
     });
 });
 
@@ -1074,8 +1110,8 @@ describe('handleGroupList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client);
         await handleGroupList(ctx);
-        expect(client.getGroups).toHaveBeenCalledTimes(1);
-        expect(client.getGroups).toHaveBeenCalledWith();
+        expect(client.users.getGroups).toHaveBeenCalledTimes(1);
+        expect(client.users.getGroups).toHaveBeenCalledWith();
         expect(out).toHaveBeenCalledWith([
             expect.objectContaining({ id: 7, name: 'QA Group' }),
             expect.objectContaining({ id: 8, name: 'Devs' }),
@@ -1087,7 +1123,7 @@ describe('handleGroupList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['5'] });
         await expect(handleGroupList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleGroupList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getGroups).not.toHaveBeenCalled();
+        expect(client.users.getGroups).not.toHaveBeenCalled();
     });
 
     it('rejects multiple extra positional args', async () => {
@@ -1095,7 +1131,7 @@ describe('handleGroupList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['1', '2', '3'] });
         await expect(handleGroupList(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleGroupList(ctx)).rejects.toThrow(/no positional arguments/);
-        expect(client.getGroups).not.toHaveBeenCalled();
+        expect(client.users.getGroups).not.toHaveBeenCalled();
     });
 });
 
@@ -1106,8 +1142,8 @@ describe('handleDatasetGet', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['77'] });
         await handleDatasetGet(ctx);
-        expect(client.getDataset).toHaveBeenCalledTimes(1);
-        expect(client.getDataset).toHaveBeenCalledWith(77);
+        expect(client.datasets.getDataset).toHaveBeenCalledTimes(1);
+        expect(client.datasets.getDataset).toHaveBeenCalledWith(77);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 77, name: 'Staging matrix' }));
     });
 
@@ -1115,14 +1151,14 @@ describe('handleDatasetGet', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [raw] });
         await expect(handleDatasetGet(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getDataset).not.toHaveBeenCalled();
+        expect(client.datasets.getDataset).not.toHaveBeenCalled();
     });
 
     it('rejects missing dataset_id (no positional arg)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleDatasetGet(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getDataset).not.toHaveBeenCalled();
+        expect(client.datasets.getDataset).not.toHaveBeenCalled();
     });
 });
 
@@ -1133,8 +1169,8 @@ describe('handleDatasetList', () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
         await handleDatasetList(ctx);
-        expect(client.getDatasets).toHaveBeenCalledTimes(1);
-        expect(client.getDatasets).toHaveBeenCalledWith(7);
+        expect(client.datasets.getDatasets).toHaveBeenCalledTimes(1);
+        expect(client.datasets.getDatasets).toHaveBeenCalledWith(7);
         expect(out).toHaveBeenCalledWith(
             expect.arrayContaining([expect.objectContaining({ id: 77, name: 'Staging matrix' })]),
         );
@@ -1144,13 +1180,13 @@ describe('handleDatasetList', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [raw] });
         await expect(handleDatasetList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getDatasets).not.toHaveBeenCalled();
+        expect(client.datasets.getDatasets).not.toHaveBeenCalled();
     });
 
     it('rejects missing project_id (no positional arg)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: [] });
         await expect(handleDatasetList(ctx)).rejects.toBeInstanceOf(IdParseError);
-        expect(client.getDatasets).not.toHaveBeenCalled();
+        expect(client.datasets.getDatasets).not.toHaveBeenCalled();
     });
 });
