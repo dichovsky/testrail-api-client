@@ -5,6 +5,56 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0] — Validation/URL delegate methods removed (ARCH #6, phase 2)
+
+Phase 2 of ARCH #6. The four `@deprecated` delegate methods introduced in 5.1.0
+are removed. Internal callers were already migrated in 5.1.0, so this PR is
+a small surgical removal — no behaviour change beyond the surface contraction.
+
+### Removed (BREAKING)
+
+- **`TestRailClient.validateId(id, name)`** — gone. The leaf function lives in
+  `src/validation.ts` but is intentionally not re-exported from the package
+  barrel; external callers should roll their own check
+  (`Number.isInteger(id) && id > 0`).
+- **`TestRailClient.validateEntryId(entryId)`** — gone. Same disposition; the
+  leaf function (`src/validation.ts`) stays internal. The SEC #29 UUID rule
+  (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`) is the
+  contract external callers should replicate if they need to pre-validate.
+- **`TestRailClient.validatePaginationParams(limit?, offset?)`** — gone. The
+  rule is `limit > 0` integer and `offset >= 0` integer; both must be integers
+  or omitted.
+- **`TestRailClient.buildEndpoint(base, params)`** — gone. The leaf function
+  (`src/url.ts`) stays internal. TestRail's URL quirk is documented in
+  CLAUDE.md if a caller genuinely needs to mirror it; in practice every public
+  endpoint method on the namespaced modules already handles URL construction.
+
+### Migration
+
+Most callers never used these methods — they were thin internal helpers that
+happened to be typed `public` on `TestRailClientCore`. If you imported them:
+
+```ts
+// Before (5.1.0, deprecated)
+client.validateId(id, 'caseId');
+// After (6.0.0)
+if (!Number.isInteger(id) || id <= 0) {
+    throw new Error('caseId must be a positive integer');
+}
+```
+
+Or simply trust the endpoint methods on the namespaced modules — they all call
+`validateId` internally before any network request, so a malformed id surfaces
+as `TestRailValidationError` at the call site.
+
+### Notes
+
+- `tests/client-delegates.test.ts` (added in 5.1.0 to keep coverage ≥99% while
+  the delegates existed) is deleted in this PR — the leaf-function tests in
+  `tests/validation.test.ts` and `tests/url.test.ts` are the canonical
+  coverage.
+- ARCH #6 is now fully shipped and removed from `BACKLOG.md`.
+
 ## [5.1.0] — Validation/URL helpers extracted (ARCH #6, phase 1)
 
 Internal refactor. **No public API or CLI behaviour change.** Phase 1 of a

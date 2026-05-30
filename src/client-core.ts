@@ -1,12 +1,6 @@
 import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
-import {
-    validateId as validateIdImpl,
-    validateEntryId as validateEntryIdImpl,
-    validatePaginationParams as validatePaginationParamsImpl,
-} from './validation.js';
-import { buildEndpoint as buildEndpointImpl } from './url.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
@@ -593,41 +587,6 @@ export class TestRailClientCore {
         }
 
         this.rateLimiter.requests.push(now);
-    }
-
-    /**
-     * Validates that an ID is a positive integer.
-     * @throws {TestRailValidationError} When ID is invalid
-     * @deprecated Will be removed in 6.0.0 (ARCH #6). No public replacement; roll your own with `Number.isInteger(id) && id > 0`.
-     */
-    public validateId(id: number, name: string): void {
-        validateIdImpl(id, name);
-    }
-
-    /**
-     * Validates that an entry ID is a well-formed UUID string (SEC #29).
-     * @throws {TestRailValidationError} When entryId is not a UUID string
-     * @deprecated Will be removed in 6.0.0 (ARCH #6).
-     */
-    public validateEntryId(entryId: string): void {
-        validateEntryIdImpl(entryId);
-    }
-
-    /**
-     * Validates optional pagination parameters.
-     * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
-     * @deprecated Will be removed in 6.0.0 (ARCH #6).
-     */
-    public validatePaginationParams(limit?: number, offset?: number): void {
-        validatePaginationParamsImpl(limit, offset);
-    }
-
-    /**
-     * Builds a TestRail endpoint URL with optional query parameters (TestRail uses `&`, not `?`).
-     * @deprecated Will be removed in 6.0.0 (ARCH #6).
-     */
-    public buildEndpoint(base: string, params: Record<string, string | number | undefined> = {}): string {
-        return buildEndpointImpl(base, params);
     }
 
     private getCachedData<T>(cacheKey: string): T | undefined {
