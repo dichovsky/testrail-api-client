@@ -4227,3 +4227,15 @@ is a metadata reconcile only.
 
 - [x] **ARCH #7: Eliminate hand-written 1517-line facade (`client.ts`)** — Shipped in PR-F (#193, `refactor(client)!: collapse flat facade; namespaced modules are the only access path`, merged 2026-05-29, commit `21fc48f`). The 131 flat `async` wrapper methods on `TestRailClient` are gone — `src/client.ts` is now **76 LOC** of module composition only (18 `public readonly` namespaced fields, zero `async` methods). Callers reach every endpoint through the namespaced surface (`client.projects.getProject(id)`, `client.cases.addCase(...)`, etc.). The ARCHITECTURE.md §3.2 contradiction that motivated re-opening this item is resolved: the flat facade is no longer the load-bearing surface, so the JSDoc/types argument is moot. Confirmed by `wc -l src/client.ts → 76` and `grep -c '^\s*\(public\s\+\)\?async\s' src/client.ts → 0`.
 
+## BACKLOG sync — 2026-05-30 (ARCH #6 full closure — PRs #197, #198)
+
+ARCH #6 shipped in two phases per the orchestrator's "isolate risky
+migrations" rule. Phase 1 was a non-breaking 5.1.0 internal refactor;
+phase 2 is a BREAKING 6.0.0 removal. Both halves merged on 2026-05-30.
+
+### Architecture — verified shipped
+
+- [x] **ARCH #6: Extract pure helpers (`validateId` / `validateEntryId` / `validatePaginationParams` / `buildEndpoint`) from `TestRailClientCore` into standalone modules** —
+  Shipped in PR #197 (`refactor: extract validation/URL helpers to leaf modules (ARCH #6 phase 1)`, merged 2026-05-30, squash commit `6c80b9e`, version `5.1.0`) + PR #198 (`refactor!: remove validation/URL delegate methods (ARCH #6 phase 2)`, version `6.0.0`).
+  Phase 1 created two leaf modules — `src/validation.ts` (exports `validateId`, `validateEntryId`, `validatePaginationParams`, and the shared `ENTRY_ID_RE` UUID regex from SEC #29) and `src/url.ts` (exports `buildEndpoint`) — and migrated all 158 internal call sites across 18 `src/modules/*.ts` files from `this.client.<helper>(...)` to direct leaf-module imports. The 4 original public methods on `TestRailClientCore` became `@deprecated` one-line delegates so 5.x callers kept working. `src/cli/ids.ts` switched its duplicated `ENTRY_ID_RE` const to importing the exported one; the apologetic "kept in sync to avoid pulling the HTTP layer into the CLI layer" comment is gone because `validation.ts` is a leaf module that only imports `errors.ts` (and `url.ts` has zero imports). Phase 2 removes the 4 delegates and the supporting `tests/client-delegates.test.ts` (a coverage pin added in 5.1.0). Two independent Opus reviewers verified phase 1 (code-quality + architecture/security angles); both APPROVE_WITH_NITS, zero blocking. The closure here resolves the BACKLOG bullet's two stated pains in one go: (a) "helpers don't read `this`" — they're now pure functions in leaf modules; (b) "would also let `cli/ids.ts:parseId` reuse the rule instead of duplicating it" — the regex is the same exported constant in both call paths.
+
