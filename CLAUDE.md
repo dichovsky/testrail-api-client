@@ -71,7 +71,7 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 
 **Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, zeros credential, removes from set. Process signal handlers (`exit`/`SIGINT`/`SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8 — library consumers must not have their signal chain hijacked). When opted in, handlers call `destroy()` on every active instance; SIGINT/SIGTERM additionally `process.exit(130/143)`. The CLI (`src/cli/index.ts`) opts in; library callers should leave the flag off and call `destroy()` from their own shutdown hook. Once installed for a process, handlers persist for its lifetime (no safe deregistration without per-client ownership tracking).
 
-**ID validation:** All numeric IDs checked as positive integers via `protected validateId(id, name)` before any API call.
+**ID validation:** All numeric IDs checked as positive integers via the pure `validateId(id, name)` function in `src/validation.ts` before any API call. Plan-entry IDs (UUID strings, SEC #29) use `validateEntryId` from the same leaf module.
 
 ## Error Model
 
@@ -122,7 +122,7 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 
 1. Add the response Zod schema + inferred type to the matching `src/schemas/{domain}.ts` (re-exported via the `src/schemas.ts` barrel). For write endpoints, also add a payload schema there
 2. Add the method to the relevant module in `src/modules/` (e.g., `cases.ts` for case endpoints) — the method is reached via its namespaced module field (`client.cases.getCase(id)`); there is no flat facade wrapper to add
-3. Validate IDs with `this.client.validateId(id, 'paramName')` before any network call
+3. Validate IDs by importing `validateId` from `../validation.js` and calling `validateId(id, 'paramName')` before any network call (`validateEntryId` for UUID plan-entry IDs)
 4. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, retry? })`
 5. Add response schema and inferred type re-exports to `src/index.ts` if they're public
 6. Add a test case to the matching `tests/client-*.test.ts` file
