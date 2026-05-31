@@ -569,6 +569,21 @@ export class TestRailClientCore {
      * Sliding window rate limiter. Always prunes timestamps outside the window
      * and records the current request so the window count stays accurate.
      *
+     * Accounting unit: the window records **one slot per distinct upstream
+     * request**, not per caller. Concurrent callers that share the same cache
+     * key and receive an in-flight promise via the `pendingRequests` early
+     * return in {@link executePipeline} (and `request`) are coalesced into that
+     * single upstream request and are intentionally NOT recorded separately —
+     * they issue no new network call, so charging them a slot would over-count
+     * the actual load placed on TestRail. This is pre-existing behavior, by
+     * design; the window measures upstream requests, not per-caller fan-in.
+     *
+     * Transient overshoot at tight limits: because retries are recorded but not
+     * rejected (see `enforce` below), the recorded in-window count can briefly
+     * exceed `maxRequests` by up to `maxRetries` slots. This is intended —
+     * retries are continuations of an already-admitted request, not new
+     * admissions, so they are not gated even when the window is at capacity.
+     *
      * @param enforce - When `true` (initial attempt), throws if the window is
      *   already at capacity. When `false` (a retry of an already-admitted
      *   request), the request is still recorded but the admission throw is
@@ -629,6 +644,12 @@ export class TestRailClientCore {
         // an existing key updates in place without growing size, so evicting the
         // oldest entry first would drop an innocent entry and leave the cache
         // below capacity. Delete the key first so the set below is a clean insert.
+        //
+        // The re-set is genuinely reachable, not theoretical: a `skipRead: true`
+        // retry re-runs the success path and re-sets the same cacheKey, and a
+        // concurrent (non-coalesced) request can populate that key between the
+        // initial attempt and the retry's write. This guard defends that race —
+        // it's a real defensive correctness fix, not an unreachable branch.
         if (this.cache.has(cacheKey)) {
             this.cache.delete(cacheKey);
         }
@@ -1074,6 +1095,11 @@ export class TestRailClientCore {
 
             // Coalesce concurrent identical requests (SEC #23): return the
             // in-flight promise instead of starting a new upstream request.
+            // Callers served here share the already-admitted upstream request
+            // and are intentionally NOT charged a separate rate-limit slot —
+            // checkRateLimit below is skipped on this path. The window records
+            // one slot per distinct upstream request, not per coalesced caller
+            // (see checkRateLimit's accounting-unit note).
             const existing = this.pendingRequests.get(cacheKey) as Promise<TParsed> | undefined;
             if (existing !== undefined) return existing;
         }

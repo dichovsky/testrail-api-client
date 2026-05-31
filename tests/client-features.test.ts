@@ -184,12 +184,13 @@ describe('TestRailClient - Enhanced Features', () => {
 
         it('computes the oldest request when the window is full of distinct timestamps', async () => {
             // Seeds the sliding-window `requests[]` with strictly distinct,
-            // ascending timestamps inside the window so the oldest-request
-            // min-scan exercises both arms of its `requestTime < oldestRequest`
-            // comparison deterministically (the first element is the min; a
-            // later, larger element is not). Real back-to-back requests can
-            // share a millisecond, which leaves the false arm flaky — seeding
-            // explicit values removes that timing dependence.
+            // ascending timestamps inside the window. `checkRateLimit` reads the
+            // oldest in-window timestamp as `requests[0]` (O(1) — the array is
+            // kept ascending by push-append + order-preserving prune), so the
+            // first element is the basis for `waitTime`. Real back-to-back
+            // requests can share a millisecond; seeding explicit, distinct
+            // values removes that timing dependence and pins requests[0] as the
+            // oldest deterministically.
             const now = Date.now();
             const internal = client as unknown as { rateLimiter: { requests: number[]; windowMs: number } };
             // Two in-window timestamps, oldest first; both newer than now-window.
