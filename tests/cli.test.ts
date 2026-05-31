@@ -5785,10 +5785,7 @@ describe('CLI', () => {
 
         it('delete with UUID attachment_id --yes succeeds', async () => {
             const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
-            const { exitCodes, stdout } = await runCli(
-                ['attachment', 'delete', UUID_ID, '--yes'],
-                [jsonResponse({})],
-            );
+            const { exitCodes, stdout } = await runCli(['attachment', 'delete', UUID_ID, '--yes'], [jsonResponse({})]);
             expect(exitCodes).toContain(0);
             expect(stdout).toContain(`"${UUID_ID}"`);
         });

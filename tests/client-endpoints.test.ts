@@ -3412,9 +3412,17 @@ describe('TestRailClient', () => {
 
         it('should preserve deprecated snake_case keys for getResults', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
-            await client.results.getResults(1, { created_after: 1000000, created_before: 2000000, created_by: [1], status_id: [1], defects_filter: 'JIRA-1' });
+            await client.results.getResults(1, {
+                created_after: 1000000,
+                created_before: 2000000,
+                created_by: [1],
+                status_id: [1],
+                defects_filter: 'JIRA-1',
+            });
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_results/1&created_after=1000000&created_before=2000000&created_by=1&status_id=1&defects_filter=JIRA-1'),
+                expect.stringContaining(
+                    'get_results/1&created_after=1000000&created_before=2000000&created_by=1&status_id=1&defects_filter=JIRA-1',
+                ),
                 expect.any(Object),
             );
         });
@@ -5089,10 +5097,7 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(response);
             const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_attachment/1'),
-                expect.anything(),
-            );
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_attachment/1'), expect.anything());
         });
 
         it('should return binary content of an attachment (UUID id — TestRail 7.1+)', async () => {

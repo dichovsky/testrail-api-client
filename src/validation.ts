@@ -47,12 +47,9 @@ export function validateEntryId(entryId: string): void {
  */
 export function validateAttachmentId(id: number | string): void {
     const ok =
-        (typeof id === 'number' && Number.isInteger(id) && id > 0) ||
-        (typeof id === 'string' && ENTRY_ID_RE.test(id));
+        (typeof id === 'number' && Number.isInteger(id) && id > 0) || (typeof id === 'string' && ENTRY_ID_RE.test(id));
     if (!ok) {
-        throw new TestRailValidationError(
-            'attachmentId must be a positive integer or a UUID string',
-        );
+        throw new TestRailValidationError('attachmentId must be a positive integer or a UUID string');
     }
 }
 
