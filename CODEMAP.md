@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "7.1.0"
+    "version": "5.0.0"
   },
-  "sourceHash": "c6adeb4400fb0c2495a2957ced69e375eb0327382294b997d52a3bb1f92c782a",
+  "sourceHash": "612078ab90c614b3f12478dd7659327dee8189d8f7c6b42ea5822789f6f587cd",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -8138,7 +8138,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "validatePaginationParams",
           "kind": "function",
-          "line": 63,
+          "line": 60,
           "exported": true,
           "signature": "export function validatePaginationParams(limit?: number, offset?: number): void"
         }
