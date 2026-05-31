@@ -1,7 +1,7 @@
 {
     "name": "@dichovsky/testrail-api-client",
     "version": "7.1.0",
-    "description": "TypeScript API client for TestRail",
+    "description": "Type-safe ESM TestRail API client and CLI for Node.js",
     "keywords": [
         "testrail",
         "api",
@@ -19,6 +19,7 @@
     },
     "license": "MIT",
     "author": "Igor Magdich",
+    "funding": "https://buymeacoffee.com/dichovsky",
     "type": "module",
     "exports": {
         ".": {
