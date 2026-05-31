@@ -99,7 +99,7 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 
 ## Tests
 
-1213 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
+2985 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
 
 | File                              | Covers                                                                                                                                 |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |

@@ -565,15 +565,40 @@ export class TestRailClientCore {
         throw new TestRailApiError(status, response.statusText, body);
     }
 
-    /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
-    private checkRateLimit(): void {
+    /**
+     * Sliding window rate limiter. Always prunes timestamps outside the window
+     * and records the current request so the window count stays accurate.
+     *
+     * Accounting unit: the window records **one slot per distinct upstream
+     * request**, not per caller. Concurrent callers that share the same cache
+     * key and receive an in-flight promise via the `pendingRequests` early
+     * return in {@link executePipeline} (and `request`) are coalesced into that
+     * single upstream request and are intentionally NOT recorded separately —
+     * they issue no new network call, so charging them a slot would over-count
+     * the actual load placed on TestRail. This is pre-existing behavior, by
+     * design; the window measures upstream requests, not per-caller fan-in.
+     *
+     * Transient overshoot at tight limits: because retries are recorded but not
+     * rejected (see `enforce` below), the recorded in-window count can briefly
+     * exceed `maxRequests` by up to `maxRetries` slots. This is intended —
+     * retries are continuations of an already-admitted request, not new
+     * admissions, so they are not gated even when the window is at capacity.
+     *
+     * @param enforce - When `true` (initial attempt), throws if the window is
+     *   already at capacity. When `false` (a retry of an already-admitted
+     *   request), the request is still recorded but the admission throw is
+     *   skipped: a retry must not be rejected with a local 429, which would
+     *   mask the server-side condition that triggered the retry.
+     * @throws {TestRailApiError} when `enforce` and the limit is exceeded
+     */
+    private checkRateLimit(enforce: boolean): void {
         const now = Date.now();
         const windowStart = now - this.rateLimiter.windowMs;
 
         // Clean old requests outside the window
         this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
 
-        if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
+        if (enforce && this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
             // requests[] is push-appended and order-preserving-filtered, so it is
             // always ascending — the oldest in-window timestamp is requests[0].
             // This branch only runs when length >= maxRequests (>= 1, validated),
@@ -613,6 +638,20 @@ export class TestRailClientCore {
     private setCachedData<T>(cacheKey: string, data: T): void {
         if (!this.enableCache) {
             return;
+        }
+
+        // Re-setting an already-present key must not trip eviction: Map.set on
+        // an existing key updates in place without growing size, so evicting the
+        // oldest entry first would drop an innocent entry and leave the cache
+        // below capacity. Delete the key first so the set below is a clean insert.
+        //
+        // The re-set is genuinely reachable, not theoretical: a `skipRead: true`
+        // retry re-runs the success path and re-sets the same cacheKey, and a
+        // concurrent (non-coalesced) request can populate that key between the
+        // initial attempt and the retry's write. This guard defends that race —
+        // it's a real defensive correctness fix, not an unreachable branch.
+        if (this.cache.has(cacheKey)) {
+            this.cache.delete(cacheKey);
         }
 
         // Enforce cache size limit if not zero
@@ -1056,11 +1095,21 @@ export class TestRailClientCore {
 
             // Coalesce concurrent identical requests (SEC #23): return the
             // in-flight promise instead of starting a new upstream request.
+            // Callers served here share the already-admitted upstream request
+            // and are intentionally NOT charged a separate rate-limit slot —
+            // checkRateLimit below is skipped on this path. The window records
+            // one slot per distinct upstream request, not per coalesced caller
+            // (see checkRateLimit's accounting-unit note).
             const existing = this.pendingRequests.get(cacheKey) as Promise<TParsed> | undefined;
             if (existing !== undefined) return existing;
         }
 
-        this.checkRateLimit();
+        // Enforce admission only on the initial attempt. A retry of an
+        // already-admitted request is still recorded (so the sliding-window
+        // count stays accurate and server-side limits are respected) but must
+        // not be rejected by a local 429, which would mask the server 5xx/429
+        // that triggered the retry.
+        this.checkRateLimit(retryCount === 0);
 
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
