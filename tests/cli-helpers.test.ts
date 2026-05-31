@@ -367,9 +367,7 @@ describe('parseAttachmentId', () => {
     });
 
     it('error message mentions both accepted forms', () => {
-        expect(() => parseAttachmentId('bad', 'attachment_id')).toThrow(
-            /positive integer or a UUID string/,
-        );
+        expect(() => parseAttachmentId('bad', 'attachment_id')).toThrow(/positive integer or a UUID string/);
     });
 });
 

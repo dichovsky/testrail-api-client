@@ -5,458 +5,89 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [7.1.0] — Doc-audit correctness fixes + camelCase option ergonomics
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`. Other
+> version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
+> or unreleased and never reached the registry. The `5.0.0` entry below collapses a
+> large body of unreleased work — previously carried on `main` as `5.0.0` through
+> `7.1.0` — into a single major bump from the last published release, `4.1.0`. No
+> source was reverted in that reconciliation; only the version number and this log
+> were realigned with what npm actually shipped.
 
-A batch of non-breaking fixes surfaced by an upstream-doc audit and an internal
-review (PRs #200–#203). No public API was removed; all changes are additive or
-internal.
+## [5.0.0] — Namespaced client + everything accumulated since 4.1.0
 
-### Fixed
-
-- **`users.getGroups()` parses the paginated wrapper** (#200). `get_groups`
-  returns `{ offset, limit, size, _links, groups: [...] }` (TestRail 6.7+ /
-  Cloud), not a bare array; the previous bare `z.array(GroupSchema)` schema
-  threw on the wrapper. Now mirrors `getUsers()` and returns `groups ?? []`.
-  Return type is unchanged (`Promise<Group[]>`).
-- **`attachments.getAttachment()` / `deleteAttachment()` accept UUID ids** (#203).
-  TestRail 7.1+ attachment ids are RFC-4122 GUID strings (older/Cloud use
-  integers); `AttachmentSchema.id` already accepted both, but the input methods
-  only took `number`, so a UUID-id attachment could not be downloaded or
-  deleted. The `attachmentId` parameter is widened to `number | string` and
-  validated by the new `validateAttachmentId` (positive integer **or** UUID,
-  path-traversal-safe). The CLI `attachment get` / `attachment delete` commands
-  accept the same via a new `parseAttachmentId`. Backward compatible — existing
-  numeric callers are unaffected.
-- **LRU cache no longer evicts an innocent entry on a re-set at capacity** (#201).
-  `setCachedData` now deletes an already-present key before the size/eviction
-  check, so updating a cached key while the cache is full cannot drop a
-  different entry.
-- **Rate limiter no longer rejects retries** (#201). `checkRateLimit` is split
-  into enforce + record: the initial attempt enforces the limit (may throw 429),
-  while retries are still **recorded** (the sliding-window count stays accurate
-  and the server-side limit is still respected) but are never locally rejected.
-  Prevents a retryable 5xx from surfacing as a spurious local 429.
-
-### Added
-
-- **camelCase list-filter options** (#202). `GetPlansOptions`, `GetResultsOptions`,
-  `GetTestsOptions`, and `GetMilestonesOptions` now expose camelCase fields
-  (`createdAfter`, `createdBy`, `statusId`, `milestoneId`, `defectsFilter`, …),
-  bringing them in line with `GetCasesOptions` / `GetRunsOptions`. The
-  "completed" filter is now `isCompleted?: boolean` (matching `getRuns`),
-  converted to TestRail's `0|1` internally. The original snake_case keys
-  (`created_after`, `status_id`, `is_completed: 0|1`, …) remain as `@deprecated`
-  aliases and will be removed in a future major.
-
-### Docs
-
-- Corrected the test-count/coverage note in `CLAUDE.md` (#201).
-
-## [7.0.0] — Plan-entry attachment `entryId` is a GUID string, not a number
-
-TestRail plan-entry ids are RFC-4122 GUID strings (`get_plan` → `entries[].id`,
-e.g. `"3933d74b-…"`), the same id already used by `plans.updatePlanEntry` /
-`deletePlanEntry` / `addRunToPlanEntry`. The two plan-entry attachment methods
-mistyped it as a numeric `number`, mirroring an error in TestRail's Attachments
-API doc (which labels `entry_id` `integer` while the Plans doc and the `get_plan`
-response show a GUID). Because `get_plan` never returns a numeric entry id, the
-old signatures could not be called with a real id — and a numeric value is
-rejected by the server with HTTP 400 `Field :entry_id is not a valid test plan
-entry` (verified against a live TestRail instance).
+First npm release since `4.1.0` (2026-05-21). This major collapses the entire
+unreleased line that had built up on `main` (previously numbered `5.0.0` through
+`7.1.0`) into one bump. SemVer is measured from what consumers last installed —
+`4.1.0` — so every breaking change since then is bundled under this single major.
+No source was reverted; only the version number and this changelog were reconciled.
 
 ### Changed (BREAKING)
 
-- **`attachments.getAttachmentsForPlanEntry(planId, entryId)`** — `entryId` is now
-  `string` (UUID) instead of `number`; it is validated as a GUID (`validateEntryId`).
-- **`attachments.addAttachmentToPlanEntry(planId, entryId, file, filename)`** — same
-  change to `entryId`.
-- **CLI** `attachment list-for-plan-entry` / `add-to-plan-entry` — the `<entry_id>`
-  argument is now parsed as a UUID (`parseEntryId`); a numeric value is rejected
-  client-side with `entry_id must be a UUID string` before any request.
-
-### Migration
-
-```ts
-// Before (6.0.0) — never actually worked against a real server
-await client.attachments.getAttachmentsForPlanEntry(planId, 2);
-
-// After (7.0.0) — pass the entry GUID from get_plan
-const plan = await client.plans.getPlan(planId);
-const entryId = plan.entries![0]!.id; // GUID string
-await client.attachments.getAttachmentsForPlanEntry(planId, entryId);
-```
-
-## [6.0.0] — Validation/URL delegate methods removed (ARCH #6, phase 2)
-
-Phase 2 of ARCH #6. The four `@deprecated` delegate methods introduced in 5.1.0
-are removed. Internal callers were already migrated in 5.1.0, so this PR is
-a small surgical removal — no behaviour change beyond the surface contraction.
-
-### Removed (BREAKING)
-
-- **`TestRailClient.validateId(id, name)`** — gone. The leaf function lives in
-  `src/validation.ts` but is intentionally not re-exported from the package
-  barrel; external callers should roll their own check
-  (`Number.isInteger(id) && id > 0`).
-- **`TestRailClient.validateEntryId(entryId)`** — gone. Same disposition; the
-  leaf function (`src/validation.ts`) stays internal. The SEC #29 UUID rule
-  (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`) is the
-  contract external callers should replicate if they need to pre-validate.
-- **`TestRailClient.validatePaginationParams(limit?, offset?)`** — gone. The
-  rule is `limit > 0` integer and `offset >= 0` integer; both must be integers
-  or omitted.
-- **`TestRailClient.buildEndpoint(base, params)`** — gone. The leaf function
-  (`src/url.ts`) stays internal. TestRail's URL quirk is documented in
-  CLAUDE.md if a caller genuinely needs to mirror it; in practice every public
-  endpoint method on the namespaced modules already handles URL construction.
-
-### Migration
-
-Most callers never used these methods — they were thin internal helpers that
-happened to be typed `public` on `TestRailClientCore`. If you imported them:
-
-```ts
-// Before (5.1.0, deprecated)
-client.validateId(id, 'caseId');
-// After (6.0.0)
-if (!Number.isInteger(id) || id <= 0) {
-    throw new Error('caseId must be a positive integer');
-}
-```
-
-Or simply trust the endpoint methods on the namespaced modules — they all call
-`validateId` internally before any network request, so a malformed id surfaces
-as `TestRailValidationError` at the call site.
-
-### Notes
-
-- `tests/client-delegates.test.ts` (added in 5.1.0 to keep coverage ≥99% while
-  the delegates existed) is deleted in this PR — the leaf-function tests in
-  `tests/validation.test.ts` and `tests/url.test.ts` are the canonical
-  coverage.
-- ARCH #6 is now fully shipped and removed from `BACKLOG.md`.
-
-## [5.1.0] — Validation/URL helpers extracted (ARCH #6, phase 1)
-
-Internal refactor. **No public API or CLI behaviour change.** Phase 1 of a
-two-phase split (phase 2 ships as 6.0.0).
-
-### Changed (internal)
-
-- **`validateId` / `validateEntryId` / `validatePaginationParams` extracted to
-  `src/validation.ts`.** The three validators are now pure functions; their
-  former homes on `TestRailClientCore` are thin one-line delegates marked
-  `@deprecated` with a 6.0.0 removal note. Internal callers in
-  `src/modules/*.ts` (18 files, 158 sites across all 4 helpers) now import
-  directly from the leaf module rather than routing through
-  `this.client.<helper>(...)`. Behaviour, error messages, error classes, and
-  thrown types are byte-identical to 5.0.0.
-- **`buildEndpoint` extracted to `src/url.ts`.** Same pattern — pure function
-  in a leaf module, internal callers in `src/modules/*.ts` migrated, public
-  method on `TestRailClientCore` becomes a one-line `@deprecated` delegate.
-- **`ENTRY_ID_RE` is now a single source of truth.** Both
-  `src/validation.ts:validateEntryId` and `src/cli/ids.ts:parseEntryId` import
-  the same exported constant from `src/validation.ts`. The duplicated regex
-  is gone, and so is the apologetic comment in `cli/ids.ts` that explained
-  why it had been kept in sync as a module-level const ("avoid pulling the
-  entire HTTP layer into the CLI layer") — `validation.ts` is a leaf module,
-  so the original concern no longer applies.
-
-### Deprecated
-
-- `TestRailClient.validateId`, `validateEntryId`, `validatePaginationParams`,
-  `buildEndpoint` — will be removed in 6.0.0 (ARCH #6 phase 2). There is no
-  public replacement; the helpers were always internal validation machinery.
-  External callers (if any) should roll their own — `validateId` is one line:
-  `Number.isInteger(id) && id > 0`.
-
-### Added (tests)
-
-- `tests/validation.test.ts` (~25 cases) — direct unit coverage for the three
-  validators, including the path-traversal-rejection case for `validateEntryId`
-  (SEC #29).
-- `tests/url.test.ts` (~12 cases) — direct unit coverage for `buildEndpoint`,
-  including parameter-injection-encoding cases.
-
-## [5.0.0] — Facade collapse release
-
-One library-API breaking change ships in this major: the flat client facade is
-gone. Everything else in 5.0.0 is internal refactoring carried over from the
-unreleased 4.x line — no other public API or CLI behaviour change.
-
-### Removed (BREAKING)
-
-- **The flat `TestRailClient` facade is removed (ARCH #7).** Every endpoint used
-  to be reachable two ways — flat (`client.getProject(1)`) and namespaced
-  (`client.projects.getProject(1)`). The ~131 flat wrapper methods on
-  `client.ts` were pure pass-throughs to the module fields and have been
-  deleted. The 18 `public readonly` domain modules
-  (`client.projects`, `client.runs`, `client.results`, …) are now the **single
-  access path**. This is a **pure rename — no behaviour, signature, argument, or
-  return-type change**; only the call path moved from `client.<method>(…)` to
-  `client.<module>.<method>(…)`.
-
-    **Migration.** Insert the owning module field between `client` and the method
-    name. Most flat names map to the namesake module (`getProject` →
-    `projects.getProject`); the non-obvious ones are: the metadata reads
-    (`getStatuses`, `getCaseStatuses`, `getPriorities`, `getResultFields`,
-    `getCaseFields`, `addCaseField`, `getCaseTypes`, `getTemplates`, `getRoles`)
-    → `metadata.*`; the group methods (`getGroup`, `getGroups`, `addGroup`,
-    `updateGroup`, `deleteGroup`) → `users.*`; the plan-entry run methods
-    (`addRunToPlanEntry`, `updateRunInPlanEntry`, `deleteRunFromPlanEntry`) →
-    `plans.*`; and the BDD methods (`getBdd`, `addBdd`) → `bdd.*`.
-
-    A mechanical rename covers the common case (run per flat method name):
-
-    ```bash
-    # e.g. for the projects module
-    sed -i '' -E 's/\bclient\.(getProject|getProjects|addProject|updateProject|deleteProject)\b/client.projects.\1/g' your-file.ts
-    ```
-
-    Full mapping, grouped by module:
-
-        <details>
-        <summary>117 flat methods → namespaced (click to expand)</summary>
-
-    #### `projects`
-
-    | Before (removed)          | After                              |
-    | ------------------------- | ---------------------------------- |
-    | `client.getProject(…)`    | `client.projects.getProject(…)`    |
-    | `client.getProjects(…)`   | `client.projects.getProjects(…)`   |
-    | `client.addProject(…)`    | `client.projects.addProject(…)`    |
-    | `client.updateProject(…)` | `client.projects.updateProject(…)` |
-    | `client.deleteProject(…)` | `client.projects.deleteProject(…)` |
-
-    #### `suites`
-
-    | Before (removed)        | After                          |
-    | ----------------------- | ------------------------------ |
-    | `client.getSuite(…)`    | `client.suites.getSuite(…)`    |
-    | `client.getSuites(…)`   | `client.suites.getSuites(…)`   |
-    | `client.addSuite(…)`    | `client.suites.addSuite(…)`    |
-    | `client.updateSuite(…)` | `client.suites.updateSuite(…)` |
-    | `client.deleteSuite(…)` | `client.suites.deleteSuite(…)` |
-
-    #### `sections`
-
-    | Before (removed)          | After                              |
-    | ------------------------- | ---------------------------------- |
-    | `client.getSection(…)`    | `client.sections.getSection(…)`    |
-    | `client.getSections(…)`   | `client.sections.getSections(…)`   |
-    | `client.addSection(…)`    | `client.sections.addSection(…)`    |
-    | `client.updateSection(…)` | `client.sections.updateSection(…)` |
-    | `client.deleteSection(…)` | `client.sections.deleteSection(…)` |
-    | `client.moveSection(…)`   | `client.sections.moveSection(…)`   |
-
-    #### `cases`
-
-    | Before (removed)               | After                                |
-    | ------------------------------ | ------------------------------------ |
-    | `client.getCase(…)`            | `client.cases.getCase(…)`            |
-    | `client.getCases(…)`           | `client.cases.getCases(…)`           |
-    | `client.addCase(…)`            | `client.cases.addCase(…)`            |
-    | `client.addCases(…)`           | `client.cases.addCases(…)`           |
-    | `client.updateCase(…)`         | `client.cases.updateCase(…)`         |
-    | `client.updateCases(…)`        | `client.cases.updateCases(…)`        |
-    | `client.deleteCase(…)`         | `client.cases.deleteCase(…)`         |
-    | `client.deleteCases(…)`        | `client.cases.deleteCases(…)`        |
-    | `client.copyCasesToSection(…)` | `client.cases.copyCasesToSection(…)` |
-    | `client.moveCasesToSection(…)` | `client.cases.moveCasesToSection(…)` |
-    | `client.getHistoryForCase(…)`  | `client.cases.getHistoryForCase(…)`  |
-
-    #### `plans`
-
-    | Before (removed)                   | After                                    |
-    | ---------------------------------- | ---------------------------------------- |
-    | `client.getPlan(…)`                | `client.plans.getPlan(…)`                |
-    | `client.getPlans(…)`               | `client.plans.getPlans(…)`               |
-    | `client.addPlan(…)`                | `client.plans.addPlan(…)`                |
-    | `client.updatePlan(…)`             | `client.plans.updatePlan(…)`             |
-    | `client.closePlan(…)`              | `client.plans.closePlan(…)`              |
-    | `client.deletePlan(…)`             | `client.plans.deletePlan(…)`             |
-    | `client.addPlanEntry(…)`           | `client.plans.addPlanEntry(…)`           |
-    | `client.updatePlanEntry(…)`        | `client.plans.updatePlanEntry(…)`        |
-    | `client.deletePlanEntry(…)`        | `client.plans.deletePlanEntry(…)`        |
-    | `client.addRunToPlanEntry(…)`      | `client.plans.addRunToPlanEntry(…)`      |
-    | `client.updateRunInPlanEntry(…)`   | `client.plans.updateRunInPlanEntry(…)`   |
-    | `client.deleteRunFromPlanEntry(…)` | `client.plans.deleteRunFromPlanEntry(…)` |
-
-    #### `runs`
-
-    | Before (removed)      | After                      |
-    | --------------------- | -------------------------- |
-    | `client.getRun(…)`    | `client.runs.getRun(…)`    |
-    | `client.getRuns(…)`   | `client.runs.getRuns(…)`   |
-    | `client.addRun(…)`    | `client.runs.addRun(…)`    |
-    | `client.updateRun(…)` | `client.runs.updateRun(…)` |
-    | `client.closeRun(…)`  | `client.runs.closeRun(…)`  |
-    | `client.deleteRun(…)` | `client.runs.deleteRun(…)` |
-
-    #### `tests`
-
-    | Before (removed)     | After                      |
-    | -------------------- | -------------------------- |
-    | `client.getTest(…)`  | `client.tests.getTest(…)`  |
-    | `client.getTests(…)` | `client.tests.getTests(…)` |
-
-    #### `results`
-
-    | Before (removed)               | After                                  |
-    | ------------------------------ | -------------------------------------- |
-    | `client.getResults(…)`         | `client.results.getResults(…)`         |
-    | `client.getResultsForCase(…)`  | `client.results.getResultsForCase(…)`  |
-    | `client.getResultsForRun(…)`   | `client.results.getResultsForRun(…)`   |
-    | `client.addResult(…)`          | `client.results.addResult(…)`          |
-    | `client.addResultForCase(…)`   | `client.results.addResultForCase(…)`   |
-    | `client.addResultsForCases(…)` | `client.results.addResultsForCases(…)` |
-    | `client.addResults(…)`         | `client.results.addResults(…)`         |
-
-    #### `milestones`
-
-    | Before (removed)            | After                                  |
-    | --------------------------- | -------------------------------------- |
-    | `client.getMilestone(…)`    | `client.milestones.getMilestone(…)`    |
-    | `client.getMilestones(…)`   | `client.milestones.getMilestones(…)`   |
-    | `client.addMilestone(…)`    | `client.milestones.addMilestone(…)`    |
-    | `client.updateMilestone(…)` | `client.milestones.updateMilestone(…)` |
-    | `client.deleteMilestone(…)` | `client.milestones.deleteMilestone(…)` |
-
-    #### `users` (includes groups)
-
-    | Before (removed)           | After                            |
-    | -------------------------- | -------------------------------- |
-    | `client.getUser(…)`        | `client.users.getUser(…)`        |
-    | `client.getUserByEmail(…)` | `client.users.getUserByEmail(…)` |
-    | `client.getUsers(…)`       | `client.users.getUsers(…)`       |
-    | `client.getCurrentUser(…)` | `client.users.getCurrentUser(…)` |
-    | `client.addUser(…)`        | `client.users.addUser(…)`        |
-    | `client.updateUser(…)`     | `client.users.updateUser(…)`     |
-    | `client.getGroup(…)`       | `client.users.getGroup(…)`       |
-    | `client.getGroups(…)`      | `client.users.getGroups(…)`      |
-    | `client.addGroup(…)`       | `client.users.addGroup(…)`       |
-    | `client.updateGroup(…)`    | `client.users.updateGroup(…)`    |
-    | `client.deleteGroup(…)`    | `client.users.deleteGroup(…)`    |
-
-    #### `metadata` (statuses, priorities, fields, types, templates, roles)
-
-    | Before (removed)            | After                                |
-    | --------------------------- | ------------------------------------ |
-    | `client.getStatuses(…)`     | `client.metadata.getStatuses(…)`     |
-    | `client.getCaseStatuses(…)` | `client.metadata.getCaseStatuses(…)` |
-    | `client.getPriorities(…)`   | `client.metadata.getPriorities(…)`   |
-    | `client.getResultFields(…)` | `client.metadata.getResultFields(…)` |
-    | `client.getCaseFields(…)`   | `client.metadata.getCaseFields(…)`   |
-    | `client.addCaseField(…)`    | `client.metadata.addCaseField(…)`    |
-    | `client.getCaseTypes(…)`    | `client.metadata.getCaseTypes(…)`    |
-    | `client.getTemplates(…)`    | `client.metadata.getTemplates(…)`    |
-    | `client.getRoles(…)`        | `client.metadata.getRoles(…)`        |
-
-    #### `configurations`
-
-    | Before (removed)                     | After                                               |
-    | ------------------------------------ | --------------------------------------------------- |
-    | `client.getConfigurations(…)`        | `client.configurations.getConfigurations(…)`        |
-    | `client.addConfigurationGroup(…)`    | `client.configurations.addConfigurationGroup(…)`    |
-    | `client.updateConfigurationGroup(…)` | `client.configurations.updateConfigurationGroup(…)` |
-    | `client.deleteConfigurationGroup(…)` | `client.configurations.deleteConfigurationGroup(…)` |
-    | `client.addConfiguration(…)`         | `client.configurations.addConfiguration(…)`         |
-    | `client.updateConfiguration(…)`      | `client.configurations.updateConfiguration(…)`      |
-    | `client.deleteConfiguration(…)`      | `client.configurations.deleteConfiguration(…)`      |
-
-    #### `attachments`
-
-    | Before (removed)                       | After                                              |
-    | -------------------------------------- | -------------------------------------------------- |
-    | `client.getAttachmentsForCase(…)`      | `client.attachments.getAttachmentsForCase(…)`      |
-    | `client.getAttachmentsForRun(…)`       | `client.attachments.getAttachmentsForRun(…)`       |
-    | `client.getAttachmentsForTest(…)`      | `client.attachments.getAttachmentsForTest(…)`      |
-    | `client.getAttachmentsForPlan(…)`      | `client.attachments.getAttachmentsForPlan(…)`      |
-    | `client.getAttachmentsForPlanEntry(…)` | `client.attachments.getAttachmentsForPlanEntry(…)` |
-    | `client.getAttachment(…)`              | `client.attachments.getAttachment(…)`              |
-    | `client.addAttachmentToCase(…)`        | `client.attachments.addAttachmentToCase(…)`        |
-    | `client.addAttachmentToResult(…)`      | `client.attachments.addAttachmentToResult(…)`      |
-    | `client.addAttachmentToRun(…)`         | `client.attachments.addAttachmentToRun(…)`         |
-    | `client.addAttachmentToPlan(…)`        | `client.attachments.addAttachmentToPlan(…)`        |
-    | `client.addAttachmentToPlanEntry(…)`   | `client.attachments.addAttachmentToPlanEntry(…)`   |
-    | `client.deleteAttachment(…)`           | `client.attachments.deleteAttachment(…)`           |
-
-    #### `bdd`
-
-    | Before (removed)   | After                  |
-    | ------------------ | ---------------------- |
-    | `client.getBdd(…)` | `client.bdd.getBdd(…)` |
-    | `client.addBdd(…)` | `client.bdd.addBdd(…)` |
-
-    #### `sharedSteps`
-
-    | Before (removed)                 | After                                        |
-    | -------------------------------- | -------------------------------------------- |
-    | `client.getSharedStep(…)`        | `client.sharedSteps.getSharedStep(…)`        |
-    | `client.getSharedSteps(…)`       | `client.sharedSteps.getSharedSteps(…)`       |
-    | `client.addSharedStep(…)`        | `client.sharedSteps.addSharedStep(…)`        |
-    | `client.updateSharedStep(…)`     | `client.sharedSteps.updateSharedStep(…)`     |
-    | `client.deleteSharedStep(…)`     | `client.sharedSteps.deleteSharedStep(…)`     |
-    | `client.getSharedStepHistory(…)` | `client.sharedSteps.getSharedStepHistory(…)` |
-
-    #### `variables`
-
-    | Before (removed)           | After                                |
-    | -------------------------- | ------------------------------------ |
-    | `client.getVariables(…)`   | `client.variables.getVariables(…)`   |
-    | `client.addVariable(…)`    | `client.variables.addVariable(…)`    |
-    | `client.updateVariable(…)` | `client.variables.updateVariable(…)` |
-    | `client.deleteVariable(…)` | `client.variables.deleteVariable(…)` |
-
-    #### `datasets`
-
-    | Before (removed)          | After                              |
-    | ------------------------- | ---------------------------------- |
-    | `client.getDataset(…)`    | `client.datasets.getDataset(…)`    |
-    | `client.getDatasets(…)`   | `client.datasets.getDatasets(…)`   |
-    | `client.addDataset(…)`    | `client.datasets.addDataset(…)`    |
-    | `client.updateDataset(…)` | `client.datasets.updateDataset(…)` |
-    | `client.deleteDataset(…)` | `client.datasets.deleteDataset(…)` |
-
-    #### `reports`
-
-    | Before (removed)       | After                          |
-    | ---------------------- | ------------------------------ |
-    | `client.getReports(…)` | `client.reports.getReports(…)` |
-    | `client.runReport(…)`  | `client.reports.runReport(…)`  |
-
-        </details>
-
-### Changed
-
-- **HTTP pipeline unified behind a single `request<T>(spec)` method.** The
-  five historical entry points (`request` / `requestText` / `requestMultipart`
-  / `requestBinary` / `requestParsed`) collapsed into one `request<T>(spec: RequestSpec<T>)`
-  that drives a shared `executePipeline`. `RequestSpec` carries the method,
-  endpoint, optional body (`json` / `multipart`), optional response `schema`,
-  `responseKind` (`'json' | 'text' | 'binary'`), and a named `retry` policy.
-  Behavioural defaults (cache namespaces, retry asymmetry, upload no-retry)
-  are preserved exactly.
-- **`schemas.ts` and `cli/metadata.ts` split by domain** into `src/schemas/*.ts`
-  and `src/cli/metadata/*.ts`. Barrel re-exports (`src/schemas.ts`,
-  `src/cli/metadata.ts`) preserve every existing import path.
-- **`ACTIONS` promoted to the single source of truth for the CLI.** Each
-  `ActionSpec` now carries its `handler`; `dispatch.ts` derives the `HANDLERS`
-  map and `--help` text (`src/cli/help.ts`) from `ACTIONS`, so adding an action
-  is a one-line metadata edit enforced by the TypeScript compiler rather than a
-  drift test.
-- **CLI write handlers collapsed into `createWriteHandler` /
-  `createDestructiveHandler` factories** (`src/cli/write-handler-factory.ts`).
-  The repeated parse / validate / dry-run / call / emit skeleton lives in the
-  factory once; genuinely irregular handlers stay hand-written.
-
-### Removed
-
-- **Dead error subclasses** — only `TestRailApiError`, `TestRailValidationError`,
-  and the `handleZodError` helper remain in `src/errors.ts`.
-- **`run-destructive.ts`** — superseded by `createDestructiveHandler`.
-- **All rule suppressions** (`eslint-disable`, `c8`/`v8 ignore`) removed from
-  `src/`; the lint and coverage gates are satisfied without local opt-outs.
+- **Flat `TestRailClient` facade removed (ARCH #7).** The ~131 flat pass-through
+  methods on the client are gone; the 18 namespaced domain modules
+  (`client.projects.*`, `client.runs.*`, `client.results.*`, …) are now the single
+  access path. This is a pure call-path rename — no signature, argument, or
+  behaviour change.
+
+    **Migration.** Insert the owning module field between `client` and the method:
+    `client.getProject(1)` → `client.projects.getProject(1)`. The non-obvious maps
+    are the metadata reads (`getStatuses`, `getCaseFields`, `getPriorities`, …) →
+    `client.metadata.*` and the group methods (`getGroups`, `addGroup`, …) →
+    `client.users.*`.
+
+- **Plan-entry attachment `entryId` is a GUID string, not a number.**
+  `attachments.getAttachmentsForPlanEntry` / `addAttachmentToPlanEntry` — and the
+  CLI `attachment list-for-plan-entry` / `add-to-plan-entry` — now take a UUID
+  string, matching what `get_plan` actually returns (a numeric id was rejected by
+  the server with HTTP 400).
+
+- **Validation/URL delegate methods removed (ARCH #6).** The validation and
+  URL-building helpers previously delegated through the client were extracted to
+  standalone leaf modules; import the pure helpers directly instead of calling them
+  on a client instance.
+
+- **Stale public type aliases dropped.** Dead re-exported type aliases were removed
+  from the public surface.
+
+### Added
+
+- **camelCase list-filter options** for `getPlans`, `getResults`, `getTests`, and
+  `getMilestones` (`createdAfter`, `createdBy`, `statusId`, `milestoneId`,
+  `isCompleted`, …), aligning them with `getCases` / `getRuns`. The original
+  snake_case keys remain as `@deprecated` aliases for one major.
+- **UUID attachment ids** accepted by `attachments.getAttachment` /
+  `deleteAttachment` and the CLI `attachment get` / `attachment delete` (TestRail
+  7.1+ RFC-4122 GUID ids), alongside the existing integer ids.
+- Additional response-schema fields for TestRail 7.3+ / Enterprise and SPEC-driven
+  schema parity, plus an injectable `fetch` adapter and an injectable DNS lookup
+  for restricted-DNS environments.
+
+### Fixed
+
+- **`users.getGroups()` parses the paginated wrapper.** `get_groups` returns
+  `{ offset, limit, size, _links, groups: [...] }`, not a bare array; the schema now
+  mirrors `getUsers()` and returns `groups ?? []`.
+- **LRU cache** no longer evicts an innocent entry on a re-set at capacity, and the
+  **rate limiter** now records retries without spuriously rejecting a retried
+  request as a local 429.
+
+### Security
+
+- Unified HTTP pipeline with manual-redirect blocking (SSRF guard), response-body
+  byte caps and wall-clock deadlines, additional IPv6 SSRF ranges,
+  multipart-upload hardening, opt-in process signal handlers, and supply-chain
+  hardening (`.npmrc` + lockfile-lint, OIDC trusted publishing with provenance).
+
+## [4.1.0] — 2026-05-21
+
+Published directly to npm (no GitHub release or git tag); backfilled here so the
+changelog matches the registry.
+
+### Fixed
+
+- **Accept nullable TestRail response fields.** Response schemas were widened to
+  `.nullish()` wherever TestRail may return `null` or omit a key, so otherwise
+  valid API responses with null or absent fields no longer fail validation.
 
 ## [4.0.0] — 2026-05-20 — CLI hardening release
 

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { ENTRY_ID_RE, validateId, validateEntryId, validateAttachmentId, validatePaginationParams } from '../src/validation.js';
+import {
+    ENTRY_ID_RE,
+    validateId,
+    validateEntryId,
+    validateAttachmentId,
+    validatePaginationParams,
+} from '../src/validation.js';
 import { TestRailValidationError } from '../src/errors.js';
 
 describe('validation', () => {
@@ -83,9 +89,7 @@ describe('validation', () => {
 
         it('rejects zero', () => {
             expect(() => validateAttachmentId(0)).toThrow(TestRailValidationError);
-            expect(() => validateAttachmentId(0)).toThrow(
-                'attachmentId must be a positive integer or a UUID string',
-            );
+            expect(() => validateAttachmentId(0)).toThrow('attachmentId must be a positive integer or a UUID string');
         });
 
         it('rejects negative integer', () => {
