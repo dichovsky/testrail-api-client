@@ -29,12 +29,18 @@ export class PlanModule {
     async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
         validateId(projectId, 'projectId');
         validatePaginationParams(options?.limit, options?.offset);
+        const createdAfter = options?.createdAfter ?? options?.created_after;
+        const createdBefore = options?.createdBefore ?? options?.created_before;
+        const createdBy = options?.createdBy ?? options?.created_by;
+        const milestoneId = options?.milestoneId ?? options?.milestone_id;
+        const isCompleted =
+            options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
         const endpoint = buildEndpoint(`get_plans/${projectId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: serializeIdList(options?.created_by),
-            is_completed: options?.is_completed,
-            milestone_id: serializeIdList(options?.milestone_id),
+            created_after: createdAfter,
+            created_before: createdBefore,
+            created_by: serializeIdList(createdBy),
+            is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
+            milestone_id: serializeIdList(milestoneId),
             limit: options?.limit,
             offset: options?.offset,
         });

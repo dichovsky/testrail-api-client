@@ -1621,6 +1621,86 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('milestone_id=');
         });
 
+        it('should accept camelCase createdAfter/createdBefore and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { createdAfter: 1000000, createdBefore: 2000000 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&created_after=1000000&created_before=2000000'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase createdBy and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { createdBy: [1, 2] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&created_by=1%2C2'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase milestoneId and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { milestoneId: [10, 20] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&milestone_id=10%2C20'),
+                expect.any(Object),
+            );
+        });
+
+        it('should serialize isCompleted: true as is_completed=1', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { isCompleted: true });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should serialize isCompleted: false as is_completed=0', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { isCompleted: false });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=0'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve deprecated is_completed=1 (snake_case still works)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { is_completed: 1 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve deprecated is_completed=0 (snake_case zero still works)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { is_completed: 0 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=0'),
+                expect.any(Object),
+            );
+        });
+
+        it('should give camelCase isCompleted priority over deprecated is_completed when both set', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { isCompleted: false, is_completed: 1 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=0'),
+                expect.any(Object),
+            );
+        });
+
+        it('should omit empty array filters for getPlans with camelCase', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { createdBy: [], milestoneId: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('milestone_id=');
+        });
+
         it('should add a new plan', async () => {
             const mockPlan: Plan = {
                 id: 1,
@@ -2921,6 +3001,31 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('status_id=');
         });
 
+        it('should accept camelCase statusId and produce same URL as snake_case for getTests', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+            await client.tests.getTests(1, { statusId: [1, 5] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_tests/1&status_id=1%2C5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve deprecated status_id for getTests (snake_case still works)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+            await client.tests.getTests(1, { status_id: [1, 5] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_tests/1&status_id=1%2C5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should omit empty statusId filter for getTests (camelCase)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+            await client.tests.getTests(1, { statusId: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('status_id=');
+        });
+
         it('parses get_test response with the SPEC #2.1.7 labels[] array (id + title shape)', async () => {
             // Inner shape per the documented `get_test` example: `{ id, title }`.
             const testWithLabels: Test = {
@@ -3269,6 +3374,77 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('status_id=');
         });
 
+        it('should accept camelCase createdAfter/createdBefore for getResults and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResults(1, { createdAfter: 1000000, createdBefore: 2000000 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&created_after=1000000&created_before=2000000'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase createdBy for getResults and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResults(1, { createdBy: [1, 2] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&created_by=1%2C2'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase statusId for getResults and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResults(1, { statusId: [1, 5] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&status_id=1%2C5'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase defectsFilter for getResults and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResults(1, { defectsFilter: 'JIRA-123' });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&defects_filter=JIRA-123'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve deprecated snake_case keys for getResults', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResults(1, { created_after: 1000000, created_before: 2000000, created_by: [1], status_id: [1], defects_filter: 'JIRA-1' });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results/1&created_after=1000000&created_before=2000000&created_by=1&status_id=1&defects_filter=JIRA-1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase statusId for getResultsForCase and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResultsForCase(1, 2, { statusId: [1] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_case/1/2&status_id=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should accept camelCase statusId for getResultsForRun and produce same URL as snake_case', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResultsForRun(1, { statusId: [1, 2] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_run/1&status_id=1%2C2'),
+                expect.any(Object),
+            );
+        });
+
+        it('should omit empty array filters for getResults with camelCase', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+            await client.results.getResults(1, { createdBy: [], statusId: [] });
+            const [[url]] = mockFetch.mock.calls as [[string, unknown]];
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('status_id=');
+        });
+
         it('should add a result for a test', async () => {
             const mockResult: Result = {
                 id: 1,
@@ -3409,6 +3585,26 @@ describe('TestRailClient', () => {
             await client.milestones.getMilestones(1, { is_completed: 1 });
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('get_milestones/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should serialize isCompleted: true as is_completed=1', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.milestones.getMilestones(1, { isCompleted: true });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_milestones/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve deprecated is_completed=0 for getMilestones (snake_case zero still works)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.milestones.getMilestones(1, { is_completed: 0 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_milestones/1&is_completed=0'),
                 expect.any(Object),
             );
         });

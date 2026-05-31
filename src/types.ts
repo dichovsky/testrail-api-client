@@ -666,19 +666,29 @@ export interface RateLimiterConfig {
  */
 export interface GetPlansOptions {
     /** Only return plans created after this Unix timestamp */
-    created_after?: number;
+    createdAfter?: number;
     /** Only return plans created before this Unix timestamp */
-    created_before?: number;
+    createdBefore?: number;
     /** Only return plans created by these user IDs */
-    created_by?: number[];
-    /** Filter by completion status: 1 = completed, 0 = active */
-    is_completed?: 0 | 1;
+    createdBy?: number[];
+    /** `true` to return only completed plans, `false` for active plans */
+    isCompleted?: boolean;
     /** Only return plans with these milestone IDs */
-    milestone_id?: number[];
+    milestoneId?: number[];
     /** Maximum number of plans to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+    /** @deprecated use `createdAfter` */
+    created_after?: number;
+    /** @deprecated use `createdBefore` */
+    created_before?: number;
+    /** @deprecated use `createdBy` */
+    created_by?: number[];
+    /** @deprecated use `isCompleted` */
+    is_completed?: 0 | 1;
+    /** @deprecated use `milestoneId` */
+    milestone_id?: number[];
 }
 
 /**
@@ -686,11 +696,13 @@ export interface GetPlansOptions {
  */
 export interface GetTestsOptions {
     /** Only return tests with these status IDs */
-    status_id?: number[];
+    statusId?: number[];
     /** Maximum number of tests to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+    /** @deprecated use `statusId` */
+    status_id?: number[];
 }
 
 /**
@@ -699,35 +711,47 @@ export interface GetTestsOptions {
  */
 export interface GetResultsOptions {
     /** Only return results created after this Unix timestamp */
-    created_after?: number;
+    createdAfter?: number;
     /** Only return results created before this Unix timestamp */
-    created_before?: number;
+    createdBefore?: number;
     /** Only return results created by these user IDs */
-    created_by?: number[];
+    createdBy?: number[];
     /** Only return results with these status IDs */
-    status_id?: number[];
+    statusId?: number[];
     /** Only return results whose `defects` field contains this string
      *  (TestRail's `defects_filter` query param; e.g., a JIRA key like
      *  `JIRA-123`). Passed through verbatim. Honored by `getResults()` and
      *  `getResultsForCase()` only; `getResultsForRun()` ignores it for
      *  backwards compatibility with the existing `result list` CLI shape. */
-    defects_filter?: string;
+    defectsFilter?: string;
     /** Maximum number of results to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+    /** @deprecated use `createdAfter` */
+    created_after?: number;
+    /** @deprecated use `createdBefore` */
+    created_before?: number;
+    /** @deprecated use `createdBy` */
+    created_by?: number[];
+    /** @deprecated use `statusId` */
+    status_id?: number[];
+    /** @deprecated use `defectsFilter` */
+    defects_filter?: string;
 }
 
 /**
  * Filter options for `getMilestones()`.
  */
 export interface GetMilestonesOptions {
-    /** Filter by completion status: 1 = completed, 0 = active */
-    is_completed?: 0 | 1;
+    /** `true` to return only completed milestones, `false` for active */
+    isCompleted?: boolean;
     /** Maximum number of milestones to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+    /** @deprecated use `isCompleted` */
+    is_completed?: 0 | 1;
 }
 
 // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────────

@@ -14,12 +14,17 @@ export class ResultModule {
     async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
         validateId(testId, 'testId');
         validatePaginationParams(options?.limit, options?.offset);
+        const createdAfter = options?.createdAfter ?? options?.created_after;
+        const createdBefore = options?.createdBefore ?? options?.created_before;
+        const createdBy = options?.createdBy ?? options?.created_by;
+        const statusId = options?.statusId ?? options?.status_id;
+        const defectsFilter = options?.defectsFilter ?? options?.defects_filter;
         const endpoint = buildEndpoint(`get_results/${testId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: serializeIdList(options?.created_by),
-            status_id: serializeIdList(options?.status_id),
-            defects_filter: options?.defects_filter,
+            created_after: createdAfter,
+            created_before: createdBefore,
+            created_by: serializeIdList(createdBy),
+            status_id: serializeIdList(statusId),
+            defects_filter: defectsFilter,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -41,12 +46,17 @@ export class ResultModule {
         validateId(runId, 'runId');
         validateId(caseId, 'caseId');
         validatePaginationParams(options?.limit, options?.offset);
+        const createdAfter = options?.createdAfter ?? options?.created_after;
+        const createdBefore = options?.createdBefore ?? options?.created_before;
+        const createdBy = options?.createdBy ?? options?.created_by;
+        const statusId = options?.statusId ?? options?.status_id;
+        const defectsFilter = options?.defectsFilter ?? options?.defects_filter;
         const endpoint = buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: serializeIdList(options?.created_by),
-            status_id: serializeIdList(options?.status_id),
-            defects_filter: options?.defects_filter,
+            created_after: createdAfter,
+            created_before: createdBefore,
+            created_by: serializeIdList(createdBy),
+            status_id: serializeIdList(statusId),
+            defects_filter: defectsFilter,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -67,11 +77,15 @@ export class ResultModule {
     async getResultsForRun(runId: number, options?: GetResultsOptions): Promise<Result[]> {
         validateId(runId, 'runId');
         validatePaginationParams(options?.limit, options?.offset);
+        const createdAfter = options?.createdAfter ?? options?.created_after;
+        const createdBefore = options?.createdBefore ?? options?.created_before;
+        const createdBy = options?.createdBy ?? options?.created_by;
+        const statusId = options?.statusId ?? options?.status_id;
         const endpoint = buildEndpoint(`get_results_for_run/${runId}`, {
-            created_after: options?.created_after,
-            created_before: options?.created_before,
-            created_by: serializeIdList(options?.created_by),
-            status_id: serializeIdList(options?.status_id),
+            created_after: createdAfter,
+            created_before: createdBefore,
+            created_by: serializeIdList(createdBy),
+            status_id: serializeIdList(statusId),
             limit: options?.limit,
             offset: options?.offset,
         });
