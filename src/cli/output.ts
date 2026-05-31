@@ -59,13 +59,30 @@ export function renderTable(data: unknown): string {
         return rows.map(valueToString).join('\n');
     }
 
+    // Column set is the UNION of keys across every object-shaped row, in
+    // first-seen order (row 0's keys first, then any key that only appears
+    // in a later row). Deriving columns from row 0 alone would silently drop
+    // a column — and all of its data — whenever the first row omits a key a
+    // later row carries. That is reachable with real TestRail data: response
+    // schemas use `.nullish()`, so TestRail omits unset fields entirely, and
+    // a parsed list legitimately contains rows with differing key sets (e.g.
+    // a `case list` whose first case has no `milestone_id` but a later one
+    // does). The sibling `renderCsv` already unions keys for the same reason;
+    // this keeps the two renderers consistent.
+    const rawKeys = Array.from(
+        rows.reduce<Set<string>>((acc, r) => {
+            if (typeof r === 'object' && r !== null) {
+                for (const k of Object.keys(r)) acc.add(k);
+            }
+            return acc;
+        }, new Set<string>()),
+    );
     // CTF #18 defense-in-depth: sanitize column keys too. TestRail field
     // names today are alphanumeric/snake_case (safe), but the API contract
     // isn't a security boundary — a future field name carrying a control
     // byte would otherwise pass straight through `Object.keys()` into the
     // header row.
-    const keys = Object.keys(first).map(sanitizeForTerminal);
-    const rawKeys = Object.keys(first);
+    const keys = rawKeys.map(sanitizeForTerminal);
     const widths = keys.map((k, i) =>
         Math.max(k.length, ...rows.map((r) => valueToString(getField(r, rawKeys[i] ?? k)).length)),
     );
