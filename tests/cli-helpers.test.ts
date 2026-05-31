@@ -121,6 +121,59 @@ describe('renderTable', () => {
         expect(out.split('\n')).toHaveLength(4);
     });
 
+    // Regression: columns must be the UNION of keys across all rows, not just
+    // row 0's keys. TestRail omits `.nullish()` fields when unset, so a list's
+    // first row can legitimately lack a key that a later row carries (e.g. a
+    // case with no `milestone_id` followed by one that has it). Deriving
+    // columns from row 0 alone silently dropped that column and its data from
+    // the table while JSON/CSV still showed it.
+    it('includes a column present only in a later row (key union)', () => {
+        const out = renderTable([
+            { id: 1, name: 'case-a' },
+            { id: 2, name: 'case-b', milestone_id: 99 },
+        ]);
+        expect(out).toContain('milestone_id');
+        expect(out).toContain('99');
+        // Row 0's omitted key renders as an empty cell, not a dropped column.
+        const lines = out.split('\n');
+        expect(lines).toHaveLength(4); // header + separator + 2 data rows
+    });
+
+    it('preserves first-seen column order across heterogeneous rows', () => {
+        const out = renderTable([
+            { id: 1, name: 'a' },
+            { id: 2, name: 'b', extra: 'x' },
+        ]);
+        const header = out.split('\n')[0];
+        // Row 0 keys keep their order; the later-only key is appended last.
+        expect(header).toBe('id | name | extra');
+    });
+
+    it('unions keys even when the first row is the sparser one', () => {
+        const out = renderTable([{ id: 1 }, { id: 2, name: 'b' }]);
+        expect(out).toContain('id | name');
+        expect(out).toContain('2  | b');
+        const lines = out.split('\n');
+        expect(lines).toHaveLength(4); // header + separator + 2 data rows
+        // Row 0 lacks `name`: the column is kept, rendered as an empty cell —
+        // not dropped (the bug) and not collapsed into a malformed shorter row.
+        expect(lines[2]).toContain('1  | ');
+        expect(lines[2]?.trimEnd()).toBe('1  |');
+    });
+
+    it('table and csv agree on the column set for heterogeneous rows', () => {
+        const rows = [
+            { id: 1, name: 'a' },
+            { id: 2, name: 'b', milestone_id: 99 },
+        ];
+        const tableHeader = renderTable(rows).split('\n')[0] ?? '';
+        const csvHeader = renderCsv(rows).split('\r\n')[0] ?? '';
+        for (const key of ['id', 'name', 'milestone_id']) {
+            expect(tableHeader).toContain(key);
+            expect(csvHeader).toContain(key);
+        }
+    });
+
     // CTF #18: TestRail-controlled cell values must be sanitized before
     // landing in the table output. A malicious title containing `\x1b[31m`
     // would otherwise recolour the user's terminal; OSC 0 would spoof the

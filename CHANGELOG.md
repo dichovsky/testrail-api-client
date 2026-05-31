@@ -70,6 +70,15 @@ No source was reverted; only the version number and this changelog were reconcil
 - **LRU cache** no longer evicts an innocent entry on a re-set at capacity, and the
   **rate limiter** now records retries without spuriously rejecting a retried
   request as a local 429.
+- **`--format table` no longer drops columns missing from the first row.** The
+  table renderer derived its column set from `rows[0]` only, so any field present
+  on a later row but omitted from the first was silently dropped — data and all.
+  This was reachable with real TestRail data: response schemas use `.nullish()`,
+  so the API omits unset fields, and a list's first entity can legitimately lack a
+  key (e.g. `milestone_id`) that a later one carries. The renderer now takes the
+  union of keys across all rows (first-seen order), matching `--format csv`; the
+  omitting row renders an empty cell instead of losing the column. `--format json`
+  / `csv` were already correct.
 
 ### Security
 
