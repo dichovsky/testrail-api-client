@@ -4878,7 +4878,7 @@ describe('TestRailClient', () => {
     });
 
     describe('getAttachment', () => {
-        it('should return binary content of an attachment', async () => {
+        it('should return binary content of an attachment (integer id)', async () => {
             const buffer = new ArrayBuffer(8);
             const response = new Response(buffer, {
                 status: 200,
@@ -4887,11 +4887,37 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(response);
             const result = await client.attachments.getAttachment(1);
             expect(result).toBeInstanceOf(ArrayBuffer);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_attachment/1'),
+                expect.anything(),
+            );
         });
 
-        it('should throw for invalid attachmentId', async () => {
+        it('should return binary content of an attachment (UUID id — TestRail 7.1+)', async () => {
+            const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+            const buffer = new ArrayBuffer(4);
+            const response = new Response(buffer, {
+                status: 200,
+                headers: { 'Content-Type': 'application/octet-stream' },
+            });
+            mockFetch.mockResolvedValueOnce(response);
+            const result = await client.attachments.getAttachment(UUID_ID);
+            expect(result).toBeInstanceOf(ArrayBuffer);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining(`get_attachment/${UUID_ID}`),
+                expect.anything(),
+            );
+        });
+
+        it('should throw for invalid attachmentId (zero)', async () => {
             await expect(client.attachments.getAttachment(0)).rejects.toThrow(
-                'attachmentId must be a positive integer',
+                'attachmentId must be a positive integer or a UUID string',
+            );
+        });
+
+        it('should throw for invalid attachmentId (non-UUID string)', async () => {
+            await expect(client.attachments.getAttachment('not-a-uuid')).rejects.toThrow(
+                'attachmentId must be a positive integer or a UUID string',
             );
         });
     });
@@ -5000,7 +5026,7 @@ describe('TestRailClient', () => {
     });
 
     describe('deleteAttachment', () => {
-        it('should delete an attachment', async () => {
+        it('should delete an attachment (integer id)', async () => {
             mockFetch.mockResolvedValueOnce(mockEmpty());
             await expect(client.attachments.deleteAttachment(1)).resolves.toBeUndefined();
             expect(mockFetch).toHaveBeenCalledWith(
@@ -5009,9 +5035,25 @@ describe('TestRailClient', () => {
             );
         });
 
-        it('should throw for invalid attachmentId', async () => {
+        it('should delete an attachment (UUID id — TestRail 7.1+)', async () => {
+            const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await expect(client.attachments.deleteAttachment(UUID_ID)).resolves.toBeUndefined();
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining(`delete_attachment/${UUID_ID}`),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
+        it('should throw for invalid attachmentId (zero)', async () => {
             await expect(client.attachments.deleteAttachment(0)).rejects.toThrow(
-                'attachmentId must be a positive integer',
+                'attachmentId must be a positive integer or a UUID string',
+            );
+        });
+
+        it('should throw for invalid attachmentId (non-UUID string)', async () => {
+            await expect(client.attachments.deleteAttachment('garbage')).rejects.toThrow(
+                'attachmentId must be a positive integer or a UUID string',
             );
         });
     });

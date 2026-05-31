@@ -1,7 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId, parseEntryId } from '../ids.js';
+import { parseId, parseEntryId, parseAttachmentId } from '../ids.js';
 import { resolveFile } from '../file-input.js';
-import { createDestructiveHandler } from '../write-handler-factory.js';
 
 /**
  * Resolved file ready for upload. Returned by `setupUpload` only on the
@@ -135,9 +134,33 @@ export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promi
 /**
  * Destructive: deletes the attachment permanently. TestRail's
  * `delete_attachment` has no `soft=1` preview, so `--soft` is rejected.
+ *
+ * Hand-written rather than factory-created because `attachment_id` accepts
+ * both positive integers (older/Cloud) and UUID strings (TestRail 7.1+);
+ * `createDestructiveHandler` uses `parseId` (integer-only) for all path
+ * params and cannot express this mixed type without bending the factory.
  */
-export const handleAttachmentDelete = createDestructiveHandler({
-    action: 'attachment delete',
-    pathParams: ['attachment_id'],
-    call: (client, [attachmentId]) => client.attachments.deleteAttachment(attachmentId),
-});
+export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void> {
+    const attachmentId = parseAttachmentId(ctx.args.pathParams[0], 'attachment_id');
+
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: 'attachment delete',
+            attachmentId,
+            destructive: true,
+        });
+        return;
+    }
+
+    if (ctx.args.soft === true) {
+        throw new Error('attachment delete does not support --soft.');
+    }
+
+    if (!ctx.confirmDestructive) {
+        throw new Error('Destructive action; pass --yes to confirm.');
+    }
+
+    await ctx.client.attachments.deleteAttachment(attachmentId);
+    ctx.out({ attachmentId, deleted: true });
+}

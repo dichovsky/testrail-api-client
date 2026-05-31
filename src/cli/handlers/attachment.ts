@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId, parseEntryId, optInt } from '../ids.js';
+import { parseId, parseEntryId, parseAttachmentId, optInt } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteBinary } from '../safe-write.js';
 import { emitStdoutAck } from '../output.js';
@@ -61,7 +61,7 @@ export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Pro
  * block) — some users intentionally pipe binary to `hexdump`.
  */
 export async function handleAttachmentGet(ctx: HandlerContext): Promise<void> {
-    const attachmentId = parseId(ctx.args.pathParams[0], 'attachment_id');
+    const attachmentId = parseAttachmentId(ctx.args.pathParams[0], 'attachment_id');
     const resolved = resolveOut(
         { ...(ctx.args.out !== undefined && { outFlag: ctx.args.out }) },
         { force: ctx.force, dryRun: ctx.dryRun },

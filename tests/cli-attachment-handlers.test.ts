@@ -235,6 +235,26 @@ describe('handleAttachmentGet', () => {
             out: p,
         });
     });
+
+    it('accepts a UUID attachment_id (TestRail 7.1+)', async () => {
+        const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+        const client = buildClient();
+        const p = join(tmp, 'uuid-fetched.bin');
+        const { ctx, out } = buildCtx(client, { pathParams: [UUID_ID], out: p });
+        await handleAttachmentGet(ctx);
+        expect(client.attachments.getAttachment).toHaveBeenCalledWith(UUID_ID);
+        expect(out).toHaveBeenCalledWith({ attachmentId: UUID_ID, out: p, size: 3 });
+    });
+
+    it('rejects a garbage attachment_id before API call', async () => {
+        const client = buildClient();
+        const p = join(tmp, 'nope.bin');
+        const { ctx } = buildCtx(client, { pathParams: ['not-valid-id'], out: p });
+        await expect(handleAttachmentGet(ctx)).rejects.toThrow(
+            'attachment_id must be a positive integer or a UUID string',
+        );
+        expect(client.attachments.getAttachment).not.toHaveBeenCalled();
+    });
 });
 
 // ── add-to-* ──────────────────────────────────────────────────────────────
@@ -630,6 +650,38 @@ describe('handleAttachmentDelete', () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'], confirmDestructive: true });
         await expect(handleAttachmentDelete(ctx)).rejects.toThrow();
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
+    });
+
+    it('deletes with a UUID attachment_id when --yes is set (TestRail 7.1+)', async () => {
+        const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: [UUID_ID], confirmDestructive: true });
+        await handleAttachmentDelete(ctx);
+        expect(client.attachments.deleteAttachment).toHaveBeenCalledWith(UUID_ID);
+        expect(out).toHaveBeenCalledWith({ attachmentId: UUID_ID, deleted: true });
+    });
+
+    it('dry-run with UUID id skips API call and emits preview', async () => {
+        const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: [UUID_ID], dryRun: true });
+        await handleAttachmentDelete(ctx);
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'attachment delete',
+            attachmentId: UUID_ID,
+            destructive: true,
+        });
+    });
+
+    it('rejects a garbage attachment_id before any logic', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['not-valid-id'], confirmDestructive: true });
+        await expect(handleAttachmentDelete(ctx)).rejects.toThrow(
+            'attachment_id must be a positive integer or a UUID string',
+        );
         expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
     });
 });

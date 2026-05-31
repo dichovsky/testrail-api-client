@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ENTRY_ID_RE, validateId, validateEntryId, validatePaginationParams } from '../src/validation.js';
+import { ENTRY_ID_RE, validateId, validateEntryId, validateAttachmentId, validatePaginationParams } from '../src/validation.js';
 import { TestRailValidationError } from '../src/errors.js';
 
 describe('validation', () => {
@@ -67,6 +67,42 @@ describe('validation', () => {
             expect(() => validateEntryId('not-a-uuid')).toThrow(
                 'entryId must be a UUID string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
             );
+        });
+    });
+
+    describe('validateAttachmentId', () => {
+        it('accepts a positive integer', () => {
+            expect(() => validateAttachmentId(1)).not.toThrow();
+            expect(() => validateAttachmentId(2147483647)).not.toThrow();
+        });
+
+        it('accepts a well-formed UUID string (TestRail 7.1+)', () => {
+            expect(() => validateAttachmentId('2ec27be4-812f-4806-9a5d-d39130d1691a')).not.toThrow();
+            expect(() => validateAttachmentId('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE')).not.toThrow();
+        });
+
+        it('rejects zero', () => {
+            expect(() => validateAttachmentId(0)).toThrow(TestRailValidationError);
+            expect(() => validateAttachmentId(0)).toThrow(
+                'attachmentId must be a positive integer or a UUID string',
+            );
+        });
+
+        it('rejects negative integer', () => {
+            expect(() => validateAttachmentId(-1)).toThrow(TestRailValidationError);
+        });
+
+        it('rejects non-integer number', () => {
+            expect(() => validateAttachmentId(1.5)).toThrow(TestRailValidationError);
+        });
+
+        it('rejects an arbitrary non-UUID string (path-traversal guard)', () => {
+            expect(() => validateAttachmentId('../../admin')).toThrow(TestRailValidationError);
+            expect(() => validateAttachmentId('not-a-uuid')).toThrow(TestRailValidationError);
+        });
+
+        it('rejects a malformed UUID (wrong segment length)', () => {
+            expect(() => validateAttachmentId('aaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')).toThrow(TestRailValidationError);
         });
     });
 

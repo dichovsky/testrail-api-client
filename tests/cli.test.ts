@@ -5769,6 +5769,44 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
+        // ── UUID attachment ids (TestRail 7.1+) ───────────────────────────
+
+        it('get with UUID attachment_id downloads binary', async () => {
+            const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+            const outPath = join(tmp, 'uuid-fetched.bin');
+            const { exitCodes, stdout } = await runCli(
+                ['attachment', 'get', UUID_ID, '--out', outPath],
+                [binaryResponse(new Uint8Array([0xab, 0xcd]))],
+            );
+            expect(exitCodes).toContain(0);
+            expect(existsSync(outPath)).toBe(true);
+            expect(stdout).toContain(`"${UUID_ID}"`);
+        });
+
+        it('delete with UUID attachment_id --yes succeeds', async () => {
+            const UUID_ID = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+            const { exitCodes, stdout } = await runCli(
+                ['attachment', 'delete', UUID_ID, '--yes'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain(`"${UUID_ID}"`);
+        });
+
+        it('get with garbage attachment_id exits 1 before any API call', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'get', 'not-valid-id', '--out', '/tmp/x.bin']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('positive integer or a UUID string');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('delete with garbage attachment_id exits 1 before any API call', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'delete', 'not-valid-id', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('positive integer or a UUID string');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         // ── PR3a: --file - (stdin binary upload) ─────────────────────────
 
         it('add-to-case --file - uploads bytes piped from stdin', async () => {

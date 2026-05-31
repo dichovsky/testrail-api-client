@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "7cef7baa8e0326b2025161539a3af5d16b72e5df15df5e5e1dfffa5c34990974",
+  "sourceHash": "400f39619f39ffb4008ee176fdb7a767940a0bc70b83bae04d50b5953f94825c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1812,73 +1812,72 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../file-input.js",
         "../handler-context.js",
-        "../ids.js",
-        "../write-handler-factory.js"
+        "../ids.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "ResolvedUpload",
           "kind": "interface",
-          "line": 20,
+          "line": 19,
           "exported": false,
           "signature": "interface ResolvedUpload { filename: string; path: string; contents?: Uint8Array; fd?: number | undefined; source: 'file' | 'stdin'; }"
         },
         {
           "name": "setupUpload",
           "kind": "function",
-          "line": 43,
+          "line": 42,
           "exported": false,
           "signature": "async function setupUpload( ctx: HandlerContext, action: string, idFields: Record<string, number | string>, ): Promise<ResolvedUpload | null>"
         },
         {
           "name": "uploadPayload",
           "kind": "function",
-          "line": 90,
+          "line": 89,
           "exported": false,
           "signature": "function uploadPayload(upload: ResolvedUpload): { path: string; fd?: number | undefined } | Uint8Array"
         },
         {
           "name": "handleAttachmentAddToCase",
           "kind": "function",
-          "line": 97,
+          "line": 96,
           "exported": true,
           "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToResult",
           "kind": "function",
-          "line": 104,
+          "line": 103,
           "exported": true,
           "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToRun",
           "kind": "function",
-          "line": 111,
+          "line": 110,
           "exported": true,
           "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlan",
           "kind": "function",
-          "line": 118,
+          "line": 117,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlanEntry",
           "kind": "function",
-          "line": 125,
+          "line": 124,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentDelete",
-          "kind": "const",
-          "line": 139,
+          "kind": "function",
+          "line": 143,
           "exported": true,
-          "signature": "export const handleAttachmentDelete = createDestructiveHandler({ action: 'attachment delete', pathParams: ['attachment_id'], call: (client, [attachmentId]) => client.attachments.deleteAttachment(attac…"
+          "signature": "export async function handleAttachmentDelete(ctx: HandlerContext): Promise<void>"
         }
       ]
     },
@@ -3415,16 +3414,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export function parseEntryId(raw: string | undefined, name: string): string"
         },
         {
+          "name": "parseAttachmentId",
+          "kind": "function",
+          "line": 70,
+          "exported": true,
+          "signature": "export function parseAttachmentId(raw: string | undefined, name: string): number | string"
+        },
+        {
           "name": "optInt",
           "kind": "function",
-          "line": 59,
+          "line": 81,
           "exported": true,
           "signature": "export function optInt(raw: string | undefined): number | undefined"
         },
         {
           "name": "parseIdList",
           "kind": "function",
-          "line": 74,
+          "line": 96,
           "exported": true,
           "signature": "export function parseIdList(raw: string | undefined, name: string): number[] | undefined"
         }
@@ -8123,9 +8129,16 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export function validateEntryId(entryId: string): void"
         },
         {
+          "name": "validateAttachmentId",
+          "kind": "function",
+          "line": 44,
+          "exported": true,
+          "signature": "export function validateAttachmentId(id: number | string): void"
+        },
+        {
           "name": "validatePaginationParams",
           "kind": "function",
-          "line": 40,
+          "line": 59,
           "exported": true,
           "signature": "export function validatePaginationParams(limit?: number, offset?: number): void"
         }
