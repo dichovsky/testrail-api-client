@@ -1,6 +1,6 @@
 # Architecture
 
-`@dichovsky/testrail-api-client` — type-safe TypeScript client for the TestRail API. Zero runtime dependencies (Zod is the only `dependencies` entry). ESM only (`type: "module"`). Ships both a programmatic library and a `testrail` CLI binary.
+`@dichovsky/testrail-api-client` — type-safe TypeScript client for the TestRail API. One runtime dependency: Zod. ESM only (`type: "module"`). Ships both a programmatic library and a `testrail` CLI binary.
 
 This document describes how the code is organized, why the layers are split the way they are, and the invariants each layer guarantees. For a per-symbol index see [CODEMAP.md](../CODEMAP.md); for day-to-day editing rules see [CLAUDE.md](../CLAUDE.md).
 
@@ -29,7 +29,7 @@ This document describes how the code is organized, why the layers are split the 
 │  ── HTTP pipeline: cache, rate limit, retry, timeout, SSRF      │
 │  ── lifecycle, validation primitives, endpoint builder          │
 ├─────────────────────────────────────────────────────────────────┤
-│  Types / schemas  src/schemas.ts (Zod) + src/types.ts           │
+│  Types / schemas  src/schemas/*.ts (Zod) + src/types.ts         │
 │  ── payloads + parsed responses (Zod), config + DTOs (TS)       │
 ├─────────────────────────────────────────────────────────────────┤
 │  Foundations      src/errors.ts, src/constants.ts, src/utils.ts │
@@ -46,15 +46,15 @@ Every endpoint is reached through its domain module: `client.projects.getProject
 
 ### 2.1 Public surface (consumed by modules)
 
-| Method                                                              | Purpose                                                                                                                        |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `request<T>(spec: RequestSpec<T>)`                                  | The single HTTP entry point (GET/POST/PUT/DELETE; JSON, text, or binary responses; optional Zod validation; multipart uploads) |
-| `parse<T>()`                                                        | Standalone Zod parse with `handleZodError` wrapping                                                                            |
-| `validateId()` / `validateEntryId()` / `validatePaginationParams()` | Pre-flight integer guards                                                                                                      |
-| `buildEndpoint()`                                                   | TestRail-specific URL composer (`&` not `?` for params)                                                                        |
-| `clearCache()` / `destroy()`                                        | Cache / lifecycle                                                                                                              |
+| Method                             | Purpose                                                                                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `request<T>(spec: RequestSpec<T>)` | The single HTTP entry point (GET/POST/PUT/DELETE; JSON, text, or binary responses; optional Zod validation; multipart uploads) |
+| `parse<T>()`                       | Standalone Zod parse with `handleZodError` wrapping                                                                            |
+| `clearCache()` / `destroy()`       | Cache / lifecycle                                                                                                              |
 
 These are declared `public` (not `protected`) because modules consume them by composition, not inheritance — see §3.
+
+Pre-flight ID guards live in the pure `src/validation.ts` leaf module. TestRail-specific query construction lives in the pure `src/url.ts` leaf module.
 
 `request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). Behavioural defaults preserve the prior surface exactly: a GET with a schema caches under `PARSED:GET:{endpoint}` (validated value only), a GET without a schema caches under `GET:{endpoint}`, and non-GET calls skip the cache and invalidate it on success. The shared core builds a `PipelineSpec` and runs it through `executePipeline()`.
 
@@ -72,7 +72,7 @@ For a single call, the operations run in this fixed order:
 8. **`assertNotRedirect`** — any 3xx → `TestRailApiError` with the blocked `Location` embedded in `response`. Never retried, thrown before any cache write, so the LRU cannot be poisoned with a redirected payload.
 9. **Error branch** — non-2xx: read body, decide retry (see §2.4), throw `TestRailApiError(status, statusText, errorText)`. Raw body lands in the structured `response` field only — never in `message` — because callers commonly log `.message` and bodies may contain stack traces or secrets.
 10. **Cache invalidation on writes** — any non-GET calls `clearCache()` _before_ parsing the body, so empty 204-style responses still invalidate.
-11. **Body parse** — `response.text()` → empty-body shortcut → `JSON.parse`.
+11. **Body read + parse** — `readBodyWithLimits()` enforces byte/deadline guards, then the JSON path applies the empty-body shortcut and `JSON.parse`.
 12. **Cache write** — GET only, with TTL.
 
 Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retried) and `TypeError` (network error) to a retryable failure for GET only.
@@ -151,7 +151,7 @@ Modules do **not** extend `TestRailClientCore`. Each holds an injected reference
 constructor(private readonly client: TestRailClientCore) {}
 ```
 
-…and calls `this.client.validateId(...)`, `this.client.request<T>(spec)`, `this.client.buildEndpoint(...)`, etc. (See `modules/cases.ts:30`, `modules/runs.ts:7`, `modules/attachments.ts:6`.) The typed parameter is `TestRailClientCore`, but at runtime each module receives the full `TestRailClient` subclass — `this` is downcast to the base type by the constructor signature.
+…and calls `this.client.request<T>(spec)` / `this.client.parse(...)` after using pure helpers such as `validateId(...)` and `buildEndpoint(...)` from the leaf modules. The typed constructor parameter is `TestRailClientCore`, but at runtime each module receives the full `TestRailClient` subclass — `this` is downcast to the base type by the constructor signature.
 
 This is **composition by dependency injection on top of inheritance**: the facade inherits the core, then injects itself (typed as core) into each module. Modules carry no per-module state, only a back-reference.
 
@@ -176,20 +176,19 @@ No `Object.assign`, no `Proxy`, no prototype mixing — the modules hold their o
 
 ---
 
-## 4. Type system — `schemas.ts` + `types.ts`
+## 4. Type system — `schemas/*.ts` + `types.ts`
 
-| Concern                                                                        | Lives in           | Source of truth?              |
-| ------------------------------------------------------------------------------ | ------------------ | ----------------------------- |
-| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                       | `schemas.ts` (Zod) | yes                           |
-| Parsed response shapes (when validated via `request<T>(spec)` with a `schema`) | `schemas.ts` (Zod) | yes                           |
-| Hand-written response interfaces (`Case`, `Run`, `Project`, …)                 | `types.ts`         | yes (consumed by the modules) |
-| `TestRailConfig`, `RateLimiterConfig`                                          | `types.ts`         | yes                           |
-| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                   | `types.ts`         | yes                           |
-| Payloads not yet migrated to Zod (`AddUserPayload`, `AddVariablePayload`, …)   | `types.ts`         | yes                           |
+| Concern                                                                        | Lives in             | Source of truth?              |
+| ------------------------------------------------------------------------------ | -------------------- | ----------------------------- |
+| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                       | `schemas/*.ts` (Zod) | yes                           |
+| Parsed response shapes (when validated via `request<T>(spec)` with a `schema`) | `schemas/*.ts` (Zod) | yes                           |
+| Hand-written response interfaces retained for compatibility                    | `types.ts`           | yes (consumed by the modules) |
+| `TestRailConfig`, `RateLimiterConfig`                                          | `types.ts`           | yes                           |
+| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                   | `types.ts`           | yes                           |
 
-Convention: **payloads → `schemas.ts`; responses → `types.ts`**, even though Zod can infer response shapes too. There is intentional duplication on response shapes: `client.ts` imports response types from `./types.js` while payload types come from `./schemas.js`. The split keeps Zod usage focused on the validation boundary (writes in, parsed responses out) rather than letting it own every type in the codebase.
+Convention: **payloads → `schemas/*.ts`; response models → `schemas/*.ts` or `types.ts`**. The domain files are re-exported through the `src/schemas.ts` barrel. Payload types are inferred from Zod so CLI validation and the programmatic API cannot drift. Some response interfaces remain hand-written in `types.ts`, while response schemas define the runtime parse boundary.
 
-`schemas.ts` defines `zObject = z.object(shape).passthrough()` — every payload schema accepts unknown keys, so TestRail's `custom_*` fields and forward-compatible additions flow through without breaking validation.
+`schemas/common.ts` defines `zObject = z.object(shape).passthrough()` — payload schemas accept unknown keys, so TestRail's `custom_*` fields and forward-compatible additions flow through without breaking validation.
 
 ---
 
@@ -226,11 +225,12 @@ package.json:bin
       → src/cli/index.ts:main()
         → parseArgs (Node util, strict:false + allowPositionals)
         → KNOWN_FLAGS gate         rejects --typoed-flag
-        → --version | --help | install-skill short-circuits
+        → --version | --help | install-skill | uninstall-skill short-circuits
+        → dispatch(resource, action)
+        → destructive env gate + path-param count check
         → readBoundedStdin (if --api-key-stdin)
         → resolveAuth (flags override env)
         → build HandlerArgs + BodyInput (BodyInput.readStdin is a thunk)
-        → dispatch(resource, action)
         → new TestRailClient(config)
         → await handler(ctx)
         → client.destroy() in finally
@@ -290,7 +290,7 @@ Three shapes:
 4. `if (!confirmDestructive)` → throw `Destructive action; pass --yes to confirm.`.
 5. Execute. `softMode === 'optional'` passes `{ soft }` and reports the preview vs. `{ deleted: true }`; `kind === 'close'` emits the returned entity.
 
-Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--project-id` + soft), attachment uploads, and `group add`. Attachment uploads share a `setupUpload()` helper that calls `resolveFile()` with `read: !ctx.dryRun` — dry-run does a stat-only check so large files are never loaded into memory just to be discarded.
+Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--project-id` + soft), attachment uploads, `attachment delete` (integer-or-UUID ID), and `group add`. Attachment uploads share a `setupUpload()` helper that calls `resolveFile()` with `read: !ctx.dryRun`: filesystem uploads stream through a validated file descriptor, stdin uploads are bounded in memory, and dry-run does not drain stdin.
 
 ### 6.5 Cross-cutting CLI infrastructure
 
@@ -302,12 +302,13 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 | `ids.ts`             | `parseId` / `optInt` with consistent error shapes.                                                                                                                                       |
 | `body.ts`            | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                           |
 | `stdin.ts`           | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                          |
-| `file-input.ts`      | `resolveFile` — stats `--file`, rejects non-regular files, reads bytes only when `read: true`.                                                                                           |
+| `file-input.ts`      | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                    |
 | `file-output.ts`     | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                       |
 | `sanitize.ts`        | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                 |
 | `safe-write.ts`      | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                          |
 | `handler-context.ts` | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                          |
 | `install-skill.ts`   | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                     |
+| `uninstall-skill.ts` | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                        |
 
 ### 6.6 `--dry-run`, `--yes`, `--soft`, `TESTRAIL_ALLOW_DESTRUCTIVE` semantics
 
@@ -318,7 +319,7 @@ Destructive CLI actions clear a **two-gate model** before reaching the API:
 
 Both gates must clear. The env var is process-wide audit-friendly (visible in `printenv`); `--yes` is per-invocation explicit intent. Together they raise the bar for accidental destructive operations without making programmatic / library usage harder (the gate only applies to the CLI dispatcher).
 
-- **`--dry-run` is client-side.** Every write / destructive handler checks `if (ctx.dryRun)` _before_ the `--yes` gate and _before_ any client call. No HTTP request leaves the process. File-input handlers pass `read: !ctx.dryRun` so even disk reads are skipped on dry-run. **`--dry-run` bypasses the env-var gate too** — preview is non-destructive by definition, so CI agents can safely preview destructive commands without unlocking the env var.
+- **`--dry-run` is client-side.** Every write / destructive handler checks `if (ctx.dryRun)` _before_ the `--yes` gate and _before_ any client call. No HTTP request leaves the process. File-input handlers pass `read: !ctx.dryRun`; filesystem inputs are opened and statted but not uploaded, while `--file -` stdin is not drained. **`--dry-run` bypasses the env-var gate too** — preview is non-destructive by definition, so CI agents can safely preview destructive commands without unlocking the env var.
 - **`--soft` is server-side.** Only on `case delete`, `case delete-bulk`, `run delete`, `section delete`, `suite delete`. The handler _does_ hit the API — TestRail returns affected-entity counts without performing the deletion (`soft=1` query param). Still gated by both `--yes` and `TESTRAIL_ALLOW_DESTRUCTIVE=1`. Explicitly rejected on `project delete` / `milestone delete` / `plan delete*` / `variable delete` / `group delete` / `dataset delete` / `shared-step delete` / `configuration delete` / `configuration-group delete`.
 - **Dry-run wins.** The `if (ctx.dryRun)` branch returns before `--yes` / `--soft` / env-var matter. Dry-run output for soft-capable deletes still records `soft` in the preview JSON for audit, but makes zero network calls.
 
@@ -366,7 +367,7 @@ Subprocess-based CLI tests are deliberate — they verify the real entrypoint, a
 | `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2)    | `npm run mapping:check` (pretest + CI)     |
 | `AGENTS.md`           | `npm run agents-md` (consumes `ACTIONS`)                                        | `npm run agents-md:check` (pretest + CI)   |
 
-Both are committed. Both are verified in `pretest` / `prepublishOnly`. Drift fails the build.
+All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.
 
 ---
 
@@ -391,11 +392,11 @@ Each of these closes a real failure mode and exists because the obvious alternat
 
 ## 11. Conventions in one place
 
-- **No runtime dependencies** beyond Zod. Adding one requires deliberate justification.
+- **One runtime dependency: Zod.** Adding another requires deliberate justification.
 - **No `any`.** Use `unknown` + narrowing.
 - **No mutation.** Return new objects.
 - **No hardcoded numbers.** Everything lives in `src/constants.ts`.
-- **ID validation before every API call.** `this.client.validateId(id, 'name')` is non-negotiable.
+- **ID validation before every API call.** Import `validateId` from `../validation.js` and call `validateId(id, 'name')` (`validateEntryId` for plan-entry UUIDs).
 - **One module per resource.** When adding endpoints, extend the existing module — do not create per-endpoint files.
-- **Add to `metadata.ts` + `dispatch.ts` together.** Drift tests will fail otherwise.
-- **`npm run codemap` + `npm run skill` after any public-surface change.** Both are committed; both are CI-checked.
+- **Add CLI actions to `src/cli/metadata/{resource}.ts`.** `dispatch.ts`, help text, mapping, and skill generation derive from `ACTIONS`.
+- **Regenerate affected artifacts after public-surface changes.** Use `npm run codemap`, `npm run mapping`, `npm run skill`, and `npm run agents-md` as applicable.

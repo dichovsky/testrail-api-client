@@ -7,8 +7,8 @@
 
 ## What `@dichovsky/testrail-api-client` is
 
-A zero-runtime-dependency TypeScript client + CLI for the TestRail
-REST API. ESM only. Ships two surfaces:
+A TypeScript client + CLI for the TestRail REST API with one runtime
+dependency: Zod. ESM only. Ships two surfaces:
 
 - **Programmatic**: `import { TestRailClient } from "@dichovsky/testrail-api-client"`
 - **CLI**: the `testrail` binary (also `npx testrail`)
@@ -43,8 +43,8 @@ npx testrail case get 42
 # Write (Zod-validated; --dry-run previews without API call)
 npx testrail run add 5 --data '{"name":"CI build 123","include_all":true}'
 
-# Destructive — gated by --yes
-npx testrail run close 100 --yes
+# Destructive — requires BOTH the per-invocation flag and env unlock
+TESTRAIL_ALLOW_DESTRUCTIVE=1 npx testrail run close 100 --yes
 ```
 
 ## Quick start (programmatic)
@@ -73,8 +73,8 @@ try {
 
 ## Key invariants agents should know
 
-- **Zero runtime deps.** Never add a dependency to solve a problem;
-  pick a stdlib primitive or refactor.
+- **One runtime dep: Zod.** Do not add another dependency to solve a
+  problem; pick a stdlib primitive or refactor.
 - **No `any`.** Use `unknown` + narrowing. Public APIs have explicit
   parameter and return types.
 - **No mutation.** Return new objects; never mutate input.
@@ -83,10 +83,11 @@ try {
   `import { validateId } from '../validation.js';` then
   `validateId(id, "name")`. Plan-entry IDs use `validateEntryId`
   from the same module (SEC #29 UUID format).
-- **Write payloads validated by Zod** schemas in `src/schemas.ts`.
+- **Write payloads validated by Zod** schemas in `src/schemas/*.ts`
+  (re-exported through the `src/schemas.ts` barrel).
   `custom_*` fields pass through `.passthrough()` unchanged. No
   coercion: `"5"` is NOT silently converted to `5`.
-- **Caching**: GET responses cached in-process ~5 min. Any POST
+- **Caching**: GET responses cached in-process ~5 min. Any write
   invalidates the entire cache.
 - **Retry**: GET retries on 5xx/429/network errors with exponential
   backoff. Writes (POST/PUT/DELETE) retry only on 429 (rate-limited);
@@ -107,12 +108,15 @@ try {
 | `TestRailApiError`        | HTTP error, network error, rate limit, timeout, invalid JSON |
 | `TestRailValidationError` | Bad config, invalid ID, invalid params                       |
 
-CLI exits 1 on any failure; success is exit 0. JSON to stdout on
-success, `Error: <message>` to stderr on failure.
+CLI exits 0 on success and non-zero on failure. Most failures exit 1;
+a destructive action blocked by the missing env unlock exits 2 so CI
+can distinguish it. JSON goes to stdout on success,
+`Error: <message>` to stderr on failure.
 
 ## Destructive actions
 
-All destructive CLI actions require `--yes`:
+All destructive CLI actions require BOTH `--yes` and
+`TESTRAIL_ALLOW_DESTRUCTIVE=1`:
 
 - `case delete`
 - `case delete-bulk`
@@ -145,14 +149,14 @@ deletes that support it; `--dry-run` is purely client-side.
   in v3.0 because argv is visible via `/proc/<pid>/cmdline`, shell
   history, CI step logs, and crash dumps.
 - Prefer `TESTRAIL_API_KEY` env var. If the env var is not an option,
-  pipe via stdin: `echo "$KEY" | testrail … --api-key-stdin`.
+  pipe via stdin: `echo "$KEY" | npx testrail … --api-key-stdin`.
 - `--api-key-stdin` consumes stdin, so JSON bodies for write actions
   must come from `--data` or `--data-file` in that case.
 
 ## DO NOT
 
-- Add runtime dependencies (the zero-dep guarantee is the headline
-  selling point).
+- Add runtime dependencies beyond Zod (the single-dependency posture
+  is intentional).
 - Use `any`. Use `unknown` + narrowing or a generic.
 - Mutate objects in-place. Return new objects.
 - Hardcode numeric values; use `src/constants.ts`.
@@ -191,6 +195,6 @@ npm run agents-md              # Regenerate AGENTS.md
 ```
 
 CI runs `*:check` variants for each generator; drift fails the build.
-After changing `src/cli/metadata.ts`, `src/schemas.ts`, or any module
-method JSDoc, regenerate all artifacts.
+After changing `src/cli/metadata/*.ts`, `src/schemas/*.ts`, or any
+module method JSDoc, regenerate all artifacts.
 

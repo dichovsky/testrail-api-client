@@ -8,7 +8,7 @@ homepage: https://github.com/dichovsky/testrail-api-client
 
 # `testrail` CLI
 
-A zero-dependency Node CLI for the TestRail REST API. Covers query (`get`,
+A Node CLI for the TestRail REST API with one runtime dependency: Zod. Covers query (`get`,
 `list`) and write (`add`, `update`, `add-bulk`, `add-entry`, `close`)
 operations across projects, suites, cases, runs, plans, results,
 milestones, and users.
@@ -983,7 +983,7 @@ testrail configuration-group delete "$GROUP_ID" --yes
 Notes:
 
 - `configuration-group delete` and `configuration delete` are both
-  destructive: gated by `--yes`, no `--soft` server-side preview
+  destructive: gated by `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`, with no `--soft` server-side preview
   upstream (TestRail does NOT support `soft=1` on either endpoint).
   Use `--dry-run` (client-side, no API call) to validate the target
   before committing — `--yes --dry-run` emits a preview marked
@@ -1110,7 +1110,7 @@ Notes:
   `UpdateMilestonePayloadSchema`) — TestRail treats it as a no-op.
   This is a schema-layer decision; if you want non-empty enforcement,
   validate above the CLI before invoking.
-- **`shared-step delete` is destructive, gated by `--yes`.** Mirrors
+- **`shared-step delete` is destructive, gated by `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`.** Mirrors
   `milestone delete` / `plan delete`: no `--soft` server-side preview
   upstream, so the only preview mechanism is client-side `--dry-run`.
   `--dry-run` wins
@@ -1170,7 +1170,7 @@ testrail dataset get "$DATASET_ID"
 testrail dataset update "$DATASET_ID" --data '{"name":"Production matrix"}'
 
 # 7. Tear down — variables and datasets are independently deletable.
-#    Both deletes are destructive (no --soft, --yes required).
+#    Both deletes are destructive (no --soft; env unlock + --yes required).
 testrail dataset delete "$DATASET_ID" --yes
 testrail variable delete "$REGION_ID" --yes
 testrail variable delete "$ENV_ID" --yes
@@ -1549,7 +1549,8 @@ Notes:
   `--filename` pattern.
 - **Dry-run and destructive gates.** All write actions (`add-to-*`)
   support `--dry-run` (client-side validation, no API call). Delete
-  requires `--yes`; `--dry-run --yes` emits a preview.
+  requires `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`; `--dry-run --yes`
+  emits a preview without the env unlock.
 
 ### 36. Variable CRUD lifecycle
 
@@ -1976,12 +1977,13 @@ Payload keys (all optional):
 # Delete the milestone (associated runs/plans are unaffected)
 testrail milestone delete 7 --yes
 
-# Server-side soft-preview (TestRail returns referencing-run count without deleting)
-testrail milestone delete 7 --yes --soft
-
 # Dry-run (client-side prediction, no API call)
 testrail milestone delete 7 --yes --dry-run
 ```
+
+TestRail does not support `--soft` for milestone deletion. Use `--dry-run`
+to validate the target without an API call, then drop `--dry-run` for the
+irreversible delete.
 
 When a milestone is deleted, runs/plans that reference it keep their `milestone_id` field but the
 milestone record itself is removed. A subsequent `milestone list` will not include it.
@@ -2082,7 +2084,7 @@ const userByEmail = await client.users.getUserByEmail('alice@example.com');
 User groups are instance-level resources that organize users into permission sets.
 All group actions require TestRail 7.5+. The CRUD shape mirrors suites/milestones:
 `get` and `list` are reads; `add`, `update`, `delete` are writes. `delete`
-is destructive and requires `--yes`.
+is destructive and requires `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`.
 
 **Get a single group by ID:**
 
@@ -2147,10 +2149,10 @@ testrail group update 12 --data '{"user_ids":[5,6,8,10]}'
 testrail group update 12 --data '{"name":"QA","user_ids":[5,6]}'
 ```
 
-**Delete a group (requires `--yes`):**
+**Delete a group (requires env unlock + `--yes`):**
 
 `group delete <group_id>` calls `POST delete_group/{group_id}` and is destructive.
-Pass `--yes` to confirm:
+Set the env unlock and pass `--yes` to confirm:
 
 ```bash
 testrail group delete 12 --yes
@@ -2460,7 +2462,8 @@ the feature is available — do not hardcode status IDs.
 `case delete` removes a single case and all its associated history, results,
 and attachments. It is **irreversible** — TestRail does not provide soft-delete
 or transaction rollback. The CLI gates deletion behind two safety layers:
-`--yes` (client-side) and `--soft` (server-side preview).
+`--yes` (per-invocation) and `TESTRAIL_ALLOW_DESTRUCTIVE=1` (process-wide).
+`--soft` is an optional server-side preview after both gates clear.
 
 **Destructive-action gate (`--yes` + env var):**
 
@@ -2476,7 +2479,7 @@ Omitting either prevents the API call:
 testrail case delete 1337
 # Error: Destructive action; pass --yes to confirm.
 
-# Without env var: exits 1.
+# Without env var: exits 2.
 testrail case delete 1337 --yes
 # Error: Destructive action requires TESTRAIL_ALLOW_DESTRUCTIVE=1.
 ```
@@ -2674,7 +2677,7 @@ testrail section update 42 --data '{
 }'
 ```
 
-**6. Delete a section (destructive; requires --yes):**
+**6. Delete a section (destructive; requires env unlock + --yes):**
 
 ```bash
 testrail section delete 42 --yes
@@ -2733,7 +2736,7 @@ testrail suite update 12 --data '{
 }'
 ```
 
-**4. Delete a suite (destructive; requires --yes):**
+**4. Delete a suite (destructive; requires env unlock + --yes):**
 
 ```bash
 testrail suite delete 12 --yes
@@ -3168,14 +3171,15 @@ without admin intervention):**
 | 3 | Multi-suite (project can hold multiple independent suites) |
 
 **Destructive delete with safety gates** — `project delete` is irreversible.
-The CLI requires `--yes` to actually delete; `--dry-run` short-circuits
-client-side; `--soft` is **not** supported by TestRail for projects.
+The CLI requires `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes` to actually
+delete; `--dry-run` short-circuits client-side; `--soft` is **not**
+supported by TestRail for projects.
 
 ```bash
 # Preview a delete with no API call
 testrail project delete 5 --dry-run
 
-# Hard delete (requires --yes; otherwise rejected)
+# Hard delete (requires env unlock + --yes; otherwise rejected)
 testrail project delete 5 --yes
 ```
 
@@ -3547,11 +3551,12 @@ Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
 `run close`, `run delete`, `section delete`, `suite delete`, `milestone delete`,
 `project delete`, `plan close`, `plan delete`, `plan delete-entry`,
 `plan delete-run-from-entry`, `variable delete`, `dataset delete`,
-`shared-step delete`, `configuration delete`,
-`configuration-group delete`) require `--yes` to execute. Without `--yes`,
-the CLI exits 1 with `Destructive action; pass --yes to confirm.` This is
-the only gate — there is no interactive prompt (by design; this skill
-targets agents, not humans).
+`shared-step delete`, `group delete`, `configuration delete`,
+`configuration-group delete`) require `TESTRAIL_ALLOW_DESTRUCTIVE=1` and
+`--yes` to execute. A missing env unlock exits 2. With the env unlock set
+but no `--yes`, the CLI exits 1 with
+`Destructive action; pass --yes to confirm.` There is no interactive prompt
+(by design; this skill targets agents, not humans).
 
 `run close` and `plan close` are irreversible: TestRail has no `open_run`
 or `open_plan` endpoint and the web UI offers no reopen action. Once

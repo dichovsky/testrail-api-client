@@ -893,7 +893,7 @@ client was unsafe.
 
 ## [3.2.0] — 2026-05-18 — Fix schema-invalid responses poisoning the GET cache
 
-Closes [BACKLOG #9](BACKLOG.archive.md). Before this release, the GET cache
+Closes [BACKLOG #9](docs/archive/BACKLOG-ARCHIVE.md). Before this release, the GET cache
 recorded the raw JSON-parsed response **before** the module validated it with
 Zod. When TestRail returned a schema-invalid body, the bad data persisted for
 the full TTL — every subsequent identical GET returned the same poisoned
@@ -1100,7 +1100,7 @@ host's normal file-read semantics, unaffected by this cap).
 - New modules: `src/cli/flags.ts` (single source of truth for the
   `parseArgs` options table + derived `KNOWN_FLAGS`), `src/cli/sanitize.ts`
   (control-char stripper), `src/cli/stdin.ts` (`readBoundedStdin` helper).
-- `BACKLOG.archive.md` security findings #6, #10, #11, #16, #18, #24 marked
+- `docs/archive/BACKLOG-ARCHIVE.md` security findings #6, #10, #11, #16, #18, #24 marked
   `[SHIPPED]`.
 - Coverage: 97.23% global / 100% on new modules.
 
@@ -1115,4 +1115,4 @@ host's normal file-read semantics, unaffected by this cap).
 
 ## [2.2.0] — earlier
 
-See `BACKLOG.archive.md` Decision Log section.
+See [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.md) Decision Log section.
