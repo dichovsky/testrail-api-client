@@ -56,6 +56,28 @@ export function parseEntryId(raw: string | undefined, name: string): string {
     return trimmed;
 }
 
+/**
+ * Parse a TestRail attachment ID. Accepts either a positive integer (older /
+ * Cloud instances) or a well-formed RFC 4122 UUID string (TestRail 7.1+).
+ * UUID format is validated against the same `ENTRY_ID_RE` the programmatic
+ * `validateAttachmentId` uses — accepting arbitrary strings would allow
+ * path-traversal sequences (e.g. `../../admin`) to be injected into the URL
+ * (SEC #29 parity).
+ * Returns a `number` for integer inputs, a trimmed `string` for UUID inputs.
+ * Throws `IdParseError` so `main()` exits 1 (parity with `parseId` and
+ * `parseEntryId`).
+ */
+export function parseAttachmentId(raw: string | undefined, name: string): number | string {
+    if (raw !== undefined && POSITIVE_INT_RE.test(raw)) {
+        return Number(raw);
+    }
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    if (ENTRY_ID_RE.test(trimmed)) {
+        return trimmed;
+    }
+    throw new IdParseError(`${name} must be a positive integer or a UUID string (got: ${raw ?? '(none)'})`);
+}
+
 export function optInt(raw: string | undefined): number | undefined {
     if (raw === undefined || !NON_NEG_INT_RE.test(raw)) return undefined;
     const n = Number(raw);

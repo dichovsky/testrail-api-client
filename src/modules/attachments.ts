@@ -2,7 +2,7 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Attachment, UploadFileInput } from '../types.js';
 import { z } from 'zod';
 import { AttachmentSchema } from '../schemas.js';
-import { validateId, validateEntryId, validatePaginationParams } from '../validation.js';
+import { validateId, validateEntryId, validateAttachmentId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 
 /**
@@ -129,8 +129,8 @@ export class AttachmentModule {
     }
 
     /** @testrail GET get_attachment/{attachment_id} */
-    async getAttachment(attachmentId: number): Promise<ArrayBuffer> {
-        validateId(attachmentId, 'attachmentId');
+    async getAttachment(attachmentId: number | string): Promise<ArrayBuffer> {
+        validateAttachmentId(attachmentId);
         return this.client.request<ArrayBuffer>({
             method: 'GET',
             endpoint: `get_attachment/${attachmentId}`,
@@ -206,8 +206,8 @@ export class AttachmentModule {
     }
 
     /** @testrail POST delete_attachment/{attachment_id} */
-    async deleteAttachment(attachmentId: number): Promise<void> {
-        validateId(attachmentId, 'attachmentId');
+    async deleteAttachment(attachmentId: number | string): Promise<void> {
+        validateAttachmentId(attachmentId);
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_attachment/${attachmentId}`,

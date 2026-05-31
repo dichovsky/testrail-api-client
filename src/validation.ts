@@ -34,6 +34,29 @@ export function validateEntryId(entryId: string): void {
 }
 
 /**
+ * Validates that an attachment ID is either a positive integer or a
+ * well-formed RFC 4122 UUID string (TestRail 7.1+ attachment IDs are UUIDs;
+ * older / Cloud instances use integers). Accepting arbitrary strings would
+ * allow path-traversal sequences (e.g. `../../admin`) to be injected into
+ * the URL — only the regex-checked UUID form is accepted for strings.
+ *
+ * No `.trim()` is applied deliberately — mirrors `validateEntryId` (strict
+ * programmatic contract). CLI parsers (`parseAttachmentId` / `parseEntryId`)
+ * trim argv input before calling here; callers that skip trim get a rejection.
+ * @throws {TestRailValidationError} When the value is neither a positive integer nor a UUID string
+ */
+export function validateAttachmentId(id: number | string): void {
+    const ok =
+        (typeof id === 'number' && Number.isInteger(id) && id > 0) ||
+        (typeof id === 'string' && ENTRY_ID_RE.test(id));
+    if (!ok) {
+        throw new TestRailValidationError(
+            'attachmentId must be a positive integer or a UUID string',
+        );
+    }
+}
+
+/**
  * Validates optional pagination parameters.
  * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
  */

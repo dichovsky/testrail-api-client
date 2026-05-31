@@ -15,7 +15,7 @@ import {
     renderCsv,
     createOutput,
 } from '../src/cli/output.js';
-import { parseId, optInt, parseEntryId, IdParseError } from '../src/cli/ids.js';
+import { parseId, optInt, parseEntryId, parseAttachmentId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import {
     dispatch,
@@ -322,6 +322,54 @@ describe('parseEntryId', () => {
         expect(() => parseEntryId('not-a-uuid', 'entry_id')).toThrow(IdParseError);
         expect(() => parseEntryId('../../admin', 'entry_id')).toThrow(IdParseError);
         expect(() => parseEntryId('entry-guid-1', 'entry_id')).toThrow(IdParseError);
+    });
+});
+
+describe('parseAttachmentId', () => {
+    it('returns a number for a positive integer string', () => {
+        expect(parseAttachmentId('42', 'attachment_id')).toBe(42);
+        expect(parseAttachmentId('1', 'attachment_id')).toBe(1);
+    });
+
+    it('returns a string for a well-formed UUID (TestRail 7.1+)', () => {
+        const uuid = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+        expect(parseAttachmentId(uuid, 'attachment_id')).toBe(uuid);
+    });
+
+    it('trims surrounding whitespace before matching the UUID', () => {
+        const uuid = '2ec27be4-812f-4806-9a5d-d39130d1691a';
+        expect(parseAttachmentId(`  ${uuid}  `, 'attachment_id')).toBe(uuid);
+    });
+
+    it('throws IdParseError for undefined input', () => {
+        expect(() => parseAttachmentId(undefined, 'attachment_id')).toThrow(IdParseError);
+    });
+
+    it('throws for zero (not a positive integer)', () => {
+        expect(() => parseAttachmentId('0', 'attachment_id')).toThrow(IdParseError);
+    });
+
+    it('throws for a negative integer string', () => {
+        expect(() => parseAttachmentId('-1', 'attachment_id')).toThrow(IdParseError);
+    });
+
+    it('throws for an arbitrary non-UUID string (path-traversal guard)', () => {
+        expect(() => parseAttachmentId('../../admin', 'attachment_id')).toThrow(IdParseError);
+        expect(() => parseAttachmentId('not-a-uuid', 'attachment_id')).toThrow(IdParseError);
+    });
+
+    it('throws for a malformed UUID (wrong segment length)', () => {
+        expect(() => parseAttachmentId('aaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'attachment_id')).toThrow(IdParseError);
+    });
+
+    it('includes the parameter name in the error', () => {
+        expect(() => parseAttachmentId(undefined, 'attachment_id')).toThrow(/attachment_id/);
+    });
+
+    it('error message mentions both accepted forms', () => {
+        expect(() => parseAttachmentId('bad', 'attachment_id')).toThrow(
+            /positive integer or a UUID string/,
+        );
     });
 });
 
