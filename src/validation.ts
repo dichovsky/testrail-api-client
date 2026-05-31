@@ -39,6 +39,10 @@ export function validateEntryId(entryId: string): void {
  * older / Cloud instances use integers). Accepting arbitrary strings would
  * allow path-traversal sequences (e.g. `../../admin`) to be injected into
  * the URL — only the regex-checked UUID form is accepted for strings.
+ *
+ * No `.trim()` is applied deliberately — mirrors `validateEntryId` (strict
+ * programmatic contract). CLI parsers (`parseAttachmentId` / `parseEntryId`)
+ * trim argv input before calling here; callers that skip trim get a rejection.
  * @throws {TestRailValidationError} When the value is neither a positive integer nor a UUID string
  */
 export function validateAttachmentId(id: number | string): void {

@@ -81,6 +81,7 @@ interface CtxOverrides {
     dryRun?: boolean;
     force?: boolean;
     confirmDestructive?: boolean;
+    soft?: boolean;
 }
 
 interface BuiltCtx {
@@ -103,6 +104,7 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
             ...(overrides.out !== undefined && { out: overrides.out }),
             ...(overrides.limit !== undefined && { limit: overrides.limit }),
             ...(overrides.offset !== undefined && { offset: overrides.offset }),
+            ...(overrides.soft !== undefined && { soft: overrides.soft }),
         },
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
@@ -682,6 +684,13 @@ describe('handleAttachmentDelete', () => {
         await expect(handleAttachmentDelete(ctx)).rejects.toThrow(
             'attachment_id must be a positive integer or a UUID string',
         );
+        expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
+    });
+
+    it('rejects --soft because delete_attachment has no soft-preview mode', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true, soft: true });
+        await expect(handleAttachmentDelete(ctx)).rejects.toThrow('does not support --soft');
         expect(client.attachments.deleteAttachment).not.toHaveBeenCalled();
     });
 });
