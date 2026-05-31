@@ -146,6 +146,42 @@ describe('TestRailClient - Enhanced Features', () => {
             });
         });
 
+        it('records but does not locally reject a retry that exceeds the window (server limit still enforced)', async () => {
+            // A retry of an already-admitted request must NOT be rejected with a
+            // local 429 — that would mask the server 5xx that triggered the
+            // retry. The retry must still be RECORDED so the sliding-window
+            // count stays accurate. With maxRequests=2 a single GET that 5xx's
+            // then succeeds performs 2 attempts: the initial attempt is admitted
+            // and recorded, the retry is recorded but skips the admission throw
+            // (even though requests.length is already at the limit).
+            mockFetch.mockReset();
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 500,
+                    statusText: 'Internal Server Error',
+                    headers: { get: () => null },
+                    text: async () => 'Server Error',
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { get: () => null },
+                    text: async () => JSON.stringify({ id: 1, name: 'Test Project', suite_mode: 1, url: 'test' }),
+                });
+
+            const internal = client as unknown as { rateLimiter: { requests: number[] } };
+
+            // The retry resolves rather than being rejected by a local 429.
+            const result = await client.projects.getProject(1);
+            expect(result.id).toBe(1);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+
+            // Both attempts (initial + retry) are recorded in the sliding window.
+            expect(internal.rateLimiter.requests).toHaveLength(2);
+        });
+
         it('computes the oldest request when the window is full of distinct timestamps', async () => {
             // Seeds the sliding-window `requests[]` with strictly distinct,
             // ascending timestamps inside the window so the oldest-request
@@ -337,6 +373,43 @@ describe('TestRailClient - Enhanced Features', () => {
                 enableCache: true,
                 cacheTtl: 1000,
             });
+        });
+
+        it('re-setting an existing key at capacity does not evict an innocent entry (LRU guard)', () => {
+            // Defensive guard in setCachedData: re-setting an already-present
+            // key while the cache is at capacity must not evict the oldest
+            // (different) entry. Map.set on an existing key updates in place
+            // without growing size, so without the pre-delete the eviction
+            // branch would fire and drop an innocent entry, leaving the cache
+            // below capacity. This path is currently unreachable via the public
+            // API, so drive the private method directly (mirrors how the
+            // rate-limiter test seeds internal state).
+            const capped = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                maxCacheSize: 2,
+            });
+            const internal = capped as unknown as {
+                setCachedData<T>(key: string, data: T): void;
+                getCachedData<T>(key: string): T | undefined;
+                cache: Map<string, unknown>;
+            };
+
+            internal.setCachedData('GET:a', { v: 'a' });
+            internal.setCachedData('GET:b', { v: 'b' });
+            expect(internal.cache.size).toBe(2);
+
+            // Re-set the newest key while at capacity. The oldest key ('a')
+            // must survive; size stays at 2.
+            internal.setCachedData('GET:b', { v: 'b2' });
+
+            expect(internal.cache.size).toBe(2);
+            expect(internal.getCachedData('GET:a')).toEqual({ v: 'a' });
+            expect(internal.getCachedData('GET:b')).toEqual({ v: 'b2' });
+
+            capped.destroy();
         });
 
         it('should cache GET requests', async () => {

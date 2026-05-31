@@ -565,15 +565,25 @@ export class TestRailClientCore {
         throw new TestRailApiError(status, response.statusText, body);
     }
 
-    /** Sliding window rate limiter. @throws {TestRailApiError} when limit exceeded */
-    private checkRateLimit(): void {
+    /**
+     * Sliding window rate limiter. Always prunes timestamps outside the window
+     * and records the current request so the window count stays accurate.
+     *
+     * @param enforce - When `true` (initial attempt), throws if the window is
+     *   already at capacity. When `false` (a retry of an already-admitted
+     *   request), the request is still recorded but the admission throw is
+     *   skipped: a retry must not be rejected with a local 429, which would
+     *   mask the server-side condition that triggered the retry.
+     * @throws {TestRailApiError} when `enforce` and the limit is exceeded
+     */
+    private checkRateLimit(enforce: boolean): void {
         const now = Date.now();
         const windowStart = now - this.rateLimiter.windowMs;
 
         // Clean old requests outside the window
         this.rateLimiter.requests = this.rateLimiter.requests.filter((time) => time > windowStart);
 
-        if (this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
+        if (enforce && this.rateLimiter.requests.length >= this.rateLimiter.maxRequests) {
             // requests[] is push-appended and order-preserving-filtered, so it is
             // always ascending — the oldest in-window timestamp is requests[0].
             // This branch only runs when length >= maxRequests (>= 1, validated),
@@ -613,6 +623,14 @@ export class TestRailClientCore {
     private setCachedData<T>(cacheKey: string, data: T): void {
         if (!this.enableCache) {
             return;
+        }
+
+        // Re-setting an already-present key must not trip eviction: Map.set on
+        // an existing key updates in place without growing size, so evicting the
+        // oldest entry first would drop an innocent entry and leave the cache
+        // below capacity. Delete the key first so the set below is a clean insert.
+        if (this.cache.has(cacheKey)) {
+            this.cache.delete(cacheKey);
         }
 
         // Enforce cache size limit if not zero
@@ -1060,7 +1078,12 @@ export class TestRailClientCore {
             if (existing !== undefined) return existing;
         }
 
-        this.checkRateLimit();
+        // Enforce admission only on the initial attempt. A retry of an
+        // already-admitted request is still recorded (so the sliding-window
+        // count stays accurate and server-side limits are respected) but must
+        // not be rejected by a local 429, which would mask the server 5xx/429
+        // that triggered the retry.
+        this.checkRateLimit(retryCount === 0);
 
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
