@@ -74,7 +74,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         summary: 'List attachments on a plan entry',
         pathParams: [
             { name: 'plan_id', description: 'TestRail plan ID' },
-            { name: 'entry_id', description: 'TestRail plan entry ID' },
+            { name: 'entry_id', description: 'TestRail plan entry ID (UUID, from get_plan entries[].id)' },
         ],
         apiEndpoint: 'GET get_attachments_for_plan_entry/{plan_id}/{entry_id}',
         isWrite: false,
@@ -136,7 +136,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         summary: 'Upload an attachment to a plan entry',
         pathParams: [
             { name: 'plan_id', description: 'TestRail plan ID' },
-            { name: 'entry_id', description: 'TestRail plan entry ID' },
+            { name: 'entry_id', description: 'TestRail plan entry ID (UUID, from get_plan entries[].id)' },
         ],
         apiEndpoint: 'POST add_attachment_to_plan_entry/{plan_id}/{entry_id}',
         fileInput: true,

@@ -5,6 +5,40 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0] — Plan-entry attachment `entryId` is a GUID string, not a number
+
+TestRail plan-entry ids are RFC-4122 GUID strings (`get_plan` → `entries[].id`,
+e.g. `"3933d74b-…"`), the same id already used by `plans.updatePlanEntry` /
+`deletePlanEntry` / `addRunToPlanEntry`. The two plan-entry attachment methods
+mistyped it as a numeric `number`, mirroring an error in TestRail's Attachments
+API doc (which labels `entry_id` `integer` while the Plans doc and the `get_plan`
+response show a GUID). Because `get_plan` never returns a numeric entry id, the
+old signatures could not be called with a real id — and a numeric value is
+rejected by the server with HTTP 400 `Field :entry_id is not a valid test plan
+entry` (verified against a live TestRail instance).
+
+### Changed (BREAKING)
+
+- **`attachments.getAttachmentsForPlanEntry(planId, entryId)`** — `entryId` is now
+  `string` (UUID) instead of `number`; it is validated as a GUID (`validateEntryId`).
+- **`attachments.addAttachmentToPlanEntry(planId, entryId, file, filename)`** — same
+  change to `entryId`.
+- **CLI** `attachment list-for-plan-entry` / `add-to-plan-entry` — the `<entry_id>`
+  argument is now parsed as a UUID (`parseEntryId`); a numeric value is rejected
+  client-side with `entry_id must be a UUID string` before any request.
+
+### Migration
+
+```ts
+// Before (6.0.0) — never actually worked against a real server
+await client.attachments.getAttachmentsForPlanEntry(planId, 2);
+
+// After (7.0.0) — pass the entry GUID from get_plan
+const plan = await client.plans.getPlan(planId);
+const entryId = plan.entries![0]!.id; // GUID string
+await client.attachments.getAttachmentsForPlanEntry(planId, entryId);
+```
+
 ## [6.0.0] — Validation/URL delegate methods removed (ARCH #6, phase 2)
 
 Phase 2 of ARCH #6. The four `@deprecated` delegate methods introduced in 5.1.0

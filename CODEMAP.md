@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "6.0.0"
+    "version": "7.0.0"
   },
-  "sourceHash": "4aad9dd4a3586b5cdbfb56c46576891c4f6014e5ad9c958b7de2a3078b2d1d41",
+  "sourceHash": "7cef7baa8e0326b2025161539a3af5d16b72e5df15df5e5e1dfffa5c34990974",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1829,54 +1829,54 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "function",
           "line": 43,
           "exported": false,
-          "signature": "async function setupUpload( ctx: HandlerContext, action: string, idFields: Record<string, number>, ): Promise<ResolvedUpload | null>"
+          "signature": "async function setupUpload( ctx: HandlerContext, action: string, idFields: Record<string, number | string>, ): Promise<ResolvedUpload | null>"
         },
         {
           "name": "uploadPayload",
           "kind": "function",
-          "line": 88,
+          "line": 90,
           "exported": false,
           "signature": "function uploadPayload(upload: ResolvedUpload): { path: string; fd?: number | undefined } | Uint8Array"
         },
         {
           "name": "handleAttachmentAddToCase",
           "kind": "function",
-          "line": 95,
+          "line": 97,
           "exported": true,
           "signature": "export async function handleAttachmentAddToCase(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToResult",
           "kind": "function",
-          "line": 102,
+          "line": 104,
           "exported": true,
           "signature": "export async function handleAttachmentAddToResult(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToRun",
           "kind": "function",
-          "line": 109,
+          "line": 111,
           "exported": true,
           "signature": "export async function handleAttachmentAddToRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlan",
           "kind": "function",
-          "line": 116,
+          "line": 118,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentAddToPlanEntry",
           "kind": "function",
-          "line": 123,
+          "line": 125,
           "exported": true,
           "signature": "export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentDelete",
           "kind": "const",
-          "line": 137,
+          "line": 139,
           "exported": true,
           "signature": "export const handleAttachmentDelete = createDestructiveHandler({ action: 'attachment delete', pathParams: ['attachment_id'], call: (client, [attachmentId]) => client.attachments.deleteAttachment(attac…"
         }
@@ -5204,42 +5204,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getAttachmentsForPlanEntry",
               "kind": "method",
-              "line": 106
+              "line": 115
             },
             {
               "name": "getAttachment",
               "kind": "method",
-              "line": 123
+              "line": 132
             },
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 134
+              "line": 143
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 145
+              "line": 154
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 156
+              "line": 165
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 167
+              "line": 176
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 178
+              "line": 192
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 195
+              "line": 209
             }
           ]
         }
