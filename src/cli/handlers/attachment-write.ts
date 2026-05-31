@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
+import { parseId, parseEntryId } from '../ids.js';
 import { resolveFile } from '../file-input.js';
 import { createDestructiveHandler } from '../write-handler-factory.js';
 
@@ -43,7 +43,9 @@ interface ResolvedUpload {
 async function setupUpload(
     ctx: HandlerContext,
     action: string,
-    idFields: Record<string, number>,
+    // Values are usually numeric path IDs, but the plan-entry id is a GUID
+    // string (see addAttachmentToPlanEntry); the map only feeds the dry-run preview.
+    idFields: Record<string, number | string>,
 ): Promise<ResolvedUpload | null> {
     const resolved = await resolveFile(
         {
@@ -122,7 +124,7 @@ export async function handleAttachmentAddToPlan(ctx: HandlerContext): Promise<vo
 
 export async function handleAttachmentAddToPlanEntry(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const entryId = parseId(ctx.args.pathParams[1], 'entry_id');
+    const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
     const upload = await setupUpload(ctx, 'attachment add-to-plan-entry', { planId, entryId });
     if (upload === null) return;
     ctx.out(

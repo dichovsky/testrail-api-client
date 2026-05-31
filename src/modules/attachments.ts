@@ -2,7 +2,7 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Attachment, UploadFileInput } from '../types.js';
 import { z } from 'zod';
 import { AttachmentSchema } from '../schemas.js';
-import { validateId, validatePaginationParams } from '../validation.js';
+import { validateId, validateEntryId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 
 /**
@@ -102,10 +102,19 @@ export class AttachmentModule {
         );
     }
 
-    /** @testrail GET get_attachments_for_plan_entry/{plan_id}/{entry_id} */
-    async getAttachmentsForPlanEntry(planId: number, entryId: number): Promise<Attachment[]> {
+    /**
+     * `entryId` is the test plan entry's GUID (e.g. `"3933d74b-…"`), as
+     * returned by `getPlan(...).entries[].id` — NOT a numeric ID. The
+     * `{plan_id}/{entry_id}` path matches the plan-entry endpoints
+     * (`updatePlanEntry`, `deletePlanEntry`); TestRail rejects a numeric
+     * `entry_id` here with HTTP 400 "Field :entry_id is not a valid test
+     * plan entry". (TestRail's Attachments doc mislabels it `integer`.)
+     *
+     * @testrail GET get_attachments_for_plan_entry/{plan_id}/{entry_id}
+     */
+    async getAttachmentsForPlanEntry(planId: number, entryId: string): Promise<Attachment[]> {
         validateId(planId, 'planId');
-        validateId(entryId, 'entryId');
+        validateEntryId(entryId);
         return (
             (
                 await this.client.request<{ attachments?: Attachment[] }>({
@@ -174,15 +183,20 @@ export class AttachmentModule {
         });
     }
 
-    /** @testrail POST add_attachment_to_plan_entry/{plan_id}/{entry_id} */
+    /**
+     * `entryId` is the test plan entry's GUID (see {@link getAttachmentsForPlanEntry}),
+     * not a numeric ID; a numeric value is rejected by TestRail with HTTP 400.
+     *
+     * @testrail POST add_attachment_to_plan_entry/{plan_id}/{entry_id}
+     */
     async addAttachmentToPlanEntry(
         planId: number,
-        entryId: number,
+        entryId: string,
         file: UploadFileInput,
         filename: string,
     ): Promise<Attachment> {
         validateId(planId, 'planId');
-        validateId(entryId, 'entryId');
+        validateEntryId(entryId);
         return this.client.request<Attachment>({
             method: 'POST',
             endpoint: `add_attachment_to_plan_entry/${planId}/${entryId}`,

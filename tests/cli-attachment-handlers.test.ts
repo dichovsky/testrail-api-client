@@ -150,12 +150,20 @@ describe('attachment list handlers', () => {
         expect(out).toHaveBeenCalledWith([{ id: 4 }]);
     });
 
-    it('list-for-plan-entry parses both ids', async () => {
+    it('list-for-plan-entry parses plan id (int) and entry id (UUID)', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['9', '10'] });
+        const entryId = '3933d74b-4282-4c1f-be62-a641ab427063';
+        const { ctx, out } = buildCtx(client, { pathParams: ['9', entryId] });
         await handleAttachmentListForPlanEntry(ctx);
-        expect(client.attachments.getAttachmentsForPlanEntry).toHaveBeenCalledWith(9, 10);
+        expect(client.attachments.getAttachmentsForPlanEntry).toHaveBeenCalledWith(9, entryId);
         expect(out).toHaveBeenCalledWith([{ id: 5 }]);
+    });
+
+    it('list-for-plan-entry rejects a non-UUID entry id before client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['9', '10'] });
+        await expect(handleAttachmentListForPlanEntry(ctx)).rejects.toThrow('entry_id must be a UUID string');
+        expect(client.attachments.getAttachmentsForPlanEntry).not.toHaveBeenCalled();
     });
 
     it('list-for-case rejects non-positive id before client call', async () => {
@@ -358,22 +366,31 @@ describe('attachment upload handlers', () => {
         );
     });
 
-    it('add-to-plan-entry uploads with both ids', async () => {
+    it('add-to-plan-entry uploads with plan id (int) and entry id (UUID)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['9', '10'], file: filePath });
+        const entryId = '3933d74b-4282-4c1f-be62-a641ab427063';
+        const { ctx } = buildCtx(client, { pathParams: ['9', entryId], file: filePath });
         await handleAttachmentAddToPlanEntry(ctx);
         expect(client.attachments.addAttachmentToPlanEntry).toHaveBeenCalledWith(
             9,
-            10,
+            entryId,
             expect.objectContaining({ path: filePath }),
             'shot.png',
         );
     });
 
+    it('add-to-plan-entry rejects a non-UUID entry id before upload', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['9', '10'], file: filePath });
+        await expect(handleAttachmentAddToPlanEntry(ctx)).rejects.toThrow('entry_id must be a UUID string');
+        expect(client.attachments.addAttachmentToPlanEntry).not.toHaveBeenCalled();
+    });
+
     it('add-to-plan-entry dry-run preview includes both ids', async () => {
         const client = buildClient();
+        const entryId = '3933d74b-4282-4c1f-be62-a641ab427063';
         const { ctx, out } = buildCtx(client, {
-            pathParams: ['9', '10'],
+            pathParams: ['9', entryId],
             file: filePath,
             dryRun: true,
         });
@@ -383,7 +400,7 @@ describe('attachment upload handlers', () => {
             dryRun: true,
             action: 'attachment add-to-plan-entry',
             planId: 9,
-            entryId: 10,
+            entryId,
             file: filePath,
             filename: 'shot.png',
             size: 3,

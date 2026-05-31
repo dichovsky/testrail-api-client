@@ -5626,6 +5626,54 @@ describe('CLI', () => {
             expect(url).toContain('offset=0');
         });
 
+        it('list-for-plan-entry GETs with a UUID entry id', async () => {
+            const entryId = '3933d74b-4282-4c1f-be62-a641ab427063';
+            const { exitCodes } = await runCli(
+                ['attachment', 'list-for-plan-entry', '9', entryId],
+                [jsonResponse({ attachments: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain(`get_attachments_for_plan_entry/9/${entryId}`);
+        });
+
+        it('list-for-plan-entry rejects a numeric entry id fail-fast (UUID required)', async () => {
+            const { exitCodes, stderr } = await runCli(['attachment', 'list-for-plan-entry', '9', '10']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/entry_id must be a UUID string/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('add-to-plan-entry uploads --file with a UUID entry id', async () => {
+            const filePath = join(tmp, 'entry.png');
+            writeFileSync(filePath, Buffer.from([1, 2, 3]));
+            const entryId = '3933d74b-4282-4c1f-be62-a641ab427063';
+            const { exitCodes, stdout } = await runCli(
+                ['attachment', 'add-to-plan-entry', '9', entryId, '--file', filePath],
+                [jsonResponse({ attachment_id: 777 })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('777');
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain(`add_attachment_to_plan_entry/9/${entryId}`);
+        });
+
+        it('add-to-plan-entry rejects a numeric entry id fail-fast (UUID required)', async () => {
+            const filePath = join(tmp, 'entry.png');
+            writeFileSync(filePath, Buffer.from([1, 2, 3]));
+            const { exitCodes, stderr } = await runCli([
+                'attachment',
+                'add-to-plan-entry',
+                '9',
+                '10',
+                '--file',
+                filePath,
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/entry_id must be a UUID string/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('list-for-case rejects --limit 0 fail-fast (validatePaginationParams)', async () => {
             const { exitCodes, stderr } = await runCli(['attachment', 'list-for-case', '42', '--limit', '0']);
             expect(exitCodes).toContain(1);

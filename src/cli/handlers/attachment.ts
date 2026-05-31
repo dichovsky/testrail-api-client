@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId, optInt } from '../ids.js';
+import { parseId, parseEntryId, optInt } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteBinary } from '../safe-write.js';
 import { emitStdoutAck } from '../output.js';
@@ -44,7 +44,7 @@ export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<
 
 export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    const entryId = parseId(ctx.args.pathParams[1], 'entry_id');
+    const entryId = parseEntryId(ctx.args.pathParams[1], 'entry_id');
     ctx.out(await ctx.client.attachments.getAttachmentsForPlanEntry(planId, entryId));
 }
 

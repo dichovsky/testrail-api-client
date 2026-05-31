@@ -4682,31 +4682,34 @@ describe('TestRailClient', () => {
     });
 
     describe('getAttachmentsForPlanEntry', () => {
+        // Plan-entry ids are GUIDs (get_plan entries[].id), not integers.
+        const ENTRY_ID = '3933d74b-4282-4c1f-be62-a641ab427063';
+
         it('should return attachments for a plan entry', async () => {
             const attachments = [{ attachment_id: 5, name: 'entry.png' }];
             mockFetch.mockResolvedValueOnce(mockOk({ attachments }));
-            const result = await client.attachments.getAttachmentsForPlanEntry(1, 2);
+            const result = await client.attachments.getAttachmentsForPlanEntry(1, ENTRY_ID);
             expect(result).toEqual(attachments);
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_attachments_for_plan_entry/1/2'),
+                expect.stringContaining(`get_attachments_for_plan_entry/1/${ENTRY_ID}`),
                 expect.anything(),
             );
         });
 
         it('should return empty array when response has no attachments key', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            expect(await client.attachments.getAttachmentsForPlanEntry(1, 2)).toEqual([]);
+            expect(await client.attachments.getAttachmentsForPlanEntry(1, ENTRY_ID)).toEqual([]);
         });
 
         it('should throw for invalid planId', async () => {
-            await expect(client.attachments.getAttachmentsForPlanEntry(0, 1)).rejects.toThrow(
+            await expect(client.attachments.getAttachmentsForPlanEntry(0, ENTRY_ID)).rejects.toThrow(
                 'planId must be a positive integer',
             );
         });
 
-        it('should throw for invalid entryId', async () => {
-            await expect(client.attachments.getAttachmentsForPlanEntry(1, 0)).rejects.toThrow(
-                'entryId must be a positive integer',
+        it('should throw for non-UUID entryId', async () => {
+            await expect(client.attachments.getAttachmentsForPlanEntry(1, 'not-a-uuid')).rejects.toThrow(
+                'entryId must be a UUID string',
             );
         });
     });
@@ -4838,7 +4841,8 @@ describe('TestRailClient', () => {
             ] as const,
             [
                 'get_attachments_for_plan_entry',
-                (c: TestRailClient): Promise<Attachment[]> => c.attachments.getAttachmentsForPlanEntry(11, 2),
+                (c: TestRailClient): Promise<Attachment[]> =>
+                    c.attachments.getAttachmentsForPlanEntry(11, '3933d74b-4282-4c1f-be62-a641ab427063'),
             ] as const,
             [
                 'get_attachments_for_plan',
@@ -4965,29 +4969,32 @@ describe('TestRailClient', () => {
     });
 
     describe('addAttachmentToPlanEntry', () => {
+        // Plan-entry ids are GUIDs (get_plan entries[].id), not integers.
+        const ENTRY_ID = '3933d74b-4282-4c1f-be62-a641ab427063';
+
         it('should upload a file to a plan entry', async () => {
             const attachment = { attachment_id: 14, name: 'entry.png' };
             mockFetch.mockResolvedValueOnce(mockOk(attachment));
             const blob = new globalThis.Blob(['image']);
-            const result = await client.attachments.addAttachmentToPlanEntry(1, 2, blob, 'entry.png');
+            const result = await client.attachments.addAttachmentToPlanEntry(1, ENTRY_ID, blob, 'entry.png');
             expect(result).toEqual(attachment);
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('add_attachment_to_plan_entry/1/2'),
+                expect.stringContaining(`add_attachment_to_plan_entry/1/${ENTRY_ID}`),
                 expect.objectContaining({ method: 'POST' }),
             );
         });
 
         it('should throw for invalid planId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.attachments.addAttachmentToPlanEntry(0, 1, blob, 'f.txt')).rejects.toThrow(
+            await expect(client.attachments.addAttachmentToPlanEntry(0, ENTRY_ID, blob, 'f.txt')).rejects.toThrow(
                 'planId must be a positive integer',
             );
         });
 
-        it('should throw for invalid entryId', async () => {
+        it('should throw for non-UUID entryId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.attachments.addAttachmentToPlanEntry(1, 0, blob, 'f.txt')).rejects.toThrow(
-                'entryId must be a positive integer',
+            await expect(client.attachments.addAttachmentToPlanEntry(1, 'not-a-uuid', blob, 'f.txt')).rejects.toThrow(
+                'entryId must be a UUID string',
             );
         });
     });
