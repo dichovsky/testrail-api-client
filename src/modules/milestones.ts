@@ -23,8 +23,10 @@ export class MilestoneModule {
     async getMilestones(projectId: number, options?: GetMilestonesOptions): Promise<Milestone[]> {
         validateId(projectId, 'projectId');
         validatePaginationParams(options?.limit, options?.offset);
+        const isCompleted =
+            options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
         const endpoint = buildEndpoint(`get_milestones/${projectId}`, {
-            is_completed: options?.is_completed,
+            is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });

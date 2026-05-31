@@ -1675,6 +1675,24 @@ describe('TestRailClient', () => {
             );
         });
 
+        it('should preserve deprecated is_completed=0 (snake_case zero still works)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { is_completed: 0 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=0'),
+                expect.any(Object),
+            );
+        });
+
+        it('should give camelCase isCompleted priority over deprecated is_completed when both set', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
+            await client.plans.getPlans(1, { isCompleted: false, is_completed: 1 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_plans/1&is_completed=0'),
+                expect.any(Object),
+            );
+        });
+
         it('should omit empty array filters for getPlans with camelCase', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ plans: [] }));
             await client.plans.getPlans(1, { createdBy: [], milestoneId: [] });
@@ -3567,6 +3585,26 @@ describe('TestRailClient', () => {
             await client.milestones.getMilestones(1, { is_completed: 1 });
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('get_milestones/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should serialize isCompleted: true as is_completed=1', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.milestones.getMilestones(1, { isCompleted: true });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_milestones/1&is_completed=1'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve deprecated is_completed=0 for getMilestones (snake_case zero still works)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.milestones.getMilestones(1, { is_completed: 0 });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_milestones/1&is_completed=0'),
                 expect.any(Object),
             );
         });

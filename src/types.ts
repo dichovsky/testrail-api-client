@@ -744,12 +744,14 @@ export interface GetResultsOptions {
  * Filter options for `getMilestones()`.
  */
 export interface GetMilestonesOptions {
-    /** Filter by completion status: 1 = completed, 0 = active */
-    is_completed?: 0 | 1;
+    /** `true` to return only completed milestones, `false` for active */
+    isCompleted?: boolean;
     /** Maximum number of milestones to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
+    /** @deprecated use `isCompleted` */
+    is_completed?: 0 | 1;
 }
 
 // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────────
