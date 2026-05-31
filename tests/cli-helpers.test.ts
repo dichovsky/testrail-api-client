@@ -153,6 +153,12 @@ describe('renderTable', () => {
         const out = renderTable([{ id: 1 }, { id: 2, name: 'b' }]);
         expect(out).toContain('id | name');
         expect(out).toContain('2  | b');
+        const lines = out.split('\n');
+        expect(lines).toHaveLength(4); // header + separator + 2 data rows
+        // Row 0 lacks `name`: the column is kept, rendered as an empty cell —
+        // not dropped (the bug) and not collapsed into a malformed shorter row.
+        expect(lines[2]).toContain('1  | ');
+        expect(lines[2]?.trimEnd()).toBe('1  |');
     });
 
     it('table and csv agree on the column set for heterogeneous rows', () => {
