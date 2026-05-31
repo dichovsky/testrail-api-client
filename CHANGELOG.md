@@ -5,6 +5,53 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.1.0] — Doc-audit correctness fixes + camelCase option ergonomics
+
+A batch of non-breaking fixes surfaced by an upstream-doc audit and an internal
+review (PRs #200–#203). No public API was removed; all changes are additive or
+internal.
+
+### Fixed
+
+- **`users.getGroups()` parses the paginated wrapper** (#200). `get_groups`
+  returns `{ offset, limit, size, _links, groups: [...] }` (TestRail 6.7+ /
+  Cloud), not a bare array; the previous bare `z.array(GroupSchema)` schema
+  threw on the wrapper. Now mirrors `getUsers()` and returns `groups ?? []`.
+  Return type is unchanged (`Promise<Group[]>`).
+- **`attachments.getAttachment()` / `deleteAttachment()` accept UUID ids** (#203).
+  TestRail 7.1+ attachment ids are RFC-4122 GUID strings (older/Cloud use
+  integers); `AttachmentSchema.id` already accepted both, but the input methods
+  only took `number`, so a UUID-id attachment could not be downloaded or
+  deleted. The `attachmentId` parameter is widened to `number | string` and
+  validated by the new `validateAttachmentId` (positive integer **or** UUID,
+  path-traversal-safe). The CLI `attachment get` / `attachment delete` commands
+  accept the same via a new `parseAttachmentId`. Backward compatible — existing
+  numeric callers are unaffected.
+- **LRU cache no longer evicts an innocent entry on a re-set at capacity** (#201).
+  `setCachedData` now deletes an already-present key before the size/eviction
+  check, so updating a cached key while the cache is full cannot drop a
+  different entry.
+- **Rate limiter no longer rejects retries** (#201). `checkRateLimit` is split
+  into enforce + record: the initial attempt enforces the limit (may throw 429),
+  while retries are still **recorded** (the sliding-window count stays accurate
+  and the server-side limit is still respected) but are never locally rejected.
+  Prevents a retryable 5xx from surfacing as a spurious local 429.
+
+### Added
+
+- **camelCase list-filter options** (#202). `GetPlansOptions`, `GetResultsOptions`,
+  `GetTestsOptions`, and `GetMilestonesOptions` now expose camelCase fields
+  (`createdAfter`, `createdBy`, `statusId`, `milestoneId`, `defectsFilter`, …),
+  bringing them in line with `GetCasesOptions` / `GetRunsOptions`. The
+  "completed" filter is now `isCompleted?: boolean` (matching `getRuns`),
+  converted to TestRail's `0|1` internally. The original snake_case keys
+  (`created_after`, `status_id`, `is_completed: 0|1`, …) remain as `@deprecated`
+  aliases and will be removed in a future major.
+
+### Docs
+
+- Corrected the test-count/coverage note in `CLAUDE.md` (#201).
+
 ## [7.0.0] — Plan-entry attachment `entryId` is a GUID string, not a number
 
 TestRail plan-entry ids are RFC-4122 GUID strings (`get_plan` → `entries[].id`,
