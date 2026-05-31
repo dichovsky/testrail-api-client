@@ -3909,7 +3909,7 @@ describe('CLI', () => {
         });
 
         it('group list GETs get_groups (no path/query params)', async () => {
-            const { exitCodes, stdout } = await runCli(['group', 'list'], [jsonResponse([MOCK_GROUP])]);
+            const { exitCodes, stdout } = await runCli(['group', 'list'], [jsonResponse({ groups: [MOCK_GROUP] })]);
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('get_groups');
@@ -3922,7 +3922,7 @@ describe('CLI', () => {
         it('group list supports --format table', async () => {
             const { exitCodes, stdout } = await runCli(
                 ['group', 'list', '--format', 'table'],
-                [jsonResponse([MOCK_GROUP])],
+                [jsonResponse({ groups: [MOCK_GROUP] })],
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('QA Group');

@@ -4697,9 +4697,15 @@ describe('TestRailClient', () => {
                 { id: 1, name: 'QA Team' },
                 { id: 2, name: 'Dev Team' },
             ];
-            mockFetch.mockResolvedValueOnce(mockOk(groups));
+            mockFetch.mockResolvedValueOnce(mockOk({ groups }));
             const result = await client.users.getGroups();
             expect(result).toEqual(groups);
+        });
+
+        it('should handle empty groups list', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            const result = await client.users.getGroups();
+            expect(result).toEqual([]);
         });
     });
 

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "65e48ed2739e32ab798136ec59f4b90dd22716a27c3a794376e4d46809038b2b",
+  "sourceHash": "59dffef85a9d65a467ce4cb26f036100d90c205d92293d71aad064be255174c8",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4682,92 +4682,92 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 569
+              "line": 594
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 592
+              "line": 617
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 613
+              "line": 638
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 635
+              "line": 674
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 643
+              "line": 682
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 654
+              "line": 693
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 661
+              "line": 700
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 688
+              "line": 727
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 736
+              "line": 775
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 815
+              "line": 854
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 850
+              "line": 889
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 870
+              "line": 909
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 894
+              "line": 933
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 922
+              "line": 961
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 940
+              "line": 979
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 1044
+              "line": 1083
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1191
+              "line": 1240
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1200
+              "line": 1249
             }
           ]
         }
@@ -6275,17 +6275,17 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 110
+              "line": 116
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 120
+              "line": 126
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 131
+              "line": 137
             }
           ]
         }

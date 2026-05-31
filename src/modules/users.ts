@@ -99,11 +99,17 @@ export class UsersModule {
 
     /** @testrail GET get_groups */
     async getGroups(): Promise<Group[]> {
-        return this.client.request<Group[]>({
-            method: 'GET',
-            endpoint: 'get_groups',
-            schema: z.array(GroupSchema),
-        });
+        return (
+            (
+                await this.client.request<{ groups?: Group[] }>({
+                    method: 'GET',
+                    endpoint: 'get_groups',
+                    // SPEC #1.5 — TestRail returns `{ groups: [...] }` wrapper; `.nullish()` accepts
+                    // both null and omitted (observed behavior, PR #130).
+                    schema: z.object({ groups: z.array(GroupSchema).nullish() }),
+                })
+            ).groups ?? []
+        );
     }
 
     /** @testrail POST add_group */
