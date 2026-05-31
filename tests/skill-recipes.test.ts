@@ -288,12 +288,12 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         expect(section).toContain('lose the reference');
     });
 
-    it('warns that delete is destructive with --yes gate and no --soft preview', () => {
+    it('warns that delete is destructive with both gates and no --soft preview', () => {
         const section = extractSection(md, 'Shared step propagation + history audit');
         // Mirrors milestone/plan delete safety pattern. Pin the three
-        // load-bearing claims: --yes gates, no upstream --soft,
+        // load-bearing claims: env unlock + --yes gate, no upstream --soft,
         // --dry-run wins over --yes.
-        expect(section).toContain('gated by `--yes`');
+        expect(section).toContain('gated by `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`');
         expect(section).toContain('no `--soft` server-side preview');
         expect(section).toContain('`--dry-run` wins');
         expect(section).toContain('over `--yes`');

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`@dichovsky/testrail-api-client` — type-safe TypeScript client for the TestRail API. Zero runtime dependencies. ESM only (`type: "module"`).
+`@dichovsky/testrail-api-client` — type-safe TypeScript client for the TestRail API. One runtime dependency: Zod. ESM only (`type: "module"`).
 
 ## Commands
 
@@ -23,7 +23,7 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `src/types.ts`                                          | Response interfaces + payload types that aren't Zod-derived (e.g., `GetCasesOptions`, `GetPlansOptions`, `AddSuitePayload`)                       |
 | `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for `AddCasePayload`, `AddRunPayload`, `AddPlanPayload`, etc. via `z.infer` |
 | `src/errors.ts`                                         | `TestRailApiError`, `TestRailValidationError`, `handleZodError`                                                                                   |
-| `src/body-reader.ts`                                    | Streaming response-body reader with byte cap (SEC #12) + wall-clock deadline (SEC #21); shared by all four fetch sites                            |
+| `src/body-reader.ts`                                    | Streaming response-body reader with byte cap (SEC #12) + wall-clock deadline (SEC #21); shared by every response shape                            |
 | `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits, response-body caps)                                                                          |
 | `src/utils.ts`                                          | `base64Encode`, `sleep`                                                                                                                           |
 | `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                                  |
@@ -36,7 +36,7 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                                              |
 | `scripts/generate-codemap.ts`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                                  |
 | `docs/API-MAPPING.md`                                   | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)             |
-| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (116 endpoints × 25 resources); Zod-validated by the mapping generator                          |
+| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (117 endpoints × 25 resources); Zod-validated by the mapping generator                          |
 | `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2; `--check` flag for CI drift detection                    |
 | `scripts/mapping-renderer.ts`                           | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers    |
 
@@ -65,7 +65,7 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 
 **Retry:** `min(1000 × 2^n, 10000)` ms backoff. **GET** retries on: 5xx, 429, network errors. **POST/PUT/DELETE** retries only on 429 (rate-limited writes are rejected before execution); 5xx and network errors surface immediately to prevent duplicate writes. No retry on: 4xx, AbortError (timeout). Multipart uploads (`retry: 'none'`) never retry. **`Retry-After`** (RFC 7231 §7.1.3) is honored on every retryable response — 429 for all methods, and 5xx on GET (including binary downloads via `retry: 'binaryGet'`). The header accepts delta-seconds or HTTP-date, is capped at `MAX_RETRY_DELAY_MS`, and falls back to exponential backoff when absent, zero, in the past, or unparseable so a buggy server cannot induce a hot retry loop.
 
-**Redirects (3xx):** All four fetch sites set `redirect: 'manual'` and pipe the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed `validateBaseUrl` + DNS pinning.
+**Redirects (3xx):** The unified `executePipeline()` fetch sets `redirect: 'manual'` for every response shape and pipes the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed config validation + DNS pinning.
 
 **Response-body limits (SEC #12 + SEC #21):** Every fetch site reads the body through `readBodyWithLimits()` (`src/body-reader.ts`). Two caps apply: a **byte ceiling** (`maxJsonResponseBytes`, default 10 MiB — also used for text bodies and error payloads; `maxBinaryResponseBytes`, default 100 MiB — the `responseKind: 'binary'` success path only) and a **wall-clock deadline** (`bodyTimeout`, default = `timeout`). Exceeding either surfaces as `TestRailApiError(0, 'Response body too large' | 'Body read timeout', …)` with no retry. The header `timeout` is cleared after fetch returns; the body deadline is independent so a server that sends headers fast then dribbles bytes can no longer hold a socket open indefinitely. Config validator caps both byte limits at `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) so a caller cannot disable the guard with `Number.MAX_SAFE_INTEGER`. A non-streaming fallback exists for Response-like objects without `body.getReader()` (test mocks); it enforces the byte cap post-read but loses the slowloris protection.
 
@@ -99,11 +99,11 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 
 ## Tests
 
-2985 cases, 98%+ coverage (Vitest + V8). Shared helpers in `tests/helpers.ts`.
+3062 collected cases (3039 passing, 23 skipped in the current suite). Shared helpers live in `tests/helpers.ts`.
 
 | File                              | Covers                                                                                                                                 |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/client-endpoints.test.ts`  | All 36 API methods (CRUD)                                                                                                              |
+| `tests/client-endpoints.test.ts`  | Endpoint methods and CRUD paths                                                                                                        |
 | `tests/client-features.test.ts`   | Cache, rate limiter, retry, lifecycle                                                                                                  |
 | `tests/client-edge-cases.test.ts` | Edge cases, signal handlers, error paths                                                                                               |
 | `tests/client-projects.test.ts`   | Project CRUD                                                                                                                           |
@@ -114,7 +114,7 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 | `tests/exports.test.ts`           | Public API exports, inheritance                                                                                                        |
 | `tests/performance.test.ts`       | Concurrent requests, throughput                                                                                                        |
 | `tests/utils.test.ts`             | `base64Encode`, `sleep`                                                                                                                |
-| `tests/body-limits.test.ts`       | Response-body byte cap + wall-clock deadline (SEC #12 / SEC #21) across all four fetch sites                                           |
+| `tests/body-limits.test.ts`       | Response-body byte cap + wall-clock deadline (SEC #12 / SEC #21) across JSON, text, binary, and multipart paths                        |
 
 ## Common Tasks
 
@@ -139,13 +139,13 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 **Add CLI attachment-style action (binary file I/O):**
 
 1. The programmatic method (`addAttachmentTo*` / `getAttachment` / `deleteAttachment`) already exists in `src/modules/attachments.ts` and is exposed via `TestRailClient`
-2. Pick the I/O shape: file upload → `fileInput: true` in metadata + `resolveFile()` from `src/cli/file-input.ts`; binary download → `fileOutput: true` + `resolveOut()` from `src/cli/file-output.ts`; destructive op → `destructive: true` + check `ctx.confirmDestructive`
-3. Add handler to `src/cli/handlers/attachment.ts` (read) or `attachment-write.ts` (write). Upload handlers use the shared `setupUpload()` helper for dry-run preview + content read; `attachment delete` uses `createDestructiveHandler`
+2. Pick the I/O shape: file upload → `fileInput: true` in metadata + `resolveFile()` from `src/cli/file-input.ts`; binary download → `fileOutput: true` + `resolveOut()` from `src/cli/file-output.ts`; destructive op → `destructive: true` + a `ctx.confirmDestructive` check after the dry-run branch
+3. Add handler to `src/cli/handlers/attachment.ts` (read) or `attachment-write.ts` (write). Upload handlers use the shared `setupUpload()` helper for dry-run preview + filesystem descriptor streaming; `attachment delete` stays hand-written because attachment IDs may be integers or UUIDs
 4. Add an `ActionSpec` entry (with its `handler:` field) to `src/cli/metadata/attachments.ts` — dispatch + `--help` derive from `ACTIONS` automatically
 5. Add unit tests to `tests/cli-attachment-handlers.test.ts` (happy + dry-run + missing-flag + path-param reject; delete actions add `--yes` gate + dry-run-wins coverage) and a subprocess case to `tests/cli.test.ts`
 6. Run `npm run codemap` and `npm run skill` to regenerate CODEMAP.md and skill/SKILL.md
 
-**Destructive-ops convention:** `--yes` flag gates all destructive CLI actions. `--dry-run` wins over `--yes` (preview-without-API). Set `destructive: true` in metadata so the skill generator surfaces the gate in the command table.
+**Destructive-ops convention:** all destructive CLI actions require both `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`. `--dry-run` bypasses both gates (preview-without-API). Set `destructive: true` in metadata so the dispatcher enforces the env unlock and the skill generator surfaces the gate in the command table.
 
 **`--soft` vs `--dry-run` (case delete-bulk):** `--soft` adds TestRail's `soft=1` query param — a _server-side_ preview where TestRail returns affected-test counts without deleting. The CLI still hits the API. `--dry-run` is _client-side_ — no API call at all. They are independent: `--dry-run --yes --soft` short-circuits before any request and emits a preview noting `soft: true`.
 
@@ -157,7 +157,7 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 
 ## DO NOT
 
-- Add runtime dependencies (zero-dep is intentional)
+- Add runtime dependencies beyond Zod (the single-dependency posture is intentional)
 - Use `any` type (use `unknown` + narrowing)
 - Mutate objects in-place (return new objects)
 - Hardcode numeric values (use `src/constants.ts`)
