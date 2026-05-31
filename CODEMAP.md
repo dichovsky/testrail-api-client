@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "7cef7baa8e0326b2025161539a3af5d16b72e5df15df5e5e1dfffa5c34990974",
+  "sourceHash": "e9153dada57ed242b5dfb8a77b74496d90a6a184ea0af172f4864523287e5fbf",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -384,7 +384,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Attachment",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 771,
+      "line": 793,
       "signature": "export interface Attachment { attachment_id?: number | null; id?: number | string | null; name?: string | null; filename?: string | null; filetype?: string | null; size?: number | null; created_on?: n…",
       "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints.",
       "typeOnly": true
@@ -598,7 +598,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetMilestonesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 724,
+      "line": 746,
       "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }",
       "jsdoc": "Filter options for `getMilestones()`.",
       "typeOnly": true
@@ -608,7 +608,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "kind": "interface",
       "file": "src/types.ts",
       "line": 667,
-      "signature": "export interface GetPlansOptions { created_after?: number; created_before?: number; created_by?: number[]; is_completed?: 0 | 1; milestone_id?: number[]; limit?: number; offset?: number; }",
+      "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; limit?: number; offset?: number; created_after?: …",
       "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
     },
@@ -616,8 +616,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetResultsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 700,
-      "signature": "export interface GetResultsOptions { created_after?: number; created_before?: number; created_by?: number[]; status_id?: number[]; defects_filter?: string; limit?: number; offset?: number; }",
+      "line": 712,
+      "signature": "export interface GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; created_after?: …",
       "jsdoc": "Filter options for `getResults()`, `getResultsForCase()`, and `getResultsForRun()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
     },
@@ -641,8 +641,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetTestsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 687,
-      "signature": "export interface GetTestsOptions { status_id?: number[]; limit?: number; offset?: number; }",
+      "line": 697,
+      "signature": "export interface GetTestsOptions { statusId?: number[]; limit?: number; offset?: number; status_id?: number[]; }",
       "jsdoc": "Filter options for `getTests()`.",
       "typeOnly": true
     },
@@ -848,7 +848,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Report",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 851,
+      "line": 873,
       "signature": "export interface Report { id: number; name: string; description?: string | null; notify_user?: boolean | null; notify_link?: boolean | null; notify_link_recipients?: string | null; notify_attachment?:…",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}.",
       "typeOnly": true
@@ -857,7 +857,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ReportResult",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 882,
+      "line": 904,
       "signature": "export interface ReportResult { report_url: string; report_html?: string | null; report_pdf?: string | null; user_report_url?: string | null; }",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}.",
       "typeOnly": true
@@ -928,7 +928,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Role",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 736,
+      "line": 758,
       "signature": "export interface Role { id: number; name: string; is_default: boolean; }",
       "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
       "typeOnly": true
@@ -5677,52 +5677,52 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addPlan",
               "kind": "method",
-              "line": 55
+              "line": 61
             },
             {
               "name": "updatePlan",
               "kind": "method",
-              "line": 66
+              "line": 72
             },
             {
               "name": "closePlan",
               "kind": "method",
-              "line": 77
+              "line": 83
             },
             {
               "name": "deletePlan",
               "kind": "method",
-              "line": 87
+              "line": 93
             },
             {
               "name": "addPlanEntry",
               "kind": "method",
-              "line": 93
+              "line": 99
             },
             {
               "name": "updatePlanEntry",
               "kind": "method",
-              "line": 104
+              "line": 110
             },
             {
               "name": "deletePlanEntry",
               "kind": "method",
-              "line": 116
+              "line": 122
             },
             {
               "name": "addRunToPlanEntry",
               "kind": "method",
-              "line": 126
+              "line": 132
             },
             {
               "name": "updateRunInPlanEntry",
               "kind": "method",
-              "line": 138
+              "line": 144
             },
             {
               "name": "deleteRunFromPlanEntry",
               "kind": "method",
-              "line": 149
+              "line": 155
             }
           ]
         }
@@ -5850,32 +5850,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getResultsForCase",
               "kind": "method",
-              "line": 40
+              "line": 45
             },
             {
               "name": "getResultsForRun",
               "kind": "method",
-              "line": 67
+              "line": 77
             },
             {
               "name": "addResult",
               "kind": "method",
-              "line": 92
+              "line": 106
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 103
+              "line": 117
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 115
+              "line": 129
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 126
+              "line": 140
             }
           ]
         }
@@ -7999,54 +7999,54 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 667,
           "exported": true,
-          "signature": "export interface GetPlansOptions { created_after?: number; created_before?: number; created_by?: number[]; is_completed?: 0 | 1; milestone_id?: number[]; limit?: number; offset?: number; }"
+          "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; limit?: number; offset?: number; created_after?: …"
         },
         {
           "name": "GetTestsOptions",
           "kind": "interface",
-          "line": 687,
+          "line": 697,
           "exported": true,
-          "signature": "export interface GetTestsOptions { status_id?: number[]; limit?: number; offset?: number; }"
+          "signature": "export interface GetTestsOptions { statusId?: number[]; limit?: number; offset?: number; status_id?: number[]; }"
         },
         {
           "name": "GetResultsOptions",
           "kind": "interface",
-          "line": 700,
+          "line": 712,
           "exported": true,
-          "signature": "export interface GetResultsOptions { created_after?: number; created_before?: number; created_by?: number[]; status_id?: number[]; defects_filter?: string; limit?: number; offset?: number; }"
+          "signature": "export interface GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; created_after?: …"
         },
         {
           "name": "GetMilestonesOptions",
           "kind": "interface",
-          "line": 724,
+          "line": 746,
           "exported": true,
           "signature": "export interface GetMilestonesOptions { is_completed?: 0 | 1; limit?: number; offset?: number; }"
         },
         {
           "name": "Role",
           "kind": "interface",
-          "line": 736,
+          "line": 758,
           "exported": true,
           "signature": "export interface Role { id: number; name: string; is_default: boolean; }"
         },
         {
           "name": "Attachment",
           "kind": "interface",
-          "line": 771,
+          "line": 793,
           "exported": true,
           "signature": "export interface Attachment { attachment_id?: number | null; id?: number | string | null; name?: string | null; filename?: string | null; filetype?: string | null; size?: number | null; created_on?: n…"
         },
         {
           "name": "Report",
           "kind": "interface",
-          "line": 851,
+          "line": 873,
           "exported": true,
           "signature": "export interface Report { id: number; name: string; description?: string | null; notify_user?: boolean | null; notify_link?: boolean | null; notify_link_recipients?: string | null; notify_attachment?:…"
         },
         {
           "name": "ReportResult",
           "kind": "interface",
-          "line": 882,
+          "line": 904,
           "exported": true,
           "signature": "export interface ReportResult { report_url: string; report_html?: string | null; report_pdf?: string | null; user_report_url?: string | null; }"
         }
