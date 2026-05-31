@@ -23,8 +23,9 @@ export class TestModule {
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
         validateId(runId, 'runId');
         validatePaginationParams(options?.limit, options?.offset);
+        const statusId = options?.statusId ?? options?.status_id;
         const endpoint = buildEndpoint(`get_tests/${runId}`, {
-            status_id: serializeIdList(options?.status_id),
+            status_id: serializeIdList(statusId),
             limit: options?.limit,
             offset: options?.offset,
         });
