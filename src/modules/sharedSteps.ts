@@ -1,7 +1,6 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { HistoryEntry } from '../types.js';
-import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload } from '../schemas.js';
-import { SharedStepSchema, HistoryEntrySchema } from '../schemas.js';
+import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload, StepHistoryEntry } from '../schemas.js';
+import { SharedStepSchema, StepHistoryEntrySchema } from '../schemas.js';
 import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
@@ -29,11 +28,19 @@ export class SharedStepModule {
     /** @testrail GET get_shared_steps/{project_id} */
     async getSharedSteps(projectId: number): Promise<SharedStep[]> {
         validateId(projectId, 'projectId');
-        return this.client.request<SharedStep[]>({
+        // SPEC #1.6 — `get_shared_steps` is a bulk endpoint: real TestRail
+        // returns the paginated `{ offset, limit, size, _links, shared_steps:[…] }`
+        // envelope. Accept both the wrapper and a bare array (older/edge servers)
+        // and unwrap via `.shared_steps ?? []`, mirroring getSuites.
+        const raw = await this.client.request<SharedStep[] | { shared_steps?: SharedStep[] | null }>({
             method: 'GET',
             endpoint: `get_shared_steps/${projectId}`,
-            schema: SharedStepSchema.array(),
+            schema: z.union([
+                z.array(SharedStepSchema),
+                z.object({ shared_steps: z.array(SharedStepSchema).nullish() }),
+            ]),
         });
+        return Array.isArray(raw) ? raw : (raw.shared_steps ?? []);
     }
 
     /** @testrail POST add_shared_step/{project_id} */
@@ -68,7 +75,10 @@ export class SharedStepModule {
     }
 
     /** @testrail GET get_shared_step_history/{shared_step_id} */
-    async getSharedStepHistory(sharedStepId: number, options?: GetSharedStepHistoryOptions): Promise<HistoryEntry[]> {
+    async getSharedStepHistory(
+        sharedStepId: number,
+        options?: GetSharedStepHistoryOptions,
+    ): Promise<StepHistoryEntry[]> {
         validateId(sharedStepId, 'sharedStepId');
         validatePaginationParams(options?.limit, options?.offset);
         const endpoint = buildEndpoint(`get_shared_step_history/${sharedStepId}`, {
@@ -77,14 +87,14 @@ export class SharedStepModule {
         });
         return (
             (
-                await this.client.request<{ history?: HistoryEntry[] }>({
+                await this.client.request<{ step_history?: StepHistoryEntry[] | null }>({
                     method: 'GET',
                     endpoint,
-                    // SPEC #1.5 — TestRail can return `{ history: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ history: z.array(HistoryEntrySchema).nullish() }),
+                    // SPEC #1.7 — entries live under `step_history` (NOT `history`);
+                    // `.nullish()` tolerates `{ step_history: null }` / missing wrapper.
+                    schema: z.object({ step_history: z.array(StepHistoryEntrySchema).nullish() }),
                 })
-            ).history ?? []
+            ).step_history ?? []
         );
     }
 }

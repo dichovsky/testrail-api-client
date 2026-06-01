@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.0"
   },
-  "sourceHash": "4babac1e0d0d33ba72b9446247b524839d16a39654acf8430b2d949451943e37",
+  "sourceHash": "f12dbce42563463f95da987903e6110aaded8ff4de43e4cf8e56255f7911bc22",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -633,7 +633,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetSharedStepHistoryOptions",
       "kind": "interface",
       "file": "src/modules/sharedSteps.ts",
-      "line": 9,
+      "line": 8,
       "signature": "export interface GetSharedStepHistoryOptions { limit?: number; offset?: number; }",
       "typeOnly": true
     },
@@ -1024,6 +1024,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "file": "src/schemas/metadata.ts",
       "line": 43,
       "signature": "export const StatusSchema = zObject({ id: z.number(), name: z.string(), label: z.string(), color_dark: z.number(), color_medium: z.number(), color_bright: z.number(), is_system: z.boolean(), is_untest…"
+    },
+    {
+      "name": "StepHistoryEntry",
+      "kind": "type",
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 104,
+      "signature": "export type StepHistoryEntry = z.infer<typeof StepHistoryEntrySchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "StepHistoryEntrySchema",
+      "kind": "const",
+      "file": "src/schemas/sharedSteps.ts",
+      "line": 96,
+      "signature": "export const StepHistoryEntrySchema = zObject({ id: z.string(), title: z.string().nullish(), timestamp: z.number().nullish(), user_id: z.string().nullish(), custom_steps_separated: z.array(z.record(z.…",
+      "jsdoc": "SPEC #1.7 — `get_shared_step_history/{shared_step_id}` returns entries under `step_history` (NOT `history`). Per the official Shared Steps API doc, an entry carries string `id`/`user_id`, a `timestamp`, a `title`, and `custom_steps_separated[]` — distinct from the case-history `HistoryEntry` shape. `id` is the required identifier; every other field is `.nullish()`- widened so a real server response never throws (the bug class this fixes)."
     },
     {
       "name": "Suite",
@@ -6054,7 +6070,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../client-core.js",
         "../schemas.js",
-        "../types.js",
         "../url.js",
         "../validation.js",
         "zod"
@@ -6064,51 +6079,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetSharedStepHistoryOptions",
           "kind": "interface",
-          "line": 9,
+          "line": 8,
           "exported": true,
           "signature": "export interface GetSharedStepHistoryOptions { limit?: number; offset?: number; }"
         },
         {
           "name": "SharedStepModule",
           "kind": "class",
-          "line": 16,
+          "line": 15,
           "exported": true,
           "signature": "export class SharedStepModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 17
+              "line": 16
             },
             {
               "name": "getSharedStep",
               "kind": "method",
-              "line": 20
+              "line": 19
             },
             {
               "name": "getSharedSteps",
               "kind": "method",
-              "line": 30
+              "line": 29
             },
             {
               "name": "addSharedStep",
               "kind": "method",
-              "line": 40
+              "line": 47
             },
             {
               "name": "updateSharedStep",
               "kind": "method",
-              "line": 51
+              "line": 58
             },
             {
               "name": "deleteSharedStep",
               "kind": "method",
-              "line": 62
+              "line": 69
             },
             {
               "name": "getSharedStepHistory",
               "kind": "method",
-              "line": 71
+              "line": 78
             }
           ]
         }
@@ -7545,6 +7560,20 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 86,
           "exported": true,
           "signature": "export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSchema>"
+        },
+        {
+          "name": "StepHistoryEntrySchema",
+          "kind": "const",
+          "line": 96,
+          "exported": true,
+          "signature": "export const StepHistoryEntrySchema = zObject({ id: z.string(), title: z.string().nullish(), timestamp: z.number().nullish(), user_id: z.string().nullish(), custom_steps_separated: z.array(z.record(z.…"
+        },
+        {
+          "name": "StepHistoryEntry",
+          "kind": "type",
+          "line": 104,
+          "exported": true,
+          "signature": "export type StepHistoryEntry = z.infer<typeof StepHistoryEntrySchema>"
         }
       ]
     },

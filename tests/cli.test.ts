@@ -2023,13 +2023,32 @@ describe('CLI', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_step/1'), expect.anything());
         });
 
-        it('shared-step list --project-id should exit 0', async () => {
+        it('shared-step list --project-id should exit 0 (bare array — cross-version)', async () => {
             const { exitCodes } = await runCli(
                 ['shared-step', 'list', '--project-id', '3'],
                 [jsonResponse([MOCK_SHARED_STEP])],
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_shared_steps/3'), expect.anything());
+        });
+
+        it('SPEC #1.6 — shared-step list renders rows from paginated envelope without throwing', async () => {
+            // Real TestRail returns { offset, limit, size, _links, shared_steps:[…] }.
+            // This test ensures the CLI does not throw on the real envelope shape.
+            const { exitCodes, stdout } = await runCli(
+                ['shared-step', 'list', '--project-id', '3'],
+                [
+                    jsonResponse({
+                        offset: 0,
+                        limit: 250,
+                        size: 1,
+                        _links: { next: null, prev: null },
+                        shared_steps: [MOCK_SHARED_STEP],
+                    }),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Login Steps');
         });
 
         it('shared-step get rejects non-positive id', async () => {
@@ -2045,7 +2064,11 @@ describe('CLI', () => {
         it('shared-step history <id> should exit 0 and call get_shared_step_history', async () => {
             const { exitCodes } = await runCli(
                 ['shared-step', 'history', '42'],
-                [jsonResponse({ history: [{ id: 1, user_id: 5, type_id: 2, created_on: 1700000000 }] })],
+                [
+                    jsonResponse({
+                        step_history: [{ id: '1', timestamp: 1389968184, user_id: '4', title: 'Shared Steps 1' }],
+                    }),
+                ],
             );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(
@@ -2054,10 +2077,29 @@ describe('CLI', () => {
             );
         });
 
+        it('SPEC #1.7 — shared-step history renders non-empty rows from step_history envelope', async () => {
+            // Proves the CLI no longer returns empty output when the real
+            // `step_history` key is present in the response.
+            const { exitCodes, stdout } = await runCli(
+                ['shared-step', 'history', '42'],
+                [
+                    jsonResponse({
+                        offset: 0,
+                        limit: 250,
+                        size: 1,
+                        _links: { next: null, prev: null },
+                        step_history: [{ id: '1', timestamp: 1389968184, user_id: '4', title: 'Shared Steps 1' }],
+                    }),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Shared Steps 1');
+        });
+
         it('shared-step history passes --limit and --offset to the API', async () => {
             const { exitCodes } = await runCli(
                 ['shared-step', 'history', '42', '--limit', '5', '--offset', '15'],
-                [jsonResponse({ history: [] })],
+                [jsonResponse({ step_history: [] })],
             );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
