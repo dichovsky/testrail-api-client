@@ -4719,8 +4719,11 @@ describe('TestRailClient', () => {
             expect(await client.metadata.getRoles()).toEqual([]);
         });
 
-        it('should return [] when the roles key is omitted', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({}));
+        it('should return [] when the roles key is omitted (pagination keys present)', async () => {
+            // Represents a wrapper whose `roles` key is absent rather than `[]`
+            // — the pagination envelope is still present, exercising the
+            // `undefined ?? []` branch on a realistic server shape.
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
             expect(await client.metadata.getRoles()).toEqual([]);
         });
 
