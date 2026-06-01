@@ -1735,6 +1735,34 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('milestone_id=');
         });
 
+        it('should throw validation error for invalid createdBy item in getPlans', async () => {
+            await expect(client.plans.getPlans(1, { createdBy: [1, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid milestoneId item in getPlans', async () => {
+            await expect(client.plans.getPlans(1, { milestoneId: [10, -1] })).rejects.toThrow(
+                'milestoneId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid created_by item in getPlans', async () => {
+            await expect(client.plans.getPlans(1, { created_by: [1, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid milestone_id item in getPlans', async () => {
+            await expect(client.plans.getPlans(1, { milestone_id: [10, -1] })).rejects.toThrow(
+                'milestoneId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('should add a new plan', async () => {
             const mockPlan: Plan = {
                 id: 1,
@@ -3060,6 +3088,20 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('status_id=');
         });
 
+        it('should throw validation error for invalid statusId item in getTests', async () => {
+            await expect(client.tests.getTests(1, { statusId: [1, 0] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid status_id item in getTests', async () => {
+            await expect(client.tests.getTests(1, { status_id: [1, 0] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('parses get_test response with the SPEC #2.1.7 labels[] array (id + title shape)', async () => {
             // Inner shape per the documented `get_test` example: `{ id, title }`.
             const testWithLabels: Test = {
@@ -3485,6 +3527,90 @@ describe('TestRailClient', () => {
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('created_by=');
             expect(url).not.toContain('status_id=');
+        });
+
+        it('should throw validation error for invalid createdBy item in getResults', async () => {
+            await expect(client.results.getResults(1, { createdBy: [1, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid statusId item in getResults', async () => {
+            await expect(client.results.getResults(1, { statusId: [1, -1] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid created_by item in getResults', async () => {
+            await expect(client.results.getResults(1, { created_by: [1, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid status_id item in getResults', async () => {
+            await expect(client.results.getResults(1, { status_id: [1, -1] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid createdBy item in getResultsForCase', async () => {
+            await expect(client.results.getResultsForCase(1, 2, { createdBy: [0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid statusId item in getResultsForCase', async () => {
+            await expect(client.results.getResultsForCase(1, 2, { statusId: [0] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid created_by item in getResultsForCase', async () => {
+            await expect(client.results.getResultsForCase(1, 2, { created_by: [0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid status_id item in getResultsForCase', async () => {
+            await expect(client.results.getResultsForCase(1, 2, { status_id: [0] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid statusId item in getResultsForRun', async () => {
+            await expect(client.results.getResultsForRun(1, { statusId: [0] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid createdBy item in getResultsForRun', async () => {
+            await expect(client.results.getResultsForRun(1, { createdBy: [0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid created_by item in getResultsForRun', async () => {
+            await expect(client.results.getResultsForRun(1, { created_by: [0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should throw validation error for invalid status_id item in getResultsForRun', async () => {
+            await expect(client.results.getResultsForRun(1, { status_id: [0] })).rejects.toThrow(
+                'statusId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('should add a result for a test', async () => {

@@ -24,6 +24,9 @@ export class TestModule {
         validateId(runId, 'runId');
         validatePaginationParams(options?.limit, options?.offset);
         const statusId = options?.statusId ?? options?.status_id;
+        if (statusId !== undefined) {
+            statusId.forEach((id) => validateId(id, 'statusId'));
+        }
         const endpoint = buildEndpoint(`get_tests/${runId}`, {
             status_id: serializeIdList(statusId),
             limit: options?.limit,
