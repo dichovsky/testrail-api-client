@@ -67,6 +67,12 @@ No source was reverted; only the version number and this changelog were reconcil
 - **`users.getGroups()` parses the paginated wrapper.** `get_groups` returns
   `{ offset, limit, size, _links, groups: [...] }`, not a bare array; the schema now
   mirrors `getUsers()` and returns `groups ?? []`.
+- **Programmatic list-filter ID arrays are now validated before fetch.** `getPlans`,
+  `getTests`, and the `getResults*` methods previously serialized `createdBy`,
+  `statusId`, and `milestoneId` arrays straight into the URL, so values like `0`
+  or `-1` crossed the network despite the client's "all numeric IDs validated before
+  any request" contract. These methods now reject invalid filter items locally with
+  `TestRailValidationError`, matching `getRuns()` and the CLI's strict ID parsing.
 - **`metadata.getRoles()` parses the paginated wrapper.** `get_roles` (TestRail 7.3+)
   is a bulk-API endpoint and returns `{ offset, limit, size, _links, roles: [...] }`
   from the version it was introduced — never a bare array. The schema parsed

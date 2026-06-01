@@ -33,6 +33,12 @@ export class PlanModule {
         const createdBefore = options?.createdBefore ?? options?.created_before;
         const createdBy = options?.createdBy ?? options?.created_by;
         const milestoneId = options?.milestoneId ?? options?.milestone_id;
+        if (createdBy !== undefined) {
+            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
+        }
+        if (milestoneId !== undefined) {
+            milestoneId.forEach((id) => validateId(id, 'milestoneId'));
+        }
         const isCompleted =
             options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
         const endpoint = buildEndpoint(`get_plans/${projectId}`, {

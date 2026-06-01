@@ -19,6 +19,12 @@ export class ResultModule {
         const createdBy = options?.createdBy ?? options?.created_by;
         const statusId = options?.statusId ?? options?.status_id;
         const defectsFilter = options?.defectsFilter ?? options?.defects_filter;
+        if (createdBy !== undefined) {
+            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
+        }
+        if (statusId !== undefined) {
+            statusId.forEach((id) => validateId(id, 'statusId'));
+        }
         const endpoint = buildEndpoint(`get_results/${testId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
@@ -51,6 +57,12 @@ export class ResultModule {
         const createdBy = options?.createdBy ?? options?.created_by;
         const statusId = options?.statusId ?? options?.status_id;
         const defectsFilter = options?.defectsFilter ?? options?.defects_filter;
+        if (createdBy !== undefined) {
+            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
+        }
+        if (statusId !== undefined) {
+            statusId.forEach((id) => validateId(id, 'statusId'));
+        }
         const endpoint = buildEndpoint(`get_results_for_case/${runId}/${caseId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
@@ -81,6 +93,12 @@ export class ResultModule {
         const createdBefore = options?.createdBefore ?? options?.created_before;
         const createdBy = options?.createdBy ?? options?.created_by;
         const statusId = options?.statusId ?? options?.status_id;
+        if (createdBy !== undefined) {
+            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
+        }
+        if (statusId !== undefined) {
+            statusId.forEach((id) => validateId(id, 'statusId'));
+        }
         const endpoint = buildEndpoint(`get_results_for_run/${runId}`, {
             created_after: createdAfter,
             created_before: createdBefore,

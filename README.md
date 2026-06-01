@@ -149,6 +149,8 @@ try {
 
 `TestRailApiError` carries `status`, `statusText`, and `response` (the raw body lives only in `response`, never in `message`). `TestRailValidationError` signals a caller mistake. Calling any method after `destroy()` throws a plain `Error`.
 
+For list filters that carry numeric IDs, validation also happens before any request is sent. Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers; invalid values fail locally with `TestRailValidationError` instead of reaching the API.
+
 ## Links
 
 - [CHANGELOG.md](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) — release notes and migration guidance
