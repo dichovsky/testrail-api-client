@@ -406,19 +406,17 @@ export function renderYaml(value: unknown): string {
 // is terminated with CRLF as specified by RFC 4180 §2.1; the final row also
 // ends with CRLF for parser consistency. Single-object responses render as
 // a one-row CSV with the object's own keys as headers.
+//
+// SEC #35 (CWE-1236) — formula injection: cells are neutralized before
+// RFC-quoting so spreadsheet apps (Excel/Sheets/LibreOffice) do not evaluate
+// attacker-controlled field values as formulas. A leading ' is prefixed when
+// the cell starts with = + - @ or with TAB/CR. RFC quoting alone is
+// insufficient — spreadsheets strip surrounding quotes before evaluation.
+// This mutates the displayed value (e.g. `=1+1` → `'=1+1`); callers
+// parsing the CSV programmatically should strip the leading ' when present.
+// Applied at the csvEscapeCell chokepoint so headers are guarded too.
 
 const CSV_LINE_TERMINATOR = '\r\n';
-
-function csvCellRequiresQuoting(cell: string): boolean {
-    return cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r');
-}
-
-function csvEscapeCell(cell: string): string {
-    if (csvCellRequiresQuoting(cell)) {
-        return `"${cell.replace(/"/g, '""')}"`;
-    }
-    return cell;
-}
 
 // CSV's own structural characters: TAB (U+0009), LF (U+000A), CR (U+000D).
 // These must survive sanitization because CSV cells legitimately contain
@@ -426,6 +424,35 @@ function csvEscapeCell(cell: string): string {
 const TAB = 0x09;
 const LF = 0x0a;
 const CR = 0x0d;
+
+// SEC #35 (CWE-1236) — leading characters that trigger formula evaluation in
+// spreadsheet apps when they appear as the first character of an unquoted
+// (or RFC-quoted-then-stripped) cell. OWASP recommended set.
+const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(['=', '+', '-', '@']);
+
+// Prefix a single quote so the cell is shown literally. neutralize-first,
+// then RFC-quote keeps the two concerns separate and the quoting logic correct.
+function neutralizeCsvFormula(cell: string): string {
+    if (cell.length === 0) return cell;
+    const code = cell.charCodeAt(0);
+    const first = cell[0];
+    if ((first !== undefined && CSV_FORMULA_LEAD_CHARS.has(first)) || code === TAB || code === CR) {
+        return `'${cell}`;
+    }
+    return cell;
+}
+
+function csvCellRequiresQuoting(cell: string): boolean {
+    return cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r');
+}
+
+function csvEscapeCell(cell: string): string {
+    const neutralized = neutralizeCsvFormula(cell);
+    if (csvCellRequiresQuoting(neutralized)) {
+        return `"${neutralized.replace(/"/g, '""')}"`;
+    }
+    return neutralized;
+}
 
 function sanitizeForCsv(cell: string): string {
     // Strip terminal-control bytes while preserving CR/LF/TAB used by CSV

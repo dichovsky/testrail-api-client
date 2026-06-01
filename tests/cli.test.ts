@@ -765,6 +765,31 @@ describe('CLI', () => {
             expect(lines[0]).toBe('id,name,suite_mode,url');
         });
 
+        it('--format csv neutralizes a formula-trigger field value (SEC #35, CWE-1236)', async () => {
+            // A TestRail project whose `name` field starts with `=cmd` simulates
+            // an attacker-controlled value that would be evaluated as a spreadsheet
+            // formula without SEC #35 neutralization. The cell must be prefixed
+            // with `'` so Excel/Sheets/LibreOffice treats it as a literal string.
+            const formulaProject = {
+                id: 1,
+                name: '=cmd|/C calc',
+                suite_mode: 1,
+                url: 'https://example.testrail.io/projects/view/1',
+            };
+            const { stdout, exitCodes } = await runCli(
+                ['project', 'get', '1', '--format', 'csv'],
+                [jsonResponse(formulaProject)],
+            );
+            expect(exitCodes).toContain(0);
+            const lines = stdout.split('\r\n');
+            // Header row: id,name,suite_mode,url (insertion order).
+            expect(lines[0]).toBe('id,name,suite_mode,url');
+            // Data row: name cell must be neutralized with a leading '.
+            expect(lines[1]).toContain("'=cmd|/C calc");
+            // The raw formula trigger must not appear unguarded.
+            expect(lines[1]).not.toMatch(/(?<!['])=cmd/);
+        });
+
         it('--format with an unknown value exits 1 before any API call', async () => {
             const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--format', 'xml']);
             expect(exitCodes).toContain(1);
