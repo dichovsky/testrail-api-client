@@ -402,10 +402,10 @@ export function renderYaml(value: unknown): string {
 // ── CSV renderer ─────────────────────────────────────────────────────────────
 //
 // RFC 4180-style CSV. Top-level keys become columns; nested objects/arrays
-// are JSON-stringified into a single cell (no dot-path flattening). Each row
-// is terminated with CRLF as specified by RFC 4180 §2.1; the final row also
-// ends with CRLF for parser consistency. Single-object responses render as
-// a one-row CSV with the object's own keys as headers.
+// are JSON-stringified into a single cell (no dot-path flattening). Rows are
+// joined with CRLF (RFC 4180 §2.1); `renderCsv` returns the body WITHOUT a
+// trailing CRLF — `createOutput` appends the final terminator at the stdout
+// boundary. Single-object responses use the object's own keys as headers.
 //
 // SEC #35 (CWE-1236) — formula injection: cells are neutralized before
 // RFC-quoting so spreadsheet apps (Excel/Sheets/LibreOffice) do not evaluate
