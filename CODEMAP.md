@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.0"
   },
-  "sourceHash": "f19b4e91ab3fa38cf2d5d80a13fe2e85f165ed0f9f3f9a922c79698003342a43",
+  "sourceHash": "e0d4a03f44ecad21fe22b6cbaf55fdde2d5d82e0e07b95f2e140e14311053f3b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -126,7 +126,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddDatasetPayload",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 49,
+      "line": 54,
       "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>",
       "typeOnly": true
     },
@@ -134,7 +134,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddDatasetPayloadSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 45,
+      "line": 50,
       "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), })"
     },
     {
@@ -525,7 +525,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Dataset",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 43,
+      "line": 48,
       "signature": "export type Dataset = z.infer<typeof DatasetSchema>",
       "typeOnly": true
     },
@@ -533,7 +533,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "DatasetSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 37,
+      "line": 42,
       "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })",
       "jsdoc": "SPEC #2.1.16 — verified against the official TestRail \"Datasets\" API doc (support article 7077300491540) on 2026-05-23. Documented response fields are `id`, `name`, and `variables[]`; `id` and `name` are required scalars, `variables` is the array of `DatasetVariable` entries. `variables` is modelled as `.nullish()` for defensive back-compat — TestRail's `add_dataset` example also shows the same shape but older API revisions or edge cases (e.g. an empty dataset mid-creation) may omit the key. Any forward-compat keys the server might add (e.g. `project_id`, `created_on`, `created_by`) survive at runtime via `zObject()`'s passthrough; they are intentionally not declared here until the upstream doc lists them (SPEC #1.5)."
     },
@@ -1175,7 +1175,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateDatasetPayload",
       "kind": "type",
       "file": "src/schemas/datasets.ts",
-      "line": 61,
+      "line": 66,
       "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>",
       "typeOnly": true
     },
@@ -1183,7 +1183,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateDatasetPayloadSchema",
       "kind": "const",
       "file": "src/schemas/datasets.ts",
-      "line": 57,
+      "line": 62,
       "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), })",
       "jsdoc": "`update_dataset` accepts a partial body (rename-only at the moment). Mirrors the `UpdateVariablePayloadSchema` precedent — empty `{}` body is intentionally allowed and forwarded to TestRail, which treats it as a no-op. `custom_*` extras flow through `zObject()`'s passthrough."
     },
@@ -5475,46 +5475,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../client-core.js",
         "../schemas.js",
-        "../validation.js"
+        "../validation.js",
+        "zod"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "DatasetModule",
           "kind": "class",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export class DatasetModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 7
+              "line": 8
             },
             {
               "name": "getDataset",
               "kind": "method",
-              "line": 10
+              "line": 11
             },
             {
               "name": "getDatasets",
               "kind": "method",
-              "line": 20
+              "line": 21
             },
             {
               "name": "addDataset",
               "kind": "method",
-              "line": 30
+              "line": 41
             },
             {
               "name": "updateDataset",
               "kind": "method",
-              "line": 41
+              "line": 52
             },
             {
               "name": "deleteDataset",
               "kind": "method",
-              "line": 52
+              "line": 63
             }
           ]
         }
@@ -6302,41 +6303,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../client-core.js",
         "../schemas.js",
-        "../validation.js"
+        "../validation.js",
+        "zod"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "VariableModule",
           "kind": "class",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export class VariableModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 7
+              "line": 8
             },
             {
               "name": "getVariables",
               "kind": "method",
-              "line": 10
+              "line": 11
             },
             {
               "name": "addVariable",
               "kind": "method",
-              "line": 20
+              "line": 32
             },
             {
               "name": "updateVariable",
               "kind": "method",
-              "line": 31
+              "line": 43
             },
             {
               "name": "deleteVariable",
               "kind": "method",
-              "line": 42
+              "line": 54
             }
           ]
         }
@@ -6742,42 +6744,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "DatasetSchema",
           "kind": "const",
-          "line": 37,
+          "line": 42,
           "exported": true,
           "signature": "export const DatasetSchema = zObject({ id: z.number(), name: z.string(), variables: z.array(DatasetVariableSchema).nullish(), })"
         },
         {
           "name": "Dataset",
           "kind": "type",
-          "line": 43,
+          "line": 48,
           "exported": true,
           "signature": "export type Dataset = z.infer<typeof DatasetSchema>"
         },
         {
           "name": "AddDatasetPayloadSchema",
           "kind": "const",
-          "line": 45,
+          "line": 50,
           "exported": true,
           "signature": "export const AddDatasetPayloadSchema = zObject({ name: z.string(), })"
         },
         {
           "name": "AddDatasetPayload",
           "kind": "type",
-          "line": 49,
+          "line": 54,
           "exported": true,
           "signature": "export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>"
         },
         {
           "name": "UpdateDatasetPayloadSchema",
           "kind": "const",
-          "line": 57,
+          "line": 62,
           "exported": true,
           "signature": "export const UpdateDatasetPayloadSchema = zObject({ name: z.string().optional(), })"
         },
         {
           "name": "UpdateDatasetPayload",
           "kind": "type",
-          "line": 61,
+          "line": 66,
           "exported": true,
           "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>"
         }

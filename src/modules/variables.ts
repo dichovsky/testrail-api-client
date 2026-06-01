@@ -2,6 +2,7 @@ import { TestRailClientCore } from '../client-core.js';
 import { VariableSchema } from '../schemas.js';
 import type { Variable, AddVariablePayload, UpdateVariablePayload } from '../schemas.js';
 import { validateId } from '../validation.js';
+import { z } from 'zod';
 
 export class VariableModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -9,11 +10,22 @@ export class VariableModule {
     /** @testrail GET get_variables/{project_id} */
     async getVariables(projectId: number): Promise<Variable[]> {
         validateId(projectId, 'projectId');
-        return this.client.request<Variable[]>({
-            method: 'GET',
-            endpoint: `get_variables/${projectId}`,
-            schema: VariableSchema.array(),
-        });
+        // `get_variables` is a TestRail bulk-API endpoint: it returns the
+        // `{ offset, limit, size, _links, variables: [...] }` pagination wrapper
+        // (standard for every bulk endpoint since TestRail 6.7), never a bare
+        // array. Parse the wrapper (not `z.array(VariableSchema)`, which rejects
+        // the object) and return `variables ?? []`. `.nullish()` accepts both an
+        // omitted key and `null` for an empty list. Mirrors `users.getGroups()`
+        // and `metadata.getRoles()`.
+        return (
+            (
+                await this.client.request<{ variables?: Variable[] }>({
+                    method: 'GET',
+                    endpoint: `get_variables/${projectId}`,
+                    schema: z.object({ variables: z.array(VariableSchema).nullish() }),
+                })
+            ).variables ?? []
+        );
     }
 
     /** @testrail POST add_variable/{project_id} */
