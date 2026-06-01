@@ -1634,6 +1634,99 @@ describe('renderCsv — Unicode and special chars', () => {
     });
 });
 
+// ── renderCsv — SEC #35 formula injection neutralization (CWE-1236) ──────────
+//
+// Cells whose first character is = + - @ or a leading TAB/CR are prefixed
+// with a single quote so spreadsheet apps (Excel/Sheets/LibreOffice) do not
+// evaluate them as formulas. Neutralization happens before RFC-quoting so
+// the order is always: neutralize → quote. Applied at csvEscapeCell so
+// headers are guarded too.
+
+describe('renderCsv — SEC #35 formula-injection neutralization', () => {
+    it('prefixes = formula trigger with a single quote', () => {
+        const out = renderCsv({ formula: '=1+1' });
+        expect(out).toBe("formula\r\n'=1+1");
+    });
+
+    it('prefixes + formula trigger with a single quote', () => {
+        const out = renderCsv({ formula: '+1' });
+        expect(out).toBe("formula\r\n'+1");
+    });
+
+    it('prefixes - formula trigger with a single quote', () => {
+        const out = renderCsv({ formula: '-1' });
+        expect(out).toBe("formula\r\n'-1");
+    });
+
+    it('prefixes @ formula trigger with a single quote', () => {
+        const out = renderCsv({ formula: '@SUM(1)' });
+        expect(out).toBe("formula\r\n'@SUM(1)");
+    });
+
+    it('prefixes a leading-TAB value with a single quote', () => {
+        // TAB (0x09) at position 0 is a formula trigger. After neutralization
+        // the cell is `'\tfoo`. TAB alone does not trigger RFC quoting (only
+        // comma/double-quote/LF/CR do), so the cell is emitted bare.
+        const out = renderCsv({ formula: '\tfoo' });
+        // neutralized: `'\tfoo`; NOT RFC-quoted (no comma/quote/LF/CR)
+        expect(out).toBe("formula\r\n'\tfoo");
+    });
+
+    it('does NOT prefix a non-leading = (benign cell)', () => {
+        const out = renderCsv({ expr: 'a=b' });
+        expect(out).toBe('expr\r\na=b');
+    });
+
+    it('does NOT prefix a plain benign value', () => {
+        const out = renderCsv({ name: 'foo' });
+        expect(out).toBe('name\r\nfoo');
+    });
+
+    it('does NOT prefix a numeric cell (starts with a digit)', () => {
+        const out = renderCsv({ n: '1.5' });
+        expect(out).toBe('n\r\n1.5');
+    });
+
+    it('does NOT modify an empty cell', () => {
+        const out = renderCsv({ x: '' });
+        expect(out).toBe('x\r\n');
+    });
+
+    it('neutralizes AND RFC-quotes when the formula cell also contains a comma', () => {
+        // =1+1,2 → neutralized to '=1+1,2 → quoted because of the comma
+        // → result cell: "'=1+1,2" (RFC-quoted)
+        const out = renderCsv({ formula: '=1+1,2' });
+        expect(out).toBe('formula\r\n"\'=1+1,2"');
+    });
+
+    it('neutralizes a header key starting with = (formula injection via key name)', () => {
+        // csvEscapeCell is called for header names too; ensure the header
+        // cell is also neutralized.
+        const out = renderCsv([{ '=evil': 'x' }]);
+        const lines = out.split('\r\n');
+        // Header cell must be neutralized: '=evil
+        expect(lines[0]).toBe("'=evil");
+        // Data cell is benign.
+        expect(lines[1]).toBe('x');
+    });
+
+    // ── sibling-renderer regression ──────────────────────────────────────────
+    // Verify that renderTable and renderYaml are NOT altered by the CSV fix.
+
+    it('renderTable does NOT add a leading quote to a formula cell (unaffected)', () => {
+        const out = renderTable([{ a: '=1+1' }]);
+        expect(out).toContain('=1+1');
+        expect(out).not.toContain("'=1+1");
+    });
+
+    it('renderYaml does NOT add a leading quote to a formula cell (unaffected)', () => {
+        const out = renderYaml({ a: '=1+1' });
+        // YAML emits =1+1 bare (not a reserved token, no quoting needed).
+        expect(out).toContain('=1+1');
+        expect(out).not.toContain("'=1+1");
+    });
+});
+
 describe('renderYaml — additional edge cases for branch coverage', () => {
     it('quotes octal-looking strings (e.g. "0o755") so they round-trip as strings', () => {
         // Exercises the `/^0o[0-7]+$/` needsQuoting branch — without quoting,
