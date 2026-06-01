@@ -288,9 +288,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | --- | --- | --- | --- |
 | [`GET get_suite/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSuite`](../src/modules/suites.ts#L18) | `suite get` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
 | [`GET get_suites/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getSuites`](../src/modules/suites.ts#L33) | `suite list` | [recipe #4](../skill/SKILL.md#4-list-suites-under-a-project) |
-| [`POST add_suite/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addSuite`](../src/modules/suites.ts#L48) | `suite add` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
-| [`POST delete_suite/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteSuite`](../src/modules/suites.ts#L84) | `suite delete` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
-| [`POST update_suite/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateSuite`](../src/modules/suites.ts#L64) | `suite update` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
+| [`POST add_suite/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addSuite`](../src/modules/suites.ts#L55) | `suite add` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
+| [`POST delete_suite/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteSuite`](../src/modules/suites.ts#L91) | `suite delete` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
+| [`POST update_suite/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateSuite`](../src/modules/suites.ts#L71) | `suite update` | [recipe #49](../skill/SKILL.md#49-suite-crud-lifecycle-get--add--update--delete) |
 
 ## Templates
 

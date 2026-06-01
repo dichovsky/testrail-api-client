@@ -782,9 +782,18 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
-        it('suite list --project-id should exit 0', async () => {
+        it('suite list --project-id should exit 0 (bare-array response)', async () => {
             const { exitCodes } = await runCli(['suite', 'list', '--project-id', '2'], [jsonResponse([MOCK_SUITE])]);
             expect(exitCodes).toContain(0);
+        });
+
+        it('suite list --project-id should exit 0 (paginated wrapper, TestRail 9.3.1+)', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['suite', 'list', '--project-id', '2'],
+                [jsonResponse({ suites: [MOCK_SUITE] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('Suite A');
         });
 
         it('suite list with missing --project-id should exit 1', async () => {
@@ -2856,7 +2865,8 @@ describe('CLI', () => {
         // ── role list ─────────────────────────────────────────────────────
 
         it('role list exits 0 and calls get_roles', async () => {
-            const { exitCodes } = await runCli(['role', 'list'], [jsonResponse([MOCK_ROLE])]);
+            // get_roles returns the paginated `{ roles: [...] }` wrapper (TestRail 7.3+).
+            const { exitCodes } = await runCli(['role', 'list'], [jsonResponse({ roles: [MOCK_ROLE] })]);
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_roles'), expect.anything());
         });
@@ -2864,7 +2874,7 @@ describe('CLI', () => {
         it('role list --format table renders a table', async () => {
             const { stdout, exitCodes } = await runCli(
                 ['role', 'list', '--format', 'table'],
-                [jsonResponse([MOCK_ROLE])],
+                [jsonResponse({ roles: [MOCK_ROLE] })],
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('Lead');
@@ -2873,7 +2883,7 @@ describe('CLI', () => {
         it('role list --format json renders JSON', async () => {
             const { stdout, exitCodes } = await runCli(
                 ['role', 'list', '--format', 'json'],
-                [jsonResponse([MOCK_ROLE])],
+                [jsonResponse({ roles: [MOCK_ROLE] })],
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('"name": "Lead"');

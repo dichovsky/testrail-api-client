@@ -367,7 +367,7 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockSuite);
         });
 
-        it('should get all suites for a project', async () => {
+        it('should get all suites for a project (bare-array response, TestRail < 9.3.1)', async () => {
             const mockSuites: Suite[] = [
                 { id: 1, name: 'Suite 1', project_id: 1, url: 'url1' },
                 { id: 2, name: 'Suite 2', project_id: 1, url: 'url2' },
@@ -377,6 +377,33 @@ describe('TestRailClient', () => {
 
             const result = await client.suites.getSuites(1);
             expect(result).toEqual(mockSuites);
+        });
+
+        it('should get all suites from the paginated wrapper (TestRail 9.3.1+)', async () => {
+            const mockSuites: Suite[] = [
+                { id: 1, name: 'Suite 1', project_id: 1, url: 'url1' },
+                { id: 2, name: 'Suite 2', project_id: 1, url: 'url2' },
+            ];
+            // 9.3.1 added pagination to get_suites: the response becomes the
+            // `{ offset, limit, size, _links, suites: [...] }` wrapper. The
+            // client must accept this shape too (forward-compat).
+            mockFetch.mockResolvedValueOnce(
+                mockOk({
+                    offset: 0,
+                    limit: 250,
+                    size: mockSuites.length,
+                    _links: { next: null, prev: null },
+                    suites: mockSuites,
+                }),
+            );
+
+            const result = await client.suites.getSuites(1);
+            expect(result).toEqual(mockSuites);
+        });
+
+        it('should return [] for an empty suites wrapper', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, suites: [] }));
+            expect(await client.suites.getSuites(1)).toEqual([]);
         });
 
         it('should add a suite', async () => {
@@ -4671,15 +4698,37 @@ describe('TestRailClient', () => {
     // ── TASK-025: Roles ───────────────────────────────────────────────────────
 
     describe('getRoles', () => {
-        it('should return all roles', async () => {
+        it('should return all roles from the paginated wrapper', async () => {
             const roles = [
                 { id: 1, name: 'Admin', is_default: false },
                 { id: 2, name: 'Tester', is_default: true },
             ];
-            mockFetch.mockResolvedValueOnce(mockOk(roles));
+            // TestRail 7.3+ returns get_roles as a paginated wrapper, never a
+            // bare array. The wrapper carries offset/limit/size/_links alongside
+            // the `roles` array; the client must unwrap `roles`.
+            mockFetch.mockResolvedValueOnce(
+                mockOk({ offset: 0, limit: 250, size: roles.length, _links: { next: null, prev: null }, roles }),
+            );
             const result = await client.metadata.getRoles();
             expect(result).toEqual(roles);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_roles'), expect.anything());
+        });
+
+        it('should return [] for an empty roles wrapper', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, roles: [] }));
+            expect(await client.metadata.getRoles()).toEqual([]);
+        });
+
+        it('should return [] when the roles key is omitted', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            expect(await client.metadata.getRoles()).toEqual([]);
+        });
+
+        it('should reject a bare-array response (regression: get_roles is never a bare array)', async () => {
+            // Guards the PR #200-class bug: a bare array is NOT a valid get_roles
+            // response shape, so parsing must fail rather than silently pass.
+            mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, name: 'Admin', is_default: false }]));
+            await expect(client.metadata.getRoles()).rejects.toThrow(TestRailValidationError);
         });
     });
 

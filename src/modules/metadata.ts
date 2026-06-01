@@ -116,10 +116,20 @@ export class MetadataModule {
 
     /** @testrail GET get_roles */
     async getRoles(): Promise<Role[]> {
-        return this.client.request<Role[]>({
-            method: 'GET',
-            endpoint: 'get_roles',
-            schema: z.array(RoleSchema),
-        });
+        // `get_roles` is a TestRail 7.3+ bulk-API endpoint and is paginated from
+        // the version it was introduced — it returns the `{ offset, limit, size,
+        // _links, roles: [...] }` wrapper, never a bare array. Parse the wrapper
+        // (not `z.array(RoleSchema)`, which rejects the object). `.nullish()`
+        // accepts both `null` and an omitted key for an empty list. Mirrors the
+        // sibling `getGroups` paginated-wrapper fix (PR #200).
+        return (
+            (
+                await this.client.request<{ roles?: Role[] }>({
+                    method: 'GET',
+                    endpoint: 'get_roles',
+                    schema: z.object({ roles: z.array(RoleSchema).nullish() }),
+                })
+            ).roles ?? []
+        );
     }
 }
