@@ -5476,7 +5476,7 @@ describe('TestRailClient', () => {
     });
 
     describe('getSharedSteps', () => {
-        it('should return all shared steps for a project', async () => {
+        it('should return all shared steps for a project (bare array — cross-version regression guard)', async () => {
             const sharedSteps = [
                 { id: 1, title: 'Login' },
                 { id: 2, title: 'Logout' },
@@ -5484,6 +5484,38 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(sharedSteps));
             const result = await client.sharedSteps.getSharedSteps(1);
             expect(result).toEqual(sharedSteps);
+        });
+
+        it('SPEC #1.6 — unwraps the real paginated envelope { shared_steps: [...] }', async () => {
+            // Real TestRail servers return a paginated wrapper — not a bare array.
+            // This test ensures the method returns the inner array.
+            const sharedSteps = [
+                { id: 1, title: 'Login' },
+                { id: 2, title: 'Logout' },
+            ];
+            mockFetch.mockResolvedValueOnce(
+                mockOk({
+                    offset: 0,
+                    limit: 250,
+                    size: 2,
+                    _links: { next: null, prev: null },
+                    shared_steps: sharedSteps,
+                }),
+            );
+            const result = await client.sharedSteps.getSharedSteps(1);
+            expect(result).toEqual(sharedSteps);
+        });
+
+        it('SPEC #1.6 — returns [] when shared_steps is null in the envelope', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ shared_steps: null }));
+            const result = await client.sharedSteps.getSharedSteps(1);
+            expect(result).toEqual([]);
+        });
+
+        it('SPEC #1.6 — returns [] when shared_steps key is missing from the envelope', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({}));
+            const result = await client.sharedSteps.getSharedSteps(1);
+            expect(result).toEqual([]);
         });
 
         it('should throw for invalid projectId', async () => {
@@ -5650,34 +5682,62 @@ describe('TestRailClient', () => {
     });
 
     describe('getSharedStepHistory', () => {
-        it('should return history for a shared step', async () => {
-            const mockHistory: HistoryEntry[] = [
-                {
-                    id: 10,
-                    user_id: 5,
-                    type_id: 2,
-                    created_on: 1700000000,
-                    changes: [{ field: 'title', type_id: 1, old_text: 'old', new_text: 'new' }],
-                },
-            ];
-            mockFetch.mockResolvedValueOnce(mockOk({ history: mockHistory }));
+        it('SPEC #1.7 — returns entries from the real step_history envelope', async () => {
+            // Real TestRail response uses `step_history` (NOT `history`) with string
+            // id/user_id — distinct from the case-history HistoryEntry shape.
+            const entry = {
+                id: '1',
+                timestamp: 1389968184,
+                user_id: '4',
+                title: 'Shared Steps 1',
+                custom_steps_separated: [{ content: 'x' }],
+            };
+            mockFetch.mockResolvedValueOnce(
+                mockOk({
+                    offset: 0,
+                    limit: 250,
+                    size: 1,
+                    _links: { next: null, prev: null },
+                    step_history: [entry],
+                }),
+            );
             const result = await client.sharedSteps.getSharedStepHistory(42);
-            expect(result).toEqual(mockHistory);
+            expect(result).toHaveLength(1);
+            expect(result[0]?.id).toBe('1');
+            expect(result[0]?.timestamp).toBe(1389968184);
+            expect(result[0]?.user_id).toBe('4');
+            expect(result[0]?.title).toBe('Shared Steps 1');
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('get_shared_step_history/42'),
                 expect.anything(),
             );
         });
 
+        it('SPEC #1.7 regression — a populated step_history must NOT return []', async () => {
+            // This test would have caught the original bug: reading `history` instead
+            // of `step_history` silently returned [] even when the envelope was populated.
+            const entry = { id: '2', timestamp: 1234567890, user_id: '1', title: 'Step' };
+            mockFetch.mockResolvedValueOnce(mockOk({ step_history: [entry] }));
+            const result = await client.sharedSteps.getSharedStepHistory(1);
+            expect(result).not.toEqual([]);
+            expect(result).toHaveLength(1);
+        });
+
         it('should pass limit and offset to getSharedStepHistory', async () => {
-            mockFetch.mockResolvedValueOnce(mockOk({ history: [] }));
+            mockFetch.mockResolvedValueOnce(mockOk({ step_history: [] }));
             await client.sharedSteps.getSharedStepHistory(42, { limit: 25, offset: 50 });
             const url = mockFetch.mock.calls[0]?.[0] as string;
             expect(url).toContain('limit=25');
             expect(url).toContain('offset=50');
         });
 
-        it('should return empty array when history envelope is missing', async () => {
+        it('SPEC #1.7 — returns [] when step_history is null', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ step_history: null }));
+            const result = await client.sharedSteps.getSharedStepHistory(42);
+            expect(result).toEqual([]);
+        });
+
+        it('SPEC #1.7 — returns [] when step_history key is missing', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
             const result = await client.sharedSteps.getSharedStepHistory(42);
             expect(result).toEqual([]);
