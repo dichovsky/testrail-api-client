@@ -32,11 +32,18 @@ export class SuiteModule {
      */
     async getSuites(projectId: number): Promise<Suite[]> {
         validateId(projectId, 'projectId');
-        return this.client.request<Suite[]>({
+        // `get_suites` is bimodal across TestRail versions: it returns a bare
+        // array up to 9.3.0, and a paginated `{ offset, limit, size, _links,
+        // suites: [...] }` wrapper from 9.3.1+ (documented breaking change).
+        // Accept both shapes so the client works regardless of server version —
+        // the bare array stays the common path; the wrapper is unwrapped via
+        // `.suites ?? []`. `z.object` strips the extra pagination keys.
+        const raw = await this.client.request<Suite[] | { suites?: Suite[] }>({
             method: 'GET',
             endpoint: `get_suites/${projectId}`,
-            schema: z.array(SuiteSchema),
+            schema: z.union([z.array(SuiteSchema), z.object({ suites: z.array(SuiteSchema).nullish() })]),
         });
+        return Array.isArray(raw) ? raw : (raw.suites ?? []);
     }
 
     /**

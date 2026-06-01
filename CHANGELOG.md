@@ -67,6 +67,18 @@ No source was reverted; only the version number and this changelog were reconcil
 - **`users.getGroups()` parses the paginated wrapper.** `get_groups` returns
   `{ offset, limit, size, _links, groups: [...] }`, not a bare array; the schema now
   mirrors `getUsers()` and returns `groups ?? []`.
+- **`metadata.getRoles()` parses the paginated wrapper.** `get_roles` (TestRail 7.3+)
+  is a bulk-API endpoint and returns `{ offset, limit, size, _links, roles: [...] }`
+  from the version it was introduced — never a bare array. The schema parsed
+  `z.array(RoleSchema)`, so every call (and the `role list` CLI command) threw
+  `TestRailValidationError` against a real server; the unit test passed only because
+  it mocked a bare array. Now parses the wrapper and returns `roles ?? []` — the
+  same fix class as `getGroups` above.
+- **`suites.getSuites()` accepts both the bare-array and paginated-wrapper shapes.**
+  `get_suites` returns a bare array up to TestRail 9.3.0 and a
+  `{ offset, limit, size, _links, suites: [...] }` wrapper from 9.3.1+ (documented
+  breaking change). The client now accepts either, so it works regardless of server
+  version.
 - **LRU cache** no longer evicts an innocent entry on a re-set at capacity, and the
   **rate limiter** now records retries without spuriously rejecting a retried
   request as a local 429.

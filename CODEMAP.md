@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.0"
   },
-  "sourceHash": "7e0220412c474c27c6b9550aff51aacd36ffc2e67da2605fe64b2c3d64a1843a",
+  "sourceHash": "f19b4e91ab3fa38cf2d5d80a13fe2e85f165ed0f9f3f9a922c79698003342a43",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6136,32 +6136,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addSuite",
               "kind": "method",
-              "line": 48
+              "line": 55
             },
             {
               "name": "updateSuite",
               "kind": "method",
-              "line": 64
+              "line": 71
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 84
+              "line": 91
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 85
+              "line": 92
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 87
+              "line": 94
             },
             {
               "name": "deleteSuite",
               "kind": "method",
-              "line": 88
+              "line": 95
             }
           ]
         }
