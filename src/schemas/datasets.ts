@@ -33,6 +33,11 @@ export type DatasetVariable = z.infer<typeof DatasetVariableSchema>;
  * might add (e.g. `project_id`, `created_on`, `created_by`) survive at
  * runtime via `zObject()`'s passthrough; they are intentionally not
  * declared here until the upstream doc lists them (SPEC #1.5).
+ *
+ * The list endpoint `get_datasets` wraps these objects in the standard
+ * bulk-API pagination envelope (`offset` / `limit` / `size` / `_links` /
+ * `datasets[]`); the `getDatasets()` module method unwraps the envelope
+ * before parsing, so `DatasetSchema` only models a single dataset object.
  */
 export const DatasetSchema = zObject({
     id: z.number(),

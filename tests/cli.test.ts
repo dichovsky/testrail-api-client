@@ -3614,7 +3614,11 @@ describe('CLI', () => {
 
     describe('variable list/add/update', () => {
         it('variable list <project_id> GETs get_variables/{project_id}', async () => {
-            const { exitCodes, stdout } = await runCli(['variable', 'list', '1'], [jsonResponse([MOCK_VARIABLE])]);
+            const { exitCodes, stdout } = await runCli(
+                ['variable', 'list', '1'],
+                // get_variables returns the bulk-API pagination wrapper, not a bare array.
+                [jsonResponse({ variables: [MOCK_VARIABLE] })],
+            );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('get_variables/1');
@@ -3625,7 +3629,7 @@ describe('CLI', () => {
         it('variable list supports --format table', async () => {
             const { exitCodes, stdout } = await runCli(
                 ['variable', 'list', '1', '--format', 'table'],
-                [jsonResponse([MOCK_VARIABLE])],
+                [jsonResponse({ variables: [MOCK_VARIABLE] })],
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('env');
@@ -4200,7 +4204,11 @@ describe('CLI', () => {
         });
 
         it('dataset list <project_id> GETs get_datasets/{project_id}', async () => {
-            const { exitCodes, stdout } = await runCli(['dataset', 'list', '1'], [jsonResponse([MOCK_DATASET])]);
+            const { exitCodes, stdout } = await runCli(
+                ['dataset', 'list', '1'],
+                // get_datasets returns the bulk-API pagination wrapper, not a bare array.
+                [jsonResponse({ datasets: [MOCK_DATASET] })],
+            );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('get_datasets/1');
@@ -4211,7 +4219,7 @@ describe('CLI', () => {
         it('dataset list supports --format table', async () => {
             const { exitCodes, stdout } = await runCli(
                 ['dataset', 'list', '1', '--format', 'table'],
-                [jsonResponse([MOCK_DATASET])],
+                [jsonResponse({ datasets: [MOCK_DATASET] })],
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('Staging matrix');

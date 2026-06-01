@@ -124,11 +124,11 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDataset`](../src/modules/datasets.ts#L10) | `dataset get` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
-| [`GET get_datasets/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDatasets`](../src/modules/datasets.ts#L20) | `dataset list` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
-| [`POST add_dataset/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addDataset`](../src/modules/datasets.ts#L30) | `dataset add` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
-| [`POST delete_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteDataset`](../src/modules/datasets.ts#L52) | `dataset delete` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
-| [`POST update_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateDataset`](../src/modules/datasets.ts#L41) | `dataset update` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`GET get_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDataset`](../src/modules/datasets.ts#L11) | `dataset get` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`GET get_datasets/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getDatasets`](../src/modules/datasets.ts#L21) | `dataset list` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`POST add_dataset/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addDataset`](../src/modules/datasets.ts#L41) | `dataset add` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`POST delete_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteDataset`](../src/modules/datasets.ts#L63) | `dataset delete` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
+| [`POST update_dataset/{dataset_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateDataset`](../src/modules/datasets.ts#L52) | `dataset update` | [recipe #29](../skill/SKILL.md#29-data-driven-runs-via-variables--datasets) |
 
 ## Groups
 
@@ -328,8 +328,8 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_variables/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getVariables`](../src/modules/variables.ts#L10) | `variable list` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
-| [`POST add_variable/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addVariable`](../src/modules/variables.ts#L20) | `variable add` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
-| [`POST delete_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteVariable`](../src/modules/variables.ts#L42) | `variable delete` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
-| [`POST update_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateVariable`](../src/modules/variables.ts#L31) | `variable update` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
+| [`GET get_variables/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getVariables`](../src/modules/variables.ts#L11) | `variable list` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
+| [`POST add_variable/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addVariable`](../src/modules/variables.ts#L32) | `variable add` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
+| [`POST delete_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteVariable`](../src/modules/variables.ts#L54) | `variable delete` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
+| [`POST update_variable/{variable_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateVariable`](../src/modules/variables.ts#L43) | `variable update` | [recipe #36](../skill/SKILL.md#36-variable-crud-lifecycle) |
 

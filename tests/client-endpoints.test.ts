@@ -5567,15 +5567,49 @@ describe('TestRailClient', () => {
     // ── TASK-029: Variables ───────────────────────────────────────────────────
 
     describe('getVariables', () => {
-        it('should return variables for a project', async () => {
+        it('should return variables from the paginated wrapper', async () => {
             const variables = [
                 { id: 1, name: 'env' },
                 { id: 2, name: 'region' },
             ];
-            mockFetch.mockResolvedValueOnce(mockOk(variables));
+            // `get_variables` is a TestRail bulk-API endpoint and returns the
+            // `{ offset, limit, size, _links, variables: [...] }` wrapper, never
+            // a bare array. The client must unwrap `variables`.
+            mockFetch.mockResolvedValueOnce(
+                mockOk({
+                    offset: 0,
+                    limit: 250,
+                    size: variables.length,
+                    _links: { next: null, prev: null },
+                    variables,
+                }),
+            );
             const result = await client.variables.getVariables(1);
             expect(result).toEqual(variables);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_variables/1'), expect.anything());
+        });
+
+        it('should return [] for an empty variables wrapper', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, variables: [] }));
+            expect(await client.variables.getVariables(1)).toEqual([]);
+        });
+
+        it('should return [] when the variables key is omitted (pagination keys present)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
+            expect(await client.variables.getVariables(1)).toEqual([]);
+        });
+
+        it('should return [] when variables is explicitly null (.nullish() contract)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, variables: null }));
+            expect(await client.variables.getVariables(1)).toEqual([]);
+        });
+
+        it('should reject a bare-array response (regression: get_variables is never a bare array)', async () => {
+            // Guards the paginated-wrapper bug: a bare array is NOT a valid
+            // get_variables response, so parsing must fail rather than silently
+            // pass (the prior `VariableSchema.array()` schema masked this).
+            mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, name: 'env' }]));
+            await expect(client.variables.getVariables(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw for invalid projectId', async () => {
@@ -5649,14 +5683,48 @@ describe('TestRailClient', () => {
     });
 
     describe('getDatasets', () => {
-        it('should return all datasets for a project', async () => {
+        it('should return all datasets from the paginated wrapper', async () => {
             const datasets = [
                 { id: 1, name: 'Smoke' },
                 { id: 2, name: 'Regression' },
             ];
-            mockFetch.mockResolvedValueOnce(mockOk(datasets));
+            // `get_datasets` is a TestRail bulk-API endpoint and returns the
+            // `{ offset, limit, size, _links, datasets: [...] }` wrapper, never
+            // a bare array. The client must unwrap `datasets`.
+            mockFetch.mockResolvedValueOnce(
+                mockOk({
+                    offset: 0,
+                    limit: 250,
+                    size: datasets.length,
+                    _links: { next: null, prev: null },
+                    datasets,
+                }),
+            );
             const result = await client.datasets.getDatasets(1);
             expect(result).toEqual(datasets);
+        });
+
+        it('should return [] for an empty datasets wrapper', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, datasets: [] }));
+            expect(await client.datasets.getDatasets(1)).toEqual([]);
+        });
+
+        it('should return [] when the datasets key is omitted (pagination keys present)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
+            expect(await client.datasets.getDatasets(1)).toEqual([]);
+        });
+
+        it('should return [] when datasets is explicitly null (.nullish() contract)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, datasets: null }));
+            expect(await client.datasets.getDatasets(1)).toEqual([]);
+        });
+
+        it('should reject a bare-array response (regression: get_datasets is never a bare array)', async () => {
+            // Guards the paginated-wrapper bug: a bare array is NOT a valid
+            // get_datasets response, so parsing must fail rather than silently
+            // pass (the prior `DatasetSchema.array()` schema masked this).
+            mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, name: 'Smoke' }]));
+            await expect(client.datasets.getDatasets(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw for invalid projectId', async () => {
@@ -5838,7 +5906,11 @@ describe('TestRailClient', () => {
                     variables: [{ id: 1170, name: 'birth_year', value: 'n' }],
                 },
             ];
-            mockFetch.mockResolvedValueOnce(mockOk(datasets));
+            // get_datasets returns the bulk-API pagination wrapper (offset/limit/
+            // size/_links/datasets[]); the client unwraps `datasets`.
+            mockFetch.mockResolvedValueOnce(
+                mockOk({ offset: 0, limit: 250, size: datasets.length, _links: { next: null, prev: null }, datasets }),
+            );
             const result = await client.datasets.getDatasets(2);
             expect(result).toEqual(datasets);
             expect(result[0]?.variables?.[0]?.value).toBe('38');

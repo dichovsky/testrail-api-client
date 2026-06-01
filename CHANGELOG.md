@@ -79,6 +79,16 @@ No source was reverted; only the version number and this changelog were reconcil
   `{ offset, limit, size, _links, suites: [...] }` wrapper from 9.3.1+ (documented
   breaking change). The client now accepts either, so it works regardless of server
   version.
+- **`variables.getVariables()` and `datasets.getDatasets()` parse the paginated
+  wrapper.** `get_variables` and `get_datasets` are bulk-API endpoints and return
+  `{ offset, limit, size, _links, variables: [...] }` /
+  `{ ..., datasets: [...] }` — the standard pagination envelope every bulk endpoint
+  has emitted since TestRail 6.7, never a bare array. Both schemas parsed
+  `z.array(...)`, so every call (and the `variable list` / `dataset list` CLI
+  commands) threw `TestRailValidationError` against a real server; the unit tests
+  passed only because they mocked a bare array. Now parses the wrapper and returns
+  `variables ?? []` / `datasets ?? []` — the same fix class as `getRoles` /
+  `getGroups` above.
 - **LRU cache** no longer evicts an innocent entry on a re-set at capacity, and the
   **rate limiter** now records retries without spuriously rejecting a retried
   request as a local 429.
