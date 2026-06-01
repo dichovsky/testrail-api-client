@@ -508,8 +508,8 @@ export class TestRailClientCore {
      *          in the past, or otherwise unparseable
      */
     private parseRetryAfterMs(response: Response): number | null {
-        const retryAfter = response.headers.get('Retry-After');
-        if (retryAfter === null || retryAfter === '') {
+        const retryAfter = response.headers.get('Retry-After')?.trim();
+        if (retryAfter === undefined || retryAfter === '') {
             return null;
         }
 

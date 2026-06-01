@@ -2187,6 +2187,41 @@ describe('TestRailClient - Enhanced Features', () => {
                 expect(sleep).toHaveBeenCalledWith(1000);
             },
         );
+
+        it.each([
+            [' 9', 9000],
+            ['9 ', 9000],
+            [' ', 1000],
+        ])('should trim Retry-After optional whitespace (%j)', async (retryAfter, expectedDelay) => {
+            client = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                maxRetries: 1,
+                enableCache: false,
+            });
+
+            const mockProject = { id: 1, name: 'P', suite_mode: 1, url: '' };
+
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: false,
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    text: async () => 'rate limited',
+                    headers: { get: (h: string) => (h === 'Retry-After' ? retryAfter : null) },
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(mockProject),
+                });
+
+            const result = await client.projects.getProject(1);
+            expect(result.id).toBe(1);
+            expect(sleep).toHaveBeenCalledWith(expectedDelay);
+        });
     });
 
     describe('response.text() failure handling', () => {
