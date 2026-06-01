@@ -406,6 +406,13 @@ describe('TestRailClient', () => {
             expect(await client.suites.getSuites(1)).toEqual([]);
         });
 
+        it('should return [] when suites is explicitly null (.nullish() contract)', async () => {
+            // `.nullish()` accepts `null`; `null ?? []` → []. Symmetric with the
+            // getRoles wrapper handling.
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, suites: null }));
+            expect(await client.suites.getSuites(1)).toEqual([]);
+        });
+
         it('should add a suite', async () => {
             const mockSuite: Suite = {
                 id: 3,
@@ -4724,6 +4731,13 @@ describe('TestRailClient', () => {
             // — the pagination envelope is still present, exercising the
             // `undefined ?? []` branch on a realistic server shape.
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
+            expect(await client.metadata.getRoles()).toEqual([]);
+        });
+
+        it('should return [] when roles is explicitly null (.nullish() contract)', async () => {
+            // `.nullish()` accepts `null` as well as omitted; `null ?? []` → [].
+            // Mirrors the getUsers/getGroups paginated-wrapper behavior.
+            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, roles: null }));
             expect(await client.metadata.getRoles()).toEqual([]);
         });
 
