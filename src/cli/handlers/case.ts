@@ -8,7 +8,7 @@ export async function handleCaseGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleCaseList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
-    const suiteId = optInt(ctx.args.suiteId);
+    const suiteId = ctx.args.suiteId === undefined ? undefined : parseId(ctx.args.suiteId, '--suite-id');
     ctx.out(await ctx.client.cases.getCases(pid, suiteId !== undefined ? { suiteId } : undefined));
 }
 
