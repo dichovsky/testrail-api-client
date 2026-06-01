@@ -513,9 +513,10 @@ export class TestRailClientCore {
             return null;
         }
 
-        // Try parsing as seconds (numeric value)
-        const seconds = parseInt(retryAfter, 10);
-        if (!isNaN(seconds) && seconds > 0) {
+        // Try parsing as seconds (numeric value). `parseInt()` accepts a valid
+        // numeric prefix, so enforce the RFC delay-seconds grammar first.
+        const seconds = /^\d+$/.test(retryAfter) ? Number.parseInt(retryAfter, 10) : Number.NaN;
+        if (!Number.isNaN(seconds) && seconds > 0) {
             // Cap server-supplied delay to MAX_RETRY_DELAY_MS to prevent a
             // malicious/compromised server from freezing the client indefinitely.
             return Math.min(seconds * 1000, MAX_RETRY_DELAY_MS);
