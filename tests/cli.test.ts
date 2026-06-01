@@ -1019,6 +1019,12 @@ describe('CLI', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id'), expect.anything());
         });
 
+        it('case list with non-integer --suite-id should exit 1 before any fetch', async () => {
+            const { exitCodes } = await runCli(['case', 'list', '--project-id', '3', '--suite-id', 'abc']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('case unknown action should exit 1', async () => {
             const { exitCodes } = await runCli(['case', 'update', '1']);
             expect(exitCodes).toContain(1);

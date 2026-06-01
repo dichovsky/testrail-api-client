@@ -17,6 +17,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { handleSectionGet, handleSectionList } from '../src/cli/handlers/section.js';
+import { handleCaseList } from '../src/cli/handlers/case.js';
 import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
 import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleReportList, handleReportRun } from '../src/cli/handlers/report.js';
@@ -38,6 +39,9 @@ import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
+    cases: {
+        getCases: ReturnType<typeof vi.fn>;
+    };
     configurations: {
         getConfigurations: ReturnType<typeof vi.fn>;
     };
@@ -84,6 +88,20 @@ interface MockedClient {
 
 function buildClient(): MockedClient {
     return {
+        cases: {
+            getCases: vi.fn().mockResolvedValue([
+                {
+                    id: 1,
+                    title: 'Case 1',
+                    section_id: 1,
+                    suite_id: 1,
+                    created_by: 1,
+                    created_on: 0,
+                    updated_by: 1,
+                    updated_on: 0,
+                },
+            ]),
+        },
         configurations: {
             getConfigurations: vi.fn().mockResolvedValue([
                 {
@@ -217,6 +235,7 @@ function buildClient(): MockedClient {
 
 interface CtxOverrides {
     pathParams?: string[];
+    projectId?: string;
     suiteId?: string;
     limit?: string;
     offset?: string;
@@ -234,6 +253,7 @@ function buildCtx(
         client: client as unknown as TestRailClient,
         args: {
             pathParams: overrides.pathParams ?? [],
+            ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),
             ...(overrides.suiteId !== undefined && { suiteId: overrides.suiteId }),
             ...(overrides.limit !== undefined && { limit: overrides.limit }),
             ...(overrides.offset !== undefined && { offset: overrides.offset }),
@@ -349,6 +369,25 @@ describe('handleSectionList', () => {
         const { ctx } = buildCtx(client, { pathParams: ['3'], suiteId: '0' });
         await expect(handleSectionList(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.sections.getSections).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleCaseList ────────────────────────────────────────────────────────
+
+describe('handleCaseList', () => {
+    it('passes parsed --suite-id through to client.getCases', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { projectId: '3', suiteId: '9' });
+        await handleCaseList(ctx);
+        expect(client.cases.getCases).toHaveBeenCalledWith(3, { suiteId: 9 });
+        expect(out).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects non-integer --suite-id before calling the client', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { projectId: '3', suiteId: 'abc' });
+        await expect(handleCaseList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.cases.getCases).not.toHaveBeenCalled();
     });
 });
 
