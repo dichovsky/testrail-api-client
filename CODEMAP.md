@@ -11,7 +11,11 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.0"
   },
+<<<<<<< HEAD
   "sourceHash": "e0d4a03f44ecad21fe22b6cbaf55fdde2d5d82e0e07b95f2e140e14311053f3b",
+=======
+  "sourceHash": "d11034d3164608cd2470549ea8901721d3aeecdc6128800e4c5d60816dca49ff",
+>>>>>>> 27c4019 (chore: regenerate generated artifacts)
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5684,52 +5688,52 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addPlan",
               "kind": "method",
-              "line": 61
+              "line": 67
             },
             {
               "name": "updatePlan",
               "kind": "method",
-              "line": 72
+              "line": 78
             },
             {
               "name": "closePlan",
               "kind": "method",
-              "line": 83
+              "line": 89
             },
             {
               "name": "deletePlan",
               "kind": "method",
-              "line": 93
+              "line": 99
             },
             {
               "name": "addPlanEntry",
               "kind": "method",
-              "line": 99
+              "line": 105
             },
             {
               "name": "updatePlanEntry",
               "kind": "method",
-              "line": 110
+              "line": 116
             },
             {
               "name": "deletePlanEntry",
               "kind": "method",
-              "line": 122
+              "line": 128
             },
             {
               "name": "addRunToPlanEntry",
               "kind": "method",
-              "line": 132
+              "line": 138
             },
             {
               "name": "updateRunInPlanEntry",
               "kind": "method",
-              "line": 144
+              "line": 150
             },
             {
               "name": "deleteRunFromPlanEntry",
               "kind": "method",
-              "line": 155
+              "line": 161
             }
           ]
         }
@@ -5857,32 +5861,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getResultsForCase",
               "kind": "method",
-              "line": 45
+              "line": 51
             },
             {
               "name": "getResultsForRun",
               "kind": "method",
-              "line": 77
+              "line": 89
             },
             {
               "name": "addResult",
               "kind": "method",
-              "line": 106
+              "line": 124
             },
             {
               "name": "addResultForCase",
               "kind": "method",
-              "line": 117
+              "line": 135
             },
             {
               "name": "addResultsForCases",
               "kind": "method",
-              "line": 129
+              "line": 147
             },
             {
               "name": "addResults",
               "kind": "method",
-              "line": 140
+              "line": 158
             }
           ]
         }
