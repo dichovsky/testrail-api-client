@@ -4536,6 +4536,71 @@ describe('TestRailClient', () => {
         });
     });
 
+    // ── Regression: global custom fields rejected (project_ids non-array) ────────
+    // TestRail's `get_case_fields` / `get_result_fields` return `project_ids` as a
+    // `number[]` only for project-scoped fields. For GLOBAL fields (`is_global:
+    // true`) — which includes every built-in system field (Preconditions, Steps,
+    // Expected Result, Defects, …) — it is returned as `null` or `""` (empty
+    // string). The previous required `z.array(z.number())` therefore threw
+    // TestRailValidationError against virtually every real instance. The shared
+    // FieldConfigContextSchema now accepts the non-array forms and normalizes them
+    // to `[]` (parsed shape stays `number[]`), while still rejecting garbage.
+    describe('global field project_ids normalization (regression)', () => {
+        const fieldWire = (context: Record<string, unknown>) => ({
+            id: 1,
+            system_name: 'custom_preconds',
+            label: 'Preconditions',
+            name: 'preconds',
+            type_id: 3,
+            display_order: 1,
+            configs: [{ context, options: { is_required: false, default_value: '' } }],
+            is_active: true,
+            include_all: true,
+            template_ids: [],
+        });
+
+        it('getCaseFields accepts project_ids: null on a global field and normalizes to []', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: null })]));
+            const result = await client.metadata.getCaseFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+        });
+
+        it('getCaseFields accepts project_ids: "" on a global field and normalizes to []', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: '' })]));
+            const result = await client.metadata.getCaseFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+        });
+
+        it('getCaseFields accepts an omitted project_ids and normalizes to []', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true })]));
+            const result = await client.metadata.getCaseFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+        });
+
+        it('getCaseFields preserves project_ids for project-scoped fields', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: false, project_ids: [1, 2, 3] })]));
+            const result = await client.metadata.getCaseFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toEqual([1, 2, 3]);
+        });
+
+        it('getCaseFields still rejects a non-empty-string project_ids (strictness preserved)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: '1,2,3' })]));
+            await expect(client.metadata.getCaseFields()).rejects.toThrow(TestRailValidationError);
+        });
+
+        it('getResultFields accepts a global field with project_ids: null (shared sub-schema)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: null })]));
+            const result = await client.metadata.getResultFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+        });
+
+        it('getResultFields accepts a global field with project_ids: "" (shared sub-schema)', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: '' })]));
+            const result = await client.metadata.getResultFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+        });
+    });
+
     describe('Templates', () => {
         const mockTemplate: Template = { id: 1, name: 'Test Case (Steps)', is_default: true };
 

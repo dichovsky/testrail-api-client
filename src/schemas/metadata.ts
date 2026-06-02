@@ -92,7 +92,17 @@ const FieldConfigOptionsSchema = zObject({
 
 const FieldConfigContextSchema = zObject({
     is_global: z.boolean(),
-    project_ids: z.array(z.number()),
+    // TestRail returns `project_ids` as a `number[]` for project-scoped fields,
+    // but as `null` or `""` (empty string) for global fields (`is_global: true`)
+    // — which includes every built-in system field (Preconditions, Steps,
+    // Expected Result, …). A required `z.array(z.number())` therefore rejects
+    // the response from virtually any real instance. Accept the non-array forms
+    // and normalize them to `[]` so the parsed shape stays `number[]` for callers
+    // (matches the public `CaseFieldConfig`/`ResultFieldConfig` types in types.ts).
+    project_ids: z
+        .union([z.array(z.number()), z.literal('')])
+        .nullish()
+        .transform((value) => (Array.isArray(value) ? value : [])),
 });
 
 export const CaseFieldConfigSchema = zObject({
