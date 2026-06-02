@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.0"
   },
-  "sourceHash": "557358bcb997427ead7eff88b05760e749c3889b750b131f5fc84a6dd4ded2a8",
+  "sourceHash": "d19eeaa3f1295cc2c4c80e29617185920cfae6cb6615c3d6047158456362f752",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4641,169 +4641,174 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "line": 246
             },
             {
-              "name": "cacheCleanupTimer",
+              "name": "cacheGeneration",
               "kind": "property",
               "line": 247
             },
             {
-              "name": "rateLimiter",
+              "name": "cacheCleanupTimer",
               "kind": "property",
               "line": 248
             },
             {
-              "name": "isDestroyed",
+              "name": "rateLimiter",
               "kind": "property",
               "line": 249
             },
             {
-              "name": "hostname",
+              "name": "isDestroyed",
               "kind": "property",
               "line": 250
             },
             {
-              "name": "allowPrivateHosts",
+              "name": "hostname",
               "kind": "property",
               "line": 251
             },
             {
-              "name": "maxJsonResponseBytes",
+              "name": "allowPrivateHosts",
               "kind": "property",
               "line": 252
             },
             {
-              "name": "maxBinaryResponseBytes",
+              "name": "maxJsonResponseBytes",
               "kind": "property",
               "line": 253
             },
             {
-              "name": "bodyTimeout",
+              "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 258
+              "line": 254
             },
             {
-              "name": "fetchOverride",
+              "name": "bodyTimeout",
               "kind": "property",
               "line": 259
             },
             {
-              "name": "dnsLookup",
+              "name": "fetchOverride",
               "kind": "property",
               "line": 260
             },
             {
+              "name": "dnsLookup",
+              "kind": "property",
+              "line": 261
+            },
+            {
               "name": "constructor",
               "kind": "constructor",
-              "line": 262
+              "line": 263
             },
             {
               "name": "validateConfig",
               "kind": "method",
-              "line": 329
+              "line": 330
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 485
+              "line": 486
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 510
+              "line": 511
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 552
+              "line": 553
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 595
+              "line": 596
             },
             {
               "name": "getCachedData",
               "kind": "method",
-              "line": 618
+              "line": 619
             },
             {
               "name": "setCachedData",
               "kind": "method",
-              "line": 639
+              "line": 640
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 675
+              "line": 676
             },
             {
               "name": "startCacheCleanup",
               "kind": "method",
-              "line": 683
+              "line": 688
             },
             {
               "name": "stopCacheCleanup",
               "kind": "method",
-              "line": 694
+              "line": 699
             },
             {
               "name": "cleanupExpiredCache",
               "kind": "method",
-              "line": 701
+              "line": 706
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 728
+              "line": 733
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 776
+              "line": 781
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 855
+              "line": 863
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 890
+              "line": 898
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 910
+              "line": 918
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 934
+              "line": 942
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 962
+              "line": 970
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 980
+              "line": 988
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 1084
+              "line": 1092
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1241
+              "line": 1255
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1250
+              "line": 1264
             }
           ]
         }
