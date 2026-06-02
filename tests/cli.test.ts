@@ -1044,6 +1044,30 @@ describe('CLI', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('suite_id'), expect.anything());
         });
 
+        it('case list with --limit and --offset appends pagination', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'list', '--project-id', '3', '--limit', '5', '--offset', '10'],
+                [jsonResponse({ cases: [MOCK_CASE] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_cases/3');
+            expect(url).toContain('limit=5');
+            expect(url).toContain('offset=10');
+        });
+
+        it('case list combines --suite-id with --limit and --offset', async () => {
+            const { exitCodes } = await runCli(
+                ['case', 'list', '--project-id', '3', '--suite-id', '7', '--limit', '2', '--offset', '4'],
+                [jsonResponse({ cases: [MOCK_CASE] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('suite_id=7');
+            expect(url).toContain('limit=2');
+            expect(url).toContain('offset=4');
+        });
+
         it('case list with non-integer --suite-id should exit 1 before any fetch', async () => {
             const { exitCodes } = await runCli(['case', 'list', '--project-id', '3', '--suite-id', 'abc']);
             expect(exitCodes).toContain(1);
