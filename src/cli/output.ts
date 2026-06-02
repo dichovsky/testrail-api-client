@@ -213,6 +213,14 @@ function needsQuoting(s: string): boolean {
     // for safety. Also block-style indicators (`|`, `>`, `*`, `&`, `!`,
     // `@`, backtick, `,`, `[`, `]`, `{`, `}`, `%`) at the start.
     if (/^[-?:#|>*&!@`,[\]{}%]/.test(s)) return true;
+    // A leading quote opens a quoted scalar per YAML 1.2 §7.3: a leading `'`
+    // starts a single-quoted scalar (emitted bare it makes the document
+    // unparseable, or silently strips the surrounding quotes), and a leading
+    // `"` starts a double-quoted scalar. Force the double-quoted form so the
+    // value round-trips as a literal string. (`"` is also caught by the
+    // embedded-`"` scan below; listing it here keeps the leading-indicator
+    // intent in one place.)
+    if (s.startsWith("'") || s.startsWith('"')) return true;
     // Any inline `:` followed by space, or trailing `:`, would terminate a
     // mapping key. Any ` #` would start an inline comment. Both unsafe in
     // plain form.
