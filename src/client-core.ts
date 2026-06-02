@@ -244,6 +244,7 @@ export class TestRailClientCore {
     private readonly maxCacheSize: number;
     private readonly cache = new Map<string, CacheEntry<unknown>>();
     private readonly pendingRequests = new Map<string, Promise<unknown>>();
+    private cacheGeneration = 0;
     private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
     private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
     private isDestroyed = false;
@@ -674,6 +675,10 @@ export class TestRailClientCore {
      */
     public clearCache(): void {
         this.cache.clear();
+        // A GET that started before this invalidation may still finish later.
+        // Advance the generation so that stale completion cannot repopulate
+        // the cache after a write.
+        this.cacheGeneration += 1;
         // Clear in-flight coalesced GET promises (SEC #23): a POST has just
         // mutated state, so any pending GET for the same resource must re-fetch
         // rather than serving the pre-mutation snapshot to late joiners.
@@ -792,6 +797,7 @@ export class TestRailClientCore {
         // then run Zod, then write the validated value to the cache.
         // Without a schema, the pipeline writes the parsed body directly.
         const writeValidatedAfterPipeline = schema !== undefined && method === 'GET' && responseKind === 'json';
+        const cacheGeneration = this.cacheGeneration;
 
         // Custom check for in-flight coalescing for the validated case. The
         // pipeline's own coalescing uses `cacheKey` against `pendingRequests`;
@@ -821,7 +827,7 @@ export class TestRailClientCore {
                 // otherwise write the raw body); validate; cache the result.
                 const raw = await this.executeJson<unknown>(method, endpoint, body, retry, undefined);
                 const validated = this.parse<T>(schema, raw);
-                if (cacheKey !== undefined) {
+                if (cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
                     this.setCachedData(cacheKey, validated);
                 }
                 return validated;
@@ -838,7 +844,9 @@ export class TestRailClientCore {
             this.pendingRequests.set(cacheKey, validatedPromise);
             validatedPromise
                 .finally(() => {
-                    this.pendingRequests.delete(cacheKey);
+                    if (this.pendingRequests.get(cacheKey) === validatedPromise) {
+                        this.pendingRequests.delete(cacheKey);
+                    }
                 })
                 .catch(() => {});
         }
@@ -1081,7 +1089,11 @@ export class TestRailClientCore {
      *     Used on retry to avoid a deadlock where the retry looks up pendingRequests
      *     and finds the still-pending parent promise.
      */
-    private async executePipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
+    private async executePipeline<TParsed>(
+        spec: PipelineSpec<TParsed>,
+        retryCount = 0,
+        cacheGeneration = this.cacheGeneration,
+    ): Promise<TParsed> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
@@ -1177,7 +1189,7 @@ export class TestRailClientCore {
                         const retryAfterMs = this.parseRetryAfterMs(response);
                         const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                         await sleep(delay);
-                        return this.executePipeline<TParsed>(retrySpec, retryCount + 1);
+                        return this.executePipeline<TParsed>(retrySpec, retryCount + 1, cacheGeneration);
                     }
 
                     // The raw server body may contain stack traces, internal paths,
@@ -1189,7 +1201,7 @@ export class TestRailClientCore {
 
                 spec.onSuccessBeforeParse?.();
                 const result = await spec.parseSuccess(response);
-                if (cacheKey !== undefined) {
+                if (cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
                     this.setCachedData(cacheKey, result);
                 }
                 return result;
@@ -1204,7 +1216,7 @@ export class TestRailClientCore {
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
                     await sleep(this.getRetryDelay(retryCount));
-                    return this.executePipeline<TParsed>(retrySpec, retryCount + 1);
+                    return this.executePipeline<TParsed>(retrySpec, retryCount + 1, cacheGeneration);
                 }
 
                 throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
@@ -1222,7 +1234,9 @@ export class TestRailClientCore {
             // returned promise and are responsible for catching it.
             fetchPromise
                 .finally(() => {
-                    this.pendingRequests.delete(cacheKey);
+                    if (this.pendingRequests.get(cacheKey) === fetchPromise) {
+                        this.pendingRequests.delete(cacheKey);
+                    }
                 })
                 .catch(() => {});
         }

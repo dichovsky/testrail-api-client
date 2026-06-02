@@ -2651,6 +2651,112 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
 
+        it('does not cache a stale GET that resolves after a POST invalidates the cache', async () => {
+            let resolveStaleGet!: (v: Response) => void;
+            const delayedStaleGet = new Promise<Response>((res) => {
+                resolveStaleGet = res;
+            });
+            const staleProject = { id: 1, name: 'Stale', suite_mode: 1, url: 'u', is_completed: false };
+            const freshProject = { id: 1, name: 'Fresh', suite_mode: 1, url: 'u', is_completed: false };
+
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                maxRetries: 0,
+                allowPrivateHosts: true,
+            });
+            try {
+                mockFetch
+                    .mockReturnValueOnce(delayedStaleGet)
+                    .mockResolvedValueOnce(mockOk(freshProject)) // POST
+                    .mockResolvedValueOnce(mockOk(freshProject)); // GET after POST
+
+                const firstGet = wt.projects.getProject(1);
+                await Promise.resolve();
+                await Promise.resolve();
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+
+                await wt.projects.updateProject(1, { name: 'Fresh' });
+
+                resolveStaleGet(mockOk(staleProject));
+                expect((await firstGet).name).toBe('Stale');
+
+                const nextGet = await wt.projects.getProject(1);
+                expect(nextGet.name).toBe('Fresh');
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+            } finally {
+                wt.destroy();
+            }
+        });
+
+        it('settling an invalidated GET does not unregister its replacement pending GET', async () => {
+            let resolveStaleGet!: (v: Response) => void;
+            const delayedStaleGet = new Promise<Response>((res) => {
+                resolveStaleGet = res;
+            });
+            let resolveFreshGet!: (v: Response) => void;
+            const delayedFreshGet = new Promise<Response>((res) => {
+                resolveFreshGet = res;
+            });
+
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: false,
+                maxRetries: 0,
+                allowPrivateHosts: true,
+            });
+            try {
+                mockFetch
+                    .mockReturnValueOnce(delayedStaleGet)
+                    .mockResolvedValueOnce(mockOk({})) // POST
+                    .mockReturnValueOnce(delayedFreshGet)
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'Unexpected duplicate' }));
+
+                const staleGet = wt.request<{ id: number; name: string }>({
+                    method: 'GET',
+                    endpoint: 'get_project/1',
+                });
+                await Promise.resolve();
+                await Promise.resolve();
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+
+                await wt.request<Record<string, never>>({
+                    method: 'POST',
+                    endpoint: 'update_project/1',
+                    body: { kind: 'json', data: {} },
+                });
+
+                const freshGet = wt.request<{ id: number; name: string }>({
+                    method: 'GET',
+                    endpoint: 'get_project/1',
+                });
+                await Promise.resolve();
+                await Promise.resolve();
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+
+                resolveStaleGet(mockOk({ id: 1, name: 'Stale' }));
+                await staleGet;
+
+                const lateJoiner = wt.request<{ id: number; name: string }>({
+                    method: 'GET',
+                    endpoint: 'get_project/1',
+                });
+                resolveFreshGet(mockOk({ id: 1, name: 'Fresh' }));
+
+                const [fresh, joined] = await Promise.all([freshGet, lateJoiner]);
+                expect(fresh.name).toBe('Fresh');
+                expect(joined.name).toBe('Fresh');
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+            } finally {
+                wt.destroy();
+            }
+        });
+
         it('retries do not deadlock when the key is still in pendingRequests', async () => {
             const wt = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
