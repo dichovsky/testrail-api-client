@@ -2692,6 +2692,55 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
 
+        it('does not cache a stale raw GET that resolves after a POST invalidates the cache', async () => {
+            let resolveStaleGet!: (v: Response) => void;
+            const delayedStaleGet = new Promise<Response>((res) => {
+                resolveStaleGet = res;
+            });
+
+            const wt = new TestRailClient({
+                baseUrl: 'https://example.testrail.io',
+                email: 'test@example.com',
+                apiKey: 'api-key',
+                enableCache: true,
+                cacheTtl: 60_000,
+                maxRetries: 0,
+                allowPrivateHosts: true,
+            });
+            try {
+                mockFetch
+                    .mockReturnValueOnce(delayedStaleGet)
+                    .mockResolvedValueOnce(mockOk({})) // POST
+                    .mockResolvedValueOnce(mockOk({ id: 1, name: 'Fresh' })); // GET after POST
+
+                const firstGet = wt.request<{ id: number; name: string }>({
+                    method: 'GET',
+                    endpoint: 'get_project/1',
+                });
+                await Promise.resolve();
+                await Promise.resolve();
+                expect(mockFetch).toHaveBeenCalledTimes(1);
+
+                await wt.request<Record<string, never>>({
+                    method: 'POST',
+                    endpoint: 'update_project/1',
+                    body: { kind: 'json', data: {} },
+                });
+
+                resolveStaleGet(mockOk({ id: 1, name: 'Stale' }));
+                expect((await firstGet).name).toBe('Stale');
+
+                const nextGet = await wt.request<{ id: number; name: string }>({
+                    method: 'GET',
+                    endpoint: 'get_project/1',
+                });
+                expect(nextGet.name).toBe('Fresh');
+                expect(mockFetch).toHaveBeenCalledTimes(3);
+            } finally {
+                wt.destroy();
+            }
+        });
+
         it('settling an invalidated GET does not unregister its replacement pending GET', async () => {
             let resolveStaleGet!: (v: Response) => void;
             const delayedStaleGet = new Promise<Response>((res) => {
