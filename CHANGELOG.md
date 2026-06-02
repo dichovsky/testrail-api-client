@@ -13,7 +13,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
-## [5.0.0] — Namespaced client + everything accumulated since 4.1.0
+## [5.0.0] — 2026-06-02 — Namespaced client + everything accumulated since 4.1.0
 
 First npm release since `4.1.0` (2026-05-21). This major collapses the entire
 unreleased line that had built up on `main` (previously numbered `5.0.0` through
