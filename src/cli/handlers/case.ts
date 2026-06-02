@@ -9,7 +9,15 @@ export async function handleCaseGet(ctx: HandlerContext): Promise<void> {
 export async function handleCaseList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
     const suiteId = ctx.args.suiteId === undefined ? undefined : parseId(ctx.args.suiteId, '--suite-id');
-    ctx.out(await ctx.client.cases.getCases(pid, suiteId !== undefined ? { suiteId } : undefined));
+    const limit = optInt(ctx.args.limit);
+    const offset = optInt(ctx.args.offset);
+    ctx.out(
+        await ctx.client.cases.getCases(pid, {
+            ...(suiteId !== undefined && { suiteId }),
+            ...(limit !== undefined && { limit }),
+            ...(offset !== undefined && { offset }),
+        }),
+    );
 }
 
 export async function handleCaseHistory(ctx: HandlerContext): Promise<void> {
