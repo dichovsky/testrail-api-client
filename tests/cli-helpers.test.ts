@@ -1280,6 +1280,28 @@ describe('renderYaml — primitives', () => {
         expect(renderYaml(': leading colon')).toBe('": leading colon"');
     });
 
+    it('quotes strings with a leading quote (single or double opens a quoted scalar)', () => {
+        // Regression: a leading `'` was emitted bare, which opens a
+        // single-quoted scalar in YAML 1.2 §7.3 — the document then fails to
+        // parse (unterminated scalar) or silently drops the surrounding
+        // quotes. The double-quoted form round-trips as a literal string.
+        expect(renderYaml("'")).toBe('"\'"');
+        expect(renderYaml("'hello")).toBe('"\'hello"');
+        expect(renderYaml("'quoted'")).toBe('"\'quoted\'"');
+        // A leading `"` likewise opens a double-quoted scalar; the embedded-`"`
+        // escape produces a correctly quoted, round-trippable form.
+        expect(renderYaml('"leading dquote')).toBe('"\\"leading dquote"');
+        // A non-leading single quote stays in plain (bare) form — only the
+        // leading position is structurally significant.
+        expect(renderYaml("O'Brien")).toBe("O'Brien");
+        // End-to-end: an object value beginning with `'` must be quoted so the
+        // emitted mapping line parses (a TestRail case title like
+        // `'Login' button …` is a realistic trigger).
+        expect(renderYaml({ title: "'Login' button is disabled" })).toBe(
+            'title: "\'Login\' button is disabled"',
+        );
+    });
+
     it('quotes strings with embedded ": " (mapping ambiguity)', () => {
         expect(renderYaml('foo: bar')).toBe('"foo: bar"');
     });
