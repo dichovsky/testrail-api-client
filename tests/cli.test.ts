@@ -483,6 +483,46 @@ describe('CLI', () => {
             }
         });
 
+        it('--api-key-stdin accepts a real pipe (process.stdin.isTTY === undefined) and authenticates', async () => {
+            // Regression: Node sets process.stdin.isTTY to `true` for a TTY
+            // and leaves it `undefined` for a pipe — it is NEVER `false`.
+            // The happy-path test above manufactures isTTY=false (a value a
+            // real `echo $KEY | testrail …` pipe never produces), so it
+            // passed against the broken gate without guarding the documented
+            // contract. This test pins the real pipe value (undefined): the
+            // gate must accept it and authenticate with the piped key.
+            const origIsTTY = process.stdin.isTTY;
+            // @types/node declares isTTY as `boolean`, but Node leaves it
+            // `undefined` for a pipe — the cast lets us pin that real value
+            // under exactOptionalPropertyTypes.
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            try {
+                const { exitCodes } = await withStubbedStdin('sk-piped-key\n', () =>
+                    runCli(
+                        [
+                            '--base-url',
+                            'https://example.testrail.io',
+                            '--email',
+                            'test@example.com',
+                            '--api-key-stdin',
+                            'project',
+                            'get',
+                            '1',
+                        ],
+                        [jsonResponse(MOCK_PROJECT)],
+                        {}, // No env vars — credential must come from the piped stdin
+                    ),
+                );
+                expect(exitCodes).toContain(0);
+                const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+                const headers = init?.headers as Record<string, string>;
+                const expectedAuth = `Basic ${Buffer.from('test@example.com:sk-piped-key').toString('base64')}`;
+                expect(headers?.['Authorization']).toBe(expectedAuth);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
         it('--api-key-stdin rejects an empty stdin payload with exit 1', async () => {
             const origIsTTY = process.stdin.isTTY;
             process.stdin.isTTY = false;
