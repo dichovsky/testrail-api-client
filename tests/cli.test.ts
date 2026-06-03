@@ -644,11 +644,12 @@ describe('CLI', () => {
         });
 
         it('--api-key-stdin requires piped stdin (rejects when stdin is a TTY)', async () => {
-            // runCli runs in-process; vitest workers typically have
-            // process.stdin.isTTY === undefined (treated as TTY for the
-            // purposes of CTF #11's gate). The gate must reject because
-            // there's no way to read a credential from a terminal-attached
-            // stdin without prompting (and the CLI is non-interactive).
+            // A real interactive terminal sets process.stdin.isTTY === true;
+            // the gate must reject it because there's no way to read a
+            // credential from a terminal-attached stdin without prompting
+            // (and the CLI is non-interactive). A pipe leaves isTTY ===
+            // undefined (what vitest workers also have), which the gate now
+            // accepts — so this test pins isTTY = true to exercise rejection.
             const origIsTTY = process.stdin.isTTY;
             process.stdin.isTTY = true;
             try {
