@@ -19,7 +19,10 @@
     },
     "license": "MIT",
     "author": "Igor Magdich",
-    "funding": "https://buymeacoffee.com/dichovsky",
+    "funding": {
+        "type": "buymeacoffee",
+        "url": "https://buymeacoffee.com/dichovsky"
+    },
     "type": "module",
     "exports": {
         ".": {
@@ -72,16 +75,16 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^25.9.1",
-        "@typescript-eslint/eslint-plugin": "^8.60.0",
-        "@typescript-eslint/parser": "^8.60.0",
-        "@vitest/coverage-v8": "^4.1.7",
+        "@typescript-eslint/eslint-plugin": "^8.60.1",
+        "@typescript-eslint/parser": "^8.60.1",
+        "@vitest/coverage-v8": "^4.1.8",
         "eslint": "^10.4.1",
         "fast-check": "^4.8.0",
         "lockfile-lint": "^5.0.0",
         "prettier": "~3.8.3",
         "tsx": "^4.22.4",
         "typescript": "~6.0.3",
-        "vitest": "^4.1.7"
+        "vitest": "^4.1.8"
     },
     "engines": {
         "node": "^20.19.0 || ^22.13.0 || >=24"
