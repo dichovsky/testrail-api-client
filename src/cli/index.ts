@@ -192,7 +192,12 @@ async function main(): Promise<number> {
     const apiKeyStdin = values['api-key-stdin'] === true;
     let apiKeyFromStdin: string | undefined;
     if (apiKeyStdin) {
-        if (process.stdin.isTTY !== false) {
+        // Reject only when stdin is an interactive TTY. Node sets
+        // `process.stdin.isTTY` to `true` for a terminal and leaves it
+        // `undefined` for a pipe/redirect — it is never `false`, so the old
+        // `!== false` test rejected the documented `echo $KEY | testrail …`
+        // pipe. Mirror the canonical TTY check in file-input.ts.
+        if (process.stdin.isTTY === true) {
             err('--api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).');
             return 1;
         }
