@@ -5,13 +5,43 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`. Other
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`. Other
 > version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
 > `7.1.0` — into a single major bump from the last published release, `4.1.0`. No
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
+
+## [5.0.1] — 2026-06-04 — Accumulated CLI + cache fixes
+
+First patch on the `5.0.0` line. Every change is a backward-compatible bug fix;
+no public API, type, or CLI surface changed.
+
+### Fixed
+
+- **Stale GET cache repopulation after writes (#217).** A GET issued before a
+  mutating request could land in the cache _after_ that write's `clearCache()`,
+  re-seeding a pre-write entry; the invalidation is now honored for both raw and
+  schema-parsed GET cache keys.
+- **`case list` now forwards `--limit` / `--offset` (#219).** `handleCaseList`
+  parsed only `--project-id` / `--suite-id` and silently dropped the pagination
+  flags, making it impossible to page past the first `get_cases` result set from
+  the CLI. Both flags are now parsed via `optInt` and forwarded to `getCases()`,
+  matching every other paginated `list` subcommand.
+- **Piped stdin accepted for `--api-key-stdin` (#221).** The gate used
+  `isTTY !== false`, but Node leaves `isTTY` `undefined` (never `false`) for a
+  pipe, so the documented `echo $KEY | testrail … --api-key-stdin` usage was
+  always rejected. It now rejects only an interactive terminal (`isTTY === true`).
+- **YAML output quotes scalars with a leading quote character (#218).**
+  `--format yaml` emitted a string beginning with `'` as a bare scalar, which a
+  conforming parser reads as an unterminated single-quoted scalar. Such values
+  (e.g. a case title like `'Login' button is disabled`) are now double-quoted.
+
+### Maintenance
+
+- Updated funding metadata format and bumped devDependencies (#220). No change to
+  the published runtime artifact.
 
 ## [5.0.0] — 2026-06-02 — Namespaced client + everything accumulated since 4.1.0
 
