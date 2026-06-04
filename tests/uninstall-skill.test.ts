@@ -15,7 +15,16 @@
  *   - non-empty parent dir preserved (sibling skill survives)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+    existsSync,
+    lstatSync,
+    mkdirSync,
+    mkdtempSync,
+    readdirSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInstallSkill } from '../src/cli/install-skill.js';
@@ -163,6 +172,26 @@ describe('runUninstallSkill', () => {
         expect(existsSync(bystander)).toBe(true);
         // Symlink itself still present — uninstall must not unlink either.
         expect(existsSync(target)).toBe(true);
+    });
+
+    it('refuses to remove a dangling symlink with a symlink-specific message (not "nothing to uninstall")', () => {
+        const project = join(tmp, 'proj');
+        const target = join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
+        mkdirSync(join(project, '.claude', 'skills', 'testrail-cli'), { recursive: true });
+        // Dangling symlink: its target does not exist. existsSync follows the
+        // link and returns false, so a symlink-following existence gate would
+        // misreport this as "nothing to uninstall" and leave the link on disk.
+        // The documented TOCTOU posture lstats the target and refuses it.
+        symlinkSync(join(tmp, 'no-such-target'), target);
+
+        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        expect(code).toBe(1);
+        // A symlink is detected and refused with a clear message — NOT silently
+        // misreported as "SKILL.md not found. Nothing to uninstall.".
+        expect(stderrChunks.join('')).toContain('symlink');
+        expect(stderrChunks.join('')).not.toContain('not found');
+        // The dangling symlink is left in place (lstat sees it; existsSync can't).
+        expect(lstatSync(target).isSymbolicLink()).toBe(true);
     });
 
     it('refuses to remove a directory at the install target path', () => {
