@@ -37,6 +37,11 @@ no public API, type, or CLI surface changed.
   `--format yaml` emitted a string beginning with `'` as a bare scalar, which a
   conforming parser reads as an unterminated single-quoted scalar. Such values
   (e.g. a case title like `'Login' button is disabled`) are now double-quoted.
+- **`uninstall-skill` no longer crashes on a dangling symlink (#222).** The command
+  gated on `existsSync`, which follows symlinks and returns `false` for a broken
+  link, so a dangling skill symlink slipped past the guard. It now uses the
+  canonical `lstat`/`ENOENT` pattern: a dangling symlink reaches the existing
+  symlink-refusal path, while a genuinely absent target stays the ordinary no-op.
 
 ### Maintenance
 
