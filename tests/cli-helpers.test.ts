@@ -1297,9 +1297,7 @@ describe('renderYaml — primitives', () => {
         // End-to-end: an object value beginning with `'` must be quoted so the
         // emitted mapping line parses (a TestRail case title like
         // `'Login' button …` is a realistic trigger).
-        expect(renderYaml({ title: "'Login' button is disabled" })).toBe(
-            'title: "\'Login\' button is disabled"',
-        );
+        expect(renderYaml({ title: "'Login' button is disabled" })).toBe('title: "\'Login\' button is disabled"');
     });
 
     it('quotes strings with embedded ": " (mapping ambiguity)', () => {
