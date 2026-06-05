@@ -51,11 +51,15 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 - **A** — committed `docs/API-MAPPING.md` matches generator output.
 - **B** — every `@testrail` tag references an endpoint in `docs/testrail-endpoints.json`.
 - **C** — every `ActionSpec.apiEndpoint` matches a `@testrail` tag.
-- **C2** — every `recipe-for:` tag in `skill/SKILL.md` references an existing `ACTIONS` entry.
+- **C2** — (bidirectional) every `recipe-for:` tag in `skill/SKILL.md` references an existing `ACTIONS` entry, **and** every `ACTIONS` entry has ≥1 `recipe-for:` binding unless `skillRecipeExempt: true` is set. The reverse direction is what enforces the CLI→skill half of the layer-coverage invariant below.
+
+**Layer-coverage invariant (SDK ⇒ CLI ⇒ skill).** Beyond the drift gates above, this repo holds an absolute coverage rule: **every `@testrail`-tagged SDK method must be surfaced as ≥1 CLI command, and every CLI command must be reachable through ≥1 skill recipe.** A new endpoint method is not "done" until its CLI command and skill recipe land in the same change — there are no sanctioned exceptions (the `skillRecipeExempt` flag exists only as gate C2's mechanism and must stay unused; it is `0` today). The CLI→skill half is machine-enforced by gate C2 (reverse); the SDK→CLI half has **no** automated gate and is upheld in review against the `docs/API-MAPPING.md` table, where any missing layer renders as a `—` row. Current coverage: 117 methods ⇒ 117 endpoints ⇒ 119 CLI commands ⇒ full recipe coverage.
 
 ## Architecture Invariants
 
 **Class hierarchy:** `TestRailClientCore` (client-core.ts) → `TestRailClient` (client.ts). Infrastructure lives in core; endpoint methods live in the domain modules. `client.ts` is module composition only (18 `public readonly` fields, no flat wrappers) — the namespaced surface (`client.projects.getProject(id)`) is the single access path (flat facade removed in v5.0.0, ARCH #7).
+
+**Layer-coverage invariant (SDK ⇒ CLI ⇒ skill):** every `@testrail`-tagged SDK method ⇒ ≥1 CLI command ⇒ ≥1 skill recipe — absolute and exception-free. See [API Coverage Matrix](#api-coverage-matrix) for the binding mechanisms and which half is gated.
 
 **URL construction:** `{baseUrl}/index.php?/api/v2/{endpoint}`. Query params appended with `&` (not `?`): `get_sections/1&suite_id=2`. Use `buildEndpoint(base, params)`.
 
@@ -126,7 +130,8 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 4. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, retry? })`
 5. Add response schema and inferred type re-exports to `src/index.ts` if they're public
 6. Add a test case to the matching `tests/client-*.test.ts` file
-7. Run `npm run codemap` to update CODEMAP.md
+7. **Surface the new method on the CLI and in the skill (layer-coverage invariant — mandatory).** Add the CLI command (see _Add CLI write action_ for writes, or add a read `ActionSpec` + handler for reads) and a numbered recipe in `skill/SKILL.md` tagged `<!-- recipe-for: resource:action -->`. The endpoint is not complete until both exist
+8. Run `npm run codemap` (and `npm run skill` if you touched a CLI action) to regenerate the generated docs, then `npm run mapping:check` to confirm `docs/API-MAPPING.md` has no new `—` rows
 
 **Add CLI write action:**
 
