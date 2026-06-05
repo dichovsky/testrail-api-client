@@ -34,7 +34,7 @@
  * `resource:action` dispatch.
  */
 
-import { existsSync, lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
+import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { sanitizeForTerminal } from './sanitize.js';
@@ -70,24 +70,26 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
 
     const target = getInstallTarget(opts);
 
-    if (!existsSync(target)) {
-        writeErr(`SKILL.md not found at ${target}. Nothing to uninstall.`);
-        return 1;
-    }
-
-    // TOCTOU-aware: use lstat so a symlink at the target path is detected
-    // without following it. install-skill writes a regular file via
+    // TOCTOU-aware: lstat (NOT existsSync) so a symlink at the target path is
+    // detected without following it. existsSync follows symlinks and returns
+    // false for a dangling symlink, which would misreport a broken symlink as
+    // "nothing to uninstall" while leaving it on disk (same rationale as the
+    // file-output.ts clobber check). install-skill writes a regular file via
     // copyFileSync; anything else here is either user-managed unrelated
-    // content (a hand-symlinked dev copy) or an attempted attack — we
-    // refuse to unlink either way and surface a clear message so the
-    // user can resolve manually.
+    // content (a hand-symlinked dev copy) or an attempted attack — we refuse
+    // to unlink either way and surface a clear message so the user can resolve
+    // manually.
     let stat: ReturnType<typeof lstatSync>;
     try {
         stat = lstatSync(target);
     } catch (e: unknown) {
-        // lstat can fail in the window between existsSync and this call
-        // (TOCTOU race) or under an unreadable parent directory. Surface a
-        // structured error rather than letting the throw escape.
+        // ENOENT: nothing exists at the path (skill was never installed) — the
+        // ordinary "not previously installed" case. Any other error (e.g. an
+        // unreadable parent directory) surfaces as a structured stat failure.
+        if ((e as { code?: string }).code === 'ENOENT') {
+            writeErr(`SKILL.md not found at ${target}. Nothing to uninstall.`);
+            return 1;
+        }
         writeErr(`cannot stat ${target}: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }
