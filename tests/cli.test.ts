@@ -4611,6 +4611,23 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
+        it('accepts a stdin-piped JSON body when process.stdin.isTTY is undefined', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean }).isTTY = undefined;
+            try {
+                const { exitCodes } = await withStubbedStdin('{"name":"piped run"}', () =>
+                    runCli(['run', 'add', '1'], [jsonResponse({ ...MOCK_RUN, name: 'piped run' })]),
+                );
+                expect(exitCodes).toContain(0);
+
+                const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+                const body = JSON.parse(init.body as string) as Record<string, unknown>;
+                expect(body['name']).toBe('piped run');
+            } finally {
+                (process.stdin as { isTTY?: boolean }).isTTY = origIsTTY;
+            }
+        });
+
         it('exits 1 when payload is missing required `name`', async () => {
             const { stderr, exitCodes } = await runCli(['run', 'add', '1', '--data', '{"suite_id":1}']);
             expect(exitCodes).toContain(1);
