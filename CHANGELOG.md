@@ -5,13 +5,34 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`. Other
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`. Other
 > version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
 > `7.1.0` — into a single major bump from the last published release, `4.1.0`. No
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
+
+## [5.0.2] — 2026-06-07 — Piped stdin for write commands
+
+Backward-compatible bug fix; no public API, type, or CLI surface changed.
+
+### Fixed
+
+- **Piped stdin now accepted as a request body for write commands (#226).** The
+  body-source gate used `isTTY === false`, but Node leaves `isTTY` `undefined`
+  (never `false`) for a pipe, so `echo '{…}' | testrail run add …` always failed
+  with "Body required". The gate now fires on `isTTY !== true`, and only when
+  neither `--data` nor `--data-file` is supplied, so an explicit body flag still
+  wins in non-interactive environments (CI, Docker, cron). Mirrors the
+  `--api-key-stdin` fix from #221.
+
+### Maintenance
+
+- `package.json` `bin.testrail` is now `"dist/cli.js"` (was `"./dist/cli.js"`).
+  npm strips the leading `./` from `bin` entries on publish, so the old value
+  triggered a `script name … was invalid and removed` warning; the published
+  `bin` value and CLI behavior are unchanged.
 
 ## [5.0.1] — 2026-06-04 — Accumulated CLI + cache fixes
 
