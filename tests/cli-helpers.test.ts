@@ -1716,6 +1716,37 @@ describe('renderCsv — SEC #35 formula-injection neutralization', () => {
         expect(out).toBe('n\r\n1.5');
     });
 
+    it('does NOT prefix a typed negative number (trusted value, not a formula vector)', () => {
+        // A JS `number` stringifies to a numeric literal that no spreadsheet
+        // evaluates as a formula; neutralizing it would corrupt the value
+        // (e.g. break `float(row['elapsed'])` downstream). Only untrusted
+        // *strings* need OWASP neutralization.
+        expect(renderCsv({ elapsed: -1 })).toBe('elapsed\r\n-1');
+        expect(renderCsv({ delta: -1.5 })).toBe('delta\r\n-1.5');
+    });
+
+    it('does NOT prefix a typed negative bigint', () => {
+        expect(renderCsv({ big: -5n })).toBe('big\r\n-5');
+    });
+
+    it('does NOT prefix a typed negative number inside an array row', () => {
+        expect(renderCsv([{ custom_score: -42 }])).toBe('custom_score\r\n-42');
+    });
+
+    it('does NOT prefix typed negative numbers in a primitive-only array', () => {
+        expect(renderCsv([-1, -2])).toBe('value\r\n-1\r\n-2');
+    });
+
+    it('does NOT prefix a typed negative number rendered as a top-level scalar', () => {
+        expect(renderCsv(-42)).toBe('value\r\n-42');
+    });
+
+    it('still neutralizes a negative-number STRING (untrusted; OWASP-conservative)', () => {
+        // Regression guard: the type-aware fix must NOT weaken string
+        // neutralization — a string starting with '-' is still neutralized.
+        expect(renderCsv({ s: '-1' })).toBe("s\r\n'-1");
+    });
+
     it('does NOT modify an empty cell', () => {
         const out = renderCsv({ x: '' });
         expect(out).toBe('x\r\n');

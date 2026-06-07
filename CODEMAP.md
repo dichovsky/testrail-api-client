@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "fed5af6af052d370d484bd4ae8128f6597643edd874f64836ebf3489ae8758ef",
+  "sourceHash": "fd378988e19610259eddf75af0737d284038b0a59c750f8b1775fad62691abf5",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4375,84 +4375,98 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "CSV_LINE_TERMINATOR",
           "kind": "const",
-          "line": 427,
+          "line": 430,
           "exported": false,
           "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
         },
         {
           "name": "TAB",
           "kind": "const",
-          "line": 432,
+          "line": 435,
           "exported": false,
           "signature": "const TAB = 0x09"
         },
         {
           "name": "LF",
           "kind": "const",
-          "line": 433,
+          "line": 436,
           "exported": false,
           "signature": "const LF = 0x0a"
         },
         {
           "name": "CR",
           "kind": "const",
-          "line": 434,
+          "line": 437,
           "exported": false,
           "signature": "const CR = 0x0d"
         },
         {
           "name": "CSV_FORMULA_LEAD_CHARS",
           "kind": "const",
-          "line": 439,
+          "line": 442,
           "exported": false,
           "signature": "const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(['=', '+', '-', '@'])"
         },
         {
           "name": "neutralizeCsvFormula",
           "kind": "function",
-          "line": 443,
+          "line": 446,
           "exported": false,
           "signature": "function neutralizeCsvFormula(cell: string): string"
         },
         {
           "name": "csvCellRequiresQuoting",
           "kind": "function",
-          "line": 453,
+          "line": 456,
           "exported": false,
           "signature": "function csvCellRequiresQuoting(cell: string): boolean"
         },
         {
+          "name": "csvQuoteCell",
+          "kind": "function",
+          "line": 465,
+          "exported": false,
+          "signature": "function csvQuoteCell(cell: string): string"
+        },
+        {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 457,
+          "line": 474,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
+          "name": "csvDataCell",
+          "kind": "function",
+          "line": 481,
+          "exported": false,
+          "signature": "function csvDataCell(v: unknown): string"
+        },
+        {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 465,
+          "line": 485,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
           "name": "csvCellFromValue",
           "kind": "function",
-          "line": 471,
+          "line": 491,
           "exported": false,
           "signature": "function csvCellFromValue(v: unknown): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 507,
+          "line": 531,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 561,
+          "line": 585,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
