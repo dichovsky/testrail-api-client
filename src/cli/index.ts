@@ -328,16 +328,18 @@ async function main(): Promise<number> {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
         ...(values['data-file'] !== undefined && { dataFileFlag: values['data-file'] as string }),
         // Pass a thunk (not the read contents) so resolveBody() only drains
-        // stdin when it actually selects stdin as the body source. Read
-        // actions, no-body writes (`run close`), and write actions that
-        // received --data or --data-file never invoke this. File-input
-        // actions (e.g. `attachment add-to-case`) suppress stdin entirely
-        // since their payload is the binary file, not JSON. CTF #11:
-        // --api-key-stdin already consumed stdin for the credential, so
-        // the body must use --data or --data-file.
+        // stdin when it actually selects stdin as the body source. Only
+        // register when stdin is not a TTY (pipe/redirect), no explicit body
+        // flag was supplied (--data/--data-file), and the action doesn't own
+        // stdin for another purpose (file-input or --api-key-stdin). This
+        // prevents "Multiple body sources" errors in non-interactive
+        // environments (CI, Docker, cron) where isTTY=undefined but the user
+        // already passed --data.
         ...(process.stdin.isTTY !== true &&
             !isFileInputAction &&
-            !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
+            !apiKeyStdin &&
+            values['data'] === undefined &&
+            values['data-file'] === undefined && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
 
     const force = values['force'] === true;

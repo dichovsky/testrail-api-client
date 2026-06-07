@@ -4677,6 +4677,23 @@ describe('CLI', () => {
                 process.stdin.isTTY = origIsTTY;
             }
         });
+
+        it('--data takes priority over piped stdin in non-interactive env (isTTY=undefined)', async () => {
+            // Regression for the HIGH-1 finding in PR #230 review: when isTTY=undefined
+            // (CI/Docker/cron) and --data is explicitly provided, the CLI must use --data
+            // and not attempt to also read stdin (which would cause "Multiple body sources").
+            const origIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            try {
+                const { exitCodes } = await runCli(
+                    ['run', 'add', '1', '--data', '{"name":"CI Run","include_all":true}'],
+                    [jsonResponse(MOCK_RUN)],
+                );
+                expect(exitCodes).toContain(0);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
     });
 
     describe('run update', () => {

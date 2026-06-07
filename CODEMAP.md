@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.1"
   },
-  "sourceHash": "a32d36537f8e9f37076782f7e304a8eb149272bc03b6a1e917fcf2b7428985ad",
+  "sourceHash": "2ac5f0c78db0ecb7e850cffda2b80d7bad48731dc3ba8806e6d89c2fc23d1179",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3362,19 +3362,19 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 252,
           "exported": false,
-          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY === false).…"
+          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY !== true) a…"
         },
         {
           "name": "HEADER",
           "kind": "const",
-          "line": 280,
+          "line": 281,
           "exported": false,
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 287,
+          "line": 288,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }
