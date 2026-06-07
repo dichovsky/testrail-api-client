@@ -106,6 +106,8 @@ Compact table legend:
 | `run update` | W | `<run_id>` | UpdateRunPayloadSchema |
 | `run close` | D | `<run_id>` | none+yes |
 | `run delete` | D | `<run_id>` | none+yes |
+| `test update-labels` | W | `<test_id>` | UpdateTestLabelsPayloadSchema |
+| `test update-labels-bulk` | W | - | UpdateTestsLabelsPayloadSchema |
 | `result add` | W | `<run_id>` `<case_id>` | AddResultPayloadSchema |
 | `result add-bulk` | W | `<run_id>` | AddResultsForCasesPayloadSchema |
 | `result add-bulk-by-test` | W | `<run_id>` | AddResultsPayloadSchema |
@@ -187,6 +189,9 @@ Compact table legend:
 | `configuration add` | W | `<config_group_id>` | AddConfigurationPayloadSchema |
 | `configuration update` | W | `<config_id>` | UpdateConfigurationPayloadSchema |
 | `configuration delete` | D | `<config_id>` | none+yes |
+| `label get` | R | `<label_id>` | - |
+| `label list` | R | `<project_id>` | - |
+| `label update` | W | `<label_id>` | UpdateLabelPayloadSchema |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -298,6 +303,8 @@ schemas:
 - {s: MoveCasesToSectionPayloadSchema, a: "case move-to-section", req: [case_ids, suite_id], opt: 0, ref: "./reference/payload-schemas.yaml#movecasestosectionpayloadschema"}
 - {s: AddRunPayloadSchema, a: "run add", req: [name], opt: 7, ref: "./reference/payload-schemas.yaml#addrunpayloadschema"}
 - {s: UpdateRunPayloadSchema, a: "run update", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#updaterunpayloadschema"}
+- {s: UpdateTestLabelsPayloadSchema, a: "test update-labels", req: [labels], opt: 0, ref: "./reference/payload-schemas.yaml#updatetestlabelspayloadschema"}
+- {s: UpdateTestsLabelsPayloadSchema, a: "test update-labels-bulk", req: [test_ids, labels], opt: 0, ref: "./reference/payload-schemas.yaml#updatetestslabelspayloadschema"}
 - {s: AddResultPayloadSchema, a: "result add", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
 - {s: AddResultsForCasesPayloadSchema, a: "result add-bulk", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultsforcasespayloadschema"}
 - {s: AddResultsPayloadSchema, a: "result add-bulk-by-test", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultspayloadschema"}
@@ -332,6 +339,7 @@ schemas:
 - {s: UpdateConfigurationGroupPayloadSchema, a: "configuration-group update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationgrouppayloadschema"}
 - {s: AddConfigurationPayloadSchema, a: "configuration add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addconfigurationpayloadschema"}
 - {s: UpdateConfigurationPayloadSchema, a: "configuration update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationpayloadschema"}
+- {s: UpdateLabelPayloadSchema, a: "label update", req: [title], opt: 0, ref: "./reference/payload-schemas.yaml#updatelabelpayloadschema"}
 ```
 <!-- /GENERATED:payload-schemas -->
 
@@ -3233,6 +3241,64 @@ const tests = await client.tests.getTests(42, { status_id: '3' }); // 3 = Untest
 for (const t of tests) {
   await client.results.addResult(t.id, { status_id: 1, comment: 'auto-passed' });
 }
+```
+
+### 58. Assign labels to tests (single and bulk)
+
+<!-- recipe-for: test:update-labels -->
+<!-- recipe-for: test:update-labels-bulk -->
+
+`update-labels` sets the labels on a test — it is a **label-only** mutation,
+not a general test update. Each `labels` element is an existing label ID
+(number) or its title (string); TestRail resolves titles to IDs. The bulk
+form applies the **same** labels to every listed test (it cannot set
+different labels per test) and takes no path param — the targets live in
+`test_ids`.
+
+```bash
+# Set labels on one test (mix of label ID and title)
+testrail test update-labels 1337 --data '{"labels":[1,"regression"]}'
+
+# Apply the same labels to many tests in one call
+testrail test update-labels-bulk --data '{"test_ids":[1337,1338,1339],"labels":["smoke"]}'
+
+# Preview without hitting the API
+testrail test update-labels 1337 --data '{"labels":["smoke"]}' --dry-run
+```
+
+```typescript
+// Programmatic equivalent
+await client.tests.updateTest(1337, { labels: [1, 'regression'] });
+await client.tests.updateTests({ test_ids: [1337, 1338], labels: ['smoke'] });
+```
+
+### 59. Labels: list a project's labels and rename one
+
+<!-- recipe-for: label:get -->
+<!-- recipe-for: label:list -->
+<!-- recipe-for: label:update -->
+
+The Labels API manages label *definitions*. TestRail exposes only
+get/list/rename over REST — there is no `add`/`delete` label endpoint
+(label creation/deletion is the TestRail CLI's job). Renaming a label
+propagates to every case and test using it. Titles are capped at 20 chars.
+
+```bash
+# List every label defined in a project (paginated)
+testrail label list 1
+
+# Fetch one label by ID
+testrail label get 7
+
+# Rename a label (propagates to all cases/tests that carry it)
+testrail label update 7 --data '{"title":"Release 2.0"}'
+```
+
+```typescript
+// Programmatic equivalent
+const labels = await client.labels.getLabels(1);
+const label = await client.labels.getLabel(7);
+await client.labels.updateLabel(7, { title: 'Release 2.0' });
 ```
 
 

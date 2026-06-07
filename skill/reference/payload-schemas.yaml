@@ -90,6 +90,19 @@ schemas:
       - "case_ids:number[]"
       - "refs:string"
 
+  UpdateTestLabelsPayloadSchema:
+    actions: ["test update-labels"]
+    req:
+      - "labels:union[]"
+    opt: []
+
+  UpdateTestsLabelsPayloadSchema:
+    actions: ["test update-labels-bulk"]
+    req:
+      - "test_ids:number[]"
+      - "labels:union[]"
+    opt: []
+
   AddResultPayloadSchema:
     actions: ["result add", "result add-by-test"]
     req:
@@ -382,3 +395,9 @@ schemas:
     req: []
     opt:
       - "name:string"
+
+  UpdateLabelPayloadSchema:
+    actions: ["label update"]
+    req:
+      - "title:string"
+    opt: []

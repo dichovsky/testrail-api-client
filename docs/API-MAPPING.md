@@ -22,6 +22,7 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Configurations](#configurations) | 7 | 7 | 7 | 7 |
 | [Datasets](#datasets) | 5 | 5 | 5 | 5 |
 | [Groups](#groups) | 5 | 5 | 5 | 5 |
+| [Labels](#labels) | 3 | 3 | 3 | 3 |
 | [Milestones](#milestones) | 5 | 5 | 5 | 5 |
 | [Plans](#plans) | 12 | 12 | 12 | 12 |
 | [Priorities](#priorities) | 1 | 1 | 1 | 1 |
@@ -36,10 +37,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [Statuses](#statuses) | 2 | 2 | 2 | 2 |
 | [Suites](#suites) | 5 | 5 | 5 | 5 |
 | [Templates](#templates) | 1 | 1 | 1 | 1 |
-| [Tests](#tests) | 2 | 2 | 2 | 2 |
+| [Tests](#tests) | 4 | 4 | 4 | 4 |
 | [Users](#users) | 6 | 6 | 6 | 6 |
 | [Variables](#variables) | 4 | 4 | 4 | 4 |
-| **Total** | **117** | **117** | **117** | **117** |
+| **Total** | **122** | **122** | **122** | **122** |
 
 ## Attachments
 
@@ -141,6 +142,16 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | [`POST add_group`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addGroup`](../src/modules/users.ts#L116) | `group add` | [recipe #42](../skill/SKILL.md#42-group-crud-lifecycle-testrail-75) |
 | [`POST delete_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteGroup`](../src/modules/users.ts#L137) | `group delete` | [recipe #42](../skill/SKILL.md#42-group-crud-lifecycle-testrail-75) |
 | [`POST update_group/{group_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateGroup`](../src/modules/users.ts#L126) | `group update` | [recipe #42](../skill/SKILL.md#42-group-crud-lifecycle-testrail-75) |
+
+## Labels
+
+<a id="labels"></a>
+
+| Endpoint | Client method | CLI command | Skill recipe |
+| --- | --- | --- | --- |
+| [`GET get_label/{label_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getLabel`](../src/modules/labels.ts#L18) | `label get` | [recipe #59](../skill/SKILL.md#59-labels-list-a-projects-labels-and-rename-one) |
+| [`GET get_labels/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getLabels`](../src/modules/labels.ts#L28) | `label list` | [recipe #59](../skill/SKILL.md#59-labels-list-a-projects-labels-and-rename-one) |
+| [`POST update_label/{label_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateLabel`](../src/modules/labels.ts#L48) | `label update` | [recipe #59](../skill/SKILL.md#59-labels-list-a-projects-labels-and-rename-one) |
 
 ## Milestones
 
@@ -306,8 +317,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTest`](../src/modules/tests.ts#L13) | `test get` | [recipe #57](../skill/SKILL.md#57-tests-fetch-by-id-and-list-per-run) |
-| [`GET get_tests/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTests`](../src/modules/tests.ts#L23) | `test list` | [recipe #57](../skill/SKILL.md#57-tests-fetch-by-id-and-list-per-run) |
+| [`GET get_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTest`](../src/modules/tests.ts#L14) | `test get` | [recipe #57](../skill/SKILL.md#57-tests-fetch-by-id-and-list-per-run) |
+| [`GET get_tests/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getTests`](../src/modules/tests.ts#L24) | `test list` | [recipe #57](../skill/SKILL.md#57-tests-fetch-by-id-and-list-per-run) |
+| [`POST update_test/{test_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateTest`](../src/modules/tests.ts#L58) | `test update-labels` | [recipe #58](../skill/SKILL.md#58-assign-labels-to-tests-single-and-bulk) |
+| [`POST update_tests`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateTests`](../src/modules/tests.ts#L81) | `test update-labels-bulk` | [recipe #58](../skill/SKILL.md#58-assign-labels-to-tests-single-and-bulk) |
 
 ## Users
 

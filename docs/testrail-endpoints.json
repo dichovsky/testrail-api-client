@@ -323,6 +323,28 @@
     },
 
     {
+        "resource": "Labels",
+        "operation": "get_label",
+        "method": "GET",
+        "path": "get_label/{label_id}",
+        "summary": "Returns an existing label."
+    },
+    {
+        "resource": "Labels",
+        "operation": "get_labels",
+        "method": "GET",
+        "path": "get_labels/{project_id}",
+        "summary": "Returns the list of labels for a project (paginated)."
+    },
+    {
+        "resource": "Labels",
+        "operation": "update_label",
+        "method": "POST",
+        "path": "update_label/{label_id}",
+        "summary": "Updates (renames) an existing label."
+    },
+
+    {
         "resource": "Milestones",
         "operation": "get_milestone",
         "method": "GET",
@@ -769,6 +791,20 @@
         "method": "GET",
         "path": "get_tests/{run_id}",
         "summary": "Returns the tests in a run, optionally filtered by status."
+    },
+    {
+        "resource": "Tests",
+        "operation": "update_test",
+        "method": "POST",
+        "path": "update_test/{test_id}",
+        "summary": "Updates the labels assigned to a single test."
+    },
+    {
+        "resource": "Tests",
+        "operation": "update_tests",
+        "method": "POST",
+        "path": "update_tests",
+        "summary": "Updates the labels assigned to multiple tests with the same values."
     },
 
     {

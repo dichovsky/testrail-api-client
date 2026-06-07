@@ -178,6 +178,7 @@ const MOCK_SHARED_STEP = {
 const MOCK_VARIABLE = { id: 1, name: 'env' };
 const MOCK_GROUP = { id: 7, name: 'QA Group', user_ids: [1, 2] };
 const MOCK_DATASET = { id: 77, name: 'Staging matrix', project_id: 1 };
+const MOCK_LABEL = { id: 7, title: 'Release 2.0', created_by: 2, created_on: 1646058600 };
 
 const AUTH_ENV = {
     TESTRAIL_BASE_URL: 'https://example.testrail.io',
@@ -1525,6 +1526,166 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('TestRail API error');
+        });
+
+        // ── test update-labels / update-labels-bulk (Labels API, 2025) ─────
+
+        it('test update-labels <test_id> POSTs update_test/{test_id} with the labels body', async () => {
+            const { exitCodes } = await runCli(
+                ['test', 'update-labels', '100', '--data', '{"labels":[1,"regression"]}'],
+                [jsonResponse({ ...MOCK_TEST, labels: [{ id: 1, title: 'regression' }] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_test/100');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['labels']).toEqual([1, 'regression']);
+        });
+
+        it('test update-labels --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'test',
+                'update-labels',
+                '100',
+                '--data',
+                '{"labels":["smoke"]}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('test update-labels rejects payload missing labels', async () => {
+            const { exitCodes, stderr } = await runCli(['test', 'update-labels', '100', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('test update-labels rejects non-positive test_id', async () => {
+            const { exitCodes } = await runCli(['test', 'update-labels', '0', '--data', '{"labels":[1]}']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('test update-labels-bulk POSTs update_tests with test_ids + labels in the body', async () => {
+            const { exitCodes } = await runCli(
+                ['test', 'update-labels-bulk', '--data', '{"test_ids":[100,101],"labels":["smoke"]}'],
+                [jsonResponse({ tests: [MOCK_TEST] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_tests');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['test_ids']).toEqual([100, 101]);
+            expect(body['labels']).toEqual(['smoke']);
+        });
+
+        it('test update-labels-bulk rejects a stray positional arg (no path param)', async () => {
+            const { exitCodes, stderr } = await runCli([
+                'test',
+                'update-labels-bulk',
+                '7',
+                '--data',
+                '{"test_ids":[1],"labels":["x"]}',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(/path parameter|positional/);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('test update-labels-bulk rejects payload missing test_ids', async () => {
+            const { exitCodes, stderr } = await runCli(['test', 'update-labels-bulk', '--data', '{"labels":["x"]}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    // ── label get/list/update (Labels API, 2025) ───────────────────────────
+
+    describe('label get/list/update', () => {
+        it('label get <label_id> GETs get_label/{label_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['label', 'get', '7'], [jsonResponse(MOCK_LABEL)]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_label/7'), expect.anything());
+            const parsed = JSON.parse(stdout.trim()) as typeof MOCK_LABEL;
+            expect(parsed).toMatchObject({ id: 7, title: 'Release 2.0' });
+        });
+
+        it('label get rejects non-positive label_id', async () => {
+            const { exitCodes } = await runCli(['label', 'get', '0']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label list <project_id> GETs get_labels/{project_id} (unwraps the paginated wrapper)', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['label', 'list', '1'],
+                [
+                    jsonResponse({
+                        offset: 0,
+                        limit: 250,
+                        size: 1,
+                        _links: { next: null, prev: null },
+                        labels: [MOCK_LABEL],
+                    }),
+                ],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('get_labels/1');
+            const parsed = JSON.parse(stdout.trim()) as (typeof MOCK_LABEL)[];
+            expect(parsed[0]).toMatchObject({ id: 7 });
+        });
+
+        it('label list missing project_id exits 1', async () => {
+            const { exitCodes } = await runCli(['label', 'list']);
+            expect(exitCodes).toContain(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label update <label_id> POSTs update_label/{label_id} with the title body', async () => {
+            const { exitCodes } = await runCli(
+                ['label', 'update', '7', '--data', '{"title":"Release 2.0"}'],
+                [jsonResponse({ id: 7, title: 'Release 2.0' })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            expect(url).toContain('update_label/7');
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['title']).toBe('Release 2.0');
+        });
+
+        it('label update --dry-run does not call the API', async () => {
+            const { exitCodes, stdout } = await runCli([
+                'label',
+                'update',
+                '7',
+                '--data',
+                '{"title":"x"}',
+                '--dry-run',
+            ]);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label update rejects payload missing title', async () => {
+            const { exitCodes, stderr } = await runCli(['label', 'update', '7', '--data', '{}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label unknown action exits 1 (no add/delete over REST)', async () => {
+            const { exitCodes, stderr } = await runCli(['label', 'delete', '7']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('Unknown action');
         });
     });
 

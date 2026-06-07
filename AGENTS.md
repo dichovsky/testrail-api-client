@@ -13,8 +13,8 @@ dependency: Zod. ESM only. Ships two surfaces:
 - **Programmatic**: `import { TestRailClient } from "@dichovsky/testrail-api-client"`
 - **CLI**: the `testrail` binary (also `npx testrail`)
 
-Today the CLI exposes 118 actions across 27 resources
-(51 read, 67 write, 19 destructive). The
+Today the CLI exposes 123 actions across 28 resources
+(53 read, 70 write, 19 destructive). The
 programmatic API is a strict superset — every CLI action calls a
 method on one of the `TestRailClient` domain modules.
 

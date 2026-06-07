@@ -17,6 +17,7 @@ import { SharedStepModule } from './modules/sharedSteps.js';
 import { VariableModule } from './modules/variables.js';
 import { DatasetModule } from './modules/datasets.js';
 import { ReportModule } from './modules/reports.js';
+import { LabelModule } from './modules/labels.js';
 
 export { TestRailApiError, TestRailValidationError } from './errors.js';
 
@@ -51,6 +52,7 @@ export class TestRailClient extends TestRailClientCore {
     public readonly variables: VariableModule;
     public readonly datasets: DatasetModule;
     public readonly reports: ReportModule;
+    public readonly labels: LabelModule;
 
     constructor(...args: ConstructorParameters<typeof TestRailClientCore>) {
         super(...args);
@@ -72,5 +74,6 @@ export class TestRailClient extends TestRailClientCore {
         this.variables = new VariableModule(this);
         this.datasets = new DatasetModule(this);
         this.reports = new ReportModule(this);
+        this.labels = new LabelModule(this);
     }
 }

@@ -61,6 +61,9 @@ const SCHEMA_NAMES: ReadonlyMap<string, string> = new Map([
     ['configuration:update', 'UpdateConfigurationPayloadSchema'],
     ['user:add', 'UserAddPayloadSchema'],
     ['user:update', 'UserUpdatePayloadSchema'],
+    ['label:update', 'UpdateLabelPayloadSchema'],
+    ['test:update-labels', 'UpdateTestLabelsPayloadSchema'],
+    ['test:update-labels-bulk', 'UpdateTestsLabelsPayloadSchema'],
 ]);
 
 export function schemaNameFor(spec: { resource: string; action: string }): string {

@@ -44,6 +44,9 @@ import {
     UpdateSectionPayloadSchema,
     AddMilestonePayloadSchema,
     UpdateMilestonePayloadSchema,
+    UpdateLabelPayloadSchema,
+    UpdateTestLabelsPayloadSchema,
+    UpdateTestsLabelsPayloadSchema,
     AddVariablePayloadSchema,
     UpdateVariablePayloadSchema,
     AddGroupPayloadSchema,
@@ -1607,5 +1610,59 @@ describe('AttachmentSchema', () => {
         const parsed = AttachmentSchema.parse({ attachment_id: 10 });
         expect(parsed.attachment_id).toBe(10);
         expect(parsed.name).toBeUndefined();
+    });
+});
+
+describe('UpdateLabelPayloadSchema', () => {
+    it('parses a payload with title', () => {
+        expect(UpdateLabelPayloadSchema.parse({ title: 'Release 2.0' }).title).toBe('Release 2.0');
+    });
+
+    it('rejects a payload missing title (required)', () => {
+        expect(() => UpdateLabelPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects non-string title (no coercion)', () => {
+        expect(() => UpdateLabelPayloadSchema.parse({ title: 42 })).toThrow();
+    });
+
+    it('lets custom_* fields pass through', () => {
+        const parsed = UpdateLabelPayloadSchema.parse({ title: 'x', custom_owner: 'y' }) as Record<string, unknown>;
+        expect(parsed['custom_owner']).toBe('y');
+    });
+});
+
+describe('UpdateTestLabelsPayloadSchema', () => {
+    it('parses labels as a mix of numeric IDs and string titles', () => {
+        const parsed = UpdateTestLabelsPayloadSchema.parse({ labels: [1, 'regression', 2] });
+        expect(parsed.labels).toEqual([1, 'regression', 2]);
+    });
+
+    it('parses an empty labels array (clears labels)', () => {
+        expect(UpdateTestLabelsPayloadSchema.parse({ labels: [] }).labels).toEqual([]);
+    });
+
+    it('rejects a payload missing labels (required)', () => {
+        expect(() => UpdateTestLabelsPayloadSchema.parse({})).toThrow();
+    });
+
+    it('rejects a labels element that is neither number nor string (no coercion)', () => {
+        expect(() => UpdateTestLabelsPayloadSchema.parse({ labels: [{ id: 1 }] })).toThrow();
+    });
+});
+
+describe('UpdateTestsLabelsPayloadSchema', () => {
+    it('parses test_ids + labels', () => {
+        const parsed = UpdateTestsLabelsPayloadSchema.parse({ test_ids: [1, 2, 3], labels: ['smoke'] });
+        expect(parsed.test_ids).toEqual([1, 2, 3]);
+        expect(parsed.labels).toEqual(['smoke']);
+    });
+
+    it('rejects a payload missing test_ids (required)', () => {
+        expect(() => UpdateTestsLabelsPayloadSchema.parse({ labels: ['x'] })).toThrow();
+    });
+
+    it('rejects non-numeric test_ids (no coercion)', () => {
+        expect(() => UpdateTestsLabelsPayloadSchema.parse({ test_ids: ['1'], labels: [] })).toThrow();
     });
 });

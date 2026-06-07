@@ -64,6 +64,8 @@ import {
 } from '../src/cli/handlers/milestone-write.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../src/cli/handlers/variable-write.js';
 import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from '../src/cli/handlers/group-write.js';
+import { handleLabelUpdate } from '../src/cli/handlers/label-write.js';
+import { handleTestUpdate, handleTestUpdateBulk } from '../src/cli/handlers/test-write.js';
 import { handleDatasetAdd, handleDatasetDelete, handleDatasetUpdate } from '../src/cli/handlers/dataset-write.js';
 import {
     handleSharedStepAdd,
@@ -170,6 +172,13 @@ interface MockedClient {
         addVariable: ReturnType<typeof vi.fn>;
         updateVariable: ReturnType<typeof vi.fn>;
         deleteVariable: ReturnType<typeof vi.fn>;
+    };
+    tests: {
+        updateTest: ReturnType<typeof vi.fn>;
+        updateTests: ReturnType<typeof vi.fn>;
+    };
+    labels: {
+        updateLabel: ReturnType<typeof vi.fn>;
     };
 }
 
@@ -279,6 +288,20 @@ function buildClient(): MockedClient {
             addVariable: vi.fn().mockResolvedValue({ id: 55, name: 'env' }),
             updateVariable: vi.fn().mockResolvedValue({ id: 55, name: 'region' }),
             deleteVariable: vi.fn().mockResolvedValue(undefined),
+        },
+        tests: {
+            updateTest: vi.fn().mockResolvedValue({
+                id: 100,
+                case_id: 1,
+                status_id: 5,
+                run_id: 1,
+                title: 't',
+                labels: [{ id: 1, title: 'regression' }],
+            }),
+            updateTests: vi.fn().mockResolvedValue([{ id: 100, case_id: 1, status_id: 5, run_id: 1, title: 't' }]),
+        },
+        labels: {
+            updateLabel: vi.fn().mockResolvedValue({ id: 7, title: 'Release 2.0' }),
         },
     };
 }
@@ -3604,5 +3627,121 @@ describe('handleUserUpdate', () => {
         });
         await handleUserUpdate(ctx);
         expect(client.users.updateUser).toHaveBeenCalledWith(88, expect.objectContaining({ custom_role: 'admin' }));
+    });
+});
+
+// ── label update ──────────────────────────────────────────────────────────
+
+describe('handleLabelUpdate', () => {
+    it('calls client.updateLabel with parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"title":"Release 2.0"}' });
+        await handleLabelUpdate(ctx);
+        expect(client.labels.updateLabel).toHaveBeenCalledWith(7, expect.objectContaining({ title: 'Release 2.0' }));
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 7, title: 'Release 2.0' }));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"title":"x"}', dryRun: true });
+        await handleLabelUpdate(ctx);
+        expect(client.labels.updateLabel).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'label update', labelId: 7 }));
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'] });
+        await expect(handleLabelUpdate(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required title', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{}' });
+        await expect(handleLabelUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when label_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{"title":"x"}' });
+        await expect(handleLabelUpdate(ctx)).rejects.toThrow(/label_id/);
+    });
+});
+
+// ── test update-labels (single test) ──────────────────────────────────────
+
+describe('handleTestUpdate', () => {
+    it('calls client.updateTest with parsed payload (IDs or titles)', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['100'], dataFlag: '{"labels":[1,"regression"]}' });
+        await handleTestUpdate(ctx);
+        expect(client.tests.updateTest).toHaveBeenCalledWith(
+            100,
+            expect.objectContaining({ labels: [1, 'regression'] }),
+        );
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 100 }));
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['100'], dataFlag: '{"labels":["smoke"]}', dryRun: true });
+        await handleTestUpdate(ctx);
+        expect(client.tests.updateTest).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'test update-labels', testId: 100 }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['100'] });
+        await expect(handleTestUpdate(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required labels', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['100'], dataFlag: '{}' });
+        await expect(handleTestUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects when test_id is not a positive integer', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['abc'], dataFlag: '{"labels":[1]}' });
+        await expect(handleTestUpdate(ctx)).rejects.toThrow(/test_id/);
+    });
+});
+
+// ── test update-labels-bulk (no path param; IDs in body) ──────────────────
+
+describe('handleTestUpdateBulk', () => {
+    it('calls client.updateTests with the parsed body', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"test_ids":[1,2,3],"labels":["smoke"]}' });
+        await handleTestUpdateBulk(ctx);
+        expect(client.tests.updateTests).toHaveBeenCalledWith(
+            expect.objectContaining({ test_ids: [1, 2, 3], labels: ['smoke'] }),
+        );
+        expect(out).toHaveBeenCalled();
+    });
+
+    it('dry-run does not call client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"test_ids":[1],"labels":["x"]}', dryRun: true });
+        await handleTestUpdateBulk(ctx);
+        expect(client.tests.updateTests).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'test update-labels-bulk', source: 'data' }),
+        );
+    });
+
+    it('rejects missing body', async () => {
+        const { ctx } = buildCtx(buildClient(), {});
+        await expect(handleTestUpdateBulk(ctx)).rejects.toThrow(/Body required/);
+    });
+
+    it('rejects body missing required test_ids', async () => {
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"labels":["x"]}' });
+        await expect(handleTestUpdateBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects extra positional args (no path param expected)', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"test_ids":[1],"labels":["x"]}' });
+        await expect(handleTestUpdateBulk(ctx)).rejects.toThrow(/no positional arguments/);
+        expect(client.tests.updateTests).not.toHaveBeenCalled();
     });
 });
