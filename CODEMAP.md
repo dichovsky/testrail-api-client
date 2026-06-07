@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "36f5d0481d8bf4ba6a459455de9a96be84fa47a7b50d518e244c12c0fde81154",
+  "sourceHash": "fd378988e19610259eddf75af0737d284038b0a59c750f8b1775fad62691abf5",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4424,42 +4424,49 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "csvQuoteCell",
           "kind": "function",
-          "line": 463,
+          "line": 465,
           "exported": false,
           "signature": "function csvQuoteCell(cell: string): string"
         },
         {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 472,
+          "line": 474,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
+          "name": "csvDataCell",
+          "kind": "function",
+          "line": 481,
+          "exported": false,
+          "signature": "function csvDataCell(v: unknown): string"
+        },
+        {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 476,
+          "line": 485,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
           "name": "csvCellFromValue",
           "kind": "function",
-          "line": 482,
+          "line": 491,
           "exported": false,
           "signature": "function csvCellFromValue(v: unknown): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 522,
+          "line": 531,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 576,
+          "line": 585,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
