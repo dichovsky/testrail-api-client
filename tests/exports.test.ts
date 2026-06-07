@@ -17,7 +17,7 @@ describe('Index exports', () => {
         expect(client.metadata).toBeDefined();
     });
 
-    it('should expose all 18 domain modules as the single access path', () => {
+    it('should expose all 19 domain modules as the single access path', () => {
         const client = new TestRailClient({
             baseUrl: 'https://example.testrail.net',
             email: 'test@example.com',
@@ -42,6 +42,7 @@ describe('Index exports', () => {
             'variables',
             'datasets',
             'reports',
+            'labels',
         ] as const;
         for (const name of modules) {
             expect(client[name], `client.${name} should be defined`).toBeDefined();

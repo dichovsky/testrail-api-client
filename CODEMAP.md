@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "2ac5f0c78db0ecb7e850cffda2b80d7bad48731dc3ba8806e6d89c2fc23d1179",
+  "sourceHash": "fed5af6af052d370d484bd4ae8128f6597643edd874f64836ebf3489ae8758ef",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -693,6 +693,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
     },
     {
+      "name": "Label",
+      "kind": "type",
+      "file": "src/schemas/labels.ts",
+      "line": 35,
+      "signature": "export type Label = z.infer<typeof LabelSchema>",
+      "typeOnly": true
+    },
+    {
       "name": "LabelEmbedded",
       "kind": "type",
       "file": "src/schemas/metadata.ts",
@@ -707,6 +715,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "line": 31,
       "signature": "export const LabelEmbeddedSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.number().nullish(), created_on: z.number().nullish(), })",
       "jsdoc": "Shape of a Label object as embedded inside a parent resource response — notably `get_case` (SPEC #2.1.3) and `get_test` (SPEC #2.1.7). The two endpoints emit the same logical shape but the wider TestRail Labels API has historically diverged on naming (`title` on embedded forms vs `name` on the stand-alone `get_label`), so the inner schema accepts both."
+    },
+    {
+      "name": "LabelSchema",
+      "kind": "const",
+      "file": "src/schemas/labels.ts",
+      "line": 27,
+      "signature": "export const LabelSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.number().nullish(), created_on: z.number().nullish(), })",
+      "jsdoc": "`LabelSchema` — the canonical stand-alone label entity returned by the Labels API (`get_label`, `get_labels`, `update_label`). Distinct from `LabelEmbeddedSchema` (the label shape nested inside `get_case` / `get_test` responses): the two are structurally near-identical today but are kept separate on purpose, because the stand-alone endpoint may diverge independently of the embedded form (schema-conventions §1 — `XSchema` is the canonical GET entity; §4 — keep sub-schemas separate)."
     },
     {
       "name": "Milestone",
@@ -1092,7 +1108,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
-      "line": 34,
+      "line": 35,
       "signature": "export class TestRailClient extends TestRailClientCore",
       "jsdoc": "TestRail API Client"
     },
@@ -1217,6 +1233,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "file": "src/schemas/users.ts",
       "line": 68,
       "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
+    },
+    {
+      "name": "UpdateLabelPayload",
+      "kind": "type",
+      "file": "src/schemas/labels.ts",
+      "line": 48,
+      "signature": "export type UpdateLabelPayload = z.infer<typeof UpdateLabelPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateLabelPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas/labels.ts",
+      "line": 44,
+      "signature": "export const UpdateLabelPayloadSchema = zObject({ title: z.string(), })",
+      "jsdoc": "`update_label` body — the new label title. TestRail caps the title at 20 characters; the limit is intentionally NOT enforced client-side (the \"let TestRail be the source of truth\" precedent — we surface the server's 400 rather than duplicating the rule). `custom_*` / forward-compat extras flow through `zObject()`'s passthrough."
     },
     {
       "name": "UpdateMilestonePayload",
@@ -1353,6 +1385,36 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "file": "src/schemas/suites.ts",
       "line": 29,
       "signature": "export const UpdateSuitePayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), })"
+    },
+    {
+      "name": "UpdateTestLabelsPayload",
+      "kind": "type",
+      "file": "src/schemas/tests.ts",
+      "line": 45,
+      "signature": "export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateTestLabelsPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas/tests.ts",
+      "line": 41,
+      "signature": "export const UpdateTestLabelsPayloadSchema = zObject({ labels: z.array(z.union([z.number(), z.string()])), })"
+    },
+    {
+      "name": "UpdateTestsLabelsPayload",
+      "kind": "type",
+      "file": "src/schemas/tests.ts",
+      "line": 57,
+      "signature": "export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>",
+      "typeOnly": true
+    },
+    {
+      "name": "UpdateTestsLabelsPayloadSchema",
+      "kind": "const",
+      "file": "src/schemas/tests.ts",
+      "line": 52,
+      "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(z.union([z.number(), z.string()])), })"
     },
     {
       "name": "UpdateVariablePayload",
@@ -2338,6 +2400,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/label-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../write-handler-factory.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleLabelUpdate",
+          "kind": "const",
+          "line": 9,
+          "exported": true,
+          "signature": "export const handleLabelUpdate = createWriteHandler({ action: 'label update', pathParams: ['label_id'], bodySchema: UpdateLabelPayloadSchema, call: (client, [labelId], body) => client.labels.updateLab…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/handlers/label.ts",
+      "imports": [
+        "../handler-context.js",
+        "../ids.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleLabelGet",
+          "kind": "function",
+          "line": 4,
+          "exported": true,
+          "signature": "export async function handleLabelGet(ctx: HandlerContext): Promise<void>"
+        },
+        {
+          "name": "handleLabelList",
+          "kind": "function",
+          "line": 9,
+          "exported": true,
+          "signature": "export async function handleLabelList(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/milestone-write.ts",
       "imports": [
         "../../schemas.js",
@@ -3076,6 +3179,33 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/handlers/test-write.ts",
+      "imports": [
+        "../../schemas.js",
+        "../body.js",
+        "../handler-context.js",
+        "../ids.js",
+        "../write-handler-factory.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "handleTestUpdate",
+          "kind": "const",
+          "line": 12,
+          "exported": true,
+          "signature": "export const handleTestUpdate = createWriteHandler({ action: 'test update-labels', pathParams: ['test_id'], bodySchema: UpdateTestLabelsPayloadSchema, call: (client, [testId], body) => client.tests.up…"
+        },
+        {
+          "name": "handleTestUpdateBulk",
+          "kind": "function",
+          "line": 26,
+          "exported": true,
+          "signature": "export async function handleTestUpdateBulk(ctx: HandlerContext): Promise<void>"
+        }
+      ]
+    },
+    {
       "path": "src/cli/handlers/test.ts",
       "imports": [
         "../handler-context.js",
@@ -3552,6 +3682,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./metadata/configurations.js",
         "./metadata/datasets.js",
         "./metadata/groups.js",
+        "./metadata/labels.js",
         "./metadata/milestones.js",
         "./metadata/plans.js",
         "./metadata/priorities.js",
@@ -3578,14 +3709,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 61,
+          "line": 62,
           "exported": true,
-          "signature": "export const ACTIONS: readonly ActionSpec[] = [ ...projectActions.slice(0, 2), ...suiteActions.slice(0, 2), ...caseActions.slice(0, 3), ...runActions.slice(0, 3), ...testActions, ...resultActions.slic…"
+          "signature": "export const ACTIONS: readonly ActionSpec[] = [ ...projectActions.slice(0, 2), ...suiteActions.slice(0, 2), ...caseActions.slice(0, 3), ...runActions.slice(0, 3), ...testActions.slice(0, 2), ...result…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 136,
+          "line": 140,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
         }
@@ -3770,6 +3901,25 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 19,
           "exported": true,
           "signature": "export const groupActions: readonly ActionSpec[] = [ { resource: 'group', action: 'get', summary: 'Fetch a single user group by ID (TestRail 7.5+)', pathParams: [{ name: 'group_id', description: 'Test…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/labels.ts",
+      "imports": [
+        "../../schemas.js",
+        "../handlers/label-write.js",
+        "../handlers/label.js",
+        "./types.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "labelActions",
+          "kind": "const",
+          "line": 16,
+          "exported": true,
+          "signature": "export const labelActions: readonly ActionSpec[] = [ { resource: 'label', action: 'get', summary: 'Fetch a single label by ID', pathParams: [{ name: 'label_id', description: 'TestRail label ID' }], ap…"
         }
       ]
     },
@@ -4031,6 +4181,8 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/metadata/tests.ts",
       "imports": [
+        "../../schemas.js",
+        "../handlers/test-write.js",
         "../handlers/test.js",
         "./types.js"
       ],
@@ -4039,7 +4191,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "testActions",
           "kind": "const",
-          "line": 9,
+          "line": 17,
           "exported": true,
           "signature": "export const testActions: readonly ActionSpec[] = [ { resource: 'test', action: 'get', summary: 'Fetch a single test (run instance of a case) by ID', pathParams: [{ name: 'test_id', description: 'Test…"
         }
@@ -4823,6 +4975,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./modules/cases.js",
         "./modules/configurations.js",
         "./modules/datasets.js",
+        "./modules/labels.js",
         "./modules/metadata.js",
         "./modules/milestones.js",
         "./modules/plans.js",
@@ -4844,104 +4997,109 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "TestRailClient",
           "kind": "class",
-          "line": 34,
+          "line": 35,
           "exported": true,
           "signature": "export class TestRailClient extends TestRailClientCore",
           "members": [
             {
               "name": "projects",
               "kind": "property",
-              "line": 36
+              "line": 37
             },
             {
               "name": "suites",
               "kind": "property",
-              "line": 37
+              "line": 38
             },
             {
               "name": "sections",
               "kind": "property",
-              "line": 38
+              "line": 39
             },
             {
               "name": "cases",
               "kind": "property",
-              "line": 39
+              "line": 40
             },
             {
               "name": "plans",
               "kind": "property",
-              "line": 40
+              "line": 41
             },
             {
               "name": "runs",
               "kind": "property",
-              "line": 41
+              "line": 42
             },
             {
               "name": "tests",
               "kind": "property",
-              "line": 42
+              "line": 43
             },
             {
               "name": "results",
               "kind": "property",
-              "line": 43
+              "line": 44
             },
             {
               "name": "milestones",
               "kind": "property",
-              "line": 44
+              "line": 45
             },
             {
               "name": "users",
               "kind": "property",
-              "line": 45
+              "line": 46
             },
             {
               "name": "metadata",
               "kind": "property",
-              "line": 46
+              "line": 47
             },
             {
               "name": "configurations",
               "kind": "property",
-              "line": 47
+              "line": 48
             },
             {
               "name": "attachments",
               "kind": "property",
-              "line": 48
+              "line": 49
             },
             {
               "name": "bdd",
               "kind": "property",
-              "line": 49
+              "line": 50
             },
             {
               "name": "sharedSteps",
               "kind": "property",
-              "line": 50
+              "line": 51
             },
             {
               "name": "variables",
               "kind": "property",
-              "line": 51
+              "line": 52
             },
             {
               "name": "datasets",
               "kind": "property",
-              "line": 52
+              "line": 53
             },
             {
               "name": "reports",
               "kind": "property",
-              "line": 53
+              "line": 54
+            },
+            {
+              "name": "labels",
+              "kind": "property",
+              "line": 55
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 55
+              "line": 57
             }
           ]
         }
@@ -5551,6 +5709,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
               "name": "deleteDataset",
               "kind": "method",
               "line": 63
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/modules/labels.ts",
+      "imports": [
+        "../client-core.js",
+        "../schemas.js",
+        "../validation.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "LabelModule",
+          "kind": "class",
+          "line": 14,
+          "exported": true,
+          "signature": "export class LabelModule",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 15
+            },
+            {
+              "name": "getLabel",
+              "kind": "method",
+              "line": 18
+            },
+            {
+              "name": "getLabels",
+              "kind": "method",
+              "line": 28
+            },
+            {
+              "name": "updateLabel",
+              "kind": "method",
+              "line": 48
             }
           ]
         }
@@ -6218,24 +6417,34 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "TestModule",
           "kind": "class",
-          "line": 9,
+          "line": 10,
           "exported": true,
           "signature": "export class TestModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 10
+              "line": 11
             },
             {
               "name": "getTest",
               "kind": "method",
-              "line": 13
+              "line": 14
             },
             {
               "name": "getTests",
               "kind": "method",
-              "line": 23
+              "line": 24
+            },
+            {
+              "name": "updateTest",
+              "kind": "method",
+              "line": 58
+            },
+            {
+              "name": "updateTests",
+              "kind": "method",
+              "line": 81
             }
           ]
         }
@@ -6431,6 +6640,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./schemas/common.js",
         "./schemas/configurations.js",
         "./schemas/datasets.js",
+        "./schemas/labels.js",
         "./schemas/metadata.js",
         "./schemas/milestones.js",
         "./schemas/plans.js",
@@ -6816,6 +7026,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 66,
           "exported": true,
           "signature": "export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/schemas/labels.ts",
+      "imports": [
+        "./common.js",
+        "zod"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "LabelSchema",
+          "kind": "const",
+          "line": 27,
+          "exported": true,
+          "signature": "export const LabelSchema = zObject({ id: z.number(), title: z.string().nullish(), name: z.string().nullish(), created_by: z.number().nullish(), created_on: z.number().nullish(), })"
+        },
+        {
+          "name": "Label",
+          "kind": "type",
+          "line": 35,
+          "exported": true,
+          "signature": "export type Label = z.infer<typeof LabelSchema>"
+        },
+        {
+          "name": "UpdateLabelPayloadSchema",
+          "kind": "const",
+          "line": 44,
+          "exported": true,
+          "signature": "export const UpdateLabelPayloadSchema = zObject({ title: z.string(), })"
+        },
+        {
+          "name": "UpdateLabelPayload",
+          "kind": "type",
+          "line": 48,
+          "exported": true,
+          "signature": "export type UpdateLabelPayload = z.infer<typeof UpdateLabelPayloadSchema>"
         }
       ]
     },
@@ -7656,6 +7904,34 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 29,
           "exported": true,
           "signature": "export type Test = z.infer<typeof TestSchema>"
+        },
+        {
+          "name": "UpdateTestLabelsPayloadSchema",
+          "kind": "const",
+          "line": 41,
+          "exported": true,
+          "signature": "export const UpdateTestLabelsPayloadSchema = zObject({ labels: z.array(z.union([z.number(), z.string()])), })"
+        },
+        {
+          "name": "UpdateTestLabelsPayload",
+          "kind": "type",
+          "line": 45,
+          "exported": true,
+          "signature": "export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>"
+        },
+        {
+          "name": "UpdateTestsLabelsPayloadSchema",
+          "kind": "const",
+          "line": 52,
+          "exported": true,
+          "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(z.union([z.number(), z.string()])), })"
+        },
+        {
+          "name": "UpdateTestsLabelsPayload",
+          "kind": "type",
+          "line": 57,
+          "exported": true,
+          "signature": "export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>"
         }
       ]
     },

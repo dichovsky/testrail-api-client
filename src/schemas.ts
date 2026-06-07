@@ -13,6 +13,7 @@ export * from './schemas/users.js';
 export * from './schemas/projects.js';
 export * from './schemas/suites.js';
 export * from './schemas/metadata.js';
+export * from './schemas/labels.js';
 export * from './schemas/sections.js';
 export * from './schemas/cases.js';
 export * from './schemas/runs.js';

@@ -74,6 +74,10 @@ Read actions:
       Fetch a single dataset by ID
   dataset             list <project_id>
       List datasets in a project
+  label               get <label_id>
+      Fetch a single label by ID
+  label               list <project_id>
+      List a project's labels (paginated)
 
 Metadata actions:
   case-status         list
@@ -118,6 +122,10 @@ Write actions (body via --data | --data-file | stdin):
       Close a test run permanently — irreversible (no body; requires --yes)
   run                 delete <run_id> --yes
       Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion)
+  test                update-labels <test_id> --data '{"labels":[1,"regression"]}'
+      Set the labels on a single test (label-only; IDs or titles)
+  test                update-labels-bulk --data '{"test_ids":[1,2,3],"labels":[1,"regression"]}'  (no path param)
+      Apply the same labels to many tests at once (no path param; IDs in body)
   result              add <run_id> <case_id> --data '{"status_id":1}'
       Record a single result for a case in a run
   result              add-bulk <run_id> --data '{"results":[{"case_id":1,"status_id":1}]}'
@@ -202,6 +210,8 @@ Write actions (body via --data | --data-file | stdin):
       Update an existing dataset (rename)
   dataset             delete <dataset_id> --yes (no body; --soft NOT supported by TestRail)
       Delete a dataset (requires --yes; --soft NOT supported by TestRail)
+  label               update <label_id> --data '{"title":"..."}'  (max 20 chars)
+      Rename an existing label (title max 20 chars; propagates to all cases/tests using it)
 
 Configuration actions (project → config_groups → configs):
   configuration       list <project_id>

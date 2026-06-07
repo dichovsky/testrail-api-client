@@ -27,3 +27,31 @@ export const TestSchema = zObject({
 });
 
 export type Test = z.infer<typeof TestSchema>;
+
+// ── Test label-write payloads (TestRail Labels API, 2025) ─────────────────────
+// `update_test/{test_id}` and `update_tests` are label-only mutations on a test
+// (NOT general test updates — unlike `update_case`). The `labels` array accepts
+// a mix of existing-label numeric IDs and string titles, per the TestRail
+// Labels/Tests API docs ("a mix of label titles and numeric label IDs"). The
+// element union is intentionally permissive — TestRail is the source of truth
+// on which titles resolve to which IDs, so we surface its 400 rather than
+// over-validating. zObject()'s passthrough preserves forward-compat fields
+// should TestRail later widen these endpoints beyond labels.
+
+export const UpdateTestLabelsPayloadSchema = zObject({
+    labels: z.array(z.union([z.number(), z.string()])),
+});
+
+export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>;
+
+// Bulk variant: `update_tests` has NO path param — the target tests are named
+// in the body via `test_ids`, applying the SAME `labels` to every test (the
+// endpoint cannot set different labels per test). `test_ids` is required;
+// TestRail rejects an empty body, and the module validates each ID before the
+// network call.
+export const UpdateTestsLabelsPayloadSchema = zObject({
+    test_ids: z.array(z.number()),
+    labels: z.array(z.union([z.number(), z.string()])),
+});
+
+export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>;

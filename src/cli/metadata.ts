@@ -27,6 +27,7 @@ import { groupActions } from './metadata/groups.js';
 import { datasetActions } from './metadata/datasets.js';
 import { configurationActions } from './metadata/configurations.js';
 import { configurationGroupActions } from './metadata/configurationGroups.js';
+import { labelActions } from './metadata/labels.js';
 
 export type { ActionSpec, PathParam } from './metadata/types.js';
 
@@ -64,7 +65,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...suiteActions.slice(0, 2), // suite get, list
     ...caseActions.slice(0, 3), // case get, list, history
     ...runActions.slice(0, 3), // run get, list, watch
-    ...testActions, // test get, list
+    ...testActions.slice(0, 2), // test get, list
     ...resultActions.slice(0, 3), // result list, list-for-test, list-for-case
     ...milestoneActions.slice(0, 2), // milestone get, list
     ...userActions.slice(0, 4), // user get, list, get-by-email, get-current
@@ -73,6 +74,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     // ── Write actions ─────────────────────────────────────────────────────
     ...caseActions.slice(3, 11), // case add, add-bulk, update, update-bulk, delete, delete-bulk, copy-to-section, move-to-section
     ...runActions.slice(3, 7), // run add, update, close, delete
+    ...testActions.slice(2, 4), // test update-labels, update-labels-bulk
     ...resultActions.slice(3, 7), // result add, add-bulk, add-bulk-by-test, add-by-test
     ...planActions.slice(2, 12), // plan add, update, add-entry, add-run-to-entry, update-entry, update-run-in-entry, close, delete, delete-entry, delete-run-from-entry
     ...sectionActions.slice(2, 6), // section add, update, move, delete
@@ -130,6 +132,8 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...configurationActions.slice(0, 1), // configuration list
     ...configurationGroupActions, // configuration-group add, update, delete
     ...configurationActions.slice(1, 4), // configuration add, update, delete
+    // ── Label actions (TestRail Labels API, 2025) ─────────────────────────
+    ...labelActions, // label get, list, update
 ];
 
 /** Look up the spec for a resource:action pair, or return undefined. */

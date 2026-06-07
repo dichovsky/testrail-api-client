@@ -33,6 +33,7 @@ import { handleCaseTypeList } from '../src/cli/handlers/case-type.js';
 import { handleVariableList } from '../src/cli/handlers/variable.js';
 import { handleGroupGet, handleGroupList } from '../src/cli/handlers/group.js';
 import { handleDatasetGet, handleDatasetList } from '../src/cli/handlers/dataset.js';
+import { handleLabelGet, handleLabelList } from '../src/cli/handlers/label.js';
 import { handleConfigurationList } from '../src/cli/handlers/configuration.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
@@ -83,6 +84,10 @@ interface MockedClient {
     };
     variables: {
         getVariables: ReturnType<typeof vi.fn>;
+    };
+    labels: {
+        getLabel: ReturnType<typeof vi.fn>;
+        getLabels: ReturnType<typeof vi.fn>;
     };
 }
 
@@ -228,6 +233,13 @@ function buildClient(): MockedClient {
             getVariables: vi.fn().mockResolvedValue([
                 { id: 1, name: 'env' },
                 { id: 2, name: 'region' },
+            ]),
+        },
+        labels: {
+            getLabel: vi.fn().mockResolvedValue({ id: 7, title: 'Release 2.0', created_by: 2, created_on: 1 }),
+            getLabels: vi.fn().mockResolvedValue([
+                { id: 1, title: 'label1', created_by: 2, created_on: 1 },
+                { id: 2, title: 'label2', created_by: 2, created_on: 1 },
             ]),
         },
     };
@@ -964,6 +976,44 @@ describe('handleVariableList', () => {
         const { ctx } = buildCtx(client, { pathParams });
         await expect(handleVariableList(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.variables.getVariables).not.toHaveBeenCalled();
+    });
+});
+
+// ── handleLabelGet / handleLabelList ──────────────────────────────────────
+
+describe('handleLabelGet', () => {
+    it('calls client.getLabel with the parsed label id and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'] });
+        await handleLabelGet(ctx);
+        expect(client.labels.getLabel).toHaveBeenCalledTimes(1);
+        expect(client.labels.getLabel).toHaveBeenCalledWith(7);
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 7, title: 'Release 2.0' }));
+    });
+
+    it.each(INVALID_IDS.map((id) => [id]))('rejects invalid label_id %p before any client call', async (raw) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [raw] });
+        await expect(handleLabelGet(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.labels.getLabel).not.toHaveBeenCalled();
+    });
+});
+
+describe('handleLabelList', () => {
+    it('calls client.getLabels with the parsed project id and emits the result', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['3'] });
+        await handleLabelList(ctx);
+        expect(client.labels.getLabels).toHaveBeenCalledTimes(1);
+        expect(client.labels.getLabels).toHaveBeenCalledWith(3);
+        expect(out).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: 1, title: 'label1' })]));
+    });
+
+    it.each(INVALID_IDS.map((id) => [id]))('rejects invalid project_id %p before any client call', async (raw) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: [raw] });
+        await expect(handleLabelList(ctx)).rejects.toBeInstanceOf(IdParseError);
+        expect(client.labels.getLabels).not.toHaveBeenCalled();
     });
 });
 

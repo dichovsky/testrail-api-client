@@ -3257,6 +3257,147 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
             await expect(client.tests.getTest(100)).rejects.toThrow();
         });
+
+        // ── Label-write endpoints (TestRail Labels API, 2025) ──────────────────
+
+        describe('updateTest (single test label-write)', () => {
+            it('POSTs update_test/{test_id} and returns the updated test', async () => {
+                const updated: Test = {
+                    id: 100,
+                    case_id: 1,
+                    status_id: 5,
+                    run_id: 1,
+                    title: 'Labeled',
+                    labels: [{ id: 1, title: 'regression' }],
+                };
+                mockFetch.mockResolvedValueOnce(mockOk(updated));
+                const result = await client.tests.updateTest(100, { labels: [1, 'regression'] });
+                expect(result).toEqual(updated);
+                const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
+                expect(url).toContain('update_test/100');
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body)).toEqual({ labels: [1, 'regression'] });
+            });
+
+            it('throws for invalid testId before any network call', async () => {
+                await expect(client.tests.updateTest(0, { labels: [1] })).rejects.toThrow(
+                    'testId must be a positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('updateTests (bulk label-write, no path param)', () => {
+            it('POSTs update_tests and unwraps a { tests: [...] } wrapper', async () => {
+                const tests: Test[] = [
+                    { id: 1, case_id: 1, status_id: 5, run_id: 1, title: 'A', labels: [{ id: 2, title: 'smoke' }] },
+                    { id: 2, case_id: 1, status_id: 5, run_id: 1, title: 'B', labels: [{ id: 2, title: 'smoke' }] },
+                ];
+                mockFetch.mockResolvedValueOnce(mockOk({ tests }));
+                const result = await client.tests.updateTests({ test_ids: [1, 2], labels: ['smoke'] });
+                expect(result).toEqual(tests);
+                const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
+                expect(url).toContain('update_tests');
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body)).toEqual({ test_ids: [1, 2], labels: ['smoke'] });
+            });
+
+            it('accepts a bare-array response (bimodal shape) and returns it', async () => {
+                const tests: Test[] = [{ id: 1, case_id: 1, status_id: 5, run_id: 1, title: 'A' }];
+                mockFetch.mockResolvedValueOnce(mockOk(tests));
+                const result = await client.tests.updateTests({ test_ids: [1], labels: [] });
+                expect(result).toEqual(tests);
+            });
+
+            it('returns [] when the response lacks a tests key (pagination envelope or ack object)', async () => {
+                // Covers any object missing `tests` — a pagination envelope OR an
+                // ack/count object (e.g. { updated: 3 }) both fall through to [].
+                mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0 }));
+                expect(await client.tests.updateTests({ test_ids: [1], labels: ['x'] })).toEqual([]);
+            });
+
+            it('throws when any test_id is not a positive integer (before any network call)', async () => {
+                await expect(client.tests.updateTests({ test_ids: [1, 0], labels: ['x'] })).rejects.toThrow(
+                    'testId must be a positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
+    });
+
+    describe('Labels', () => {
+        const MOCK_LABEL = { id: 7, title: 'Release 2.0', created_by: 2, created_on: 1646058600 };
+
+        describe('getLabel', () => {
+            it('GETs get_label/{label_id} and returns the label', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk(MOCK_LABEL));
+                const result = await client.labels.getLabel(7);
+                expect(result).toEqual(MOCK_LABEL);
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_label/7'), expect.anything());
+            });
+
+            it('parses the get_label `name` shape (stand-alone endpoint uses name, not title)', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ id: 7, name: 'Release 2.0' }));
+                const result = await client.labels.getLabel(7);
+                expect(result.name).toBe('Release 2.0');
+                expect(result.title).toBeUndefined();
+            });
+
+            it('throws for invalid labelId before any network call', async () => {
+                await expect(client.labels.getLabel(0)).rejects.toThrow('labelId must be a positive integer');
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('getLabels', () => {
+            it('unwraps the paginated { ..., labels: [...] } wrapper', async () => {
+                const labels = [
+                    { id: 1, title: 'label1', created_by: 2, created_on: 1 },
+                    { id: 2, title: 'label2', created_by: 2, created_on: 1 },
+                ];
+                mockFetch.mockResolvedValueOnce(
+                    mockOk({ offset: 0, limit: 250, size: 2, _links: { next: null, prev: null }, labels }),
+                );
+                const result = await client.labels.getLabels(1);
+                expect(result).toEqual(labels);
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_labels/1'), expect.anything());
+            });
+
+            it('returns [] when labels key is omitted or null', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {} }));
+                expect(await client.labels.getLabels(1)).toEqual([]);
+                mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, labels: null }));
+                expect(await client.labels.getLabels(1)).toEqual([]);
+            });
+
+            it('rejects a bare-array response (get_labels is never a bare array)', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, title: 'x' }]));
+                await expect(client.labels.getLabels(1)).rejects.toThrow(TestRailValidationError);
+            });
+
+            it('throws for invalid projectId', async () => {
+                await expect(client.labels.getLabels(-1)).rejects.toThrow('projectId must be a positive integer');
+            });
+        });
+
+        describe('updateLabel', () => {
+            it('POSTs update_label/{label_id} with the title body and returns the updated label', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ id: 7, title: 'Release 2.0' }));
+                const result = await client.labels.updateLabel(7, { title: 'Release 2.0' });
+                expect(result).toEqual({ id: 7, title: 'Release 2.0' });
+                const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
+                expect(url).toContain('update_label/7');
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body)).toEqual({ title: 'Release 2.0' });
+            });
+
+            it('throws for invalid labelId before any network call', async () => {
+                await expect(client.labels.updateLabel(0, { title: 'x' })).rejects.toThrow(
+                    'labelId must be a positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
     });
 
     describe('Results', () => {
