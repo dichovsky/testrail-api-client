@@ -3299,6 +3299,11 @@ testrail label update 7 --data '{"title":"Release 2.0"}'
 const labels = await client.labels.getLabels(1);
 const label = await client.labels.getLabel(7);
 await client.labels.updateLabel(7, { title: 'Release 2.0' });
+
+// Note the field-name divergence: `get_label` returns `name`, while
+// `get_labels` / `update_label` return `title`. `Label` carries both as
+// optional, so normalize before rendering:
+const display = label.title ?? label.name ?? '';
 ```
 
 

@@ -80,7 +80,7 @@ export class TestModule {
      */
     async updateTests(payload: UpdateTestsLabelsPayload): Promise<Test[]> {
         payload.test_ids.forEach((id) => validateId(id, 'testId'));
-        const raw = await this.client.request<Test[] | { tests?: Test[] }>({
+        const raw = await this.client.request<Test[] | { tests?: Test[] | null }>({
             method: 'POST',
             endpoint: 'update_tests',
             schema: z.union([z.array(TestSchema), z.object({ tests: z.array(TestSchema).nullish() })]),
