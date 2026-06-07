@@ -1733,6 +1733,14 @@ describe('renderCsv — SEC #35 formula-injection neutralization', () => {
         expect(renderCsv([{ custom_score: -42 }])).toBe('custom_score\r\n-42');
     });
 
+    it('does NOT prefix typed negative numbers in a primitive-only array', () => {
+        expect(renderCsv([-1, -2])).toBe('value\r\n-1\r\n-2');
+    });
+
+    it('does NOT prefix a typed negative number rendered as a top-level scalar', () => {
+        expect(renderCsv(-42)).toBe('value\r\n-42');
+    });
+
     it('still neutralizes a negative-number STRING (untrusted; OWASP-conservative)', () => {
         // Regression guard: the type-aware fix must NOT weaken string
         // neutralization — a string starting with '-' is still neutralized.
