@@ -335,7 +335,7 @@ async function main(): Promise<number> {
         // since their payload is the binary file, not JSON. CTF #11:
         // --api-key-stdin already consumed stdin for the credential, so
         // the body must use --data or --data-file.
-        ...(process.stdin.isTTY === false &&
+        ...(process.stdin.isTTY !== true &&
             !isFileInputAction &&
             !apiKeyStdin && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
     };
