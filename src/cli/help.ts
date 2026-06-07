@@ -251,7 +251,7 @@ const OPTIONS_BLOCK = `Options:
 
 const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required
 (--data | --data-file | stdin). Stdin is auto-detected when input is piped
-(process.stdin.isTTY === false). The following write actions take NO body
+(process.stdin.isTTY !== true). The following write actions take NO body
 (any --data / --data-file / stdin is ignored): run close, attachment delete,
 case delete, run delete, suite delete, section delete, milestone delete,
 project delete, plan close, plan delete, plan delete-entry,

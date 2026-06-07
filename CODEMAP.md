@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.1"
   },
-  "sourceHash": "aeba7dc6e6568fac16384e7c32c70e9dcf1f101306a7ba964618008550a1383a",
+  "sourceHash": "0108067cdef27a5549f44e1f1f7646eb94ceea85583fc2acc663c11bc6701f48",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3362,7 +3362,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 252,
           "exported": false,
-          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY === false).…"
+          "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY !== true). …"
         },
         {
           "name": "HEADER",

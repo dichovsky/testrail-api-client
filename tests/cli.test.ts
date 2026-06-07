@@ -319,6 +319,7 @@ async function runCli(
 describe('CLI', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        (process.stdin as { isTTY?: boolean | undefined }).isTTY = true;
     });
 
     // ── Meta flags ───────────────────────────────────────────────────────────
@@ -4609,6 +4610,24 @@ describe('CLI', () => {
                 [jsonResponse(MOCK_RUN)],
             );
             expect(exitCodes).toContain(0);
+        });
+
+        it('reads a piped JSON body when process.stdin.isTTY is undefined', async () => {
+            const origIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            try {
+                const { exitCodes } = await withStubbedStdin('{"name":"Piped Run","include_all":true}', () =>
+                    runCli(['run', 'add', '1'], [jsonResponse(MOCK_RUN)]),
+                );
+                expect(exitCodes).toContain(0);
+                const init = mockFetch.mock.calls.at(-1)?.[1] as { body?: string; method?: string } | undefined;
+                expect(init?.method).toBe('POST');
+                const body = JSON.parse(init?.body ?? '{}') as Record<string, unknown>;
+                expect(body['name']).toBe('Piped Run');
+                expect(body['include_all']).toBe(true);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('exits 1 when payload is missing required `name`', async () => {
