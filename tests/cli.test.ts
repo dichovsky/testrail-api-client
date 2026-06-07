@@ -316,9 +316,23 @@ async function runCli(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// Vitest workers leave process.stdin.isTTY === undefined (the same value a
+// real pipe produces). After fixing the isTTY guard to `!== true`, this
+// would register a readStdin thunk in bodyInput for every test, causing
+// "Multiple body sources" errors for tests that also pass --data. Default
+// every test to isTTY=true (simulate an interactive terminal); individual
+// tests that exercise the pipe path override to undefined explicitly.
+let _savedIsTTY: boolean | undefined;
+
 describe('CLI', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        _savedIsTTY = process.stdin.isTTY;
+        process.stdin.isTTY = true;
+    });
+
+    afterEach(() => {
+        (process.stdin as { isTTY?: boolean | undefined }).isTTY = _savedIsTTY;
     });
 
     // ── Meta flags ───────────────────────────────────────────────────────────
@@ -4615,6 +4629,40 @@ describe('CLI', () => {
             const { stderr, exitCodes } = await runCli(['run', 'add', '1', '--data', '{"suite_id":1}']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('validation failed');
+        });
+
+        it('reads JSON body from piped stdin (isTTY=undefined, the real pipe value)', async () => {
+            // Regression for #226: Node sets process.stdin.isTTY to `true` for a
+            // TTY and leaves it `undefined` for a pipe — it is NEVER `false`. The
+            // guard at index.ts must accept `undefined` and register the readStdin
+            // thunk so resolveBody() picks up the piped JSON payload.
+            const origIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            try {
+                const { exitCodes } = await withStubbedStdin('{"name":"Piped Run","include_all":true}', () =>
+                    runCli(['run', 'add', '1'], [jsonResponse(MOCK_RUN)]),
+                );
+                expect(exitCodes).toContain(0);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
+
+        it('--data takes priority over piped stdin in non-interactive env (isTTY=undefined)', async () => {
+            // Regression for the HIGH-1 finding in PR #230 review: when isTTY=undefined
+            // (CI/Docker/cron) and --data is explicitly provided, the CLI must use --data
+            // and not attempt to also read stdin (which would cause "Multiple body sources").
+            const origIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            try {
+                const { exitCodes } = await runCli(
+                    ['run', 'add', '1', '--data', '{"name":"CI Run","include_all":true}'],
+                    [jsonResponse(MOCK_RUN)],
+                );
+                expect(exitCodes).toContain(0);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
     });
 
