@@ -316,9 +316,23 @@ async function runCli(
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// Vitest workers leave process.stdin.isTTY === undefined (the same value a
+// real pipe produces). After fixing the isTTY guard to `!== true`, this
+// would register a readStdin thunk in bodyInput for every test, causing
+// "Multiple body sources" errors for tests that also pass --data. Default
+// every test to isTTY=true (simulate an interactive terminal); individual
+// tests that exercise the pipe path override to undefined explicitly.
+let _savedIsTTY: boolean | undefined;
+
 describe('CLI', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        _savedIsTTY = process.stdin.isTTY;
+        process.stdin.isTTY = true;
+    });
+
+    afterEach(() => {
+        (process.stdin as { isTTY?: boolean | undefined }).isTTY = _savedIsTTY;
     });
 
     // ── Meta flags ───────────────────────────────────────────────────────────
@@ -2192,9 +2206,15 @@ describe('CLI', () => {
         });
 
         it('shared-step add exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['shared-step', 'add', '1']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli(['shared-step', 'add', '1']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('shared-step add exits 1 when payload is missing required title', async () => {
@@ -2317,9 +2337,15 @@ describe('CLI', () => {
         });
 
         it('shared-step update exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['shared-step', 'update', '55']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli(['shared-step', 'update', '55']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('shared-step update exits 1 on Zod validation failure', async () => {
@@ -2754,9 +2780,15 @@ describe('CLI', () => {
         });
 
         it('case-field add exits 1 when body is missing', async () => {
-            const { exitCodes, stderr } = await runCli(['case-field', 'add']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { exitCodes, stderr } = await runCli(['case-field', 'add']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('case-field add --dry-run validates payload but does not POST', async () => {
@@ -3522,9 +3554,15 @@ describe('CLI', () => {
         });
 
         it('exits 1 when body is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['case', 'add', '5']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli(['case', 'add', '5']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('exits 1 on malformed JSON', async () => {
@@ -3615,9 +3653,15 @@ describe('CLI', () => {
         });
 
         it('exits 1 when body is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['section', 'move', '5']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli(['section', 'move', '5']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('--dry-run validates payload but does not POST', async () => {
@@ -4616,6 +4660,23 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('validation failed');
         });
+
+        it('reads JSON body from piped stdin (isTTY=undefined, the real pipe value)', async () => {
+            // Regression for #226: Node sets process.stdin.isTTY to `true` for a
+            // TTY and leaves it `undefined` for a pipe — it is NEVER `false`. The
+            // guard at index.ts must accept `undefined` and register the readStdin
+            // thunk so resolveBody() picks up the piped JSON payload.
+            const origIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            try {
+                const { exitCodes } = await withStubbedStdin('{"name":"Piped Run","include_all":true}', () =>
+                    runCli(['run', 'add', '1'], [jsonResponse(MOCK_RUN)]),
+                );
+                expect(exitCodes).toContain(0);
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
+        });
     });
 
     describe('run update', () => {
@@ -4947,14 +5008,20 @@ describe('CLI', () => {
         });
 
         it('plan add-run-to-entry exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli([
-                'plan',
-                'add-run-to-entry',
-                '50',
-                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
-            ]);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli([
+                    'plan',
+                    'add-run-to-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                ]);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('plan add-run-to-entry --dry-run does not call the API', async () => {
@@ -5029,14 +5096,20 @@ describe('CLI', () => {
         });
 
         it('plan update-entry exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli([
-                'plan',
-                'update-entry',
-                '50',
-                'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
-            ]);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli([
+                    'plan',
+                    'update-entry',
+                    '50',
+                    'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56',
+                ]);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('plan update-entry exits 1 on Zod validation failure', async () => {
@@ -5081,9 +5154,15 @@ describe('CLI', () => {
         });
 
         it('plan update-run-in-entry exits 1 when --data is missing', async () => {
-            const { stderr, exitCodes } = await runCli(['plan', 'update-run-in-entry', '77']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('Body required');
+            const origIsTTY = process.stdin.isTTY;
+            process.stdin.isTTY = true;
+            try {
+                const { stderr, exitCodes } = await runCli(['plan', 'update-run-in-entry', '77']);
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain('Body required');
+            } finally {
+                process.stdin.isTTY = origIsTTY;
+            }
         });
 
         it('plan update-run-in-entry exits 1 on Zod validation failure', async () => {
