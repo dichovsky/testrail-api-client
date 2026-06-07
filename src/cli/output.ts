@@ -422,7 +422,10 @@ export function renderYaml(value: unknown): string {
 // insufficient — spreadsheets strip surrounding quotes before evaluation.
 // This mutates the displayed value (e.g. `=1+1` → `'=1+1`); callers
 // parsing the CSV programmatically should strip the leading ' when present.
-// Applied at the csvEscapeCell chokepoint so headers are guarded too.
+// Applied to untrusted text only — string cells, JSON-stringified objects, and
+// header keys. Trusted typed values (number/boolean/bigint) bypass it: their
+// string form is always a numeric/boolean literal, never a formula, so
+// neutralizing them would corrupt legitimate values (e.g. -1 → '-1).
 
 const CSV_LINE_TERMINATOR = '\r\n';
 
@@ -454,12 +457,20 @@ function csvCellRequiresQuoting(cell: string): boolean {
     return cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r');
 }
 
-function csvEscapeCell(cell: string): string {
-    const neutralized = neutralizeCsvFormula(cell);
-    if (csvCellRequiresQuoting(neutralized)) {
-        return `"${neutralized.replace(/"/g, '""')}"`;
+// RFC 4180 quoting only — no formula neutralization. Used for data cells, whose
+// untrusted content is already neutralized inside csvCellFromValue, so trusted
+// typed numbers pass through unmodified.
+function csvQuoteCell(cell: string): string {
+    if (csvCellRequiresQuoting(cell)) {
+        return `"${cell.replace(/"/g, '""')}"`;
     }
-    return neutralized;
+    return cell;
+}
+
+// Header cells (object keys, the synthetic 'value' column) are untrusted text,
+// so they are formula-neutralized before RFC-quoting.
+function csvEscapeCell(cell: string): string {
+    return csvQuoteCell(neutralizeCsvFormula(cell));
 }
 
 function sanitizeForCsv(cell: string): string {
@@ -470,11 +481,15 @@ function sanitizeForCsv(cell: string): string {
 
 function csvCellFromValue(v: unknown): string {
     if (v === null || v === undefined) return '';
-    if (typeof v === 'string') return sanitizeForCsv(v);
+    // Untrusted string content: neutralize formula leads after stripping
+    // terminal-control bytes.
+    if (typeof v === 'string') return neutralizeCsvFormula(sanitizeForCsv(v));
+    // Trusted typed values: their string form is a numeric/boolean literal,
+    // never a formula, so they are emitted verbatim (no neutralization).
     if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
     if (typeof v === 'object') {
         try {
-            return sanitizeForCsv(JSON.stringify(v));
+            return neutralizeCsvFormula(sanitizeForCsv(JSON.stringify(v)));
         } catch {
             return '';
         }
@@ -516,7 +531,7 @@ export function renderCsv(value: unknown): string {
             // Primitive-only array → single 'value' column.
             const lines = [csvEscapeCell('value')];
             for (const row of value) {
-                lines.push(csvEscapeCell(csvCellFromValue(row)));
+                lines.push(csvQuoteCell(csvCellFromValue(row)));
             }
             return lines.join(CSV_LINE_TERMINATOR);
         }
@@ -532,7 +547,7 @@ export function renderCsv(value: unknown): string {
         const lines = [header];
         for (const row of value) {
             if (isPlainObject(row)) {
-                lines.push(keys.map((k) => csvEscapeCell(csvCellFromValue(row[k]))).join(','));
+                lines.push(keys.map((k) => csvQuoteCell(csvCellFromValue(row[k]))).join(','));
             } else {
                 // Primitive in an object-shaped array: every cell empty
                 // except a synthetic last column would mis-align headers,
@@ -540,7 +555,7 @@ export function renderCsv(value: unknown): string {
                 // is documented behavior — callers wanting strict CSV
                 // should not mix shapes.
                 const cells = keys.map(() => '');
-                cells[0] = csvEscapeCell(csvCellFromValue(row));
+                cells[0] = csvQuoteCell(csvCellFromValue(row));
                 lines.push(cells.join(','));
             }
         }
@@ -551,11 +566,11 @@ export function renderCsv(value: unknown): string {
         const keys = Object.keys(value);
         if (keys.length === 0) return '';
         const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
-        const row = keys.map((k) => csvEscapeCell(csvCellFromValue(value[k]))).join(',');
+        const row = keys.map((k) => csvQuoteCell(csvCellFromValue(value[k]))).join(',');
         return [header, row].join(CSV_LINE_TERMINATOR);
     }
     // Top-level scalar → emit a one-row, one-column CSV under 'value'.
-    return [csvEscapeCell('value'), csvEscapeCell(csvCellFromValue(value))].join(CSV_LINE_TERMINATOR);
+    return [csvEscapeCell('value'), csvQuoteCell(csvCellFromValue(value))].join(CSV_LINE_TERMINATOR);
 }
 
 export function createOutput(opts: OutputOptions): Output {
