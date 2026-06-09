@@ -7,7 +7,14 @@ import type { User } from '../types.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Lightweight sanity guard for the get_user_by_email lookup input: exactly one
+// '@' with non-empty, whitespace-free local and domain parts. Deliberately does
+// NOT require a dotted (FQDN) domain — RFC 5321 permits single-label domains
+// (admin@localhost, user@corp) and domain-literals (user@[192.168.1.1]), which
+// self-hosted / LDAP / AD / SSO instances legitimately store, so they must reach
+// the API rather than being rejected client-side (#236). Authoritative format
+// validation is TestRail's responsibility.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+$/;
 
 export class UsersModule {
     constructor(private readonly client: TestRailClientCore) {}

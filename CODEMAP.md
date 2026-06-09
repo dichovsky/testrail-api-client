@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "6fa455397f0cc567a01d60bb6dd4343e58b45a280f7f9211b26715dbb13c8c8b",
+  "sourceHash": "da4d7a919a4ae5815f5345be2f4bac9b2d0c39ec51595b1865752204f13ba7f4",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6480,76 +6480,76 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "EMAIL_REGEX",
           "kind": "const",
-          "line": 10,
+          "line": 17,
           "exported": false,
-          "signature": "const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/"
+          "signature": "const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+$/"
         },
         {
           "name": "UsersModule",
           "kind": "class",
-          "line": 12,
+          "line": 19,
           "exported": true,
           "signature": "export class UsersModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 13
+              "line": 20
             },
             {
               "name": "getUser",
               "kind": "method",
-              "line": 16
+              "line": 23
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 26
+              "line": 33
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 36
+              "line": 43
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 61
+              "line": 68
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 70
+              "line": 77
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 80
+              "line": 87
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 91
+              "line": 98
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 101
+              "line": 108
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 116
+              "line": 123
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 126
+              "line": 133
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 137
+              "line": 144
             }
           ]
         }
