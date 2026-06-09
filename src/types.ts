@@ -12,7 +12,11 @@ export interface TestRailConfig {
     apiKey: string;
     /** Request timeout in milliseconds (default: 30000ms) */
     timeout?: number;
-    /** Maximum number of retry attempts for failed requests (default: 3) */
+    /**
+     * Maximum number of retry attempts for failed requests. Must be a whole
+     * number (integer) in the range 0–10; fractional or non-finite values are
+     * rejected at construction (default: 3).
+     */
     maxRetries?: number;
     /** Enable caching for static resources (default: true) */
     enableCache?: boolean;
