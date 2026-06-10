@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "fd378988e19610259eddf75af0737d284038b0a59c750f8b1775fad62691abf5",
+  "sourceHash": "da4d7a919a4ae5815f5345be2f4bac9b2d0c39ec51595b1865752204f13ba7f4",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -141,7 +141,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddGroupPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 66,
+      "line": 71,
       "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -149,7 +149,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 61,
+      "line": 66,
       "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })",
       "jsdoc": "Group write-payload schemas (TestRail 7.5+). Mirror the variable/shared-step/milestone payload-migration precedent: each schema is declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future `custom_*`-style fields TestRail may add to either endpoint."
     },
@@ -650,7 +650,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Group",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 46,
+      "line": 51,
       "signature": "export type Group = z.infer<typeof GroupSchema>",
       "typeOnly": true
     },
@@ -658,7 +658,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GroupSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 40,
+      "line": 45,
       "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
     },
     {
@@ -953,7 +953,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "RoleSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 32,
+      "line": 37,
       "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
     },
     {
@@ -1223,7 +1223,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateGroupPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 73,
+      "line": 78,
       "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>",
       "typeOnly": true
     },
@@ -1231,7 +1231,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateGroupPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 68,
+      "line": 73,
       "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
     },
     {
@@ -1460,7 +1460,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UserAddPayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 104,
+      "line": 109,
       "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>",
       "typeOnly": true
     },
@@ -1468,7 +1468,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UserAddPayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 92,
+      "line": 97,
       "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: z.string().email(), password: z.string().min(1), is_active: z.boolean().optional(), role_id: z.number().int().positive().o…",
       "jsdoc": "User write-payload schemas (TestRail 7.3+). Mirror the group/milestone payload pattern: declared once here as the source of truth for both the runtime validator (CLI `--data` resolver) and the inferred TypeScript types consumed by the programmatic client. `.passthrough()` (via `zObject`) preserves any future fields TestRail may add to either endpoint."
     },
@@ -1477,13 +1477,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "kind": "const",
       "file": "src/schemas/users.ts",
       "line": 6,
-      "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications:…"
+      "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications: z.boole…"
     },
     {
       "name": "UserUpdatePayload",
       "kind": "type",
       "file": "src/schemas/users.ts",
-      "line": 118,
+      "line": 123,
       "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>",
       "typeOnly": true
     },
@@ -1491,7 +1491,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UserUpdatePayloadSchema",
       "kind": "const",
       "file": "src/schemas/users.ts",
-      "line": 106,
+      "line": 111,
       "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: z.string().email().optional(), password: z.string().min(1).optional(), is_active: z.boolean().optional(), ro…"
     },
     {
@@ -6480,76 +6480,76 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "EMAIL_REGEX",
           "kind": "const",
-          "line": 10,
+          "line": 17,
           "exported": false,
-          "signature": "const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/"
+          "signature": "const EMAIL_REGEX = /^[^\\s@]+@[^\\s@]+$/"
         },
         {
           "name": "UsersModule",
           "kind": "class",
-          "line": 12,
+          "line": 19,
           "exported": true,
           "signature": "export class UsersModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 13
+              "line": 20
             },
             {
               "name": "getUser",
               "kind": "method",
-              "line": 16
+              "line": 23
             },
             {
               "name": "getUserByEmail",
               "kind": "method",
-              "line": 26
+              "line": 33
             },
             {
               "name": "getUsers",
               "kind": "method",
-              "line": 36
+              "line": 43
             },
             {
               "name": "getCurrentUser",
               "kind": "method",
-              "line": 61
+              "line": 68
             },
             {
               "name": "addUser",
               "kind": "method",
-              "line": 70
+              "line": 77
             },
             {
               "name": "updateUser",
               "kind": "method",
-              "line": 80
+              "line": 87
             },
             {
               "name": "getGroup",
               "kind": "method",
-              "line": 91
+              "line": 98
             },
             {
               "name": "getGroups",
               "kind": "method",
-              "line": 101
+              "line": 108
             },
             {
               "name": "addGroup",
               "kind": "method",
-              "line": 116
+              "line": 123
             },
             {
               "name": "updateGroup",
               "kind": "method",
-              "line": 126
+              "line": 133
             },
             {
               "name": "deleteGroup",
               "kind": "method",
-              "line": 137
+              "line": 144
             }
           ]
         }
@@ -7962,96 +7962,96 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 6,
           "exported": true,
-          "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string().email(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications:…"
+          "signature": "export const UserSchema = zObject({ id: z.number(), name: z.string(), email: z.string(), is_active: z.boolean(), role_id: z.number().nullish(), role: z.string().nullish(), email_notifications: z.boole…"
         },
         {
           "name": "User",
           "kind": "type",
-          "line": 30,
+          "line": 35,
           "exported": true,
           "signature": "export type User = z.infer<typeof UserSchema>"
         },
         {
           "name": "RoleSchema",
           "kind": "const",
-          "line": 32,
+          "line": 37,
           "exported": true,
           "signature": "export const RoleSchema = zObject({ id: z.number(), name: z.string(), is_default: z.boolean(), })"
         },
         {
           "name": "Role",
           "kind": "type",
-          "line": 38,
+          "line": 43,
           "exported": true,
           "signature": "export type Role = z.infer<typeof RoleSchema>"
         },
         {
           "name": "GroupSchema",
           "kind": "const",
-          "line": 40,
+          "line": 45,
           "exported": true,
           "signature": "export const GroupSchema = zObject({ id: z.number(), name: z.string(), user_ids: z.array(z.number()).nullish(), })"
         },
         {
           "name": "Group",
           "kind": "type",
-          "line": 46,
+          "line": 51,
           "exported": true,
           "signature": "export type Group = z.infer<typeof GroupSchema>"
         },
         {
           "name": "AddGroupPayloadSchema",
           "kind": "const",
-          "line": 61,
+          "line": 66,
           "exported": true,
           "signature": "export const AddGroupPayloadSchema = zObject({ name: z.string(), user_ids: z.array(z.number()).optional(), })"
         },
         {
           "name": "AddGroupPayload",
           "kind": "type",
-          "line": 66,
+          "line": 71,
           "exported": true,
           "signature": "export type AddGroupPayload = z.infer<typeof AddGroupPayloadSchema>"
         },
         {
           "name": "UpdateGroupPayloadSchema",
           "kind": "const",
-          "line": 68,
+          "line": 73,
           "exported": true,
           "signature": "export const UpdateGroupPayloadSchema = zObject({ name: z.string().optional(), user_ids: z.array(z.number()).optional(), })"
         },
         {
           "name": "UpdateGroupPayload",
           "kind": "type",
-          "line": 73,
+          "line": 78,
           "exported": true,
           "signature": "export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>"
         },
         {
           "name": "UserAddPayloadSchema",
           "kind": "const",
-          "line": 92,
+          "line": 97,
           "exported": true,
           "signature": "export const UserAddPayloadSchema = zObject({ name: z.string().min(1), email: z.string().email(), password: z.string().min(1), is_active: z.boolean().optional(), role_id: z.number().int().positive().o…"
         },
         {
           "name": "UserAddPayload",
           "kind": "type",
-          "line": 104,
+          "line": 109,
           "exported": true,
           "signature": "export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>"
         },
         {
           "name": "UserUpdatePayloadSchema",
           "kind": "const",
-          "line": 106,
+          "line": 111,
           "exported": true,
           "signature": "export const UserUpdatePayloadSchema = zObject({ name: z.string().min(1).optional(), email: z.string().email().optional(), password: z.string().min(1).optional(), is_active: z.boolean().optional(), ro…"
         },
         {
           "name": "UserUpdatePayload",
           "kind": "type",
-          "line": 118,
+          "line": 123,
           "exported": true,
           "signature": "export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>"
         }
