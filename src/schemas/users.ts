@@ -6,7 +6,12 @@ import { zObject } from './common.js';
 export const UserSchema = zObject({
     id: z.number(),
     name: z.string(),
-    email: z.string().email(),
+    // Response field: faithfully deserialize whatever TestRail returns. RFC 5321
+    // permits non-FQDN domains (single-label, domain-literal) and IDN addresses,
+    // which self-hosted / LDAP / AD / SSO instances legitimately store, so this is
+    // a bare string — format enforcement lives on the write payloads
+    // (UserAddPayloadSchema / UserUpdatePayloadSchema) and client config, not here (#236).
+    email: z.string(),
     is_active: z.boolean(),
     role_id: z.number().nullish(),
     role: z.string().nullish(),

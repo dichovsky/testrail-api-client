@@ -4217,6 +4217,30 @@ describe('TestRailClient', () => {
             await expect(client.users.getCurrentUser()).rejects.toThrow('TestRail API error: 403 Forbidden');
         });
 
+        // Regression (#236): UserSchema.email is a RESPONSE field and must faithfully
+        // deserialize whatever TestRail returns. RFC-5321 permits non-FQDN domains
+        // (single-label, domain-literal) and IDN, all of which self-hosted / LDAP / AD /
+        // SSO instances legitimately store. Format enforcement belongs on write payloads
+        // and client config, not on responses, so these must NOT throw.
+        describe('non-FQDN email responses (#236)', () => {
+            const nonFqdnEmails = ['admin@localhost', 'user@corp', 'user@[192.168.1.1]', 'tester@münchen.de'];
+
+            it.each(nonFqdnEmails)('getUser() accepts the RFC-valid email %s', async (email) => {
+                const user: User = { id: 2, name: 'Intranet Admin', email, is_active: true };
+                mockFetch.mockResolvedValueOnce(mockOk(user));
+                await expect(client.users.getUser(2)).resolves.toEqual(user);
+            });
+
+            it('getUsers() returns the whole list when one record has a non-FQDN email', async () => {
+                const users: User[] = [
+                    { id: 1, name: 'Alice Normal', email: 'alice@example.com', is_active: true },
+                    { id: 2, name: 'Intranet Admin', email: 'admin@localhost', is_active: true },
+                ];
+                mockFetch.mockResolvedValueOnce(mockOk({ users }));
+                await expect(client.users.getUsers()).resolves.toEqual(users);
+            });
+        });
+
         it('parses user response with all 7.3+ fields present (email_notifications, is_admin, group_ids, mfa_required)', async () => {
             const proUser: User = {
                 id: 1,
