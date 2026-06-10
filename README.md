@@ -110,7 +110,7 @@ const client = new TestRailClient({
 | `email`                   | `string`            | **required**       | TestRail user email (validated format)              |
 | `apiKey`                  | `string`            | **required**       | TestRail API key                                    |
 | `timeout`                 | `number`            | `30000`            | Request timeout in milliseconds (max 5 minutes)     |
-| `maxRetries`              | `number`            | `3`                | Maximum retry attempts for failed requests (0-10)   |
+| `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10 |
 | `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                     |
 | `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                  |
 | `cacheCleanupInterval`    | `number`            | `60000`            | Cache cleanup interval (0 to disable)               |

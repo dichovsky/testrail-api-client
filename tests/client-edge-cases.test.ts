@@ -74,6 +74,55 @@ describe('TestRailClient - Coverage Improvement', () => {
             }).toThrow(TestRailValidationError);
         });
 
+        // Regression (#237): NaN/Infinity slip past range-only comparisons because
+        // typeof NaN === 'number' and every comparison with NaN is false. A realistic
+        // Number(process.env.TESTRAIL_TIMEOUT) miss yields NaN, which silently breaks
+        // the client — timeout: NaN 408s every request, maxRetries: NaN disables all
+        // retries. The validator must reject these like the sibling integer fields do.
+        it('should throw error for non-finite timeout (NaN)', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                    timeout: NaN,
+                });
+            }).toThrow(TestRailValidationError);
+        });
+
+        it('should throw error for non-finite timeout (Infinity)', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                    timeout: Infinity,
+                });
+            }).toThrow(TestRailValidationError);
+        });
+
+        it('should throw error for non-integer maxRetries (NaN)', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                    maxRetries: NaN,
+                });
+            }).toThrow(TestRailValidationError);
+        });
+
+        it('should throw error for non-integer maxRetries (fractional)', () => {
+            expect(() => {
+                new TestRailClient({
+                    baseUrl: 'https://example.testrail.net',
+                    email: 'test@example.com',
+                    apiKey: 'test-key',
+                    maxRetries: 1.5,
+                });
+            }).toThrow(TestRailValidationError);
+        });
+
         it('should accept valid timeout at maximum limit', () => {
             expect(() => {
                 new TestRailClient({
