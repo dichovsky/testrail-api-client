@@ -390,17 +390,33 @@ export class TestRailClientCore {
             throw new TestRailValidationError('email must be a valid email address');
         }
 
-        // Validate timeout if provided
+        // Validate timeout if provided. `Number.isFinite` rejects NaN/±Infinity,
+        // which range-only comparisons silently pass (typeof NaN === 'number' and
+        // every comparison with NaN is false) — a NaN timeout aborts every request
+        // after ~1 ms and throws a misleading "after NaNms" 408 (#237).
         if (config.timeout !== undefined) {
-            if (typeof config.timeout !== 'number' || config.timeout <= 0 || config.timeout > MAX_TIMEOUT_MS) {
+            if (
+                typeof config.timeout !== 'number' ||
+                !Number.isFinite(config.timeout) ||
+                config.timeout <= 0 ||
+                config.timeout > MAX_TIMEOUT_MS
+            ) {
                 throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
             }
         }
 
-        // Validate maxRetries if provided
+        // Validate maxRetries if provided. `Number.isInteger` rejects NaN and
+        // fractional values: maxRetries: NaN makes `retryCount < NaN` always false
+        // (all retries silently disabled), and maxRetries: 1.5 would ceil to 2
+        // retries rather than floor (#237).
         if (config.maxRetries !== undefined) {
-            if (typeof config.maxRetries !== 'number' || config.maxRetries < 0 || config.maxRetries > 10) {
-                throw new TestRailValidationError('maxRetries must be a number between 0 and 10');
+            if (
+                typeof config.maxRetries !== 'number' ||
+                !Number.isInteger(config.maxRetries) ||
+                config.maxRetries < 0 ||
+                config.maxRetries > 10
+            ) {
+                throw new TestRailValidationError('maxRetries must be an integer between 0 and 10');
             }
         }
 
