@@ -1475,6 +1475,38 @@ describe('TestRailClient - Enhanced Features', () => {
             const result = await client.users.getUserByEmail('test@example.com');
             expect(result.email).toBe('test@example.com');
         });
+
+        // Regression (#236): the input guard previously required a dotted domain, so
+        // getUserByEmail('admin@localhost') threw 'Invalid email format' before any
+        // request — blocking lookup of the same RFC-5321-valid non-FQDN addresses the
+        // response parser was relaxed to accept. These must reach the API end-to-end.
+        it.each(['admin@localhost', 'user@corp', 'user@[192.168.1.1]'])(
+            'accepts the non-FQDN email %s and reaches the API (#236)',
+            async (email) => {
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify({ id: 2, name: 'Intranet Admin', email, is_active: true }),
+                });
+
+                const result = await client.users.getUserByEmail(email);
+                expect(result.email).toBe(email);
+                expect(mockFetch).toHaveBeenCalledWith(
+                    expect.stringContaining('get_user_by_email'),
+                    expect.anything(),
+                );
+            },
+        );
+
+        // The relaxed guard still rejects genuinely malformed input (no '@',
+        // whitespace, or empty parts) before issuing a request.
+        it.each(['invalid-email', 'no-at-symbol', 'spaces in@email', '@nolocal', 'nodomain@', ''])(
+            'still rejects malformed email %p in getUserByEmail (#236)',
+            async (email) => {
+                await expect(client.users.getUserByEmail(email)).rejects.toThrow('Invalid email format');
+            },
+        );
     });
 
     describe('requestBinary - retry, timeout, and network error paths', () => {
