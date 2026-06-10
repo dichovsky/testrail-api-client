@@ -196,6 +196,12 @@ const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([
     '-.inf',
     '-.Inf',
     '-.INF',
+    // The YAML 1.2 Core Schema float tag is `[-+]?(\.inf|\.Inf|\.INF)` — the sign is
+    // optional — so a bare `+.inf` resolves to +Infinity. Quote the positive-sign
+    // forms too, matching the sign-less and negative entries above (#238).
+    '+.inf',
+    '+.Inf',
+    '+.INF',
 ]);
 
 function needsQuoting(s: string): boolean {

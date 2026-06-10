@@ -1280,6 +1280,28 @@ describe('renderYaml — primitives', () => {
         expect(renderYaml('0x1A')).toBe('"0x1A"');
     });
 
+    it('quotes every signed infinity string form so it round-trips as a string (#238)', () => {
+        // The YAML 1.2 Core Schema float tag is `[-+]?(\.inf|\.Inf|\.INF)` — the sign
+        // is optional — so a bare `+.inf` resolves to the float +Infinity. The
+        // positive-sign forms were missing from the quoting guard while the sign-less
+        // and negative forms were already covered; assert all nine quote.
+        for (const token of [
+            '.inf', '.Inf', '.INF',
+            '-.inf', '-.Inf', '-.INF',
+            '+.inf', '+.Inf', '+.INF',
+        ]) {
+            expect(renderYaml(token)).toBe(`"${token}"`);
+        }
+    });
+
+    it('quotes a +.inf mapping key and value so both round-trip as strings (#238)', () => {
+        // Keys route through the same needsQuoting() guard as scalar values, so the
+        // positive-sign fix must hold for an object key too — otherwise a bare
+        // `+.inf:` key would resolve to the float +Infinity on re-parse.
+        expect(renderYaml({ '+.inf': 'value' })).toBe('"+.inf": value');
+        expect(renderYaml({ key: '+.inf' })).toBe('key: "+.inf"');
+    });
+
     it('quotes strings with a leading reserved indicator', () => {
         expect(renderYaml('- leading dash')).toBe('"- leading dash"');
         expect(renderYaml('? leading question')).toBe('"? leading question"');
