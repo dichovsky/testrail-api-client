@@ -13,6 +13,45 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
+## [Unreleased] — Live-audit corrections
+
+Findings from a read-only/structural audit of the client against a real TestRail
+Cloud instance. All changes are backward-compatible except the pagination guard
+noted below.
+
+### Added
+
+- **`TestRailLicenseError` (subclass of `TestRailApiError`).** A `403` carrying
+  TestRail's `{"error":"Not an Enterprise license/subscription."}` body (observed
+  on `get_datasets` / `get_variables` on non-Enterprise instances) is now thrown
+  as `TestRailLicenseError`, so callers can branch on license gating with
+  `instanceof`. It IS-A `TestRailApiError`, so existing `catch` handlers are
+  unaffected; ordinary `403`s remain plain `TestRailApiError`. Exported from the
+  package root.
+- **Server-extra response fields now modeled.** The audit observed real fields
+  the response schemas didn't declare (carried opaquely via `.passthrough()`).
+  They are now typed `.nullish()` fields so typed consumers can reach them:
+  `is_archived` / `archived_on` / `dynamic_filters` on Run; `is_archived` /
+  `archived_on` on Plan; `refs_data` / `ai_automated_test` on Case;
+  `comments` on history entries; `case_id` / `quality_rating` / `defects_data` /
+  `attachment_ids` on Result; `sections_display_order` / `cases_display_order` /
+  `refs_data` / `case_comments` / `ai_automated_test` on Test. Typed where the
+  wire capture supported it, `unknown` where the value shape was never observed.
+
+### Changed
+
+- **Pagination `limit` is now bounded client-side at 250 (behavior change).**
+  TestRail rejects `limit` outside `[1, 250]` with a `400`. `validatePaginationParams`
+  already rejected `limit <= 0`; it now also rejects `limit > 250` with
+  `TestRailValidationError`. A too-large `limit` that previously round-tripped to
+  the server (and `400`'d) now throws before the request.
+
+### Documentation
+
+- README notes that TestRail Cloud emits no rate-limit headers under normal load,
+  so the client's `Retry-After` handling is dormant in practice and the
+  sliding-window limiter is the effective throttle.
+
 ## [5.0.2] — 2026-06-07 — Piped stdin for write commands
 
 Backward-compatible bug fix; no public API, type, or CLI surface changed.
