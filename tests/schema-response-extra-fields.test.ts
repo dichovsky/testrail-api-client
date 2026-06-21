@@ -43,7 +43,7 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
         it('declares archived_on as a nullish number (epoch)', () => {
             const f = RunSchema.shape.archived_on;
             expectNullishField(f);
-            expect(f.safeParse(1782040398).success).toBe(true);
+            expect(f.safeParse(1700000000).success).toBe(true);
             expect(f.safeParse('2026').success).toBe(false);
         });
 
@@ -65,9 +65,9 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
                 untested_count: 0,
                 retest_count: 0,
                 failed_count: 0,
-                project_id: 11,
+                project_id: 7,
                 created_on: 1,
-                created_by: 40,
+                created_by: 3,
                 url: 'https://example/run/1',
                 is_archived: false,
                 archived_on: null,
@@ -89,7 +89,7 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
         it('declares archived_on as a nullish number', () => {
             const f = PlanSchema.shape.archived_on;
             expectNullishField(f);
-            expect(f.safeParse(1782040456).success).toBe(true);
+            expect(f.safeParse(1700000000).success).toBe(true);
             expect(f.safeParse('x').success).toBe(false);
         });
     });
@@ -119,7 +119,7 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
         it('declares case_id as a nullish number', () => {
             const f = ResultSchema.shape.case_id;
             expectNullishField(f);
-            expect(f.safeParse(11055353).success).toBe(true);
+            expect(f.safeParse(4242).success).toBe(true);
             expect(f.safeParse('x').success).toBe(false);
         });
 
