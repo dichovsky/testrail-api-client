@@ -15,6 +15,16 @@ export const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100;
 export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 
 /**
+ * Maximum page size accepted by TestRail's paginated/bulk API endpoints.
+ *
+ * TestRail caps `limit` at 250 server-side and returns HTTP 400 for `limit` of
+ * 0 or > 250 (live-audit findings B.30/B.31). `validatePaginationParams`
+ * rejects out-of-range `limit` client-side so callers get a clear
+ * `TestRailValidationError` instead of a server round-trip + opaque 400.
+ */
+export const MAX_PAGINATION_LIMIT = 250;
+
+/**
  * Per-response byte caps (SEC #12 — unbounded body OOM protection).
  *
  * Every fetch site streams the response body through {@link readBodyWithLimits}

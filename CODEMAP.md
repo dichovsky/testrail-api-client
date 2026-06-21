@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "1d788968350d849b10d99fc0db2ca68f97d6d35595b0add95262317bda5f96f8",
+  "sourceHash": "7e80f92f7093d3092e721a677cb9e5c8358289f8e895a2887b0aae4816304ddf",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5195,58 +5195,65 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000"
         },
         {
+          "name": "MAX_PAGINATION_LIMIT",
+          "kind": "const",
+          "line": 25,
+          "exported": true,
+          "signature": "export const MAX_PAGINATION_LIMIT = 250"
+        },
+        {
           "name": "DEFAULT_MAX_JSON_RESPONSE_BYTES",
           "kind": "const",
-          "line": 39,
+          "line": 49,
           "exported": true,
           "signature": "export const DEFAULT_MAX_JSON_RESPONSE_BYTES = 10 * 1024 * 1024"
         },
         {
           "name": "DEFAULT_MAX_BINARY_RESPONSE_BYTES",
           "kind": "const",
-          "line": 40,
+          "line": 50,
           "exported": true,
           "signature": "export const DEFAULT_MAX_BINARY_RESPONSE_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "MAX_RESPONSE_BYTES_LIMIT",
           "kind": "const",
-          "line": 41,
+          "line": 51,
           "exported": true,
           "signature": "export const MAX_RESPONSE_BYTES_LIMIT = 1024 * 1024 * 1024"
         },
         {
           "name": "MAX_DATA_FILE_BYTES",
           "kind": "const",
-          "line": 50,
+          "line": 60,
           "exported": true,
           "signature": "export const MAX_DATA_FILE_BYTES = 1_048_576"
         },
         {
           "name": "MAX_STDIN_BYTES",
           "kind": "const",
-          "line": 64,
+          "line": 74,
           "exported": true,
           "signature": "export const MAX_STDIN_BYTES = 1024 * 1024"
         },
         {
           "name": "MAX_STDIN_UPLOAD_BYTES",
           "kind": "const",
-          "line": 80,
+          "line": 90,
           "exported": true,
           "signature": "export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "STDIN_READ_TIMEOUT_MS",
           "kind": "const",
-          "line": 94,
+          "line": 104,
           "exported": true,
           "signature": "export const STDIN_READ_TIMEOUT_MS = 30000"
         },
         {
           "name": "YAML_INDENT_SPACES",
           "kind": "const",
-          "line": 102,
+          "line": 112,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
         }
@@ -8443,6 +8450,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/validation.ts",
       "imports": [
+        "./constants.js",
         "./errors.js"
       ],
       "reExports": [],
@@ -8450,35 +8458,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ENTRY_ID_RE",
           "kind": "const",
-          "line": 11,
+          "line": 12,
           "exported": true,
           "signature": "export const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i"
         },
         {
           "name": "validateId",
           "kind": "function",
-          "line": 17,
+          "line": 18,
           "exported": true,
           "signature": "export function validateId(id: number, name: string): void"
         },
         {
           "name": "validateEntryId",
           "kind": "function",
-          "line": 30,
+          "line": 31,
           "exported": true,
           "signature": "export function validateEntryId(entryId: string): void"
         },
         {
           "name": "validateAttachmentId",
           "kind": "function",
-          "line": 48,
+          "line": 49,
           "exported": true,
           "signature": "export function validateAttachmentId(id: number | string): void"
         },
         {
           "name": "validatePaginationParams",
           "kind": "function",
-          "line": 60,
+          "line": 66,
           "exported": true,
           "signature": "export function validatePaginationParams(limit?: number, offset?: number): void"
         }

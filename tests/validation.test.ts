@@ -143,6 +143,16 @@ describe('validation', () => {
             expect(() => validatePaginationParams(Number.NaN)).toThrow(TestRailValidationError);
         });
 
+        it('rejects limit above the TestRail bulk cap (250)', () => {
+            // Live-audit finding (B.30/B.31): the server returns 400 for limit > 250.
+            // Reject client-side with a clearer error than a server round-trip.
+            expect(() => validatePaginationParams(251)).toThrow('limit must not exceed 250');
+            expect(() => validatePaginationParams(251)).toThrow(TestRailValidationError);
+            expect(() => validatePaginationParams(1000)).toThrow('limit must not exceed 250');
+            // Boundary: exactly 250 is still accepted.
+            expect(() => validatePaginationParams(250)).not.toThrow();
+        });
+
         it('rejects negative offset', () => {
             expect(() => validatePaginationParams(undefined, -1)).toThrow('offset must be a non-negative integer');
         });
