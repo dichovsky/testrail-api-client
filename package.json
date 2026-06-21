@@ -1,6 +1,6 @@
 {
     "name": "@dichovsky/testrail-api-client",
-    "version": "5.0.2",
+    "version": "5.1.0",
     "description": "Type-safe ESM TestRail API client and CLI for Node.js",
     "keywords": [
         "testrail",
