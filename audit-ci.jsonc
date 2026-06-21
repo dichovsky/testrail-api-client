@@ -1,0 +1,20 @@
+{
+    // audit-ci config (passed explicitly via `--config audit-ci.jsonc` in CI).
+    // Gate: fail the build on moderate+ advisories...
+    "moderate": true,
+    // ...except this documented, non-exploitable, dev-only advisory:
+    //
+    // GHSA-h67p-54hq-rp68 — js-yaml "quadratic-complexity DoS in merge-key handling".
+    // Chain: lockfile-lint -> lockfile-lint-api -> @yarnpkg/parsers -> js-yaml@3.x.
+    // Why it's accepted here:
+    //   - lockfile-lint is a dev-only tool; it never ships (the package's only
+    //     runtime dependency is Zod), so consumers are unaffected.
+    //   - .lockfile-lintrc lints package-lock.json (JSON). The vulnerable code is
+    //     @yarnpkg/parsers' YAML parser for yarn-berry lockfiles, which is never
+    //     invoked on an npm lockfile — the path is effectively dead here.
+    //   - The DoS requires attacker-crafted YAML with repeated merge aliases; the
+    //     only input is our own trusted, self-authored lockfile.
+    // Re-evaluate if js-yaml ships a patched 3.x, if @yarnpkg/parsers stops
+    // depending on a vulnerable js-yaml, or if lockfile-lint gains yarn-lockfile use.
+    "allowlist": ["GHSA-h67p-54hq-rp68"],
+}
