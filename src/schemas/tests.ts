@@ -24,6 +24,15 @@ export const TestSchema = zObject({
     // and so a Label object can be carried between endpoints without re-casting.
     // See `LabelEmbeddedSchema` for inner field choices.
     labels: z.array(LabelEmbeddedSchema).nullish(),
+    // Live-instance audit (R-EXTRA): the server emits these on `get_test` /
+    // `get_tests` responses but they were unmodeled (carried as `unknown` via
+    // `.passthrough()`). No value shape was captured for any of them, so each
+    // stays `z.unknown().nullish()` rather than a speculative type.
+    sections_display_order: z.unknown().nullish(),
+    cases_display_order: z.unknown().nullish(),
+    refs_data: z.unknown().nullish(),
+    case_comments: z.unknown().nullish(),
+    ai_automated_test: z.unknown().nullish(),
 });
 
 export type Test = z.infer<typeof TestSchema>;

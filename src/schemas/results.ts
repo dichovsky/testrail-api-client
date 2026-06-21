@@ -22,6 +22,15 @@ export const ResultSchema = zObject({
     created_by: z.number().nullish(),
     created_on: z.number().nullish(),
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
+    // Live-instance audit (R-EXTRA): observed on `get_results_for_run` elements
+    // but unmodeled. `case_id` is a numeric id; `quality_rating` a numeric
+    // rating. `defects_data` and the element shape of `attachment_ids` were not
+    // captured on the wire — `defects_data` stays `z.unknown()` and
+    // `attachment_ids` is typed only as an array of `unknown`. All `.nullish()`.
+    case_id: z.number().nullish(),
+    quality_rating: z.number().nullish(),
+    defects_data: z.unknown().nullish(),
+    attachment_ids: z.array(z.unknown()).nullish(),
 });
 
 export type Result = z.infer<typeof ResultSchema>;

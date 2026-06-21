@@ -1,6 +1,6 @@
 import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
-import { TestRailApiError, TestRailValidationError, handleZodError } from './errors.js';
+import { TestRailApiError, TestRailLicenseError, TestRailValidationError, handleZodError, isLicenseRestriction } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
@@ -1212,6 +1212,14 @@ export class TestRailClientCore {
                     // or secret values. Keep it in the structured `response` field for
                     // programmatic inspection but do not embed it in the message string,
                     // which callers commonly pass to loggers.
+                    //
+                    // A 403 carrying TestRail's "Not an Enterprise license/subscription."
+                    // body is surfaced as the TestRailLicenseError subclass so callers can
+                    // branch on license gating (B.22/B.33); it still IS-A TestRailApiError,
+                    // so existing handlers keep working.
+                    if (isLicenseRestriction(status, errorText)) {
+                        throw new TestRailLicenseError(status, response.statusText, errorText);
+                    }
                     throw new TestRailApiError(status, response.statusText, errorText);
                 }
 

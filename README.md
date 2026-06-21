@@ -86,6 +86,14 @@ Prefer `TESTRAIL_API_KEY`. If an environment variable is not an option, pipe the
 
 For a project-scoped Claude Code installation, run `npx testrail install-skill`. Add `--global` to install it under `~/.claude/skills/`.
 
+> **Note on rate-limit headers.** A live-instance check found that TestRail Cloud does **not** emit
+> rate-limit headers (`Retry-After`, `X-RateLimit-*`) under normal serial load — a burst of requests
+> all returned `200` with no such headers. The client's `Retry-After` handling is therefore dormant in
+> practice and only engages if the server starts sending the header (e.g. under heavy throttling or on
+> a future TestRail version); it is fully covered by synthetic tests. The **effective** throttle is the
+> client's own sliding-window limiter (`rateLimiter`, default 100 req/60s), which rejects over-limit
+> requests before they leave the process — tune it to your instance's quota.
+
 ## Configuration
 
 All options except `baseUrl` / `email` / `apiKey` are optional:

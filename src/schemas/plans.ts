@@ -50,6 +50,11 @@ export const PlanSchema = zObject({
     created_on: z.number(),
     created_by: z.number(),
     url: z.string(),
+    // Live-instance audit (R-EXTRA): observed on `get_plan` / `get_plans` but
+    // unmodeled. `is_archived` was a boolean; `archived_on` was `null` (epoch
+    // when set, by analogy to `completed_on`). Both `.nullish()`.
+    is_archived: z.boolean().nullish(),
+    archived_on: z.number().nullish(),
     entries: z.array(PlanEntrySchema).nullish(),
     // SPEC #2.1.6 — Per the `get_plan` response-field table: `start_on` / `due_on`
     // are documented as timestamps (ungated); `refs` is "a string of external

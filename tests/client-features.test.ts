@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/client.js';
+import { TestRailClient, TestRailApiError, TestRailLicenseError, TestRailValidationError } from '../src/client.js';
 import { mockErr, mockOk } from './helpers.js';
 
 const { mockDnsLookup } = vi.hoisted(() => ({
@@ -2889,5 +2889,49 @@ describe('TestRailClient - Enhanced Features', () => {
                 wt.destroy();
             }
         });
+    });
+});
+
+describe('TestRailLicenseError — Enterprise license/subscription 403 (B.22/B.33)', () => {
+    let client: TestRailClient;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
+        client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 'test@example.com',
+            apiKey: 'test-api-key',
+        });
+    });
+
+    afterEach(() => {
+        client.destroy();
+    });
+
+    it('throws TestRailLicenseError on a 403 license/subscription body', async () => {
+        mockFetch.mockResolvedValueOnce(
+            mockErr(403, 'Forbidden', '{"error":"Not an Enterprise license/subscription."}'),
+        );
+        await expect(client.datasets.getDatasets(11)).rejects.toThrow(TestRailLicenseError);
+    });
+
+    it('the thrown error is also a TestRailApiError (backward-compatible catch)', async () => {
+        mockFetch.mockResolvedValueOnce(
+            mockErr(403, 'Forbidden', '{"error":"Not an Enterprise license/subscription."}'),
+        );
+        const err = await client.variables.getVariables(11).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(TestRailLicenseError);
+        expect(err).toBeInstanceOf(TestRailApiError);
+        expect((err as TestRailLicenseError).status).toBe(403);
+        expect((err as TestRailLicenseError).name).toBe('TestRailLicenseError');
+    });
+
+    it('leaves an ordinary 403 (non-license body) as a plain TestRailApiError', async () => {
+        mockFetch.mockResolvedValueOnce(mockErr(403, 'Forbidden', '{"error":"No permissions."}'));
+        const err = await client.datasets.getDatasets(11).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(TestRailApiError);
+        expect(err).not.toBeInstanceOf(TestRailLicenseError);
     });
 });

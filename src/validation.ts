@@ -1,3 +1,4 @@
+import { MAX_PAGINATION_LIMIT } from './constants.js';
 import { TestRailValidationError } from './errors.js';
 
 /**
@@ -55,12 +56,20 @@ export function validateAttachmentId(id: number | string): void {
 
 /**
  * Validates optional pagination parameters.
- * @throws {TestRailValidationError} When limit is not a positive integer or offset is not a non-negative integer
+ *
+ * `limit` must be a positive integer no greater than {@link MAX_PAGINATION_LIMIT}
+ * (TestRail's server-side bulk cap; values outside `[1, 250]` are rejected with a
+ * 400 server-side — live-audit findings B.30/B.31). `offset` must be a
+ * non-negative integer.
+ * @throws {TestRailValidationError} When limit is not a positive integer ≤ 250, or offset is not a non-negative integer
  */
 export function validatePaginationParams(limit?: number, offset?: number): void {
     if (limit !== undefined) {
         if (typeof limit !== 'number' || !Number.isInteger(limit) || limit <= 0) {
             throw new TestRailValidationError('limit must be a positive integer');
+        }
+        if (limit > MAX_PAGINATION_LIMIT) {
+            throw new TestRailValidationError(`limit must not exceed ${MAX_PAGINATION_LIMIT}`);
         }
     }
     if (offset !== undefined) {
