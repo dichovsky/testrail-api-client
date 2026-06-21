@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "7e80f92f7093d3092e721a677cb9e5c8358289f8e895a2887b0aae4816304ddf",
+  "sourceHash": "cc1bca7bd801f9d8b2f1b4e576442fd4f86384f11a6b3675412e4cd4f581803c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -665,7 +665,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "handleZodError",
       "kind": "function",
       "file": "src/errors.ts",
-      "line": 33,
+      "line": 79,
       "signature": "export function handleZodError(error: ZodError): TestRailValidationError",
       "jsdoc": "Utility to convert ZodError into TestRailValidationError."
     },
@@ -1129,10 +1129,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const TestRailConfigSchema = zObject({ baseUrl: z.string().url(), email: z.string().email(), apiKey: z.string().min(1), timeout: z.number().optional(), maxRetries: z.number().int().nonnegative(…"
     },
     {
+      "name": "TestRailLicenseError",
+      "kind": "class",
+      "file": "src/errors.ts",
+      "line": 25,
+      "signature": "export class TestRailLicenseError extends TestRailApiError",
+      "jsdoc": "Thrown when TestRail rejects a request because the instance lacks the required Enterprise license/subscription (HTTP 403 with a \"Not an Enterprise license/subscription.\" body — live-audit findings B.22/B.33). A subclass of , so existing `catch (TestRailApiError)` handlers still catch it; callers that want to branch on license gating specifically can use `instanceof TestRailLicenseError`."
+    },
+    {
       "name": "TestRailValidationError",
       "kind": "class",
       "file": "src/errors.ts",
-      "line": 20,
+      "line": 66,
       "signature": "export class TestRailValidationError extends Error",
       "jsdoc": "Thrown when client configuration or method parameters fail validation."
     },
@@ -4969,12 +4977,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1271
+              "line": 1279
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1280
+              "line": 1288
             }
           ]
         }
@@ -5281,23 +5289,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           ]
         },
         {
+          "name": "TestRailLicenseError",
+          "kind": "class",
+          "line": 25,
+          "exported": true,
+          "signature": "export class TestRailLicenseError extends TestRailApiError",
+          "members": [
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 26
+            }
+          ]
+        },
+        {
+          "name": "LICENSE_RESTRICTION_RE",
+          "kind": "const",
+          "line": 33,
+          "exported": false,
+          "signature": "const LICENSE_RESTRICTION_RE = /not an enterprise (license|subscription)/i"
+        },
+        {
+          "name": "isLicenseRestriction",
+          "kind": "function",
+          "line": 44,
+          "exported": true,
+          "signature": "export function isLicenseRestriction(status: number, body: unknown): boolean"
+        },
+        {
           "name": "TestRailValidationError",
           "kind": "class",
-          "line": 20,
+          "line": 66,
           "exported": true,
           "signature": "export class TestRailValidationError extends Error",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 21
+              "line": 67
             }
           ]
         },
         {
           "name": "handleZodError",
           "kind": "function",
-          "line": 33,
+          "line": 79,
           "exported": true,
           "signature": "export function handleZodError(error: ZodError): TestRailValidationError"
         }

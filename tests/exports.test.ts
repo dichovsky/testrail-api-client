@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TestRailClient, TestRailApiError, TestRailValidationError } from '../src/index.js';
+import { TestRailClient, TestRailApiError, TestRailLicenseError, TestRailValidationError } from '../src/index.js';
 
 describe('Index exports', () => {
     it('should export TestRailClient', () => {
@@ -81,6 +81,18 @@ describe('Index exports', () => {
         // The message now includes a prefix due to the refactor
         expect(error.message).toContain('Config error');
         expect(error.name).toBe('TestRailValidationError');
+    });
+
+    it('should export and create TestRailLicenseError instances (subclass of TestRailApiError)', () => {
+        expect(TestRailLicenseError).toBeDefined();
+        expect(typeof TestRailLicenseError).toBe('function');
+
+        const error = new TestRailLicenseError(403, 'Forbidden', '{"error":"Not an Enterprise license/subscription."}');
+        expect(error).toBeInstanceOf(Error);
+        expect(error).toBeInstanceOf(TestRailApiError);
+        expect(error).toBeInstanceOf(TestRailLicenseError);
+        expect(error.status).toBe(403);
+        expect(error.name).toBe('TestRailLicenseError');
     });
 
     it('should export error classes with proper inheritance', () => {
