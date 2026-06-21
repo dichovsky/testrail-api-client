@@ -1492,10 +1492,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
                 const result = await client.users.getUserByEmail(email);
                 expect(result.email).toBe(email);
-                expect(mockFetch).toHaveBeenCalledWith(
-                    expect.stringContaining('get_user_by_email'),
-                    expect.anything(),
-                );
+                expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_user_by_email'), expect.anything());
             },
         );
 

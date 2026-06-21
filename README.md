@@ -112,26 +112,26 @@ const client = new TestRailClient({
 });
 ```
 
-| Option                    | Type                | Default            | Description                                         |
-| ------------------------- | ------------------- | ------------------ | --------------------------------------------------- |
-| `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL; HTTP requires `allowInsecure`   |
-| `email`                   | `string`            | **required**       | TestRail user email (validated format)              |
-| `apiKey`                  | `string`            | **required**       | TestRail API key                                    |
-| `timeout`                 | `number`            | `30000`            | Request timeout in milliseconds (max 5 minutes)     |
+| Option                    | Type                | Default            | Description                                          |
+| ------------------------- | ------------------- | ------------------ | ---------------------------------------------------- |
+| `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL; HTTP requires `allowInsecure`    |
+| `email`                   | `string`            | **required**       | TestRail user email (validated format)               |
+| `apiKey`                  | `string`            | **required**       | TestRail API key                                     |
+| `timeout`                 | `number`            | `30000`            | Request timeout in milliseconds (max 5 minutes)      |
 | `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10 |
-| `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                     |
-| `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                  |
-| `cacheCleanupInterval`    | `number`            | `60000`            | Cache cleanup interval (0 to disable)               |
-| `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in cache                  |
-| `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window          |
-| `allowInsecure`           | `boolean`           | `false`            | Permit cleartext HTTP (credentials sent in Base64)  |
-| `allowPrivateHosts`       | `boolean`           | `false`            | Permit private/loopback/link-local hosts            |
-| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON/text response body cap (10 MiB; ceiling 1 GiB) |
-| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Binary response body cap (100 MiB; ceiling 1 GiB)   |
-| `bodyTimeout`             | `number`            | `= timeout`        | Wall-clock deadline for the body read (0 disables)  |
-| `registerProcessHandlers` | `boolean`           | `false`            | Install `exit`/`SIGINT`/`SIGTERM` handlers (opt-in) |
-| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom `fetch` implementation                       |
-| `dnsLookup`               | `function`          | system DNS         | Custom resolver for SSRF host validation            |
+| `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                      |
+| `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                   |
+| `cacheCleanupInterval`    | `number`            | `60000`            | Cache cleanup interval (0 to disable)                |
+| `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in cache                   |
+| `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window           |
+| `allowInsecure`           | `boolean`           | `false`            | Permit cleartext HTTP (credentials sent in Base64)   |
+| `allowPrivateHosts`       | `boolean`           | `false`            | Permit private/loopback/link-local hosts             |
+| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON/text response body cap (10 MiB; ceiling 1 GiB)  |
+| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Binary response body cap (100 MiB; ceiling 1 GiB)    |
+| `bodyTimeout`             | `number`            | `= timeout`        | Wall-clock deadline for the body read (0 disables)   |
+| `registerProcessHandlers` | `boolean`           | `false`            | Install `exit`/`SIGINT`/`SIGTERM` handlers (opt-in)  |
+| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom `fetch` implementation                        |
+| `dnsLookup`               | `function`          | system DNS         | Custom resolver for SSRF host validation             |
 
 Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
 
