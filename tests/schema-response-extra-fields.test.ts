@@ -24,9 +24,11 @@ import type { ZodTypeAny } from 'zod';
 
 /** Asserts a `.nullish()` field exists and tolerates null/undefined. */
 function expectNullishField(field: ZodTypeAny | undefined): asserts field is ZodTypeAny {
-    expect(field).toBeDefined();
-    expect(field!.safeParse(null).success).toBe(true);
-    expect(field!.safeParse(undefined).success).toBe(true);
+    if (field === undefined) {
+        throw new Error('expected schema field to be declared, but it was undefined');
+    }
+    expect(field.safeParse(null).success).toBe(true);
+    expect(field.safeParse(undefined).success).toBe(true);
 }
 
 describe('R-EXTRA schema enrichment — newly declared response fields', () => {

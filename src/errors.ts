@@ -49,7 +49,7 @@ export function isLicenseRestriction(status: number, body: unknown): boolean {
     try {
         const parsed: unknown = JSON.parse(body);
         if (parsed !== null && typeof parsed === 'object' && 'error' in parsed) {
-            const errorValue = (parsed as { error: unknown }).error;
+            const errorValue: unknown = parsed.error;
             if (typeof errorValue === 'string') {
                 message = errorValue;
             }
