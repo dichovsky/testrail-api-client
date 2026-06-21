@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.1.0"
   },
-  "sourceHash": "f0c0984932258d79f12e3066332e836573685035d81b783b4bdf61cadc165008",
+  "sourceHash": "c8d7118500762b3d87e17a672f01bc8f06880f9727f3f0bf6be920809572a213",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5592,17 +5592,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "updateCase",
               "kind": "method",
-              "line": 147
+              "line": 153
             },
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 166
-            },
-            {
-              "name": "deleteCase",
-              "kind": "method",
-              "line": 167
+              "line": 172
             },
             {
               "name": "deleteCase",
@@ -5612,47 +5607,52 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "deleteCase",
               "kind": "method",
-              "line": 174
+              "line": 179
+            },
+            {
+              "name": "deleteCase",
+              "kind": "method",
+              "line": 180
             },
             {
               "name": "updateCases",
               "kind": "method",
-              "line": 198
+              "line": 204
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 216
+              "line": 226
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 222
+              "line": 232
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 229
+              "line": 239
             },
             {
               "name": "deleteCases",
               "kind": "method",
-              "line": 235
+              "line": 245
             },
             {
               "name": "copyCasesToSection",
               "kind": "method",
-              "line": 262
+              "line": 274
             },
             {
               "name": "moveCasesToSection",
               "kind": "method",
-              "line": 279
+              "line": 290
             },
             {
               "name": "getHistoryForCase",
               "kind": "method",
-              "line": 289
+              "line": 300
             }
           ]
         }

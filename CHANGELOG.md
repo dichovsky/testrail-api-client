@@ -13,6 +13,29 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
+## [Unreleased] — #242 bulk-case wire-shape fixes
+
+All three TestRail bulk-case endpoints were broken (each always threw); confirmed
+first-hand by a live canary probe against a real instance, which also corrected the
+exact wire shapes. None of these methods could succeed before, so no working caller
+is affected — except the `copyCasesToSection` return type, which narrows.
+
+### Fixed
+
+- **`cases.addCases` — request and response wrappers.** The request body is now
+  sent as `{ cases: [...] }` (a bare array is rejected by TestRail with
+  `400 "Field :cases is a required field."`), and the response is unwrapped from
+  `{ cases: [...] }` (the server wraps under `cases`, not `added_cases`). The
+  caller still passes a plain array — only the wire shape changed.
+- **`cases.updateCases` — response wrapper.** The response is now unwrapped from
+  `{ updated_cases: [...] }` instead of a bare array.
+
+### Changed (breaking for `copyCasesToSection` return type)
+
+- **`cases.copyCasesToSection` now returns `void`** (was `Promise<Case[]>`).
+  TestRail returns `HTTP 200` with an empty body, so the prior bare-array schema
+  always threw. The method resolves to `void`; its JSDoc is corrected.
+
 ## [5.1.0] — 2026-06-21 — Live-audit corrections
 
 Findings from a read-only/structural audit of the client against a real TestRail
