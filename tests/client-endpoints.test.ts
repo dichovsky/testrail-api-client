@@ -1093,15 +1093,18 @@ describe('TestRailClient', () => {
         };
 
         describe('addCases (bulk)', () => {
-            it('POSTs to add_cases/{section_id} with the array payload and returns Case[]', async () => {
-                mockFetch.mockResolvedValueOnce(mockOk([mockCase, { ...mockCase, id: 2, title: 'C2' }]));
+            it('wraps the request body as {cases:[...]} and unwraps the {cases:[...]} response', async () => {
+                // Live-probe (2026-06-21): server requires a {cases:[...]} request body
+                // (a bare array → 400 "Field :cases is a required field.") and returns the
+                // created cases wrapped as {cases:[...]} (NOT {added_cases}).
+                mockFetch.mockResolvedValueOnce(mockOk({ cases: [mockCase, { ...mockCase, id: 2, title: 'C2' }] }));
                 const result = await client.cases.addCases(12, [{ title: 'C' }, { title: 'C2' }]);
                 expect(result).toHaveLength(2);
                 expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('add_cases/12'), expect.anything());
                 const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
                 expect(init.method).toBe('POST');
                 const body = JSON.parse(init.body as string) as unknown;
-                expect(body).toEqual([{ title: 'C' }, { title: 'C2' }]);
+                expect(body).toEqual({ cases: [{ title: 'C' }, { title: 'C2' }] });
             });
 
             it('rejects non-positive sectionId before calling the API', async () => {
@@ -1208,8 +1211,9 @@ describe('TestRailClient', () => {
         });
 
         describe('updateCases', () => {
-            it('POSTs to update_cases/{suite_id} with the payload', async () => {
-                mockFetch.mockResolvedValueOnce(mockOk([mockCase, { ...mockCase, id: 2 }]));
+            it('POSTs to update_cases/{suite_id} and unwraps the {updated_cases:[...]} response', async () => {
+                // Live-probe (2026-06-21): server returns {updated_cases:[...]}, not a bare array.
+                mockFetch.mockResolvedValueOnce(mockOk({ updated_cases: [mockCase, { ...mockCase, id: 2 }] }));
                 const payload: UpdateCasesPayload = { case_ids: [1, 2], priority_id: 3 };
                 const result = await client.cases.updateCases(5, payload);
                 expect(result).toHaveLength(2);
@@ -1269,11 +1273,12 @@ describe('TestRailClient', () => {
         });
 
         describe('copyCasesToSection', () => {
-            it('POSTs to copy_cases_to_section/{section_id} and returns Case[]', async () => {
-                mockFetch.mockResolvedValueOnce(mockOk([mockCase]));
+            it('POSTs to copy_cases_to_section/{section_id} and returns void (empty 200 body)', async () => {
+                // Live-probe (2026-06-21): server returns HTTP 200 with an EMPTY body.
+                mockFetch.mockResolvedValueOnce(mockEmpty());
                 const payload: CopyCasesToSectionPayload = { case_ids: [1] };
                 const result = await client.cases.copyCasesToSection(7, payload);
-                expect(result).toEqual([mockCase]);
+                expect(result).toBeUndefined();
                 expect(mockFetch).toHaveBeenCalledWith(
                     expect.stringContaining('copy_cases_to_section/7'),
                     expect.anything(),

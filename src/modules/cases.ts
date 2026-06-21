@@ -111,12 +111,18 @@ export class CaseModule {
     async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
         validateId(sectionId, 'sectionId');
         try {
-            return await this.client.request<Case[]>({
+            // Wire shape (confirmed by live probe 2026-06-21): the request body must be
+            // `{ cases: [...] }` — a bare array is rejected with 400 "Field :cases is a
+            // required field." — and the success response wraps the created cases as
+            // `{ cases: [...] }` (NOT `{ added_cases }`). `.nullish()` tolerates an empty
+            // or omitted wrapper.
+            const res = await this.client.request<{ cases?: Case[] }>({
                 method: 'POST',
                 endpoint: `add_cases/${sectionId}`,
-                schema: z.array(CaseSchema),
-                body: { kind: 'json', data: payload },
+                schema: z.object({ cases: z.array(CaseSchema).nullish() }),
+                body: { kind: 'json', data: { cases: payload } },
             });
+            return res.cases ?? [];
         } catch (e: unknown) {
             if (e instanceof TestRailApiError && (e.status === 400 || e.status === 404)) {
                 const responseStr = typeof e.response === 'string' ? e.response : JSON.stringify(e.response ?? '');
@@ -197,12 +203,16 @@ export class CaseModule {
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
         validateId(suiteId, 'suiteId');
-        return this.client.request<Case[]>({
+        // Wire shape (confirmed by live probe 2026-06-21): the success response wraps the
+        // updated cases as `{ updated_cases: [...] }`, not a bare array. `.nullish()`
+        // tolerates an empty or omitted wrapper.
+        const res = await this.client.request<{ updated_cases?: Case[] }>({
             method: 'POST',
             endpoint: `update_cases/${suiteId}`,
-            schema: z.array(CaseSchema),
+            schema: z.object({ updated_cases: z.array(CaseSchema).nullish() }),
             body: { kind: 'json', data: payload },
         });
+        return res.updated_cases ?? [];
     }
 
     /**
@@ -255,16 +265,17 @@ export class CaseModule {
     }
 
     /**
-     * Copy cases into a target section (creates new case copies). Returns
-     * the array of newly created cases.
+     * Copy cases into a target section (creates new case copies). TestRail
+     * returns HTTP 200 with an **empty body** on success (confirmed by live
+     * probe 2026-06-21), so this resolves to `void` — it does NOT return the
+     * created copies, despite older docs/JSDoc claiming otherwise.
      * @testrail POST copy_cases_to_section/{section_id}
      */
-    async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<Case[]> {
+    async copyCasesToSection(sectionId: number, payload: CopyCasesToSectionPayload): Promise<void> {
         validateId(sectionId, 'sectionId');
-        return this.client.request<Case[]>({
+        await this.client.request<void>({
             method: 'POST',
             endpoint: `copy_cases_to_section/${sectionId}`,
-            schema: z.array(CaseSchema),
             body: { kind: 'json', data: payload },
         });
     }

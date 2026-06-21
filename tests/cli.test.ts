@@ -1166,7 +1166,7 @@ describe('CLI', () => {
         it('case update-bulk POSTs to update_cases/{suite_id}', async () => {
             const { exitCodes } = await runCli(
                 ['case', 'update-bulk', '5', '--data', '{"case_ids":[1,2],"priority_id":3}'],
-                [jsonResponse([MOCK_CASE])],
+                [jsonResponse({ updated_cases: [MOCK_CASE] })],
             );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
@@ -1242,7 +1242,8 @@ describe('CLI', () => {
         it('case copy-to-section POSTs to copy_cases_to_section/{section_id}', async () => {
             const { exitCodes } = await runCli(
                 ['case', 'copy-to-section', '7', '--data', '{"case_ids":[1,2]}'],
-                [jsonResponse([MOCK_CASE])],
+                // Live wire: 200 with an empty body (copy returns void).
+                [jsonResponse({})],
             );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
@@ -3730,15 +3731,16 @@ describe('CLI', () => {
         it('POSTs the JSON array to add_cases/{section_id} and returns the created cases', async () => {
             const { stdout, exitCodes } = await runCli(
                 ['case', 'add-bulk', '12', '--data', '[{"title":"A"},{"title":"B"}]'],
-                [jsonResponse([MOCK_CASE, { ...MOCK_CASE, id: 2, title: 'B' }])],
+                [jsonResponse({ cases: [MOCK_CASE, { ...MOCK_CASE, id: 2, title: 'B' }] })],
             );
             expect(exitCodes).toContain(0);
             const url = mockFetch.mock.calls.at(-1)?.[0] as string;
             expect(url).toContain('add_cases/12');
             const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
             expect(init.method).toBe('POST');
+            // Caller still passes a bare array; the client wraps it as {cases:[...]} on the wire.
             const body = JSON.parse(init.body as string) as unknown;
-            expect(body).toEqual([{ title: 'A' }, { title: 'B' }]);
+            expect(body).toEqual({ cases: [{ title: 'A' }, { title: 'B' }] });
             const parsed = JSON.parse(stdout.trim()) as Array<{ id: number }>;
             expect(parsed).toHaveLength(2);
         });

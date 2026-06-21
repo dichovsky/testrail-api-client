@@ -194,7 +194,7 @@ function buildClient(): MockedClient {
             updateCases: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
             deleteCase: vi.fn().mockResolvedValue(undefined),
             deleteCases: vi.fn().mockResolvedValue(undefined),
-            copyCasesToSection: vi.fn().mockResolvedValue([{ id: 11 }, { id: 12 }]),
+            copyCasesToSection: vi.fn().mockResolvedValue(undefined),
             moveCasesToSection: vi.fn().mockResolvedValue(undefined),
         },
         configurations: {
@@ -624,7 +624,7 @@ describe('handleCaseCopyToSection', () => {
         const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"case_ids":[10,11]}' });
         await handleCaseCopyToSection(ctx);
         expect(client.cases.copyCasesToSection).toHaveBeenCalledWith(7, { case_ids: [10, 11] });
-        expect(out).toHaveBeenCalledWith([{ id: 11 }, { id: 12 }]);
+        expect(out).toHaveBeenCalledWith(undefined);
     });
 
     it('rejects body missing case_ids', async () => {
