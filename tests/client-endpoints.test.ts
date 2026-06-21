@@ -5918,12 +5918,13 @@ describe('TestRailClient', () => {
 
     describe('getSharedStepHistory', () => {
         it('SPEC #1.7 — returns entries from the real step_history envelope', async () => {
-            // Real TestRail response uses `step_history` (NOT `history`) with string
-            // id/user_id — distinct from the case-history HistoryEntry shape.
+            // Real TestRail response uses `step_history` (NOT `history`). Live-audit
+            // correction: id/user_id come back as NUMBERS, not the strings the doc
+            // implied — distinct from the case-history HistoryEntry shape.
             const entry = {
-                id: '1',
+                id: 1,
                 timestamp: 1389968184,
-                user_id: '4',
+                user_id: 4,
                 title: 'Shared Steps 1',
                 custom_steps_separated: [{ content: 'x' }],
             };
@@ -5938,9 +5939,9 @@ describe('TestRailClient', () => {
             );
             const result = await client.sharedSteps.getSharedStepHistory(42);
             expect(result).toHaveLength(1);
-            expect(result[0]?.id).toBe('1');
+            expect(result[0]?.id).toBe(1);
             expect(result[0]?.timestamp).toBe(1389968184);
-            expect(result[0]?.user_id).toBe('4');
+            expect(result[0]?.user_id).toBe(4);
             expect(result[0]?.title).toBe('Shared Steps 1');
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('get_shared_step_history/42'),
@@ -5951,7 +5952,7 @@ describe('TestRailClient', () => {
         it('SPEC #1.7 regression — a populated step_history must NOT return []', async () => {
             // This test would have caught the original bug: reading `history` instead
             // of `step_history` silently returned [] even when the envelope was populated.
-            const entry = { id: '2', timestamp: 1234567890, user_id: '1', title: 'Step' };
+            const entry = { id: 2, timestamp: 1234567890, user_id: 1, title: 'Step' };
             mockFetch.mockResolvedValueOnce(mockOk({ step_history: [entry] }));
             const result = await client.sharedSteps.getSharedStepHistory(1);
             expect(result).not.toEqual([]);

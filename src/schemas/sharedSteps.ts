@@ -87,17 +87,17 @@ export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSche
 
 /**
  * SPEC #1.7 — `get_shared_step_history/{shared_step_id}` returns entries under
- * `step_history` (NOT `history`). Per the official Shared Steps API doc, an
- * entry carries string `id`/`user_id`, a `timestamp`, a `title`, and
- * `custom_steps_separated[]` — distinct from the case-history `HistoryEntry`
- * shape. `id` is the required identifier; every other field is `.nullish()`-
+ * `step_history` (NOT `history`). Live-instance audit correction: TestRail Cloud
+ * returns `id` and `user_id` as INTEGERS (e.g. 23, 40), not the strings the doc
+ * field table implies — a bare `z.string()` on `id` rejected the real response.
+ * `id` is the required numeric identifier; every other field is `.nullish()`-
  * widened so a real server response never throws (the bug class this fixes).
  */
 export const StepHistoryEntrySchema = zObject({
-    id: z.string(),
+    id: z.number(),
     title: z.string().nullish(),
     timestamp: z.number().nullish(),
-    user_id: z.string().nullish(),
+    user_id: z.number().nullish(),
     custom_steps_separated: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 

@@ -1,0 +1,32 @@
+[
+    {
+        "id": 1,
+        "name": "redacted",
+        "i18n_custom_id": "redacted",
+        "is_default": true
+    },
+    {
+        "id": 2,
+        "name": "redacted",
+        "i18n_custom_id": "redacted",
+        "is_default": false
+    },
+    {
+        "id": 3,
+        "name": "redacted",
+        "i18n_custom_id": "redacted",
+        "is_default": false
+    },
+    {
+        "id": 5,
+        "name": "redacted",
+        "i18n_custom_id": null,
+        "is_default": false
+    },
+    {
+        "id": 6,
+        "name": "redacted",
+        "i18n_custom_id": "redacted",
+        "is_default": false
+    }
+]

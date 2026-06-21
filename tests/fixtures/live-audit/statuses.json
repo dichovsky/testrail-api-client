@@ -1,0 +1,86 @@
+[
+    {
+        "id": 1,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 6667107,
+        "color_medium": 9820525,
+        "color_bright": 12709313,
+        "is_system": true,
+        "is_untested": false,
+        "is_final": true,
+        "i18n_custom_id": "redacted"
+    },
+    {
+        "id": 2,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 9474192,
+        "color_medium": 13684944,
+        "color_bright": 14737632,
+        "is_system": true,
+        "is_untested": false,
+        "is_final": true,
+        "i18n_custom_id": "redacted"
+    },
+    {
+        "id": 3,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 11579568,
+        "color_medium": 15395562,
+        "color_bright": 15790320,
+        "is_system": true,
+        "is_untested": true,
+        "is_final": false,
+        "i18n_custom_id": "redacted"
+    },
+    {
+        "id": 4,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 13026868,
+        "color_medium": 15593088,
+        "color_bright": 16448182,
+        "is_system": true,
+        "is_untested": false,
+        "is_final": false,
+        "i18n_custom_id": "redacted"
+    },
+    {
+        "id": 5,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 14250867,
+        "color_medium": 15829135,
+        "color_bright": 16631751,
+        "is_system": true,
+        "is_untested": false,
+        "is_final": true,
+        "i18n_custom_id": "redacted"
+    },
+    {
+        "id": 7,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 1538982,
+        "color_medium": 1221344,
+        "color_bright": 10407651,
+        "is_system": false,
+        "is_untested": false,
+        "is_final": false,
+        "i18n_custom_id": null
+    },
+    {
+        "id": 8,
+        "name": "redacted",
+        "label": "redacted",
+        "color_dark": 0,
+        "color_medium": 10526880,
+        "color_bright": 13684944,
+        "is_system": false,
+        "is_untested": false,
+        "is_final": true,
+        "i18n_custom_id": null
+    }
+]
