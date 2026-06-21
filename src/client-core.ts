@@ -1,6 +1,12 @@
 import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
-import { TestRailApiError, TestRailLicenseError, TestRailValidationError, handleZodError, isLicenseRestriction } from './errors.js';
+import {
+    TestRailApiError,
+    TestRailLicenseError,
+    TestRailValidationError,
+    handleZodError,
+    isLicenseRestriction,
+} from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';

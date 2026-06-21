@@ -1285,11 +1285,7 @@ describe('renderYaml — primitives', () => {
         // is optional — so a bare `+.inf` resolves to the float +Infinity. The
         // positive-sign forms were missing from the quoting guard while the sign-less
         // and negative forms were already covered; assert all nine quote.
-        for (const token of [
-            '.inf', '.Inf', '.INF',
-            '-.inf', '-.Inf', '-.INF',
-            '+.inf', '+.Inf', '+.INF',
-        ]) {
+        for (const token of ['.inf', '.Inf', '.INF', '-.inf', '-.Inf', '-.INF', '+.inf', '+.Inf', '+.INF']) {
             expect(renderYaml(token)).toBe(`"${token}"`);
         }
     });

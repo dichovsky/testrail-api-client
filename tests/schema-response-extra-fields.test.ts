@@ -12,14 +12,7 @@
  * anything by design and are only checked for presence + null tolerance.
  */
 import { describe, it, expect } from 'vitest';
-import {
-    RunSchema,
-    PlanSchema,
-    CaseSchema,
-    HistoryEntrySchema,
-    ResultSchema,
-    TestSchema,
-} from '../src/schemas.js';
+import { RunSchema, PlanSchema, CaseSchema, HistoryEntrySchema, ResultSchema, TestSchema } from '../src/schemas.js';
 import type { ZodTypeAny } from 'zod';
 
 /** Asserts a `.nullish()` field exists and tolerates null/undefined. */
