@@ -31,17 +31,19 @@ export class AttachmentModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ attachments?: Attachment[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                })
-            ).attachments ?? []
-        );
+        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
+            method: 'GET',
+            endpoint,
+            // Live-instance audit: get_attachments_for_test (and _plan_entry) return a
+            // BARE top-level array; case/run/plan return the { attachments } wrapper.
+            // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
+            // both shapes (mirrors getSharedSteps) and unwrap.
+            schema: z.union([
+                z.array(AttachmentSchema),
+                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+            ]),
+        });
+        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
     }
 
     /** @testrail GET get_attachments_for_run/{run_id} */
@@ -52,17 +54,19 @@ export class AttachmentModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ attachments?: Attachment[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                })
-            ).attachments ?? []
-        );
+        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
+            method: 'GET',
+            endpoint,
+            // Live-instance audit: get_attachments_for_test (and _plan_entry) return a
+            // BARE top-level array; case/run/plan return the { attachments } wrapper.
+            // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
+            // both shapes (mirrors getSharedSteps) and unwrap.
+            schema: z.union([
+                z.array(AttachmentSchema),
+                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+            ]),
+        });
+        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
     }
 
     /** @testrail GET get_attachments_for_test/{test_id} */
@@ -73,33 +77,35 @@ export class AttachmentModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ attachments?: Attachment[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                })
-            ).attachments ?? []
-        );
+        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
+            method: 'GET',
+            endpoint,
+            // Live-instance audit: get_attachments_for_test (and _plan_entry) return a
+            // BARE top-level array; case/run/plan return the { attachments } wrapper.
+            // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
+            // both shapes (mirrors getSharedSteps) and unwrap.
+            schema: z.union([
+                z.array(AttachmentSchema),
+                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+            ]),
+        });
+        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
     }
 
     /** @testrail GET get_attachments_for_plan/{plan_id} */
     async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
         validateId(planId, 'planId');
-        return (
-            (
-                await this.client.request<{ attachments?: Attachment[] }>({
-                    method: 'GET',
-                    endpoint: `get_attachments_for_plan/${planId}`,
-                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                })
-            ).attachments ?? []
-        );
+        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
+            method: 'GET',
+            endpoint: `get_attachments_for_plan/${planId}`,
+            // Live-instance audit: accept both the bare top-level array and the
+            // { attachments } wrapper (mirrors getSharedSteps) and unwrap.
+            schema: z.union([
+                z.array(AttachmentSchema),
+                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+            ]),
+        });
+        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
     }
 
     /**
@@ -115,17 +121,17 @@ export class AttachmentModule {
     async getAttachmentsForPlanEntry(planId: number, entryId: string): Promise<Attachment[]> {
         validateId(planId, 'planId');
         validateEntryId(entryId);
-        return (
-            (
-                await this.client.request<{ attachments?: Attachment[] }>({
-                    method: 'GET',
-                    endpoint: `get_attachments_for_plan_entry/${planId}/${entryId}`,
-                    // SPEC #1.5 — TestRail can return `{ attachments: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-                })
-            ).attachments ?? []
-        );
+        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
+            method: 'GET',
+            endpoint: `get_attachments_for_plan_entry/${planId}/${entryId}`,
+            // Live-instance audit: get_attachments_for_plan_entry returns a BARE
+            // top-level array; accept both shapes (mirrors getSharedSteps) and unwrap.
+            schema: z.union([
+                z.array(AttachmentSchema),
+                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
+            ]),
+        });
+        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
     }
 
     /** @testrail GET get_attachment/{attachment_id} */

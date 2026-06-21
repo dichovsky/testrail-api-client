@@ -67,7 +67,13 @@ export const AttachmentSchema = zObject({
     entity_type: z.string().nullish(),
     icon_name: z.string().nullish(),
     client_id: z.number().nullish(),
-    data_id: z.string().nullish(),
+    // Live-instance audit: `data_id` is an INTEGER on TestRail Cloud
+    // (e.g. 1000006328), not the string the doc-derived schema assumed — a bare
+    // z.string() rejected the real get_attachments_for_case entity. Union accepts
+    // both. `cassandra_file_id` is a UUID string present on every populated entity
+    // but was unmodeled (carried untyped via passthrough).
+    data_id: z.union([z.number(), z.string()]).nullish(),
+    cassandra_file_id: z.string().nullish(),
     legacy_id: z.number().nullish(),
     is_image: z.boolean().nullish(),
     icon: z.string().nullish(),

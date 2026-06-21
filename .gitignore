@@ -139,3 +139,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .playwright-cli/
 .codex/
+
+# Live-API schema-audit scratch area (throwaway harness, raw PII captures, ledger)
+.probe/

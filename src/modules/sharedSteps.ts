@@ -85,16 +85,17 @@ export class SharedStepModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ step_history?: StepHistoryEntry[] | null }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.7 — entries live under `step_history` (NOT `history`);
-                    // `.nullish()` tolerates `{ step_history: null }` / missing wrapper.
-                    schema: z.object({ step_history: z.array(StepHistoryEntrySchema).nullish() }),
-                })
-            ).step_history ?? []
-        );
+        const raw = await this.client.request<StepHistoryEntry[] | { step_history?: StepHistoryEntry[] | null }>({
+            method: 'GET',
+            endpoint,
+            // SPEC #1.7 — entries live under `step_history` (NOT `history`). Live-instance
+            // audit: the endpoint actually returns a BARE top-level array, not the wrapper.
+            // Accept both shapes (mirrors getSharedSteps) and unwrap.
+            schema: z.union([
+                z.array(StepHistoryEntrySchema),
+                z.object({ step_history: z.array(StepHistoryEntrySchema).nullish() }),
+            ]),
+        });
+        return Array.isArray(raw) ? raw : (raw.step_history ?? []);
     }
 }

@@ -50,6 +50,10 @@ export const StatusSchema = zObject({
     is_system: z.boolean(),
     is_untested: z.boolean(),
     is_final: z.boolean(),
+    // Live-instance audit: i18n translation key, string when set and `null` for
+    // some entities. Present across get_statuses / get_case_fields /
+    // get_result_fields / get_case_types / get_templates; was unmodeled.
+    i18n_custom_id: z.string().nullish(),
 });
 
 export type Status = z.infer<typeof StatusSchema>;
@@ -84,10 +88,20 @@ export type CaseStatus = z.infer<typeof CaseStatusSchema>;
 
 const FieldConfigOptionsSchema = zObject({
     is_required: z.boolean(),
-    default_value: z.string(),
+    // Live-instance audit: `default_value` is OMITTED entirely on some configs
+    // (observed across many get_case_fields / get_result_fields entries, e.g.
+    // step-results and bdd-scenario fields), so a required `z.string()` threw.
+    // `.nullish()` accepts present-string, null, and key-omitted.
+    default_value: z.string().nullish(),
     items: z.string().nullish(),
     format: z.string().nullish(),
     rows: z.string().nullish(),
+    // Live-instance audit: step-style fields carry these boolean toggles in the
+    // options object; unmodeled (carried untyped via passthrough) until now.
+    has_expected: z.boolean().nullish(),
+    has_actual: z.boolean().nullish(),
+    has_additional: z.boolean().nullish(),
+    has_reference: z.boolean().nullish(),
 });
 
 const FieldConfigContextSchema = zObject({
@@ -106,6 +120,10 @@ const FieldConfigContextSchema = zObject({
 });
 
 export const CaseFieldConfigSchema = zObject({
+    // Live-instance audit: each config carries a string `id` (UUID on modern
+    // fields, legacy hex token e.g. "4be1344d55d11" on older ones). `.nullish()`
+    // — sibling of context/options.
+    id: z.string().nullish(),
     context: FieldConfigContextSchema,
     options: FieldConfigOptionsSchema,
 });
@@ -124,6 +142,8 @@ export const CaseFieldSchema = zObject({
     include_all: z.boolean(),
     template_ids: z.array(z.number()),
     description: z.string().nullish(),
+    // Live-instance audit: i18n translation key (string|null); was unmodeled.
+    i18n_custom_id: z.string().nullish(),
 });
 
 export type CaseField = z.infer<typeof CaseFieldSchema>;
@@ -175,6 +195,9 @@ export const AddCaseFieldResponseSchema = zObject({
 export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>;
 
 export const ResultFieldConfigSchema = zObject({
+    // Live-instance audit: config-level string `id` (UUID / legacy hex token),
+    // mirror of CaseFieldConfigSchema.
+    id: z.string().nullish(),
     context: FieldConfigContextSchema,
     options: FieldConfigOptionsSchema,
 });
@@ -193,6 +216,8 @@ export const ResultFieldSchema = zObject({
     include_all: z.boolean(),
     template_ids: z.array(z.number()),
     description: z.string().nullish(),
+    // Live-instance audit: i18n translation key (string|null); was unmodeled.
+    i18n_custom_id: z.string().nullish(),
 });
 
 export type ResultField = z.infer<typeof ResultFieldSchema>;
@@ -203,6 +228,8 @@ export const CaseTypeSchema = zObject({
     id: z.number(),
     name: z.string(),
     is_default: z.boolean(),
+    // Live-instance audit: i18n translation key (string|null); was unmodeled.
+    i18n_custom_id: z.string().nullish(),
 });
 
 export type CaseType = z.infer<typeof CaseTypeSchema>;
@@ -211,6 +238,8 @@ export const TemplateSchema = zObject({
     id: z.number(),
     name: z.string(),
     is_default: z.boolean(),
+    // Live-instance audit: i18n translation key (string|null); was unmodeled.
+    i18n_custom_id: z.string().nullish(),
 });
 
 export type Template = z.infer<typeof TemplateSchema>;

@@ -14,6 +14,11 @@ export const PlanEntrySchema = zObject({
     case_ids: z.array(z.number()).nullish(),
     config_ids: z.array(z.number()).nullish(),
     runs: z.array(RunSchema),
+    // Live-instance audit: `add_plan_entry` / `get_plan` entries carry a
+    // `dynamic_filters` key (value shape not captured) — unmodeled, so typed as
+    // `z.unknown().nullish()` rather than a speculative structure (mirrors the
+    // RunSchema.dynamic_filters precedent).
+    dynamic_filters: z.unknown().nullish(),
     // SPEC #2.1.6 — TestRail Plans API doc lists `start_on` / `due_on` / `refs` in the
     // `add_plan_entry` request body table (entry-level), and the `get_plan` example
     // shows `refs` in the entry object. `start_on` / `due_on` echo back on responses

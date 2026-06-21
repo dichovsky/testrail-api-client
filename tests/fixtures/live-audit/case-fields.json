@@ -1,0 +1,107 @@
+[
+    {
+        "id": 38,
+        "is_active": true,
+        "type_id": 12,
+        "name": "redacted",
+        "system_name": "redacted",
+        "label": "redacted",
+        "description": null,
+        "configs": [
+            {
+                "context": {
+                    "is_global": false,
+                    "project_ids": [9, 12]
+                },
+                "options": {
+                    "is_required": false,
+                    "items": "redacted",
+                    "format": "redacted"
+                },
+                "id": "redacted"
+            }
+        ],
+        "display_order": 12,
+        "include_all": true,
+        "i18n_custom_id": null,
+        "template_ids": []
+    },
+    {
+        "id": 35,
+        "is_active": true,
+        "type_id": 12,
+        "name": "redacted",
+        "system_name": "redacted",
+        "label": "redacted",
+        "description": null,
+        "configs": [
+            {
+                "context": {
+                    "is_global": false,
+                    "project_ids": [5]
+                },
+                "options": {
+                    "is_required": false,
+                    "items": "redacted"
+                },
+                "id": "redacted"
+            }
+        ],
+        "display_order": 10,
+        "include_all": true,
+        "i18n_custom_id": null,
+        "template_ids": []
+    },
+    {
+        "id": 34,
+        "is_active": true,
+        "type_id": 12,
+        "name": "redacted",
+        "system_name": "redacted",
+        "label": "redacted",
+        "description": null,
+        "configs": [
+            {
+                "context": {
+                    "is_global": false,
+                    "project_ids": [4]
+                },
+                "options": {
+                    "is_required": true,
+                    "items": "redacted"
+                },
+                "id": "redacted"
+            }
+        ],
+        "display_order": 7,
+        "include_all": true,
+        "i18n_custom_id": null,
+        "template_ids": []
+    },
+    {
+        "id": 47,
+        "is_active": true,
+        "type_id": 12,
+        "name": "redacted",
+        "system_name": "redacted",
+        "label": "redacted",
+        "description": "redacted",
+        "configs": [
+            {
+                "context": {
+                    "is_global": false,
+                    "project_ids": [9]
+                },
+                "options": {
+                    "is_required": false,
+                    "items": "redacted"
+                },
+                "id": "redacted"
+            }
+        ],
+        "display_order": 17,
+        "include_all": true,
+        "i18n_custom_id": null,
+        "template_ids": []
+    }
+]

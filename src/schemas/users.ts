@@ -24,7 +24,12 @@ export const UserSchema = zObject({
     email_notifications: z.boolean().nullish(),
     is_admin: z.boolean().nullish(),
     group_ids: z.array(z.number()).nullish(),
-    mfa_required: z.boolean().nullish(),
+    // Live-instance audit: TestRail Cloud wire-encodes this flag as an INTEGER
+    // (`0`/`1`), never a JSON boolean — observed on get_current_user / get_user /
+    // get_users. A bare `z.boolean()` rejected the real response, so accept both
+    // the integer and boolean forms (the sibling is_admin/email_notifications came
+    // back as real booleans and are left as-is).
+    mfa_required: z.union([z.boolean(), z.number()]).nullish(),
     // Enterprise-only (TestRail Enterprise 7.3+). Professional and pre-7.3 servers never
     // emit these keys, so `undefined` (omitted) is the dominant case in non-Enterprise
     // traffic; explicit `null` and typed values appear on Enterprise instances.
@@ -38,6 +43,9 @@ export const RoleSchema = zObject({
     id: z.number(),
     name: z.string(),
     is_default: z.boolean(),
+    // Live-instance audit (get_roles): TestRail emits a per-role admin flag
+    // alongside is_default. `.nullish()` — older servers omit it.
+    is_project_admin: z.boolean().nullish(),
 });
 
 export type Role = z.infer<typeof RoleSchema>;

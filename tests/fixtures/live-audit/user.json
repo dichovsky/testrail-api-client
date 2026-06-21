@@ -1,0 +1,12 @@
+{
+    "name": "redacted",
+    "id": 40,
+    "email": "redacted",
+    "is_active": true,
+    "role_id": 3,
+    "is_admin": true,
+    "email_notifications": true,
+    "mfa_required": 0,
+    "role": "redacted",
+    "group_ids": []
+}

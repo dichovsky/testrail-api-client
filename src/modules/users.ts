@@ -132,11 +132,14 @@ export class UsersModule {
     /** @testrail POST update_group/{group_id} */
     async updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<Group> {
         validateId(groupId, 'groupId');
+        // Live-instance audit: TestRail requires `group_id` in the BODY (not just
+        // the path) — a body without it is rejected with HTTP 400 "Field :group_id
+        // is a required field". Inject the path id (caller's payload cannot override it).
         return this.client.request<Group>({
             method: 'POST',
             endpoint: `update_group/${groupId}`,
             schema: GroupSchema,
-            body: { kind: 'json', data: payload },
+            body: { kind: 'json', data: { ...payload, group_id: groupId } },
         });
     }
 

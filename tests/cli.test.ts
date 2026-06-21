@@ -2307,7 +2307,7 @@ describe('CLI', () => {
                 ['shared-step', 'history', '42'],
                 [
                     jsonResponse({
-                        step_history: [{ id: '1', timestamp: 1389968184, user_id: '4', title: 'Shared Steps 1' }],
+                        step_history: [{ id: 1, timestamp: 1389968184, user_id: 4, title: 'Shared Steps 1' }],
                     }),
                 ],
             );
@@ -2329,7 +2329,7 @@ describe('CLI', () => {
                         limit: 250,
                         size: 1,
                         _links: { next: null, prev: null },
-                        step_history: [{ id: '1', timestamp: 1389968184, user_id: '4', title: 'Shared Steps 1' }],
+                        step_history: [{ id: 1, timestamp: 1389968184, user_id: 4, title: 'Shared Steps 1' }],
                     }),
                 ],
             );

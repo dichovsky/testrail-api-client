@@ -1,0 +1,58 @@
+[
+    {
+        "id": 11,
+        "is_active": true,
+        "type_id": 11,
+        "name": "redacted",
+        "system_name": "redacted",
+        "label": "redacted",
+        "description": null,
+        "configs": [
+            {
+                "context": {
+                    "is_global": true,
+                    "project_ids": null
+                },
+                "options": {
+                    "is_required": false,
+                    "format": "redacted",
+                    "has_expected": true,
+                    "has_actual": true,
+                    "rows": "redacted"
+                },
+                "id": "redacted"
+            }
+        ],
+        "display_order": 1,
+        "include_all": false,
+        "i18n_custom_id": "redacted",
+        "template_ids": [2, 4]
+    },
+    {
+        "id": 50,
+        "is_active": true,
+        "type_id": 14,
+        "name": "redacted",
+        "system_name": "redacted",
+        "label": "redacted",
+        "description": null,
+        "configs": [
+            {
+                "context": {
+                    "is_global": true,
+                    "project_ids": []
+                },
+                "options": {
+                    "is_required": false,
+                    "format": "redacted",
+                    "rows": "redacted"
+                },
+                "id": "redacted"
+            }
+        ],
+        "display_order": 1,
+        "include_all": false,
+        "i18n_custom_id": null,
+        "template_ids": [5]
+    }
+]

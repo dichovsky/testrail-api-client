@@ -1,0 +1,32 @@
+[
+    {
+        "id": 5,
+        "name": "redacted",
+        "is_default": false,
+        "is_project_admin": false
+    },
+    {
+        "id": 4,
+        "name": "redacted",
+        "is_default": false,
+        "is_project_admin": false
+    },
+    {
+        "id": 2,
+        "name": "redacted",
+        "is_default": false,
+        "is_project_admin": false
+    },
+    {
+        "id": 3,
+        "name": "redacted",
+        "is_default": true,
+        "is_project_admin": false
+    },
+    {
+        "id": 1,
+        "name": "redacted",
+        "is_default": false,
+        "is_project_admin": false
+    }
+]
