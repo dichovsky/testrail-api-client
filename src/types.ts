@@ -275,6 +275,8 @@ export interface PlanEntry {
     start_on?: number | null;
     due_on?: number | null;
     refs?: string | null;
+    /** Live-audit: present on add_plan_entry / get_plan entries; value shape uncaptured. */
+    dynamic_filters?: unknown;
 }
 
 export interface Run {
@@ -398,7 +400,9 @@ export interface User {
     email_notifications?: boolean | null;
     is_admin?: boolean | null;
     group_ids?: number[] | null;
-    mfa_required?: boolean | null;
+    // Live-audit: TestRail Cloud wire-encodes this as an integer (0/1), not a
+    // boolean — widened to match `UserSchema.mfa_required` (boolean | number).
+    mfa_required?: boolean | number | null;
     // Enterprise-only mirror (TestRail Enterprise 7.3+). Professional instances never
     // emit these keys, so the `undefined` case is dominant for non-Enterprise traffic.
     sso_enabled?: boolean | null;
@@ -415,6 +419,8 @@ export interface Status {
     is_system: boolean;
     is_untested: boolean;
     is_final: boolean;
+    /** Live-audit: i18n translation key (string when set, null otherwise). */
+    i18n_custom_id?: string | null;
 }
 
 export interface Priority {
@@ -544,16 +550,23 @@ export interface GetRunsOptions {
 }
 
 export interface ResultFieldConfig {
+    /** Live-audit: config-level id (UUID / legacy hex token). */
+    id?: string | null;
     context: {
         is_global: boolean;
         project_ids: number[];
     };
     options: {
         is_required: boolean;
-        default_value: string;
+        /** Live-audit: omitted on some configs (e.g. step-style fields) — not always present. */
+        default_value?: string | null;
         items?: string | null;
         format?: string | null;
         rows?: string | null;
+        has_expected?: boolean | null;
+        has_actual?: boolean | null;
+        has_additional?: boolean | null;
+        has_reference?: boolean | null;
     };
 }
 
@@ -574,22 +587,31 @@ export interface ResultField {
     include_all: boolean;
     template_ids: number[];
     description?: string | null;
+    /** Live-audit: i18n translation key (string when set, null otherwise). */
+    i18n_custom_id?: string | null;
 }
 
 // ── Case Fields & Types ───────────────────────────────────────────────────────
 
 /** Context/options configuration block shared by CaseField entries */
 export interface CaseFieldConfig {
+    /** Live-audit: config-level id (UUID / legacy hex token). */
+    id?: string | null;
     context: {
         is_global: boolean;
         project_ids: number[];
     };
     options: {
         is_required: boolean;
-        default_value: string;
+        /** Live-audit: omitted on some configs (e.g. step-style fields) — not always present. */
+        default_value?: string | null;
         items?: string | null;
         format?: string | null;
         rows?: string | null;
+        has_expected?: boolean | null;
+        has_actual?: boolean | null;
+        has_additional?: boolean | null;
+        has_reference?: boolean | null;
     };
 }
 
@@ -611,6 +633,8 @@ export interface CaseField {
     include_all: boolean;
     template_ids: number[];
     description?: string | null;
+    /** Live-audit: i18n translation key (string when set, null otherwise). */
+    i18n_custom_id?: string | null;
 }
 
 /** Case type definition returned by get_case_types */
@@ -618,6 +642,8 @@ export interface CaseType {
     id: number;
     name: string;
     is_default: boolean;
+    /** Live-audit: i18n translation key (string when set, null otherwise). */
+    i18n_custom_id?: string | null;
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────────
@@ -627,6 +653,8 @@ export interface Template {
     id: number;
     name: string;
     is_default: boolean;
+    /** Live-audit: i18n translation key (string when set, null otherwise). */
+    i18n_custom_id?: string | null;
 }
 
 // ── Configurations ────────────────────────────────────────────────────────────
@@ -768,6 +796,8 @@ export interface Role {
     name: string;
     /** Whether this is the default role assigned to new users */
     is_default: boolean;
+    /** Live-audit: per-role project-admin flag (omitted on older servers). */
+    is_project_admin?: boolean | null;
 }
 
 // ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────────
@@ -837,8 +867,13 @@ export interface Attachment {
     icon_name?: string | null;
     /** Cloud 7.1+ tenant ID. */
     client_id?: number | null;
-    /** Cloud 7.1+ underlying data record UUID. */
-    data_id?: string | null;
+    /**
+     * Cloud 7.1+ underlying data record reference. Live-audit: observed as an
+     * INTEGER on this instance, but a UUID string on others — accept both.
+     */
+    data_id?: number | string | null;
+    /** Live-audit: Cassandra file store UUID present on populated list entities. */
+    cassandra_file_id?: string | null;
     /** Cloud 7.1+ legacy/migration ID (0 when none). */
     legacy_id?: number | null;
     /** Cloud 7.1+ flag for whether the attachment is renderable as an image. */

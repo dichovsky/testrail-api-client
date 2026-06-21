@@ -88,16 +88,17 @@ export type UpdateSharedStepPayload = z.infer<typeof UpdateSharedStepPayloadSche
 /**
  * SPEC #1.7 — `get_shared_step_history/{shared_step_id}` returns entries under
  * `step_history` (NOT `history`). Live-instance audit correction: TestRail Cloud
- * returns `id` and `user_id` as INTEGERS (e.g. 23, 40), not the strings the doc
- * field table implies — a bare `z.string()` on `id` rejected the real response.
- * `id` is the required numeric identifier; every other field is `.nullish()`-
- * widened so a real server response never throws (the bug class this fixes).
+ * returns `id` and `user_id` as INTEGERS (e.g. 23, 40), but the doc field table
+ * says string — a bare `z.string()` on `id` rejected the real response. Accept
+ * BOTH forms (a union, like `AttachmentSchema.data_id` / `entity_id` and
+ * `UserSchema.mfa_required`) so neither Cloud's integers nor a doc-compliant
+ * self-hosted server's strings throw. Every other field is `.nullish()`-widened.
  */
 export const StepHistoryEntrySchema = zObject({
-    id: z.number(),
+    id: z.union([z.number(), z.string()]),
     title: z.string().nullish(),
     timestamp: z.number().nullish(),
-    user_id: z.number().nullish(),
+    user_id: z.union([z.number(), z.string()]).nullish(),
     custom_steps_separated: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 

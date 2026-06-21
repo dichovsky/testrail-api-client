@@ -69,6 +69,13 @@ describe('live-audit regression — parse-throwers (real wire shapes the schema 
             expect(typeof e['id']).toBe('number');
             expect(() => mustParse(StepHistoryEntrySchema, e)).not.toThrow();
         }
+        // doc-compliant self-hosted shape (string id/user_id) must ALSO parse (union),
+        // so the fix accepts both observed Cloud integers and documented strings.
+        expect(() => mustParse(StepHistoryEntrySchema, { id: '23', user_id: '40', title: 'x' })).not.toThrow();
+    });
+
+    it('PlanEntrySchema parses a real add_plan_entry response (dynamic_filters + nested runs)', () => {
+        expect(() => mustParse(PlanEntrySchema, fxObj('plan-entry'))).not.toThrow();
     });
 
     it('CaseFieldSchema accepts configs whose options omit default_value (get_case_fields)', () => {
@@ -90,10 +97,18 @@ describe('live-audit regression — parse-throwers (real wire shapes the schema 
 describe('live-audit regression — bare-array list wrappers (top-level array, status 200)', () => {
     beforeEach(() => mockFetch.mockReset());
 
-    it('getAttachmentsForTest tolerates a bare array response', async () => {
+    it('getAttachmentsForTest tolerates an empty bare array response', async () => {
         mockFetch.mockResolvedValueOnce(mockOk(fx('attachments-test-bare')));
         const client = createClient();
         await expect(client.attachments.getAttachmentsForTest(1)).resolves.toEqual([]);
+    });
+
+    it('getAttachmentsForTest parses a POPULATED bare array (the shape that threw)', async () => {
+        mockFetch.mockResolvedValueOnce(mockOk([fxObj('attachment-entity')]));
+        const client = createClient();
+        const list = await client.attachments.getAttachmentsForTest(1);
+        expect(list).toHaveLength(1);
+        expect(typeof list[0]?.data_id).toBe('number'); // numeric data_id round-trips
     });
 
     it('getSharedStepHistory tolerates a bare array response (and types the entries)', async () => {
