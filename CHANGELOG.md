@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`. Other
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`. Other
 > version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -13,7 +13,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
-## [Unreleased] — #242 bulk-case wire-shape fixes
+## [5.2.0] — 2026-06-21 — #242 bulk-case wire-shape fixes
 
 All three TestRail bulk-case endpoints were broken (each always threw); confirmed
 first-hand by a live canary probe against a real instance, which also corrected the
