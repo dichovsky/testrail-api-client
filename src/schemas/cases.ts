@@ -28,6 +28,13 @@ export const CaseSchema = zObject({
     // and so a Label object can be carried between endpoints without re-casting.
     // See `LabelEmbeddedSchema` above for inner field choices.
     labels: z.array(LabelEmbeddedSchema).nullish(),
+    // Live-instance audit (R-EXTRA): the server emits these on `get_case` /
+    // `get_cases` / `add_case` / `update_case` responses but they were unmodeled
+    // (carried as `unknown` via `.passthrough()`). Neither value shape was
+    // captured on the wire, so both stay `z.unknown().nullish()` rather than a
+    // speculative structure.
+    refs_data: z.unknown().nullish(),
+    ai_automated_test: z.unknown().nullish(),
 });
 
 export type Case = z.infer<typeof CaseSchema>;
@@ -74,6 +81,11 @@ export const HistoryEntrySchema = zObject({
     timestamp: z.number().nullish(),
     created_on: z.number().nullish(),
     changes: z.array(HistoryChangeSchema).nullish(),
+    // Live-instance audit (R-EXTRA): `get_history_for_case` entries carry a
+    // `comments` array (observed empty `[]`); element shape was never captured,
+    // so the array element stays `z.unknown()`. `.nullish()` — the key may be
+    // omitted entirely on some entries/representations.
+    comments: z.array(z.unknown()).nullish(),
 });
 
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;

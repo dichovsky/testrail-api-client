@@ -48,6 +48,15 @@ export const RunSchema = zObject({
     // safe modelling.
     entry_id: z.string().nullish(),
     entry_index: z.number().nullish(),
+    // Live-instance audit (R-EXTRA): the server emits these on `get_run` /
+    // `get_runs` but they were unmodeled, so `.passthrough()` carried them as
+    // `unknown`. `is_archived` was observed as a boolean and `archived_on` as
+    // `null` (epoch when set, by analogy to `completed_on`). `dynamic_filters`
+    // appeared on the wire but its value shape was never captured, so it stays
+    // `z.unknown()` rather than a speculative structure. All `.nullish()`.
+    is_archived: z.boolean().nullish(),
+    archived_on: z.number().nullish(),
+    dynamic_filters: z.unknown().nullish(),
 });
 
 export type Run = z.infer<typeof RunSchema>;

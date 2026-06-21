@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.0.2"
   },
-  "sourceHash": "905c38c3cb43c648ac1e28f18ef2cc68d9aa53f10c24f234e796012145fb7d03",
+  "sourceHash": "1d788968350d849b10d99fc0db2ca68f97d6d35595b0add95262317bda5f96f8",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -66,7 +66,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddCasePayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 94,
+      "line": 106,
       "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>",
       "typeOnly": true
     },
@@ -74,14 +74,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 83,
+      "line": 95,
       "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
     },
     {
       "name": "AddCasesBulkPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 121,
+      "line": 133,
       "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>",
       "typeOnly": true
     },
@@ -89,7 +89,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddCasesBulkPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 119,
+      "line": 131,
       "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
     },
     {
@@ -172,7 +172,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 139,
+      "line": 144,
       "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -180,14 +180,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 116,
+      "line": 121,
       "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
     },
     {
       "name": "AddPlanPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 176,
+      "line": 181,
       "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>",
       "typeOnly": true
     },
@@ -195,7 +195,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddPlanPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 163,
+      "line": 168,
       "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
     },
     {
@@ -217,7 +217,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultForCasePayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 67,
+      "line": 76,
       "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>",
       "typeOnly": true
     },
@@ -225,14 +225,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultForCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 56,
+      "line": 65,
       "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
     },
     {
       "name": "AddResultForTestPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 90,
+      "line": 99,
       "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>",
       "typeOnly": true
     },
@@ -240,14 +240,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultForTestPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 79,
+      "line": 88,
       "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
     },
     {
       "name": "AddResultPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 51,
+      "line": 60,
       "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>",
       "typeOnly": true
     },
@@ -255,7 +255,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 41,
+      "line": 50,
       "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…",
       "jsdoc": "SPEC #A.1 — canonical exemplar for **request** payload schemas."
     },
@@ -263,7 +263,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultsForCasesPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 73,
+      "line": 82,
       "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -271,14 +271,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultsForCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 69,
+      "line": 78,
       "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
     },
     {
       "name": "AddResultsPayload",
       "kind": "type",
       "file": "src/schemas/results.ts",
-      "line": 96,
+      "line": 105,
       "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>",
       "typeOnly": true
     },
@@ -286,14 +286,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddResultsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/results.ts",
-      "line": 92,
+      "line": 101,
       "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
     },
     {
       "name": "AddRunPayload",
       "kind": "type",
       "file": "src/schemas/runs.ts",
-      "line": 68,
+      "line": 77,
       "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>",
       "typeOnly": true
     },
@@ -301,14 +301,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas/runs.ts",
-      "line": 57,
+      "line": 66,
       "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
     },
     {
       "name": "AddRunToPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 102,
+      "line": 107,
       "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -316,7 +316,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "AddRunToPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 93,
+      "line": 98,
       "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
     },
     {
@@ -510,7 +510,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CopyCasesToSectionPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 185,
+      "line": 197,
       "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -518,7 +518,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CopyCasesToSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 181,
+      "line": 193,
       "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
     },
     {
@@ -557,7 +557,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "DeleteCasesPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 158,
+      "line": 170,
       "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -565,7 +565,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "DeleteCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 150,
+      "line": 162,
       "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
     },
     {
@@ -689,7 +689,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "HistoryEntrySchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 70,
+      "line": 77,
       "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
     },
     {
@@ -743,7 +743,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "MoveCasesToSectionPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 198,
+      "line": 210,
       "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>",
       "typeOnly": true
     },
@@ -751,7 +751,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "MoveCasesToSectionPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 193,
+      "line": 205,
       "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
     },
     {
@@ -797,7 +797,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PlanEntryRunPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 86,
+      "line": 91,
       "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>",
       "typeOnly": true
     },
@@ -805,7 +805,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PlanEntryRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 76,
+      "line": 81,
       "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
     },
     {
@@ -1015,7 +1015,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "SoftDeletePreview",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 176,
+      "line": 188,
       "signature": "export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>",
       "typeOnly": true
     },
@@ -1023,7 +1023,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "SoftDeletePreviewSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 166,
+      "line": 178,
       "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().optional(), affected_cases: z.number().optional(), affected_sections: z.number().optional(), affected_runs: z.number().optio…"
     },
     {
@@ -1147,7 +1147,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateCasePayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 107,
+      "line": 119,
       "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>",
       "typeOnly": true
     },
@@ -1155,14 +1155,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateCasePayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 96,
+      "line": 108,
       "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
     },
     {
       "name": "UpdateCasesPayload",
       "kind": "type",
       "file": "src/schemas/cases.ts",
-      "line": 141,
+      "line": 153,
       "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>",
       "typeOnly": true
     },
@@ -1170,7 +1170,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateCasesPayloadSchema",
       "kind": "const",
       "file": "src/schemas/cases.ts",
-      "line": 129,
+      "line": 141,
       "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number…"
     },
     {
@@ -1269,7 +1269,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdatePlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 161,
+      "line": 166,
       "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -1277,14 +1277,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdatePlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 141,
+      "line": 146,
       "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
     },
     {
       "name": "UpdatePlanPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 191,
+      "line": 196,
       "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>",
       "typeOnly": true
     },
@@ -1292,7 +1292,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdatePlanPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 178,
+      "line": 183,
       "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), start_on: z…"
     },
     {
@@ -1314,7 +1314,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateRunInPlanEntryPayload",
       "kind": "type",
       "file": "src/schemas/plans.ts",
-      "line": 114,
+      "line": 119,
       "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>",
       "typeOnly": true
     },
@@ -1322,14 +1322,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateRunInPlanEntryPayloadSchema",
       "kind": "const",
       "file": "src/schemas/plans.ts",
-      "line": 107,
+      "line": 112,
       "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
     },
     {
       "name": "UpdateRunPayload",
       "kind": "type",
       "file": "src/schemas/runs.ts",
-      "line": 80,
+      "line": 89,
       "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>",
       "typeOnly": true
     },
@@ -1337,7 +1337,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateRunPayloadSchema",
       "kind": "const",
       "file": "src/schemas/runs.ts",
-      "line": 70,
+      "line": 79,
       "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
     },
     {
@@ -1390,7 +1390,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateTestLabelsPayload",
       "kind": "type",
       "file": "src/schemas/tests.ts",
-      "line": 45,
+      "line": 54,
       "signature": "export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>",
       "typeOnly": true
     },
@@ -1398,14 +1398,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateTestLabelsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/tests.ts",
-      "line": 41,
+      "line": 50,
       "signature": "export const UpdateTestLabelsPayloadSchema = zObject({ labels: z.array(z.union([z.number(), z.string()])), })"
     },
     {
       "name": "UpdateTestsLabelsPayload",
       "kind": "type",
       "file": "src/schemas/tests.ts",
-      "line": 57,
+      "line": 66,
       "signature": "export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>",
       "typeOnly": true
     },
@@ -1413,7 +1413,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UpdateTestsLabelsPayloadSchema",
       "kind": "const",
       "file": "src/schemas/tests.ts",
-      "line": 52,
+      "line": 61,
       "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(z.union([z.number(), z.string()])), })"
     },
     {
@@ -6714,140 +6714,140 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "Case",
           "kind": "type",
-          "line": 33,
+          "line": 40,
           "exported": true,
           "signature": "export type Case = z.infer<typeof CaseSchema>"
         },
         {
           "name": "HistoryChangeSchema",
           "kind": "const",
-          "line": 39,
+          "line": 46,
           "exported": false,
           "signature": "const HistoryChangeSchema = zObject({ field: z.string().nullish(), type_id: z.number().nullish(), old_text: z.string().nullish(), new_text: z.string().nullish(), label: z.string().nullish(), options: …"
         },
         {
           "name": "HistoryEntrySchema",
           "kind": "const",
-          "line": 70,
+          "line": 77,
           "exported": true,
           "signature": "export const HistoryEntrySchema = zObject({ id: z.number(), user_id: z.number(), type_id: z.number(), timestamp: z.number().nullish(), created_on: z.number().nullish(), changes: z.array(HistoryChangeS…"
         },
         {
           "name": "HistoryEntry",
           "kind": "type",
-          "line": 79,
+          "line": 91,
           "exported": true,
           "signature": "export type HistoryEntry = z.infer<typeof HistoryEntrySchema>"
         },
         {
           "name": "AddCasePayloadSchema",
           "kind": "const",
-          "line": 83,
+          "line": 95,
           "exported": true,
           "signature": "export const AddCasePayloadSchema = zObject({ title: z.string(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.string().optional()…"
         },
         {
           "name": "AddCasePayload",
           "kind": "type",
-          "line": 94,
+          "line": 106,
           "exported": true,
           "signature": "export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>"
         },
         {
           "name": "UpdateCasePayloadSchema",
           "kind": "const",
-          "line": 96,
+          "line": 108,
           "exported": true,
           "signature": "export const UpdateCasePayloadSchema = zObject({ title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number().optional(), estimate: z.strin…"
         },
         {
           "name": "UpdateCasePayload",
           "kind": "type",
-          "line": 107,
+          "line": 119,
           "exported": true,
           "signature": "export type UpdateCasePayload = z.infer<typeof UpdateCasePayloadSchema>"
         },
         {
           "name": "AddCasesBulkPayloadSchema",
           "kind": "const",
-          "line": 119,
+          "line": 131,
           "exported": true,
           "signature": "export const AddCasesBulkPayloadSchema = z.array(AddCasePayloadSchema).min(1)"
         },
         {
           "name": "AddCasesBulkPayload",
           "kind": "type",
-          "line": 121,
+          "line": 133,
           "exported": true,
           "signature": "export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>"
         },
         {
           "name": "UpdateCasesPayloadSchema",
           "kind": "const",
-          "line": 129,
+          "line": 141,
           "exported": true,
           "signature": "export const UpdateCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), title: z.string().optional(), template_id: z.number().optional(), type_id: z.number().optional(), priority_id: z.number…"
         },
         {
           "name": "UpdateCasesPayload",
           "kind": "type",
-          "line": 141,
+          "line": 153,
           "exported": true,
           "signature": "export type UpdateCasesPayload = z.infer<typeof UpdateCasesPayloadSchema>"
         },
         {
           "name": "DeleteCasesPayloadSchema",
           "kind": "const",
-          "line": 150,
+          "line": 162,
           "exported": true,
           "signature": "export const DeleteCasesPayloadSchema = zObject({ case_ids: z.array(z.number()), }).refine((body) => !Object.prototype.hasOwnProperty.call(body, 'soft'), { message: '`soft` is not a body field — use t…"
         },
         {
           "name": "DeleteCasesPayload",
           "kind": "type",
-          "line": 158,
+          "line": 170,
           "exported": true,
           "signature": "export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>"
         },
         {
           "name": "SoftDeletePreviewSchema",
           "kind": "const",
-          "line": 166,
+          "line": 178,
           "exported": true,
           "signature": "export const SoftDeletePreviewSchema = zObject({ affected_tests: z.number().optional(), affected_cases: z.number().optional(), affected_sections: z.number().optional(), affected_runs: z.number().optio…"
         },
         {
           "name": "SoftDeletePreview",
           "kind": "type",
-          "line": 176,
+          "line": 188,
           "exported": true,
           "signature": "export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>"
         },
         {
           "name": "CopyCasesToSectionPayloadSchema",
           "kind": "const",
-          "line": 181,
+          "line": 193,
           "exported": true,
           "signature": "export const CopyCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), })"
         },
         {
           "name": "CopyCasesToSectionPayload",
           "kind": "type",
-          "line": 185,
+          "line": 197,
           "exported": true,
           "signature": "export type CopyCasesToSectionPayload = z.infer<typeof CopyCasesToSectionPayloadSchema>"
         },
         {
           "name": "MoveCasesToSectionPayloadSchema",
           "kind": "const",
-          "line": 193,
+          "line": 205,
           "exported": true,
           "signature": "export const MoveCasesToSectionPayloadSchema = zObject({ case_ids: z.array(z.number()), suite_id: z.number(), })"
         },
         {
           "name": "MoveCasesToSectionPayload",
           "kind": "type",
-          "line": 198,
+          "line": 210,
           "exported": true,
           "signature": "export type MoveCasesToSectionPayload = z.infer<typeof MoveCasesToSectionPayloadSchema>"
         }
@@ -7372,105 +7372,105 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "Plan",
           "kind": "type",
-          "line": 67,
+          "line": 72,
           "exported": true,
           "signature": "export type Plan = z.infer<typeof PlanSchema>"
         },
         {
           "name": "PlanEntryRunPayloadSchema",
           "kind": "const",
-          "line": 76,
+          "line": 81,
           "exported": true,
           "signature": "export const PlanEntryRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids:…"
         },
         {
           "name": "PlanEntryRunPayload",
           "kind": "type",
-          "line": 86,
+          "line": 91,
           "exported": true,
           "signature": "export type PlanEntryRunPayload = z.infer<typeof PlanEntryRunPayloadSchema>"
         },
         {
           "name": "AddRunToPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 93,
+          "line": 98,
           "exported": true,
           "signature": "export const AddRunToPlanEntryPayloadSchema = zObject({ config_ids: z.array(z.number()), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), …"
         },
         {
           "name": "AddRunToPlanEntryPayload",
           "kind": "type",
-          "line": 102,
+          "line": 107,
           "exported": true,
           "signature": "export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>"
         },
         {
           "name": "UpdateRunInPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 107,
+          "line": 112,
           "exported": true,
           "signature": "export const UpdateRunInPlanEntryPayloadSchema = zObject({ description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean().optional(), case_ids: z.array(z.number()).…"
         },
         {
           "name": "UpdateRunInPlanEntryPayload",
           "kind": "type",
-          "line": 114,
+          "line": 119,
           "exported": true,
           "signature": "export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>"
         },
         {
           "name": "AddPlanEntryPayloadSchema",
           "kind": "const",
-          "line": 116,
+          "line": 121,
           "exported": true,
           "signature": "export const AddPlanEntryPayloadSchema = zObject({ suite_id: z.number(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_all: z.boolean()…"
         },
         {
           "name": "AddPlanEntryPayload",
           "kind": "type",
-          "line": 139,
+          "line": 144,
           "exported": true,
           "signature": "export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>"
         },
         {
           "name": "UpdatePlanEntryPayloadSchema",
           "kind": "const",
-          "line": 141,
+          "line": 146,
           "exported": true,
           "signature": "export const UpdatePlanEntryPayloadSchema = zObject({ suite_id: z.number().optional(), name: z.string().optional(), description: z.string().optional(), assignedto_id: z.number().optional(), include_al…"
         },
         {
           "name": "UpdatePlanEntryPayload",
           "kind": "type",
-          "line": 161,
+          "line": 166,
           "exported": true,
           "signature": "export type UpdatePlanEntryPayload = z.infer<typeof UpdatePlanEntryPayloadSchema>"
         },
         {
           "name": "AddPlanPayloadSchema",
           "kind": "const",
-          "line": 163,
+          "line": 168,
           "exported": true,
           "signature": "export const AddPlanPayloadSchema = zObject({ name: z.string(), description: z.string().optional(), milestone_id: z.number().optional(), start_on: z.number().optional(), due_on: z.number().optional(),…"
         },
         {
           "name": "AddPlanPayload",
           "kind": "type",
-          "line": 176,
+          "line": 181,
           "exported": true,
           "signature": "export type AddPlanPayload = z.infer<typeof AddPlanPayloadSchema>"
         },
         {
           "name": "UpdatePlanPayloadSchema",
           "kind": "const",
-          "line": 178,
+          "line": 183,
           "exported": true,
           "signature": "export const UpdatePlanPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), start_on: z…"
         },
         {
           "name": "UpdatePlanPayload",
           "kind": "type",
-          "line": 191,
+          "line": 196,
           "exported": true,
           "signature": "export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>"
         }
@@ -7584,77 +7584,77 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "Result",
           "kind": "type",
-          "line": 27,
+          "line": 36,
           "exported": true,
           "signature": "export type Result = z.infer<typeof ResultSchema>"
         },
         {
           "name": "AddResultPayloadSchema",
           "kind": "const",
-          "line": 41,
+          "line": 50,
           "exported": true,
           "signature": "export const AddResultPayloadSchema = zObject({ status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defects: z.string().optional(), a…"
         },
         {
           "name": "AddResultPayload",
           "kind": "type",
-          "line": 51,
+          "line": 60,
           "exported": true,
           "signature": "export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>"
         },
         {
           "name": "AddResultForCasePayloadSchema",
           "kind": "const",
-          "line": 56,
+          "line": 65,
           "exported": true,
           "signature": "export const AddResultForCasePayloadSchema = zObject({ case_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
         },
         {
           "name": "AddResultForCasePayload",
           "kind": "type",
-          "line": 67,
+          "line": 76,
           "exported": true,
           "signature": "export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>"
         },
         {
           "name": "AddResultsForCasesPayloadSchema",
           "kind": "const",
-          "line": 69,
+          "line": 78,
           "exported": true,
           "signature": "export const AddResultsForCasesPayloadSchema = zObject({ results: z.array(AddResultForCasePayloadSchema), })"
         },
         {
           "name": "AddResultsForCasesPayload",
           "kind": "type",
-          "line": 73,
+          "line": 82,
           "exported": true,
           "signature": "export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayloadSchema>"
         },
         {
           "name": "AddResultForTestPayloadSchema",
           "kind": "const",
-          "line": 79,
+          "line": 88,
           "exported": true,
           "signature": "export const AddResultForTestPayloadSchema = zObject({ test_id: z.number(), status_id: z.number(), comment: z.string().optional(), version: z.string().optional(), elapsed: z.string().optional(), defec…"
         },
         {
           "name": "AddResultForTestPayload",
           "kind": "type",
-          "line": 90,
+          "line": 99,
           "exported": true,
           "signature": "export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>"
         },
         {
           "name": "AddResultsPayloadSchema",
           "kind": "const",
-          "line": 92,
+          "line": 101,
           "exported": true,
           "signature": "export const AddResultsPayloadSchema = zObject({ results: z.array(AddResultForTestPayloadSchema), })"
         },
         {
           "name": "AddResultsPayload",
           "kind": "type",
-          "line": 96,
+          "line": 105,
           "exported": true,
           "signature": "export type AddResultsPayload = z.infer<typeof AddResultsPayloadSchema>"
         }
@@ -7678,35 +7678,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "Run",
           "kind": "type",
-          "line": 53,
+          "line": 62,
           "exported": true,
           "signature": "export type Run = z.infer<typeof RunSchema>"
         },
         {
           "name": "AddRunPayloadSchema",
           "kind": "const",
-          "line": 57,
+          "line": 66,
           "exported": true,
           "signature": "export const AddRunPayloadSchema = zObject({ name: z.string(), suite_id: z.number().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optio…"
         },
         {
           "name": "AddRunPayload",
           "kind": "type",
-          "line": 68,
+          "line": 77,
           "exported": true,
           "signature": "export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>"
         },
         {
           "name": "UpdateRunPayloadSchema",
           "kind": "const",
-          "line": 70,
+          "line": 79,
           "exported": true,
           "signature": "export const UpdateRunPayloadSchema = zObject({ name: z.string().optional(), description: z.string().optional(), milestone_id: z.number().optional(), assignedto_id: z.number().optional(), include_all:…"
         },
         {
           "name": "UpdateRunPayload",
           "kind": "type",
-          "line": 80,
+          "line": 89,
           "exported": true,
           "signature": "export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>"
         }
@@ -7915,35 +7915,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "Test",
           "kind": "type",
-          "line": 29,
+          "line": 38,
           "exported": true,
           "signature": "export type Test = z.infer<typeof TestSchema>"
         },
         {
           "name": "UpdateTestLabelsPayloadSchema",
           "kind": "const",
-          "line": 41,
+          "line": 50,
           "exported": true,
           "signature": "export const UpdateTestLabelsPayloadSchema = zObject({ labels: z.array(z.union([z.number(), z.string()])), })"
         },
         {
           "name": "UpdateTestLabelsPayload",
           "kind": "type",
-          "line": 45,
+          "line": 54,
           "exported": true,
           "signature": "export type UpdateTestLabelsPayload = z.infer<typeof UpdateTestLabelsPayloadSchema>"
         },
         {
           "name": "UpdateTestsLabelsPayloadSchema",
           "kind": "const",
-          "line": 52,
+          "line": 61,
           "exported": true,
           "signature": "export const UpdateTestsLabelsPayloadSchema = zObject({ test_ids: z.array(z.number()), labels: z.array(z.union([z.number(), z.string()])), })"
         },
         {
           "name": "UpdateTestsLabelsPayload",
           "kind": "type",
-          "line": 57,
+          "line": 66,
           "exported": true,
           "signature": "export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>"
         }
