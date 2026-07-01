@@ -403,7 +403,7 @@ describe('aggregate renderers', () => {
     });
 });
 
-describe('validateGates — gates B, C, C2', () => {
+describe('validateGates — gates B, C, C2, D', () => {
     // Reusable, well-formed fixtures: one endpoint, one client call site, one
     // ActionSpec, one recipe — all bound. Tests perturb a single field to
     // exercise each gate in isolation.
@@ -445,12 +445,15 @@ describe('validateGates — gates B, C, C2', () => {
                 recipes: new Map(),
                 rootPrefix: '/repo/',
             });
-            expect(errors).toHaveLength(1);
-            expect(errors[0]).toContain('[gate B]');
-            expect(errors[0]).toContain('nonexistent_endpoint');
+            // `actions: []` also trips gate D for the same call site (no
+            // ActionSpec at all); filter down to gate B to isolate it.
+            const gateB = errors.filter((e) => e.includes('[gate B]'));
+            expect(gateB).toHaveLength(1);
+            expect(gateB[0]).toContain('[gate B]');
+            expect(gateB[0]).toContain('nonexistent_endpoint');
             // Strips rootPrefix from the file path.
-            expect(errors[0]).toContain('src/modules/cases.ts:42');
-            expect(errors[0]).not.toContain('/repo/src/modules/cases.ts');
+            expect(gateB[0]).toContain('src/modules/cases.ts:42');
+            expect(gateB[0]).not.toContain('/repo/src/modules/cases.ts');
         });
 
         it('keeps the absolute file path when rootPrefix is empty (default)', () => {
@@ -602,6 +605,43 @@ describe('validateGates — gates B, C, C2', () => {
             expect(rev).toHaveLength(2);
             expect(rev.some((e) => e.includes('case:get'))).toBe(true);
             expect(rev.some((e) => e.includes('run:get'))).toBe(true);
+        });
+    });
+
+    describe('gate D (@testrail tag → ActionSpec, mirror of gate C)', () => {
+        it('passes when every tagged call site has a matching ActionSpec', () => {
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [HAPPY_ACTION],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+                rootPrefix: '/repo/',
+            });
+            expect(errors.filter((e) => e.includes('[gate D]'))).toEqual([]);
+        });
+
+        it('flags a `@testrail`-tagged call site with no matching ActionSpec entry', () => {
+            const orphanCallSite: CallSite = {
+                moduleFile: '/repo/src/modules/runs.ts',
+                methodName: 'getRun',
+                method: 'GET',
+                path: 'get_run/{run_id}',
+                line: 10,
+            };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE, orphanCallSite],
+                actions: [HAPPY_ACTION],
+                endpoints: [HAPPY_ENDPOINT, { method: 'GET', path: 'get_run/{run_id}' }],
+                recipes: HAPPY_RECIPE,
+                rootPrefix: '/repo/',
+            });
+            const gateD = errors.filter((e) => e.includes('[gate D]'));
+            expect(gateD).toHaveLength(1);
+            expect(gateD[0]).toContain('getRun');
+            expect(gateD[0]).toContain('GET get_run/{run_id}');
+            // Strips rootPrefix from the file path, same as gate B.
+            expect(gateD[0]).toContain('src/modules/runs.ts:10');
+            expect(gateD[0]).toContain('no ActionSpec entry surfaces it on the CLI');
         });
     });
 });
