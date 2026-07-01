@@ -275,3 +275,41 @@ export function replaceSection(content: string, name: string, body: string): str
     const after = content.slice(closeIdx);
     return `${before}\n${body}\n${after}`;
 }
+
+/**
+ * Replace the `version:` value inside the YAML frontmatter block (the
+ * region between the first two lines that are exactly `---`) with the
+ * given version string. Throws if the frontmatter delimiters can't be
+ * found, or if no `version:` line exists inside the block.
+ */
+export function replaceFrontmatterVersion(content: string, version: string): string {
+    const lines = content.split('\n');
+    const delimiterIndices: number[] = [];
+    for (let i = 0; i < lines.length && delimiterIndices.length < 2; i++) {
+        if (lines[i] === '---') delimiterIndices.push(i);
+    }
+    if (delimiterIndices.length < 2) {
+        throw new Error('YAML frontmatter delimiters ("---") not found in skill/SKILL.md');
+    }
+    const [openIdx, closeIdx] = delimiterIndices as [number, number];
+
+    let versionLineIdx = -1;
+    for (let i = openIdx + 1; i < closeIdx; i++) {
+        if (lines[i]?.startsWith('version:') === true) {
+            versionLineIdx = i;
+            break;
+        }
+    }
+    if (versionLineIdx === -1) {
+        throw new Error('No "version:" line found inside the YAML frontmatter block');
+    }
+
+    const line = lines[versionLineIdx] as string;
+    const colonIdx = line.indexOf(':');
+    const prefix = line.slice(0, colonIdx + 1);
+    const rest = line.slice(colonIdx + 1);
+    const leadingWhitespace = /^\s*/.exec(rest)?.[0] ?? '';
+    lines[versionLineIdx] = `${prefix}${leadingWhitespace}${version}`;
+
+    return lines.join('\n');
+}

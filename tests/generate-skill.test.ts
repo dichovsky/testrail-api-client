@@ -14,6 +14,7 @@ import {
     renderCommandTable,
     renderPayloadSchemaReference,
     renderPayloadSchemas,
+    replaceFrontmatterVersion,
     replaceSection,
     schemaNameFor,
 } from '../scripts/skill-renderer.js';
@@ -265,5 +266,46 @@ suffix`;
         expect(() => {
             replaceSection(content, 'foo', 'X');
         }).toThrow(/wrong order/);
+    });
+});
+
+describe('replaceFrontmatterVersion', () => {
+    const FRONTMATTER_SAMPLE = `---
+name: testrail-cli
+description: Some description
+version: 2.1.0
+license: MIT
+homepage: https://example.com
+---
+
+# body
+Some body content.
+`;
+
+    it('replaces the version value and leaves the rest of the content byte-identical', () => {
+        const result = replaceFrontmatterVersion(FRONTMATTER_SAMPLE, '5.2.0');
+        const expected = FRONTMATTER_SAMPLE.replace('version: 2.1.0', 'version: 5.2.0');
+        expect(result).toBe(expected);
+    });
+
+    it('throws when the frontmatter delimiters are missing', () => {
+        const content = 'name: testrail-cli\nversion: 2.1.0\n';
+        expect(() => {
+            replaceFrontmatterVersion(content, '5.2.0');
+        }).toThrow(/delimiters/);
+    });
+
+    it('throws when only one frontmatter delimiter is present', () => {
+        const content = '---\nname: testrail-cli\nversion: 2.1.0\n';
+        expect(() => {
+            replaceFrontmatterVersion(content, '5.2.0');
+        }).toThrow(/delimiters/);
+    });
+
+    it('throws when frontmatter is present but has no version line', () => {
+        const content = '---\nname: testrail-cli\ndescription: no version here\n---\n\n# body\n';
+        expect(() => {
+            replaceFrontmatterVersion(content, '5.2.0');
+        }).toThrow(/version/);
     });
 });
