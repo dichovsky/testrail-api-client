@@ -288,6 +288,17 @@ Some body content.
         expect(result).toBe(expected);
     });
 
+    it('handles CRLF line endings without throwing and without introducing mixed EOLs', () => {
+        // A Windows checkout without `core.autocrlf=input` configured can
+        // produce CRLF line endings; delimiter/version-line matching must
+        // tolerate a trailing \r, and the replaced line must keep its own
+        // \r rather than silently becoming the only LF-only line in the file.
+        const crlfSample = FRONTMATTER_SAMPLE.replace(/\n/g, '\r\n');
+        const result = replaceFrontmatterVersion(crlfSample, '5.2.0');
+        const expected = crlfSample.replace('version: 2.1.0\r', 'version: 5.2.0\r');
+        expect(result).toBe(expected);
+    });
+
     it('throws when the frontmatter delimiters are missing', () => {
         const content = 'name: testrail-cli\nversion: 2.1.0\n';
         expect(() => {

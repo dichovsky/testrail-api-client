@@ -278,15 +278,17 @@ export function replaceSection(content: string, name: string, body: string): str
 
 /**
  * Replace the `version:` value inside the YAML frontmatter block (the
- * region between the first two lines that are exactly `---`) with the
+ * region between the first two `---` delimiter lines, tolerating a
+ * trailing `\r` so a CRLF checkout is handled the same as LF) with the
  * given version string. Throws if the frontmatter delimiters can't be
  * found, or if no `version:` line exists inside the block.
  */
 export function replaceFrontmatterVersion(content: string, version: string): string {
     const lines = content.split('\n');
+    const isDelimiter = (line: string): boolean => line === '---' || line === '---\r';
     const delimiterIndices: number[] = [];
     for (let i = 0; i < lines.length && delimiterIndices.length < 2; i++) {
-        if (lines[i] === '---') delimiterIndices.push(i);
+        if (isDelimiter(lines[i] as string)) delimiterIndices.push(i);
     }
     if (delimiterIndices.length < 2) {
         throw new Error('YAML frontmatter delimiters ("---") not found in skill/SKILL.md');
@@ -307,12 +309,16 @@ export function replaceFrontmatterVersion(content: string, version: string): str
         throw new Error('No "version:" line found inside the YAML frontmatter block');
     }
 
+    // Preserve this line's own CRLF-vs-LF ending so a CRLF checkout doesn't
+    // end up with one LF-only line mixed into an otherwise-CRLF file.
     const line = lines[versionLineIdx] as string;
-    const colonIdx = line.indexOf(':');
-    const prefix = line.slice(0, colonIdx + 1);
-    const rest = line.slice(colonIdx + 1);
+    const eol = line.endsWith('\r') ? '\r' : '';
+    const body = eol.length > 0 ? line.slice(0, -1) : line;
+    const colonIdx = body.indexOf(':');
+    const prefix = body.slice(0, colonIdx + 1);
+    const rest = body.slice(colonIdx + 1);
     const leadingWhitespace = /^\s*/.exec(rest)?.[0] ?? '';
-    lines[versionLineIdx] = `${prefix}${leadingWhitespace}${version}`;
+    lines[versionLineIdx] = `${prefix}${leadingWhitespace}${version}${eol}`;
 
     return lines.join('\n');
 }

@@ -489,10 +489,12 @@ describe('runInstallSkill — real bundled skill/SKILL.md', () => {
 
         // Lightweight manual frontmatter parse: split on the `---` delimiter
         // lines and read `key: value` pairs from the block between them —
-        // no YAML dependency needed for this shape.
+        // no YAML dependency needed for this shape. Delimiter comparison
+        // tolerates a trailing '\r' so this still passes on a CRLF checkout.
+        const isDelimiterLine = (line: string | undefined): boolean => line === '---' || line === '---\r';
         const lines = installed.split('\n');
-        expect(lines[0]).toBe('---');
-        const closingIndex = lines.indexOf('---', 1);
+        expect(isDelimiterLine(lines[0])).toBe(true);
+        const closingIndex = lines.findIndex((line, index) => index > 0 && isDelimiterLine(line));
         expect(closingIndex).toBeGreaterThan(0);
 
         const frontmatter: Record<string, string> = {};
