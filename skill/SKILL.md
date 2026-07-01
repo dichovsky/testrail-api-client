@@ -3701,6 +3701,46 @@ causes:
   silently no-op'ing. Previously a typo on a safety flag could
   silently bypass the gate it was supposed to enable.
 
+## Falling back to the programmatic SDK
+
+Only fall back to the programmatic SDK (`import { TestRailClient } from
+'@dichovsky/testrail-api-client'`) when the CLI itself rejected the
+call **before any network request was made**. That covers three cases:
+an unrecognized flag, a payload-validation rejection produced by the
+CLI's stricter parsing (e.g. the no-coercion rule above rejects
+`"5"` where a number is required), or an operation the CLI doesn't
+surface at all — see "When NOT to use this skill" below for that
+last case.
+
+Never fall back when the failure came back from TestRail itself: any
+4xx/5xx HTTP status, an auth failure, or a rate limit. The SDK calls
+the exact same TestRail endpoint the CLI does, so it will fail the
+same way for the same reason — retrying through the SDK only burns a
+cycle re-proving a failure you've already seen, not fixing it.
+
+```bash
+# CLI rejects this before touching the network: priority_id is a string,
+# and the CLI does not coerce "3" to 3.
+testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "priority_id": "3"}'
+# Error: Payload validation failed: priority_id: Expected number, received string
+```
+
+```typescript
+// Fix by calling the SDK directly with the correctly typed field.
+import { TestRailClient } from '@dichovsky/testrail-api-client';
+
+const client = new TestRailClient({
+    baseUrl: process.env.TESTRAIL_BASE_URL!,
+    email: process.env.TESTRAIL_EMAIL!,
+    apiKey: process.env.TESTRAIL_API_KEY!,
+});
+
+const created = await client.cases.addCase(12, {
+    title: 'Login page accepts SSO redirect',
+    priority_id: 3,
+});
+```
+
 ## When NOT to use this skill
 
 - **Writing TypeScript/JavaScript code that imports the package.**
