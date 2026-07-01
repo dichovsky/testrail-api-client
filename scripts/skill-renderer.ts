@@ -292,6 +292,9 @@ export function replaceFrontmatterVersion(content: string, version: string): str
         throw new Error('YAML frontmatter delimiters ("---") not found in skill/SKILL.md');
     }
     const [openIdx, closeIdx] = delimiterIndices as [number, number];
+    if (openIdx !== 0) {
+        throw new Error('YAML frontmatter must start at the first line of skill/SKILL.md');
+    }
 
     let versionLineIdx = -1;
     for (let i = openIdx + 1; i < closeIdx; i++) {

@@ -3722,7 +3722,7 @@ cycle re-proving a failure you've already seen, not fixing it.
 # CLI rejects this before touching the network: priority_id is a string,
 # and the CLI does not coerce "3" to 3.
 testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "priority_id": "3"}'
-# Error: Payload validation failed: priority_id: Expected number, received string
+# Error: Payload validation failed: …
 ```
 
 ```typescript

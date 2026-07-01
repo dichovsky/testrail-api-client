@@ -302,6 +302,13 @@ Some body content.
         }).toThrow(/delimiters/);
     });
 
+    it('throws when the frontmatter delimiters are present but not at the start of the file', () => {
+        const content = 'not frontmatter\n---\nname: testrail-cli\nversion: 2.1.0\n---\n\n# body\n';
+        expect(() => {
+            replaceFrontmatterVersion(content, '5.2.0');
+        }).toThrow(/first line/);
+    });
+
     it('throws when frontmatter is present but has no version line', () => {
         const content = '---\nname: testrail-cli\ndescription: no version here\n---\n\n# body\n';
         expect(() => {

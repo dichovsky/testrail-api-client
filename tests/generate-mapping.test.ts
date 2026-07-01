@@ -3,7 +3,7 @@
  *
  * The pure helpers (schema validation, path normalization, tag parsing,
  * cell renderers, document assembly) are exercised here. The full integration
- * (script invocation + AST crawl + gates B/C + filesystem write/check) is
+ * (script invocation + AST crawl + gates B/C/C2/D + filesystem write/check) is
  * exercised in CI by the `Run API mapping drift check` step
  * (`.github/workflows/ci.yml`), which runs `npm run mapping:check` and fails
  * the build if the committed `docs/API-MAPPING.md` is out of date.
@@ -496,6 +496,14 @@ describe('validateGates — gates B, C, C2, D', () => {
             const gateC = errors.filter((e) => e.includes('[gate C]') && !e.includes('[gate C2'));
             expect(gateC).toHaveLength(1);
             expect(gateC[0]).toContain('malformed apiEndpoint');
+
+            // Cascading effect: a malformed apiEndpoint contributes no key to
+            // actionEndpointKeys, so HAPPY_CALL_SITE (case:get) is now claimed
+            // by no ActionSpec either — gate D fires a second, related error
+            // from the same root cause.
+            const gateD = errors.filter((e) => e.includes('[gate D]'));
+            expect(gateD).toHaveLength(1);
+            expect(gateD[0]).toContain('getCase');
         });
     });
 
