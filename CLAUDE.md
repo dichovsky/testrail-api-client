@@ -37,7 +37,7 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `scripts/generate-codemap.ts`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                                  |
 | `docs/API-MAPPING.md`                                   | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)             |
 | `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (122 endpoints × 26 resources); Zod-validated by the mapping generator                          |
-| `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2; `--check` flag for CI drift detection                    |
+| `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2/D; `--check` flag for CI drift detection                  |
 | `scripts/mapping-renderer.ts`                           | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers    |
 
 ## API Symbol Index
