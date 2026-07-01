@@ -13,6 +13,43 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
+## [Unreleased]
+
+Skill-packaging and coverage-gate hardening: the bundled skill's frontmatter
+version now tracks `package.json` automatically, the installer is verified
+end-to-end against the real shipped file, and the API-mapping generator
+gained a fifth drift gate closing the SDK-to-CLI half of the layer-coverage
+invariant.
+
+### Added
+
+- **Skill version auto-sync (`replaceFrontmatterVersion`).**
+  `scripts/generate-skill.ts` now rewrites the `version:` field inside
+  `skill/SKILL.md`'s YAML frontmatter to match `package.json` on every
+  `npm run skill` regeneration, so the bundled skill can no longer drift out
+  of sync with the published package version.
+- **Install-verification test for the real bundled skill.**
+  `tests/install-skill.test.ts` now installs the actual repo `skill/SKILL.md`
+  (not just the synthetic fixture used elsewhere in that file) into a temp
+  target and asserts the installed frontmatter's `name` / `description` /
+  `version` / `license` / `homepage` are all populated and that `version`
+  exactly matches `package.json`.
+- **Gate D — SDK-to-CLI coverage gate.** `scripts/generate-mapping.ts` /
+  `scripts/mapping-renderer.ts` now enforce a fifth drift gate (the mirror
+  image of gate C): every `@testrail`-tagged SDK method must be claimed by at
+  least one `ActionSpec.apiEndpoint`, with no exemption escape hatch, closing
+  the gap where the SDK→CLI half of the layer-coverage invariant was
+  previously upheld only in manual review.
+
+### Documentation
+
+- **`skill/SKILL.md` documents the CLI-to-SDK fallback rule.** A new
+  "Falling back to the programmatic SDK" section clarifies that agents
+  should only drop to the programmatic SDK on CLI-side rejections that
+  never reach the network (unrecognized flag, stricter payload validation,
+  unsurfaced operations) — never on TestRail API errors, auth failures, or
+  rate limits, which fail identically through either surface.
+
 ## [5.2.0] — 2026-06-21 — #242 bulk-case wire-shape fixes
 
 All three TestRail bulk-case endpoints were broken (each always threw); confirmed

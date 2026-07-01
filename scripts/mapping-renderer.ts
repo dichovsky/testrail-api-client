@@ -141,7 +141,7 @@ export function parseSkillRecipes(skillSource: string): Map<string, SkillRecipe>
     return recipes;
 }
 
-// ── Cross-validation gates (B, C, C2 — pure, testable) ──────────────────────
+// ── Cross-validation gates (B, C, C2, D — pure, testable) ────────────────────
 
 export interface CallSite {
     moduleFile: string;
@@ -180,8 +180,16 @@ export interface ValidateGatesInput {
  *          `skillRecipeExempt: true` (catches the silent-recipe-drop regression
  *          seen in PR #114 / PR #118 where the one-way forward check let
  *          recipes vanish during rebase).
+ * Gate D:  the mirror image of gate C — every `@testrail`-tagged client
+ *          method must be claimed by at least one `ActionSpec.apiEndpoint`
+ *          (i.e., the SDK method is actually reachable from the CLI). Unlike
+ *          C2's reverse check, gate D has NO exemption escape hatch: the
+ *          SDK⇒CLI half of this repo's layer-coverage invariant is
+ *          documented as absolute and exception-free (every `@testrail`-
+ *          tagged SDK method must surface as ≥1 CLI command), so there is no
+ *          `*Exempt` flag to opt out with.
  *
- * All three gates produce error lists; the caller exits non-zero if any is
+ * All four gates produce error lists; the caller exits non-zero if any is
  * non-empty.
  */
 export function validateGates({
@@ -194,6 +202,12 @@ export function validateGates({
     const jsonKeys = new Set(endpoints.map((e) => `${e.method} ${normalizePathForMatch(e.path)}`));
     const tagKeys = new Set(callSites.map((c) => `${c.method} ${normalizePathForMatch(c.path)}`));
     const actionKeys = new Set(actions.map((a) => `${a.resource}:${a.action}`));
+    const actionEndpointKeys = new Set(
+        actions
+            .map((a) => parseTestrailTag(a.apiEndpoint))
+            .filter((p): p is { method: string; path: string } => p !== null)
+            .map((p) => `${p.method} ${normalizePathForMatch(p.path)}`),
+    );
 
     const errors: string[] = [];
 
@@ -250,6 +264,23 @@ export function validateGates({
         if (!recipes.has(key)) {
             errors.push(
                 `[gate C2 reverse] ACTIONS entry \`${key}\` has no \`<!-- recipe-for: ${key} -->\` binding in skill/SKILL.md. Add a numbered recipe with that tag, or set \`skillRecipeExempt: true\` on the ActionSpec (with a justification comment) if the action genuinely does not warrant a curated recipe.`,
+            );
+        }
+    }
+
+    // Gate D: the mirror image of gate C — every `@testrail`-tagged client
+    // method must be claimed by at least one `ActionSpec.apiEndpoint`. No
+    // exemption escape hatch: the SDK⇒CLI layer-coverage invariant is
+    // absolute and exception-free.
+    for (const cs of callSites) {
+        const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
+        if (!actionEndpointKeys.has(key)) {
+            const rel =
+                rootPrefix.length > 0 && cs.moduleFile.startsWith(rootPrefix)
+                    ? cs.moduleFile.slice(rootPrefix.length)
+                    : cs.moduleFile;
+            errors.push(
+                `[gate D] ${rel}:${cs.line} — \`${cs.methodName}\` has @testrail "${cs.method} ${cs.path}" but no ActionSpec entry surfaces it on the CLI`,
             );
         }
     }
@@ -377,7 +408,7 @@ export function renderDocument(
         '',
         '**Sources of truth.** The endpoint inventory is hand-curated in [`docs/testrail-endpoints.json`](testrail-endpoints.json). Client methods are bound via `@testrail` JSDoc tags on each method in `src/modules/*.ts`. CLI commands are read from the `apiEndpoint` field on each entry in `ACTIONS` in `src/cli/metadata.ts`.',
         '',
-        '**Drift gates.** The generator validates four things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI).',
+        '**Drift gates.** The generator validates five things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI).',
         '',
         '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary table\'s "Skill exposure" column counts only the curated-recipe rows; the command-table itself covers every CLI-bound row.',
         '',

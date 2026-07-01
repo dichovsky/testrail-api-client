@@ -36,8 +36,8 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                                              |
 | `scripts/generate-codemap.ts`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                                  |
 | `docs/API-MAPPING.md`                                   | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)             |
-| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (117 endpoints × 25 resources); Zod-validated by the mapping generator                          |
-| `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2; `--check` flag for CI drift detection                    |
+| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (122 endpoints × 26 resources); Zod-validated by the mapping generator                          |
+| `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2/D; `--check` flag for CI drift detection                  |
 | `scripts/mapping-renderer.ts`                           | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers    |
 
 ## API Symbol Index
@@ -46,20 +46,21 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 ## API Coverage Matrix
 
-See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe. `@testrail` JSDoc tags on each module method bind methods to endpoints; `apiEndpoint` on each `ActionSpec` binds CLI commands; `<!-- recipe-for: resource:action -->` HTML comments in `skill/SKILL.md` bind numbered recipes. `npm run mapping:check` (run by `pretest` and CI) enforces four drift gates:
+See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe. `@testrail` JSDoc tags on each module method bind methods to endpoints; `apiEndpoint` on each `ActionSpec` binds CLI commands; `<!-- recipe-for: resource:action -->` HTML comments in `skill/SKILL.md` bind numbered recipes. `npm run mapping:check` (run by `pretest` and CI) enforces five drift gates:
 
 - **A** — committed `docs/API-MAPPING.md` matches generator output.
 - **B** — every `@testrail` tag references an endpoint in `docs/testrail-endpoints.json`.
 - **C** — every `ActionSpec.apiEndpoint` matches a `@testrail` tag.
 - **C2** — (bidirectional) every `recipe-for:` tag in `skill/SKILL.md` references an existing `ACTIONS` entry, **and** every `ACTIONS` entry has ≥1 `recipe-for:` binding unless `skillRecipeExempt: true` is set. The reverse direction is what enforces the CLI→skill half of the layer-coverage invariant below.
+- **D** — every `@testrail`-tagged SDK method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch — the mirror image of gate C, enforcing the SDK→CLI half of the layer-coverage invariant below.
 
-**Layer-coverage invariant (SDK ⇒ CLI ⇒ skill).** Beyond the drift gates above, this repo holds an absolute coverage rule: **every `@testrail`-tagged SDK method must be surfaced as ≥1 CLI command, and every CLI command must be reachable through ≥1 skill recipe.** A new endpoint method is not "done" until its CLI command and skill recipe land in the same change — there are no sanctioned exceptions (the `skillRecipeExempt` flag exists only as gate C2's mechanism and must stay unused; it is `0` today). The CLI→skill half is machine-enforced by gate C2 (reverse); the SDK→CLI half has **no** automated gate and is upheld in review against the `docs/API-MAPPING.md` table, where any missing layer renders as a `—` row. Current coverage: 117 methods ⇒ 117 endpoints ⇒ 119 CLI commands ⇒ full recipe coverage.
+**Layer-coverage invariant (SDK ⇒ CLI ⇒ skill).** Beyond the drift gates above, this repo holds an absolute coverage rule: **every `@testrail`-tagged SDK method must be surfaced as ≥1 CLI command, and every CLI command must be reachable through ≥1 skill recipe.** A new endpoint method is not "done" until its CLI command and skill recipe land in the same change — there are no sanctioned exceptions (the `skillRecipeExempt` flag exists only as gate C2's mechanism and must stay unused; it is `0` today). Both halves are now machine-enforced: the SDK→CLI half by gate D, the CLI→skill half by gate C2 (reverse). Current coverage: 122 methods ⇒ 122 endpoints ⇒ 122 CLI commands ⇒ full recipe coverage.
 
 ## Architecture Invariants
 
 **Class hierarchy:** `TestRailClientCore` (client-core.ts) → `TestRailClient` (client.ts). Infrastructure lives in core; endpoint methods live in the domain modules. `client.ts` is module composition only (18 `public readonly` fields, no flat wrappers) — the namespaced surface (`client.projects.getProject(id)`) is the single access path (flat facade removed in v5.0.0, ARCH #7).
 
-**Layer-coverage invariant (SDK ⇒ CLI ⇒ skill):** every `@testrail`-tagged SDK method ⇒ ≥1 CLI command ⇒ ≥1 skill recipe — absolute and exception-free. See [API Coverage Matrix](#api-coverage-matrix) for the binding mechanisms and which half is gated.
+**Layer-coverage invariant (SDK ⇒ CLI ⇒ skill):** every `@testrail`-tagged SDK method ⇒ ≥1 CLI command ⇒ ≥1 skill recipe — absolute and exception-free. See [API Coverage Matrix](#api-coverage-matrix) for the binding mechanisms and which gates enforce each half.
 
 **URL construction:** `{baseUrl}/index.php?/api/v2/{endpoint}`. Query params appended with `&` (not `?`): `get_sections/1&suite_id=2`. Use `buildEndpoint(base, params)`.
 

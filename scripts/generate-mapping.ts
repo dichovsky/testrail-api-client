@@ -35,10 +35,11 @@
  *        `recipe-for:` tag unless `skillRecipeExempt: true` is set on the
  *        spec (reverse). The reverse check closes the silent-recipe-drop
  *        regression that affected PR #114 and PR #118.
- *
- * D (coverage regression) is intentionally NOT enforced — shrinkage is
- * sometimes legitimate (TestRail deprecates endpoints); PR review catches
- * accidental removals.
+ *   D  — JSDoc↔ActionSpec (the mirror of gate C): every `@testrail` tag on a
+ *        method in `src/modules/*.ts` must be claimed by at least one
+ *        `ActionSpec.apiEndpoint`, i.e. the SDK method is actually reachable
+ *        from the CLI. Unconditional — no exemption escape hatch, matching
+ *        this repo's absolute, exception-free SDK⇒CLI layer-coverage policy.
  *
  * Determinism: no timestamps; tables and per-resource sections sorted by
  * stable keys; running twice produces byte-identical output.
