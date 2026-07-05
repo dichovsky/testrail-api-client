@@ -19,10 +19,19 @@ import {
     mkdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { runInstallSkill, getBundledSkillPath } from '../src/cli/install-skill.js';
 
 const SKILL_CONTENT = '---\nname: testrail-cli\nversion: 2.1.0\n---\n# Skill\n';
+
+// Repo root, resolved the same way tests/generate-codemap.test.ts does it,
+// so the "real bundled skill" describe block below can locate the actual
+// `skill/SKILL.md` and `package.json` on disk (as opposed to the synthetic
+// SKILL_CONTENT fixture used by every other test in this file).
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const REPO_ROOT = resolve(__dirname, '..');
 
 describe('runInstallSkill', () => {
     let tmp: string;
@@ -432,6 +441,77 @@ describe('runInstallSkill', () => {
 
         // Crucially, the decoy file was NOT followed/clobbered!
         expect(readFileSync(decoy, 'utf-8')).toBe(decoyContent);
+    });
+});
+
+describe('runInstallSkill — real bundled skill/SKILL.md', () => {
+    // Unlike every test above (which installs a synthetic SKILL_CONTENT
+    // fixture), this exercises the actual repo file at skill/SKILL.md by
+    // passing its real on-disk path as sourceOverride — getBundledSkillPath()
+    // itself is not called here since it resolves relative to the compiled
+    // dist/cli/install-skill.js location, which doesn't match this test
+    // file's location under tests/.
+    let tmp: string;
+    let stdoutSpy: ReturnType<typeof vi.spyOn>;
+    let stderrSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        tmp = mkdtempSync(join(tmpdir(), 'tr-install-real-'));
+        stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+        stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    });
+
+    afterEach(() => {
+        stdoutSpy.mockRestore();
+        stderrSpy.mockRestore();
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('installs the real skill/SKILL.md with valid frontmatter whose version matches package.json', () => {
+        const realSkillPath = join(REPO_ROOT, 'skill', 'SKILL.md');
+        const project = join(tmp, 'proj');
+
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                quiet: true,
+                sourceOverride: realSkillPath,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(0);
+
+        const target = join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
+        const installed = readFileSync(target, 'utf-8');
+
+        // Lightweight manual frontmatter parse: split on the `---` delimiter
+        // lines and read `key: value` pairs from the block between them —
+        // no YAML dependency needed for this shape. Delimiter comparison
+        // tolerates a trailing '\r' so this still passes on a CRLF checkout.
+        const isDelimiterLine = (line: string | undefined): boolean => line === '---' || line === '---\r';
+        const lines = installed.split('\n');
+        expect(isDelimiterLine(lines[0])).toBe(true);
+        const closingIndex = lines.findIndex((line, index) => index > 0 && isDelimiterLine(line));
+        expect(closingIndex).toBeGreaterThan(0);
+
+        const frontmatter: Record<string, string> = {};
+        for (const line of lines.slice(1, closingIndex)) {
+            const separatorIndex = line.indexOf(':');
+            if (separatorIndex === -1) continue;
+            const key = line.slice(0, separatorIndex).trim();
+            const value = line.slice(separatorIndex + 1).trim();
+            frontmatter[key] = value;
+        }
+
+        for (const requiredKey of ['name', 'description', 'version', 'license', 'homepage']) {
+            expect(frontmatter[requiredKey]).toBeTruthy();
+        }
+
+        const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string };
+        expect(frontmatter['version']).toBe(pkg.version);
     });
 });
 

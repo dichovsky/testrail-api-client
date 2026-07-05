@@ -260,7 +260,7 @@ Consumers:
 1. `dispatch.ts` derives both `HANDLERS` and `RESOURCES` from `ACTIONS`.
 2. `src/cli/help.ts` generates the `--help` text from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD); only the trailing static blocks (binary stdio, meta, auth, options) are hand-written.
 3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema section in `skill/SKILL.md`.
-4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C).
+4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C), and reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D).
 5. `getActionSpec(resource, action)` is called by `index.ts` to decide whether to suppress the stdin body thunk for file-input actions.
 
 ### 6.4 Handler conventions — `src/cli/handlers/`
@@ -364,7 +364,7 @@ Subprocess-based CLI tests are deliberate — they verify the real entrypoint, a
 | --------------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
 | `CODEMAP.md`          | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown) | `npm run codemap:check` (pretest + CI)     |
 | `skill/SKILL.md`      | `scripts/generate-skill.ts` (consumes `ACTIONS` from `src/cli/metadata.ts`)     | `npm run skill:check` (git diff exit code) |
-| `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2)    | `npm run mapping:check` (pretest + CI)     |
+| `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)  | `npm run mapping:check` (pretest + CI)     |
 | `AGENTS.md`           | `npm run agents-md` (consumes `ACTIONS`)                                        | `npm run agents-md:check` (pretest + CI)   |
 
 All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.

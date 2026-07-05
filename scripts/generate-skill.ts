@@ -30,6 +30,7 @@ import {
     renderPayloadSchemas,
     renderPayloadSchemaReference,
     replaceSection,
+    replaceFrontmatterVersion,
 } from './skill-renderer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +48,7 @@ if (!existsSync(distMetadata)) {
 }
 
 const { ACTIONS } = (await import(pathToFileURL(distMetadata).href)) as { ACTIONS: readonly unknown[] };
+const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string };
 
 let content = readFileSync(skillPath, 'utf-8');
 content = replaceSection(
@@ -59,6 +61,7 @@ content = replaceSection(
     'payload-schemas',
     renderPayloadSchemas(ACTIONS as Parameters<typeof renderPayloadSchemas>[0]),
 );
+content = replaceFrontmatterVersion(content, pkg.version);
 writeFileSync(skillPath, content, 'utf-8');
 mkdirSync(referenceDir, { recursive: true });
 writeFileSync(
