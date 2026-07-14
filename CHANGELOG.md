@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`. Other
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`. Other
 > version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -15,11 +15,58 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Skill-packaging and coverage-gate hardening: the bundled skill's frontmatter
-version now tracks `package.json` automatically, the installer is verified
-end-to-end against the real shipped file, and the API-mapping generator
-gained a fifth drift gate closing the SDK-to-CLI half of the layer-coverage
-invariant.
+## [5.2.1] — 2026-07-14 — live-API schema fixes + skill-packaging hardening
+
+Two threads. **Live-API schema corrections (#248)** repair six client methods
+that threw on real TestRail Cloud responses in `5.2.0` — the fixes were merged to
+`main` on 2026-06-22 but landed _after_ the `5.2.0` tag, so they had never reached
+the registry until this release. **Skill-packaging and coverage-gate hardening
+(#249)** makes the bundled skill's frontmatter version track `package.json`
+automatically, verifies the installer end-to-end against the real shipped file,
+and adds a fifth API-mapping drift gate closing the SDK-to-CLI half of the
+layer-coverage invariant. No breaking changes — every schema fix _widens_ what
+parses, and `.passthrough()` is preserved throughout so an extra field from
+another instance or version degrades to an untyped extra rather than a reject.
+
+### Fixed
+
+Audited the client against a live TestRail Cloud instance (dual capture: raw
+fetch + shipped-schema parse) to find where real responses diverge from the Zod
+schemas; each fix is proven by a sanitized-fixture regression test
+(`tests/live-audit-regression.test.ts`, red before and green after). Full report
+in `docs/schema-audit-2026-06-22.md`. **These six paths threw on real data in
+`5.2.0`:**
+
+- **`get_users` / `get_user` / `get_current_user` — `mfa_required`.** The wire
+  value is an integer `0`/`1`, not a boolean, so a bare `z.boolean()` rejected
+  the real response and `getUsers` / `getUser` / `getCurrentUser` all threw. Now
+  accepts `boolean | number`.
+- **`get_attachments_for_case` — `data_id`.** The wire value is a number
+  (e.g. `1000006328`), not the string the doc-derived schema assumed. Now a
+  `number | string` union; `cassandra_file_id` and the config-level `id` are
+  modeled too.
+- **All five `getAttachmentsFor*` list methods — bare-array response.** TestRail
+  returns a bare JSON array, not the `{ attachments: [...] }` wrapper the schema
+  required, so `z.object()` rejected every populated response. All five methods
+  now accept both the bare array and the wrapped shape.
+- **`get_case_fields` / `get_result_fields` — `default_value`.** The key is
+  omitted entirely on some field configs (step-results and BDD-scenario fields),
+  so a required `z.string()` threw. Now `.nullish()` — accepts present-string,
+  `null`, and key-omitted. Both endpoints share `FieldConfigOptionsSchema`, so
+  the one change covers both.
+- **`get_shared_step_history` — `id` / `user_id` + wrapper.** History-entry `id`
+  and `user_id` are numbers on Cloud (strings on doc-compliant self-hosted
+  servers); both are now `number | string` unions. The endpoint also returns a
+  bare array, not the `{ step_history: [...] }` wrapper — now accepts both.
+- **`update_group` — `group_id`.** TestRail requires `group_id` in the request
+  body, not just the path, so `updateGroup` returned `400`. The method now
+  injects it into the body.
+
+Additive typing (previously carried untyped via `.passthrough()`):
+`i18n_custom_id` on Status / CaseField / ResultField / CaseType / Template;
+`RoleSchema.is_project_admin`; `PlanEntrySchema.dynamic_filters`; and
+`has_expected` / `has_actual` / `has_additional` / `has_reference` on step-style
+field-config options.
 
 ### Added
 

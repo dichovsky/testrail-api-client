@@ -1,7 +1,7 @@
 ---
 name: testrail-cli
 description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, plans, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities, or when TESTRAIL_BASE_URL / TESTRAIL_EMAIL / TESTRAIL_API_KEY are set in the environment.
-version: 5.2.0
+version: 5.2.1
 license: MIT
 homepage: https://github.com/dichovsky/testrail-api-client
 ---
