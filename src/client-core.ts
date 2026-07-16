@@ -878,6 +878,16 @@ export class TestRailClientCore {
     public async request<T>(spec: RequestSpec<T>): Promise<T> {
         const { method, endpoint, body, schema, responseKind = 'json', retry = 'full' } = spec;
 
+        // Validate per-request overrides before they reach the abort timer /
+        // body-read deadline. These `@internal` fields are set only by
+        // `withTimeout()` (already validated), but validating at this single
+        // chokepoint fail-fasts any future/direct caller so a NaN, ±Infinity,
+        // negative, or over-cap value can't reintroduce the "after NaNms"
+        // immediate-abort class of bug (#237). `bodyTimeout: 0` is the sanctioned
+        // "no deadline" value and is left as-is.
+        if (spec.timeout !== undefined) validateTimeout(spec.timeout);
+        if (spec.bodyTimeout !== undefined && spec.bodyTimeout !== 0) validateTimeout(spec.bodyTimeout);
+
         // Resolve the effective timeouts once. A `withTimeout(ms)` view sets
         // `spec.timeout`/`spec.bodyTimeout`; a normal call leaves them undefined
         // and falls back to the client-wide values. Threaded into every pipeline

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "5.2.1"
   },
-  "sourceHash": "becec13f9d01c534e154faac456e2c7314f6ed9172b79e40a32696aeb679e2a1",
+  "sourceHash": "374ceaa65020ccdbf984540b13e44dfc4ea1fef18b0cdc256b11007056b80e1b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4973,47 +4973,47 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 969
+              "line": 979
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 1007
+              "line": 1017
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 1027
+              "line": 1037
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 1054
+              "line": 1064
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 1088
+              "line": 1098
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 1106
+              "line": 1116
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 1210
+              "line": 1220
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1381
+              "line": 1391
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1390
+              "line": 1400
             }
           ]
         }

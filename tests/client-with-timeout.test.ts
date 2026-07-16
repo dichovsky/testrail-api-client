@@ -204,6 +204,27 @@ describe('TestRailClient.withTimeout', () => {
         it('rejects a non-number timeout', () => {
             expect(() => client.withTimeout('50' as unknown as number)).toThrow(TestRailValidationError);
         });
+
+        // The @internal RequestSpec.timeout/bodyTimeout fields are validated at
+        // the request() chokepoint so a direct caller can't smuggle a bad value
+        // past withTimeout()'s own validation.
+        it('rejects an invalid spec.timeout passed directly to request()', async () => {
+            await expect(
+                client.request({ method: 'GET', endpoint: 'get_case/1', timeout: Number.NaN }),
+            ).rejects.toThrow(TestRailValidationError);
+        });
+
+        it('rejects a negative spec.bodyTimeout passed directly to request()', async () => {
+            await expect(client.request({ method: 'GET', endpoint: 'get_case/1', bodyTimeout: -5 })).rejects.toThrow(
+                TestRailValidationError,
+            );
+        });
+
+        it('allows spec.bodyTimeout: 0 (sanctioned "no deadline")', async () => {
+            await expect(
+                client.request({ method: 'GET', endpoint: 'get_case/1', bodyTimeout: 0 }),
+            ).resolves.toBeDefined();
+        });
     });
 
     describe('rejection propagation', () => {
