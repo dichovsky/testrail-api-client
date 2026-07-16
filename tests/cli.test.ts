@@ -370,7 +370,10 @@ describe('CLI', () => {
         });
 
         it('accepts a valid --timeout (ms) and completes the request', async () => {
-            const { exitCodes } = await runCli(['project', 'get', '1', '--timeout', '5000'], [jsonResponse(MOCK_PROJECT)]);
+            const { exitCodes } = await runCli(
+                ['project', 'get', '1', '--timeout', '5000'],
+                [jsonResponse(MOCK_PROJECT)],
+            );
             expect(exitCodes).toContain(0);
             expect(mockFetch).toHaveBeenCalledTimes(1);
         });
@@ -402,10 +405,14 @@ describe('CLI', () => {
 
         it('lets --timeout flag win over TESTRAIL_TIMEOUT env', async () => {
             // env is invalid; flag is valid — success proves the flag took priority.
-            const { exitCodes } = await runCli(['project', 'get', '1', '--timeout', '5000'], [jsonResponse(MOCK_PROJECT)], {
-                ...AUTH_ENV,
-                TESTRAIL_TIMEOUT: 'abc',
-            });
+            const { exitCodes } = await runCli(
+                ['project', 'get', '1', '--timeout', '5000'],
+                [jsonResponse(MOCK_PROJECT)],
+                {
+                    ...AUTH_ENV,
+                    TESTRAIL_TIMEOUT: 'abc',
+                },
+            );
             expect(exitCodes).toContain(0);
         });
 

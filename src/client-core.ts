@@ -245,6 +245,17 @@ interface ResolvedTimeouts {
 }
 
 /**
+ * Installs `fn` as an own, non-enumerable override of `obj[key]`. Typing `fn`
+ * as `T[K]` (instead of the `value: any` a bare `Object.defineProperty` would
+ * accept) keeps the override checked against the base method's signature, so a
+ * future change to `request`/`clearCache`/`destroy` can't silently drift from
+ * the view's delegating overrides. Used by `spawnTimeoutView`.
+ */
+function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void {
+    Object.defineProperty(obj, key, { value: fn, writable: true, configurable: true, enumerable: false });
+}
+
+/**
  * HTTP pipeline, caching, rate limiting, retry logic, and lifecycle management.
  * Extended by {@link TestRailClient} which adds all API endpoint methods.
  */
@@ -716,11 +727,19 @@ export class TestRailClientCore {
     /**
      * Builds a lightweight view of this client that applies `ms` as the request
      * timeout to every call, without constructing a second client. The view is
-     * prototype-linked to the state-owning client (`root`) and overrides only
-     * `request()` to inject the per-request timeout; all cache reads/writes,
-     * rate-limit accounting, credential, and cleanup timer stay on `root`
-     * (shared by reference), and the view is deliberately NOT registered in
+     * prototype-linked to the state-owning client (`root`): all reads (cache,
+     * rate-limiter window, credential, cleanup timer) resolve to `root` through
+     * the prototype chain, and the view is deliberately NOT registered in
      * `activeClients` — it has no independent lifecycle.
+     *
+     * Every public method that *reassigns* primitive instance state must be
+     * delegated to `root`, because a bare `this.field = …` on the view would
+     * create a shadow own-property instead of mutating `root` (object fields
+     * like the cache Map are safe — they mutate in place). Those methods are
+     * `request` (injects the timeout), `clearCache`, and `destroy`; each is
+     * routed to `root` so, e.g., `view.destroy()` zeroes the shared credential
+     * and disables both the view and `root`, and `view.clearCache()` advances
+     * `root`'s cache generation. Reads need no override.
      *
      * The body-read deadline tracks the new timeout when `root.bodyTimeout` was
      * left implicit (mirrors the constructor's `bodyTimeout ?? timeout`); an
@@ -737,13 +756,14 @@ export class TestRailClientCore {
         const root = this.root;
         const bodyTimeout = root.bodyTimeoutExplicit ? root.bodyTimeout : ms;
         const view = Object.create(this) as this;
-        Object.defineProperty(view, 'request', {
-            value: <T>(spec: RequestSpec<T>): Promise<T> =>
-                root.request<T>({ ...spec, timeout: ms, bodyTimeout }),
-            writable: true,
-            configurable: true,
-            enumerable: false,
-        });
+        defineOverride(view, 'request', <T>(spec: RequestSpec<T>): Promise<T> =>
+            root.request<T>({ ...spec, timeout: ms, bodyTimeout }),
+        );
+        // Delegate the state-mutating lifecycle methods to `root` so calling
+        // them on a view acts on the shared client instead of shadow-writing
+        // the view's own (discarded) primitive fields.
+        defineOverride(view, 'clearCache', (): void => root.clearCache());
+        defineOverride(view, 'destroy', (): void => root.destroy());
         return view;
     }
 

@@ -52,9 +52,7 @@ describe('TestRailClient.withTimeout', () => {
             const spy = vi.spyOn(client as unknown as RequestSpy, 'request');
             await client.withTimeout(120000).projects.getProject(1);
 
-            expect(spy).toHaveBeenCalledWith(
-                expect.objectContaining({ timeout: 120000, bodyTimeout: 120000 }),
-            );
+            expect(spy).toHaveBeenCalledWith(expect.objectContaining({ timeout: 120000, bodyTimeout: 120000 }));
         });
 
         it('preserves an explicitly configured bodyTimeout while overriding the header timeout', async () => {
@@ -62,9 +60,7 @@ describe('TestRailClient.withTimeout', () => {
             const spy = vi.spyOn(explicit as unknown as RequestSpy, 'request');
             await explicit.withTimeout(120000).projects.getProject(1);
 
-            expect(spy).toHaveBeenCalledWith(
-                expect.objectContaining({ timeout: 120000, bodyTimeout: 5000 }),
-            );
+            expect(spy).toHaveBeenCalledWith(expect.objectContaining({ timeout: 120000, bodyTimeout: 5000 }));
             explicit.destroy();
         });
 
@@ -119,7 +115,9 @@ describe('TestRailClient.withTimeout', () => {
             await client.projects.getProject(1); // populate cache (fetch #1)
             expect(mockFetch).toHaveBeenCalledTimes(1);
 
-            mockFetch.mockImplementation(() => Promise.resolve(mockOk({ id: 1, name: 'Renamed', suite_mode: 1, url: 'u' })));
+            mockFetch.mockImplementation(() =>
+                Promise.resolve(mockOk({ id: 1, name: 'Renamed', suite_mode: 1, url: 'u' })),
+            );
             await client.withTimeout(1000).projects.updateProject(1, { name: 'Renamed' }); // write (fetch #2) → clearCache
 
             await client.projects.getProject(1); // cache was invalidated → refetch (fetch #3)
@@ -145,6 +143,36 @@ describe('TestRailClient.withTimeout', () => {
             const view = client.withTimeout(1000);
             client.destroy();
             await expect(view.projects.getProject(1)).rejects.toThrow('after destroy');
+        });
+
+        it('view.destroy() zeroes the root credential and disables root + view (delegates, not shadow-writes)', async () => {
+            const c = new TestRailClient(CONFIG);
+            const view = c.withTimeout(1000);
+            const auth = (o: TestRailClient): string => (o as unknown as { auth: string }).auth;
+            expect(auth(c)).not.toBe('');
+
+            view.destroy();
+
+            // The credential is zeroed on the shared root, not shadow-written on the view.
+            expect(auth(c)).toBe('');
+            const destroyed = (o: TestRailClient): boolean => (o as unknown as { isDestroyed: boolean }).isDestroyed;
+            expect(destroyed(c)).toBe(true);
+            await expect(c.projects.getProject(1)).rejects.toThrow('after destroy');
+            await expect(view.projects.getProject(1)).rejects.toThrow('after destroy');
+        });
+
+        it('view.clearCache() advances the root cache generation and clears the shared cache', async () => {
+            const gen = (o: TestRailClient): number => (o as unknown as { cacheGeneration: number }).cacheGeneration;
+            await client.projects.getProject(1); // populate cache (fetch #1)
+            const before = gen(client);
+
+            client.withTimeout(1000).clearCache();
+
+            // The generation advanced on the ROOT (not shadow-written on the view),
+            // so an in-flight GET's stale completion cannot repopulate the cache.
+            expect(gen(client)).toBe(before + 1);
+            await client.projects.getProject(1); // cache was cleared → refetch (fetch #2)
+            expect(mockFetch).toHaveBeenCalledTimes(2);
         });
 
         it('returns a TestRailClient exposing the same module keys as the root', () => {

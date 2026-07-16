@@ -91,8 +91,11 @@ export class TestRailClient extends TestRailClientCore {
      *
      * The body-read deadline (SEC #21) tracks the new timeout when `bodyTimeout`
      * was left at its default; an explicitly configured `bodyTimeout` is kept.
-     * Views chain — the outermost `withTimeout` wins. Because state is shared,
-     * call {@link TestRailClient.destroy} on the root client, not on a view.
+     * Views chain — the outermost `withTimeout` wins. Because a view shares the
+     * root's state, {@link TestRailClient.destroy} and
+     * {@link TestRailClient.clearCache} called on a view act on the shared
+     * client: `destroy()` on any handle zeroes the one credential and disables
+     * the root and all its views.
      *
      * @param timeoutMs Request timeout in milliseconds; a positive number ≤ 5 minutes.
      * @throws {TestRailValidationError} When `timeoutMs` is out of range.
