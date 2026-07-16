@@ -356,13 +356,16 @@ async function main(): Promise<number> {
         // TestRailValidationError.
         const timeoutFlag = values['timeout'] as string | undefined;
         const timeoutEnv = process.env['TESTRAIL_TIMEOUT'];
-        const timeoutRaw =
-            timeoutFlag !== undefined && timeoutFlag !== ''
-                ? timeoutFlag
-                : timeoutEnv !== undefined && timeoutEnv !== ''
-                  ? timeoutEnv
-                  : undefined;
-        const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, '--timeout') } : {};
+        const usingTimeoutFlag = timeoutFlag !== undefined && timeoutFlag !== '';
+        const timeoutRaw = usingTimeoutFlag
+            ? timeoutFlag
+            : timeoutEnv !== undefined && timeoutEnv !== ''
+              ? timeoutEnv
+              : undefined;
+        // Name the actual source in any parse error so a bad TESTRAIL_TIMEOUT
+        // isn't reported as a bad `--timeout`.
+        const timeoutSource = usingTimeoutFlag ? '--timeout' : 'TESTRAIL_TIMEOUT';
+        const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, timeoutSource) } : {};
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.

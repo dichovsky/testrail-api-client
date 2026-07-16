@@ -395,6 +395,16 @@ describe('CLI', () => {
             expect(stderr).toContain('5 minutes');
         });
 
+        it('names TESTRAIL_TIMEOUT (not --timeout) when the env value is invalid', async () => {
+            const { stderr, exitCodes } = await runCli(['project', 'get', '1'], [], {
+                ...AUTH_ENV,
+                TESTRAIL_TIMEOUT: 'abc',
+            });
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('TESTRAIL_TIMEOUT');
+            expect(stderr).not.toContain('--timeout');
+        });
+
         it('honors TESTRAIL_TIMEOUT env var', async () => {
             const { exitCodes } = await runCli(['project', 'get', '1'], [jsonResponse(MOCK_PROJECT)], {
                 ...AUTH_ENV,
