@@ -52,6 +52,18 @@ export interface PipelineSpec<TParsed> {
     readonly endpoint: string;
     readonly body: BodyShape;
     /**
+     * Header/connect/response-wait timeout in ms for this execution. Resolved
+     * once in `request<T>()` from `spec.timeout ?? this.timeout`, then applied
+     * to the `AbortController` (and its 408 message) for every attempt/retry.
+     */
+    readonly timeout: number;
+    /**
+     * Body-read wall-clock deadline in ms for this execution (SEC #21).
+     * Resolved from `spec.bodyTimeout ?? this.bodyTimeout` and applied to every
+     * response-body read (success and error paths).
+     */
+    readonly bodyTimeout: number;
+    /**
      * When `true`, the pipeline adds `Content-Type: application/json` to
      * outbound headers. Set `false` for binary GETs and multipart POSTs where
      * the fetch API or response type determines the header.
@@ -122,4 +134,18 @@ export interface RequestSpec<T> {
     readonly responseKind?: 'json' | 'text' | 'binary';
     /** Default `'full'`. Use `'binaryGet'` for binary downloads, `'none'` for uploads. */
     readonly retry?: RetryPolicyName;
+    /**
+     * @internal Per-request override for the connect/send/response-headers
+     * timeout, in milliseconds. Set by {@link TestRailClient.withTimeout}
+     * (callers use `client.withTimeout(ms)` rather than populating this
+     * directly). Falls back to the client-wide `timeout` when omitted.
+     */
+    readonly timeout?: number;
+    /**
+     * @internal Per-request override for the body-read deadline, in
+     * milliseconds (SEC #21). Set by {@link TestRailClient.withTimeout} so the
+     * body deadline tracks the overridden `timeout` (unless the client set
+     * `bodyTimeout` explicitly). Falls back to the client-wide `bodyTimeout`.
+     */
+    readonly bodyTimeout?: number;
 }

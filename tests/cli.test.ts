@@ -362,6 +362,59 @@ describe('CLI', () => {
         });
     });
 
+    describe('--timeout', () => {
+        // TESTRAIL_TIMEOUT is not part of AUTH_KEYS, so the shared afterEach
+        // won't clear it — do it here to prevent leakage between tests.
+        afterEach(() => {
+            delete process.env['TESTRAIL_TIMEOUT'];
+        });
+
+        it('accepts a valid --timeout (ms) and completes the request', async () => {
+            const { exitCodes } = await runCli(['project', 'get', '1', '--timeout', '5000'], [jsonResponse(MOCK_PROJECT)]);
+            expect(exitCodes).toContain(0);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('rejects a non-integer --timeout with exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['project', 'get', '1', '--timeout', 'abc']);
+            expect(exitCodes).toContain(1);
+            expect(stderr.toLowerCase()).toContain('timeout');
+        });
+
+        it('rejects --timeout 0 with exit 1', async () => {
+            const { exitCodes } = await runCli(['project', 'get', '1', '--timeout', '0']);
+            expect(exitCodes).toContain(1);
+        });
+
+        it('rejects an out-of-range --timeout (> 5 minutes) with exit 1', async () => {
+            const { stderr, exitCodes } = await runCli(['project', 'get', '1', '--timeout', '999999999']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('5 minutes');
+        });
+
+        it('honors TESTRAIL_TIMEOUT env var', async () => {
+            const { exitCodes } = await runCli(['project', 'get', '1'], [jsonResponse(MOCK_PROJECT)], {
+                ...AUTH_ENV,
+                TESTRAIL_TIMEOUT: '5000',
+            });
+            expect(exitCodes).toContain(0);
+        });
+
+        it('lets --timeout flag win over TESTRAIL_TIMEOUT env', async () => {
+            // env is invalid; flag is valid — success proves the flag took priority.
+            const { exitCodes } = await runCli(['project', 'get', '1', '--timeout', '5000'], [jsonResponse(MOCK_PROJECT)], {
+                ...AUTH_ENV,
+                TESTRAIL_TIMEOUT: 'abc',
+            });
+            expect(exitCodes).toContain(0);
+        });
+
+        it('surfaces --timeout in --help', async () => {
+            const { stdout } = await runCli(['--help']);
+            expect(stdout).toContain('--timeout');
+        });
+    });
+
     describe('only one positional', () => {
         it('should print usage to stderr and exit 1 when action is missing', async () => {
             const { stderr, exitCodes } = await runCli(['project']);

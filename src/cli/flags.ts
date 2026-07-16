@@ -26,6 +26,11 @@ export const CLI_OPTIONS = {
     // pipe the key on stdin with --api-key-stdin.
     'api-key-stdin': { type: 'boolean' as const, default: false },
     format: { type: 'string' as const, default: 'json' },
+    // Request timeout in milliseconds, mapped straight to `config.timeout`
+    // (SDK unit). Overrides the TESTRAIL_TIMEOUT env var, which overrides the
+    // 30s default. A present-but-invalid value is rejected (parseId → exit 1);
+    // out-of-range is rejected by the client constructor's validateTimeout.
+    timeout: { type: 'string' as const },
     quiet: { type: 'boolean' as const, default: false },
     help: { type: 'boolean' as const, default: false },
     version: { type: 'boolean' as const, default: false },

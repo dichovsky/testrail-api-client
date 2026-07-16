@@ -58,6 +58,29 @@ describe('Index exports', () => {
         expect(typeof client.results.addResultForCase).toBe('function');
     });
 
+    it('withTimeout() rebinds every domain module (parity with the constructor list)', () => {
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.net',
+            email: 'test@example.com',
+            apiKey: 'test-key',
+        });
+        const isModule = (v: unknown): boolean =>
+            typeof v === 'object' && v?.constructor?.name.endsWith('Module') === true;
+        const moduleKeys = (c: TestRailClient): string[] =>
+            Object.keys(c).filter((k) => isModule((c as unknown as Record<string, unknown>)[k]));
+
+        const view = client.withTimeout(1000);
+        // Same set of module fields — guards against adding a module to the
+        // constructor but forgetting to rebind it in withTimeout().
+        expect(moduleKeys(view).sort()).toEqual(moduleKeys(client).sort());
+        // Each is a fresh instance bound to the view, not the root's instance.
+        for (const key of moduleKeys(client)) {
+            const rec = (obj: TestRailClient): Record<string, unknown> => obj as unknown as Record<string, unknown>;
+            expect(rec(view)[key]).toBeDefined();
+            expect(rec(view)[key]).not.toBe(rec(client)[key]);
+        }
+    });
+
     it('should export and create TestRailApiError instances', () => {
         expect(TestRailApiError).toBeDefined();
         expect(typeof TestRailApiError).toBe('function');

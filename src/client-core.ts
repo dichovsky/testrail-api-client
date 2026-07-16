@@ -51,6 +51,7 @@ import {
     MAX_RESPONSE_BYTES_LIMIT,
 } from './constants.js';
 import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
+import { validateTimeout } from './validation.js';
 
 // Reject loopback, link-local, and private-range hosts to prevent SSRF.
 // All requests carry a full Authorization header, making the client a credentialed
@@ -234,6 +235,16 @@ function registerProcessHandlers(): void {
 }
 
 /**
+ * Effective per-request timeouts resolved once in `request<T>()` and threaded
+ * through the `execute*` helpers into the pipeline. `timeout` bounds the
+ * connect/send/response-headers phase; `bodyTimeout` bounds the body read.
+ */
+interface ResolvedTimeouts {
+    readonly timeout: number;
+    readonly bodyTimeout: number;
+}
+
+/**
  * HTTP pipeline, caching, rate limiting, retry logic, and lifecycle management.
  * Extended by {@link TestRailClient} which adds all API endpoint methods.
  */
@@ -263,6 +274,19 @@ export class TestRailClientCore {
      * byte cap protects). Resolved from `config.bodyTimeout ?? config.timeout`.
      */
     private readonly bodyTimeout: number;
+    /**
+     * True when `config.bodyTimeout` was set explicitly. A `withTimeout(ms)`
+     * view uses this to decide whether the body deadline should track the new
+     * `timeout` (deadline was implicit) or stay pinned (deadline was explicit).
+     */
+    private readonly bodyTimeoutExplicit: boolean;
+    /**
+     * The state-owning client. On a normally constructed client this is `this`;
+     * on a {@link TestRailClient.withTimeout} view it resolves (via the
+     * prototype chain) to the real client so every request runs against the
+     * shared cache, rate limiter, and credential rather than the view.
+     */
+    protected readonly root: TestRailClientCore;
     private readonly fetchOverride: typeof globalThis.fetch | undefined;
     private readonly dnsLookup: DnsLookupFn | undefined;
 
@@ -298,6 +322,8 @@ export class TestRailClientCore {
         // protects). `undefined` falls back to the request `timeout` so the
         // body read is always bounded unless callers explicitly opt out.
         this.bodyTimeout = config.bodyTimeout ?? this.timeout;
+        this.bodyTimeoutExplicit = config.bodyTimeout !== undefined;
+        this.root = this;
         this.fetchOverride = config.fetch;
         this.dnsLookup = config.dnsLookup;
 
@@ -396,19 +422,14 @@ export class TestRailClientCore {
             throw new TestRailValidationError('email must be a valid email address');
         }
 
-        // Validate timeout if provided. `Number.isFinite` rejects NaN/±Infinity,
-        // which range-only comparisons silently pass (typeof NaN === 'number' and
-        // every comparison with NaN is false) — a NaN timeout aborts every request
-        // after ~1 ms and throws a misleading "after NaNms" 408 (#237).
+        // Validate timeout if provided. Delegated to the shared `validateTimeout`
+        // (validation.ts) so `config.timeout` and `client.withTimeout(ms)` reject
+        // identically. `Number.isFinite` there rejects NaN/±Infinity, which
+        // range-only comparisons silently pass (typeof NaN === 'number' and every
+        // comparison with NaN is false) — a NaN timeout aborts every request after
+        // ~1 ms and throws a misleading "after NaNms" 408 (#237).
         if (config.timeout !== undefined) {
-            if (
-                typeof config.timeout !== 'number' ||
-                !Number.isFinite(config.timeout) ||
-                config.timeout <= 0 ||
-                config.timeout > MAX_TIMEOUT_MS
-            ) {
-                throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
-            }
+            validateTimeout(config.timeout);
         }
 
         // Validate maxRetries if provided. `Number.isInteger` rejects NaN and
@@ -693,6 +714,40 @@ export class TestRailClientCore {
     }
 
     /**
+     * Builds a lightweight view of this client that applies `ms` as the request
+     * timeout to every call, without constructing a second client. The view is
+     * prototype-linked to the state-owning client (`root`) and overrides only
+     * `request()` to inject the per-request timeout; all cache reads/writes,
+     * rate-limit accounting, credential, and cleanup timer stay on `root`
+     * (shared by reference), and the view is deliberately NOT registered in
+     * `activeClients` — it has no independent lifecycle.
+     *
+     * The body-read deadline tracks the new timeout when `root.bodyTimeout` was
+     * left implicit (mirrors the constructor's `bodyTimeout ?? timeout`); an
+     * explicitly configured `bodyTimeout` is preserved.
+     *
+     * {@link TestRailClient.withTimeout} calls this and rebinds the domain
+     * modules to the returned view so `view.cases.getCase(id)` routes through
+     * the injected `request()`.
+     *
+     * @throws {TestRailValidationError} When `ms` is not a positive number ≤ 5 minutes
+     */
+    protected spawnTimeoutView(ms: number): this {
+        validateTimeout(ms);
+        const root = this.root;
+        const bodyTimeout = root.bodyTimeoutExplicit ? root.bodyTimeout : ms;
+        const view = Object.create(this) as this;
+        Object.defineProperty(view, 'request', {
+            value: <T>(spec: RequestSpec<T>): Promise<T> =>
+                root.request<T>({ ...spec, timeout: ms, bodyTimeout }),
+            writable: true,
+            configurable: true,
+            enumerable: false,
+        });
+        return view;
+    }
+
+    /**
      * Clears the entire cache.
      */
     public clearCache(): void {
@@ -803,6 +858,15 @@ export class TestRailClientCore {
     public async request<T>(spec: RequestSpec<T>): Promise<T> {
         const { method, endpoint, body, schema, responseKind = 'json', retry = 'full' } = spec;
 
+        // Resolve the effective timeouts once. A `withTimeout(ms)` view sets
+        // `spec.timeout`/`spec.bodyTimeout`; a normal call leaves them undefined
+        // and falls back to the client-wide values. Threaded into every pipeline
+        // execution so the override reaches the abort timer and body-read deadline.
+        const timeouts: ResolvedTimeouts = {
+            timeout: spec.timeout ?? this.timeout,
+            bodyTimeout: spec.bodyTimeout ?? this.bodyTimeout,
+        };
+
         // Cache key namespace selection — preserves the prior split where the
         // raw `request<T>()` and the validated `requestParsed<T>()` lived in
         // separate namespaces (`GET:` vs `PARSED:GET:`). Without that split a
@@ -838,16 +902,16 @@ export class TestRailClientCore {
 
         const validatedPromise: Promise<T> = (async () => {
             if (responseKind === 'binary') {
-                return this.executeBinary<T>(endpoint, retry);
+                return this.executeBinary<T>(endpoint, retry, timeouts);
             }
             if (responseKind === 'text') {
-                return this.executeText<T>(method, endpoint, body, retry);
+                return this.executeText<T>(method, endpoint, body, retry, timeouts);
             }
             // JSON
             if (writeValidatedAfterPipeline && schema !== undefined) {
                 // Validated GET: run the pipeline with NO cache (it would
                 // otherwise write the raw body); validate; cache the result.
-                const raw = await this.executeJson<unknown>(method, endpoint, body, retry, undefined);
+                const raw = await this.executeJson<unknown>(method, endpoint, body, retry, undefined, timeouts);
                 const validated = this.parse<T>(schema, raw);
                 if (cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
                     this.setCachedData(cacheKey, validated);
@@ -855,7 +919,7 @@ export class TestRailClientCore {
                 return validated;
             }
             // Validated POST (non-cached) or raw JSON path.
-            const result = await this.executeJson<T>(method, endpoint, body, retry, cacheKey);
+            const result = await this.executeJson<T>(method, endpoint, body, retry, cacheKey, timeouts);
             if (schema !== undefined) {
                 return this.parse<T>(schema, result);
             }
@@ -888,13 +952,16 @@ export class TestRailClientCore {
         body: RequestSpec<unknown>['body'],
         retry: 'full' | 'binaryGet' | 'none',
         cacheKey: string | undefined,
+        timeouts: ResolvedTimeouts,
     ): Promise<T> {
-        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
         const pipelineSpec: PipelineSpec<T> = {
             method,
             endpoint,
             body: this.buildPipelineBody(body),
             sendJsonContentType: body?.kind !== 'multipart',
+            timeout: timeouts.timeout,
+            bodyTimeout: timeouts.bodyTimeout,
             retryPolicy: getRetryPolicy(retry),
             cache: { key: cacheKey, skipRead: false },
             parseSuccess: async (response: Response) => {
@@ -942,13 +1009,16 @@ export class TestRailClientCore {
         endpoint: string,
         body: RequestSpec<unknown>['body'],
         retry: 'full' | 'binaryGet' | 'none',
+        timeouts: ResolvedTimeouts,
     ): Promise<T> {
-        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+        const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
         return this.executePipeline<T>({
             method,
             endpoint,
             body: this.buildPipelineBody(body),
             sendJsonContentType: body?.kind !== 'multipart',
+            timeout: timeouts.timeout,
+            bodyTimeout: timeouts.bodyTimeout,
             retryPolicy: getRetryPolicy(retry),
             cache: { key: undefined, skipRead: false },
             parseSuccess: async (response: Response) => (await readBodyAsText(response, jsonLimits)) as T,
@@ -961,18 +1031,24 @@ export class TestRailClientCore {
      * as `ArrayBuffer`. GET-only by construction (the retry policy assumes a
      * safe retry on 5xx/network).
      */
-    private async executeBinary<T>(endpoint: string, retry: 'full' | 'binaryGet' | 'none'): Promise<T> {
+    private async executeBinary<T>(
+        endpoint: string,
+        retry: 'full' | 'binaryGet' | 'none',
+        timeouts: ResolvedTimeouts,
+    ): Promise<T> {
         return this.executePipeline<T>({
             method: 'GET',
             endpoint,
             body: { kind: 'none' },
             sendJsonContentType: false,
+            timeout: timeouts.timeout,
+            bodyTimeout: timeouts.bodyTimeout,
             retryPolicy: getRetryPolicy(retry),
             cache: { key: undefined, skipRead: false },
             parseSuccess: async (response: Response) => {
                 const bytes = await readBodyWithLimits(response, {
                     maxBytes: this.maxBinaryResponseBytes,
-                    deadlineMs: this.bodyTimeout,
+                    deadlineMs: timeouts.bodyTimeout,
                 });
                 const buf =
                     bytes.byteLength === bytes.buffer.byteLength
@@ -1156,7 +1232,7 @@ export class TestRailClientCore {
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const timeoutId = setTimeout(() => controller.abort(), spec.timeout);
 
         const retrySpec: PipelineSpec<TParsed> = { ...spec, cache: { key: cacheKey, skipRead: true } };
 
@@ -1189,7 +1265,7 @@ export class TestRailClientCore {
 
                 this.assertNotRedirect(response);
 
-                const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: this.bodyTimeout };
+                const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: spec.bodyTimeout };
 
                 if (!response.ok) {
                     // Error bodies inherit the same cap so an attacker cannot OOM
@@ -1241,7 +1317,7 @@ export class TestRailClientCore {
                 if (error instanceof TestRailApiError) throw error;
 
                 if ((error as Error).name === 'AbortError') {
-                    throw new TestRailApiError(408, `Request timeout after ${this.timeout}ms`);
+                    throw new TestRailApiError(408, `Request timeout after ${spec.timeout}ms`);
                 }
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {

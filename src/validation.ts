@@ -1,4 +1,4 @@
-import { MAX_PAGINATION_LIMIT } from './constants.js';
+import { MAX_PAGINATION_LIMIT, MAX_TIMEOUT_MS } from './constants.js';
 import { TestRailValidationError } from './errors.js';
 
 /**
@@ -10,6 +10,23 @@ import { TestRailValidationError } from './errors.js';
  * path-traversal sequences (e.g. `../../admin`) be injected into the URL.
  */
 export const ENTRY_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validates a request timeout in milliseconds: a positive, finite number no
+ * greater than {@link MAX_TIMEOUT_MS} (5 minutes). `Number.isFinite` rejects
+ * NaN/±Infinity, which range-only comparisons silently pass (typeof NaN ===
+ * 'number' and every comparison with NaN is false) — a NaN timeout aborts every
+ * request after ~1 ms and throws a misleading "after NaNms" 408 (#237).
+ *
+ * Single source of truth shared by the client constructor (`config.timeout`)
+ * and {@link TestRailClient.withTimeout} so both reject identically.
+ * @throws {TestRailValidationError} When the value is not a positive number ≤ 5 minutes
+ */
+export function validateTimeout(ms: number): void {
+    if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0 || ms > MAX_TIMEOUT_MS) {
+        throw new TestRailValidationError('timeout must be a positive number not exceeding 5 minutes');
+    }
+}
 
 /**
  * Validates that an ID is a positive integer.
