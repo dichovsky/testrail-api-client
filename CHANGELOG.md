@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`. Other
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`. Other
 > version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -14,6 +14,42 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > were realigned with what npm actually shipped.
 
 ## [Unreleased]
+
+## [5.3.0] — 2026-07-16 — configurable request timeout (per-request + CLI)
+
+The request timeout was only settable once, at construction (`config.timeout`).
+This release adds two override paths that surface the _existing_ timeout knob
+rather than introducing a new one — no breaking changes; every change is
+additive with an unchanged default (30s).
+
+### Added
+
+- **`client.withTimeout(ms)` (SDK).** Returns a lightweight view of the client
+  that applies `ms` as the request timeout to every call made through it —
+  e.g. `client.withTimeout(120_000).cases.getCases(1)` gives one bulk export two
+  minutes without constructing a second client. The view **shares** the root
+  client's cache, rate-limiter budget, credential, and cleanup timer by
+  reference (it is not a second client) and is not registered for its own process
+  lifecycle. The body-read deadline (SEC #21) tracks the new timeout when
+  `bodyTimeout` was left at its default and is preserved when set explicitly.
+  Views chain (outermost wins) and validate `ms` with the same rule as
+  `config.timeout` (positive, finite, ≤ 5 minutes). Because a view shares state,
+  `destroy()` / `clearCache()` called on a view act on the shared root client —
+  `destroy()` on any handle zeroes the one credential and disables the root and
+  all its views.
+- **`--timeout <ms>` and `TESTRAIL_TIMEOUT` (CLI).** Override the request timeout
+  in milliseconds (flag > env var > 30s default), mapped straight to
+  `config.timeout`. A non-integer value exits 1; an out-of-range value is
+  rejected by the client. Parse errors name the actual source (`--timeout` vs
+  `TESTRAIL_TIMEOUT`).
+
+### Internal
+
+- Timeout validation extracted to a shared `validateTimeout()` (`src/validation.ts`)
+  so `config.timeout` and `withTimeout()` reject identically; the per-request
+  `RequestSpec.timeout`/`bodyTimeout` overrides are validated at the single
+  `request()` chokepoint so no unvalidated value can reach the abort timer or
+  body-read deadline.
 
 ## [5.2.1] — 2026-07-14 — live-API schema fixes + skill-packaging hardening
 
