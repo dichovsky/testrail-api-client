@@ -15,6 +15,7 @@ import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
 import { STDIN_SENTINEL } from './file-input.js';
 import { STDOUT_SENTINEL } from './file-output.js';
+import { parseId } from './ids.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
@@ -347,10 +348,28 @@ async function main(): Promise<number> {
 
     let client: TestRailClient | undefined;
     try {
+        // Resolve the request timeout (milliseconds). `--timeout` beats
+        // TESTRAIL_TIMEOUT beats the 30s default; an empty value is treated as
+        // unset (parity with resolveAuth's ''-is-missing rule). parseId rejects
+        // a non-positive-integer value (IdParseError → caught below → exit 1);
+        // the constructor's validateTimeout rejects out-of-range (> 5 min) via
+        // TestRailValidationError.
+        const timeoutFlag = values['timeout'] as string | undefined;
+        const timeoutEnv = process.env['TESTRAIL_TIMEOUT'];
+        const usingTimeoutFlag = timeoutFlag !== undefined && timeoutFlag !== '';
+        const timeoutRaw = usingTimeoutFlag
+            ? timeoutFlag
+            : timeoutEnv !== undefined && timeoutEnv !== ''
+              ? timeoutEnv
+              : undefined;
+        // Name the actual source in any parse error so a bad TESTRAIL_TIMEOUT
+        // isn't reported as a bad `--timeout`.
+        const timeoutSource = usingTimeoutFlag ? '--timeout' : 'TESTRAIL_TIMEOUT';
+        const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, timeoutSource) } : {};
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
-        client = new TestRailClient({ ...auth.config, registerProcessHandlers: true });
+        client = new TestRailClient({ ...auth.config, ...timeoutConfig, registerProcessHandlers: true });
         await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out, err, errRaw });
         return 0;
     } catch (e: unknown) {

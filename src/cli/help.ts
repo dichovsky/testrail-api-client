@@ -224,6 +224,8 @@ const OPTIONS_BLOCK = `Options:
                         as headers, and nested objects/arrays JSON-stringified
                         into the cell (no dot-path flattening).
   --quiet               Suppress output; use exit code 0/1
+  --timeout <ms>        Request timeout in milliseconds. Overrides the
+                        TESTRAIL_TIMEOUT env var; default 30000, max 300000.
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
   --file <path>         Binary file to upload (attachment add-to-* actions)

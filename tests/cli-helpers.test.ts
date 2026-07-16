@@ -1061,6 +1061,7 @@ describe('KNOWN_FLAGS inventory', () => {
             'email',
             'api-key-stdin',
             'format',
+            'timeout',
             'quiet',
             'help',
             'version',
