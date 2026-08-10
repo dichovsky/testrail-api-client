@@ -1,11 +1,11 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Test, GetTestsOptions } from '../types.js';
-import { TestSchema } from '../schemas.js';
-import type { UpdateTestLabelsPayload, UpdateTestsLabelsPayload } from '../schemas.js';
+import { TestSchema, UpdateTestsResponseSchema } from '../schemas.js';
+import type { UpdateTestLabelsPayload, UpdateTestsLabelsPayload, UpdateTestsResponse } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
-import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class TestModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -33,17 +33,12 @@ export class TestModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ tests?: Test[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ tests: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ tests: z.array(TestSchema).nullish() }),
-                })
-            ).tests ?? []
-        );
+        const raw = await this.client.request<Test[] | { tests?: Test[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('tests', TestSchema),
+        });
+        return unwrapList<Test>('tests', raw);
     }
 
     /**
@@ -71,21 +66,22 @@ export class TestModule {
      * `test_ids` — so each ID is validated here before the network call. The
      * endpoint cannot set different labels per test.
      *
-     * VERIFY: the response shape is modeled tolerantly as the updated tests
-     * (bare array OR `{ tests: [...] }` wrapper, mirroring `getTests` and the
-     * `getSuites` bimodal precedent). support.testrail.com blocks automated
-     * doc fetch, so this was not byte-confirmed against a live response — if a
-     * live instance returns an ack/count object instead, narrow the schema.
+     * Returns TestRail's acknowledgement — `{ test_ids, labels }` — not the
+     * updated tests. An earlier revision modelled the response as a test list;
+     * that was a guess made while the docs were unreachable, and because the
+     * acknowledgement carries no `tests` key it resolved `[]` on every
+     * successful call, reporting "0 tests updated" for work the server had done.
+     * See {@link UpdateTestsResponseSchema} for the documented shape.
+     *
      * @testrail POST update_tests
      */
-    async updateTests(payload: UpdateTestsLabelsPayload): Promise<Test[]> {
+    async updateTests(payload: UpdateTestsLabelsPayload): Promise<UpdateTestsResponse> {
         payload.test_ids.forEach((id) => validateId(id, 'testId'));
-        const raw = await this.client.request<Test[] | { tests?: Test[] | null }>({
+        return this.client.request<UpdateTestsResponse>({
             method: 'POST',
             endpoint: 'update_tests',
-            schema: z.union([z.array(TestSchema), z.object({ tests: z.array(TestSchema).nullish() })]),
+            schema: UpdateTestsResponseSchema,
             body: { kind: 'json', data: payload },
         });
-        return Array.isArray(raw) ? raw : (raw.tests ?? []);
     }
 }

@@ -614,9 +614,42 @@ describe('TestRailClient - Enhanced Features', () => {
         // therefore persist for the full TTL and re-throw the same
         // TestRailValidationError on every subsequent call.
         describe('Schema-invalid response cache poisoning (BACKLOG #9)', () => {
-            it('does not cache a GET response that fails schema validation', async () => {
+            /**
+             * A client in fail-closed mode: `onSchemaMismatch` rethrows, which
+             * is the supported way to restore pre-6.0.0 behavior. BACKLOG #9 —
+             * a schema-invalid body poisoning the cache and re-throwing forever
+             * — can only recur for such a client, so the original regressions
+             * are retained against this one.
+             */
+            const createStrictClient = (): TestRailClient =>
+                new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'test-api-key',
+                    onSchemaMismatch: ({ error }) => {
+                        throw error;
+                    },
+                });
+
+            it('returns but does not cache the raw body of a schema-invalid GET (6.0.0)', async () => {
+                // Advisory validation returns the raw body rather than throwing,
+                // but it is deliberately NOT cached. Caching it would pin a body
+                // the schema rejected for the full TTL (5 min by default) with no
+                // further hook notifications, so one transient blip would keep
+                // answering for minutes — where 5.x threw and self-healed on the
+                // next call. Skipping the write keeps availability while letting
+                // every subsequent call re-fetch and re-report.
                 const invalidProject = { id: 'not-a-number', name: 42 };
                 const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+                const mismatches: unknown[] = [];
+                const lenient = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'test-api-key',
+                    onSchemaMismatch: (m) => {
+                        mismatches.push(m);
+                    },
+                });
 
                 mockFetch.mockResolvedValueOnce({
                     ok: true,
@@ -631,15 +664,75 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(validProject),
                 });
 
-                // First call: schema validation throws; nothing should be cached.
-                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+                // First call resolves with the raw body and reports the mismatch.
+                expect(await lenient.projects.getProject(1)).toEqual(invalidProject);
+                // Second call re-fetches instead of replaying the bad body, so it
+                // self-heals as soon as the server recovers.
+                expect(await lenient.projects.getProject(1)).toEqual(validProject);
+                expect(mockFetch).toHaveBeenCalledTimes(2);
+                expect(mismatches).toHaveLength(1);
+                lenient.destroy();
+            });
+
+            it('does not pin the synthesized {} of an empty 200 for the cache TTL', async () => {
+                // `executeJson` turns an empty 200 body into `{}`. That fails the
+                // schema, so under advisory validation it is returned but not
+                // cached — otherwise an LB/proxy blip would answer getProject(1)
+                // with `{}` (typed `Project`) for the whole window.
+                const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+                const mismatches: unknown[] = [];
+                const lenient = new TestRailClient({
+                    baseUrl: 'https://example.testrail.io',
+                    email: 'test@example.com',
+                    apiKey: 'test-api-key',
+                    onSchemaMismatch: (m) => {
+                        mismatches.push(m);
+                    },
+                });
+
+                mockFetch.mockResolvedValueOnce({ ok: true, status: 200, statusText: 'OK', text: async () => '' });
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+
+                expect(await lenient.projects.getProject(1)).toEqual({});
+                expect(await lenient.projects.getProject(1)).toEqual(validProject);
+                expect(mismatches).toHaveLength(1);
+                lenient.destroy();
+            });
+
+            it('does not cache a GET response that fails schema validation (strict mode)', async () => {
+                const invalidProject = { id: 'not-a-number', name: 42 };
+                const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+                const strict = createStrictClient();
+
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(invalidProject),
+                });
+                mockFetch.mockResolvedValueOnce({
+                    ok: true,
+                    status: 200,
+                    statusText: 'OK',
+                    text: async () => JSON.stringify(validProject),
+                });
+
+                // First call: the hook throws before setCachedData, so nothing
+                // should be cached.
+                await expect(strict.projects.getProject(1)).rejects.toThrow();
 
                 // Second call: cache MUST be empty, so this re-fetches and
                 // resolves with the valid response. Pre-fix behavior was to
                 // hit the poisoned cache entry and re-throw indefinitely.
-                const result = await client.projects.getProject(1);
+                const result = await strict.projects.getProject(1);
                 expect(result).toEqual(validProject);
                 expect(mockFetch).toHaveBeenCalledTimes(2);
+                strict.destroy();
             });
 
             it('caches a GET response only after successful schema validation', async () => {
@@ -660,9 +753,10 @@ describe('TestRailClient - Enhanced Features', () => {
                 expect(mockFetch).toHaveBeenCalledTimes(1);
             });
 
-            it('does not corrupt the cache when a POST response fails validation', async () => {
+            it('does not corrupt the cache when a POST response fails validation (strict mode)', async () => {
                 const invalidProject = { id: 'not-a-number' };
                 const validProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
+                const strict = createStrictClient();
 
                 // Prime the cache with a valid GET.
                 mockFetch.mockResolvedValueOnce({
@@ -671,19 +765,18 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(validProject),
                 });
-                await client.projects.getProject(1);
+                await strict.projects.getProject(1);
                 expect(mockFetch).toHaveBeenCalledTimes(1);
 
                 // POST returns a schema-invalid body — request() clears the
-                // cache (unconditional for non-GET) and then requestParsed
-                // throws on validation.
+                // cache (unconditional for non-GET) and the mismatch hook throws.
                 mockFetch.mockResolvedValueOnce({
                     ok: true,
                     status: 200,
                     statusText: 'OK',
                     text: async () => JSON.stringify(invalidProject),
                 });
-                await expect(client.projects.addProject({ name: 'New' })).rejects.toThrow(TestRailValidationError);
+                await expect(strict.projects.addProject({ name: 'New' })).rejects.toThrow();
 
                 // Subsequent GET re-fetches because the POST invalidated the
                 // earlier cache entry.
@@ -693,9 +786,10 @@ describe('TestRailClient - Enhanced Features', () => {
                     statusText: 'OK',
                     text: async () => JSON.stringify(validProject),
                 });
-                const result = await client.projects.getProject(1);
+                const result = await strict.projects.getProject(1);
                 expect(result).toEqual(validProject);
                 expect(mockFetch).toHaveBeenCalledTimes(3);
+                strict.destroy();
             });
 
             it('caches each endpoint independently after validation', async () => {
@@ -722,16 +816,18 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(validProject2),
                 });
 
+                const strict = createStrictClient();
                 // Project 1 caches normally.
-                expect(await client.projects.getProject(1)).toEqual(validProject1);
+                expect(await strict.projects.getProject(1)).toEqual(validProject1);
                 // Project 2 fails validation — its slot must NOT be cached.
-                await expect(client.projects.getProject(2)).rejects.toThrow(TestRailValidationError);
+                await expect(strict.projects.getProject(2)).rejects.toThrow();
                 // Project 2 retried fresh — succeeds — and DOES cache.
-                expect(await client.projects.getProject(2)).toEqual(validProject2);
+                expect(await strict.projects.getProject(2)).toEqual(validProject2);
 
                 // Sanity: project 1 still cached (no fourth fetch).
-                expect(await client.projects.getProject(1)).toEqual(validProject1);
+                expect(await strict.projects.getProject(1)).toEqual(validProject1);
                 expect(mockFetch).toHaveBeenCalledTimes(3);
+                strict.destroy();
             });
 
             it('does not let raw request() cache entries poison requestParsed() (namespace isolation)', async () => {
@@ -817,8 +913,9 @@ describe('TestRailClient - Enhanced Features', () => {
                 expect(mockFetch).toHaveBeenCalledTimes(1);
             });
 
-            it('re-throws TestRailValidationError on every repeated GET when the upstream is permanently malformed', async () => {
+            it('re-throws on every repeated GET when the upstream is permanently malformed (strict mode)', async () => {
                 const malformed = { id: 'oops', name: null };
+                const strict = createStrictClient();
 
                 mockFetch.mockResolvedValue({
                     ok: true,
@@ -827,15 +924,16 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(malformed),
                 });
 
-                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
-                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
-                await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+                await expect(strict.projects.getProject(1)).rejects.toThrow();
+                await expect(strict.projects.getProject(1)).rejects.toThrow();
+                await expect(strict.projects.getProject(1)).rejects.toThrow();
 
                 // Three calls = three fetches. Pre-fix, the second and third
                 // would have hit a poisoned cache entry and never reached
                 // fetch. The new behavior surfaces the upstream problem
                 // explicitly on each call.
                 expect(mockFetch).toHaveBeenCalledTimes(3);
+                strict.destroy();
             });
         });
     });

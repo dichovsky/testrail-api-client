@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { SchemaMismatch } from '../types.js';
 
 export const zObject = <T extends z.ZodRawShape>(shape: T) => z.object(shape).passthrough();
 
@@ -30,4 +31,9 @@ export const TestRailConfigSchema = zObject({
     }).optional(),
     allowInsecure: z.boolean().optional(),
     allowPrivateHosts: z.boolean().optional(),
+    onSchemaMismatch: z
+        .custom<(mismatch: SchemaMismatch) => void>((value) => typeof value === 'function', {
+            message: 'Expected function',
+        })
+        .optional(),
 });

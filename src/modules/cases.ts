@@ -14,7 +14,7 @@ import type {
     SoftDeletePreview,
 } from '../schemas.js';
 import { CaseSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { z } from 'zod';
+import { listOf, listOfNested, unwrapList, unwrapNestedList } from './list.js';
 
 export interface GetHistoryForCaseOptions {
     /** Maximum number of history entries to return */
@@ -70,17 +70,18 @@ export class CaseModule {
             limit,
             offset,
         });
-        return (
-            (
-                await this.client.request<{ cases?: Case[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ cases: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ cases: z.array(CaseSchema).nullish() }),
-                })
-            ).cases ?? []
-        );
+        // Bimodal across server versions: the `{ offset, limit, size, _links,
+        // cases: [...] }` envelope requires TestRail 6.7+ (the version gate on
+        // `limit`/`offset` in the get_cases docs); older servers return a bare
+        // array. This package declares no minimum server version, so accept
+        // both — same defence as `suites.getSuites()`.
+        // SPEC #1.5 — `{ cases: null }` is a valid empty wrapper, hence `.nullish()`.
+        const raw = await this.client.request<Case[] | { cases?: Case[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('cases', CaseSchema),
+        });
+        return unwrapList('cases', raw);
     }
 
     /** @testrail POST add_case/{section_id} */
@@ -106,6 +107,9 @@ export class CaseModule {
      * required for add_cases bulk endpoint', <original response>)` so callers
      * can tell "your TestRail is too old" from "your payload is malformed".
      *
+     * @throws {TestRailApiError} When a successful response has an unrecognized
+     * shape; the write outcome is indeterminate and must not be retried blindly.
+     *
      * @testrail POST add_cases/{section_id}
      */
     async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
@@ -114,15 +118,34 @@ export class CaseModule {
             // Wire shape (confirmed by live probe 2026-06-21): the request body must be
             // `{ cases: [...] }` — a bare array is rejected with 400 "Field :cases is a
             // required field." — and the success response wraps the created cases as
-            // `{ cases: [...] }` (NOT `{ added_cases }`). `.nullish()` tolerates an empty
-            // or omitted wrapper.
-            const res = await this.client.request<{ cases?: Case[] }>({
+            // `{ cases: [...] }` (NOT `{ added_cases }`).
+            //
+            // The response goes through `listOf`/`unwrapList` like every other list
+            // read, and here the reason is sharper than tolerance: this is a *write*.
+            // An envelope-only schema meeting a drifted body (the wrapper-vs-bare
+            // drift #248 proved for six read endpoints) parses to the raw body, whose
+            // `.cases` is undefined, so the call resolves `[]` while the cases were
+            // created server-side. A caller that reads "0 created" and retries
+            // duplicates them. Accepting both shapes removes the largest slice of that
+            // risk. Because the write may already have happened, a body matching
+            // neither must fail closed instead of returning a value that invites a
+            // retry; `request()` remains advisory for every other response.
+            const responseSchema = listOf('cases', CaseSchema);
+            const raw = await this.client.request<unknown>({
                 method: 'POST',
                 endpoint: `add_cases/${sectionId}`,
-                schema: z.object({ cases: z.array(CaseSchema).nullish() }),
+                schema: responseSchema,
                 body: { kind: 'json', data: { cases: payload } },
             });
-            return res.cases ?? [];
+            const parsed = responseSchema.safeParse(raw);
+            if (!parsed.success) {
+                throw new TestRailApiError(
+                    200,
+                    'add_cases succeeded but returned an unrecognized response; write outcome is indeterminate',
+                    raw,
+                );
+            }
+            return unwrapList<Case>('cases', parsed.data);
         } catch (e: unknown) {
             if (e instanceof TestRailApiError && (e.status === 400 || e.status === 404)) {
                 const responseStr = typeof e.response === 'string' ? e.response : JSON.stringify(e.response ?? '');
@@ -184,7 +207,10 @@ export class CaseModule {
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
+                method: 'POST',
+                endpoint,
+            });
         }
     }
 
@@ -199,20 +225,34 @@ export class CaseModule {
      * Python reference client documents this caveat) — pass the only suite
      * you have.
      *
+     * @throws {TestRailApiError} When a successful response has an unrecognized
+     * shape; the write outcome is indeterminate and must not be retried blindly.
+     *
      * @testrail POST update_cases/{suite_id}
      */
     async updateCases(suiteId: number, payload: UpdateCasesPayload): Promise<Case[]> {
         validateId(suiteId, 'suiteId');
         // Wire shape (confirmed by live probe 2026-06-21): the success response wraps the
-        // updated cases as `{ updated_cases: [...] }`, not a bare array. `.nullish()`
-        // tolerates an empty or omitted wrapper.
-        const res = await this.client.request<{ updated_cases?: Case[] }>({
+        // updated cases as `{ updated_cases: [...] }`, not a bare array. Routed through
+        // `listOf`/`unwrapList` for the same reason as `addCases` above — on a bulk
+        // write, silently resolving `[]` because the response shape drifted reports
+        // "nothing updated" for work the server actually did.
+        const responseSchema = listOf('updated_cases', CaseSchema);
+        const raw = await this.client.request<unknown>({
             method: 'POST',
             endpoint: `update_cases/${suiteId}`,
-            schema: z.object({ updated_cases: z.array(CaseSchema).nullish() }),
+            schema: responseSchema,
             body: { kind: 'json', data: payload },
         });
-        return res.updated_cases ?? [];
+        const parsed = responseSchema.safeParse(raw);
+        if (!parsed.success) {
+            throw new TestRailApiError(
+                200,
+                'update_cases succeeded but returned an unrecognized response; write outcome is indeterminate',
+                raw,
+            );
+        }
+        return unwrapList<Case>('updated_cases', parsed.data);
     }
 
     /**
@@ -260,7 +300,10 @@ export class CaseModule {
             body: { kind: 'json', data: payload },
         });
         if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
+                method: 'POST',
+                endpoint,
+            });
         }
     }
 
@@ -304,16 +347,20 @@ export class CaseModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ history?: HistoryEntry[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ history: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ history: z.array(HistoryEntrySchema).nullish() }),
-                })
-            ).history ?? []
-        );
+        // Three shapes, all attested: the twin endpoint `get_shared_step_history`
+        // documents a `{ step_history }` wrapper yet returns a bare array on live
+        // Cloud (fixed in #248), while this endpoint's own documented example
+        // nests the pagination object inside an outer array —
+        // `[{ offset, limit, size, _links, history: [...] }]`. `listOf` alone
+        // rejected that third form, so the raw outer array came back and
+        // `unwrapList` handed the caller the envelope itself as `result[0]`,
+        // typed `HistoryEntry` but with no `id`/`user_id`. SPEC #1.5 —
+        // `{ history: null }` is a valid empty wrapper.
+        const raw = await this.client.request<HistoryEntry[] | { history?: HistoryEntry[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOfNested('history', HistoryEntrySchema),
+        });
+        return unwrapNestedList('history', raw);
     }
 }

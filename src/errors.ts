@@ -29,35 +29,54 @@ export class TestRailLicenseError extends TestRailApiError {
     }
 }
 
-/** Matches TestRail's Enterprise-license/subscription 403 body. */
-const LICENSE_RESTRICTION_RE = /not an enterprise (license|subscription)/i;
+/**
+ * Matches TestRail's Enterprise-license/subscription 403 bodies. TestRail
+ * phrases the same condition two ways depending on the endpoint:
+ *
+ *   get_variables / get_datasets → `"Not an Enterprise license/subscription."`
+ *   get_case_statuses            → `"You do not have permission to access this
+ *                                    endpoint (Requires Enterprise license…"`
+ *
+ * Anchoring on `not an enterprise …` matched only the first, so
+ * `getCaseStatuses()` surfaced a plain `TestRailApiError` on a non-Enterprise
+ * instance and callers branching on `instanceof TestRailLicenseError` to degrade
+ * gracefully missed it. Both lead-ins are accepted instead.
+ *
+ * Deliberately not loosened all the way to the bare `enterprise licen…` stem:
+ * the body may be an arbitrary document (a corporate proxy's HTML 403 page) or
+ * echo an entity name (a project called "Enterprise Licensing"), and either
+ * would then classify as a license restriction — leaving a caller that branches
+ * on `instanceof TestRailLicenseError` with a feature permanently disabled over
+ * a transient ACL problem. The asymmetry favors strictness: a missed phrasing
+ * degrades to a plain {@link TestRailApiError}, which is what 5.x did anyway.
+ */
+const LICENSE_RESTRICTION_RE = /(?:not an|requires)\s+enterprise (?:licen|subscription)/i;
 
 /**
  * Returns true when an HTTP error denotes a TestRail Enterprise-license/
- * subscription restriction: status 403 with the documented error body
- * (`{"error":"Not an Enterprise license/subscription."}`). `body` is the raw
- * response text; it is parsed leniently and falls back to a substring match so a
- * non-JSON body or a future wrapper shape still classifies correctly. The match
- * is deliberately narrow so ordinary 403s (permission denials) stay plain
+ * subscription restriction: status 403 whose body names an Enterprise licence or
+ * subscription. `body` is the raw response text; it is parsed leniently and falls
+ * back to a substring match so a non-JSON body or a future wrapper shape still
+ * classifies correctly. The match stays narrow enough that ordinary 403s
+ * (permission denials that do not mention Enterprise licensing) remain plain
  * {@link TestRailApiError}.
  */
 export function isLicenseRestriction(status: number, body: unknown): boolean {
     if (status !== 403 || typeof body !== 'string') {
         return false;
     }
-    let message = body;
     try {
         const parsed: unknown = JSON.parse(body);
         if (parsed !== null && typeof parsed === 'object' && 'error' in parsed) {
             const errorValue: unknown = parsed.error;
             if (typeof errorValue === 'string') {
-                message = errorValue;
+                return LICENSE_RESTRICTION_RE.test(errorValue);
             }
         }
     } catch {
-        // Non-JSON body — fall back to a substring match against the raw text.
+        // Non-JSON body — fall through to matching the raw text below.
     }
-    return LICENSE_RESTRICTION_RE.test(message);
+    return LICENSE_RESTRICTION_RE.test(body);
 }
 
 /**

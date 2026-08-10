@@ -49,14 +49,14 @@ Every endpoint is reached through its domain module: `client.projects.getProject
 | Method                             | Purpose                                                                                                                        |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `request<T>(spec: RequestSpec<T>)` | The single HTTP entry point (GET/POST/PUT/DELETE; JSON, text, or binary responses; optional Zod validation; multipart uploads) |
-| `parse<T>()`                       | Standalone Zod parse with `handleZodError` wrapping                                                                            |
+| `parse<T>()`                       | Advisory Zod check: on a mismatch returns the raw body and notifies `onSchemaMismatch` (6.0.0; never throws on its own)        |
 | `clearCache()` / `destroy()`       | Cache / lifecycle                                                                                                              |
 
 These are declared `public` (not `protected`) because modules consume them by composition, not inheritance — see §3.
 
 Pre-flight ID guards live in the pure `src/validation.ts` leaf module. TestRail-specific query construction lives in the pure `src/url.ts` leaf module.
 
-`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). Behavioural defaults preserve the prior surface exactly: a GET with a schema caches under `PARSED:GET:{endpoint}` (validated value only), a GET without a schema caches under `GET:{endpoint}`, and non-GET calls skip the cache and invalidate it on success. The shared core builds a `PipelineSpec` and runs it through `executePipeline()`.
+`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). A schema-valid GET caches the parsed value under `PARSED:GET:{endpoint}`; a schema-invalid GET returns the raw body but deliberately skips the cache so the next call can re-fetch and re-report the mismatch. A GET without a schema caches the raw body under `GET:{endpoint}`, while non-GET calls skip the cache and invalidate it on success. The shared core builds a `PipelineSpec` and runs it through `executePipeline()`.
 
 ### 2.2 HTTP pipeline (`request<T>()`)
 
@@ -327,11 +327,11 @@ Both gates must clear. The env var is process-wide audit-friendly (visible in `p
 
 ## 7. Errors
 
-| Class                     | Thrown for                                                                                          | Carries                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `TestRailApiError`        | HTTP non-2xx, network error, rate limit, timeout (408), invalid JSON, blocked redirect              | `status`, `statusText`, `response` |
-| `TestRailValidationError` | Bad config (baseUrl / email / apiKey), invalid ID, invalid params, Zod failure via `handleZodError` | —                                  |
-| `Error` (plain)           | Call after `destroy()`                                                                              | —                                  |
+| Class                     | Thrown for                                                                             | Carries                            |
+| ------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------- |
+| `TestRailApiError`        | HTTP non-2xx, network error, rate limit, timeout (408), invalid JSON, blocked redirect | `status`, `statusText`, `response` |
+| `TestRailValidationError` | Bad config (baseUrl / email / apiKey), invalid ID, invalid params                      | —                                  |
+| `Error` (plain)           | Call after `destroy()`                                                                 | —                                  |
 
 The split is intentional: `TestRailApiError` represents anything the _server_ (or network) said; `TestRailValidationError` represents anything the _caller_ got wrong. Plain `Error` for destroyed-client signals a programmer mistake, not a recoverable condition.
 

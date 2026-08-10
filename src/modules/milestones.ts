@@ -2,9 +2,9 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Milestone, GetMilestonesOptions } from '../types.js';
 import type { AddMilestonePayload, UpdateMilestonePayload } from '../schemas.js';
 import { MilestoneSchema } from '../schemas.js';
-import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class MilestoneModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -30,17 +30,12 @@ export class MilestoneModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ milestones?: Milestone[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ milestones: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ milestones: z.array(MilestoneSchema).nullish() }),
-                })
-            ).milestones ?? []
-        );
+        const raw = await this.client.request<Milestone[] | { milestones?: Milestone[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('milestones', MilestoneSchema),
+        });
+        return unwrapList<Milestone>('milestones', raw);
     }
 
     /** @testrail POST add_milestone/{project_id} */

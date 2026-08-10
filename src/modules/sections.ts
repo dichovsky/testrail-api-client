@@ -2,9 +2,9 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Section, SoftDeleteOptions } from '../types.js';
 import type { AddSectionPayload, MoveSectionPayload, SoftDeletePreview, UpdateSectionPayload } from '../schemas.js';
 import { SectionSchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class SectionModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -31,17 +31,16 @@ export class SectionModule {
         }
         validatePaginationParams(limit, offset);
         const endpoint = buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
-        return (
-            (
-                await this.client.request<{ sections?: Section[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ sections: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ sections: z.array(SectionSchema).nullish() }),
-                })
-            ).sections ?? []
-        );
+        // Same 6.7+ envelope gate as `cases.getCases()` — `limit`/`offset` on
+        // get_sections require TestRail 6.7 or later, and older servers return a
+        // bare array. Accept both.
+        // SPEC #1.5 — `{ sections: null }` is a valid empty wrapper, hence `.nullish()`.
+        const raw = await this.client.request<Section[] | { sections?: Section[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('sections', SectionSchema),
+        });
+        return unwrapList('sections', raw);
     }
 
     /** @testrail POST add_section/{project_id} */
@@ -85,7 +84,10 @@ export class SectionModule {
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
+                method: 'POST',
+                endpoint,
+            });
         }
     }
 

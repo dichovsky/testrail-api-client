@@ -2,9 +2,9 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Project } from '../types.js';
 import { ProjectSchema } from '../schemas.js';
 import type { AddProjectPayload, UpdateProjectPayload } from '../schemas.js';
-import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class ProjectModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -33,17 +33,12 @@ export class ProjectModule {
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
         validatePaginationParams(limit, offset);
         const endpoint = buildEndpoint('get_projects', { limit, offset });
-        return (
-            (
-                await this.client.request<{ projects?: Project[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ projects: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ projects: z.array(ProjectSchema).nullish() }),
-                })
-            ).projects ?? []
-        );
+        const raw = await this.client.request<Project[] | { projects?: Project[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('projects', ProjectSchema),
+        });
+        return unwrapList<Project>('projects', raw);
     }
 
     /**

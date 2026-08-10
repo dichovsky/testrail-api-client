@@ -12,9 +12,9 @@ import {
     type UpdateRunInPlanEntryPayload,
 } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
-import { z } from 'zod';
 import { validateId, validateEntryId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class PlanModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -50,17 +50,12 @@ export class PlanModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ plans?: Plan[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ plans: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ plans: z.array(PlanSchema).nullish() }),
-                })
-            ).plans ?? []
-        );
+        const raw = await this.client.request<Plan[] | { plans?: Plan[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('plans', PlanSchema),
+        });
+        return unwrapList<Plan>('plans', raw);
     }
 
     /** @testrail POST add_plan/{project_id} */

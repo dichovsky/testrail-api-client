@@ -86,6 +86,8 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 | `TestRailValidationError` | Bad config (baseUrl/email/apiKey), invalid ID, invalid params | —                                  |
 | `Error`                   | Call after `destroy()`                                        | —                                  |
 
+A malformed **response** throws nothing — since 6.0.0 it surfaces through `onSchemaMismatch` and the raw body is returned. `TestRailValidationError` is now exclusively a caller-input error.
+
 ## Schema authoring conventions (`src/schemas/*.ts`)
 
 Five rules govern Zod schemas. The Results domain (`src/schemas/results.ts`) is the canonical exemplar for both directions.
@@ -96,7 +98,33 @@ Five rules govern Zod schemas. The Results domain (`src/schemas/results.ts`) is 
 4. **Sub-schema discipline** — response sub-schemas (`LabelEmbeddedSchema`, `PlanEntrySchema`, `HistoryEntrySchema`, …) are response-only by default. For request-side equivalents define a separate sub-schema (e.g. `AddPlanEntryRunPayloadSchema`); do not reuse a response sub-schema in a payload even when the field list looks similar — optionality and the writeable-field set almost always differ.
 5. **Endpoint-level divergence** — when a POST/PUT response genuinely differs from the GET response (different fields/types), model it as a separate `AddXResponseSchema`. Reference case (PR #146): `add_case_field` returns `configs` as a JSON-encoded string while `get_case_fields` returns a structured array, so `AddCaseFieldResponseSchema` keeps the two distinct. The bar is _observed_ divergence backed by docs or response captures — not a hypothetical asymmetry.
 
-Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no `.extend()` between directions) and §4 (payloads don't reference response base/sub-schemas).
+Regression guard: `tests/schema-conventions.test.ts` statically enforces §2 (responses use `.nullish()`, never `.optional()`; no format/length validators on responses), §3 (no `.extend()` between directions), and §4 (payloads don't reference response base/sub-schemas).
+
+**A "no bare required scalar on a response" rule was evaluated and deliberately rejected.** The audit found that most matches were primary keys, foreign keys, or `name` — fields present by construction — so the rule produced mostly false positives while still missing wrapper-shape and wire-type drift. Do not add it. Drift of that kind is caught by `onSchemaMismatch` at runtime, not by a syntactic gate.
+
+## Response validation is advisory (6.0.0)
+
+`TestRailClientCore.parse()` uses `safeParse`: a response that fails its schema is **returned raw** and reported to the optional `TestRailConfig.onSchemaMismatch` hook. It never throws on its own. A hook that throws restores fail-closed behavior and is the supported strict mode; because the hook is invoked outside any `try`, the throw propagates and also prevents the cache write. Use `onSchemaMismatch: ({ error }) => { throw handleZodError(error) }` for byte-for-byte pre-6.0.0 behavior — the bare `throw error` throws a `ZodError`, not the `TestRailValidationError` older versions raised, so `instanceof` handlers would silently stop matching.
+
+Exception at the module boundary: `cases.addCases()` and `cases.updateCases()` perform a second hard check on their successful response shape. These non-idempotent writes may already have changed server state, so an unrecognized response reports through the hook and then throws an indeterminate-outcome `TestRailApiError` instead of returning `[]` and inviting a duplicate retry.
+
+The hook is caller-supplied config and is validated as such: a non-function is rejected in the constructor, and one returning a thenable throws `TestRailValidationError` at the mismatch. An `async` hook satisfies the `void` return type but cannot restore fail-closed validation (its throw becomes a rejected promise nobody awaits) and its rejection would surface as a process-fatal unhandled rejection.
+
+**A mismatched response is returned but never cached.** Caching it would pin a rejected body — including the `{}` that `executeJson` synthesizes for an empty 200 — for the full TTL with no further hook notifications, so a transient proxy blip would keep answering for minutes instead of self-healing on the next call as it did in 5.x. `parse()` delegates to a private `parseAdvisory()` that returns `{ value, matched }`; `request()` gates `setCachedData` on `matched`.
+
+**Wrapper-documented list reads must parse through `listOf()` / `unwrapList()`** (`src/modules/list.ts`), which accept both the paginated envelope and a bare top-level array. Mandatory for that class, not optional: an envelope-only schema meeting a bare array parses to the raw array under advisory validation, whose `.<key>` is `undefined`, so the `?? []` unwrap silently reports **zero rows** — worse than the throw it replaced. Never hand-roll `z.object({ key: z.array(X) })` for a wrapper-documented list GET, and use the pair for bulk list-returning _writes_ too (`addCases`, `updateCases`), where a silent `[]` misreports work the server actually did.
+
+The rule is scoped to endpoints TestRail documents with the pagination wrapper. Endpoints whose response is a bare array to begin with correctly parse `z.array(...)` and must be left alone — `getStatuses`, `getCaseStatuses`, `getPriorities`, `getCaseTypes`, `getTemplates`, `getCaseFields`, `getResultFields` (`metadata.ts`), `getConfigurations` (`configurations.ts`), `addResults`, `addResultsForCases` (`results.ts`). They do not tolerate an envelope: one would arrive raw, typed `T[]`, and a caller's `.map` would throw.
+
+Not every list-shaped POST returns a list, either. `update_tests` returns an acknowledgement (`{ test_ids, labels }`), so it uses `UpdateTestsResponseSchema` rather than `listOf` — routing it through the list helper made every successful call resolve `[]`. Before reaching for `listOf` on a write, confirm the endpoint actually returns entities. `get_history_for_case` needs the third variant, `listOfNested`/`unwrapNestedList`, because its documented response wraps the envelope in an outer array.
+
+Two invariants inside `listOf`/`unwrapList` carry the safety and must not be relaxed: the envelope key is `.nullable()` (present, possibly `null`) rather than `.nullish()`, because an optional-only key makes the branch accept **any** object — `{ error: … }`, a single entity, a renamed key — parsing "successfully" to `{}` and unwrapping to `[]` with no hook notification; and `unwrapList` guards the extracted member with `Array.isArray`, because the declared `T[]` is otherwise a lie when the key holds a scalar.
+
+Why: response-schema corrections have consistently widened schemas to admit valid TestRail responses rather than narrowed them to reject invalid ones. TestRail's docs can disagree with its wire behavior, so reviewing a schema against documentation alone can reproduce bugs rather than catch them.
+
+Scope: **responses only.** Caller-supplied input still fails closed — client config validates in the constructor, CLI write payloads in `resolveBody()` (`src/cli/body.ts`), and neither routes through `parse()`. Keep it that way; those are real trust boundaries.
+
+Consequence for types: exported response types describe the expected shape, not a runtime guarantee, and may widen in any release when wire evidence arrives. When widening, sync the hand-written mirrors in `src/types.ts` in the same change — `getCaseFields`/`getResultFields`/`getUser`/`getAttachments*`/`getPlan` return those interfaces rather than `z.infer`, so a stale mirror is a type lie at the call site.
 
 ## Constants (`src/constants.ts`)
 
@@ -104,22 +132,23 @@ Regression guard: `tests/schema-conventions.test.ts` statically enforces §3 (no
 
 ## Tests
 
-3062 collected cases (3039 passing, 23 skipped in the current suite). Shared helpers live in `tests/helpers.ts`.
+3406 collected cases (3383 passing, 23 skipped in the current suite). Shared helpers live in `tests/helpers.ts`.
 
-| File                              | Covers                                                                                                                                 |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/client-endpoints.test.ts`  | Endpoint methods and CRUD paths                                                                                                        |
-| `tests/client-features.test.ts`   | Cache, rate limiter, retry, lifecycle                                                                                                  |
-| `tests/client-edge-cases.test.ts` | Edge cases, signal handlers, error paths                                                                                               |
-| `tests/client-projects.test.ts`   | Project CRUD                                                                                                                           |
-| `tests/client-sections.test.ts`   | Section CRUD                                                                                                                           |
-| `tests/cli.test.ts`               | CLI subprocess: dispatch, auth, rendering, exit codes                                                                                  |
-| `tests/cli-helpers.test.ts`       | Unit tests for extracted helpers (`valueToString`, `renderTable`, `safeJsonStringify`, `parseId`, `optInt`, `resolveAuth`, `dispatch`) |
-| `tests/payload-schemas.test.ts`   | Zod write-payload schemas: parse/reject/`custom_*` passthrough                                                                         |
-| `tests/exports.test.ts`           | Public API exports, inheritance                                                                                                        |
-| `tests/performance.test.ts`       | Concurrent requests, throughput                                                                                                        |
-| `tests/utils.test.ts`             | `base64Encode`, `sleep`                                                                                                                |
-| `tests/body-limits.test.ts`       | Response-body byte cap + wall-clock deadline (SEC #12 / SEC #21) across JSON, text, binary, and multipart paths                        |
+| File                                | Covers                                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/client-endpoints.test.ts`    | Endpoint methods and CRUD paths                                                                                                        |
+| `tests/client-features.test.ts`     | Cache, rate limiter, retry, lifecycle                                                                                                  |
+| `tests/client-edge-cases.test.ts`   | Edge cases, signal handlers, error paths                                                                                               |
+| `tests/client-projects.test.ts`     | Project CRUD                                                                                                                           |
+| `tests/client-sections.test.ts`     | Section CRUD                                                                                                                           |
+| `tests/cli.test.ts`                 | CLI subprocess: dispatch, auth, rendering, exit codes                                                                                  |
+| `tests/cli-helpers.test.ts`         | Unit tests for extracted helpers (`valueToString`, `renderTable`, `safeJsonStringify`, `parseId`, `optInt`, `resolveAuth`, `dispatch`) |
+| `tests/payload-schemas.test.ts`     | Zod write-payload schemas: parse/reject/`custom_*` passthrough                                                                         |
+| `tests/exports.test.ts`             | Public API exports, inheritance                                                                                                        |
+| `tests/performance.test.ts`         | Concurrent requests, throughput                                                                                                        |
+| `tests/utils.test.ts`               | `base64Encode`, `sleep`                                                                                                                |
+| `tests/body-limits.test.ts`         | Response-body byte cap + wall-clock deadline (SEC #12 / SEC #21) across JSON, text, binary, and multipart paths                        |
+| `tests/advisory-validation.test.ts` | Advisory response validation: `onSchemaMismatch`, strict-mode opt-in, list bare-array/envelope tolerance, input still fail-closed      |
 
 ## Common Tasks
 

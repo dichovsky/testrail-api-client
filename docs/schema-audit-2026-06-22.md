@@ -15,13 +15,13 @@ Audit of `@dichovsky/testrail-api-client` schemas and client methods against a *
 - **Target surface**: 117 documented endpoints.
 - **Exercised with a 2xx capture**: 81 endpoint calls across the full read / write / update / destructive surface (single + bulk, pagination envelopes, multipart upload, binary download, soft-delete preview).
 - **Not exercised on this instance (16)** — instance limits, **not** schema defects:
-  | Reason | Endpoints |
-  | --- | --- |
-  | Enterprise license required | `get_case_statuses`, `get_variables`, `get_datasets`, `add_variable`, `add_dataset` |
-  | Configuration permission denied | `add_config_group` (+ `add/update/delete_config*`), `add_run_to_plan_entry` (requires `config_ids`) |
-  | Test-result/label permission denied | `update_test`, `update_tests`, `delete_milestone` |
-  | Closed-state / precondition | `delete_run`/`delete_plan`/`delete_plan_entry`/`delete_run_from_plan_entry` (run/plan was closed first), `update_run_in_plan_entry` (needs a config-split entry), `add_bdd` (BDD-enabled section) |
-  | Intentionally skipped (un-rollbackable global writes) | `add_user`, `update_user`, `add_case_field` |
+    | Reason                                                | Endpoints                                                                                                                                                                                         |
+    | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | Enterprise license required                           | `get_case_statuses`, `get_variables`, `get_datasets`, `add_variable`, `add_dataset`                                                                                                               |
+    | Configuration permission denied                       | `add_config_group` (+ `add/update/delete_config*`), `add_run_to_plan_entry` (requires `config_ids`)                                                                                               |
+    | Test-result/label permission denied                   | `update_test`, `update_tests`, `delete_milestone`                                                                                                                                                 |
+    | Closed-state / precondition                           | `delete_run`/`delete_plan`/`delete_plan_entry`/`delete_run_from_plan_entry` (run/plan was closed first), `update_run_in_plan_entry` (needs a config-split entry), `add_bdd` (BDD-enabled section) |
+    | Intentionally skipped (un-rollbackable global writes) | `add_user`, `update_user`, `add_case_field`                                                                                                                                                       |
 
 Open-entity deletes (`delete_case`, `delete_section`, `delete_suite`, `delete_shared_step`, `delete_group`) were exercised and confirmed to return an empty/void body.
 
