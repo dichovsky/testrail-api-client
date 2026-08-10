@@ -2,7 +2,7 @@ import { TestRailClientCore } from '../client-core.js';
 import { DatasetSchema } from '../schemas.js';
 import type { Dataset, AddDatasetPayload, UpdateDatasetPayload } from '../schemas.js';
 import { validateId } from '../validation.js';
-import { z } from 'zod';
+import { listOf, unwrapList } from './list.js';
 
 export class DatasetModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -20,21 +20,16 @@ export class DatasetModule {
     /** @testrail GET get_datasets/{project_id} */
     async getDatasets(projectId: number): Promise<Dataset[]> {
         validateId(projectId, 'projectId');
-        // `get_datasets` is a TestRail bulk-API endpoint: it returns the
-        // `{ offset, limit, size, _links, datasets: [...] }` pagination wrapper
-        // (standard for every bulk endpoint since TestRail 6.7), never a bare
-        // array. Parse the wrapper (not `z.array(DatasetSchema)`, which rejects
-        // the object) and return `datasets ?? []`. `.nullish()` accepts both an
-        // omitted key and `null` for an empty list. Mirrors `variables.getVariables()`.
-        return (
-            (
-                await this.client.request<{ datasets?: Dataset[] }>({
-                    method: 'GET',
-                    endpoint: `get_datasets/${projectId}`,
-                    schema: z.object({ datasets: z.array(DatasetSchema).nullish() }),
-                })
-            ).datasets ?? []
-        );
+        // `get_datasets` documents the `{ offset, limit, size, _links, datasets: [...] }`
+        // pagination wrapper, but the docs are not a reliable guide to which shape a
+        // given server sends — see the `listOf` docblock in `./list.js` for the full
+        // rationale. Accept both; `unwrapList` normalizes.
+        const raw = await this.client.request<Dataset[] | { datasets?: Dataset[] }>({
+            method: 'GET',
+            endpoint: `get_datasets/${projectId}`,
+            schema: listOf('datasets', DatasetSchema),
+        });
+        return unwrapList('datasets', raw);
     }
 
     /** @testrail POST add_dataset/{project_id} */

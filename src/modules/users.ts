@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { TestRailValidationError } from '../errors.js';
 import { UserSchema, GroupSchema } from '../schemas.js';
 import type { AddGroupPayload, Group, UpdateGroupPayload, UserAddPayload, UserUpdatePayload } from '../schemas.js';
@@ -6,6 +5,7 @@ import { TestRailClientCore } from '../client-core.js';
 import type { User } from '../types.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 // Lightweight sanity guard for the get_user_by_email lookup input: exactly one
 // '@' with non-empty, whitespace-free local and domain parts. Deliberately does
@@ -51,17 +51,18 @@ export class UsersModule {
             offset,
         });
 
-        return (
-            (
-                await this.client.request<{ users?: User[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ users: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ users: z.array(UserSchema).nullish() }),
-                })
-            ).users ?? []
-        );
+        // `get_users` is the one bulk endpoint whose documentation shows a bare
+        // top-level array and lists no `limit`/`offset` parameters, while
+        // projects/groups/roles/labels all document the envelope. #248 proved
+        // this exact wrapper-only assumption wrong for six other methods, so
+        // accept both shapes rather than betting on the doc.
+        // SPEC #1.5 — `{ users: null }` is a valid empty wrapper, hence `.nullish()`.
+        const raw = await this.client.request<User[] | { users?: User[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('users', UserSchema),
+        });
+        return unwrapList('users', raw);
     }
 
     /** @testrail GET get_current_user */
@@ -106,17 +107,12 @@ export class UsersModule {
 
     /** @testrail GET get_groups */
     async getGroups(): Promise<Group[]> {
-        return (
-            (
-                await this.client.request<{ groups?: Group[] }>({
-                    method: 'GET',
-                    endpoint: 'get_groups',
-                    // SPEC #1.5 — TestRail returns `{ groups: [...] }` wrapper; `.nullish()` accepts
-                    // both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ groups: z.array(GroupSchema).nullish() }),
-                })
-            ).groups ?? []
-        );
+        const raw = await this.client.request<Group[] | { groups?: Group[] }>({
+            method: 'GET',
+            endpoint: 'get_groups',
+            schema: listOf('groups', GroupSchema),
+        });
+        return unwrapList<Group>('groups', raw);
     }
 
     /** @testrail POST add_group */

@@ -28,7 +28,11 @@ export const LabelSchema = zObject({
     id: z.number(),
     title: z.string().nullish(),
     name: z.string().nullish(),
-    created_by: z.number().nullish(),
+    // Union rather than a bare number: the Labels doc quotes `created_by` as
+    // `"2"` while leaving `created_on` unquoted in the same object. No wire
+    // capture exists for this API, so accept both encodings. Mirrors
+    // `LabelEmbeddedSchema.created_by` in schemas/metadata.ts.
+    created_by: z.union([z.number(), z.string()]).nullish(),
     created_on: z.number().nullish(),
 });
 

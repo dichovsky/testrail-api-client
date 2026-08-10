@@ -1,16 +1,10 @@
-import type { TestRailConfig, CacheEntry, UploadFileInput, UploadFilePathInput } from './types.js';
+import type { TestRailConfig, CacheEntry, SchemaMismatch, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
-import {
-    TestRailApiError,
-    TestRailLicenseError,
-    TestRailValidationError,
-    handleZodError,
-    isLicenseRestriction,
-} from './errors.js';
+import { TestRailApiError, TestRailLicenseError, TestRailValidationError, isLicenseRestriction } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
-import { ZodError, type ZodType } from 'zod';
+import { type ZodType } from 'zod';
 import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
 import { getRetryPolicy } from './retry-policy.js';
 
@@ -300,6 +294,7 @@ export class TestRailClientCore {
     protected readonly root: TestRailClientCore;
     private readonly fetchOverride: typeof globalThis.fetch | undefined;
     private readonly dnsLookup: DnsLookupFn | undefined;
+    private readonly onSchemaMismatch: ((mismatch: SchemaMismatch) => void) | undefined;
 
     constructor(config: TestRailConfig) {
         this.validateConfig(config);
@@ -337,6 +332,7 @@ export class TestRailClientCore {
         this.root = this;
         this.fetchOverride = config.fetch;
         this.dnsLookup = config.dnsLookup;
+        this.onSchemaMismatch = config.onSchemaMismatch;
 
         if (config.allowInsecure === true && new URL(config.baseUrl).protocol === 'http:') {
             process.emitWarning(
@@ -534,6 +530,12 @@ export class TestRailClientCore {
         }
         if (config.fetch !== undefined && typeof config.fetch !== 'function') {
             throw new TestRailValidationError('fetch must be a function compatible with the Fetch API');
+        }
+        // Without this check a non-function hook constructs cleanly and only
+        // fails on the first schema mismatch — potentially after a successful
+        // write, with a bare TypeError from inside the client.
+        if (config.onSchemaMismatch !== undefined && typeof config.onSchemaMismatch !== 'function') {
+            throw new TestRailValidationError('onSchemaMismatch must be a function');
         }
     }
 
@@ -857,7 +859,6 @@ export class TestRailClientCore {
      *   - GET responses are cached. Adding `spec.schema` switches the cache to
      *     the `PARSED:GET:{endpoint}` namespace so a raw response and a
      *     validated response for the same endpoint never collide.
-     *     Schema-invalid responses are never cached.
      *   - Writes (non-GET) clear the entire cache before parsing.
      *   - DNS revalidation runs fresh on every call.
      *   - Identical in-flight GETs are coalesced (SEC #23).
@@ -869,10 +870,11 @@ export class TestRailClientCore {
      *   - 3xx is surfaced as `TestRailApiError`, never followed, never cached.
      *   - Response-body byte cap + wall-clock deadline apply to every fetch.
      *
+     * A `schema` mismatch does **not** throw — see {@link parse}. The raw body
+     * is returned and {@link TestRailConfig.onSchemaMismatch} is notified.
+     *
      * @throws {TestRailApiError} On any HTTP error, network error, rate-limit
      *                            hit, timeout, oversized body, or redirect.
-     * @throws {TestRailValidationError} When a `schema` is supplied and the
-     *                                   response does not conform.
      * @throws {Error} When called after `destroy()`.
      */
     public async request<T>(spec: RequestSpec<T>): Promise<T> {
@@ -907,11 +909,20 @@ export class TestRailClientCore {
             cacheKey = schema !== undefined ? `PARSED:GET:${endpoint}` : `GET:${endpoint}`;
         }
 
-        // When a schema is supplied, validation gates the cache write so a
-        // malformed response never poisons the cache. We replicate the
-        // historical `requestParsed` flow here: parse the body unvalidated,
-        // then run Zod, then write the validated value to the cache.
+        // When a schema is supplied we replicate the historical `requestParsed`
+        // flow: parse the body unvalidated, run Zod, then write to the cache.
         // Without a schema, the pipeline writes the parsed body directly.
+        //
+        // Since 6.0.0 a schema mismatch is returned to the caller rather than
+        // thrown, but it is NOT cached: pinning a body the schema rejected would
+        // hold it for the full TTL (5 min by default) with no further hook
+        // notifications, so a transient proxy blip — or the `{}` that
+        // `executeJson` synthesizes for an empty 200 — would keep answering for
+        // minutes where 5.x threw and self-healed on the next call. Skipping the
+        // write keeps availability (the raw body is still returned) while making
+        // each subsequent call re-fetch and re-report. A consumer that opts back
+        // into fail-closed behavior by throwing from `onSchemaMismatch` also
+        // skips the write, since the throw escapes before `setCachedData`.
         const writeValidatedAfterPipeline = schema !== undefined && method === 'GET' && responseKind === 'json';
         const cacheGeneration = this.cacheGeneration;
 
@@ -942,16 +953,16 @@ export class TestRailClientCore {
                 // Validated GET: run the pipeline with NO cache (it would
                 // otherwise write the raw body); validate; cache the result.
                 const raw = await this.executeJson<unknown>(method, endpoint, body, retry, undefined, timeouts);
-                const validated = this.parse<T>(schema, raw);
-                if (cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
-                    this.setCachedData(cacheKey, validated);
+                const { value, matched } = this.parseAdvisory<T>(schema, raw, { method, endpoint });
+                if (matched && cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
+                    this.setCachedData(cacheKey, value);
                 }
-                return validated;
+                return value;
             }
             // Validated POST (non-cached) or raw JSON path.
             const result = await this.executeJson<T>(method, endpoint, body, retry, cacheKey, timeouts);
             if (schema !== undefined) {
-                return this.parse<T>(schema, result);
+                return this.parse<T>(schema, result, { method, endpoint });
             }
             return result;
         })();
@@ -1395,16 +1406,81 @@ export class TestRailClientCore {
 
     /**
      * Validates `data` against `schema` and returns it typed as `T`.
-     * @throws {TestRailValidationError} When data does not conform to schema
+     *
+     * **Response validation is advisory.** A mismatch does not throw: `data` is
+     * returned unchanged and {@link TestRailConfig.onSchemaMismatch} fires with
+     * the detail. Rationale — TestRail's published API contract disagrees with
+     * its wire behavior on a recurring basis (a comment-only result sends
+     * `status_id: null`; `mfa_required` sends integer `0`; several list
+     * endpoints send a bare array where the docs promise a wrapper). Every
+     * schema correction shipped by this package to date has *widened* a schema
+     * to admit a valid TestRail response, and none has narrowed one to reject an
+     * invalid one. Failing closed therefore only ever converted a working
+     * response into an outage — and because list endpoints validate a whole
+     * page at once, one unmodeled row discarded up to 250 valid ones.
+     *
+     * The hook is deliberately invoked outside the `safeParse` result handling,
+     * so a hook that throws propagates to the caller. That is the supported
+     * fail-closed opt-in (see {@link TestRailConfig.onSchemaMismatch}).
+     *
+     * Caller-supplied input is unaffected: client configuration is validated in
+     * the constructor and CLI write payloads in `resolveBody()`, neither of
+     * which routes through this method. Both still fail closed.
+     *
+     * @param schema Zod schema describing the expected response shape.
+     * @param data   Raw parsed response body.
+     * @param ctx    Originating request, forwarded to the mismatch hook. Required
+     *               so a mismatch can always name the call that produced it — the
+     *               direct callers (BDD, soft-delete previews) thread it by hand,
+     *               and a destructive-op preview reporting an empty endpoint
+     *               would be worse than useless.
      */
-    public parse<T>(schema: ZodType, data: unknown): T {
-        try {
-            return schema.parse(data) as T;
-        } catch (err) {
-            if (err instanceof ZodError) {
-                throw handleZodError(err);
-            }
-            throw err;
+    public parse<T>(schema: ZodType, data: unknown, ctx: { method: string; endpoint: string }): T {
+        return this.parseAdvisory<T>(schema, data, ctx).value;
+    }
+
+    /**
+     * {@link parse} plus whether the body actually matched its schema.
+     * `request()` uses the flag to skip the GET cache write on a mismatch:
+     * caching a body the schema rejected would pin it — including the `{}` that
+     * {@link executeJson} synthesizes for an empty 200 — for the full TTL,
+     * turning a transient proxy blip into minutes of wrong-but-cached answers
+     * with no further hook notifications.
+     */
+    private parseAdvisory<T>(
+        schema: ZodType,
+        data: unknown,
+        ctx: { method: string; endpoint: string },
+    ): { value: T; matched: boolean } {
+        const result = schema.safeParse(data);
+        if (result.success) return { value: result.data as T, matched: true };
+
+        // Outside any try/catch on purpose: a throwing hook is the documented
+        // way to restore fail-closed validation.
+        const returned: unknown = this.root.onSchemaMismatch?.({
+            method: ctx.method,
+            endpoint: ctx.endpoint,
+            error: result.error,
+            data,
+        });
+
+        // An `async` hook satisfies the `void` return type but breaks every
+        // guarantee the hook documents: a throw inside it becomes a rejected
+        // promise, so strict mode silently fails open, and that rejection
+        // escapes as an unhandled rejection — which terminates Node >= 15 by
+        // default. Swallow the rejection and fail closed loudly instead. The
+        // hook is caller-supplied configuration, so TestRailValidationError is
+        // the right class.
+        if (typeof (returned as PromiseLike<unknown> | undefined)?.then === 'function') {
+            void (returned as PromiseLike<unknown>).then(undefined, () => {});
+            throw new TestRailValidationError(
+                'onSchemaMismatch must be synchronous — it returned a promise. An async hook ' +
+                    'cannot restore fail-closed validation (its throw becomes a rejected promise) ' +
+                    'and its rejection surfaces as an unhandled rejection. Do async work in a ' +
+                    'fire-and-forget call inside a synchronous hook.',
+            );
         }
+
+        return { value: data as T, matched: false };
     }
 }

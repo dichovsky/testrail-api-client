@@ -24,6 +24,7 @@ import type {
     HistoryEntry,
     CaseStatus,
     Attachment,
+    SchemaMismatch,
 } from '../src/types.js';
 import type {
     AddCasePayload,
@@ -59,10 +60,37 @@ global.fetch = mockFetch;
 
 describe('TestRailClient', () => {
     let client: TestRailClient;
+    /** Every response-schema mismatch observed by the client under test. */
+    let schemaMismatches: SchemaMismatch[];
+
+    /**
+     * Asserts that a response **fails** its schema.
+     *
+     * Since 6.0.0 response validation is advisory: a mismatch resolves with the
+     * raw body rather than throwing, and reports through `onSchemaMismatch`.
+     * These assertions therefore test *detection* — that the schema still
+     * models the field tightly enough to notice the drift — decoupled from the
+     * policy of what to do about it. Widening a schema so it stops noticing
+     * still fails the test.
+     */
+    async function expectSchemaMismatch<T>(promise: Promise<T>): Promise<T> {
+        const before = schemaMismatches.length;
+        const result = await promise;
+        expect(
+            schemaMismatches.length,
+            'expected the response to fail its schema and notify onSchemaMismatch',
+        ).toBeGreaterThan(before);
+        return result;
+    }
 
     beforeEach(() => {
         vi.resetAllMocks();
-        client = createClient();
+        schemaMismatches = [];
+        client = createClient({
+            onSchemaMismatch: (mismatch) => {
+                schemaMismatches.push(mismatch);
+            },
+        });
     });
 
     describe('constructor', () => {
@@ -322,7 +350,7 @@ describe('TestRailClient', () => {
                 users: 'not-an-array',
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.projects.getProject(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.projects.getProject(1));
         });
 
         it('rejects groups when the wire delivers a non-array value', async () => {
@@ -334,7 +362,7 @@ describe('TestRailClient', () => {
                 groups: 42,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.projects.getProject(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.projects.getProject(1));
         });
 
         it('rejects a users[] element where role_id is a non-numeric string (not coerced)', async () => {
@@ -348,7 +376,7 @@ describe('TestRailClient', () => {
                 users: [{ user_id: 4, role_id: 'three' }],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.projects.getProject(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.projects.getProject(1));
         });
     });
 
@@ -979,7 +1007,7 @@ describe('TestRailClient', () => {
                 },
             ];
             mockFetch.mockResolvedValueOnce(mockOk({ history }));
-            await expect(client.cases.getHistoryForCase(42)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getHistoryForCase(42));
         });
 
         it('rejects a change where label is a number (no coercion)', async () => {
@@ -993,7 +1021,7 @@ describe('TestRailClient', () => {
                 },
             ];
             mockFetch.mockResolvedValueOnce(mockOk({ history }));
-            await expect(client.cases.getHistoryForCase(42)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getHistoryForCase(42));
         });
 
         it('rejects a change where label is a boolean (no coercion)', async () => {
@@ -1009,12 +1037,15 @@ describe('TestRailClient', () => {
                 },
             ];
             mockFetch.mockResolvedValueOnce(mockOk({ history }));
-            await expect(client.cases.getHistoryForCase(42)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getHistoryForCase(42));
         });
 
-        it('rejects a change where options is a plain object instead of an array', async () => {
-            // The previous coverage tested `options: 'not-an-array'`. A bare
-            // object is the other natural mistake and must be rejected as well.
+        it('accepts a change whose options is a plain object (6.0.0 — that is the real wire shape)', async () => {
+            // This test asserted the opposite, on the reasoning that a bare
+            // object was "the other natural mistake". Observed responses proved
+            // the object is a valid wire shape, so the array-only declaration
+            // made getHistoryForCase reject valid histories. The union now
+            // accepts both.
             const history = [
                 {
                     id: 1,
@@ -1025,7 +1056,23 @@ describe('TestRailClient', () => {
                 },
             ];
             mockFetch.mockResolvedValueOnce(mockOk({ history }));
-            await expect(client.cases.getHistoryForCase(42)).rejects.toThrow();
+            const result = await client.cases.getHistoryForCase(42);
+            expect(result[0]?.changes?.[0]?.options).toEqual({ is_required: true });
+            expect(schemaMismatches).toHaveLength(0);
+        });
+
+        it('still reports a mismatch when options is a scalar (neither object nor array)', async () => {
+            const history = [
+                {
+                    id: 1,
+                    type_id: 6,
+                    user_id: 1,
+                    timestamp: 1,
+                    changes: [{ field: 'x', options: 'not-a-container' }],
+                },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk({ history }));
+            await expectSchemaMismatch(client.cases.getHistoryForCase(42));
         });
 
         it('parses old_value / new_value as arrays (separated-steps field type)', async () => {
@@ -1076,7 +1123,7 @@ describe('TestRailClient', () => {
                 },
             ];
             mockFetch.mockResolvedValueOnce(mockOk({ history }));
-            await expect(client.cases.getHistoryForCase(42)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getHistoryForCase(42));
         });
     });
 
@@ -1133,13 +1180,11 @@ describe('TestRailClient', () => {
                 await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
             });
 
-            it('passes through TestRailValidationError unchanged (non-TestRailApiError branch)', async () => {
-                // A schema-validation failure inside request(spec) throws
-                // TestRailValidationError. The addCases try/catch tests
-                // `e instanceof TestRailApiError` first — when false, the
-                // catch must rethrow as-is rather than apply the version-gate
-                // fingerprint. Returning a malformed shape from the server
-                // triggers this path.
+            it('fails closed after reporting a mismatch when the 200 body is unrecognized', async () => {
+                // Advisory validation is unsafe for this write: the cases may
+                // already exist, so returning [] or malformed rows can prompt a
+                // retry that creates duplicates. The operation reports through
+                // the hook and then rejects with an explicit indeterminate result.
                 mockFetch.mockResolvedValueOnce(
                     new Response(JSON.stringify([{ notACase: true }]), {
                         status: 200,
@@ -1147,7 +1192,69 @@ describe('TestRailClient', () => {
                         headers: { 'Content-Type': 'application/json' },
                     }),
                 );
-                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(TestRailValidationError);
+                const before = schemaMismatches.length;
+                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(
+                    /add_cases succeeded but returned an unrecognized response; write outcome is indeterminate/,
+                );
+                expect(schemaMismatches.length).toBeGreaterThan(before);
+            });
+
+            it('does not normalize an unrecognized object response to zero created cases', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ unexpected: [] }));
+                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(
+                    /write outcome is indeterminate/,
+                );
+            });
+
+            it('accepts a bare-array response without reporting "0 created"', async () => {
+                // The wrapper-vs-bare drift #248 proved for six read endpoints,
+                // applied to a write. Envelope-only, this resolved [] while the
+                // cases existed server-side, and a caller acting on "0 created"
+                // by retrying would duplicate them.
+                const created = [{ ...mockCase, section_id: 12 }];
+                mockFetch.mockResolvedValueOnce(
+                    new Response(JSON.stringify(created), {
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                );
+                await expect(client.cases.addCases(12, [{ title: 'C' }])).resolves.toHaveLength(1);
+            });
+
+            it('still accepts the probe-confirmed {cases} wrapper', async () => {
+                mockFetch.mockResolvedValueOnce(
+                    new Response(JSON.stringify({ cases: [{ ...mockCase, section_id: 12 }] }), {
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                );
+                await expect(client.cases.addCases(12, [{ title: 'C' }])).resolves.toHaveLength(1);
+            });
+
+            it('rethrows a non-TestRailApiError unchanged (strict-mode hook throws inside the try)', async () => {
+                // Covers the branch the test above used to reach. addCases's
+                // catch checks `e instanceof TestRailApiError` first and must
+                // rethrow anything else as-is, rather than dressing it up with
+                // the "TestRail >= 7.5 required" version-gate fingerprint. A
+                // strict-mode onSchemaMismatch throwing a ZodError from inside
+                // request() is now the way to get a non-TestRailApiError there.
+                const sentinel = new Error('strict-mode sentinel');
+                const strict = createClient({
+                    onSchemaMismatch: () => {
+                        throw sentinel;
+                    },
+                });
+                mockFetch.mockResolvedValueOnce(
+                    new Response(JSON.stringify([{ notACase: true }]), {
+                        status: 200,
+                        statusText: 'OK',
+                        headers: { 'Content-Type': 'application/json' },
+                    }),
+                );
+                await expect(strict.cases.addCases(12, [{ title: 'C' }])).rejects.toBe(sentinel);
+                strict.destroy();
             });
 
             it('passes through a 400 with no response body (defensive — exercises e.response ?? "" branch)', async () => {
@@ -1221,6 +1328,23 @@ describe('TestRailClient', () => {
                 const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
                 expect(init.method).toBe('POST');
                 expect(JSON.parse(init.body as string)).toEqual(payload);
+            });
+
+            it('accepts a bare-array response without reporting "0 updated"', async () => {
+                // Same hazard as addCases: on a bulk write, an envelope-only
+                // schema meeting a drifted body resolves [] for work the server
+                // actually did.
+                mockFetch.mockResolvedValueOnce(mockOk([mockCase, { ...mockCase, id: 2 }]));
+                await expect(client.cases.updateCases(5, { case_ids: [1, 2] })).resolves.toHaveLength(2);
+            });
+
+            it('does not normalize an unrecognized 200 response to zero updated cases', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ unexpected: [] }));
+                const before = schemaMismatches.length;
+                await expect(client.cases.updateCases(5, { case_ids: [1, 2] })).rejects.toThrow(
+                    /update_cases succeeded but returned an unrecognized response; write outcome is indeterminate/,
+                );
+                expect(schemaMismatches.length).toBeGreaterThan(before);
             });
 
             it('rejects non-positive-integer suiteId', async () => {
@@ -1452,7 +1576,7 @@ describe('TestRailClient', () => {
                 labels: 'release-2.0',
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.cases.getCase(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getCase(1));
         });
 
         it('rejects a labels[] inner object where id is a string instead of a number (no coercion)', async () => {
@@ -1468,7 +1592,7 @@ describe('TestRailClient', () => {
                 labels: [{ id: 'one', title: 'release' }],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.cases.getCase(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getCase(1));
         });
 
         it('rejects a labels[] inner object that is missing id entirely', async () => {
@@ -1486,7 +1610,7 @@ describe('TestRailClient', () => {
                 labels: [{ title: 'no-id' }],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.cases.getCase(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.cases.getCase(1));
         });
 
         it('parses labels[] carrying BOTH `title` and `name` simultaneously', async () => {
@@ -2079,7 +2203,7 @@ describe('TestRailClient', () => {
                 ...badField,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.plans.getPlan(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.plans.getPlan(1));
         });
 
         it('parses get_plan response with entries[] carrying SPEC #2.1.6 fields on each PlanEntry', async () => {
@@ -2189,7 +2313,7 @@ describe('TestRailClient', () => {
                 ],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.plans.getPlan(12)).rejects.toThrow();
+            await expectSchemaMismatch(client.plans.getPlan(12));
         });
     });
 
@@ -2942,7 +3066,7 @@ describe('TestRailClient', () => {
                 entry_id: 42,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.runs.getRun(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.runs.getRun(1));
         });
 
         it('rejects entry_index when wire delivers a string instead of a number (no coercion)', async () => {
@@ -2964,7 +3088,7 @@ describe('TestRailClient', () => {
                 entry_index: '0',
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.runs.getRun(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.runs.getRun(1));
         });
 
         it('rejects start_on when wire delivers an ISO date string instead of a numeric Unix timestamp', async () => {
@@ -2987,7 +3111,7 @@ describe('TestRailClient', () => {
                 start_on: '2026-05-22T10:00:00Z',
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.runs.getRun(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.runs.getRun(1));
         });
     });
 
@@ -3202,7 +3326,7 @@ describe('TestRailClient', () => {
                 labels: 'release-2.0',
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.tests.getTest(100)).rejects.toThrow();
+            await expectSchemaMismatch(client.tests.getTest(100));
         });
 
         it('rejects a labels[] inner object where id is a string instead of a number (no coercion)', async () => {
@@ -3215,7 +3339,7 @@ describe('TestRailClient', () => {
                 labels: [{ id: 'one', title: 'release' }],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.tests.getTest(100)).rejects.toThrow();
+            await expectSchemaMismatch(client.tests.getTest(100));
         });
 
         it('rejects a labels[] inner object that is missing id entirely', async () => {
@@ -3230,22 +3354,29 @@ describe('TestRailClient', () => {
                 labels: [{ title: 'no-id' }],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.tests.getTest(100)).rejects.toThrow();
+            await expectSchemaMismatch(client.tests.getTest(100));
         });
 
-        it('rejects a labels[] inner object where created_by is a string instead of a number (no coercion)', async () => {
-            // Comment specifically calls out `created_by` as a meaningful inner
-            // field; the schema must not coerce string → number.
-            const malformed = {
+        it('accepts a labels[] inner object where created_by is a string (6.0.0 union)', async () => {
+            // Was a rejection test. TestRail's Labels documentation quotes
+            // `created_by` as `"2"` in the same object where `created_on` is
+            // unquoted, and no wire capture exists for that API — so the schema
+            // accepts both encodings rather than betting on one. Critically,
+            // LabelEmbeddedSchema rides on CaseSchema.labels[] and
+            // TestSchema.labels[], so guessing wrong here failed getCase,
+            // getCases, getTest and getTests page-wide.
+            const wire = {
                 id: 100,
                 case_id: 1,
                 status_id: 5,
                 run_id: 1,
-                title: 'Bad inner created_by',
+                title: 'String inner created_by',
                 labels: [{ id: 1, title: 'release', created_by: 'alice' }],
             };
-            mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.tests.getTest(100)).rejects.toThrow();
+            mockFetch.mockResolvedValueOnce(mockOk(wire));
+            const result = await client.tests.getTest(100);
+            expect(result.labels?.[0]?.created_by).toBe('alice');
+            expect(schemaMismatches).toHaveLength(0);
         });
 
         it('rejects a labels[] inner object where created_on is an ISO date string', async () => {
@@ -3260,7 +3391,7 @@ describe('TestRailClient', () => {
                 labels: [{ id: 1, title: 'release', created_on: '2024-01-01' }],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.tests.getTest(100)).rejects.toThrow();
+            await expectSchemaMismatch(client.tests.getTest(100));
         });
 
         // ── Label-write endpoints (TestRail Labels API, 2025) ──────────────────
@@ -3293,32 +3424,49 @@ describe('TestRailClient', () => {
         });
 
         describe('updateTests (bulk label-write, no path param)', () => {
-            it('POSTs update_tests and unwraps a { tests: [...] } wrapper', async () => {
-                const tests: Test[] = [
-                    { id: 1, case_id: 1, status_id: 5, run_id: 1, title: 'A', labels: [{ id: 2, title: 'smoke' }] },
-                    { id: 2, case_id: 1, status_id: 5, run_id: 1, title: 'B', labels: [{ id: 2, title: 'smoke' }] },
-                ];
-                mockFetch.mockResolvedValueOnce(mockOk({ tests }));
+            it('POSTs update_tests and returns the documented { test_ids, labels } acknowledgement', async () => {
+                // TestRail's documented example. `update_tests` acknowledges the
+                // assignment; it does not return the updated tests. Modelling it
+                // as a test list made every successful call resolve [] — "0 tests
+                // updated" for work the server had done.
+                const ack = { test_ids: [1, 2], labels: [{ id: 2, title: 'smoke' }] };
+                mockFetch.mockResolvedValueOnce(mockOk(ack));
                 const result = await client.tests.updateTests({ test_ids: [1, 2], labels: ['smoke'] });
-                expect(result).toEqual(tests);
+                expect(result).toEqual(ack);
+                expect(result.test_ids).toEqual([1, 2]);
                 const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
                 expect(url).toContain('update_tests');
                 expect(init.method).toBe('POST');
                 expect(JSON.parse(init.body)).toEqual({ test_ids: [1, 2], labels: ['smoke'] });
             });
 
-            it('accepts a bare-array response (bimodal shape) and returns it', async () => {
-                const tests: Test[] = [{ id: 1, case_id: 1, status_id: 5, run_id: 1, title: 'A' }];
-                mockFetch.mockResolvedValueOnce(mockOk(tests));
-                const result = await client.tests.updateTests({ test_ids: [1], labels: [] });
-                expect(result).toEqual(tests);
+            it('does not report a mismatch for the documented acknowledgement', async () => {
+                const mismatches: SchemaMismatch[] = [];
+                const observed = createClient({
+                    onSchemaMismatch: (m) => {
+                        mismatches.push(m);
+                    },
+                });
+                mockFetch.mockResolvedValueOnce(mockOk({ test_ids: [1, 2, 3], labels: [{ id: 1, title: 'label1' }] }));
+                await observed.tests.updateTests({ test_ids: [1, 2, 3], labels: ['label1'] });
+                expect(mismatches).toHaveLength(0);
+                observed.destroy();
             });
 
-            it('returns [] when the response lacks a tests key (pagination envelope or ack object)', async () => {
-                // Covers any object missing `tests` — a pagination envelope OR an
-                // ack/count object (e.g. { updated: 3 }) both fall through to [].
-                mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0 }));
-                expect(await client.tests.updateTests({ test_ids: [1], labels: ['x'] })).toEqual([]);
+            it('reports an acknowledgement whose required fields are missing', async () => {
+                const mismatches: SchemaMismatch[] = [];
+                const observed = createClient({
+                    onSchemaMismatch: (m) => {
+                        mismatches.push(m);
+                    },
+                });
+                mockFetch.mockResolvedValueOnce(mockOk({ updated: 3 }));
+
+                await observed.tests.updateTests({ test_ids: [1, 2, 3], labels: ['label1'] });
+
+                expect(mismatches).toHaveLength(1);
+                expect(mismatches[0]?.endpoint).toBe('update_tests');
+                observed.destroy();
             });
 
             it('throws when any test_id is not a positive integer (before any network call)', async () => {
@@ -3375,9 +3523,16 @@ describe('TestRailClient', () => {
                 expect(await client.labels.getLabels(1)).toEqual([]);
             });
 
-            it('rejects a bare-array response (get_labels is never a bare array)', async () => {
+            it('accepts and unwraps a bare-array response (6.0.0 listOf union)', async () => {
+                // Was a rejection test. Under advisory validation an
+                // envelope-only schema meeting a bare array does not throw — it
+                // parses to the raw array, whose `.labels` is undefined, so the
+                // unwrap silently yields []. Silent emptiness on a list read is
+                // worse than the throw it replaced, so every list read now
+                // accepts both shapes via listOf().
                 mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, title: 'x' }]));
-                await expect(client.labels.getLabels(1)).rejects.toThrow(TestRailValidationError);
+                expect(await client.labels.getLabels(1)).toEqual([{ id: 1, title: 'x' }]);
+                expect(schemaMismatches).toHaveLength(0);
             });
 
             it('throws for invalid projectId', async () => {
@@ -4116,18 +4271,37 @@ describe('TestRailClient', () => {
             expect(result).toEqual(legacyMilestone);
         });
 
+        it('accepts is_started: null (6.0.0 — .optional() widened to .nullish())', async () => {
+            // Previously grouped with the rejection cases below on the reasoning
+            // that the docs describe a plain boolean and never mention null.
+            // 6.0.0 stopped treating the docs as authoritative about the wire:
+            // admitting a null that never arrives costs nothing, rejecting one
+            // that does discards the whole milestone list.
+            const milestone = {
+                id: 1,
+                name: 'Null is_started',
+                project_id: 1,
+                is_completed: false,
+                url: 'url',
+                is_started: null,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(milestone));
+            const result = await client.milestones.getMilestone(1);
+            expect(result.is_started).toBeNull();
+            expect(schemaMismatches).toHaveLength(0);
+        });
+
         it.each([
             ['string', 'true'],
             ['number 1', 1],
             ['number 0', 0],
-            ['explicit null', null],
             ['empty object', {}],
             ['empty array', []],
-        ])('rejects is_started when the wire delivers %s (strict boolean, no coercion)', async (_label, value) => {
-            // `.optional()` (not `.nullish()`) — accepts undefined / true / false
-            // and rejects everything else, matching the sibling `is_completed:
-            // z.boolean()` shape on the same schema and the doc's "plain boolean"
-            // contract.
+        ])('rejects is_started when the wire delivers %s (no coercion)', async (_label, value) => {
+            // `.nullish()` accepts undefined / null / true / false. Everything
+            // else — notably the 0/1 integer encoding TestRail uses for some
+            // other boolean columns — is still detected as drift, so if this
+            // field ever turns out to be tinyint-backed the mismatch hook says so.
             const malformed = {
                 id: 1,
                 name: 'Bad is_started',
@@ -4137,7 +4311,7 @@ describe('TestRailClient', () => {
                 is_started: value,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.milestones.getMilestone(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.milestones.getMilestone(1));
         });
     });
 
@@ -4373,7 +4547,7 @@ describe('TestRailClient', () => {
                 group_ids: '1,2,3',
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.users.getUser(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.users.getUser(1));
         });
 
         it('rejects group_ids when the array contains non-number elements', async () => {
@@ -4385,7 +4559,7 @@ describe('TestRailClient', () => {
                 group_ids: [1, '2', 3],
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.users.getUser(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.users.getUser(1));
         });
 
         it('rejects assigned_projects when the wire delivers a non-array value', async () => {
@@ -4397,7 +4571,7 @@ describe('TestRailClient', () => {
                 assigned_projects: 42,
             };
             mockFetch.mockResolvedValueOnce(mockOk(malformed));
-            await expect(client.users.getUser(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.users.getUser(1));
         });
     });
 
@@ -4656,7 +4830,7 @@ describe('TestRailClient', () => {
                     ],
                 };
                 mockFetch.mockResolvedValueOnce(mockOk(wrongShape));
-                await expect(client.metadata.addCaseField(validPayload)).rejects.toThrow();
+                await expectSchemaMismatch(client.metadata.addCaseField(validPayload));
             });
 
             it('propagates 403 Forbidden (admin-only endpoint)', async () => {
@@ -4729,22 +4903,32 @@ describe('TestRailClient', () => {
             template_ids: [],
         });
 
-        it('getCaseFields accepts project_ids: null on a global field and normalizes to []', async () => {
+        // 6.0.0 removed the `.transform()` that folded null / "" into []. Under
+        // advisory parsing the transform was unsound: any *sibling* field
+        // failing to parse returns the raw body, so `project_ids` would arrive
+        // untransformed as null while the inferred type still claimed
+        // `number[]` — converting a caught validation error into an uncaught
+        // TypeError on `.length` in caller code. The type now states the wire
+        // shape and callers narrow explicitly.
+        it('getCaseFields passes through project_ids: null on a global field', async () => {
             mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: null })]));
             const result = await client.metadata.getCaseFields();
-            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+            expect(result[0]?.configs[0]?.context.project_ids).toBeNull();
+            expect(schemaMismatches).toHaveLength(0);
         });
 
-        it('getCaseFields accepts project_ids: "" on a global field and normalizes to []', async () => {
+        it('getCaseFields passes through project_ids: "" on a global field', async () => {
             mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: '' })]));
             const result = await client.metadata.getCaseFields();
-            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+            expect(result[0]?.configs[0]?.context.project_ids).toBe('');
+            expect(schemaMismatches).toHaveLength(0);
         });
 
-        it('getCaseFields accepts an omitted project_ids and normalizes to []', async () => {
+        it('getCaseFields accepts an omitted project_ids', async () => {
             mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true })]));
             const result = await client.metadata.getCaseFields();
-            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+            expect(result[0]?.configs[0]?.context.project_ids).toBeUndefined();
+            expect(schemaMismatches).toHaveLength(0);
         });
 
         it('getCaseFields preserves project_ids for project-scoped fields', async () => {
@@ -4753,21 +4937,31 @@ describe('TestRailClient', () => {
             expect(result[0]?.configs[0]?.context.project_ids).toEqual([1, 2, 3]);
         });
 
-        it('getCaseFields still rejects a non-empty-string project_ids (strictness preserved)', async () => {
+        it('getCaseFields accepts a comma-separated project_ids string', async () => {
+            // #215 deliberately narrowed the accepted string form to `z.literal('')`,
+            // rejecting anything else as garbage. That narrowing rested on a
+            // hypothesis about the encoding rather than a capture, and the
+            // cross-referenced client it cited models the field as
+            // `number[] | string | null`. Widened to any string: an unexpected
+            // encoding should reach the caller, not discard the entire field list.
             mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: '1,2,3' })]));
-            await expect(client.metadata.getCaseFields()).rejects.toThrow(TestRailValidationError);
+            const result = await client.metadata.getCaseFields();
+            expect(result[0]?.configs[0]?.context.project_ids).toBe('1,2,3');
+            expect(schemaMismatches).toHaveLength(0);
         });
 
-        it('getResultFields accepts a global field with project_ids: null (shared sub-schema)', async () => {
+        it('getResultFields passes through a global field with project_ids: null (shared sub-schema)', async () => {
             mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: null })]));
             const result = await client.metadata.getResultFields();
-            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+            expect(result[0]?.configs[0]?.context.project_ids).toBeNull();
+            expect(schemaMismatches).toHaveLength(0);
         });
 
-        it('getResultFields accepts a global field with project_ids: "" (shared sub-schema)', async () => {
+        it('getResultFields passes through a global field with project_ids: "" (shared sub-schema)', async () => {
             mockFetch.mockResolvedValueOnce(mockOk([fieldWire({ is_global: true, project_ids: '' })]));
             const result = await client.metadata.getResultFields();
-            expect(result[0]?.configs[0]?.context.project_ids).toEqual([]);
+            expect(result[0]?.configs[0]?.context.project_ids).toBe('');
+            expect(schemaMismatches).toHaveLength(0);
         });
     });
 
@@ -5102,11 +5296,12 @@ describe('TestRailClient', () => {
             expect(await client.metadata.getRoles()).toEqual([]);
         });
 
-        it('should reject a bare-array response (regression: get_roles is never a bare array)', async () => {
-            // Guards the PR #200-class bug: a bare array is NOT a valid get_roles
-            // response shape, so parsing must fail rather than silently pass.
+        it('should accept and unwrap a bare-array response (6.0.0 listOf union)', async () => {
+            // Was a rejection test — see the getLabels twin for why every list
+            // read now accepts both the envelope and a bare array.
             mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, name: 'Admin', is_default: false }]));
-            await expect(client.metadata.getRoles()).rejects.toThrow(TestRailValidationError);
+            expect(await client.metadata.getRoles()).toEqual([{ id: 1, name: 'Admin', is_default: false }]);
+            expect(schemaMismatches).toHaveLength(0);
         });
     });
 
@@ -5510,7 +5705,7 @@ describe('TestRailClient', () => {
             // API change that would mask a real wire-format incident.
             const malformed = [{ attachment_id: 'not-a-number', name: 'broken.txt' }];
             mockFetch.mockResolvedValueOnce(mockOk({ attachments: malformed }));
-            await expect(client.attachments.getAttachmentsForCase(1)).rejects.toThrow(TestRailValidationError);
+            await expectSchemaMismatch(client.attachments.getAttachmentsForCase(1));
         });
     });
 
@@ -5912,7 +6107,7 @@ describe('TestRailClient', () => {
             // `id` and `title` are required-and-typed per the doc field table.
             // Strict checks ensure the schema doesn't silently widen these.
             mockFetch.mockResolvedValueOnce(mockOk(payload));
-            await expect(client.sharedSteps.getSharedStep(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.sharedSteps.getSharedStep(1));
         });
     });
 
@@ -6026,12 +6221,14 @@ describe('TestRailClient', () => {
             expect(await client.variables.getVariables(1)).toEqual([]);
         });
 
-        it('should reject a bare-array response (regression: get_variables is never a bare array)', async () => {
-            // Guards the paginated-wrapper bug: a bare array is NOT a valid
-            // get_variables response, so parsing must fail rather than silently
-            // pass (the prior `VariableSchema.array()` schema masked this).
+        it('should accept and unwrap a bare-array response (6.0.0 wrapper union)', async () => {
+            // Was a rejection test. #248 found six methods whose documented
+            // wrapper was a bare array on live Cloud, so the schema now accepts
+            // both shapes and normalizes to `Variable[]`. Rejecting the bare
+            // array only ever risked an outage against a server that sends one.
             mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, name: 'env' }]));
-            await expect(client.variables.getVariables(1)).rejects.toThrow(TestRailValidationError);
+            expect(await client.variables.getVariables(1)).toEqual([{ id: 1, name: 'env' }]);
+            expect(schemaMismatches).toHaveLength(0);
         });
 
         it('should throw for invalid projectId', async () => {
@@ -6141,12 +6338,12 @@ describe('TestRailClient', () => {
             expect(await client.datasets.getDatasets(1)).toEqual([]);
         });
 
-        it('should reject a bare-array response (regression: get_datasets is never a bare array)', async () => {
-            // Guards the paginated-wrapper bug: a bare array is NOT a valid
-            // get_datasets response, so parsing must fail rather than silently
-            // pass (the prior `DatasetSchema.array()` schema masked this).
+        it('should accept and unwrap a bare-array response (6.0.0 wrapper union)', async () => {
+            // Was a rejection test — see the getVariables twin above for why the
+            // wrapper-only assumption was abandoned.
             mockFetch.mockResolvedValueOnce(mockOk([{ id: 1, name: 'Smoke' }]));
-            await expect(client.datasets.getDatasets(1)).rejects.toThrow(TestRailValidationError);
+            expect(await client.datasets.getDatasets(1)).toEqual([{ id: 1, name: 'Smoke' }]);
+            expect(schemaMismatches).toHaveLength(0);
         });
 
         it('should throw for invalid projectId', async () => {
@@ -6270,7 +6467,7 @@ describe('TestRailClient', () => {
             ['number name', { id: 1, name: 42 }],
         ])('rejects %s (no nullability or coercion)', async (_label, wire) => {
             mockFetch.mockResolvedValueOnce(mockOk(wire));
-            await expect(client.variables.addVariable(1, { name: 'x' })).rejects.toThrow();
+            await expectSchemaMismatch(client.variables.addVariable(1, { name: 'x' }));
         });
     });
 
@@ -6348,7 +6545,7 @@ describe('TestRailClient', () => {
             ],
         ])('rejects malformed embedded variable: %s', async (_label, wire) => {
             mockFetch.mockResolvedValueOnce(mockOk(wire));
-            await expect(client.datasets.getDataset(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.datasets.getDataset(1));
         });
 
         it('accepts embedded variable with value: null (unset/cleared on server side)', async () => {
@@ -6425,7 +6622,7 @@ describe('TestRailClient', () => {
         ])('rejects non-boolean %s (strict, no coercion)', async (_label, field, value) => {
             const report = { id: 1, name: 'r', [field]: value };
             mockFetch.mockResolvedValueOnce(mockOk([report]));
-            await expect(client.reports.getReports(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.reports.getReports(1));
         });
 
         it('parses run_report doc-canonical response with report_html and report_pdf', async () => {
@@ -6488,7 +6685,7 @@ describe('TestRailClient', () => {
                 result[field] = value;
             }
             mockFetch.mockResolvedValueOnce(mockOk(result));
-            await expect(client.reports.runReport(1)).rejects.toThrow();
+            await expectSchemaMismatch(client.reports.runReport(1));
         });
     });
 

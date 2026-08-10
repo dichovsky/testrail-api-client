@@ -75,6 +75,7 @@ export {
     UpdateLabelPayloadSchema,
     UpdateTestLabelsPayloadSchema,
     UpdateTestsLabelsPayloadSchema,
+    UpdateTestsResponseSchema,
     AddVariablePayloadSchema,
     UpdateVariablePayloadSchema,
     AddGroupPayloadSchema,
@@ -129,6 +130,7 @@ export type {
     UpdateLabelPayload,
     UpdateTestLabelsPayload,
     UpdateTestsLabelsPayload,
+    UpdateTestsResponse,
     Variable,
     AddVariablePayload,
     UpdateVariablePayload,
@@ -156,6 +158,7 @@ export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
 export type { GetAttachmentsOptions } from './modules/attachments.js';
 export type {
     TestRailConfig,
+    SchemaMismatch,
     RateLimiterConfig,
     Case,
     Suite,

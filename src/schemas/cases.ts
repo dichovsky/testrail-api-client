@@ -50,9 +50,13 @@ const HistoryChangeSchema = zObject({
     new_text: z.string().nullish(),
     // SPEC #2.1.13 — added per the `get_history_for_case` field table:
     //   - `label` (string) is the field label as seen in the user interface.
-    //   - `options` (array) carries field-config options (required, default value,
-    //     etc.) — inner shape varies per field type, so the element type stays
-    //     `z.unknown()` to accept whatever TestRail emits.
+    //   - `options` carries field-config options (required, default value,
+    //     etc.). The doc's field table calls it an array; the wire sends an
+    //     OBJECT — e.g. `{ is_required: false, default_value: "0", items:
+    //     "0, Option A\n1, Option B\n…" }` on a change to a dropdown-style
+    //     custom field. The union keeps the documented array form so a field
+    //     type that does emit one still parses; inner shapes vary per field
+    //     type, hence `unknown`.
     //   - `old_value` / `new_value` are typed as a discriminated union of the
     //     value shapes the wire actually carries:
     //       * `string`   — text fields, refs ("1" in the doc example)
@@ -64,7 +68,7 @@ const HistoryChangeSchema = zObject({
     //     entirely. The union gives consumers a switch-narrowable type instead of
     //     the bare `unknown` they'd get from `z.unknown()`.
     label: z.string().nullish(),
-    options: z.array(z.unknown()).nullish(),
+    options: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).nullish(),
     old_value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]).nullish(),
     new_value: z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.unknown())]).nullish(),
 });
@@ -175,14 +179,19 @@ export type DeleteCasesPayload = z.infer<typeof DeleteCasesPayloadSchema>;
 // `delete_suite&soft=1` returns counts of sections, cases, runs, plans, and
 // tests. Every numeric field stays optional and `.passthrough()` keeps
 // unknown counters or future fields from being elided.
+// Response counters use `.nullish()`, not `.optional()`: `.optional()` is
+// `T | undefined` and rejects an explicit `null`. This schema was introduced
+// after the #130 optional→nullish response sweep and so was never covered by
+// it. The failure would land on a destructive-delete preview — the call where
+// a trustworthy answer matters most.
 export const SoftDeletePreviewSchema = zObject({
-    affected_tests: z.number().optional(),
-    affected_cases: z.number().optional(),
-    affected_sections: z.number().optional(),
-    affected_runs: z.number().optional(),
-    affected_milestones: z.number().optional(),
-    affected_plans: z.number().optional(),
-    affected_suites: z.number().optional(),
+    affected_tests: z.number().nullish(),
+    affected_cases: z.number().nullish(),
+    affected_sections: z.number().nullish(),
+    affected_runs: z.number().nullish(),
+    affected_milestones: z.number().nullish(),
+    affected_plans: z.number().nullish(),
+    affected_suites: z.number().nullish(),
 });
 
 export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>;

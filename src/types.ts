@@ -1,4 +1,43 @@
+import type { ZodError } from 'zod';
 import type { LabelEmbedded } from './schemas.js';
+
+/**
+ * Detail passed to {@link TestRailConfig.onSchemaMismatch} when a response
+ * does not conform to its Zod schema.
+ *
+ * Nothing here is disclosed that the caller does not already receive — but a
+ * hook usually *logs*, which moves the data somewhere the API response never
+ * went. Both `endpoint` and `data` can carry personal data; see the per-field
+ * notes below and prefer `error.issues` (paths and codes only, no values) when
+ * a redacted signal is enough.
+ */
+export interface SchemaMismatch {
+    /** HTTP method of the originating request (e.g. `'GET'`). */
+    method: string;
+    /**
+     * API endpoint of the originating request (e.g. `'get_results_for_run/{run_id}'`).
+     *
+     * **May contain personal data.** Path parameters can identify entities, and
+     * query parameters can contain email addresses or other user-provided
+     * values. For telemetry, keep only the operation token before the first
+     * `/` or `&` rather than logging this value directly.
+     */
+    endpoint: string;
+    /** The Zod failure, listing every offending path. */
+    error: ZodError;
+    /**
+     * The raw response body, returned to the caller unchanged.
+     *
+     * **May contain personal data** — user names and email addresses, result
+     * comments, and custom fields all arrive here without redaction. Logging it
+     * wholesale copies that into your log sink; select the fields you need.
+     *
+     * Treat as read-only: this is the same object reference the caller receives,
+     * so mutating it in the hook changes what the caller sees. A mismatched GET
+     * response is never written to the cache.
+     */
+    data: unknown;
+}
 
 /**
  * TestRail API client configuration options
@@ -113,6 +152,62 @@ export interface TestRailConfig {
      * dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }]
      */
     dnsLookup?: (hostname: string) => Promise<{ address: string; family: number }[]>;
+    /**
+     * Called when a TestRail **response** fails its Zod schema.
+     *
+     * Response validation is advisory: a mismatch normally does not throw on
+     * its own. The raw body is returned to the caller unchanged and this hook
+     * fires with the offending detail. Unset by default, in which case a
+     * mismatch is silent. The non-idempotent `addCases` and `updateCases`
+     * methods are the exception: after notifying this hook, an unrecognized
+     * successful response throws an indeterminate-outcome error rather than
+     * returning an empty list that could invite a duplicate retry.
+     *
+     * The hook is invoked outside any `try`, so **throwing from it propagates to
+     * the caller**. That is the supported way to restore the pre-6.0.0
+     * fail-closed behavior — useful in CI, where schema drift should break the
+     * build, while production stays available:
+     *
+     * @example
+     * // Observe drift without logging path IDs or query values
+     * onSchemaMismatch: ({ method, endpoint, error }) =>
+     *     log.warn({
+     *         method,
+     *         operation: endpoint.replace(/[\/&].*$/, ''),
+     *         issues: error.issues,
+     *     })
+     *
+     * @example
+     * // Strict mode, byte-for-byte pre-6.0.0: `handleZodError` (exported from
+     * // the package root) converts the ZodError to the TestRailValidationError
+     * // that older versions threw, so existing `instanceof` handlers still match.
+     * onSchemaMismatch: ({ error }) => { throw handleZodError(error); }
+     *
+     * @example
+     * // Or throw the ZodError as-is, if you prefer the raw issue tree
+     * onSchemaMismatch: ({ error }) => { throw error; }
+     *
+     * **The hook must be synchronous.** An `async` function satisfies the `void`
+     * return type but cannot restore fail-closed behavior — its throw becomes a
+     * rejected promise nobody awaits, so validation silently fails open and the
+     * rejection surfaces as an unhandled rejection (fatal on Node >= 15). A hook
+     * that returns a thenable is rejected with `TestRailValidationError`. Do
+     * async work in a fire-and-forget call inside a synchronous hook.
+     * (`typescript-eslint`'s `no-misused-promises` catches this at lint time if
+     * you have typed linting enabled; `tsc` alone does not.)
+     *
+     * **Do not mutate `mismatch.data`.** It is the same object reference the
+     * caller receives, so an in-place edit (a redact-before-log pass, say)
+     * would alter the returned value. A mismatched GET is never cached.
+     *
+     * **`endpoint` and `data` can carry personal data**; see
+     * {@link SchemaMismatch} before logging either.
+     *
+     * Applies to responses only. Caller-supplied input — client configuration
+     * and CLI write payloads — is validated on a separate path and still fails
+     * closed.
+     */
+    onSchemaMismatch?: (mismatch: SchemaMismatch) => void;
 }
 
 export interface UploadFilePathInput {
@@ -247,6 +342,12 @@ export interface Plan {
     created_on: number; // Unix timestamp
     created_by: number;
     url: string;
+    // Mirror of the additional response fields on `PlanSchema`: observed on
+    // `get_plan` / `get_plans` but absent from the docs. `getPlan` returns this
+    // hand-written interface rather than `z.infer`, so omitting them made
+    // runtime-delivered data unreachable without a cast.
+    is_archived?: boolean | null;
+    archived_on?: number | null; // Unix timestamp
     entries?: PlanEntry[] | null;
     // Mirror of SPEC #2.1.6 fields on `PlanSchema`. Per the `get_plan` response-field
     // table: `start_on` / `due_on` are documented as timestamps (ungated); `refs`
@@ -349,8 +450,12 @@ export interface Test {
 export interface Result {
     id: number;
     test_id: number;
-    /** e.g., 1=Passed */
-    status_id: number;
+    /**
+     * e.g., 1=Passed. `null` on a **comment-only** result — a comment, defect,
+     * or assignment recorded without a status change. Always present on the
+     * wire; only the value is nullable.
+     */
+    status_id: number | null;
     comment?: string | null;
     version?: string | null;
     elapsed?: string | null; // e.g. "5m 30s"
@@ -376,11 +481,9 @@ export interface Milestone {
     url: string;
     milestones?: Milestone[] | null;
     // Mirror of SPEC #2.1.9 `is_started` on `MilestoneSchema`. TestRail 5.3+ —
-    // older servers omit the key entirely. Plain `boolean | undefined` (no
-    // `| null`) — matches the schema's `.optional()` choice and the
-    // documented "this is a plain boolean" contract. See schemas.ts for the
-    // sibling-asymmetry rationale vs `is_completed`.
-    is_started?: boolean;
+    // older servers omit the key entirely. Widened to `| null` in 6.0.0 when
+    // the schema moved from `.optional()` to `.nullish()`; see schemas/milestones.ts.
+    is_started?: boolean | null;
 }
 
 export interface User {
@@ -434,10 +537,12 @@ export interface Priority {
 export interface CaseStatus {
     case_status_id: number;
     name: string;
-    abbreviation: string;
+    /** `null` unless a custom short label is configured — the built-in Approved and Draft statuses ship without one. */
+    abbreviation?: string | null;
     is_default: boolean;
     is_approved: boolean;
-    is_untested: boolean;
+    /** Belongs to `get_statuses`, not `get_case_statuses` — normally absent here. */
+    is_untested?: boolean | null;
 }
 
 export interface HistoryChange {
@@ -451,7 +556,13 @@ export interface HistoryChange {
     // to narrow at use site (vs the previous `unknown` which forced explicit
     // runtime checks).
     label?: string | null;
-    options?: unknown[] | null;
+    /**
+     * Field-config options for the changed field. An **object** on the wire
+     * (e.g. `{ is_required, default_value, items }`) despite the doc's field
+     * table calling it an array; the array form is kept in the union in case
+     * some field type does emit one.
+     */
+    options?: Record<string, unknown> | unknown[] | null;
     old_value?: string | number | boolean | unknown[] | null;
     new_value?: string | number | boolean | unknown[] | null;
 }
@@ -550,17 +661,27 @@ export interface GetRunsOptions {
 }
 
 export interface ResultFieldConfig {
-    /** Live-audit: config-level id (UUID / legacy hex token). */
+    /** Config-level id (UUID / legacy hex token). */
     id?: string | null;
     context: {
         is_global: boolean;
-        project_ids: number[];
+        /**
+         * `number[]` for project-scoped fields; `""` or `null` for global ones
+         * (`is_global: true`), which includes every built-in system field. The
+         * 6.0.0 removal of the normalizing `.transform()` means the raw wire
+         * shape now reaches callers — narrow before indexing.
+         */
+        project_ids?: number[] | string | null;
     };
     options: {
         is_required: boolean;
-        /** Live-audit: omitted on some configs (e.g. step-style fields) — not always present. */
+        /** Omitted on some configs (e.g. step-style fields) — not always present. */
         default_value?: string | null;
-        items?: string | null;
+        /**
+         * Newline-delimited string on dropdown fields; some result-field
+         * configurations instead return an array of `{ name, machine_name }`.
+         */
+        items?: string | unknown[] | null;
         format?: string | null;
         rows?: string | null;
         has_expected?: boolean | null;
@@ -587,7 +708,7 @@ export interface ResultField {
     include_all: boolean;
     template_ids: number[];
     description?: string | null;
-    /** Live-audit: i18n translation key (string when set, null otherwise). */
+    /** i18n translation key (string when set, null otherwise). */
     i18n_custom_id?: string | null;
 }
 
@@ -595,17 +716,27 @@ export interface ResultField {
 
 /** Context/options configuration block shared by CaseField entries */
 export interface CaseFieldConfig {
-    /** Live-audit: config-level id (UUID / legacy hex token). */
+    /** Config-level id (UUID / legacy hex token). */
     id?: string | null;
     context: {
         is_global: boolean;
-        project_ids: number[];
+        /**
+         * `number[]` for project-scoped fields; `""` or `null` for global ones
+         * (`is_global: true`), which includes every built-in system field. The
+         * 6.0.0 removal of the normalizing `.transform()` means the raw wire
+         * shape now reaches callers — narrow before indexing.
+         */
+        project_ids?: number[] | string | null;
     };
     options: {
         is_required: boolean;
-        /** Live-audit: omitted on some configs (e.g. step-style fields) — not always present. */
+        /** Omitted on some configs (e.g. step-style fields) — not always present. */
         default_value?: string | null;
-        items?: string | null;
+        /**
+         * Newline-delimited string on dropdown fields; some field
+         * configurations instead return an array of `{ name, machine_name }`.
+         */
+        items?: string | unknown[] | null;
         format?: string | null;
         rows?: string | null;
         has_expected?: boolean | null;

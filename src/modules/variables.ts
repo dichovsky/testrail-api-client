@@ -2,7 +2,7 @@ import { TestRailClientCore } from '../client-core.js';
 import { VariableSchema } from '../schemas.js';
 import type { Variable, AddVariablePayload, UpdateVariablePayload } from '../schemas.js';
 import { validateId } from '../validation.js';
-import { z } from 'zod';
+import { listOf, unwrapList } from './list.js';
 
 export class VariableModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -17,15 +17,12 @@ export class VariableModule {
         // the object) and return `variables ?? []`. `.nullish()` accepts both an
         // omitted key and `null` for an empty list. Mirrors `users.getGroups()`
         // and `metadata.getRoles()`.
-        return (
-            (
-                await this.client.request<{ variables?: Variable[] }>({
-                    method: 'GET',
-                    endpoint: `get_variables/${projectId}`,
-                    schema: z.object({ variables: z.array(VariableSchema).nullish() }),
-                })
-            ).variables ?? []
-        );
+        const raw = await this.client.request<Variable[] | { variables?: Variable[] }>({
+            method: 'GET',
+            endpoint: `get_variables/${projectId}`,
+            schema: listOf('variables', VariableSchema),
+        });
+        return unwrapList('variables', raw);
     }
 
     /** @testrail POST add_variable/{project_id} */

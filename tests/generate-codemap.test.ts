@@ -253,8 +253,12 @@ describe('CODEMAP.md structural invariants', () => {
         expect(Array.isArray(data.files)).toBe(true);
     });
 
-    it('size is under the 300 KB sanity bound', () => {
+    it('size is under the 320 KB sanity bound', () => {
+        // Guards against runaway generation (duplicated entries, an unbounded
+        // loop), not against ordinary growth. Raised from 300 KB when the file
+        // reached ~301 KB by adding two public symbols with no change in file
+        // count — legitimate growth, roughly 1-2 KB per symbol-adding PR.
         const md = readFileSync(join(REPO_ROOT, 'CODEMAP.md'), 'utf8');
-        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(300_000);
+        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(320_000);
     });
 });

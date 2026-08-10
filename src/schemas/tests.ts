@@ -64,3 +64,22 @@ export const UpdateTestsLabelsPayloadSchema = zObject({
 });
 
 export type UpdateTestsLabelsPayload = z.infer<typeof UpdateTestsLabelsPayloadSchema>;
+
+/**
+ * `update_tests` acknowledges the bulk label assignment; it does **not** return
+ * the updated tests. TestRail's documented example is
+ * `{ "test_ids": [1, 2, 3], "labels": [{ "id": 1, "title": "label1" }] }` — the
+ * page's boilerplate status line ("the tests are returned as part of the
+ * response") is copy-pasted across every endpoint and contradicts the example
+ * beneath it.
+ *
+ * Modelling this as a test list was a guess made while the docs were
+ * unreachable, and it failed in the worst direction: the acknowledgement has no
+ * `tests` key, so every successful call resolved `[]`.
+ */
+export const UpdateTestsResponseSchema = zObject({
+    test_ids: z.array(z.number()),
+    labels: z.array(LabelEmbeddedSchema),
+});
+
+export type UpdateTestsResponse = z.infer<typeof UpdateTestsResponseSchema>;

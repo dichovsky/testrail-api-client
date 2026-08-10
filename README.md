@@ -132,8 +132,50 @@ const client = new TestRailClient({
 | `registerProcessHandlers` | `boolean`           | `false`            | Install `exit`/`SIGINT`/`SIGTERM` handlers (opt-in)  |
 | `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom `fetch` implementation                        |
 | `dnsLookup`               | `function`          | system DNS         | Custom resolver for SSRF host validation             |
+| `onSchemaMismatch`        | `function`          | none (silent)      | Notified when a response does not match its schema   |
 
 Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
+
+## Response types are a description, not a guarantee
+
+Since 6.0.0, **response validation is advisory**. When a TestRail response does not match its Zod schema, the client normally returns the raw body unchanged and notifies `onSchemaMismatch` — it does not throw.
+
+The exception is an unrecognized successful response from `cases.addCases()` or `cases.updateCases()`. Those non-idempotent bulk writes may already have changed server state, so reporting an empty result could prompt a duplicate retry. They notify `onSchemaMismatch` and then throw `TestRailApiError` with an explicit “write outcome is indeterminate” message.
+
+This is deliberate. TestRail's published API documentation is not a reliable description of what the API actually sends: it documents a `{step_history}` wrapper for an endpoint that returns a bare array, a boolean `mfa_required` that arrives as integer `0`, and an `is_untested` field on the wrong endpoint entirely. Because list endpoints validate a whole page at once, a single unmodelled row used to discard up to 250 valid ones — so strict validation reliably converted a working response into an outage, and never once caught a server-side regression.
+
+Two consequences worth knowing:
+
+- **Exported response types state the expected shape, not a runtime guarantee.** A field typed `number` can hold whatever TestRail sent. Fields are widened to match reality as wire evidence arrives, in any release — pin an exact version if you need frozen types.
+- **Caller-supplied input still fails closed.** Client configuration and CLI write payloads are validated on a separate path and reject invalid input as before.
+- **The hook must be synchronous, and what it logs can contain personal data.** An `async` hook cannot restore fail-closed validation and is rejected with `TestRailValidationError`; see the comment in the example below before logging `endpoint` or `data`.
+
+```typescript
+// Observe drift without changing behavior.
+// `error.issues` carries paths and codes but no field values, so it is the safe
+// thing to log. `endpoint` and `data` are not: endpoint paths can contain
+// entity IDs, query parameters can contain email addresses, and `data` is the
+// raw body, with user names, comments, and custom fields in it. Keep only the
+// operation token before the first path or query separator.
+const client = new TestRailClient({
+    ...config,
+    onSchemaMismatch: ({ method, endpoint, error }) =>
+        log.warn({ method, operation: endpoint.replace(/[\/&].*$/, ''), issues: error.issues }),
+});
+
+// Or restore strict, fail-closed validation — useful in CI.
+// `handleZodError` reproduces the exact TestRailValidationError older versions
+// threw, so existing `instanceof` handlers keep matching; throw `error` as-is
+// if you would rather have the raw Zod issue tree.
+import { handleZodError } from '@dichovsky/testrail-api-client';
+
+const strict = new TestRailClient({
+    ...config,
+    onSchemaMismatch: ({ error }) => {
+        throw handleZodError(error);
+    },
+});
+```
 
 ## Error handling
 
@@ -155,7 +197,7 @@ try {
 }
 ```
 
-`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body lives only in `response`, never in `message`). `TestRailValidationError` signals a caller mistake. Calling any method after `destroy()` throws a plain `Error`.
+`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body lives only in `response`, never in `message`). `TestRailValidationError` signals a caller mistake — bad config, an invalid ID, or an invalid parameter. Since 6.0.0 it is **not** thrown for a malformed TestRail _response_; see [Response types are a description, not a guarantee](#response-types-are-a-description-not-a-guarantee). Calling any method after `destroy()` throws a plain `Error`.
 
 For list filters that carry numeric IDs, validation also happens before any request is sent. Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers; invalid values fail locally with `TestRailValidationError` instead of reaching the API.
 

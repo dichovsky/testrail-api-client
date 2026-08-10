@@ -2,9 +2,9 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Suite, SoftDeleteOptions } from '../types.js';
 import { SuiteSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import type { AddSuitePayload, SoftDeletePreview, UpdateSuitePayload } from '../schemas.js';
-import { z } from 'zod';
 import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class SuiteModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -41,9 +41,9 @@ export class SuiteModule {
         const raw = await this.client.request<Suite[] | { suites?: Suite[] }>({
             method: 'GET',
             endpoint: `get_suites/${projectId}`,
-            schema: z.union([z.array(SuiteSchema), z.object({ suites: z.array(SuiteSchema).nullish() })]),
+            schema: listOf('suites', SuiteSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.suites ?? []);
+        return unwrapList('suites', raw);
     }
 
     /**
@@ -99,7 +99,10 @@ export class SuiteModule {
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
+                method: 'POST',
+                endpoint,
+            });
         }
     }
 }

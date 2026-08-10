@@ -1,9 +1,9 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload, StepHistoryEntry } from '../schemas.js';
 import { SharedStepSchema, StepHistoryEntrySchema } from '../schemas.js';
-import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export interface GetSharedStepHistoryOptions {
     /** Maximum number of history entries to return */
@@ -35,12 +35,9 @@ export class SharedStepModule {
         const raw = await this.client.request<SharedStep[] | { shared_steps?: SharedStep[] | null }>({
             method: 'GET',
             endpoint: `get_shared_steps/${projectId}`,
-            schema: z.union([
-                z.array(SharedStepSchema),
-                z.object({ shared_steps: z.array(SharedStepSchema).nullish() }),
-            ]),
+            schema: listOf('shared_steps', SharedStepSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.shared_steps ?? []);
+        return unwrapList('shared_steps', raw);
     }
 
     /** @testrail POST add_shared_step/{project_id} */
@@ -91,11 +88,8 @@ export class SharedStepModule {
             // SPEC #1.7 — entries live under `step_history` (NOT `history`). Live-instance
             // audit: the endpoint actually returns a BARE top-level array, not the wrapper.
             // Accept both shapes (mirrors getSharedSteps) and unwrap.
-            schema: z.union([
-                z.array(StepHistoryEntrySchema),
-                z.object({ step_history: z.array(StepHistoryEntrySchema).nullish() }),
-            ]),
+            schema: listOf('step_history', StepHistoryEntrySchema),
         });
-        return Array.isArray(raw) ? raw : (raw.step_history ?? []);
+        return unwrapList('step_history', raw);
     }
 }

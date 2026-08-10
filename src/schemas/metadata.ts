@@ -32,7 +32,14 @@ export const LabelEmbeddedSchema = zObject({
     id: z.number(),
     title: z.string().nullish(),
     name: z.string().nullish(),
-    created_by: z.number().nullish(),
+    // TestRail's Labels documentation quotes `created_by` as `"2"` in the same
+    // object where it leaves `created_on` unquoted, and where the parent case's
+    // own `created_by` is an unquoted `1`. No wire capture exists for the Labels
+    // API, so accept both documented encodings — the
+    // union mirrors the `mfa_required` and `data_id` fixes from the audit.
+    // This schema is embedded in `CaseSchema.labels[]` and `TestSchema.labels[]`,
+    // so a string here would have failed getCase/getCases/getTest/getTests.
+    created_by: z.union([z.number(), z.string()]).nullish(),
     created_on: z.number().nullish(),
 });
 
@@ -76,10 +83,18 @@ export type Priority = z.infer<typeof PrioritySchema>;
 export const CaseStatusSchema = zObject({
     case_status_id: z.number(),
     name: z.string(),
-    abbreviation: z.string(),
+    // `abbreviation` is an optional short label. The built-in Approved and Draft
+    // statuses — the out-of-the-box configuration of every instance — ship with
+    // it unset, and TestRail's own documented example response returns `null`
+    // for both. A required `z.string()` rejected the very first element.
+    abbreviation: z.string().nullish(),
     is_default: z.boolean(),
     is_approved: z.boolean(),
-    is_untested: z.boolean(),
+    // `is_untested` belongs to `get_statuses` (result statuses), not
+    // `get_case_statuses`. TestRail never emits the key here, so the required
+    // `z.boolean()` failed every row of every response. Kept (rather than
+    // deleted) so an instance that does send it still parses into the type.
+    is_untested: z.boolean().nullish(),
 });
 
 export type CaseStatus = z.infer<typeof CaseStatusSchema>;
@@ -88,16 +103,19 @@ export type CaseStatus = z.infer<typeof CaseStatusSchema>;
 
 const FieldConfigOptionsSchema = zObject({
     is_required: z.boolean(),
-    // Live-instance audit: `default_value` is OMITTED entirely on some configs
-    // (observed across many get_case_fields / get_result_fields entries, e.g.
-    // step-results and bdd-scenario fields), so a required `z.string()` threw.
+    // `default_value` is OMITTED entirely on some get_case_fields and
+    // get_result_fields configurations, so a required `z.string()` threw.
     // `.nullish()` accepts present-string, null, and key-omitted.
     default_value: z.string().nullish(),
-    items: z.string().nullish(),
+    // Newline-delimited string for dropdown fields
+    // ("0,Option A\n1,Option B\n…"), but some result-field configurations use
+    // an ARRAY of `{ name, machine_name }`. A bare `z.string()` therefore made
+    // those responses fail validation, compounding the `default_value` defect.
+    items: z.union([z.string(), z.array(z.unknown())]).nullish(),
     format: z.string().nullish(),
     rows: z.string().nullish(),
-    // Live-instance audit: step-style fields carry these boolean toggles in the
-    // options object; unmodeled (carried untyped via passthrough) until now.
+    // Step-style fields can carry these boolean toggles in the options object;
+    // they were previously carried only through the passthrough type.
     has_expected: z.boolean().nullish(),
     has_actual: z.boolean().nullish(),
     has_additional: z.boolean().nullish(),
@@ -113,10 +131,13 @@ const FieldConfigContextSchema = zObject({
     // the response from virtually any real instance. Accept the non-array forms
     // and normalize them to `[]` so the parsed shape stays `number[]` for callers
     // (matches the public `CaseFieldConfig`/`ResultFieldConfig` types in types.ts).
-    project_ids: z
-        .union([z.array(z.number()), z.literal('')])
-        .nullish()
-        .transform((value) => (Array.isArray(value) ? value : [])),
+    // The `.transform()` that used to normalize the non-array forms to `[]` was
+    // removed in 6.0.0. Response validation is now advisory, so a sibling field
+    // failing to parse returns the raw body — and the raw body carries the
+    // untransformed `null` / `""` while the inferred type claimed `number[]`,
+    // turning a caught validation error into an uncaught `TypeError` on
+    // `project_ids.length` in caller code. The type now states the wire shape.
+    project_ids: z.union([z.array(z.number()), z.string()]).nullish(),
 });
 
 export const CaseFieldConfigSchema = zObject({

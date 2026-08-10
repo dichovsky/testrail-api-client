@@ -39,14 +39,16 @@ export class BddModule {
      */
     async addBdd(caseId: number, file: UploadFileInput, filename: string): Promise<Case> {
         validateId(caseId, 'caseId');
+        const endpoint = `add_bdd/${caseId}`;
         return this.client.parse<Case>(
             CaseSchema,
             await this.client.request<unknown>({
                 method: 'POST',
-                endpoint: `add_bdd/${caseId}`,
+                endpoint,
                 body: { kind: 'multipart', file, filename },
                 retry: 'none',
             }),
+            { method: 'POST', endpoint },
         );
     }
 }

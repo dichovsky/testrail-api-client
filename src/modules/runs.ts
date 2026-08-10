@@ -3,9 +3,9 @@ import { serializeIdList } from '../utils.js';
 import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class RunModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -42,17 +42,12 @@ export class RunModule {
             limit,
             offset,
         });
-        return (
-            (
-                await this.client.request<{ runs?: Run[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ runs: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ runs: z.array(RunSchema).nullish() }),
-                })
-            ).runs ?? []
-        );
+        const raw = await this.client.request<Run[] | { runs?: Run[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('runs', RunSchema),
+        });
+        return unwrapList<Run>('runs', raw);
     }
 
     /** @testrail POST add_run/{project_id} */
@@ -107,7 +102,10 @@ export class RunModule {
         });
         const raw = await this.client.request<unknown>({ method: 'POST', endpoint });
         if (options?.soft === true) {
-            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw);
+            return this.client.parse<SoftDeletePreview>(SoftDeletePreviewSchema, raw, {
+                method: 'POST',
+                endpoint,
+            });
         }
     }
 }

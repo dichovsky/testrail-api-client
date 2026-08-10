@@ -6,6 +6,7 @@ import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 export class ResultModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -34,17 +35,12 @@ export class ResultModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ results?: Result[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ results: z.array(ResultSchema).nullish() }),
-                })
-            ).results ?? []
-        );
+        const raw = await this.client.request<Result[] | { results?: Result[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('results', ResultSchema),
+        });
+        return unwrapList<Result>('results', raw);
     }
 
     /** @testrail GET get_results_for_case/{run_id}/{case_id} */
@@ -72,17 +68,12 @@ export class ResultModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ results?: Result[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ results: z.array(ResultSchema).nullish() }),
-                })
-            ).results ?? []
-        );
+        const raw = await this.client.request<Result[] | { results?: Result[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('results', ResultSchema),
+        });
+        return unwrapList<Result>('results', raw);
     }
 
     /** @testrail GET get_results_for_run/{run_id} */
@@ -107,17 +98,12 @@ export class ResultModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        return (
-            (
-                await this.client.request<{ results?: Result[] }>({
-                    method: 'GET',
-                    endpoint,
-                    // SPEC #1.5 — TestRail can return `{ results: null }` for empty list wrappers;
-                    // `.nullish()` accepts both null and omitted (observed behavior, PR #130).
-                    schema: z.object({ results: z.array(ResultSchema).nullish() }),
-                })
-            ).results ?? []
-        );
+        const raw = await this.client.request<Result[] | { results?: Result[] }>({
+            method: 'GET',
+            endpoint,
+            schema: listOf('results', ResultSchema),
+        });
+        return unwrapList<Result>('results', raw);
     }
 
     /** @testrail POST add_result/{test_id} */

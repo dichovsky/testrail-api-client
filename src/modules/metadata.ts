@@ -14,6 +14,7 @@ import {
 } from '../schemas.js';
 import type { AddCaseFieldPayload, AddCaseFieldResponse } from '../schemas.js';
 import { z } from 'zod';
+import { listOf, unwrapList } from './list.js';
 
 export class MetadataModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -116,20 +117,15 @@ export class MetadataModule {
 
     /** @testrail GET get_roles */
     async getRoles(): Promise<Role[]> {
-        // `get_roles` is a TestRail 7.3+ bulk-API endpoint and is paginated from
-        // the version it was introduced — it returns the `{ offset, limit, size,
-        // _links, roles: [...] }` wrapper, never a bare array. Parse the wrapper
-        // (not `z.array(RoleSchema)`, which rejects the object). `.nullish()`
-        // accepts both `null` and an omitted key for an empty list. Mirrors the
-        // sibling `getGroups` paginated-wrapper fix (PR #200).
-        return (
-            (
-                await this.client.request<{ roles?: Role[] }>({
-                    method: 'GET',
-                    endpoint: 'get_roles',
-                    schema: z.object({ roles: z.array(RoleSchema).nullish() }),
-                })
-            ).roles ?? []
-        );
+        // `get_roles` (TestRail 7.3+) documents the `{ offset, limit, size, _links,
+        // roles: [...] }` wrapper, but the docs are not a reliable guide to which
+        // shape a given server sends — see the `listOf` docblock in `./list.js` for
+        // the full rationale. Accept both; `unwrapList` normalizes.
+        const raw = await this.client.request<Role[] | { roles?: Role[] }>({
+            method: 'GET',
+            endpoint: 'get_roles',
+            schema: listOf('roles', RoleSchema),
+        });
+        return unwrapList<Role>('roles', raw);
     }
 }

@@ -298,7 +298,8 @@ function buildClient(): MockedClient {
                 title: 't',
                 labels: [{ id: 1, title: 'regression' }],
             }),
-            updateTests: vi.fn().mockResolvedValue([{ id: 100, case_id: 1, status_id: 5, run_id: 1, title: 't' }]),
+            // `update_tests` returns an acknowledgement, not the updated tests.
+            updateTests: vi.fn().mockResolvedValue({ test_ids: [100], labels: [{ id: 1, title: 'regression' }] }),
         },
         labels: {
             updateLabel: vi.fn().mockResolvedValue({ id: 7, title: 'Release 2.0' }),

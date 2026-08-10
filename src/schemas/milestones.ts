@@ -19,13 +19,17 @@ export const MilestoneSchema = zObject({
     // Sub-milestones are typed as unknown[] to avoid a recursive schema definition.
     milestones: z.array(z.unknown()).nullish(),
     // SPEC #2.1.9 — `is_started` response field. TestRail 5.3+ — older servers
-    // omit the key entirely. Modelled as `.optional()` (not `.nullish()`) to
-    // match the sibling `is_completed: z.boolean()` on this same schema: both
-    // are documented as plain booleans, neither doc mentions a null value, so
-    // accepting null on `is_started` would be an asymmetric over-defence
-    // unsupported by the spec. `UpdateMilestonePayloadSchema` already accepts
-    // `is_started` on the request side; this closes the response-side gap.
-    is_started: z.boolean().optional(),
+    // omit the key entirely.
+    //
+    // Was `.optional()` on the reasoning that the docs describe a plain boolean
+    // and never mention null, so admitting null would be over-defence. 6.0.0
+    // reverses that: the published docs are not a reliable description of the
+    // wire (they document a `{step_history}` wrapper for a bare array, a
+    // boolean `mfa_required` for an integer, and `is_untested` on the wrong
+    // endpoint entirely). The costs are asymmetric — admitting a null that
+    // never arrives costs nothing, while rejecting one that does discards the
+    // entire milestone list. `.nullish()`.
+    is_started: z.boolean().nullish(),
 });
 
 export type Milestone = z.infer<typeof MilestoneSchema>;

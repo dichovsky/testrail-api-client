@@ -2,7 +2,7 @@ import { TestRailClientCore } from '../client-core.js';
 import { LabelSchema } from '../schemas.js';
 import type { Label, UpdateLabelPayload } from '../schemas.js';
 import { validateId } from '../validation.js';
-import { z } from 'zod';
+import { listOf, unwrapList } from './list.js';
 
 /**
  * Stand-alone TestRail Labels API (2025). Label *reads* embedded in case/test
@@ -27,21 +27,16 @@ export class LabelModule {
     /** @testrail GET get_labels/{project_id} */
     async getLabels(projectId: number): Promise<Label[]> {
         validateId(projectId, 'projectId');
-        // `get_labels` is a TestRail bulk-API endpoint: it returns the
-        // `{ offset, limit, size, _links, labels: [...] }` pagination wrapper
-        // (standard for every bulk endpoint since TestRail 6.7), never a bare
-        // array. Parse the wrapper (not `z.array(LabelSchema)`, which rejects
-        // the object) and return `labels ?? []`. `.nullish()` accepts both an
-        // omitted key and `null` for an empty list. Mirrors `variables.getVariables()`.
-        return (
-            (
-                await this.client.request<{ labels?: Label[] }>({
-                    method: 'GET',
-                    endpoint: `get_labels/${projectId}`,
-                    schema: z.object({ labels: z.array(LabelSchema).nullish() }),
-                })
-            ).labels ?? []
-        );
+        // `get_labels` documents the `{ offset, limit, size, _links, labels: [...] }`
+        // pagination wrapper, but the docs are not a reliable guide to which shape a
+        // given server sends — see the `listOf` docblock in `./list.js` for the full
+        // rationale. Accept both; `unwrapList` normalizes.
+        const raw = await this.client.request<Label[] | { labels?: Label[] }>({
+            method: 'GET',
+            endpoint: `get_labels/${projectId}`,
+            schema: listOf('labels', LabelSchema),
+        });
+        return unwrapList<Label>('labels', raw);
     }
 
     /** @testrail POST update_label/{label_id} */

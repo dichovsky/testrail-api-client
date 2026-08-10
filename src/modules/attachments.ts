@@ -1,9 +1,9 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Attachment, UploadFileInput } from '../types.js';
-import { z } from 'zod';
 import { AttachmentSchema } from '../schemas.js';
 import { validateId, validateEntryId, validateAttachmentId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { listOf, unwrapList } from './list.js';
 
 /**
  * Optional pagination params shared by `getAttachmentsForCase`,
@@ -38,12 +38,9 @@ export class AttachmentModule {
             // BARE top-level array; case/run/plan return the { attachments } wrapper.
             // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
             // both shapes (mirrors getSharedSteps) and unwrap.
-            schema: z.union([
-                z.array(AttachmentSchema),
-                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-            ]),
+            schema: listOf('attachments', AttachmentSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
+        return unwrapList('attachments', raw);
     }
 
     /** @testrail GET get_attachments_for_run/{run_id} */
@@ -61,12 +58,9 @@ export class AttachmentModule {
             // BARE top-level array; case/run/plan return the { attachments } wrapper.
             // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
             // both shapes (mirrors getSharedSteps) and unwrap.
-            schema: z.union([
-                z.array(AttachmentSchema),
-                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-            ]),
+            schema: listOf('attachments', AttachmentSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
+        return unwrapList('attachments', raw);
     }
 
     /** @testrail GET get_attachments_for_test/{test_id} */
@@ -84,12 +78,9 @@ export class AttachmentModule {
             // BARE top-level array; case/run/plan return the { attachments } wrapper.
             // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
             // both shapes (mirrors getSharedSteps) and unwrap.
-            schema: z.union([
-                z.array(AttachmentSchema),
-                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-            ]),
+            schema: listOf('attachments', AttachmentSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
+        return unwrapList('attachments', raw);
     }
 
     /** @testrail GET get_attachments_for_plan/{plan_id} */
@@ -100,12 +91,9 @@ export class AttachmentModule {
             endpoint: `get_attachments_for_plan/${planId}`,
             // Live-instance audit: accept both the bare top-level array and the
             // { attachments } wrapper (mirrors getSharedSteps) and unwrap.
-            schema: z.union([
-                z.array(AttachmentSchema),
-                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-            ]),
+            schema: listOf('attachments', AttachmentSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
+        return unwrapList('attachments', raw);
     }
 
     /**
@@ -126,12 +114,9 @@ export class AttachmentModule {
             endpoint: `get_attachments_for_plan_entry/${planId}/${entryId}`,
             // Live-instance audit: get_attachments_for_plan_entry returns a BARE
             // top-level array; accept both shapes (mirrors getSharedSteps) and unwrap.
-            schema: z.union([
-                z.array(AttachmentSchema),
-                z.object({ attachments: z.array(AttachmentSchema).nullish() }),
-            ]),
+            schema: listOf('attachments', AttachmentSchema),
         });
-        return Array.isArray(raw) ? raw : (raw.attachments ?? []);
+        return unwrapList('attachments', raw);
     }
 
     /** @testrail GET get_attachment/{attachment_id} */

@@ -13,7 +13,182 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
-## [Unreleased]
+## [Unreleased] — response validation becomes advisory
+
+> Staged for the next **major** (`6.0.0`): the type widenings below break
+> consumer builds. Not yet released — no version bump, tag, or publish.
+
+Response validation no longer fails closed. A TestRail response that does not
+match its Zod schema is returned raw and reported to a new `onSchemaMismatch`
+hook instead of throwing. The only exception is an unrecognized successful
+response from the non-idempotent `addCases` / `updateCases` bulk writes: those
+calls report the mismatch and throw an explicit indeterminate-outcome error so
+callers do not interpret an unknown response as zero affected cases and retry.
+
+The evidence for the change: response-schema corrections have consistently
+widened schemas to admit valid TestRail responses rather than narrowed them to
+reject invalid ones. Fail-closed response validation repeatedly converted wire
+shape differences into client-side outages. Because list endpoints validate a
+whole page at once, a single unmodelled row could discard an otherwise valid
+page.
+
+### Changed — BREAKING
+
+- **`parse()` no longer throws on a response mismatch.** Code that caught
+  `TestRailValidationError` around a read will no longer see it. Restore the old
+  behavior in one line:
+  `onSchemaMismatch: ({ error }) => { throw handleZodError(error) }`.
+  `handleZodError` (exported from the package root) reproduces the exact
+  `TestRailValidationError` older versions threw, so existing `instanceof`
+  handlers keep matching — a bare `throw error` throws a `ZodError` instead, and
+  those handlers silently stop matching.
+- **`TestRailClientCore.parse()` takes a required third argument** carrying the
+  originating `{ method, endpoint }`. Only relevant if you call `parse()`
+  directly; every in-package call site passes it.
+- **`onSchemaMismatch` must be synchronous.** A hook that returns a promise now
+  throws `TestRailValidationError`. An `async` hook satisfies the `void` return
+  type but cannot restore fail-closed validation — its throw becomes a rejected
+  promise nobody awaits — and that rejection surfaces as an unhandled rejection,
+  fatal on Node >= 15.
+- **A schema-invalid GET response is no longer cached.** It is still returned to
+  the caller, but caching it would pin a rejected body for the full TTL with no
+  further hook notifications. Each subsequent call now re-fetches and re-reports,
+  so a transient blip self-heals as it did in 5.x.
+- **`tests.updateTests()` returns `UpdateTestsResponse`, not `Test[]`.**
+  `update_tests` acknowledges the bulk label assignment —
+  `{ test_ids: [1, 2, 3], labels: [{ id, title }] }` — and does not return the
+  updated tests. The previous test-list schema was a guess made while the docs
+  were unreachable; because the acknowledgement has no `tests` key, **every
+  successful call resolved `[]`**, reporting "0 tests updated" for work the
+  server had done. New exports: `UpdateTestsResponse`,
+  `UpdateTestsResponseSchema`.
+- **Response types widened** where wire evidence exists. Each breaks code that
+  reads the field at its old narrow type:
+    - `Result.status_id`: `number` → `number | null`. Still a required property:
+      the key is always present, only the value is nullable. TestRail returns
+      `null` for comment-only results — a comment, defect, or assignment recorded
+      with no status change.
+    - `CaseStatus.abbreviation`: `string` → `string | null | undefined`, and
+      `CaseStatus.is_untested`: `boolean` → `boolean | null | undefined`. Two
+      independent defects that made `getCaseStatuses()` fail on affected
+      Enterprise instances: the built-in Approved/Draft statuses ship with a null
+      abbreviation, and `is_untested` belongs to `get_statuses`, not
+      `get_case_statuses`, so it is never emitted.
+    - `Label.created_by` and `LabelEmbedded.created_by`: `number` →
+      `number | string | null | undefined`. TestRail's Labels documentation quotes
+      this as `"2"` while leaving `created_on` unquoted in the same object, and no
+      wire capture exists for that API. `LabelEmbedded` rides on
+      `Case.labels[]` and `Test.labels[]`, so guessing wrong failed `getCase`,
+      `getCases`, `getTest`, and `getTests` page-wide.
+    - `Milestone.is_started`: `boolean | undefined` → `boolean | null | undefined`.
+    - `CaseFieldConfig.context.project_ids` / `ResultFieldConfig.context.project_ids`:
+      `number[]` → `number[] | string | null | undefined`. The normalizing
+      `.transform()` that folded `null`/`""` into `[]` was **removed** — under
+      advisory parsing it was unsound, because a sibling field failing to parse
+      returns the raw body, delivering an untransformed `null` under a type that
+      claimed `number[]` and turning a caught validation error into an uncaught
+      `TypeError`. Narrow before indexing.
+
+### Added
+
+- **`TestRailConfig.onSchemaMismatch`** — called with
+  `{ method, endpoint, error, data }` when a response fails its schema. Unset by
+  default, in which case a mismatch is silent. Invoked outside any `try`, so
+  throwing from it propagates to the caller; that is the supported strict mode,
+  and it also prevents the cache write. Exported type: `SchemaMismatch`.
+- **Bare-array tolerance on every wrapper-documented list read.** All of these
+  now accept both the paginated envelope and a bare top-level array, via the
+  shared `listOf()`/`unwrapList()` pair in `src/modules/list.ts` (the union
+  already proven on `getSuites`). Non-breaking: each method's contract stays
+  `Entity[]`.
+    - Previously envelope-only, now bimodal (24 methods): `getCases`,
+      `getSections`, `getHistoryForCase`, `getUsers`, `getGroups`,
+      `getVariables`, `getDatasets`, `getProjects`, `getMilestones`, `getPlans`,
+      `getRuns`, `getTests`, `getResults`, `getResultsForCase`,
+      `getResultsForRun`, `getRoles`, `getLabels`, `getSharedSteps`,
+      `getSharedStepHistory`, `getAttachmentsForCase`, `getAttachmentsForTest`,
+      `getAttachmentsForRun`, `getAttachmentsForPlan`,
+      `getAttachmentsForPlanEntry`. (`getSuites` already accepted both.)
+    - Also applied to the two bulk _writes_, `addCases` and `updateCases`: there
+      a shape mismatch used to resolve `[]`, reporting "0 created/updated" for
+      work the server had done, which a retrying caller would then duplicate.
+    - Endpoints whose response is a bare array to begin with are unchanged and
+      keep parsing `z.array(...)`: `getStatuses`, `getCaseStatuses`,
+      `getPriorities`, `getCaseTypes`, `getTemplates`, `getCaseFields`,
+      `getResultFields`, `getConfigurations`, `addResults`,
+      `addResultsForCases`.
+    - Why the broad fix rather than another per-endpoint change: multiple methods
+      have returned a bare array despite a documented wrapper, and `get_users` is
+      a bulk endpoint whose own docs show a bare array. The documentation does
+      not reliably predict the shape, so every wrapper-documented list read now
+      accepts both.
+- **A list read cannot silently report zero rows.** The envelope branch requires
+  the key to be present (an explicit `null` still means an empty page), so a body
+  that is not the expected list — `{ error: ... }`, a single entity, a renamed
+  key — is reported through `onSchemaMismatch` instead of parsing "successfully"
+  to `{}` and unwrapping to `[]`. `unwrapList()` also guards the extracted member
+  with `Array.isArray`, so a key holding a scalar can no longer be returned typed
+  as `Entity[]`.
+- **Bulk case writes fail closed on an unrecognized success body.**
+  `addCases()` and `updateCases()` still accept both documented envelopes and
+  bare arrays, but a body matching neither form now throws `TestRailApiError`
+  with an indeterminate-outcome message. The server-side write may already have
+  happened, so returning `[]` would invite a duplicate retry.
+
+### Fixed
+
+- **`SoftDeletePreview` counters accept an explicit `null`.** All seven were
+  `.optional()` (`T | undefined`), which rejects `null` — a parse failure landing
+  on a destructive-delete preview. The schema post-dated the #130
+  optional→nullish sweep and was never covered by it.
+- **`HistoryChangeSchema.options` accepts the object TestRail actually sends.**
+  Declared `z.array(z.unknown())` after the doc's field table, but the wire
+  carries an object — `{ is_required, default_value, items }` — on any change to
+  some dropdown-style custom fields. `getHistoryForCase()` therefore failed for
+  affected histories. Now a union; the documented array form still parses.
+- **`FieldConfigOptionsSchema.items` accepts the array form.** A newline-delimited
+  string on dropdown fields, but an array of `{ name, machine_name }` on the
+  built-in `quality_rating` (type_id 16). `getResultFields()` failed on every
+  call, compounding the `default_value` defect fixed in #248.
+- **An Enterprise-license 403 is now always a `TestRailLicenseError`.** TestRail
+  phrases the condition two ways — `"Not an Enterprise license/subscription."`
+  (`get_variables`, `get_datasets`) and `"…(Requires Enterprise license…)"`
+  (`get_case_statuses`). The matcher anchored on the first, so `getCaseStatuses()`
+  raised a plain `TestRailApiError` and callers branching on
+  `instanceof TestRailLicenseError` to degrade gracefully missed it. Ordinary
+  permission 403s are unaffected, and the match still requires "Not an"/"Requires"
+  beside the phrase so an arbitrary 403 body that merely mentions Enterprise
+  licensing — a proxy error page, a project named "Enterprise Licensing" — is not
+  misclassified.
+- **`getHistoryForCase()` accepts TestRail's documented outer-array response.**
+  The published example wraps the pagination object in an array,
+  `[{ offset, limit, size, _links, history: [...] }]`. That shape matched neither
+  accepted branch, so the raw outer array was returned and the caller received the
+  envelope itself as `result[0]` — typed `HistoryEntry`, but carrying pagination
+  fields and no `id`/`user_id`. All three shapes now parse.
+
+Together with the widenings above and the bare-array tolerance, this covers the
+response-shape issues described in the defect report.
+
+### Internal
+
+- `tests/schema-conventions.test.ts` gains two zero-false-positive rules:
+  response schemas may not use `.optional()`, and may not carry format or length
+  validators (regression guard for #236). A "no bare required scalar" rule was
+  evaluated and rejected because it produced mostly false positives while
+  missing important wrapper-shape and wire-type risks.
+- devDependencies bumped. TypeScript held at `~6.0.3`: TypeScript 7's native port
+  does not expose the Compiler API, which both AST generators require.
+
+### Known gaps
+
+- `AddResultPayloadSchema.status_id` remains **required**, so this client can read
+  comment-only results but cannot create them. Relaxing it needs authoritative
+  documentation or synthetic integration evidence for a successful comment-only
+  `add_result`. Documented in-place in `src/schemas/results.ts`.
+- Lower-risk over-strict fields identified by audit remain unwidened, by design
+  — they now degrade to a warning rather than an outage, and widen when evidence
+  arrives.
 
 ## [5.3.0] — 2026-07-16 — configurable request timeout (per-request + CLI)
 
