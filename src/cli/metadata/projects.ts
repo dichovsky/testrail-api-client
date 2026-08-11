@@ -30,6 +30,7 @@ export const projectActions: readonly ActionSpec[] = [
         summary: 'List all projects (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_projects',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'projects' },
         isWrite: false,
         handler: handleProjectList,
     },

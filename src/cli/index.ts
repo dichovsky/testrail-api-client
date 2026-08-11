@@ -17,6 +17,7 @@ import { STDIN_SENTINEL } from './file-input.js';
 import { STDOUT_SENTINEL } from './file-output.js';
 import { parseId } from './ids.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
+import { validateCliPagination } from './pagination.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,24 @@ async function main(): Promise<number> {
     // notes in CHANGELOG.md for the breaking-change rationale.
     const dryRun = values['dry-run'] === true;
     const actionSpec = getActionSpec(resource, action);
+    const paginationValidation = validateCliPagination(actionSpec, {
+        ...(values['page'] !== undefined && { page: values['page'] }),
+        ...(values['all'] !== undefined && { all: values['all'] }),
+        ...(values['limit'] !== undefined && { limit: values['limit'] }),
+        ...(values['offset'] !== undefined && { offset: values['offset'] }),
+        ...(values['page-size'] !== undefined && { pageSize: values['page-size'] }),
+        ...(values['start-offset'] !== undefined && { startOffset: values['start-offset'] }),
+        ...(values['max-pages'] !== undefined && { maxPages: values['max-pages'] }),
+        ...(values['max-items'] !== undefined && { maxItems: values['max-items'] }),
+        ...(values['max-duration-ms'] !== undefined && {
+            maxDurationMs: values['max-duration-ms'],
+        }),
+        ...(values['max-bytes'] !== undefined && { maxBytes: values['max-bytes'] }),
+    });
+    if (!paginationValidation.ok) {
+        err(paginationValidation.error);
+        return 1;
+    }
     const envGate = checkDestructiveEnvGate(actionSpec, process.env, dryRun);
     if (!envGate.ok) {
         err(envGate.error);
@@ -246,6 +265,16 @@ async function main(): Promise<number> {
         ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
         ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
+        ...(values['page'] === true && { page: true }),
+        ...(values['all'] === true && { all: true }),
+        ...(values['page-size'] !== undefined && { pageSize: values['page-size'] as string }),
+        ...(values['start-offset'] !== undefined && { startOffset: values['start-offset'] as string }),
+        ...(values['max-pages'] !== undefined && { maxPages: values['max-pages'] as string }),
+        ...(values['max-items'] !== undefined && { maxItems: values['max-items'] as string }),
+        ...(values['max-duration-ms'] !== undefined && {
+            maxDurationMs: values['max-duration-ms'] as string,
+        }),
+        ...(values['max-bytes'] !== undefined && { maxBytes: values['max-bytes'] as string }),
         ...(values['status-id'] !== undefined && { statusId: values['status-id'] as string }),
         ...(values['defects-filter'] !== undefined && { defectsFilter: values['defects-filter'] as string }),
         ...(values['file'] !== undefined && { file: values['file'] as string }),

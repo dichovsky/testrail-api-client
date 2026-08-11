@@ -88,7 +88,16 @@ try {
   `custom_*` fields pass through `.passthrough()` unchanged. No
   coercion: `"5"` is NOT silently converted to `5`.
 - **Caching**: GET responses cached in-process ~5 min. Any write
-  invalidates the entire cache.
+  invalidates the entire cache. `get*Page()` uses normal GET caching
+  in a separate strict-schema namespace from legacy list reads;
+  `getAll*()` bypasses cache reads, writes, and request coalescing so
+  a multi-page aggregate cannot mix snapshots.
+- **Pagination**: 23 documented list endpoints expose an explicit
+  trio. Existing `get*()` methods project one response to an item
+  array; `get*Page()` preserves envelope metadata; `getAll*()` follows
+  validated continuation controls under page, item, duration, and
+  byte bounds. Aggregates share one deadline and return no partial
+  results. Legacy bare arrays are terminal.
 - **Retry**: GET retries on 5xx/429/network errors with exponential
   backoff. Writes (POST/PUT/DELETE) retry only on 429 (rate-limited);
   5xx and network errors surface immediately to prevent duplicate
@@ -103,10 +112,14 @@ try {
 
 ## Error model
 
-| Class                     | Thrown when                                                  |
-| ------------------------- | ------------------------------------------------------------ |
-| `TestRailApiError`        | HTTP error, network error, rate limit, timeout, invalid JSON |
-| `TestRailValidationError` | Bad config, invalid ID, invalid params                       |
+| Class                     | Thrown when                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| `TestRailApiError`        | HTTP error, network error, rate limit, timeout, invalid JSON      |
+| `TestRailPaginationError` | Malformed page/continuation or aggregate pagination safety bound |
+| `TestRailValidationError` | Bad config, invalid ID, invalid params                            |
+
+`TestRailPaginationError` extends `TestRailValidationError` and adds
+a machine-readable reason plus fetched-page and fetched-item counts.
 
 CLI exits 0 on success and non-zero on failure. Most failures exit 1;
 a destructive action blocked by the missing env unlock exits 2 so CI

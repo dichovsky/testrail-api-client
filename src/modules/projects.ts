@@ -4,7 +4,21 @@ import { ProjectSchema } from '../schemas.js';
 import type { AddProjectPayload, UpdateProjectPayload } from '../schemas.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions } from './pagination-options.js';
+
+export interface GetProjectsPageOptions {
+    limit?: number;
+    offset?: number;
+}
+
+export type GetAllProjectsOptions = PaginatedRequestOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
+    pageProjection?: boolean;
+};
 
 export class ProjectModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -25,20 +39,56 @@ export class ProjectModule {
     }
 
     /**
-     * Get all projects.
+     * Get the projects from one TestRail response.
      * @throws {TestRailValidationError} When limit or offset is invalid
      * @throws {TestRailApiError} When the API request fails
      * @testrail GET get_projects
      */
     async getProjects(limit?: number, offset?: number): Promise<Project[]> {
+        return unwrapList<Project>('projects', await this.requestProjects(limit, offset));
+    }
+
+    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    async getProjectsPage(options?: GetProjectsPageOptions): Promise<Page<Project>> {
+        return decodePage<Project>(
+            'projects',
+            await this.requestProjects(options?.limit, options?.offset, { pageProjection: true }),
+        );
+    }
+
+    /** Get every project under the configured pagination safety bounds. */
+    async getAllProjects(options?: GetAllProjectsOptions): Promise<Project[]> {
+        return collectAllPages<Project>({
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async (request) => {
+                const raw = await this.requestProjects(request.limit, request.offset, {
+                    bypassCache: request.bypassCache,
+                    remainingTimeMs: request.remainingTimeMs,
+                    deadlineAt: request.deadlineAt,
+                });
+                return decodePage<Project>('projects', raw);
+            },
+        });
+    }
+
+    private async requestProjects(
+        limit?: number,
+        offset?: number,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
         validatePaginationParams(limit, offset);
         const endpoint = buildEndpoint('get_projects', { limit, offset });
-        const raw = await this.client.request<Project[] | { projects?: Project[] }>({
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
-            schema: listOf('projects', ProjectSchema),
+            schema: pageProjection ? pageOf('projects', ProjectSchema) : listOf('projects', ProjectSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
-        return unwrapList<Project>('projects', raw);
     }
 
     /**

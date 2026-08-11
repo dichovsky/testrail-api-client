@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Label Schemas (stand-alone TestRail Labels API) ───────────────────────────
 
@@ -36,7 +36,7 @@ export const LabelSchema = zObject({
     created_on: z.number().nullish(),
 });
 
-export type Label = z.infer<typeof LabelSchema>;
+export type Label = KnownResponse<typeof LabelSchema>;
 
 /**
  * `update_label` body — the new label title. TestRail caps the title at 20

@@ -62,7 +62,7 @@
         "lockfile-lint": "lockfile-lint --config .lockfile-lintrc",
         "pretest": "npm run typecheck && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run lockfile-lint",
         "skill": "npm run build && tsx scripts/generate-skill.ts",
-        "skill:check": "git diff --exit-code skill/SKILL.md",
+        "skill:check": "git diff --exit-code -- skill/SKILL.md skill/reference/payload-schemas.yaml",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
         "test:fast": "vitest run --reporter=dot --no-coverage",

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Label-Embedded Schema (shared between Case/Test response labels) ──────────
 
@@ -43,7 +43,7 @@ export const LabelEmbeddedSchema = zObject({
     created_on: z.number().nullish(),
 });
 
-export type LabelEmbedded = z.infer<typeof LabelEmbeddedSchema>;
+export type LabelEmbedded = KnownResponse<typeof LabelEmbeddedSchema>;
 
 // ── Status & Priority Schemas ──────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ export const StatusSchema = zObject({
     i18n_custom_id: z.string().nullish(),
 });
 
-export type Status = z.infer<typeof StatusSchema>;
+export type Status = KnownResponse<typeof StatusSchema>;
 
 export const PrioritySchema = zObject({
     id: z.number(),
@@ -73,7 +73,7 @@ export const PrioritySchema = zObject({
     priority: z.number(),
 });
 
-export type Priority = z.infer<typeof PrioritySchema>;
+export type Priority = KnownResponse<typeof PrioritySchema>;
 
 // ── Case Status Schema ────────────────────────────────────────────────────────
 
@@ -97,7 +97,7 @@ export const CaseStatusSchema = zObject({
     is_untested: z.boolean().nullish(),
 });
 
-export type CaseStatus = z.infer<typeof CaseStatusSchema>;
+export type CaseStatus = KnownResponse<typeof CaseStatusSchema>;
 
 // ── Field Config Schemas ──────────────────────────────────────────────────────
 
@@ -149,7 +149,7 @@ export const CaseFieldConfigSchema = zObject({
     options: FieldConfigOptionsSchema,
 });
 
-export type CaseFieldConfig = z.infer<typeof CaseFieldConfigSchema>;
+export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>;
 
 export const CaseFieldSchema = zObject({
     id: z.number(),
@@ -165,9 +165,13 @@ export const CaseFieldSchema = zObject({
     description: z.string().nullish(),
     // Live-instance audit: i18n translation key (string|null); was unmodeled.
     i18n_custom_id: z.string().nullish(),
+    // Search-indexing flag documented as a boolean on get_case_fields.
+    is_indexed: z.boolean().nullish(),
+    // Older responses encode this flag as 0/1; newer responses may use JSON booleans.
+    is_system: z.union([z.boolean(), z.literal(0), z.literal(1)]).nullish(),
 });
 
-export type CaseField = z.infer<typeof CaseFieldSchema>;
+export type CaseField = KnownResponse<typeof CaseFieldSchema>;
 
 // ── add_case_field response (string-vs-array divergence) ──────────────────────
 // SPEC #2.1.12 — TestRail's `add_case_field` POST response shape differs
@@ -213,7 +217,7 @@ export const AddCaseFieldResponseSchema = zObject({
     is_system: z.union([z.literal(0), z.literal(1)]).nullish(),
 });
 
-export type AddCaseFieldResponse = z.infer<typeof AddCaseFieldResponseSchema>;
+export type AddCaseFieldResponse = KnownResponse<typeof AddCaseFieldResponseSchema>;
 
 export const ResultFieldConfigSchema = zObject({
     // Live-instance audit: config-level string `id` (UUID / legacy hex token),
@@ -223,7 +227,7 @@ export const ResultFieldConfigSchema = zObject({
     options: FieldConfigOptionsSchema,
 });
 
-export type ResultFieldConfig = z.infer<typeof ResultFieldConfigSchema>;
+export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>;
 
 export const ResultFieldSchema = zObject({
     id: z.number(),
@@ -239,9 +243,11 @@ export const ResultFieldSchema = zObject({
     description: z.string().nullish(),
     // Live-instance audit: i18n translation key (string|null); was unmodeled.
     i18n_custom_id: z.string().nullish(),
+    // Version-tolerant flag: TestRail has emitted both booleans and 0/1 integers.
+    is_system: z.union([z.boolean(), z.literal(0), z.literal(1)]).nullish(),
 });
 
-export type ResultField = z.infer<typeof ResultFieldSchema>;
+export type ResultField = KnownResponse<typeof ResultFieldSchema>;
 
 // ── Case Type & Template Schemas ──────────────────────────────────────────────
 
@@ -253,7 +259,7 @@ export const CaseTypeSchema = zObject({
     i18n_custom_id: z.string().nullish(),
 });
 
-export type CaseType = z.infer<typeof CaseTypeSchema>;
+export type CaseType = KnownResponse<typeof CaseTypeSchema>;
 
 export const TemplateSchema = zObject({
     id: z.number(),
@@ -263,7 +269,7 @@ export const TemplateSchema = zObject({
     i18n_custom_id: z.string().nullish(),
 });
 
-export type Template = z.infer<typeof TemplateSchema>;
+export type Template = KnownResponse<typeof TemplateSchema>;
 
 // ── Case-field payloads ───────────────────────────────────────────────────────
 // `add_case_field` (admin-only) creates a custom case field at the
@@ -302,6 +308,7 @@ export const AddCaseFieldPayloadSchema = zObject({
     label: z.string(),
     description: z.string().optional(),
     include_all: z.boolean().optional(),
+    is_indexed: z.boolean().optional(),
     template_ids: z.array(z.number()).optional(),
     configs: z.array(AddCaseFieldConfigPayloadSchema),
 });

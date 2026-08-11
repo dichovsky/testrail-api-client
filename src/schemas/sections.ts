@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Section Schemas ───────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ export const SectionSchema = zObject({
     depth: z.number(),
 });
 
-export type Section = z.infer<typeof SectionSchema>;
+export type Section = KnownResponse<typeof SectionSchema>;
 
 // ── Move-section payload (TestRail 6.5.2+) ────────────────────────────────────
 // Both fields are optional AND nullable, encoding three semantics:

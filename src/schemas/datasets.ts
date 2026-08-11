@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Dataset Schemas ───────────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ export const DatasetVariableSchema = zObject({
     value: z.string().nullable(),
 });
 
-export type DatasetVariable = z.infer<typeof DatasetVariableSchema>;
+export type DatasetVariable = KnownResponse<typeof DatasetVariableSchema>;
 
 /**
  * SPEC #2.1.16 — verified against the official TestRail "Datasets" API
@@ -45,7 +45,7 @@ export const DatasetSchema = zObject({
     variables: z.array(DatasetVariableSchema).nullish(),
 });
 
-export type Dataset = z.infer<typeof DatasetSchema>;
+export type Dataset = KnownResponse<typeof DatasetSchema>;
 
 export const AddDatasetPayloadSchema = zObject({
     name: z.string(),

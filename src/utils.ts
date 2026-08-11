@@ -9,9 +9,32 @@ export function base64Encode(str: string): string {
     );
 }
 
-/** Resolves after `ms` milliseconds. */
-export function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+/** Resolves after `ms` milliseconds, or rejects promptly when aborted. */
+export function sleep(ms: number, signal?: globalThis.AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const abortError = (): Error => {
+            const error = new Error('Sleep aborted');
+            error.name = 'AbortError';
+            return error;
+        };
+
+        if (signal?.aborted === true) {
+            reject(abortError());
+            return;
+        }
+
+        const onAbort = (): void => {
+            clearTimeout(timeoutId);
+            signal?.removeEventListener('abort', onAbort);
+            reject(abortError());
+        };
+
+        const timeoutId = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
 }
 
 /** Serializes numeric ID filters for TestRail list endpoints. */

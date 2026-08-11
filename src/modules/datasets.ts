@@ -1,8 +1,23 @@
 import { TestRailClientCore } from '../client-core.js';
 import { DatasetSchema } from '../schemas.js';
 import type { Dataset, AddDatasetPayload, UpdateDatasetPayload } from '../schemas.js';
-import { validateId } from '../validation.js';
-import { listOf, unwrapList } from './list.js';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginationSafetyOptions } from './pagination-options.js';
+
+export type GetAllDatasetsOptions = PaginationSafetyOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
+    pageProjection?: boolean;
+};
+
+interface DatasetPaginationControls {
+    limit?: number;
+    offset?: number;
+}
 
 export class DatasetModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -19,17 +34,63 @@ export class DatasetModule {
 
     /** @testrail GET get_datasets/{project_id} */
     async getDatasets(projectId: number): Promise<Dataset[]> {
+        return unwrapList<Dataset>('datasets', await this.requestDatasets(projectId));
+    }
+
+    /** Get one response page without sending undocumented request controls. */
+    async getDatasetsPage(projectId: number): Promise<Page<Dataset>> {
+        return decodePage<Dataset>(
+            'datasets',
+            await this.requestDatasets(projectId, undefined, { pageProjection: true }),
+        );
+    }
+
+    /** Get every dataset under the configured pagination safety bounds. */
+    async getAllDatasets(projectId: number, options?: GetAllDatasetsOptions): Promise<Dataset[]> {
+        return collectAllPages<Dataset>({
+            ...snapshotPaginationSafetyOptions(options),
+            requestControls: false,
+            fetchPage: (request) =>
+                this.requestDatasets(
+                    projectId,
+                    {
+                        ...(request.limit === undefined ? {} : { limit: request.limit }),
+                        ...(request.offset === undefined ? {} : { offset: request.offset }),
+                    },
+                    {
+                        bypassCache: request.bypassCache,
+                        remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
+                    },
+                ).then((raw) => decodePage<Dataset>('datasets', raw)),
+        });
+    }
+
+    private async requestDatasets(
+        projectId: number,
+        pagination?: DatasetPaginationControls,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
         validateId(projectId, 'projectId');
+        validatePaginationParams(pagination?.limit, pagination?.offset);
+        const endpoint = buildEndpoint(`get_datasets/${projectId}`, {
+            limit: pagination?.limit,
+            offset: pagination?.offset,
+        });
         // `get_datasets` documents the `{ offset, limit, size, _links, datasets: [...] }`
         // pagination wrapper, but the docs are not a reliable guide to which shape a
         // given server sends — see the `listOf` docblock in `./list.js` for the full
         // rationale. Accept both; `unwrapList` normalizes.
-        const raw = await this.client.request<Dataset[] | { datasets?: Dataset[] }>({
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
-            endpoint: `get_datasets/${projectId}`,
-            schema: listOf('datasets', DatasetSchema),
+            endpoint,
+            schema: pageProjection ? pageOf('datasets', DatasetSchema) : listOf('datasets', DatasetSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
-        return unwrapList('datasets', raw);
     }
 
     /** @testrail POST add_dataset/{project_id} */

@@ -332,6 +332,7 @@ schemas:
     opt:
       - "description:string"
       - "include_all:boolean"
+      - "is_indexed:boolean"
       - "template_ids:number[]"
 
   AddVariablePayloadSchema:

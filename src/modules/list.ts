@@ -1,4 +1,64 @@
 import { z } from 'zod';
+import { MAX_PAGINATION_LIMIT } from '../constants.js';
+import { TestRailValidationError } from '../errors.js';
+
+const pageLinksSchema = z.object({ next: z.string().nullable(), prev: z.string().nullable() }).passthrough();
+const PAGINATION_METADATA_KEYS = ['offset', 'limit', 'size', '_links'] as const;
+
+function hasPaginationMetadataSignature(value: unknown): boolean {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        PAGINATION_METADATA_KEYS.filter((field) => Object.prototype.hasOwnProperty.call(value, field)).length >= 2
+    );
+}
+
+const paginatedEnvelopeOf = <T extends z.ZodTypeAny>(key: string, item: T) => {
+    const collection = { [key]: z.array(item).nullable() };
+    return z
+        .object({
+            ...collection,
+            offset: z.number().int().nonnegative(),
+            limit: z.number().int().positive().max(MAX_PAGINATION_LIMIT),
+            size: z.number().int().nonnegative(),
+            _links: pageLinksSchema,
+        })
+        .passthrough()
+        .superRefine((value, context) => {
+            if (value.size > value.limit) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['size'],
+                    message: 'Pagination envelope size must not exceed its limit',
+                });
+            }
+            const items = value[key];
+            if (Array.isArray(items) && items.length > value.limit) {
+                context.addIssue({
+                    code: 'custom',
+                    path: [key],
+                    message: `Pagination envelope collection "${key}" must not exceed its limit`,
+                });
+            }
+        });
+};
+
+const envelopeOf = <T extends z.ZodTypeAny>(key: string, item: T) => {
+    const collection = { [key]: z.array(item).nullable() };
+    const paginated = paginatedEnvelopeOf(key, item);
+    const wrapperOnly = z
+        .object(collection)
+        .passthrough()
+        .refine(
+            (value) =>
+                !['offset', 'limit', 'size', '_links'].some((field) =>
+                    Object.prototype.hasOwnProperty.call(value, field),
+                ),
+            { message: 'Pagination metadata must be either complete or absent' },
+        );
+    return z.union([paginated, wrapperOnly]);
+};
 
 /**
  * TestRail's bulk GET endpoints are bimodal. Since 6.7 they return a paginated
@@ -35,28 +95,41 @@ import { z } from 'zod';
  * @param key  envelope property holding the array (e.g. `'results'`)
  * @param item schema for a single entity
  */
-export const listOf = <T extends z.ZodTypeAny>(key: string, item: T) =>
-    z.union([z.array(item), z.object({ [key]: z.array(item).nullable() })]);
+export const listOf = <T extends z.ZodTypeAny>(key: string, item: T) => z.union([z.array(item), envelopeOf(key, item)]);
+
+/**
+ * Strict metadata-preserving schema used by explicit page methods. A bare
+ * legacy array is a valid terminal page, but a collection-only wrapper is not:
+ * it looks like a modern envelope while omitting the metadata the Page
+ * contract promises. Keeping this separate from {@link listOf} also lets the
+ * HTTP pipeline use an independent validated cache namespace for Page reads.
+ */
+export const pageOf = <T extends z.ZodTypeAny>(key: string, item: T) =>
+    z.union([z.array(item), paginatedEnvelopeOf(key, item)]);
 
 /**
  * Normalizes either shape accepted by {@link listOf} to a plain array. A `null`
  * envelope key means an empty list (observed behavior, PR #130).
  *
  * Every branch is defensive: under advisory validation `raw` is whatever the
- * server sent when neither {@link listOf} branch matched, so without the
- * `Array.isArray` check a body of `{"cases": "oops"}` would return the string
- * typed as `Case[]` and the declared return would be a lie.
+ * server sent when neither {@link listOf} branch matched. A malformed outer
+ * shape throws rather than returning a scalar typed as `T[]` or fabricating an
+ * empty list; row-level schema drift inside a real array remains advisory.
  */
 export const unwrapList = <T>(key: string, raw: unknown): T[] => {
     if (Array.isArray(raw)) return raw as T[];
-    if (typeof raw !== 'object' || raw === null) return [];
+    if (typeof raw !== 'object' || raw === null) {
+        throw new TestRailValidationError(`List response must be an array or an envelope containing "${key}"`);
+    }
     const value = (raw as Record<string, unknown>)[key];
-    return Array.isArray(value) ? (value as T[]) : [];
+    if (value === null) return [];
+    if (Array.isArray(value)) return value as T[];
+    throw new TestRailValidationError(`List response field "${key}" must be an array or null`);
 };
 
 /**
- * {@link listOf} plus a third shape: an outer array wrapping one or more
- * pagination envelopes, `[{ offset, limit, size, _links, <key>: [...] }]`.
+ * {@link listOf} plus a third shape: an outer array wrapping exactly one
+ * pagination envelope, `[{ offset, limit, size, _links, <key>: [...] }]`.
  *
  * Only `get_history_for_case` documents its response that way, and it stays a
  * separate helper rather than widening {@link listOf}: the extra branch is
@@ -65,52 +138,42 @@ export const unwrapList = <T>(key: string, raw: unknown): T[] => {
  * recheck before reusing this on an all-optional item schema.
  */
 export const listOfNested = <T extends z.ZodTypeAny>(key: string, item: T) =>
-    z.union([
-        z.array(item),
-        z.object({ [key]: z.array(item).nullable() }),
-        z.array(z.object({ [key]: z.array(item).nullable() })),
-    ]);
+    z.union([z.array(item), envelopeOf(key, item), z.tuple([envelopeOf(key, item)])]);
+
+/** Strict nested counterpart to {@link pageOf}. */
+export const pageOfNested = <T extends z.ZodTypeAny>(key: string, item: T) => {
+    const envelope = paginatedEnvelopeOf(key, item);
+    return z.union([z.array(item), envelope, z.tuple([envelope])]);
+};
 
 /**
  * {@link unwrapList} for {@link listOfNested}. Checks the outer-array-of-envelope
- * shape before treating a top-level array as already normalized — otherwise the
- * envelope itself is returned as `raw[0]`, typed as an entity but carrying
- * pagination fields instead of the entity's own.
+ * shape before treating a top-level array as already normalized. Mixed or
+ * multiple wrappers are ambiguous and fail closed.
  */
 export const unwrapNestedList = <T>(key: string, raw: unknown): T[] => {
     if (Array.isArray(raw)) {
-        const pages: T[][] = [];
-        let envelopeCount = 0;
-        for (const value of raw as unknown[]) {
-            if (
-                typeof value !== 'object' ||
-                value === null ||
-                Array.isArray(value) ||
-                !Object.prototype.hasOwnProperty.call(value, key)
-            ) {
-                continue;
+        const envelopes = raw.filter(
+            (value) =>
+                typeof value === 'object' &&
+                value !== null &&
+                !Array.isArray(value) &&
+                Object.prototype.hasOwnProperty.call(value, key),
+        );
+        if (envelopes.length === 0) {
+            if (raw.some(hasPaginationMetadataSignature)) {
+                throw new TestRailValidationError(
+                    `Nested list response contains a pagination metadata signature but is missing the "${key}" collection`,
+                );
             }
-
-            envelopeCount += 1;
-            const inner = (value as Record<string, unknown>)[key];
-            if (inner === null) {
-                pages.push([]);
-            } else if (Array.isArray(inner)) {
-                pages.push(inner as T[]);
-            } else {
-                // Advisory validation returns the raw value on a mismatch. Do
-                // not let an envelope with a malformed list masquerade as T.
-                return [];
-            }
+            return raw as T[];
         }
-
-        if (envelopeCount > 0) {
-            // An array mixing entities and envelopes matches neither schema
-            // branch. Returning it would expose each envelope as a fake T.
-            if (envelopeCount !== raw.length) return [];
-            return pages.flat();
+        if (raw.length !== 1 || envelopes.length !== 1) {
+            throw new TestRailValidationError(
+                `Nested list response must contain exactly one "${key}" envelope and no entity rows`,
+            );
         }
-        return raw as T[];
+        return unwrapList<T>(key, envelopes[0]);
     }
     return unwrapList<T>(key, raw);
 };

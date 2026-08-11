@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 import { LabelEmbeddedSchema } from './metadata.js';
 
 // ── Test Schema ───────────────────────────────────────────────────────────────
@@ -18,6 +18,11 @@ export const TestSchema = zObject({
     estimate_forecast: z.string().nullish(),
     refs: z.string().nullish(),
     milestone_id: z.number().nullish(),
+    /**
+     * @deprecated TestRail response custom fields are emitted as flat
+     * `custom_*` properties. Retained for compatibility with older servers
+     * and proxies that still return a nested container.
+     */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // SPEC #2.1.7 — `labels` array uses the shared `LabelEmbeddedSchema` so the
     // same Label shape is enforced across `get_test` and `get_case` responses
@@ -33,9 +38,11 @@ export const TestSchema = zObject({
     refs_data: z.unknown().nullish(),
     case_comments: z.unknown().nullish(),
     ai_automated_test: z.unknown().nullish(),
+    // TestRail 10.5+: the source case title is included on test responses.
+    case_title: z.string().nullish(),
 });
 
-export type Test = z.infer<typeof TestSchema>;
+export type Test = KnownResponse<typeof TestSchema>;
 
 // ── Test label-write payloads (TestRail Labels API, 2025) ─────────────────────
 // `update_test/{test_id}` and `update_tests` are label-only mutations on a test
@@ -82,4 +89,4 @@ export const UpdateTestsResponseSchema = zObject({
     labels: z.array(LabelEmbeddedSchema),
 });
 
-export type UpdateTestsResponse = z.infer<typeof UpdateTestsResponseSchema>;
+export type UpdateTestsResponse = KnownResponse<typeof UpdateTestsResponseSchema>;

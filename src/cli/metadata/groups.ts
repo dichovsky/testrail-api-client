@@ -29,9 +29,10 @@ export const groupActions: readonly ActionSpec[] = [
     {
         resource: 'group',
         action: 'list',
-        summary: 'List all user groups on the instance (TestRail 7.5+; no path params)',
+        summary: 'List all user groups on the instance (pagination envelope; TestRail 7.5+)',
         pathParams: [],
         apiEndpoint: 'GET get_groups',
+        pagination: { response: 'envelope', requestControls: false, collectionKey: 'groups' },
         isWrite: false,
         handler: handleGroupList,
     },

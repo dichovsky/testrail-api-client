@@ -15,30 +15,31 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 
 ## File Map
 
-| File                                                    | Purpose                                                                                                                                           |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/client-core.ts`                                    | HTTP pipeline, cache, rate limiter, retry, lifecycle                                                                                              |
-| `src/client.ts`                                         | `TestRailClient` composition root: 18 `public readonly` module fields, module composition only, no flat wrappers                                  |
-| `src/modules/*.ts`                                      | Per-domain endpoint methods (cases, runs, results, projects, suites, sections, plans, tests, milestones, …)                                       |
-| `src/types.ts`                                          | Response interfaces + payload types that aren't Zod-derived (e.g., `GetCasesOptions`, `GetPlansOptions`, `AddSuitePayload`)                       |
-| `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for `AddCasePayload`, `AddRunPayload`, `AddPlanPayload`, etc. via `z.infer` |
-| `src/errors.ts`                                         | `TestRailApiError`, `TestRailValidationError`, `handleZodError`                                                                                   |
-| `src/body-reader.ts`                                    | Streaming response-body reader with byte cap (SEC #12) + wall-clock deadline (SEC #21); shared by every response shape                            |
-| `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits, response-body caps)                                                                          |
-| `src/utils.ts`                                          | `base64Encode`, `sleep`                                                                                                                           |
-| `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                                  |
-| `src/cli/index.ts`                                      | CLI entry: arg parse, dispatch, auth, handler invocation (wrapped in `async main()`)                                                              |
-| `src/cli/{auth,output,ids,dispatch,handler-context}.ts` | CLI infrastructure (env+flag resolution, JSON/table rendering, ID parsing, handler-table dispatch, shared types)                                  |
-| `src/cli/{file-input,file-output}.ts`                   | Binary file-input resolver (`--file`) and binary download resolver (`--out`) for attachment actions                                               |
-| `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user/plan/attachment)                                              |
-| `src/index.ts`                                          | Public barrel exports                                                                                                                             |
-| `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                                                 |
-| `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                                              |
-| `scripts/generate-codemap.ts`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                                  |
-| `docs/API-MAPPING.md`                                   | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)             |
-| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (122 endpoints × 26 resources); Zod-validated by the mapping generator                          |
-| `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2/D; `--check` flag for CI drift detection                  |
-| `scripts/mapping-renderer.ts`                           | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers    |
+| File                                                    | Purpose                                                                                                                                        |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/client-core.ts`                                    | HTTP pipeline, cache, rate limiter, retry, lifecycle                                                                                           |
+| `src/client.ts`                                         | `TestRailClient` composition root: 18 `public readonly` module fields, module composition only, no flat wrappers                               |
+| `src/modules/*.ts`                                      | Per-domain endpoint methods (cases, runs, results, projects, suites, sections, plans, tests, milestones, …)                                    |
+| `src/types.ts`                                          | Schema-derived response aliases, custom-field access, client config, and `Get*Options` DTOs                                                    |
+| `src/schemas.ts`                                        | Zod schemas for API responses **and** write payloads; source of truth for public response and payload types                                    |
+| `src/pagination.ts`                                     | `Page<T>` structural decoding, safe continuation parsing, bounded all-page collection                                                          |
+| `src/errors.ts`                                         | API, validation, license, and pagination errors plus `handleZodError`                                                                          |
+| `src/body-reader.ts`                                    | Streaming response-body reader with byte cap (SEC #12) + wall-clock deadline (SEC #21); shared by every response shape                         |
+| `src/constants.ts`                                      | All numeric constants (timeouts, cache, rate limits, response-body caps)                                                                       |
+| `src/utils.ts`                                          | `base64Encode`, `sleep`                                                                                                                        |
+| `src/cli.ts`                                            | Binary entrypoint: 1-line re-export of `src/cli/index.ts` (preserves `bin: testrail` and `./cli` subpath export)                               |
+| `src/cli/index.ts`                                      | CLI entry: arg parse, dispatch, auth, handler invocation (wrapped in `async main()`)                                                           |
+| `src/cli/{auth,output,ids,dispatch,handler-context}.ts` | CLI infrastructure (env+flag resolution, JSON/table rendering, ID parsing, handler-table dispatch, shared types)                               |
+| `src/cli/{file-input,file-output}.ts`                   | Binary file-input resolver (`--file`) and binary download resolver (`--out`) for attachment actions                                            |
+| `src/cli/handlers/*.ts`                                 | One async handler per resource:action (project/suite/case/run/result/milestone/user/plan/attachment)                                           |
+| `src/index.ts`                                          | Public barrel exports                                                                                                                          |
+| `CODEMAP.md`                                            | AST-derived `codemap.v2` symbol index (auto-gen, JSON-in-Markdown, deterministic)                                                              |
+| `codemap.config.json`                                   | Generator config: `sourceDirs`, `entrypoints`, `exclude` globs, `maxSignatureLength`                                                           |
+| `scripts/generate-codemap.ts`                           | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                               |
+| `docs/API-MAPPING.md`                                   | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)          |
+| `docs/testrail-endpoints.json`                          | Hand-curated upstream TestRail endpoint inventory (122 endpoints × 26 resources); Zod-validated by the mapping generator                       |
+| `scripts/generate-mapping.ts`                           | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2/D; `--check` flag for CI drift detection               |
+| `scripts/mapping-renderer.ts`                           | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers |
 
 ## API Symbol Index
 
@@ -46,13 +47,14 @@ See **[CODEMAP.md](CODEMAP.md)** for every method, type, error class, and consta
 
 ## API Coverage Matrix
 
-See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe. `@testrail` JSDoc tags on each module method bind methods to endpoints; `apiEndpoint` on each `ActionSpec` binds CLI commands; `<!-- recipe-for: resource:action -->` HTML comments in `skill/SKILL.md` bind numbered recipes. `npm run mapping:check` (run by `pretest` and CI) enforces five drift gates:
+See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe. `@testrail` JSDoc tags on each module method bind methods to endpoints; `apiEndpoint` on each `ActionSpec` binds CLI commands; `<!-- recipe-for: resource:action -->` HTML comments in `skill/SKILL.md` bind numbered recipes. `npm run mapping:check` (run by `pretest` and CI) enforces six drift gates:
 
 - **A** — committed `docs/API-MAPPING.md` matches generator output.
 - **B** — every `@testrail` tag references an endpoint in `docs/testrail-endpoints.json`.
 - **C** — every `ActionSpec.apiEndpoint` matches a `@testrail` tag.
 - **C2** — (bidirectional) every `recipe-for:` tag in `skill/SKILL.md` references an existing `ACTIONS` entry, **and** every `ACTIONS` entry has ≥1 `recipe-for:` binding unless `skillRecipeExempt: true` is set. The reverse direction is what enforces the CLI→skill half of the layer-coverage invariant below.
 - **D** — every `@testrail`-tagged SDK method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch — the mirror image of gate C, enforcing the SDK→CLI half of the layer-coverage invariant below.
+- **E** — pagination metadata agrees bidirectionally between `docs/testrail-endpoints.json` and the matching `ActionSpec`; neither side can silently add, remove, or change the contract.
 
 **Layer-coverage invariant (SDK ⇒ CLI ⇒ skill).** Beyond the drift gates above, this repo holds an absolute coverage rule: **every `@testrail`-tagged SDK method must be surfaced as ≥1 CLI command, and every CLI command must be reachable through ≥1 skill recipe.** A new endpoint method is not "done" until its CLI command and skill recipe land in the same change — there are no sanctioned exceptions (the `skillRecipeExempt` flag exists only as gate C2's mechanism and must stay unused; it is `0` today). Both halves are now machine-enforced: the SDK→CLI half by gate D, the CLI→skill half by gate C2 (reverse). Current coverage: 122 methods ⇒ 122 endpoints ⇒ 122 CLI commands ⇒ full recipe coverage.
 
@@ -64,7 +66,13 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 
 **URL construction:** `{baseUrl}/index.php?/api/v2/{endpoint}`. Query params appended with `&` (not `?`): `get_sections/1&suite_id=2`. Use `buildEndpoint(base, params)`.
 
-**Caching:** GET-only LRU Map with TTL. Any write invalidates the entire cache (`clearCache()`). `request(spec)` derives the cache key from the spec: a GET with a Zod `schema` caches under `PARSED:GET:{endpoint}`, a raw GET under `GET:{endpoint}`; non-GET methods and `responseKind: 'text' | 'binary'` / multipart bypass the cache.
+**Caching:** GET-only LRU Map with TTL. Any write invalidates the entire cache (`clearCache()`). `request(spec)` derives the cache key from the spec: a GET with a Zod `schema` caches under `PARSED:GET:{endpoint}`, a raw GET under `GET:{endpoint}`, and an explicit page projection under `PAGE:PARSED:GET:{endpoint}`; non-GET methods and `responseKind: 'text' | 'binary'` / multipart bypass the cache. The page namespace pairs with a strict page schema so collection-only legacy wrappers cannot poison `Page<T>` reads. `getAll*()` bypasses cache reads, writes, and pending-request coalescing so an aggregate cannot mix pages captured at different times.
+
+**Pagination contract:** the 23 endpoints carrying `pagination` metadata in `docs/testrail-endpoints.json` expose a trio. Existing `get*()` methods return the items from one response; `get*Page()` returns `Page<T>` with preserved envelope metadata; `getAll*()` follows response continuations and returns the complete bounded array. `_links.next` is authoritative, but only its validated offset and optional limit are extracted; modules rebuild their known endpoint and preserve filters instead of following a supplied host/path. Legacy bare arrays are terminal. Aggregation returns no partial results and defaults to 250/page, offset 0, 100 pages, 25,000 items, 300,000 ms, and 100 MiB; hard ceilings are 250/page, 300,000 ms, and 1 GiB. `TestRailPaginationError.reason` is one of `max_pages`, `max_items`, `max_duration`, `max_bytes`, `invalid_page`, `invalid_continuation`, or `non_progress`.
+
+Registry scope: cases/history; projects, suites, sections, plans, runs, tests, milestones; all three result lists; labels; shared steps/history; case/run/plan attachments; datasets, variables, roles, groups, and case statuses. Shared-step history, datasets, variables, roles, groups, and case statuses are response-driven (`requestControls: false`). Test attachments, plan-entry attachments, users, and ordinary metadata/configuration/report lists are excluded from the trio.
+
+**CLI pagination:** validation runs before auth/client construction. Default mode emits the existing one-response array; `--page` emits `Page<T>`; `--all` emits the bounded aggregate. `--page` conflicts with `--all`; `--all` rejects `--limit`/`--offset`; `--page-size`, `--start-offset`, `--max-pages`, `--max-items`, `--max-duration-ms`, and `--max-bytes` require `--all`. Response-driven endpoints accept aggregate safety bounds but reject caller-controlled page size/start offset.
 
 **Rate limiter:** Sliding window on `rateLimiter.requests[]`. Throws `TestRailApiError` on limit exceeded. Default: 100 req/60s.
 
@@ -72,7 +80,7 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 
 **Redirects (3xx):** The unified `executePipeline()` fetch sets `redirect: 'manual'` for every response shape and pipes the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed config validation + DNS pinning.
 
-**Response-body limits (SEC #12 + SEC #21):** Every fetch site reads the body through `readBodyWithLimits()` (`src/body-reader.ts`). Two caps apply: a **byte ceiling** (`maxJsonResponseBytes`, default 10 MiB — also used for text bodies and error payloads; `maxBinaryResponseBytes`, default 100 MiB — the `responseKind: 'binary'` success path only) and a **wall-clock deadline** (`bodyTimeout`, default = `timeout`). Exceeding either surfaces as `TestRailApiError(0, 'Response body too large' | 'Body read timeout', …)` with no retry. The header `timeout` is cleared after fetch returns; the body deadline is independent so a server that sends headers fast then dribbles bytes can no longer hold a socket open indefinitely. Config validator caps both byte limits at `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) so a caller cannot disable the guard with `Number.MAX_SAFE_INTEGER`. A non-streaming fallback exists for Response-like objects without `body.getReader()` (test mocks); it enforces the byte cap post-read but loses the slowloris protection.
+**Response-body limits (SEC #12 + SEC #21):** Every fetch site reads the body through `readBodyWithLimits()` (`src/body-reader.ts`). Two caps apply: a **byte ceiling** (`maxJsonResponseBytes`, default 10 MiB — also used for text bodies and error payloads; `maxBinaryResponseBytes`, default 100 MiB — the `responseKind: 'binary'` success path only) and a **wall-clock deadline** (`bodyTimeout`, default = `timeout`). Exceeding either surfaces as `TestRailApiError(0, 'Response body too large' | 'Body read timeout', …)` with no retry. The header `timeout` is cleared after fetch returns; the body deadline is independent so a server that sends headers fast then dribbles bytes can no longer hold a socket open indefinitely. Config validator caps both byte limits at `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) so a caller cannot disable the guard with `Number.MAX_SAFE_INTEGER`. A non-streaming fallback exists for Response-like objects without `body.getReader()` (test mocks); it deadline-races the read and enforces the byte cap after completion. An uncancellable fallback may continue reading in the background after the caller receives the timeout, but it cannot extend the caller-visible wait.
 
 **Lifecycle:** Instances auto-register in module-level `activeClients Set`. `destroy()` stops cleanup timer, clears cache, zeros credential, removes from set. Process signal handlers (`exit`/`SIGINT`/`SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8 — library consumers must not have their signal chain hijacked). When opted in, handlers call `destroy()` on every active instance; SIGINT/SIGTERM additionally `process.exit(130/143)`. The CLI (`src/cli/index.ts`) opts in; library callers should leave the flag off and call `destroy()` from their own shutdown hook. Once installed for a process, handlers persist for its lifetime (no safe deregistration without per-client ownership tracking).
 
@@ -83,10 +91,11 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 | Class                     | Thrown when                                                   | Has                                |
 | ------------------------- | ------------------------------------------------------------- | ---------------------------------- |
 | `TestRailApiError`        | HTTP error, network error, rate limit, timeout, invalid JSON  | `status`, `statusText`, `response` |
-| `TestRailValidationError` | Bad config (baseUrl/email/apiKey), invalid ID, invalid params | —                                  |
+| `TestRailPaginationError` | Malformed page/continuation or an aggregate safety bound      | reason + progress counters         |
+| `TestRailValidationError` | Bad config, invalid ID/params, malformed list outer structure | —                                  |
 | `Error`                   | Call after `destroy()`                                        | —                                  |
 
-A malformed **response** throws nothing — since 6.0.0 it surfaces through `onSchemaMismatch` and the raw body is returned. `TestRailValidationError` is now exclusively a caller-input error.
+Entity-field response mismatches are advisory. Structural list/page invariants are not: every list projection rejects a missing or scalar collection; explicit page/all projections also reject incomplete metadata, malformed links, and unsafe/non-advancing continuations. `TestRailPaginationError` extends `TestRailValidationError`; catch the subtype first when its reason matters.
 
 ## Schema authoring conventions (`src/schemas/*.ts`)
 
@@ -114,7 +123,7 @@ The hook is caller-supplied config and is validated as such: a non-function is r
 
 **Wrapper-documented list reads must parse through `listOf()` / `unwrapList()`** (`src/modules/list.ts`), which accept both the paginated envelope and a bare top-level array. Mandatory for that class, not optional: an envelope-only schema meeting a bare array parses to the raw array under advisory validation, whose `.<key>` is `undefined`, so the `?? []` unwrap silently reports **zero rows** — worse than the throw it replaced. Never hand-roll `z.object({ key: z.array(X) })` for a wrapper-documented list GET, and use the pair for bulk list-returning _writes_ too (`addCases`, `updateCases`), where a silent `[]` misreports work the server actually did.
 
-The rule is scoped to endpoints TestRail documents with the pagination wrapper. Endpoints whose response is a bare array to begin with correctly parse `z.array(...)` and must be left alone — `getStatuses`, `getCaseStatuses`, `getPriorities`, `getCaseTypes`, `getTemplates`, `getCaseFields`, `getResultFields` (`metadata.ts`), `getConfigurations` (`configurations.ts`), `addResults`, `addResultsForCases` (`results.ts`). They do not tolerate an envelope: one would arrive raw, typed `T[]`, and a caller's `.map` would throw.
+The rule is scoped to endpoints that may return a pagination wrapper. Endpoints whose response is a bare array to begin with correctly parse `z.array(...)` and must be left alone — `getStatuses`, `getPriorities`, `getCaseTypes`, `getTemplates`, `getCaseFields`, `getResultFields` (`metadata.ts`), `getConfigurations` (`configurations.ts`), `addResults`, `addResultsForCases` (`results.ts`). They do not tolerate an envelope: one would arrive raw, typed `T[]`, and a caller's `.map` would throw.
 
 Not every list-shaped POST returns a list, either. `update_tests` returns an acknowledgement (`{ test_ids, labels }`), so it uses `UpdateTestsResponseSchema` rather than `listOf` — routing it through the list helper made every successful call resolve `[]`. Before reaching for `listOf` on a write, confirm the endpoint actually returns entities. `get_history_for_case` needs the third variant, `listOfNested`/`unwrapNestedList`, because its documented response wraps the envelope in an outer array.
 
@@ -124,15 +133,15 @@ Why: response-schema corrections have consistently widened schemas to admit vali
 
 Scope: **responses only.** Caller-supplied input still fails closed — client config validates in the constructor, CLI write payloads in `resolveBody()` (`src/cli/body.ts`), and neither routes through `parse()`. Keep it that way; those are real trust boundaries.
 
-Consequence for types: exported response types describe the expected shape, not a runtime guarantee, and may widen in any release when wire evidence arrives. When widening, sync the hand-written mirrors in `src/types.ts` in the same change — `getCaseFields`/`getResultFields`/`getUser`/`getAttachments*`/`getPlan` return those interfaces rather than `z.infer`, so a stale mirror is a type lie at the call site.
+Consequence for types: exported response types describe the expected shape, not a runtime guarantee, and may widen when wire evidence arrives. They derive from the declared schema keys through `KnownResponse`, which deliberately removes `zObject().passthrough()`'s broad string index signature. Only `Case`, `Test`, and `Result` add `[custom_*]: unknown`; narrow bracket-accessed values. Their `custom_fields` container remains deprecated. Stable 6.0 additions include `Test.refs_data`/`case_title`, `Result.case_title`/`case_refs`, case/result field system flags, writable case-field indexing, and recursively typed milestone children.
 
 ## Constants (`src/constants.ts`)
 
-`BASE_RETRY_DELAY_MS=1000` · `MAX_RETRY_DELAY_MS=10000` · `MAX_TIMEOUT_MS=300000` · `DEFAULT_TIMEOUT_MS=30000` · `DEFAULT_MAX_RETRIES=3` · `DEFAULT_CACHE_TTL_MS=300000` · `DEFAULT_CACHE_CLEANUP_INTERVAL_MS=60000` · `DEFAULT_MAX_CACHE_SIZE=1000` · `DEFAULT_RATE_LIMIT_MAX_REQUESTS=100` · `DEFAULT_RATE_LIMIT_WINDOW_MS=60000` · `DEFAULT_MAX_JSON_RESPONSE_BYTES=10485760` (10 MiB) · `DEFAULT_MAX_BINARY_RESPONSE_BYTES=104857600` (100 MiB) · `MAX_RESPONSE_BYTES_LIMIT=1073741824` (1 GiB ceiling)
+`BASE_RETRY_DELAY_MS=1000` · `MAX_RETRY_DELAY_MS=10000` · `MAX_TIMEOUT_MS=300000` · `DEFAULT_TIMEOUT_MS=30000` · `DEFAULT_MAX_RETRIES=3` · `DEFAULT_CACHE_TTL_MS=300000` · `DEFAULT_CACHE_CLEANUP_INTERVAL_MS=60000` · `DEFAULT_MAX_CACHE_SIZE=1000` · `DEFAULT_RATE_LIMIT_MAX_REQUESTS=100` · `DEFAULT_RATE_LIMIT_WINDOW_MS=60000` · `DEFAULT_PAGE_SIZE=250` · `DEFAULT_MAX_PAGES=100` · `DEFAULT_MAX_ITEMS=25000` · `DEFAULT_MAX_PAGINATION_DURATION_MS=300000` · `DEFAULT_MAX_PAGINATION_BYTES=104857600` · `MAX_PAGINATION_BYTES=1073741824` · `DEFAULT_MAX_JSON_RESPONSE_BYTES=10485760` · `DEFAULT_MAX_BINARY_RESPONSE_BYTES=104857600` · `MAX_RESPONSE_BYTES_LIMIT=1073741824`
 
 ## Tests
 
-3406 collected cases (3383 passing, 23 skipped in the current suite). Shared helpers live in `tests/helpers.ts`.
+Shared test helpers live in `tests/helpers.ts`; use the suite output rather than recording a count here because pagination adapters and inventory gates intentionally grow it.
 
 | File                                | Covers                                                                                                                                 |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |

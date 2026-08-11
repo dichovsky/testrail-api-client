@@ -17,6 +17,25 @@ export interface BodyLimits {
     deadlineMs: number;
 }
 
+function cancelReaderBestEffort(reader: globalThis.ReadableStreamDefaultReader<Uint8Array>, reason: Error): void {
+    try {
+        void reader.cancel(reason).catch(() => undefined);
+    } catch {
+        // A non-conforming stream may throw synchronously. Cancellation is a
+        // cleanup attempt and must never replace or delay the caller-visible
+        // size/deadline error.
+        return;
+    }
+}
+
+function bodyTimeoutError(deadlineMs: number): TestRailApiError {
+    return new TestRailApiError(
+        0,
+        'Body read timeout',
+        `body read exceeded ${deadlineMs}ms before the response body finished streaming`,
+    );
+}
+
 /**
  * Streams the response body chunk-by-chunk, enforcing both a byte cap and a
  * wall-clock deadline.
@@ -39,8 +58,9 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     const { maxBytes, deadlineMs } = limits;
     // Some Response-like objects (mocks, polyfills, older runtimes) do not
     // expose a ReadableStream. Fall back to `arrayBuffer()` / `text()` and
-    // enforce the byte cap post-read — the slowloris-on-body protection is
-    // lost in this path but the OOM ceiling is still respected.
+    // enforce the byte cap post-read. The fallback promise is still raced
+    // against the deadline, although a non-cancellable polyfill may continue
+    // reading after the caller receives the timeout.
     const body = response.body as
         | (globalThis.ReadableStream<Uint8Array> & {
               getReader: () => globalThis.ReadableStreamDefaultReader<Uint8Array>;
@@ -48,7 +68,7 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
         | null
         | undefined;
     if (body === null || body === undefined || typeof body.getReader !== 'function') {
-        return readBodyViaFallback(response, maxBytes);
+        return readBodyViaFallback(response, maxBytes, deadlineMs);
     }
 
     const reader = body.getReader();
@@ -62,18 +82,36 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     let total = 0;
     let timedOut = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let deadline: Promise<never> | undefined;
+    const deadlineAt = deadlineMs > 0 ? Date.now() + deadlineMs : undefined;
+
+    const failIfDeadlineReached = (): void => {
+        if (!timedOut && (deadlineAt === undefined || Date.now() < deadlineAt)) return;
+        if (!timedOut) {
+            timedOut = true;
+            cancelReaderBestEffort(reader, new Error(`body read exceeded ${deadlineMs}ms`));
+        }
+        throw bodyTimeoutError(deadlineMs);
+    };
 
     if (deadlineMs > 0) {
-        timeoutId = setTimeout(() => {
-            timedOut = true;
-            // reader.cancel() returns a promise; swallow rejection — the read
-            // loop observes `timedOut` and throws the user-visible error.
-            reader.cancel(new Error(`body read exceeded ${deadlineMs}ms`)).catch(() => undefined);
-        }, deadlineMs);
-        // Allow the deadline timer to not keep an event loop alive on its own
-        // (Node only — browsers don't expose unref). The reader.read() promise
-        // already keeps the loop alive while in flight.
-        timeoutId.unref?.();
+        deadline = new Promise<never>((_resolve, reject) => {
+            timeoutId = setTimeout(() => {
+                if (!timedOut) {
+                    timedOut = true;
+                    // Cancellation is resource cleanup only. Reject
+                    // independently so a non-conforming reader whose read()
+                    // and cancel() both remain pending cannot defeat the
+                    // wall-clock bound.
+                    cancelReaderBestEffort(reader, new Error(`body read exceeded ${deadlineMs}ms`));
+                }
+                reject(bodyTimeoutError(deadlineMs));
+            }, deadlineMs);
+            // Deliberately keep this timer referenced. It is the only handle
+            // capable of settling the caller-visible Promise when both read()
+            // and cancel() never settle; unref() would let a standalone Node
+            // process exit before an awaited timeout can reject.
+        });
     }
 
     // Sequential async recursion instead of a `while (await reader.read())`
@@ -90,13 +128,11 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     // the read forever under `for await`.
     const drain = async (): Promise<void> => {
         const { done, value } = await reader.read();
-        if (timedOut) {
-            throw new TestRailApiError(
-                0,
-                'Body read timeout',
-                `body read exceeded ${deadlineMs}ms before the response body finished streaming`,
-            );
-        }
+        // A chain of already-resolved read() promises can monopolise the
+        // microtask queue long enough to starve the timeout callback. Compare
+        // the absolute deadline after every read so such a stream cannot
+        // finish successfully after the wall-clock bound. Equality is expiry.
+        failIfDeadlineReached();
         if (done) {
             return;
         }
@@ -105,9 +141,10 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
         }
         const newTotal = total + value.byteLength;
         if (newTotal > maxBytes) {
-            // Best-effort cancel; reader.cancel() resolves once the
-            // underlying source releases its resources. Swallow rejection.
-            await reader.cancel(new Error(`response body exceeded ${maxBytes} bytes`)).catch(() => undefined);
+            // Cancellation may reject, throw, or never settle on a custom
+            // stream. Start cleanup without awaiting it so the size bound is
+            // still prompt and independent of upstream cancellation quality.
+            cancelReaderBestEffort(reader, new Error(`response body exceeded ${maxBytes} bytes`));
             throw new TestRailApiError(
                 0,
                 'Response body too large',
@@ -117,6 +154,7 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
         // Grow the buffer if the incoming chunk does not fit.  Double the
         // capacity each time (capped at maxBytes) to amortise allocations.
         // After the copy the previous buffer is GC-eligible.
+        failIfDeadlineReached();
         if (newTotal > buf.byteLength) {
             let newCap = buf.byteLength;
             while (newCap < newTotal) {
@@ -126,13 +164,18 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
             grown.set(buf.subarray(0, total));
             buf = grown;
         }
+        failIfDeadlineReached();
         buf.set(value, total);
         total = newTotal;
         return drain();
     };
 
     try {
-        await drain();
+        const draining = drain();
+        await (deadline === undefined ? draining : Promise.race([draining, deadline]));
+        // Recheck immediately before accepting terminal success. This also
+        // covers time spent assembling the final chunk after its read settled.
+        failIfDeadlineReached();
     } finally {
         if (timeoutId !== undefined) {
             clearTimeout(timeoutId);
@@ -146,6 +189,10 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
             // flight); ignore — we cannot recover here.
         }
     }
+
+    // A custom releaseLock() is synchronous and may itself consume time. Do
+    // not let that edge case turn an expired read into caller-visible success.
+    failIfDeadlineReached();
 
     // Return a view of exactly the filled bytes.  When the buffer was grown to
     // its exact final size no extra allocation is needed; otherwise a subarray
@@ -165,30 +212,71 @@ export async function readBodyAsText(response: Response, limits: BodyLimits): Pr
  * Non-streaming fallback for Response-like objects that don't expose
  * `body.getReader`. Used in tests where fetch is mocked with a plain
  * `{ text, arrayBuffer }` literal. Reads the full body up front, then
- * enforces the byte cap — mid-stream abort is impossible here so the SEC #21
- * slowloris protection is forfeited on this path, but SEC #12 OOM cap
- * still trips on oversized payloads.
+ * enforces the byte cap. The deadline bounds what the caller waits for, while
+ * an underlying non-cancellable polyfill may continue reading in the
+ * background. SEC #12 still trips on an oversized completed payload.
  */
-async function readBodyViaFallback(response: Response, maxBytes: number): Promise<Uint8Array> {
+function failIfFallbackDeadlineReached(deadlineAt: number | undefined, deadlineMs: number): void {
+    if (deadlineAt !== undefined && Date.now() >= deadlineAt) {
+        throw bodyTimeoutError(deadlineMs);
+    }
+}
+
+async function awaitFallbackBody<T>(
+    promise: Promise<T>,
+    deadlineAt: number | undefined,
+    deadlineMs: number,
+): Promise<T> {
+    if (deadlineAt === undefined) return promise;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+        timeoutId = setTimeout(() => reject(bodyTimeoutError(deadlineMs)), Math.max(0, deadlineAt - Date.now()));
+        // As above, this is an operation deadline rather than a detached
+        // cleanup timer. It must remain referenced so an awaited fallback read
+        // is guaranteed an opportunity to reject before Node exits.
+    });
+    try {
+        const result = await Promise.race([promise, timeout]);
+        // Promise callbacks run before timers. A fallback that resolves via a
+        // long microtask chain can therefore cross the deadline before the
+        // timeout callback runs; the absolute inclusive check closes that gap.
+        failIfFallbackDeadlineReached(deadlineAt, deadlineMs);
+        return result;
+    } finally {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
+}
+
+async function readBodyViaFallback(response: Response, maxBytes: number, deadlineMs: number): Promise<Uint8Array> {
+    // One absolute deadline covers the upstream fallback read and all local
+    // conversion/accounting work. Starting it before calling the fallback
+    // method also covers a non-conforming implementation that does expensive
+    // synchronous work before returning its Promise.
+    const deadlineAt = deadlineMs > 0 ? Date.now() + deadlineMs : undefined;
     const arrayBufferFn = (response as { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer;
     if (typeof arrayBufferFn === 'function') {
-        const ab = await arrayBufferFn.call(response);
+        const ab = await awaitFallbackBody(arrayBufferFn.call(response), deadlineAt, deadlineMs);
         const bytes = new Uint8Array(ab);
+        failIfFallbackDeadlineReached(deadlineAt, deadlineMs);
         if (bytes.byteLength > maxBytes) {
             throw new TestRailApiError(0, 'Response body too large', `response body exceeded ${maxBytes} bytes`);
         }
+        failIfFallbackDeadlineReached(deadlineAt, deadlineMs);
         return bytes;
     }
 
     const textFn = (response as { text?: () => Promise<string> }).text;
     if (typeof textFn === 'function') {
-        const text = await textFn.call(response);
+        const text = await awaitFallbackBody(textFn.call(response), deadlineAt, deadlineMs);
         const bytes = new globalThis.TextEncoder().encode(text);
+        failIfFallbackDeadlineReached(deadlineAt, deadlineMs);
         if (bytes.byteLength > maxBytes) {
             throw new TestRailApiError(0, 'Response body too large', `response body exceeded ${maxBytes} bytes`);
         }
+        failIfFallbackDeadlineReached(deadlineAt, deadlineMs);
         return bytes;
     }
 
+    failIfFallbackDeadlineReached(deadlineAt, deadlineMs);
     return new Uint8Array(0);
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Variable Schemas ──────────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ export const VariableSchema = zObject({
     name: z.string(),
 });
 
-export type Variable = z.infer<typeof VariableSchema>;
+export type Variable = KnownResponse<typeof VariableSchema>;
 
 export const AddVariablePayloadSchema = zObject({
     name: z.string(),

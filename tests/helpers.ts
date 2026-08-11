@@ -6,6 +6,10 @@ export const BASE_CONFIG: TestRailConfig = {
     baseUrl: 'https://example.testrail.io',
     email: 'test@example.com',
     apiKey: 'test-api-key',
+    // Most unit suites replace fetch and are not testing the SSRF/DNS guard.
+    // Keep those tests hermetic; dedicated client-feature and SSRF suites
+    // construct their own clients with explicit DNS behavior.
+    allowPrivateHosts: true,
 };
 
 export function createClient(overrides: Partial<TestRailConfig> = {}): TestRailClient {

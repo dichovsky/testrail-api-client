@@ -88,6 +88,16 @@ page.
       returns the raw body, delivering an untransformed `null` under a type that
       claimed `number[]` and turning a caught validation error into an uncaught
       `TypeError`. Narrow before indexing.
+- **Public response types now derive from the declared response-schema keys.**
+  Runtime schemas remain `.passthrough()`, but their inferred public types no
+  longer advertise a broad `[key: string]: unknown` signature. This removes
+  accidental property access from response models that do not support dynamic
+  fields and eliminates hand-written schema/type drift.
+- **Flat custom-field access is explicit and narrow.** Only `Case`, `Test`, and
+  `Result` expose a `custom_*` template-literal index returning `unknown`;
+  narrow a bracket-accessed value before use. Their nested `custom_fields` member is retained but marked
+  deprecated. Other response types no longer require or encourage casts for
+  fields TestRail does not emit there.
 
 ### Added
 
@@ -96,25 +106,63 @@ page.
   default, in which case a mismatch is silent. Invoked outside any `try`, so
   throwing from it propagates to the caller; that is the supported strict mode,
   and it also prevents the cache write. Exported type: `SchemaMismatch`.
+- **Explicit bounded pagination on 23 audited list endpoints.** Existing
+  `get*()` methods remain one-response `Entity[]` reads. Each registered endpoint
+  also exposes `get*Page(): Page<Entity>` (preserves `offset`, `limit`, `size`,
+  and `_links`) and `getAll*(): Entity[]` (collects every response page).
+  Registered endpoints are cases and case history; projects, suites, sections,
+  plans, runs, tests, milestones, and all three result lists; labels; shared
+  steps and shared-step history; case/run/plan attachment lists; datasets,
+  variables, roles, groups, and case statuses. Test attachments, plan-entry
+  attachments, users, and ordinary metadata/configuration/report lists are
+  intentionally excluded.
+- **Safe continuation handling.** `_links.next` is authoritative for whether a
+  next page exists, but its host and path are never followed. The client parses
+  only a canonical offset and optional limit, then rebuilds the known endpoint
+  with the original filters. A legacy bare array is terminal. All-page reads
+  bypass GET cache reads/writes/coalescing and return no partial results.
+  Explicit page reads validate against a strict envelope schema and use a
+  separate cache namespace, so legacy collection-only wrappers cannot poison
+  `Page<T>` responses.
+- **Bounded aggregation and structured failures.** Defaults: page size 250,
+  offset 0, 100 pages, 25,000 items, five minutes, and 100 MiB serialized data;
+  hard ceilings are 250/page, five minutes, and 1 GiB. New
+  `TestRailPaginationError` extends `TestRailValidationError` and carries
+  `reason`, `pagesFetched`, and `itemsFetched`; reasons are `max_pages`,
+  `max_items`, `max_duration`, `max_bytes`, `invalid_page`,
+  `invalid_continuation`, and `non_progress`.
+- **CLI pagination projections.** The default remains a one-response item
+  array. `--page` emits the normalized page; `--all` emits the bounded complete
+  array and accepts `--page-size`, `--start-offset`, `--max-pages`,
+  `--max-items`, `--max-duration-ms`, and `--max-bytes`. `--page` and `--all`
+  conflict; `--all` rejects `--limit`/`--offset`; aggregate controls require
+  `--all`. Shared-step history, datasets, variables, roles, groups, and case
+  statuses are response-driven and reject caller-controlled page size/offset.
+- **Stable response fields and recursive milestones.** Added
+  `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`,
+  `CaseField.is_indexed`, version-tolerant `CaseField.is_system` and
+  `ResultField.is_system` (`boolean | 0 | 1 | null | undefined`), plus writable
+  `AddCaseFieldPayload.is_indexed`. `Milestone.milestones` is now recursively
+  typed and validated instead of `unknown[]`.
 - **Bare-array tolerance on every wrapper-documented list read.** All of these
   now accept both the paginated envelope and a bare top-level array, via the
   shared `listOf()`/`unwrapList()` pair in `src/modules/list.ts` (the union
   already proven on `getSuites`). Non-breaking: each method's contract stays
   `Entity[]`.
-    - Previously envelope-only, now bimodal (24 methods): `getCases`,
+    - Previously single-shape, now bimodal (25 methods): `getCases`,
       `getSections`, `getHistoryForCase`, `getUsers`, `getGroups`,
       `getVariables`, `getDatasets`, `getProjects`, `getMilestones`, `getPlans`,
       `getRuns`, `getTests`, `getResults`, `getResultsForCase`,
       `getResultsForRun`, `getRoles`, `getLabels`, `getSharedSteps`,
       `getSharedStepHistory`, `getAttachmentsForCase`, `getAttachmentsForTest`,
-      `getAttachmentsForRun`, `getAttachmentsForPlan`,
+      `getAttachmentsForRun`, `getAttachmentsForPlan`, `getCaseStatuses`,
       `getAttachmentsForPlanEntry`. (`getSuites` already accepted both.)
     - Also applied to the two bulk _writes_, `addCases` and `updateCases`: there
       a shape mismatch used to resolve `[]`, reporting "0 created/updated" for
       work the server had done, which a retrying caller would then duplicate.
     - Endpoints whose response is a bare array to begin with are unchanged and
-      keep parsing `z.array(...)`: `getStatuses`, `getCaseStatuses`,
-      `getPriorities`, `getCaseTypes`, `getTemplates`, `getCaseFields`,
+      keep parsing `z.array(...)`: `getStatuses`, `getPriorities`,
+      `getCaseTypes`, `getTemplates`, `getCaseFields`,
       `getResultFields`, `getConfigurations`, `addResults`,
       `addResultsForCases`.
     - Why the broad fix rather than another per-endpoint change: multiple methods
@@ -129,6 +177,11 @@ page.
   to `{}` and unwrapping to `[]`. `unwrapList()` also guards the extracted member
   with `Array.isArray`, so a key holding a scalar can no longer be returned typed
   as `Entity[]`.
+- **Structural list/page corruption now fails closed.** Advisory parsing still
+  preserves rows whose entity fields drift. Every list projection rejects a
+  missing/wrong collection instead of returning an empty list; explicit
+  page/all projections additionally reject partial pagination metadata,
+  malformed `_links`, unsafe continuations, and non-advancing offsets.
 - **Bulk case writes fail closed on an unrecognized success body.**
   `addCases()` and `updateCases()` still accept both documented envelopes and
   bare arrays, but a body matching neither form now throws `TestRailApiError`

@@ -40,6 +40,8 @@
  *        `ActionSpec.apiEndpoint`, i.e. the SDK method is actually reachable
  *        from the CLI. Unconditional — no exemption escape hatch, matching
  *        this repo's absolute, exception-free SDK⇒CLI layer-coverage policy.
+ *   E  — Pagination metadata is identical in `docs/testrail-endpoints.json`
+ *        and the matching `ActionSpec`, in both directions.
  *
  * Determinism: no timestamps; tables and per-resource sections sorted by
  * stable keys; running twice produces byte-identical output.
@@ -49,6 +51,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
+import { collectActionsFromSource } from './action-metadata-parser.js';
 import {
     EndpointsArraySchema,
     normalizePathForMatch,
@@ -136,73 +139,6 @@ function crawlModuleFile(filePath: string): CallSite[] {
     }
     visit(sf);
     return out;
-}
-
-/**
- * Parse a per-resource `*Actions` array literal in
- * `src/cli/metadata/<resource>.ts`. Each module exports one
- * `readonly ActionSpec[]` whose elements are object literals; we extract
- * `resource`, `action`, `apiEndpoint`, and the optional `skillRecipeExempt`
- * for the API-mapping drift gates.
- *
- * The barrel `src/cli/metadata.ts` recomposes these per-resource arrays
- * into the published `ACTIONS` order via spread expressions, but the
- * mapping generator does not need the recomposed order — gates B/C/C2
- * operate on the unordered set of `{ resource, action, apiEndpoint }`
- * tuples. So this loader walks each per-resource file independently and
- * aggregates every object-literal action it finds.
- */
-function collectActionsFromSource(source: string, filePath: string): ActionEntry[] {
-    const sf = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true);
-    const actions: ActionEntry[] = [];
-
-    function literalValue(node: ts.Node): string | boolean | undefined {
-        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
-        if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
-        if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
-        return undefined;
-    }
-
-    function pushEntry(el: ts.ObjectLiteralExpression): void {
-        const entry: Record<string, string | boolean> = {};
-        for (const prop of el.properties) {
-            if (!ts.isPropertyAssignment(prop)) continue;
-            if (!ts.isIdentifier(prop.name)) continue;
-            const v = literalValue(prop.initializer);
-            if (v !== undefined) entry[prop.name.text] = v;
-        }
-        const resource = entry['resource'];
-        const action = entry['action'];
-        const apiEndpoint = entry['apiEndpoint'];
-        if (typeof resource === 'string' && typeof action === 'string' && typeof apiEndpoint === 'string') {
-            actions.push({
-                resource,
-                action,
-                apiEndpoint,
-                ...(entry['skillRecipeExempt'] === true ? { skillRecipeExempt: true } : {}),
-            });
-        }
-    }
-
-    function visit(node: ts.Node): void {
-        if (
-            ts.isVariableDeclaration(node) &&
-            ts.isIdentifier(node.name) &&
-            node.name.text.endsWith('Actions') &&
-            node.initializer !== undefined
-        ) {
-            let arr: ts.Node = node.initializer;
-            while (ts.isAsExpression(arr)) arr = arr.expression;
-            if (ts.isArrayLiteralExpression(arr)) {
-                for (const el of arr.elements) {
-                    if (ts.isObjectLiteralExpression(el)) pushEntry(el);
-                }
-            }
-        }
-        ts.forEachChild(node, visit);
-    }
-    visit(sf);
-    return actions;
 }
 
 function loadCliActions(): ActionEntry[] {

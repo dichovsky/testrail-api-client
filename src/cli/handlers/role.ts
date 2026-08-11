@@ -1,5 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { IdParseError } from '../ids.js';
+import { getPaginationSafetyOptions, outputPaginated } from '../pagination.js';
 
 /**
  * `role list` — list every user role defined on the TestRail instance. The
@@ -14,5 +15,9 @@ export async function handleRoleList(ctx: HandlerContext): Promise<void> {
             `role list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.metadata.getRoles());
+    await outputPaginated(ctx, {
+        items: () => ctx.client.metadata.getRoles(),
+        page: () => ctx.client.metadata.getRolesPage(),
+        all: () => ctx.client.metadata.getAllRoles(getPaginationSafetyOptions(ctx.args)),
+    });
 }

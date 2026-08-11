@@ -1501,10 +1501,11 @@ describe('CLI', () => {
             },
         );
 
-        it('test list returns empty array when API responds with no tests field', async () => {
-            const { exitCodes, stdout } = await runCli(['test', 'list', '5'], [jsonResponse({})]);
-            expect(exitCodes).toContain(0);
-            expect(stdout.trim()).toBe('[]');
+        it('test list fails closed when the API response has no tests field', async () => {
+            const { exitCodes, stdout, stderr } = await runCli(['test', 'list', '5'], [jsonResponse({})]);
+            expect(exitCodes).toContain(1);
+            expect(stdout.trim()).toBe('');
+            expect(stderr).toContain('List response field "tests" must be an array or null');
         });
 
         it('test get with explicit --format json emits parseable JSON', async () => {
@@ -3629,6 +3630,75 @@ describe('CLI', () => {
             expect(exitCodes).toContain(1);
             expect(stderr).toBe('');
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('pagination mode validation and output', () => {
+        it.each([
+            [['project', 'list', '--page', '--all'], /--page and --all are mutually exclusive/],
+            [['case', 'get', '1', '--all'], /--all is not supported by case get/],
+            [['project', 'list', '--all', '--limit', '2'], /--all cannot be combined with --limit or --offset/],
+            [['role', 'list', '--all', '--page-size', '2'], /does not document caller-controlled pagination/],
+            [['project', 'list', '--all', '--max-pages', '01'], /--max-pages must be a positive safe integer/],
+            [['project', 'list', '--all=true', '--limit', '1'], /--all does not accept a value/],
+            [['project', 'list', '--page=true'], /--page does not accept a value/],
+            [['project', 'list', '--all', '--max-pages'], /--max-pages requires a value/],
+        ] as const)('rejects incompatible pagination argv before fetching: %j', async (argv, message) => {
+            const { exitCodes, stderr, stdout } = await runCli([...argv]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toMatch(message);
+            expect(stdout).toBe('');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('renders --page as a normalized metadata envelope', async () => {
+            const response = {
+                offset: 0,
+                limit: 1,
+                size: 1,
+                _links: { next: null, prev: null },
+                projects: [MOCK_PROJECT],
+            };
+            const { exitCodes, stdout } = await runCli(
+                ['project', 'list', '--page', '--limit', '1'],
+                [jsonResponse(response)],
+            );
+
+            expect(exitCodes).toContain(0);
+            expect(JSON.parse(stdout)).toEqual({
+                kind: 'envelope',
+                items: [MOCK_PROJECT],
+                offset: 0,
+                limit: 1,
+                size: 1,
+                _links: { next: null, prev: null },
+            });
+        });
+
+        it('renders --all only after collecting every page', async () => {
+            const second = { ...MOCK_PROJECT, id: 2, name: 'Second' };
+            const firstPage = {
+                offset: 0,
+                limit: 1,
+                size: 1,
+                _links: { next: '/api/v2/get_projects?limit=1&offset=1', prev: null },
+                projects: [MOCK_PROJECT],
+            };
+            const secondPage = {
+                offset: 1,
+                limit: 1,
+                size: 1,
+                _links: { next: null, prev: '/api/v2/get_projects?limit=1&offset=0' },
+                projects: [second],
+            };
+            const { exitCodes, stdout } = await runCli(
+                ['project', 'list', '--all', '--page-size', '1'],
+                [jsonResponse(firstPage), jsonResponse(secondPage)],
+            );
+
+            expect(exitCodes).toContain(0);
+            expect(JSON.parse(stdout)).toEqual([MOCK_PROJECT, second]);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
         });
     });
 

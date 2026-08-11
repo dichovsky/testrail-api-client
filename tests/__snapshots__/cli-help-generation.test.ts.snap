@@ -11,11 +11,11 @@ Read actions:
   suite               get <suite_id>
       Fetch a single suite by ID
   suite               list
-      List suites in a project
+      List suites in a project (paginated)
   case                get <case_id>
       Fetch a single test case by ID
   case                list
-      List cases in a project (optionally filtered by suite)
+      List cases in a project (optionally filtered by suite; paginated)
   case                history <case_id>
       List edit history for a test case (paginated; TestRail 7.5+)
   run                 get <run_id>
@@ -57,23 +57,23 @@ Read actions:
   shared-step         get <shared_step_id>
       Fetch a single shared step by ID
   shared-step         list
-      List shared steps in a project
+      List shared steps in a project (paginated)
   shared-step         history <shared_step_id>
-      List revision history for a shared step (paginated)
+      List revision history for a shared step (pagination envelope)
   report              list <project_id>
       List report templates configured for a project
   report              run <report_template_id>
       Execute a report template and return the generated report URLs
   variable            list <project_id>
-      List variables in a project
+      List variables in a project (pagination envelope)
   group               get <group_id>
       Fetch a single user group by ID (TestRail 7.5+)
   group               list
-      List all user groups on the instance (TestRail 7.5+; no path params)
+      List all user groups on the instance (pagination envelope; TestRail 7.5+)
   dataset             get <dataset_id>
       Fetch a single dataset by ID
   dataset             list <project_id>
-      List datasets in a project
+      List datasets in a project (pagination envelope)
   label               get <label_id>
       Fetch a single label by ID
   label               list <project_id>
@@ -81,7 +81,7 @@ Read actions:
 
 Metadata actions:
   case-status         list
-      List case-level lifecycle statuses (TestRail 7.5+)
+      List case-level lifecycle statuses (pagination envelope; TestRail 7.5+)
   case-field          list
       List all custom case fields defined on the TestRail instance
   result-field        list
@@ -91,7 +91,7 @@ Metadata actions:
   template            list <project_id>
       List case templates available in a project
   role                list
-      List all user roles defined on the TestRail instance
+      List all user roles defined on the TestRail instance (pagination envelope)
   priority            list
       List all case priorities defined on the TestRail instance
   case-type           list
@@ -231,13 +231,13 @@ Configuration actions (project → config_groups → configs):
 
 Attachment actions (binary file I/O):
   attachment          list-for-case <case_id>
-      List attachments on a test case
+      List attachments on a test case (paginated)
   attachment          list-for-run <run_id>
-      List attachments on a test run
+      List attachments on a test run (paginated)
   attachment          list-for-test <test_id>
       List attachments on a test (run instance of a case)
   attachment          list-for-plan <plan_id>
-      List attachments on a test plan
+      List attachments on a test plan (paginated)
   attachment          list-for-plan-entry <plan_id> <entry_id>
       List attachments on a plan entry
   attachment          get <attachment_id> --out <path|-> [--force]
@@ -316,6 +316,18 @@ Options:
   --quiet               Suppress output; use exit code 0/1
   --timeout <ms>        Request timeout in milliseconds. Overrides the
                         TESTRAIL_TIMEOUT env var; default 30000, max 300000.
+  --page                Return one normalized page with pagination metadata.
+                        Uses --limit/--offset where the endpoint supports them.
+  --all                 Fetch all pages subject to aggregate safety bounds.
+                        Mutually exclusive with --page and with --limit/--offset.
+  --page-size <n>       --all per-request page size where documented
+                        (default 250; max 250).
+  --start-offset <n>    --all initial offset where documented (default 0).
+  --max-pages <n>       --all request bound (default 100).
+  --max-items <n>       --all item bound (default 25000).
+  --max-duration-ms <n> --all wall-clock bound (default/max 300000).
+  --max-bytes <n>       --all serialized-data bound (default 104857600;
+                        hard maximum 1073741824).
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
   --file <path>         Binary file to upload (attachment add-to-* actions)

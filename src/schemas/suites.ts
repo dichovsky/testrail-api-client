@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Suite Schemas ─────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ export const SuiteSchema = zObject({
     url: z.string(),
 });
 
-export type Suite = z.infer<typeof SuiteSchema>;
+export type Suite = KnownResponse<typeof SuiteSchema>;
 
 // ── Suite write payloads ──────────────────────────────────────────────────────
 

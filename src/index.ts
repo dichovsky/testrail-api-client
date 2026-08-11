@@ -1,5 +1,27 @@
 export { TestRailClient } from './client.js';
-export { TestRailApiError, TestRailLicenseError, TestRailValidationError, handleZodError } from './errors.js';
+export {
+    TestRailApiError,
+    TestRailLicenseError,
+    TestRailPaginationError,
+    TestRailValidationError,
+    handleZodError,
+} from './errors.js';
+export type {
+    Page,
+    PageLinks,
+    PaginatedRequestOptions,
+    PaginationErrorReason,
+    PaginationSafetyOptions,
+} from './pagination.js';
+export {
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_MAX_PAGES,
+    DEFAULT_MAX_ITEMS,
+    DEFAULT_MAX_PAGINATION_DURATION_MS,
+    DEFAULT_MAX_PAGINATION_BYTES,
+    MAX_PAGINATION_LIMIT,
+    MAX_PAGINATION_BYTES,
+} from './constants.js';
 export {
     TestRailConfigSchema,
     PaginationSchema,
@@ -21,6 +43,7 @@ export {
     StatusSchema,
     PrioritySchema,
     CaseStatusSchema,
+    HistoryChangeSchema,
     HistoryEntrySchema,
     CaseFieldConfigSchema,
     CaseFieldSchema,
@@ -153,9 +176,27 @@ export type {
     UserUpdatePayload,
     LabelEmbedded,
 } from './schemas.js';
-export type { GetHistoryForCaseOptions } from './modules/cases.js';
-export type { GetSharedStepHistoryOptions } from './modules/sharedSteps.js';
-export type { GetAttachmentsOptions } from './modules/attachments.js';
+export type { GetAllCasesOptions, GetAllHistoryForCaseOptions, GetHistoryForCaseOptions } from './modules/cases.js';
+export type { GetAllTestsOptions } from './modules/tests.js';
+export type { GetAllResultsOptions } from './modules/results.js';
+export type { GetAllAttachmentsOptions, GetAttachmentsOptions } from './modules/attachments.js';
+export type { GetAllRunsOptions } from './modules/runs.js';
+export type { GetAllPlansOptions } from './modules/plans.js';
+export type { GetAllProjectsOptions, GetProjectsPageOptions } from './modules/projects.js';
+export type { GetAllSectionsOptions, GetSectionsOptions } from './modules/sections.js';
+export type { GetAllMilestonesOptions } from './modules/milestones.js';
+export type { GetAllSuitesOptions, GetSuitesOptions } from './modules/suites.js';
+export type {
+    GetAllSharedStepHistoryOptions,
+    GetAllSharedStepsOptions,
+    GetSharedStepHistoryOptions,
+    GetSharedStepsOptions,
+} from './modules/sharedSteps.js';
+export type { GetAllLabelsOptions, GetLabelsOptions } from './modules/labels.js';
+export type { GetAllDatasetsOptions } from './modules/datasets.js';
+export type { GetAllVariablesOptions } from './modules/variables.js';
+export type { GetAllCaseStatusesOptions, GetAllRolesOptions } from './modules/metadata.js';
+export type { GetAllGroupsOptions } from './modules/users.js';
 export type {
     TestRailConfig,
     SchemaMismatch,

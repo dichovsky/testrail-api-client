@@ -29,6 +29,7 @@ export const labelActions: readonly ActionSpec[] = [
         summary: "List a project's labels (paginated)",
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_labels/{project_id}',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'labels' },
         isWrite: false,
         handler: handleLabelList,
     },

@@ -30,6 +30,7 @@ export const runActions: readonly ActionSpec[] = [
         summary: 'List runs in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_runs/{project_id}',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'runs' },
         isWrite: false,
         handler: handleRunList,
     },

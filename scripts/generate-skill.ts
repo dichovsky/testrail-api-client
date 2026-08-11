@@ -18,8 +18,9 @@
  * dist/ so Zod schemas are introspectable as runtime values). The
  * `skill` npm-script chains build + generation.
  *
- * Drift is enforced via the `skill:check` script which runs
- * `git diff --exit-code skill/SKILL.md` after regeneration in CI/publish.
+ * Drift is enforced via the `skill:check` script which verifies both generated
+ * outputs (`skill/SKILL.md` and `skill/reference/payload-schemas.yaml`) after
+ * regeneration in CI/publish.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';

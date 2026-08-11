@@ -5,7 +5,21 @@ import { TestRailClientCore } from '../client-core.js';
 import type { User } from '../types.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginationSafetyOptions } from './pagination-options.js';
+
+export type GetAllGroupsOptions = PaginationSafetyOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
+    pageProjection?: boolean;
+};
+
+interface GroupPaginationControls {
+    limit?: number;
+    offset?: number;
+}
 
 // Lightweight sanity guard for the get_user_by_email lookup input: exactly one
 // '@' with non-empty, whitespace-free local and domain parts. Deliberately does
@@ -56,7 +70,7 @@ export class UsersModule {
         // projects/groups/roles/labels all document the envelope. #248 proved
         // this exact wrapper-only assumption wrong for six other methods, so
         // accept both shapes rather than betting on the doc.
-        // SPEC #1.5 — `{ users: null }` is a valid empty wrapper, hence `.nullish()`.
+        // SPEC #1.5 — `{ users: null }` is a valid empty wrapper, hence `.nullable()`.
         const raw = await this.client.request<User[] | { users?: User[] }>({
             method: 'GET',
             endpoint,
@@ -107,12 +121,53 @@ export class UsersModule {
 
     /** @testrail GET get_groups */
     async getGroups(): Promise<Group[]> {
-        const raw = await this.client.request<Group[] | { groups?: Group[] }>({
-            method: 'GET',
-            endpoint: 'get_groups',
-            schema: listOf('groups', GroupSchema),
+        return unwrapList<Group>('groups', await this.requestGroups());
+    }
+
+    /** Get one response page without sending undocumented request controls. */
+    async getGroupsPage(): Promise<Page<Group>> {
+        return decodePage<Group>('groups', await this.requestGroups(undefined, { pageProjection: true }));
+    }
+
+    /** Get every group under the configured pagination safety bounds. */
+    async getAllGroups(options?: GetAllGroupsOptions): Promise<Group[]> {
+        return collectAllPages<Group>({
+            ...snapshotPaginationSafetyOptions(options),
+            requestControls: false,
+            fetchPage: (request) =>
+                this.requestGroups(
+                    {
+                        ...(request.limit === undefined ? {} : { limit: request.limit }),
+                        ...(request.offset === undefined ? {} : { offset: request.offset }),
+                    },
+                    {
+                        bypassCache: request.bypassCache,
+                        remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
+                    },
+                ).then((raw) => decodePage<Group>('groups', raw)),
         });
-        return unwrapList<Group>('groups', raw);
+    }
+
+    private async requestGroups(
+        pagination?: GroupPaginationControls,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
+        validatePaginationParams(pagination?.limit, pagination?.offset);
+        const endpoint = buildEndpoint('get_groups', {
+            limit: pagination?.limit,
+            offset: pagination?.offset,
+        });
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
+            method: 'GET',
+            endpoint,
+            schema: pageProjection ? pageOf('groups', GroupSchema) : listOf('groups', GroupSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
+        });
     }
 
     /** @testrail POST add_group */

@@ -19,7 +19,7 @@ This document describes how the code is organized, why the layers are split the 
 ├─────────────────────────────────────────────────────────────────┤
 │  Facade           src/client.ts            TestRailClient       │
 │  ── extends core; composes 18 domain modules                    │
-│  ── thin wrapper methods delegate to modules                    │
+│  ── namespaced modules are the endpoint access path             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Domain modules   src/modules/*.ts         18 namespaces        │
 │  ── stateless; one per TestRail resource                        │
@@ -30,9 +30,9 @@ This document describes how the code is organized, why the layers are split the 
 │  ── lifecycle, validation primitives, endpoint builder          │
 ├─────────────────────────────────────────────────────────────────┤
 │  Types / schemas  src/schemas/*.ts (Zod) + src/types.ts         │
-│  ── payloads + parsed responses (Zod), config + DTOs (TS)       │
+│  ── schema-derived responses, payloads, config + DTOs           │
 ├─────────────────────────────────────────────────────────────────┤
-│  Foundations      src/errors.ts, src/constants.ts, src/utils.ts │
+│  Foundations      errors, constants, pagination, validation     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,7 +56,7 @@ These are declared `public` (not `protected`) because modules consume them by co
 
 Pre-flight ID guards live in the pure `src/validation.ts` leaf module. TestRail-specific query construction lives in the pure `src/url.ts` leaf module.
 
-`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). A schema-valid GET caches the parsed value under `PARSED:GET:{endpoint}`; a schema-invalid GET returns the raw body but deliberately skips the cache so the next call can re-fetch and re-report the mismatch. A GET without a schema caches the raw body under `GET:{endpoint}`, while non-GET calls skip the cache and invalidate it on success. The shared core builds a `PipelineSpec` and runs it through `executePipeline()`.
+`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). Internal `bypassCache` disables reads, writes, and pending-request coalescing for all-page snapshots; `remainingTimeMs` clips both request phases to the aggregate deadline; `cacheVariant: 'page'` selects the strict page namespace. A schema-valid ordinary GET caches under `PARSED:GET:{endpoint}`, while an explicit page projection caches under `PAGE:PARSED:GET:{endpoint}`. This prevents a collection-only wrapper accepted by a legacy one-response method from poisoning the stricter page contract. A schema-invalid GET returns the raw body but deliberately skips the cache so the next call can re-fetch and re-report the mismatch. A GET without a schema caches the raw body under `GET:{endpoint}`, while non-GET calls skip the cache and invalidate it on success. The shared core builds a `PipelineSpec` and runs it through `executePipeline()`.
 
 ### 2.2 HTTP pipeline (`request<T>()`)
 
@@ -80,11 +80,12 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 ### 2.3 LRU cache
 
 - Insertion-ordered `Map<string, { data, expiry }>`.
-- Two key namespaces: `GET:{endpoint}` for a `request<T>(spec)` GET without a `schema`, and `PARSED:GET:{endpoint}` for a GET with a `schema`. Separation prevents (a) returning a raw cached value to a Zod-validated caller and (b) returning a Zod-stripped value to a raw caller.
+- Three key namespaces: `GET:{endpoint}` for a GET without a schema, `PARSED:GET:{endpoint}` for ordinary schema-validated GETs, and `PAGE:PARSED:GET:{endpoint}` for strict page projections. Separation prevents raw/validated crossover and keeps collection-only legacy wrappers out of the page cache.
 - Touch on hit (LRU semantics on a plain `Map`).
 - Eviction at `maxCacheSize`: oldest key dropped.
 - Background `setInterval` cleanup; `unref?.()` so the timer does not hold the event loop open.
 - Text and binary GETs (`responseKind: 'text' | 'binary'`) neither read nor write the cache. Non-GET calls still invalidate, to keep the JSON cache consistent.
+- Bounded `getAll*()` reads set `bypassCache`: they neither consume nor populate the LRU and do not coalesce with another pending GET. A `get*Page()` call uses normal cache behavior in the separate strict-page namespace.
 
 ### 2.4 Retry policy (the GET / write asymmetry)
 
@@ -174,21 +175,52 @@ No `Object.assign`, no `Proxy`, no prototype mixing — the modules hold their o
 
 > The flat facade (`client.getProject(id)`, …) that mirrored every endpoint directly on the client was removed in v5.0.0 (ARCH #7). The namespaced module surface is the single access path; see CHANGELOG for the flat→namespaced migration map.
 
+### 3.3 Pagination projections
+
+The machine-readable `pagination` entry on an endpoint in
+`docs/testrail-endpoints.json`, mirrored by its CLI `ActionSpec`, opts that
+endpoint into a three-method contract:
+
+- Existing `get*()` methods issue one request and return that response's `T[]`.
+- `get*Page()` issues one request and returns `Page<T>`, preserving a complete
+  envelope's `offset`, `limit`, `size`, and `_links`; a legacy bare array is
+  represented as `kind: 'legacy-array'`.
+- `getAll*()` calls `collectAllPages()` and returns one bounded concatenated
+  array. It never returns partial items.
+
+`_links.next` alone determines continuation. `parsePaginationContinuation()`
+extracts a canonical offset and optional limit, discards the supplied host/path,
+and lets each domain module rebuild its known endpoint with the original
+filters. A bare array has no trustworthy continuation and is terminal.
+Aggregate defaults are 250/page, offset 0, 100 pages, 25,000 items, 300,000 ms,
+and 100 MiB of UTF-8 serialized items. Hard ceilings are 250/page, 300,000 ms,
+and 1 GiB. Bound, structure, and progress failures use
+`TestRailPaginationError` reasons `max_pages`, `max_items`, `max_duration`,
+`max_bytes`, `invalid_page`, `invalid_continuation`, and `non_progress`.
+
+The 23 registered endpoints are cases/history; projects, suites, sections,
+plans, runs, tests, milestones; three result lists; labels; shared steps/history;
+case/run/plan attachments; datasets, variables, roles, groups, and case statuses.
+Shared-step history, datasets, variables, roles, groups, and case statuses are
+response-driven and declare `requestControls: false`. Test attachments,
+plan-entry attachments, users, and ordinary metadata/configuration/report lists
+remain outside this contract.
+
 ---
 
 ## 4. Type system — `schemas/*.ts` + `types.ts`
 
-| Concern                                                                        | Lives in             | Source of truth?              |
-| ------------------------------------------------------------------------------ | -------------------- | ----------------------------- |
-| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)                       | `schemas/*.ts` (Zod) | yes                           |
-| Parsed response shapes (when validated via `request<T>(spec)` with a `schema`) | `schemas/*.ts` (Zod) | yes                           |
-| Hand-written response interfaces retained for compatibility                    | `types.ts`           | yes (consumed by the modules) |
-| `TestRailConfig`, `RateLimiterConfig`                                          | `types.ts`           | yes                           |
-| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …)                   | `types.ts`           | yes                           |
+| Concern                                                      | Lives in             | Source of truth?     |
+| ------------------------------------------------------------ | -------------------- | -------------------- |
+| Write payloads (`AddCasePayload`, `UpdateRunPayload`, …)     | `schemas/*.ts` (Zod) | yes                  |
+| Parsed response shapes and declared public keys              | `schemas/*.ts` (Zod) | yes                  |
+| Public response aliases and custom-field access              | `types.ts`           | derived from schemas |
+| `TestRailConfig`, `RateLimiterConfig`                        | `types.ts`           | yes                  |
+| `Get*Options` DTOs (`GetCasesOptions`, `GetPlansOptions`, …) | `types.ts`           | yes                  |
 
-Convention: **payloads → `schemas/*.ts`; response models → `schemas/*.ts` or `types.ts`**. The domain files are re-exported through the `src/schemas.ts` barrel. Payload types are inferred from Zod so CLI validation and the programmatic API cannot drift. Some response interfaces remain hand-written in `types.ts`, while response schemas define the runtime parse boundary.
+Convention: **payload and response field shapes → `schemas/*.ts`; config/options and schema-derived aliases → `types.ts`**. The domain files are re-exported through the `src/schemas.ts` barrel. Payload types are inferred from Zod so CLI validation and the programmatic API cannot drift. Response aliases use `KnownResponse` to infer only declared schema keys: runtime objects stay passthrough, but the public type does not acquire an unrestricted string index signature.
 
-`schemas/common.ts` defines `zObject = z.object(shape).passthrough()` — payload schemas accept unknown keys, so TestRail's `custom_*` fields and forward-compatible additions flow through without breaking validation.
+`schemas/common.ts` defines `zObject = z.object(shape).passthrough()` — runtime response and payload parsing preserves forward-compatible additions. Flat response custom fields are modeled only on `Case`, `Test`, and `Result` with a template-literal `custom_*` index returning `unknown`; callers must narrow bracket-accessed values. Their nested `custom_fields` member is deprecated but retained. Stable 6.0 fields include `Test.refs_data`/`case_title`, `Result.case_title`/`case_refs`, `CaseField.is_indexed`/`is_system`, `ResultField.is_system`, writable `AddCaseFieldPayload.is_indexed`, and recursive `Milestone.milestones`.
 
 ---
 
@@ -197,17 +229,18 @@ Convention: **payloads → `schemas/*.ts`; response models → `schemas/*.ts` or
 Exported:
 
 - `TestRailClient` (the facade) — and only the facade.
-- Errors: `TestRailApiError`, `TestRailValidationError`, `handleZodError`.
+- Errors: `TestRailApiError`, `TestRailValidationError`, `TestRailPaginationError`, `handleZodError`.
+- Pagination types, safety options, defaults, and hard byte bound.
 - Every Zod schema **value** (so consumers can re-validate).
 - Every payload **type** (`AddCasePayload`, `UpdateRunPayload`, …).
 - Every response / option **type** from `types.ts`.
-- Two module-local option types: `GetHistoryForCaseOptions`, `GetSharedStepHistoryOptions`.
+- Module-local page/all option types for registered endpoints.
 
 Deliberately not exported:
 
 - `TestRailClientCore` — internal base class.
 - Individual `XxxModule` classes — accessed via `client.projects`, `client.runs`, …
-- `constants.ts`, `utils.ts` — implementation detail.
+- Non-exported constants and low-level continuation/collector internals.
 - CLI symbols — separate `./cli` subpath export.
 
 ---
@@ -251,6 +284,7 @@ package.json:bin
 - `apiEndpoint` — the TestRail endpoint (`'METHOD path'`); the API-mapping generator binds it to the linked module method's `@testrail` tag.
 - `pathParams: readonly PathParam[]` — `{ name, description }` tuples.
 - `bodySchema?` — Zod schema for `--data` / `--data-file` / stdin payloads. Absent for reads, no-body POSTs (`run close`), and file-input actions.
+- `pagination?` — response shape, caller-control support, and collection key. Must match the endpoint inventory exactly (mapping gate E).
 - `fileInput?` / `fileOutput?` — binary I/O flags (`--file <path>` / `--out <path>`).
 - `outputKind?: 'binary' | 'text'` — encoding hint.
 - `isWrite: boolean`, `destructive?: boolean` — affects dry-run applicability and `--yes` gating.
@@ -260,7 +294,7 @@ Consumers:
 1. `dispatch.ts` derives both `HANDLERS` and `RESOURCES` from `ACTIONS`.
 2. `src/cli/help.ts` generates the `--help` text from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD); only the trailing static blocks (binary stdio, meta, auth, options) are hand-written.
 3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema section in `skill/SKILL.md`.
-4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C), and reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D).
+4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C), reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D), and checks pagination metadata bidirectionally (gate E).
 5. `getActionSpec(resource, action)` is called by `index.ts` to decide whether to suppress the stdin body thunk for file-input actions.
 
 ### 6.4 Handler conventions — `src/cli/handlers/`
@@ -272,8 +306,9 @@ Three shapes:
 **Read handler** (e.g. `handlers/project.ts`):
 
 1. `parseId(ctx.args.pathParams[N], 'name')` — throws `IdParseError` on non-positive integers.
-2. Optional `optInt(ctx.args.limit)` for pagination.
-3. `ctx.out(await ctx.client.method(...))`.
+2. Optional `optInt(ctx.args.limit)` / `optInt(ctx.args.offset)` for the legacy one-response projection.
+3. For registered list actions, call `outputPaginated()` with item/page/all operations; the all operation obtains bounded controls from `getPaginatedRequestOptions()` or `getPaginationSafetyOptions()`.
+4. Other reads call `ctx.out(await ctx.client.method(...))` directly.
 
 **Write handler** — built by the `createWriteHandler(spec)` factory (`src/cli/write-handler-factory.ts`, PR-D). Each `*-write.ts` file is now a small spec rather than a hand-rolled function; the shared skeleton (parse path params, resolve+validate body, branch on `--dry-run`, call the client, emit) lives in the factory once:
 
@@ -300,6 +335,7 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 | `output.ts`          | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
 | `flags.ts`           | `CLI_OPTIONS` (parseArgs table) + `KNOWN_FLAGS` (Set). Single source of truth — tests lock it against drift.                                                                             |
 | `ids.ts`             | `parseId` / `optInt` with consistent error shapes.                                                                                                                                       |
+| `pagination.ts`      | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                |
 | `body.ts`            | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                           |
 | `stdin.ts`           | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                          |
 | `file-input.ts`      | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                    |
@@ -309,6 +345,15 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 | `handler-context.ts` | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                          |
 | `install-skill.ts`   | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                     |
 | `uninstall-skill.ts` | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                        |
+
+Pagination validation runs before auth resolution and client construction.
+Default mode emits the existing item array; `--page` emits `Page<T>` and
+`--all` emits the bounded aggregate. `--page` and `--all` are mutually
+exclusive. `--all` rejects `--limit`/`--offset`; `--page-size`,
+`--start-offset`, `--max-pages`, `--max-items`, `--max-duration-ms`, and
+`--max-bytes` require `--all`. Endpoints with `requestControls: false` allow
+aggregate safety bounds but reject caller-supplied page size/start offset (and
+reject limit/offset in page mode).
 
 ### 6.6 `--dry-run`, `--yes`, `--soft`, `TESTRAIL_ALLOW_DESTRUCTIVE` semantics
 
@@ -330,10 +375,17 @@ Both gates must clear. The env var is process-wide audit-friendly (visible in `p
 | Class                     | Thrown for                                                                             | Carries                            |
 | ------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------- |
 | `TestRailApiError`        | HTTP non-2xx, network error, rate limit, timeout (408), invalid JSON, blocked redirect | `status`, `statusText`, `response` |
-| `TestRailValidationError` | Bad config (baseUrl / email / apiKey), invalid ID, invalid params                      | —                                  |
+| `TestRailPaginationError` | Invalid page/continuation, non-progress, or aggregate bound                            | reason + progress counters         |
+| `TestRailValidationError` | Bad config/arguments or malformed list outer structure                                 | `details`                          |
 | `Error` (plain)           | Call after `destroy()`                                                                 | —                                  |
 
-The split is intentional: `TestRailApiError` represents anything the _server_ (or network) said; `TestRailValidationError` represents anything the _caller_ got wrong. Plain `Error` for destroyed-client signals a programmer mistake, not a recoverable condition.
+Entity-field Zod mismatches are advisory and use `onSchemaMismatch`. Outer
+list/page structure is a hard protocol invariant: every projection rejects a
+missing/scalar collection, while page/all projections also reject partial
+metadata, malformed links, and unsafe continuations rather than silently
+returning zero rows. `TestRailPaginationError` extends
+`TestRailValidationError`, so subtype checks come first. Plain `Error` for a
+destroyed client signals a programmer mistake.
 
 ---
 
@@ -351,6 +403,8 @@ Vitest + V8 coverage. Highlights (see the test suite and [CODEMAP.md](../CODEMAP
 | `cli-write-handlers.test.ts`      | Write-handler unit shape: happy / dry-run / body-reject / path-param-reject                                           |
 | `cli-attachment-handlers.test.ts` | Binary I/O paths + `--yes` gating + dry-run-wins-over-soft                                                            |
 | `payload-schemas.test.ts`         | Zod write-payload schemas: parse / reject / `custom_*` passthrough                                                    |
+| `pagination-core.test.ts`         | Page decoding, safe continuations, bounds, progress, deadlines, and cache bypass                                      |
+| `cli-pagination.test.ts`          | CLI pagination mode conflicts and numeric control parsing                                                             |
 | `exports.test.ts`                 | Public API stability, inheritance contract                                                                            |
 | `performance.test.ts`             | Concurrent request throughput                                                                                         |
 
@@ -360,12 +414,12 @@ Subprocess-based CLI tests are deliberate — they verify the real entrypoint, a
 
 ## 9. Generated artifacts
 
-| Artifact              | Generator                                                                       | Drift guard                                |
-| --------------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
-| `CODEMAP.md`          | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown) | `npm run codemap:check` (pretest + CI)     |
-| `skill/SKILL.md`      | `scripts/generate-skill.ts` (consumes `ACTIONS` from `src/cli/metadata.ts`)     | `npm run skill:check` (git diff exit code) |
-| `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)  | `npm run mapping:check` (pretest + CI)     |
-| `AGENTS.md`           | `npm run agents-md` (consumes `ACTIONS`)                                        | `npm run agents-md:check` (pretest + CI)   |
+| Artifact              | Generator                                                                        | Drift guard                                |
+| --------------------- | -------------------------------------------------------------------------------- | ------------------------------------------ |
+| `CODEMAP.md`          | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)  | `npm run codemap:check` (pretest + CI)     |
+| `skill/SKILL.md`      | `scripts/generate-skill.ts` (consumes `ACTIONS` from `src/cli/metadata.ts`)      | `npm run skill:check` (git diff exit code) |
+| `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D/E) | `npm run mapping:check` (pretest + CI)     |
+| `AGENTS.md`           | `npm run agents-md` (consumes `ACTIONS`)                                         | `npm run agents-md:check` (pretest + CI)   |
 
 All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.
 
@@ -387,6 +441,8 @@ Each of these closes a real failure mode and exists because the obvious alternat
 10. **Dry-run checked before `--yes` and before any disk read.** No surprise side effects from a flag intended to preview.
 11. **`safe-write` re-`lstat` under `--force`.** Closes the network-round-trip TOCTOU window on attachment downloads.
 12. **`KNOWN_FLAGS` gate.** `parseArgs` with `strict: false` accepts anything; the gate catches typos like `--dryrun` that would otherwise silently skip the dry-run branch.
+13. **Continuation host/path is discarded.** Only canonical offset/limit controls survive; the domain adapter rebuilds its known endpoint and filters.
+14. **All-page reads bypass the GET cache.** Aggregates must not combine independently cached pages into a false snapshot or populate the cache with a partial walk.
 
 ---
 

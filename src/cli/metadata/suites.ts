@@ -24,9 +24,10 @@ export const suiteActions: readonly ActionSpec[] = [
     {
         resource: 'suite',
         action: 'list',
-        summary: 'List suites in a project',
+        summary: 'List suites in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_suites/{project_id}',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'suites' },
         isWrite: false,
         handler: handleSuiteList,
     },

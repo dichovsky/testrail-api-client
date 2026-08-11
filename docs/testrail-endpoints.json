@@ -4,14 +4,16 @@
         "operation": "get_attachments_for_case",
         "method": "GET",
         "path": "get_attachments_for_case/{case_id}",
-        "summary": "Returns a list of attachments for a test case."
+        "summary": "Returns a list of attachments for a test case.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "attachments" }
     },
     {
         "resource": "Attachments",
         "operation": "get_attachments_for_plan",
         "method": "GET",
         "path": "get_attachments_for_plan/{plan_id}",
-        "summary": "Returns a list of attachments for a test plan."
+        "summary": "Returns a list of attachments for a test plan.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "attachments" }
     },
     {
         "resource": "Attachments",
@@ -25,7 +27,8 @@
         "operation": "get_attachments_for_run",
         "method": "GET",
         "path": "get_attachments_for_run/{run_id}",
-        "summary": "Returns a list of attachments for a test run."
+        "summary": "Returns a list of attachments for a test run.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "attachments" }
     },
     {
         "resource": "Attachments",
@@ -111,14 +114,16 @@
         "operation": "get_cases",
         "method": "GET",
         "path": "get_cases/{project_id}",
-        "summary": "Returns a list of test cases for a project or suite, with optional filters."
+        "summary": "Returns a list of test cases for a project or suite, with optional filters.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "cases" }
     },
     {
         "resource": "Cases",
         "operation": "get_history_for_case",
         "method": "GET",
         "path": "get_history_for_case/{case_id}",
-        "summary": "Returns the edit history for a case."
+        "summary": "Returns the edit history for a case.",
+        "pagination": { "response": "nested-envelope", "requestControls": true, "collectionKey": "history" }
     },
     {
         "resource": "Cases",
@@ -262,7 +267,8 @@
         "operation": "get_datasets",
         "method": "GET",
         "path": "get_datasets/{project_id}",
-        "summary": "Returns the datasets defined in a project."
+        "summary": "Returns the datasets defined in a project.",
+        "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "datasets" }
     },
     {
         "resource": "Datasets",
@@ -298,7 +304,8 @@
         "operation": "get_groups",
         "method": "GET",
         "path": "get_groups",
-        "summary": "Returns a list of available user groups."
+        "summary": "Returns a list of available user groups.",
+        "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "groups" }
     },
     {
         "resource": "Groups",
@@ -334,7 +341,8 @@
         "operation": "get_labels",
         "method": "GET",
         "path": "get_labels/{project_id}",
-        "summary": "Returns the list of labels for a project (paginated)."
+        "summary": "Returns the list of labels for a project (paginated).",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "labels" }
     },
     {
         "resource": "Labels",
@@ -356,7 +364,8 @@
         "operation": "get_milestones",
         "method": "GET",
         "path": "get_milestones/{project_id}",
-        "summary": "Returns the milestones for a project."
+        "summary": "Returns the milestones for a project.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "milestones" }
     },
     {
         "resource": "Milestones",
@@ -392,7 +401,8 @@
         "operation": "get_plans",
         "method": "GET",
         "path": "get_plans/{project_id}",
-        "summary": "Returns the test plans for a project."
+        "summary": "Returns the test plans for a project.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "plans" }
     },
     {
         "resource": "Plans",
@@ -485,7 +495,8 @@
         "operation": "get_projects",
         "method": "GET",
         "path": "get_projects",
-        "summary": "Returns the list of available projects."
+        "summary": "Returns the list of available projects.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "projects" }
     },
     {
         "resource": "Projects",
@@ -537,21 +548,24 @@
         "operation": "get_results",
         "method": "GET",
         "path": "get_results/{test_id}",
-        "summary": "Returns a list of test results for a test."
+        "summary": "Returns a list of test results for a test.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
     },
     {
         "resource": "Results",
         "operation": "get_results_for_case",
         "method": "GET",
         "path": "get_results_for_case/{run_id}/{case_id}",
-        "summary": "Returns a list of test results for a case in a run."
+        "summary": "Returns a list of test results for a case in a run.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
     },
     {
         "resource": "Results",
         "operation": "get_results_for_run",
         "method": "GET",
         "path": "get_results_for_run/{run_id}",
-        "summary": "Returns a list of test results for a run."
+        "summary": "Returns a list of test results for a run.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
     },
     {
         "resource": "Results",
@@ -587,7 +601,8 @@
         "operation": "get_roles",
         "method": "GET",
         "path": "get_roles",
-        "summary": "Returns a list of available access roles."
+        "summary": "Returns a list of available access roles.",
+        "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "roles" }
     },
 
     {
@@ -602,7 +617,8 @@
         "operation": "get_runs",
         "method": "GET",
         "path": "get_runs/{project_id}",
-        "summary": "Returns the standalone test runs for a project."
+        "summary": "Returns the standalone test runs for a project.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "runs" }
     },
     {
         "resource": "Runs",
@@ -645,7 +661,8 @@
         "operation": "get_sections",
         "method": "GET",
         "path": "get_sections/{project_id}",
-        "summary": "Returns the sections for a project or suite."
+        "summary": "Returns the sections for a project or suite.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "sections" }
     },
     {
         "resource": "Sections",
@@ -688,14 +705,16 @@
         "operation": "get_shared_steps",
         "method": "GET",
         "path": "get_shared_steps/{project_id}",
-        "summary": "Returns the shared step sets for a project."
+        "summary": "Returns the shared step sets for a project.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "shared_steps" }
     },
     {
         "resource": "Shared Steps",
         "operation": "get_shared_step_history",
         "method": "GET",
         "path": "get_shared_step_history/{shared_step_id}",
-        "summary": "Returns the edit history for a shared step set."
+        "summary": "Returns the edit history for a shared step set.",
+        "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "step_history" }
     },
     {
         "resource": "Shared Steps",
@@ -731,7 +750,8 @@
         "operation": "get_case_statuses",
         "method": "GET",
         "path": "get_case_statuses",
-        "summary": "Returns the list of available case statuses (workflow)."
+        "summary": "Returns the list of available case statuses (workflow).",
+        "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "case_statuses" }
     },
 
     {
@@ -746,7 +766,8 @@
         "operation": "get_suites",
         "method": "GET",
         "path": "get_suites/{project_id}",
-        "summary": "Returns the suites for a project."
+        "summary": "Returns the suites for a project.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "suites" }
     },
     {
         "resource": "Suites",
@@ -790,7 +811,8 @@
         "operation": "get_tests",
         "method": "GET",
         "path": "get_tests/{run_id}",
-        "summary": "Returns the tests in a run, optionally filtered by status."
+        "summary": "Returns the tests in a run, optionally filtered by status.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "tests" }
     },
     {
         "resource": "Tests",
@@ -855,7 +877,8 @@
         "operation": "get_variables",
         "method": "GET",
         "path": "get_variables/{project_id}",
-        "summary": "Returns the variables defined in a project (parameterized testing)."
+        "summary": "Returns the variables defined in a project (parameterized testing).",
+        "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "variables" }
     },
     {
         "resource": "Variables",

@@ -24,9 +24,10 @@ export const datasetActions: readonly ActionSpec[] = [
     {
         resource: 'dataset',
         action: 'list',
-        summary: 'List datasets in a project',
+        summary: 'List datasets in a project (pagination envelope)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_datasets/{project_id}',
+        pagination: { response: 'envelope', requestControls: false, collectionKey: 'datasets' },
         isWrite: false,
         handler: handleDatasetList,
     },

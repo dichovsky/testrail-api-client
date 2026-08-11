@@ -1,17 +1,21 @@
 import type { HandlerContext } from '../handler-context.js';
 import type { GetResultsOptions } from '../../types.js';
 import { parseId, optInt, parseIdList } from '../ids.js';
+import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 export async function handleResultList(ctx: HandlerContext): Promise<void> {
     const rid = parseId(ctx.args.runId, '--run-id');
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
-    ctx.out(
-        await ctx.client.results.getResultsForRun(rid, {
-            ...(limit !== undefined && { limit }),
-            ...(offset !== undefined && { offset }),
-        }),
-    );
+    const pageOptions = {
+        ...(limit !== undefined && { limit }),
+        ...(offset !== undefined && { offset }),
+    };
+    await outputPaginated(ctx, {
+        items: () => ctx.client.results.getResultsForRun(rid, pageOptions),
+        page: () => ctx.client.results.getResultsForRunPage(rid, pageOptions),
+        all: () => ctx.client.results.getAllResultsForRun(rid, getPaginatedRequestOptions(ctx.args)),
+    });
 }
 
 /**
@@ -39,11 +43,37 @@ function buildResultOptions(ctx: HandlerContext): GetResultsOptions {
 
 export async function handleResultListForTest(ctx: HandlerContext): Promise<void> {
     const testId = parseId(ctx.args.pathParams[0], 'test id');
-    ctx.out(await ctx.client.results.getResults(testId, buildResultOptions(ctx)));
+    const pageOptions = buildResultOptions(ctx);
+    const filters = {
+        ...(pageOptions.status_id !== undefined && { status_id: pageOptions.status_id }),
+        ...(pageOptions.defects_filter !== undefined && { defects_filter: pageOptions.defects_filter }),
+    };
+    await outputPaginated(ctx, {
+        items: () => ctx.client.results.getResults(testId, pageOptions),
+        page: () => ctx.client.results.getResultsPage(testId, pageOptions),
+        all: () =>
+            ctx.client.results.getAllResults(testId, {
+                ...filters,
+                ...getPaginatedRequestOptions(ctx.args),
+            }),
+    });
 }
 
 export async function handleResultListForCase(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run id');
     const caseId = parseId(ctx.args.pathParams[1], 'case id');
-    ctx.out(await ctx.client.results.getResultsForCase(runId, caseId, buildResultOptions(ctx)));
+    const pageOptions = buildResultOptions(ctx);
+    const filters = {
+        ...(pageOptions.status_id !== undefined && { status_id: pageOptions.status_id }),
+        ...(pageOptions.defects_filter !== undefined && { defects_filter: pageOptions.defects_filter }),
+    };
+    await outputPaginated(ctx, {
+        items: () => ctx.client.results.getResultsForCase(runId, caseId, pageOptions),
+        page: () => ctx.client.results.getResultsForCasePage(runId, caseId, pageOptions),
+        all: () =>
+            ctx.client.results.getAllResultsForCase(runId, caseId, {
+                ...filters,
+                ...getPaginatedRequestOptions(ctx.args),
+            }),
+    });
 }

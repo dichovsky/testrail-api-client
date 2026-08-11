@@ -226,6 +226,18 @@ const OPTIONS_BLOCK = `Options:
   --quiet               Suppress output; use exit code 0/1
   --timeout <ms>        Request timeout in milliseconds. Overrides the
                         TESTRAIL_TIMEOUT env var; default 30000, max 300000.
+  --page                Return one normalized page with pagination metadata.
+                        Uses --limit/--offset where the endpoint supports them.
+  --all                 Fetch all pages subject to aggregate safety bounds.
+                        Mutually exclusive with --page and with --limit/--offset.
+  --page-size <n>       --all per-request page size where documented
+                        (default 250; max 250).
+  --start-offset <n>    --all initial offset where documented (default 0).
+  --max-pages <n>       --all request bound (default 100).
+  --max-items <n>       --all item bound (default 25000).
+  --max-duration-ms <n> --all wall-clock bound (default/max 300000).
+  --max-bytes <n>       --all serialized-data bound (default 104857600;
+                        hard maximum 1073741824).
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
   --file <path>         Binary file to upload (attachment add-to-* actions)

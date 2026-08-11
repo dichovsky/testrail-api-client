@@ -3,15 +3,15 @@ import type { Attachment, UploadFileInput } from '../types.js';
 import { AttachmentSchema } from '../schemas.js';
 import { validateId, validateEntryId, validateAttachmentId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 /**
- * Optional pagination params shared by `getAttachmentsForCase`,
- * `getAttachmentsForRun`, and `getAttachmentsForTest`. TestRail's
- * `get_attachments_for_*` endpoints accept `limit`/`offset` query params
- * (default page size 250). Plan-scoped endpoints (`get_attachments_for_plan`,
- * `get_attachments_for_plan_entry`) intentionally don't accept these — they
- * return every attachment under the plan tree.
+ * Optional pagination params. TestRail documents them for case-, run-, and
+ * plan-scoped attachment lists. The test-scoped method retains its historical
+ * support for these options even though current upstream docs omit them.
  */
 export interface GetAttachmentsOptions {
     /** Maximum number of attachments to return (TestRail's server default is 250). */
@@ -20,80 +20,141 @@ export interface GetAttachmentsOptions {
     offset?: number;
 }
 
+export type GetAllAttachmentsOptions = PaginatedRequestOptions;
+
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
+    pageProjection?: boolean;
+};
+
 export class AttachmentModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_attachments_for_case/{case_id} */
     async getAttachmentsForCase(caseId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         validateId(caseId, 'caseId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = buildEndpoint(`get_attachments_for_case/${caseId}`, {
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
-            method: 'GET',
-            endpoint,
-            // Live-instance audit: get_attachments_for_test (and _plan_entry) return a
-            // BARE top-level array; case/run/plan return the { attachments } wrapper.
-            // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
-            // both shapes (mirrors getSharedSteps) and unwrap.
-            schema: listOf('attachments', AttachmentSchema),
-        });
-        return unwrapList('attachments', raw);
+        return unwrapList(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_case/${caseId}`, options),
+        );
+    }
+
+    /** Fetch one normalized case-attachment page. */
+    async getAttachmentsForCasePage(caseId: number, options?: GetAttachmentsOptions): Promise<Page<Attachment>> {
+        validateId(caseId, 'caseId');
+        return decodePage(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_case/${caseId}`, options, {
+                pageProjection: true,
+            }),
+        );
+    }
+
+    /** Fetch every case-attachment page under explicit aggregate safety bounds. */
+    async getAllAttachmentsForCase(caseId: number, options?: GetAllAttachmentsOptions): Promise<Attachment[]> {
+        validateId(caseId, 'caseId');
+        return this.collectAttachments(`get_attachments_for_case/${caseId}`, options);
     }
 
     /** @testrail GET get_attachments_for_run/{run_id} */
     async getAttachmentsForRun(runId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         validateId(runId, 'runId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = buildEndpoint(`get_attachments_for_run/${runId}`, {
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
-            method: 'GET',
-            endpoint,
-            // Live-instance audit: get_attachments_for_test (and _plan_entry) return a
-            // BARE top-level array; case/run/plan return the { attachments } wrapper.
-            // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
-            // both shapes (mirrors getSharedSteps) and unwrap.
-            schema: listOf('attachments', AttachmentSchema),
-        });
-        return unwrapList('attachments', raw);
+        return unwrapList(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_run/${runId}`, options),
+        );
+    }
+
+    /** Fetch one normalized run-attachment page. */
+    async getAttachmentsForRunPage(runId: number, options?: GetAttachmentsOptions): Promise<Page<Attachment>> {
+        validateId(runId, 'runId');
+        return decodePage(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_run/${runId}`, options, {
+                pageProjection: true,
+            }),
+        );
+    }
+
+    /** Fetch every run-attachment page under explicit aggregate safety bounds. */
+    async getAllAttachmentsForRun(runId: number, options?: GetAllAttachmentsOptions): Promise<Attachment[]> {
+        validateId(runId, 'runId');
+        return this.collectAttachments(`get_attachments_for_run/${runId}`, options);
     }
 
     /** @testrail GET get_attachments_for_test/{test_id} */
     async getAttachmentsForTest(testId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         validateId(testId, 'testId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = buildEndpoint(`get_attachments_for_test/${testId}`, {
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
-            method: 'GET',
-            endpoint,
-            // Live-instance audit: get_attachments_for_test (and _plan_entry) return a
-            // BARE top-level array; case/run/plan return the { attachments } wrapper.
-            // SPEC #1.5 — the wrapper may also carry `{ attachments: null }`. Accept
-            // both shapes (mirrors getSharedSteps) and unwrap.
-            schema: listOf('attachments', AttachmentSchema),
-        });
-        return unwrapList('attachments', raw);
+        return unwrapList(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_test/${testId}`, options),
+        );
     }
 
     /** @testrail GET get_attachments_for_plan/{plan_id} */
-    async getAttachmentsForPlan(planId: number): Promise<Attachment[]> {
+    async getAttachmentsForPlan(planId: number, options?: GetAttachmentsOptions): Promise<Attachment[]> {
         validateId(planId, 'planId');
-        const raw = await this.client.request<Attachment[] | { attachments?: Attachment[] | null }>({
-            method: 'GET',
-            endpoint: `get_attachments_for_plan/${planId}`,
-            // Live-instance audit: accept both the bare top-level array and the
-            // { attachments } wrapper (mirrors getSharedSteps) and unwrap.
-            schema: listOf('attachments', AttachmentSchema),
+        return unwrapList(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_plan/${planId}`, options),
+        );
+    }
+
+    /** Fetch one normalized plan-attachment page. */
+    async getAttachmentsForPlanPage(planId: number, options?: GetAttachmentsOptions): Promise<Page<Attachment>> {
+        validateId(planId, 'planId');
+        return decodePage(
+            'attachments',
+            await this.requestAttachmentsPage(`get_attachments_for_plan/${planId}`, options, {
+                pageProjection: true,
+            }),
+        );
+    }
+
+    /** Fetch every plan-attachment page under explicit aggregate safety bounds. */
+    async getAllAttachmentsForPlan(planId: number, options?: GetAllAttachmentsOptions): Promise<Attachment[]> {
+        validateId(planId, 'planId');
+        return this.collectAttachments(`get_attachments_for_plan/${planId}`, options);
+    }
+
+    private async collectAttachments(
+        endpointBase: string,
+        options: GetAllAttachmentsOptions | undefined,
+    ): Promise<Attachment[]> {
+        return collectAllPages({
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
+                decodePage<Attachment>(
+                    'attachments',
+                    await this.requestAttachmentsPage(
+                        endpointBase,
+                        {
+                            ...(limit !== undefined && { limit }),
+                            ...(offset !== undefined && { offset }),
+                        },
+                        { bypassCache, remainingTimeMs, deadlineAt },
+                    ),
+                ),
         });
-        return unwrapList('attachments', raw);
+    }
+
+    private async requestAttachmentsPage(
+        endpointBase: string,
+        options?: GetAttachmentsOptions,
+        transport?: PageTransportOptions,
+    ): Promise<unknown> {
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(endpointBase, { limit: options?.limit, offset: options?.offset });
+        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
+        return this.client.request<unknown>({
+            method: 'GET',
+            endpoint,
+            schema: pageProjection ? pageOf('attachments', AttachmentSchema) : listOf('attachments', AttachmentSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
+            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
+            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
+        });
     }
 
     /**

@@ -32,21 +32,24 @@ describe('PR #253 response-shape regressions', () => {
         const first = { id: 1, user_id: 2, type_id: 3 };
         const second = { id: 4, user_id: 5, type_id: 6 };
 
-        it('flattens every envelope shape that the schema accepts', () => {
-            const nested = schema.parse([{ history: [first] }, { history: [second] }, { history: null }]);
+        it('normalizes every unambiguous envelope shape that the schema accepts', () => {
+            const nested = schema.parse([{ history: [first, second] }]);
             expect(unwrapNestedList('history', nested)).toEqual([first, second]);
             expect(unwrapNestedList('history', schema.parse({ history: [first, second] }))).toEqual([first, second]);
             expect(unwrapNestedList('history', schema.parse([first, second]))).toEqual([first, second]);
         });
 
-        it('does not return malformed or mixed envelopes as history entries', () => {
+        it('throws rather than returning malformed, mixed, or ambiguous envelopes as history entries', () => {
             const malformed = [{ history: 'not-an-array' }];
             const mixed = [{ history: [first] }, second];
+            const multiple = [{ history: [first] }, { history: [second] }];
 
             expect(schema.safeParse(malformed).success).toBe(false);
             expect(schema.safeParse(mixed).success).toBe(false);
-            expect(unwrapNestedList('history', malformed)).toEqual([]);
-            expect(unwrapNestedList('history', mixed)).toEqual([]);
+            expect(schema.safeParse(multiple).success).toBe(false);
+            expect(() => unwrapNestedList('history', malformed)).toThrow();
+            expect(() => unwrapNestedList('history', mixed)).toThrow();
+            expect(() => unwrapNestedList('history', multiple)).toThrow();
         });
     });
 

@@ -328,7 +328,7 @@ schemas:
 - {s: UserUpdatePayloadSchema, a: "user update", req: [], opt: 9, ref: "./reference/payload-schemas.yaml#userupdatepayloadschema"}
 - {s: AddSharedStepPayloadSchema, a: "shared-step add", req: [title], opt: 1, ref: "./reference/payload-schemas.yaml#addsharedsteppayloadschema"}
 - {s: UpdateSharedStepPayloadSchema, a: "shared-step update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesharedsteppayloadschema"}
-- {s: AddCaseFieldPayloadSchema, a: "case-field add", req: [type, name, label, configs], opt: 3, ref: "./reference/payload-schemas.yaml#addcasefieldpayloadschema"}
+- {s: AddCaseFieldPayloadSchema, a: "case-field add", req: [type, name, label, configs], opt: 4, ref: "./reference/payload-schemas.yaml#addcasefieldpayloadschema"}
 - {s: AddVariablePayloadSchema, a: "variable add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addvariablepayloadschema"}
 - {s: UpdateVariablePayloadSchema, a: "variable update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updatevariablepayloadschema"}
 - {s: AddGroupPayloadSchema, a: "group add", req: [name], opt: 1, ref: "./reference/payload-schemas.yaml#addgrouppayloadschema"}
@@ -378,6 +378,58 @@ is a Node CLI):
 testrail run get 5 | node -e 'const d=JSON.parse(require("fs").readFileSync(0));console.log(d.passed_count)'
 ```
 
+### Pagination modes
+
+Registered list actions have three output modes:
+
+```bash
+# Backward-compatible default: one response, emitted as an item array.
+testrail project list --limit 25 --offset 0
+
+# One response with offset/limit/size/_links metadata.
+testrail project list --page --limit 25 --offset 0
+
+# Every response page, emitted as one bounded item array.
+testrail project list --all --page-size 100 --max-items 10000
+```
+
+`--page` and `--all` conflict. `--all` also rejects `--limit` and
+`--offset`; use `--page-size` and `--start-offset`. Aggregate-only
+controls are `--max-pages`, `--max-items`, `--max-duration-ms`, and
+`--max-bytes`. Defaults are 250/page, offset 0, 100 pages, 25,000
+items, five minutes, and 100 MiB; hard ceilings are 250/page, five
+minutes, and 1 GiB. No partial array is printed when a bound,
+continuation, request, or structural page check fails. Programmatic
+failures are `TestRailPaginationError` with reasons `max_pages`,
+`max_items`, `max_duration`, `max_bytes`, `invalid_page`,
+`invalid_continuation`, or `non_progress`.
+
+The registry covers cases/history; projects, suites, sections, plans,
+runs, tests, milestones; all three result lists; labels; shared
+steps/history; case/run/plan attachments; datasets, variables, roles,
+groups, and case statuses. Shared-step history, datasets, variables,
+roles, groups, and case statuses are response-driven: `--all` accepts
+safety bounds but rejects `--page-size`/`--start-offset`, and `--page`
+rejects `--limit`/`--offset`. Test attachments, plan-entry attachments,
+users, and ordinary metadata/configuration/report lists do not expose
+`--page`/`--all`.
+
+Programmatically, the same contract is `get*()` for a one-response
+array, `get*Page()` for `Page<T>`, and `getAll*()` for a bounded full
+array. `_links.next` decides continuation, but the client extracts only
+validated controls and rebuilds the known endpoint; it never follows
+the link's host/path. Legacy bare arrays are terminal, and all-page
+walks bypass the GET cache to avoid mixing differently aged pages. Page reads
+use normal caching in a separate strict-schema namespace, so a collection-only
+legacy wrapper cannot poison `Page<T>` reads.
+
+Response types derive from declared schema keys. Only `Case`, `Test`,
+and `Result` declare flat `custom_*` bracket access, returning
+`unknown`; narrow it before use. Their nested `custom_fields` member is
+deprecated. Stable fields include `Test.refs_data`/`case_title`,
+`Result.case_title`/`case_refs`, case/result field system flags, and
+recursively typed milestone children.
+
 ## Recipes
 
 ### 1. Smoke-test auth & connectivity
@@ -404,6 +456,8 @@ testrail project get 5
 
 ```bash
 testrail project list --limit 25 --offset 0
+testrail project list --page --limit 25 --offset 0
+testrail project list --all --page-size 100
 ```
 
 ### 4. List suites under a project
@@ -411,7 +465,7 @@ testrail project list --limit 25 --offset 0
 <!-- recipe-for: suite:list -->
 
 ```bash
-testrail suite list --project-id 5
+testrail suite list --project-id 5 --all
 ```
 
 ### 5. List cases in a specific suite
@@ -419,13 +473,13 @@ testrail suite list --project-id 5
 <!-- recipe-for: case:list -->
 
 ```bash
-testrail case list --project-id 5 --suite-id 12
+testrail case list --project-id 5 --suite-id 12 --all
 ```
 
 ### 6. Extract just the IDs from any list (generic pattern)
 
 ```bash
-testrail case list --project-id 5 | jq '.[].id'
+testrail case list --project-id 5 --all | jq '.[].id'
 ```
 
 ### 7. Count pass/fail for a run
@@ -436,19 +490,13 @@ testrail case list --project-id 5 | jq '.[].id'
 testrail run get 42 | jq '{passed: .passed_count, failed: .failed_count}'
 ```
 
-### 8. Page through a large result list
+### 8. Collect a large result list safely
 
 <!-- recipe-for: result:list -->
 
 ```bash
-offset=0
-while true; do
-    page=$(testrail result list --run-id 100 --limit 100 --offset $offset)
-    count=$(echo "$page" | jq 'length')
-    [ "$count" -eq 0 ] && break
-    echo "$page" | jq -c '.[]'
-    offset=$((offset + count))
-done
+testrail result list --run-id 100 --all --page-size 100 --max-items 25000 \
+  | jq -c '.[]'
 ```
 
 ### 9. Author a new test case
@@ -556,29 +604,22 @@ meaningful name in the TestRail UI even when the local file is generic.
 <!-- recipe-for: attachment:list-for-case, attachment:get -->
 
 ```bash
-LATEST_ID=$(testrail attachment list-for-case 42 | jq 'max_by(.attachment_id).attachment_id')
+LATEST_ID=$(testrail attachment list-for-case 42 --all | jq 'max_by(.created_on // 0) | .id // .attachment_id')
 testrail attachment get "$LATEST_ID" --out ./fetched.bin
 ```
 
 `--out` is required. Refuses to overwrite an existing file; pass `--force`
 to overwrite. JSON ack on stdout includes `attachmentId`, `out`, and `size`.
 
-`attachment list-for-case` / `list-for-run` / `list-for-test` accept
-`--limit N` and `--offset N` for cases with hundreds of attachments
-(TestRail's server default page size is 250). The plan-scoped variants
-(`list-for-plan`, `list-for-plan-entry`) intentionally don't paginate —
-TestRail returns the full attachment tree under the plan.
+`attachment list-for-case`, `list-for-run`, and `list-for-plan` are in
+the pagination registry: use `--page` for metadata or `--all` for the
+bounded complete array. Test-scoped listing retains its historical
+single-response `--limit`/`--offset` options but does not expose
+`--page`/`--all`. Plan-entry listing remains one-response-only.
 
 ```bash
-# Page through every attachment on a long-lived case (50/request):
-offset=0
-while :; do
-    page=$(testrail attachment list-for-case 42 --limit 50 --offset $offset)
-    count=$(echo "$page" | jq 'length')
-    [ "$count" -eq 0 ] && break
-    echo "$page" | jq -c '.[]'
-    offset=$((offset + count))
-done
+# Collect every attachment on a long-lived case (50/request):
+testrail attachment list-for-case 42 --all --page-size 50 | jq -c '.[]'
 ```
 
 ### 18. Audit then delete attachments on a deprecated case
@@ -587,7 +628,7 @@ done
 
 ```bash
 # 1. List + audit
-testrail attachment list-for-case 42
+testrail attachment list-for-case 42 --all
 
 # 2. Dry-run each delete to preview intent without calling the API.
 #    Passing --yes alongside --dry-run is optional but recommended:
@@ -617,9 +658,9 @@ testrail plan get 50
 <!-- recipe-for: plan:list -->
 
 ```bash
-# `plan list` is paginated; --limit / --offset are the only filters exposed.
-# To filter by milestone or completion status, paginate and filter client-side.
-testrail plan list --project-id 1 --limit 25
+# The CLI exposes no milestone/completion flags; collect then filter client-side.
+testrail plan list --project-id 1 --all --page-size 100 \
+  | jq '.[] | select(.is_completed == false)'
 ```
 
 ### 21. Create an empty test plan
@@ -684,12 +725,12 @@ TestRail exposes four ways to fetch results; the right one depends on what
 IDs you already have and the granularity you need. Decision tree:
 
 1. **You have a `test_id`** (a test is the run-instance of a case in a
-   specific run) → `result list-for-test <test_id>`. Returns the full
-   result history for that one test. Cheapest call when you already
+   specific run) → `result list-for-test <test_id> --all`. Returns the full
+   result history for that one test. Cheapest complete read when you already
    resolved the test from a previous `get_tests` / `get_test` lookup.
 
     ```bash
-    testrail result list-for-test 4242 --limit 50 --status-id 1,5
+    testrail result list-for-test 4242 --all --page-size 50 --status-id 1,5
     ```
 
 2. **You have a `run_id` and `case_id` but no `test_id`** →
@@ -703,12 +744,11 @@ IDs you already have and the granularity you need. Decision tree:
     ```
 
 3. **You want every result in the run** (audit, export, dashboard) →
-   `result list --run-id <id>`. Already-shipped batch read; paginate
-   through with `--limit` / `--offset`. Prefer this over N calls to
+   `result list --run-id <id> --all`. Prefer this over N calls to
    `list-for-test` when N is the size of the run.
 
     ```bash
-    testrail result list --run-id 100 --limit 100 --offset 0
+    testrail result list --run-id 100 --all --page-size 100
     ```
 
 4. **You're writing, not reading** → `result add` (one), `result
@@ -719,7 +759,7 @@ IDs you already have and the granularity you need. Decision tree:
 Filter flags shared by `list-for-test` and `list-for-case`:
 
 - `--status-id 1,5` — comma-separated status IDs (1 = passed,
-  5 = failed; project-specific values via `case-status list`).
+  5 = failed; instance-specific values via `status list`).
 - `--defects-filter JIRA-1234` — substring match on the result's
   `defects` field.
 - `--limit N` / `--offset N` — pagination (TestRail caps `limit` at 250
@@ -1056,9 +1096,9 @@ testrail case add "$SECTION_ID" --data "{
 # 3. Audit BEFORE you mutate. `shared-step history` returns every prior
 #    revision (timestamps + `user_id` + the `custom_steps_separated`
 #    snapshot at that point) so you can see who last touched it and what
-#    the cases inherited. Paginate with --limit / --offset on long
-#    histories.
-testrail shared-step history "$SHARED_STEP_ID" --limit 50
+#    the cases inherited. The endpoint is response-driven: use --all
+#    instead of inventing a request page size/offset.
+testrail shared-step history "$SHARED_STEP_ID" --all --max-items 25000
 
 # 4. Update the shared step. Every case referencing it now picks up the
 #    new content on its next read (no per-case patch needed). The
@@ -1073,9 +1113,9 @@ testrail shared-step update "$SHARED_STEP_ID" --data '{
   ]
 }'
 
-# 5. Confirm the revision landed and inspect the diff against the
-#    previous entry before letting CI run any cases that reference it.
-testrail shared-step history "$SHARED_STEP_ID" --limit 1
+# 5. Confirm the revision landed. --page preserves the server page;
+#    caller-controlled --limit/--offset are rejected in page mode.
+testrail shared-step history "$SHARED_STEP_ID" --page | jq '.items[0]'
 
 # 6. Retire the shared step. `--dry-run` (client-side, no API call)
 #    previews the destructive call without touching the server; pair
@@ -1106,8 +1146,9 @@ Notes:
   and who touched it last. A high revision count on a step
   referenced by hundreds of cases means an update has a wide blast
   radius — review the inline steps before pushing. The history
-  endpoint is paginated; combine `--limit` + `--offset` to walk long
-  histories without exceeding the response-body cap.
+  response may be paginated, but it does not document request controls.
+  Use `--all` with safety bounds such as `--max-items`; continuation
+  comes from the response. Do not use `--page-size`/`--start-offset`.
 - **No bulk reference lookup upstream.** TestRail does not expose a
   "list cases referencing shared step X" endpoint. To estimate impact
   before an update, page through `case list` for the project/suite
@@ -1168,7 +1209,7 @@ DATASET_ID=$(echo "$DATASET" | jq '.id')
 #    execution when the run is triggered against this dataset.
 
 # 4. Inspect the dataset definitions in a project (id + name only).
-testrail dataset list 5
+testrail dataset list 5 --all
 
 # 5. Fetch a single dataset by ID to confirm the shell exists before
 #    binding it to a plan entry in TestRail's UI.
@@ -1214,8 +1255,9 @@ Notes:
   recipe 23 for `plan add-entry`).
 - **Per-row execution semantics.** Each dataset row creates one test
   execution per case in the run, with all `${var_name}` placeholders
-  substituted. Results are recorded per-row, so `result list-for-case`
-  returns N entries (one per row) rather than one.
+  substituted. Results are recorded per-row, so
+  `result list-for-case <run_id> <case_id> --all` returns the complete
+  set of entries (one per row) rather than only one response page.
 - **Destructive lifecycle.** `dataset delete` follows the locked-in
   destructive pattern: `--yes` required, `--dry-run` wins for
   preview-without-API, and `--soft` is rejected (TestRail's
@@ -1437,13 +1479,13 @@ Default `status_id` mapping (project-specific values may differ — verify with
 **When to use per-test vs alternatives:**
 
 - `result add-by-test <test_id>` — one result, you already have the `test_id`
-  (e.g. captured from `testrail test list --run-id <id>`). Fewest API calls.
+  (e.g. captured from `testrail test list <run_id> --all`). Fewest API calls.
 - `result add <run_id> <case_id>` — one result, you have `run_id` + `case_id`
   but no `test_id`. TestRail resolves the test internally.
 - `result add-bulk-by-case <run_id>` — many results, identified by `case_id`.
   Prefer this for CI pipelines that report by case, not by test instance.
 - `result add-bulk-by-test <run_id>` — many results, identified by `test_id`.
-  Use when you have the full test-instance list (e.g. from `test list`).
+  Use when you have the full test-instance list (e.g. from `test list <run_id> --all`).
 
 **Dry-run preview (no API call):**
 
@@ -1498,18 +1540,18 @@ testrail attachment add-to-test 1337 --file ./screenshot.png
 **Listing workflow — pagination support varies:**
 
 ```bash
-# List all attachments on a plan (no pagination — TestRail returns
-# the full tree; if it's unwieldy, filter on the CLI side).
-testrail attachment list-for-plan 100 | jq '.[] | {id, filename, size}'
+# Collect every attachment page on a plan.
+testrail attachment list-for-plan 100 --all --page-size 100 \
+  | jq '.[] | {id, filename, size}'
 
-# List all attachments on a plan entry (also full tree, no pagination).
+# Plan-entry listing remains one-response-only.
 testrail attachment list-for-plan-entry 100 'a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6' \
   | jq '.[] | {id, filename, size}'
 
-# List attachments on a run (supports --limit / --offset pagination).
-testrail attachment list-for-run 42 --limit 50 --offset 0
+# Preserve one run-attachment page with metadata.
+testrail attachment list-for-run 42 --page --limit 50 --offset 0
 
-# List attachments on a test (also supports --limit / --offset).
+# Test listing has only the historical one-response controls.
 testrail attachment list-for-test 1337 --limit 50
 ```
 
@@ -1526,7 +1568,7 @@ delete command):
 
 ```bash
 # Retrieve attachment IDs first.
-PLAN_ATTACHMENTS=$(testrail attachment list-for-plan 100)
+PLAN_ATTACHMENTS=$(testrail attachment list-for-plan 100 --all)
 ATTACH_ID=$(echo "$PLAN_ATTACHMENTS" | jq '.[0].id')
 
 # Dry-run.
@@ -1546,11 +1588,11 @@ Notes:
   a specific plan entry. Run and test attachments are less common but
   mirror the case/result patterns: use `add-to-run` for run-wide
   artifacts and `add-to-test` for test-specific logs or media.
-- **Pagination on listing.** `list-for-plan` and `list-for-plan-entry`
-  do not paginate (TestRail returns the full attachment tree). All four
-  listing actions accept `--format json` (default) or `--format table`.
-  `list-for-run` and `list-for-test` support `--limit` and `--offset`
-  for pagination (TestRail's server default page size is 250).
+- **Pagination on listing.** Case-, run-, and plan-scoped lists expose
+  default/`--page`/`--all` modes and documented request controls.
+  Plan-entry listing is one-response-only. Test listing keeps legacy
+  `--limit`/`--offset`, but it is outside the page/all registry. Every
+  listing accepts `--format json` (default) or `--format table`.
 - **Upload options.** Both `--file <path>` (local file) and
   `--file -` (stdin) are supported. `--filename <name>` overrides the
   basename; omit it to use the local filename. See recipe 16 for the
@@ -1587,10 +1629,10 @@ REGION_ID=$(echo "$REGION" | jq '.id')
 
 ```bash
 # All variables in the project.
-testrail variable list 5
+testrail variable list 5 --all
 
 # Extract IDs for downstream operations.
-testrail variable list 5 | jq '.[] | {id, name}'
+testrail variable list 5 --all | jq '.[] | {id, name}'
 ```
 
 **Update (rename) a variable:**
@@ -1801,17 +1843,18 @@ See also recipe #25 for the full plan lifecycle (add → entry → runs → clos
 Runs are the execution containers for test cases. Typical workflows: enumerate active runs for a project,
 update run metadata (milestone, assignee), and eventually close or delete the run and its associated results.
 
-**List all runs in a project (with pagination):**
+**List runs in a project:**
 
 ```bash
 # Page 1: first 250 (default limit)
-testrail run list 5 | jq '.[] | {id, name, is_completed, passed_count, failed_count}'
+testrail run list --project-id 5 | jq '.[] | {id, name, is_completed, passed_count, failed_count}'
 
 # Page 2 with custom limit
-testrail run list 5 --offset 250 --limit 100 | jq '.[] | select(.is_completed == false)'
+testrail run list --project-id 5 --offset 250 --limit 100 | jq '.[] | select(.is_completed == false)'
 
-# Filter by status using jq post-processing
-testrail run list 5 | jq '.[] | select(.is_completed == false) | {id, name}'
+# Collect all response pages, then filter with jq.
+testrail run list --project-id 5 --all --page-size 100 \
+  | jq '.[] | select(.is_completed == false) | {id, name}'
 ```
 
 `run list` returns an array of run objects with:
@@ -1884,7 +1927,7 @@ Differences:
 
 ```bash
 # Count active vs closed runs
-RUNS=$(testrail run list 5)
+RUNS=$(testrail run list --project-id 5 --all)
 ACTIVE=$(echo "$RUNS" | jq '[.[] | select(.is_completed == false)] | length')
 CLOSED=$(echo "$RUNS" | jq '[.[] | select(.is_completed == true)] | length')
 echo "Active: $ACTIVE, Closed: $CLOSED"
@@ -1921,17 +1964,17 @@ Returns a milestone object with:
 - `completed_on` (number | null) — Timestamp when completed.
 - `project_id` (number) — Parent project ID.
 
-**List all milestones in a project (paginated):**
+**List milestones in a project:**
 
 ```bash
 # All milestones, any status
-testrail milestone list 5 | jq '.[] | {id, name, is_completed}'
+testrail milestone list --project-id 5 --all | jq '.[] | {id, name, is_completed}'
 
 # Filter to active milestones (not completed)
-testrail milestone list 5 | jq '.[] | select(.is_completed == false)'
+testrail milestone list --project-id 5 --all | jq '.[] | select(.is_completed == false)'
 
 # Pagination example
-testrail milestone list 5 --offset 250 --limit 50
+testrail milestone list --project-id 5 --offset 250 --limit 50
 ```
 
 **Create a new milestone:**
@@ -2010,7 +2053,7 @@ testrail milestone update "$M1" --data '{"is_completed":true}'   # alpha done
 testrail milestone update "$M2" --data '{"is_started":true}'     # beta starts
 
 # Clean up old milestones from previous quarter
-OLD_MILESTONE=$(testrail milestone list 5 | jq -r '.[] | select(.name == "1.9 GA") | .id')
+OLD_MILESTONE=$(testrail milestone list --project-id 5 --all | jq -r '.[] | select(.name == "1.9 GA") | .id')
 test -n "$OLD_MILESTONE" && testrail milestone delete "$OLD_MILESTONE" --yes
 ```
 
@@ -2106,17 +2149,17 @@ testrail group get 12
 
 **List all groups on the instance:**
 
-`group list` calls `GET get_groups` (no path args) and returns an array of
-all user groups defined on the TestRail instance:
+`group list --all` follows every response page from `GET get_groups` (no path
+args) and returns all user groups defined on the TestRail instance:
 
 ```bash
-testrail group list
+testrail group list --all
 # → [{"id":1,"name":"Admins","user_ids":[1,2]},{"id":12,"name":"QA Team","user_ids":[5,6,7]}]
 ```
 
 ```bash
 # Count groups
-testrail group list | jq 'length'
+testrail group list --all | jq 'length'
 ```
 
 **Create a new group (payload-only):**
@@ -2177,7 +2220,7 @@ testrail group delete 12 --dry-run
 
 ```typescript
 const group = await client.users.getGroup(12);
-const allGroups = await client.users.getGroups();
+const allGroups = await client.users.getAllGroups();
 const created = await client.users.addGroup({ name: 'QA West', user_ids: [5, 6] });
 const updated = await client.users.updateGroup(12, { name: 'QA West + Central' });
 await client.users.deleteGroup(12);
@@ -2187,41 +2230,41 @@ await client.users.deleteGroup(12);
 
 <!-- recipe-for: role:list -->
 
-`role list` calls `GET get_roles` (no path args) and returns an array of all
-user roles defined on the TestRail instance. Each role has an `id` (numeric),
-`name` (string), and `is_admin` (boolean) flag.
+`role list --all` follows every response page from `GET get_roles` (no path
+args) and returns all user roles defined on the TestRail instance. Each role has an `id` (numeric),
+`name` (string), and may expose `is_project_admin` for project-admin roles.
 
 Standard TestRail roles (instance-specific IDs may vary; query to be sure):
 
 ```bash
-testrail role list
-# → [{"id":1,"name":"Admin","is_admin":true},{"id":2,"name":"Analyst","is_admin":false},...]
+testrail role list --all
+# → [{"id":1,"name":"Lead","is_project_admin":true},{"id":2,"name":"Analyst","is_project_admin":false},...]
 ```
 
 ```bash
 # Extract role IDs and names as a lookup table
-testrail role list | jq 'map({id, name}) | from_entries'
+testrail role list --all | jq 'map({key: .name, value: .id}) | from_entries'
 # → {"Admin":"1","Analyst":"2",...}
 ```
 
 ```bash
-# Find the admin role
-testrail role list | jq '.[] | select(.is_admin == true)'
-# → {"id":1,"name":"Admin","is_admin":true}
+# Find project-admin roles when the server exposes the flag
+testrail role list --all | jq '.[] | select(.is_project_admin == true)'
+# → {"id":1,"name":"Lead","is_project_admin":true}
 ```
 
 Use role IDs when creating or updating users (`user add`, `user update`)
 to assign a specific permission level:
 
 ```bash
-# Assign admin role (assuming role_id=1) when creating a user
+# Assign a chosen role (assuming role_id=1) when creating a user
 testrail user add --data '{"name":"Charlie","email":"charlie@example.com","password":"secret","role_id":1}'
 ```
 
 **Programmatic equivalent:**
 
 ```typescript
-const roles = await client.metadata.getRoles();
+const roles = await client.metadata.getAllRoles();
 ```
 
 
@@ -2320,7 +2363,7 @@ payload, using the field ID as the key — e.g., `"custom_rfc": "RFC-5678"`).
 
 ```bash
 # Extract case IDs where assigned_to_id is null (unassigned).
-CASES=$(testrail case list --project-id 5 --suite-id 12 | \
+CASES=$(testrail case list --project-id 5 --suite-id 12 --all | \
     jq -r '.[] | select(.assigned_to_id == null) | .id')
 
 # Convert to a JSON array and bulk-update.
@@ -2453,7 +2496,7 @@ result status (Passed/Failed) and is rarely used on cloud instances; more
 common in on-premise with custom lifecycle policies.
 
 ```bash
-testrail case-status list
+testrail case-status list --all
 ```
 
 If the instance supports case-level statuses, the response is an array with
@@ -2638,10 +2681,10 @@ Returns `{ id: 42, project_id: 5, suite_id: 12, parent_id: null, name: "Login", 
 
 ```bash
 # All sections in the project
-testrail section list 5
+testrail section list 5 --all
 
 # Sections in a specific suite (multi-suite mode projects only)
-testrail section list 5 --suite-id 12
+testrail section list 5 --suite-id 12 --all
 ```
 
 **3. Create a new section:**
@@ -2788,13 +2831,13 @@ Returns `{ id: 100, project_id: 5, name: "Navigate to login", steps: [...] }` et
 **2. List all shared step sets in a project:**
 
 ```bash
-testrail shared-step list 5
+testrail shared-step list --project-id 5 --all
 ```
 
-Includes all shared step sets, paginated. Use `--limit` and `--offset` for pagination:
+The default is one response. Use `--page` for metadata or `--all` for every page:
 
 ```bash
-testrail shared-step list 5 --limit 50 --offset 100
+testrail shared-step list --project-id 5 --all --page-size 50 --start-offset 100
 ```
 
 **Example workflow:** Look up a shared step to verify its ID before
@@ -2802,7 +2845,7 @@ embedding it in a case:
 
 ```bash
 # Find the shared step ID
-STEP_ID=$(testrail shared-step list 5 | jq '.[] | select(.name == "Navigate to login") | .id')
+STEP_ID=$(testrail shared-step list --project-id 5 --all | jq '.[] | select(.name == "Navigate to login") | .id')
 
 # Use it when adding a case
 testrail case add 42 --data "{
@@ -2917,8 +2960,9 @@ web UI.
 
 `result add-bulk-by-test` wraps `POST add_results/{run_id}` and records
 multiple test results keyed by `test_id` in a single API call. Use this
-when you have the full list of test instances (e.g. from `testrail test list
---run-id <id>`) and want to record outcomes for many tests at once.
+when you have the full list of test instances (e.g. from
+`testrail test list <run_id> --all`) and want to record outcomes for many tests
+at once.
 
 Recipe #24 already discusses choosing between bulk endpoints; this path is
 optimal when:
@@ -3205,8 +3249,9 @@ await client.projects.deleteProject(renamed.id);
 
 A *test* in TestRail is the run-scoped instance of a case (one case + one
 run = one test). `test get` returns a single test by `test_id`;
-`test list` enumerates every test in a run (the canonical way to walk
-all cases assigned to a run, including their current `status_id`).
+`test list --all` enumerates every test in a run (the canonical way to walk
+all cases assigned to a run, including their current `status_id`). Without
+`--all`, the command returns one response only.
 
 ```bash
 # Fetch a single test instance
@@ -3215,29 +3260,29 @@ testrail test get 1337
 
 ```bash
 # List every test in a run
-testrail test list 42
+testrail test list 42 --all
 
 # Filter by current status (e.g. Failed=5)
-testrail test list 42 --status-id 5
+testrail test list 42 --all --status-id 5
 ```
 
 ```bash
 # Common pattern — extract test_ids ready for per-test result writes
-testrail test list 42 | jq '.[] | select(.status_id == 3) | .id'
+testrail test list 42 --all | jq '.[] | select(.status_id == 3) | .id'
 ```
 
 **When you reach for `test:list` vs alternatives:**
 
-- `test list <run_id>` — enumerate every test in a run; canonical input
+- `test list <run_id> --all` — enumerate every test in a run; canonical input
   for per-test result loops (pair with `result add-by-test`)
-- `case list --project-id <id> --suite-id <id>` — enumerate the case
+- `case list --project-id <id> --suite-id <id> --all` — enumerate the case
   catalog (not run-scoped); use when designing a run, not executing one
-- `result list --run-id <id>` — enumerate results (not tests); use when
+- `result list --run-id <id> --all` — enumerate results (not tests); use when
   you want the latest verdict per test, not the test definitions
 
 ```typescript
 // Programmatic equivalent — drive a per-test CI publisher
-const tests = await client.tests.getTests(42, { status_id: '3' }); // 3 = Untested
+const tests = await client.tests.getAllTests(42, { statusId: [3] }); // 3 = Untested
 for (const t of tests) {
   await client.results.addResult(t.id, { status_id: 1, comment: 'auto-passed' });
 }
@@ -3284,8 +3329,8 @@ get/list/rename over REST — there is no `add`/`delete` label endpoint
 propagates to every case and test using it. Titles are capped at 20 chars.
 
 ```bash
-# List every label defined in a project (paginated)
-testrail label list 1
+# List every label defined in a project.
+testrail label list 1 --all
 
 # Fetch one label by ID
 testrail label get 7
@@ -3296,7 +3341,7 @@ testrail label update 7 --data '{"title":"Release 2.0"}'
 
 ```typescript
 // Programmatic equivalent
-const labels = await client.labels.getLabels(1);
+const labels = await client.labels.getAllLabels(1);
 const label = await client.labels.getLabel(7);
 await client.labels.updateLabel(7, { title: 'Release 2.0' });
 
@@ -3322,6 +3367,7 @@ npm install @dichovsky/testrail-api-client
 import {
     TestRailClient,
     TestRailApiError,
+    TestRailPaginationError,
     TestRailValidationError,
 } from '@dichovsky/testrail-api-client';
 
@@ -3338,8 +3384,11 @@ try {
     if (e instanceof TestRailApiError) {
         // HTTP/network errors carry .status / .statusText / .response.
         console.error(`HTTP ${e.status}: ${e.statusText}`);
+    } else if (e instanceof TestRailPaginationError) {
+        // Safe aggregate/page failure; no partial result was returned.
+        console.error(e.reason, e.pagesFetched, e.itemsFetched);
     } else if (e instanceof TestRailValidationError) {
-        // Bad config or invalid args (caught before any network call).
+        // Bad config/args or malformed list outer structure.
         console.error(`Invalid input: ${e.message}`);
     }
     throw e;
@@ -3353,14 +3402,22 @@ try {
 
 Each snippet below is self-contained and uses only published types — copy,
 paste, and adjust the IDs. All methods return `Promise<T>`; all errors
-inherit from `Error` (`TestRailApiError` for HTTP/network, `TestRailValidationError`
-for bad input).
+inherit from `Error` (`TestRailApiError` for HTTP/network,
+`TestRailPaginationError` for safe pagination failure, and
+`TestRailValidationError` for other validation failures).
 
 ### Projects
 
 ```typescript
-// List projects (paginated by TestRail; the client returns the full page).
+// Backward-compatible one-response array.
 const projects = await client.projects.getProjects();
+
+// Preserve one envelope, or collect every page under explicit bounds.
+const projectPage = await client.projects.getProjectsPage({ limit: 25 });
+const allProjects = await client.projects.getAllProjects({
+    pageSize: 100,
+    maxItems: 10_000,
+});
 
 // Fetch one.
 const project = await client.projects.getProject(1);
@@ -3382,7 +3439,7 @@ await client.projects.deleteProject(created.id);
 const suites = await client.suites.getSuites(1); // by project_id
 const suite = await client.suites.addSuite(1, { name: 'Smoke' });
 
-const sections = await client.sections.getSections(1, { suite_id: suite.id });
+const sections = await client.sections.getSections(1, { suiteId: suite.id });
 const section = await client.sections.addSection(1, {
     suite_id: suite.id,
     name: 'Login',
@@ -3392,8 +3449,9 @@ const section = await client.sections.addSection(1, {
 ### Cases
 
 ```typescript
-const cases = await client.cases.getCases(1, { suite_id: 5 });
+const cases = await client.cases.getCases(1, { suiteId: 5 });
 const c = await client.cases.getCase(42);
+const browser = c['custom_browser']; // unknown: narrow before use
 
 const created = await client.cases.addCase(section.id, {
     title: 'Login page accepts SSO redirect',
@@ -3407,8 +3465,8 @@ await client.cases.updateCases(suite.id, {
     priority_id: 4,
 });
 
-// Edit history (TestRail 7.5+; paginated).
-const history = await client.cases.getHistoryForCase(42, { limit: 100 });
+// Edit history (TestRail 7.5+); collect every response page.
+const history = await client.cases.getAllHistoryForCase(42, { pageSize: 100 });
 ```
 
 ### Runs
@@ -3420,7 +3478,7 @@ const run = await client.runs.addRun(1, {
     case_ids: [42, 43, 44],
 });
 
-const runs = await client.runs.getRuns(1, { limit: 25 });
+const runs = await client.runs.getAllRuns(1, { pageSize: 100 });
 await client.runs.updateRun(run.id, { milestone_id: 7 });
 
 // Close is irreversible — TestRail has no open_run.
@@ -3450,7 +3508,7 @@ await client.results.addResults(run.id, {
 });
 
 // Read.
-const results = await client.results.getResultsForRun(run.id, { limit: 100 });
+const results = await client.results.getAllResultsForRun(run.id, { pageSize: 100 });
 const forCase = await client.results.getResultsForCase(run.id, 42);
 ```
 
@@ -3480,8 +3538,8 @@ const blob = await client.attachments.getAttachment(ack.attachment_id);
 // blob is Uint8Array | ArrayBuffer | Buffer depending on Node version;
 // see CODEMAP.md for the exact return type on your Node target.
 
-// Listings come from the case/run/test/plan/plan-entry the attachment is on.
-const list = await client.attachments.getAttachmentsForCase(42);
+// Case/run/plan lists expose page/all projections; test/plan-entry do not.
+const list = await client.attachments.getAllAttachmentsForCase(42, { pageSize: 100 });
 
 // Destructive — no built-in --yes gate; guard yourself.
 await client.attachments.deleteAttachment(ack.attachment_id);
@@ -3535,7 +3593,7 @@ await client.datasets.updateDataset(d.id, { name: 'Production matrix' });
 ```typescript
 // Instance-scoped — no project_id path param.
 const group = await client.users.addGroup({ name: 'QA', user_ids: [1, 2, 3] });
-const groups = await client.users.getGroups();
+const groups = await client.users.getAllGroups();
 await client.users.updateGroup(group.id, { name: 'QA (renamed)' });
 ```
 
@@ -3674,15 +3732,19 @@ causes:
 - **GET cache:** GET responses are cached in-process for ~5 minutes by
   default. POSTs invalidate the entire cache. Stale reads are possible
   if the same `testrail` invocation re-fetches the same endpoint within
-  the TTL.
+  the TTL. Programmatic `getAll*()` walks bypass cache reads/writes and
+  pending-request coalescing; `get*Page()` uses normal caching in a separate
+  strict-schema namespace from legacy one-response list reads.
 - **Retry:** 5xx responses, 429s, and network errors are retried with
   exponential backoff (max 3 attempts). 4xx and timeout errors are not
   retried.
 - **No coercion on write payloads:** `"5"` is **not** silently converted
   to `5`. This is intentional — catches agent template-substitution
   bugs at the CLI boundary rather than the API call site.
-- **`custom_*` fields:** Pass through `.passthrough()` schemas unchanged.
-  Field naming follows TestRail's `custom_<field-system-name>` convention.
+- **`custom_*` fields:** Runtime `.passthrough()` schemas preserve them.
+  Public response bracket access is declared only on `Case`, `Test`, and
+  `Result`, returns `unknown`, and must be narrowed. The deprecated nested
+  `custom_fields` record remains for older servers/proxies.
 - **Terminal output sanitization (v3.0):** stderr error messages and
   `--format table` cell values strip C0/C1/DEL control bytes before
   writing. Defends against TestRail-controlled strings carrying ANSI/OSC
