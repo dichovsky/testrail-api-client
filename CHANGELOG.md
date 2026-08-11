@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`. Other
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`. Other
 > version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -13,10 +13,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
-## [Unreleased] — advisory validation, safe pagination, and response coverage
+## [Unreleased]
 
-> Staged for the next **major** (`6.0.0`): the type widenings below break
-> consumer builds. Not yet released — no version bump, tag, or publish.
+## [6.0.0] — 2026-08-11 — advisory validation, safe pagination, and response coverage
 
 Entity-field response validation no longer fails closed. A TestRail response
 whose entity fields do not match their Zod schema is returned raw and reported
@@ -50,10 +49,11 @@ page.
   originating `{ method, endpoint }`. Only relevant if you call `parse()`
   directly; every in-package call site passes it.
 - **`onSchemaMismatch` must be synchronous.** A hook that returns a promise now
-  throws `TestRailValidationError`. An `async` hook satisfies the `void` return
-  type but cannot restore fail-closed validation — its throw becomes a rejected
-  promise nobody awaits — and that rejection surfaces as an unhandled rejection,
-  fatal on Node >= 15.
+  has its rejection consumed and immediately throws `TestRailValidationError`;
+  the response is neither returned nor cached. TypeScript permits an `async`
+  function where a `void` callback is expected, so this runtime guard prevents a
+  strict hook from failing open. Use a synchronous
+  `throw handleZodError(error)` when restoring 5.x behavior.
 - **A schema-invalid GET response is no longer cached.** It is still returned to
   the caller, but caching it would pin a rejected body for the full TTL with no
   further hook notifications. Each subsequent call now re-fetches and re-reports,
@@ -90,7 +90,9 @@ page.
   were unreachable; because the acknowledgement has no `tests` key, **every
   successful call resolved `[]`**, reporting "0 tests updated" for work the
   server had done. New exports: `UpdateTestsResponse`,
-  `UpdateTestsResponseSchema`.
+  `UpdateTestsResponseSchema`. The matching
+  `testrail test update-labels-bulk` command now emits this acknowledgement
+  object instead of a test array.
 - **Response types widened** where wire evidence exists. Each breaks code that
   reads the field at its old narrow type:
     - `Result.status_id`: `number` → `number | null`. Still a required property:
@@ -117,6 +119,14 @@ page.
       returns the raw body, delivering an untransformed `null` under a type that
       claimed `number[]` and turning a caught validation error into an uncaught
       `TypeError`. Narrow before indexing.
+    - Every `SoftDeletePreview` counter: `number | undefined` →
+      `number | null | undefined`. Narrow before arithmetic.
+    - `HistoryChange.options`: `unknown[] | null | undefined` →
+      `Record<string, unknown> | unknown[] | null | undefined`. Use
+      `Array.isArray()` before array operations.
+    - `CaseFieldConfig.options.items` / `ResultFieldConfig.options.items`:
+      `string | null | undefined` → `string | unknown[] | null | undefined`.
+      Narrow before calling string methods or iterating.
 - **Public response types now derive from the declared response-schema keys.**
   Runtime schemas remain `.passthrough()`, but their inferred public types no
   longer advertise a broad `[key: string]: unknown` signature. This removes
@@ -169,6 +179,7 @@ page.
   statuses are response-driven and reject caller-controlled page size/offset.
 - **Stable response fields and recursive milestones.** Added
   `Test.refs_data`, `Test.case_title`, `Result.case_title`, `Result.case_refs`,
+  optional `Plan.is_archived` and `Plan.archived_on`,
   `CaseField.is_indexed`, version-tolerant `CaseField.is_system` and
   `ResultField.is_system` (`boolean | 0 | 1 | null | undefined`), plus writable
   `AddCaseFieldPayload.is_indexed`. `Milestone.milestones` is now recursively
@@ -248,6 +259,9 @@ page.
   accepted branch, so the raw outer array was returned and the caller received the
   envelope itself as `result[0]` — typed `HistoryEntry`, but carrying pagination
   fields and no `id`/`user_id`. All three shapes now parse.
+- **The CLI no longer truncates pipe-backed output on Node 20/22.** Terminal
+  paths set `process.exitCode` and let stdout/stderr drain instead of calling
+  `process.exit()` immediately.
 
 Together with the widenings above and the bare-array tolerance, this covers the
 response-shape issues described in the defect report.
@@ -261,6 +275,19 @@ response-shape issues described in the defect report.
   missing important wrapper-shape and wire-type risks.
 - devDependencies bumped. TypeScript held at `~6.0.3`: TypeScript 7's native port
   does not expose the Compiler API, which both AST generators require.
+- **Release publication is now fail closed.** A GitHub Release must be a stable
+  `release/<version>` tag whose peeled commit matches the workflow SHA, is on
+  `main`, and matches `package.json` plus both lockfile version fields. The
+  read-only verification job runs the complete test, drift, audit, and packed
+  consumer-smoke gates before handing a digest-checked artifact to the separate,
+  manually approved npm Trusted Publishing job. Registry checks enforce a
+  monotonic stable version, exact `gitHead`, `latest`, package contents, and SLSA
+  provenance; an existing version is accepted only when every identity check
+  matches.
+- Packed-package smoke runs on Linux with Node 20.19, 22.13, and 24 plus Windows
+  with Node 24, behind the stable `package-smoke` CI gate. Pull-request CI also
+  enforces formatting, lockfile policy, and AGENTS.md drift, and uses the pinned
+  `audit-ci` dependency rather than a transient `npx` install.
 
 ### Known gaps
 
