@@ -1,46 +1,96 @@
 name: Publish
 
 # Triggered when a GitHub Release is published (draft → published, or new release).
-# The publish job runs the full pre-publish gate (typecheck, lint, tests, build)
-# explicitly rather than relying on the prepublishOnly lifecycle hook, since
-# .npmrc ignore-scripts=true may suppress lifecycle hooks during publish.
+# The read-only verification job validates the immutable release identity and
+# runs every release gate explicitly. The separately approved publish job only
+# consumes the tested artifact and talks to the pinned npm registry.
 on:
     release:
         types: [published]
 
-# Minimal permissions: read source + write OIDC token for npm Trusted Publishing.
-# No NPM_TOKEN secret is required — npm validates the OIDC token issued by
-# GitHub Actions against the repository's Trusted Publisher configuration on
-# npmjs.com. Provenance attestations are written to the GitHub release via the
-# attestations permission.
+# Default to source read-only. The publish job alone receives an OIDC token for
+# npm Trusted Publishing; no persistent NPM_TOKEN secret is required.
 permissions:
     contents: read
-    id-token: write
-    attestations: write
 
 concurrency:
     group: npm-publish
     cancel-in-progress: false
 
 jobs:
-    publish:
+    verify:
+        permissions:
+            contents: read
         runs-on: ubuntu-latest
-        environment: npm-publish
-        timeout-minutes: 15
+        timeout-minutes: 25
+        outputs:
+            already-published: '${{ steps.preflight.outputs.already-published }}'
+            dist-sha256: '${{ steps.release-artifact.outputs.sha256 }}'
 
         steps:
-            - name: Checkout code
+            - name: Checkout immutable release SHA
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  ref: '${{ github.sha }}'
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Fetch current main branch
+              run: git fetch --no-tags origin main:refs/remotes/origin/main
+
+            - name: Verify source provenance before repository code runs
+              shell: bash
+              env:
+                  RELEASE_ACTION: '${{ github.event.action }}'
+                  RELEASE_DRAFT: '${{ github.event.release.draft }}'
+                  RELEASE_PRERELEASE: '${{ github.event.release.prerelease }}'
+                  RELEASE_TAG: '${{ github.event.release.tag_name }}'
+              run: |
+                  set -euo pipefail
+                  if [[ "$GITHUB_EVENT_NAME" != 'release' || "$RELEASE_ACTION" != 'published' ]]; then
+                      echo 'Expected a published GitHub Release event.' >&2
+                      exit 1
+                  fi
+                  if [[ "$RELEASE_DRAFT" != 'false' || "$RELEASE_PRERELEASE" != 'false' ]]; then
+                      echo 'Draft and prerelease releases cannot publish to the stable channel.' >&2
+                      exit 1
+                  fi
+                  if [[ ! "$RELEASE_TAG" =~ ^release/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+                      echo 'Release tag must use release/<stable-semver>.' >&2
+                      exit 1
+                  fi
+                  if [[ "$GITHUB_REF" != "refs/tags/$RELEASE_TAG" || ! "$GITHUB_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+                      echo 'GitHub ref or SHA does not identify the release tag.' >&2
+                      exit 1
+                  fi
+                  HEAD_SHA="$(git rev-parse --verify 'HEAD^{commit}')"
+                  TAG_SHA="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")"
+                  if [[ "$GITHUB_SHA" != "$HEAD_SHA" || "$GITHUB_SHA" != "$TAG_SHA" ]]; then
+                      echo 'Release tag, checkout, and GitHub SHA must identify one commit.' >&2
+                      exit 1
+                  fi
+                  if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                      echo 'Release SHA is not reachable from origin/main.' >&2
+                      exit 1
+                  fi
 
             - name: Setup Node.js
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
               with:
-                  node-version-file: '.nvmrc'
+                  node-version: '24.19.0'
                   registry-url: 'https://registry.npmjs.org'
-                  cache: 'npm'
+                  package-manager-cache: false
 
-            - name: Install dependencies
-              run: npm ci
+            - name: Install dependencies without lifecycle scripts
+              run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/
+
+            - name: Verify complete release identity
+              env:
+                  RELEASE_ACTION: '${{ github.event.action }}'
+                  RELEASE_DRAFT: '${{ github.event.release.draft }}'
+                  RELEASE_PRERELEASE: '${{ github.event.release.prerelease }}'
+                  RELEASE_TAG: '${{ github.event.release.tag_name }}'
+              run: node scripts/release-preflight.ts context
 
             - name: Type-check
               run: npm run typecheck
@@ -48,11 +98,35 @@ jobs:
             - name: Lint
               run: npm run lint
 
+            - name: Check formatting
+              run: npm run format:check
+
+            - name: Verify lockfile trust policy
+              run: npm run lockfile-lint
+
             - name: Test (with coverage)
               run: npm run test:coverage
 
+            - name: Run CLI fuzz tests
+              run: RUN_FUZZ=1 npx vitest run tests/cli-fuzz.test.ts
+
+            - name: Audit production dependencies
+              run: npm audit --omit=dev --audit-level=moderate
+
+            - name: Audit full dependency tree
+              run: npm run audit:dependencies
+
             - name: Build
               run: npm run build
+
+            - name: Verify codemap drift
+              run: npm run codemap:check
+
+            - name: Verify API mapping drift
+              run: npm run mapping:check
+
+            - name: Verify AGENTS.md drift
+              run: npm run agents-md:check
 
             - name: Generate skill documentation
               run: npx tsx scripts/generate-skill.ts
@@ -63,22 +137,313 @@ jobs:
             - name: Strip source maps from dist/
               run: npm run clean:maps
 
-            # Preflight: if this exact version is already on npm, skip the publish
-            # step so a re-published GitHub Release exits green instead of failing
-            # the duplicate-version PUT with a misleading red ❌. `npm view` prints
-            # the version when it exists and nothing when it does not, so a
-            # non-empty result is the signal; a transient lookup failure only
-            # degrades to the prior duplicate-error behavior, never a false skip.
-            - name: Skip if this version is already published
+            - name: Smoke-test the prepared package
+              run: npm run package:smoke -- --prepared
+
+            # Registry lookup is fail-closed. An immutable duplicate is green
+            # only when gitHead and every packed file match this release; a new
+            # version must advance both `latest` and all published stable versions.
+            - name: Verify npm publication state
               id: preflight
+              env:
+                  RELEASE_ACTION: '${{ github.event.action }}'
+                  RELEASE_DRAFT: '${{ github.event.release.draft }}'
+                  RELEASE_PRERELEASE: '${{ github.event.release.prerelease }}'
+                  RELEASE_TAG: '${{ github.event.release.tag_name }}'
+              run: node scripts/release-preflight.ts registry
+
+            - name: Verify preflight decision
+              env:
+                  ALREADY_PUBLISHED: '${{ steps.preflight.outputs.already-published }}'
+              shell: bash
               run: |
-                  PKG="$(node -p "require('./package.json').name")"
-                  VER="$(node -p "require('./package.json').version")"
-                  if [ -n "$(npm view "$PKG@$VER" version 2>/dev/null)" ]; then
-                      echo "already-published=true" >> "$GITHUB_OUTPUT"
-                      echo "::notice::$PKG@$VER is already on npm — skipping publish."
+                  set -euo pipefail
+                  if [[ "$ALREADY_PUBLISHED" != 'true' && "$ALREADY_PUBLISHED" != 'false' ]]; then
+                      echo 'Release preflight did not produce an explicit publication decision.' >&2
+                      exit 1
                   fi
 
-            - name: Publish to npm with provenance
-              if: steps.preflight.outputs.already-published != 'true'
-              run: npm publish --provenance
+            - name: Archive tested release files
+              id: release-artifact
+              if: steps.preflight.outputs.already-published == 'false'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  if find dist -mindepth 1 ! -type f ! -type d -print -quit | grep -q .; then
+                      echo 'Prepared dist contains a non-regular filesystem entry.' >&2
+                      exit 1
+                  fi
+                  tar -cf release-dist.tar -C dist .
+                  SHA256="$(sha256sum release-dist.tar | cut -d ' ' -f 1)"
+                  if [[ ! "$SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+                      echo 'Could not calculate the release artifact SHA-256.' >&2
+                      exit 1
+                  fi
+                  echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+            - name: Upload tested release files
+              if: steps.preflight.outputs.already-published == 'false'
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+              with:
+                  name: npm-release-dist
+                  path: release-dist.tar
+                  if-no-files-found: error
+                  include-hidden-files: false
+                  retention-days: 1
+
+    publish:
+        needs: verify
+        if: needs.verify.outputs.already-published == 'false'
+        permissions:
+            contents: read
+            id-token: write
+        runs-on: ubuntu-latest
+        environment: npm-publish
+        timeout-minutes: 15
+
+        steps:
+            - name: Checkout immutable release SHA
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  ref: '${{ github.sha }}'
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Fetch current main branch
+              run: git fetch --no-tags origin main:refs/remotes/origin/main
+
+            # This static shell gate runs before setup-node, npm, or any code
+            # from the release tag. It prevents an arbitrary tag from reaching
+            # the OIDC-enabled portion of the job.
+            - name: Verify source provenance before repository code runs
+              shell: bash
+              env:
+                  RELEASE_ACTION: '${{ github.event.action }}'
+                  RELEASE_DRAFT: '${{ github.event.release.draft }}'
+                  RELEASE_PRERELEASE: '${{ github.event.release.prerelease }}'
+                  RELEASE_TAG: '${{ github.event.release.tag_name }}'
+              run: |
+                  set -euo pipefail
+                  if [[ "$GITHUB_EVENT_NAME" != 'release' || "$RELEASE_ACTION" != 'published' ]]; then
+                      echo 'Expected a published GitHub Release event.' >&2
+                      exit 1
+                  fi
+                  if [[ "$RELEASE_DRAFT" != 'false' || "$RELEASE_PRERELEASE" != 'false' ]]; then
+                      echo 'Draft and prerelease releases cannot publish to the stable channel.' >&2
+                      exit 1
+                  fi
+                  if [[ ! "$RELEASE_TAG" =~ ^release/(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+                      echo 'Release tag must use release/<stable-semver>.' >&2
+                      exit 1
+                  fi
+                  if [[ "$GITHUB_REF" != "refs/tags/$RELEASE_TAG" || ! "$GITHUB_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+                      echo 'GitHub ref or SHA does not identify the release tag.' >&2
+                      exit 1
+                  fi
+                  HEAD_SHA="$(git rev-parse --verify 'HEAD^{commit}')"
+                  TAG_SHA="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")"
+                  if [[ "$GITHUB_SHA" != "$HEAD_SHA" || "$GITHUB_SHA" != "$TAG_SHA" ]]; then
+                      echo 'Release tag, checkout, and GitHub SHA must identify one commit.' >&2
+                      exit 1
+                  fi
+                  if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                      echo 'Release SHA is not reachable from origin/main.' >&2
+                      exit 1
+                  fi
+
+            # The next step independently checks the tarball SHA-256 because the
+            # download action warns, rather than fails, on its own digest mismatch.
+            - name: Download tested release files
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+              with:
+                  name: npm-release-dist
+                  path: .release-artifact/
+
+            - name: Verify downloaded release files
+              shell: bash
+              env:
+                  EXPECTED_DIST_SHA256: '${{ needs.verify.outputs.dist-sha256 }}'
+              run: |
+                  set -euo pipefail
+                  if [[ ! "$EXPECTED_DIST_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+                      echo 'Expected release artifact SHA-256 is missing or invalid.' >&2
+                      exit 1
+                  fi
+                  ACTUAL_DIST_SHA256="$(sha256sum .release-artifact/release-dist.tar | cut -d ' ' -f 1)"
+                  if [[ "$ACTUAL_DIST_SHA256" != "$EXPECTED_DIST_SHA256" ]]; then
+                      echo 'Downloaded release artifact SHA-256 does not match verification.' >&2
+                      exit 1
+                  fi
+                  while IFS= read -r ARCHIVE_PATH; do
+                      NORMALIZED_PATH="${ARCHIVE_PATH#./}"
+                      if [[ -n "$NORMALIZED_PATH" && ( "$NORMALIZED_PATH" == /* || "$NORMALIZED_PATH" == ../* || "$NORMALIZED_PATH" == */../* ) ]]; then
+                          echo 'Downloaded release archive contains an unsafe path.' >&2
+                          exit 1
+                      fi
+                  done < <(tar -tf .release-artifact/release-dist.tar)
+                  mkdir dist
+                  tar -xf .release-artifact/release-dist.tar -C dist --no-same-owner
+                  if find dist -mindepth 1 ! -type f ! -type d -print -quit | grep -q .; then
+                      echo 'Downloaded release files contain a non-regular filesystem entry.' >&2
+                      exit 1
+                  fi
+                  test -f dist/index.js
+                  test -f dist/index.d.ts
+                  test -f dist/cli.js
+                  if find dist -type f -name '*.map' -print -quit | grep -q .; then
+                      echo 'Downloaded release files contain source maps.' >&2
+                      exit 1
+                  fi
+
+            - name: Setup pinned release Node.js
+              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+              with:
+                  node-version: '24.19.0'
+                  registry-url: 'https://registry.npmjs.org'
+                  package-manager-cache: false
+
+            # Run from an empty directory with empty npm config files so the
+            # checkout's .npmrc cannot affect OIDC, network, or channel config.
+            # Omitting --tag after sanitization preserves npm's own last-moment
+            # guard against moving `latest` behind a higher published version.
+            - name: Re-check registry and publish with isolated npm config
+              shell: bash
+              env:
+                  RELEASE_TAG: '${{ github.event.release.tag_name }}'
+              run: |
+                  set -euo pipefail
+                  while IFS= read -r CONFIG_NAME; do
+                      NORMALIZED_CONFIG_NAME="${CONFIG_NAME^^}"
+                      case "$NORMALIZED_CONFIG_NAME" in
+                          NPM_CONFIG_* | NODE_AUTH_TOKEN | NPM_TOKEN | NPM_ID_TOKEN) unset "$CONFIG_NAME" ;;
+                      esac
+                  done < <(compgen -e)
+
+                  EXPECTED_VERSION="${RELEASE_TAG#release/}"
+                  PACKAGE_NAME='@dichovsky/testrail-api-client'
+                  PACKAGE_SPEC="${PACKAGE_NAME}@${EXPECTED_VERSION}"
+                  ISOLATED_NPM_DIRECTORY="$(mktemp -d "$RUNNER_TEMP/npm-publish.XXXXXX")"
+                  USER_CONFIG="$ISOLATED_NPM_DIRECTORY/user.npmrc"
+                  GLOBAL_CONFIG="$ISOLATED_NPM_DIRECTORY/global.npmrc"
+                  : > "$USER_CONFIG"
+                  : > "$GLOBAL_CONFIG"
+
+                  EXPECTED_VERSION="$EXPECTED_VERSION" node --input-type=module --eval '
+                      import fs from "node:fs";
+                      const manifest = JSON.parse(fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/package.json`, "utf8"));
+                      const publishConfig = manifest.publishConfig;
+                      const validPublishConfig =
+                          publishConfig !== null &&
+                          typeof publishConfig === "object" &&
+                          !Array.isArray(publishConfig) &&
+                          Object.keys(publishConfig).length === 1 &&
+                          publishConfig.access === "public";
+                      if (
+                          manifest.name !== "@dichovsky/testrail-api-client" ||
+                          manifest.version !== process.env.EXPECTED_VERSION ||
+                          !validPublishConfig
+                      ) {
+                          process.exit(1);
+                      }
+                  '
+
+                  cd "$ISOLATED_NPM_DIRECTORY"
+                  set +e
+                  EXACT_OUTPUT="$(npm view "$PACKAGE_SPEC" version --json --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/ 2>/dev/null)"
+                  EXACT_STATUS=$?
+                  set -e
+                  printf '%s' "$EXACT_OUTPUT" > exact-version.json
+                  node --input-type=module --eval '
+                      import fs from "node:fs";
+                      const status = Number(process.argv[1]);
+                      let parsed;
+                      try {
+                          parsed = JSON.parse(fs.readFileSync("exact-version.json", "utf8"));
+                      } catch {
+                          process.exit(1);
+                      }
+                      const absent =
+                          status !== 0 &&
+                          parsed !== null &&
+                          typeof parsed === "object" &&
+                          parsed.error?.code === "E404";
+                      if (!absent) process.exit(1);
+                  ' "$EXACT_STATUS"
+
+                  npm view "$PACKAGE_NAME" versions dist-tags.latest --json --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/ > registry-state.json
+                  EXPECTED_VERSION="$EXPECTED_VERSION" node --input-type=module --eval '
+                      import fs from "node:fs";
+                      const parsed = JSON.parse(fs.readFileSync("registry-state.json", "utf8"));
+                      const value = Array.isArray(parsed) && parsed.length === 1 ? parsed[0] : parsed;
+                      const versions = value?.versions;
+                      const latest = value?.["dist-tags.latest"];
+                      const pattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+                      const tuple = (version) => {
+                          const match = pattern.exec(version);
+                          return match === null ? null : [BigInt(match[1]), BigInt(match[2]), BigInt(match[3])];
+                      };
+                      const compare = (left, right) => {
+                          for (let index = 0; index < 3; index += 1) {
+                              if (left[index] > right[index]) return 1;
+                              if (left[index] < right[index]) return -1;
+                          }
+                          return 0;
+                      };
+                      const candidate = tuple(process.env.EXPECTED_VERSION);
+                      const latestTuple = typeof latest === "string" ? tuple(latest) : null;
+                      const validVersions =
+                          Array.isArray(versions) && versions.every((version) => typeof version === "string");
+                      const stable = validVersions ? versions.filter((version) => tuple(version) !== null) : [];
+                      const valid =
+                          candidate !== null &&
+                          latestTuple !== null &&
+                          validVersions &&
+                          versions.includes(latest) &&
+                          !versions.includes(process.env.EXPECTED_VERSION) &&
+                          stable.length > 0 &&
+                          stable.every((version) => compare(candidate, tuple(version)) > 0) &&
+                          compare(candidate, latestTuple) > 0;
+                      if (!valid) process.exit(1);
+                  '
+
+                  npm publish "$GITHUB_WORKSPACE" \
+                      --provenance \
+                      --registry=https://registry.npmjs.org/ \
+                      --access=public \
+                      --ignore-scripts \
+                      --userconfig="$USER_CONFIG" \
+                      --globalconfig="$GLOBAL_CONFIG"
+
+                  VERIFIED=false
+                  for ATTEMPT in {1..10}; do
+                      if METADATA="$(npm view "$PACKAGE_SPEC" version gitHead dist-tags.latest dist.attestations --json --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/ 2>/dev/null)" &&
+                          printf '%s' "$METADATA" |
+                              EXPECTED_VERSION="$EXPECTED_VERSION" EXPECTED_SHA="$GITHUB_SHA" node --input-type=module --eval '
+                                  import fs from "node:fs";
+                                  const parsed = JSON.parse(fs.readFileSync(0, "utf8"));
+                                  const value = Array.isArray(parsed) && parsed.length === 1 ? parsed[0] : parsed;
+                                  const attestations = value?.["dist.attestations"];
+                                  const valid =
+                                      value !== null &&
+                                      typeof value === "object" &&
+                                      value.version === process.env.EXPECTED_VERSION &&
+                                      value.gitHead === process.env.EXPECTED_SHA &&
+                                      value["dist-tags.latest"] === process.env.EXPECTED_VERSION &&
+                                      attestations?.provenance?.predicateType === "https://slsa.dev/provenance/v1";
+                                  if (!valid) process.exit(1);
+                              '
+                      then
+                          VERIFIED=true
+                          break
+                      fi
+                      if [[ "$ATTEMPT" -lt 10 ]]; then sleep 3; fi
+                  done
+                  if [[ "$VERIFIED" != 'true' ]]; then
+                      echo 'Published npm metadata did not converge to the expected release identity.' >&2
+                      exit 1
+                  fi
+                  DIFF_OUTPUT="$(npm diff --diff="$GITHUB_WORKSPACE" --diff="$PACKAGE_SPEC" --diff-name-only --ignore-scripts --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/)"
+                  if [[ -n "${DIFF_OUTPUT//[[:space:]]/}" ]]; then
+                      echo 'Published npm package content differs from the verified release.' >&2
+                      exit 1
+                  fi

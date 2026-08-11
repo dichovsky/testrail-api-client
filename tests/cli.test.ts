@@ -8,8 +8,8 @@
  *   Without this, validatePublicHost() makes a real lookup that can take >30ms on CI,
  *   causing dnsValidationPromise to outlive the spy teardown window and producing
  *   cross-test stdout contamination and empty exitCodes arrays.
- * - process.exit is spied on (no-throw) so both sync and async exit paths complete;
- *   assertions use exitCodes[0] as the primary exit code.
+ * - process.exitCode is reset and observed so async exit paths complete without
+ *   truncating output; assertions use exitCodes[0] as the primary exit code.
  * - process.stdout/stderr.write are captured for output assertions.
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
@@ -276,7 +276,8 @@ async function runCli(
 
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
-    const exitCodes: number[] = [];
+    const originalExitCode = process.exitCode;
+    process.exitCode = undefined;
 
     const spyOut = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
         stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
@@ -286,33 +287,25 @@ async function runCli(
         stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
         return true;
     });
-    let exitResolve!: () => void;
-    const exitPromise = new Promise<void>((resolve) => {
-        exitResolve = resolve;
-    });
-    const spyExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-        exitCodes.push(code ?? 0);
-        exitResolve();
-    }) as never);
+    let exitCode: number | undefined;
 
     try {
         await import('../src/cli.js');
-        // Wait for main() to call process.exit (which our spy resolves the
-        // promise from), bounded by a generous timeout to cover GET retry
-        // chains (≤ DEFAULT_MAX_RETRIES exponential backoffs ≈ 7s).
-        await Promise.race([exitPromise, new Promise<void>((resolve) => setTimeout(resolve, 15_000))]);
-    } catch {
-        // When process.exit is a no-op, code may continue past an early exit() call
-        // into states that were never meant to execute (e.g. new TestRailClient with
-        // undefined credentials). Swallow these secondary errors; assertions rely on
-        // the exitCodes recorded before the throw.
+        // Wait for main() to assign process.exitCode, bounded by a generous
+        // timeout to cover GET retry chains (≈ 7s at the configured maximum).
+        await vi.waitFor(() => expect(process.exitCode).not.toBeUndefined(), { interval: 1, timeout: 15_000 });
+        exitCode = typeof process.exitCode === 'number' ? process.exitCode : Number(process.exitCode);
     } finally {
         spyOut.mockRestore();
         spyErr.mockRestore();
-        spyExit.mockRestore();
+        process.exitCode = originalExitCode;
     }
 
-    return { stdout: stdoutChunks.join(''), stderr: stderrChunks.join(''), exitCodes };
+    return {
+        stdout: stdoutChunks.join(''),
+        stderr: stderrChunks.join(''),
+        exitCodes: exitCode === undefined ? [] : [exitCode],
+    };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -464,32 +457,27 @@ describe('CLI', () => {
             setEnv(AUTH_ENV);
 
             const stderrChunks: string[] = [];
-            const exitCodes: number[] = [];
+            const originalExitCode = process.exitCode;
+            process.exitCode = undefined;
             const spyOut = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
             const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
                 stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
                 return true;
             });
-            let exitResolve!: () => void;
-            const exitPromise = new Promise<void>((resolve) => {
-                exitResolve = resolve;
-            });
-            const spyExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-                exitCodes.push(code ?? 0);
-                exitResolve();
-            }) as never);
+            let exitCode: number | undefined;
             try {
                 await import('../src/cli.js');
-                await Promise.race([exitPromise, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
-            } catch {
-                // Secondary errors after exit() no-op are irrelevant; assertions
-                // use the recorded exit code.
+                await vi.waitFor(() => expect(process.exitCode).not.toBeUndefined(), {
+                    interval: 1,
+                    timeout: 5_000,
+                });
+                exitCode = typeof process.exitCode === 'number' ? process.exitCode : Number(process.exitCode);
             } finally {
                 spyOut.mockRestore();
                 spyErr.mockRestore();
-                spyExit.mockRestore();
+                process.exitCode = originalExitCode;
             }
-            return { stderr: stderrChunks.join(''), exitCodes };
+            return { stderr: stderrChunks.join(''), exitCodes: exitCode === undefined ? [] : [exitCode] };
         }
 
         it('exits 1 and writes a sanitized error to stderr when parseArgs throws', async () => {
