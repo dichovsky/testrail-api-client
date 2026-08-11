@@ -8,7 +8,7 @@
  * collaborator invoked outside main()'s try block). To exercise it
  * deterministically we mock `createOutput` — called unconditionally near the
  * top of main(), before its try block — to throw. That makes main() reject,
- * driving the onRejected callback (sanitized stderr write + process.exit(1)).
+ * driving the onRejected callback (sanitized stderr write + exitCode 1).
  *
  * This mock is file-scoped (hoisted), so it lives in its own file rather than
  * polluting the main cli.test.ts suite where createOutput must work normally.
@@ -49,16 +49,18 @@ vi.mock('../src/cli/output.js', async (importOriginal) => {
 });
 
 const ORIG_ARGV = process.argv.slice();
+const ORIG_EXIT_CODE = process.exitCode;
 
 describe('top-level main() rejection handler', () => {
     afterEach(() => {
         process.argv = ORIG_ARGV;
+        process.exitCode = ORIG_EXIT_CODE;
         rejectControl.throwNonError = false;
         vi.resetModules();
         vi.clearAllMocks();
     });
 
-    async function runUntilExit(): Promise<{ stderr: string; exitCodes: number[] }> {
+    async function runUntilExitCode(): Promise<{ stderr: string; exitCode: string | number | undefined }> {
         vi.resetModules();
         // Valid resource/action argv so main() runs past the meta-flag gates
         // and reaches createOutput (which the mock makes throw).
@@ -68,37 +70,28 @@ describe('top-level main() rejection handler', () => {
         process.env['TESTRAIL_API_KEY'] = 'test-api-key';
 
         const stderrChunks: string[] = [];
-        const exitCodes: number[] = [];
+        process.exitCode = undefined;
         const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
             stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
             return true;
         });
-        let exitResolve!: () => void;
-        const exitPromise = new Promise<void>((resolve) => {
-            exitResolve = resolve;
-        });
-        const spyExit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-            exitCodes.push(code ?? 0);
-            exitResolve();
-        }) as never);
 
         try {
             await import('../src/cli.js');
-            await Promise.race([exitPromise, new Promise<void>((resolve) => setTimeout(resolve, 5_000))]);
+            await vi.waitFor(() => expect(process.exitCode).toBe(1), { interval: 1, timeout: 5_000 });
         } finally {
             spyErr.mockRestore();
-            spyExit.mockRestore();
             delete process.env['TESTRAIL_BASE_URL'];
             delete process.env['TESTRAIL_EMAIL'];
             delete process.env['TESTRAIL_API_KEY'];
         }
-        return { stderr: stderrChunks.join(''), exitCodes };
+        return { stderr: stderrChunks.join(''), exitCode: process.exitCode };
     }
 
     it('writes a sanitized error to stderr and exits 1 when main() rejects with an Error', async () => {
         rejectControl.throwNonError = false;
-        const { stderr, exitCodes } = await runUntilExit();
-        expect(exitCodes).toContain(1);
+        const { stderr, exitCode } = await runUntilExitCode();
+        expect(exitCode).toBe(1);
         expect(stderr).toContain('Error:');
         // Error branch: the Error.message is surfaced...
         expect(stderr).toContain('boom-from-createOutput');
@@ -111,8 +104,8 @@ describe('top-level main() rejection handler', () => {
         // in the onRejected handler — a thrown string is stringified, not
         // `.message`-accessed.
         rejectControl.throwNonError = true;
-        const { stderr, exitCodes } = await runUntilExit();
-        expect(exitCodes).toContain(1);
+        const { stderr, exitCode } = await runUntilExitCode();
+        expect(exitCode).toBe(1);
         expect(stderr).toContain('Error:');
         expect(stderr).toContain('boom-string-not-an-error');
     });

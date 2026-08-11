@@ -77,7 +77,8 @@ async function runCli(
 
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
-    const exitCodes: number[] = [];
+    const originalExitCode = process.exitCode;
+    process.exitCode = undefined;
     const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
         stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
         return true;
@@ -87,33 +88,22 @@ async function runCli(
         return true;
     });
 
-    let resolveExit!: () => void;
-    const exited = new Promise<void>((resolve) => {
-        resolveExit = resolve;
-    });
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-        exitCodes.push(code ?? 0);
-        resolveExit();
-    }) as never);
+    let exitCode: number | undefined;
 
     try {
         await import('../src/cli.js');
-        await Promise.race([
-            exited,
-            new Promise<never>((_resolve, reject) => {
-                setTimeout(() => reject(new Error('CLI did not exit within 5 seconds')), 5_000).unref();
-            }),
-        ]);
+        await vi.waitFor(() => expect(process.exitCode).not.toBeUndefined(), { interval: 1, timeout: 5_000 });
+        exitCode = typeof process.exitCode === 'number' ? process.exitCode : Number(process.exitCode);
     } finally {
         stdoutSpy.mockRestore();
         stderrSpy.mockRestore();
-        exitSpy.mockRestore();
+        process.exitCode = originalExitCode;
     }
 
     return {
         stdout: stdoutChunks.join(''),
         stderr: stderrChunks.join(''),
-        exitCodes,
+        exitCodes: exitCode === undefined ? [] : [exitCode],
     };
 }
 

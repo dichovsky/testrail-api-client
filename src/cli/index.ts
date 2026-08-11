@@ -40,8 +40,9 @@ const HELP = buildHelpText();
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 /**
- * Compute exit code in an async function and apply `process.exit()` once
- * at the very end. parseArgs and createOutput are invoked inside main() so
+ * Compute the exit code in an async function and assign `process.exitCode`
+ * at the very end. An immediate `process.exit()` can truncate pipe-backed
+ * stdout on supported Node releases. parseArgs and createOutput are invoked inside main() so
  * any failure during initialization (e.g. an invalid CLI shape that makes
  * parseArgs throw) is funneled through the same exit-code return path
  * rather than escaping as an uncaught module-evaluation error.
@@ -448,11 +449,13 @@ async function main(): Promise<number> {
 // that bypasses the inner try/catch (e.g. a synchronous throw from a
 // collaborator invoked outside main()'s try). It sanitizes the message before
 // writing to stderr so a control-char-laden error can't inject a terminal
-// escape, then exits non-zero.
+// escape, then leaves the event loop to flush both output streams naturally.
 main().then(
-    (code) => process.exit(code),
+    (code) => {
+        process.exitCode = code;
+    },
     (e: unknown) => {
         process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
-        process.exit(1);
+        process.exitCode = 1;
     },
 );

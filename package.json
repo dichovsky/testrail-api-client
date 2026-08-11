@@ -49,6 +49,7 @@
     "scripts": {
         "agents-md": "npm run build && tsx scripts/generate-agents-md.ts",
         "agents-md:check": "tsx scripts/generate-agents-md.ts --check",
+        "audit:dependencies": "audit-ci --moderate --config audit-ci.jsonc",
         "build": "rm -rf dist && tsc -p tsconfig.prod.json",
         "clean:maps": "find dist -name '*.map' -delete",
         "codemap": "tsx scripts/generate-codemap.ts",
@@ -58,6 +59,7 @@
         "lint": "eslint .",
         "mapping": "tsx scripts/generate-mapping.ts",
         "mapping:check": "tsx scripts/generate-mapping.ts --check",
+        "package:smoke": "tsx scripts/package-smoke.ts",
         "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run skill && npm run skill:check && npm run clean:maps",
         "lockfile-lint": "lockfile-lint --config .lockfile-lintrc",
         "pretest": "npm run typecheck && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run lockfile-lint",
@@ -78,6 +80,7 @@
         "@typescript-eslint/eslint-plugin": "^8.66.0",
         "@typescript-eslint/parser": "^8.66.0",
         "@vitest/coverage-v8": "^4.1.10",
+        "audit-ci": "7.1.0",
         "eslint": "^10.8.1",
         "fast-check": "^4.9.0",
         "lockfile-lint": "^5.0.0",
