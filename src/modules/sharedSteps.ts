@@ -3,7 +3,16 @@ import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload, StepHis
 import { SharedStepSchema, StepHistoryEntrySchema } from '../schemas.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+
+export interface GetSharedStepsOptions {
+    /** Maximum number of shared steps to return */
+    limit?: number;
+    /** Pagination offset */
+    offset?: number;
+}
 
 export interface GetSharedStepHistoryOptions {
     /** Maximum number of history entries to return */
@@ -11,6 +20,13 @@ export interface GetSharedStepHistoryOptions {
     /** Pagination offset */
     offset?: number;
 }
+
+export type GetAllSharedStepsOptions = PaginatedRequestOptions;
+export type GetAllSharedStepHistoryOptions = PaginationSafetyOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
 
 export class SharedStepModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -26,18 +42,59 @@ export class SharedStepModule {
     }
 
     /** @testrail GET get_shared_steps/{project_id} */
-    async getSharedSteps(projectId: number): Promise<SharedStep[]> {
-        validateId(projectId, 'projectId');
-        // SPEC #1.6 — `get_shared_steps` is a bulk endpoint: real TestRail
-        // returns the paginated `{ offset, limit, size, _links, shared_steps:[…] }`
-        // envelope. Accept both the wrapper and a bare array (older/edge servers)
-        // and unwrap via `.shared_steps ?? []`, mirroring getSuites.
-        const raw = await this.client.request<SharedStep[] | { shared_steps?: SharedStep[] | null }>({
-            method: 'GET',
-            endpoint: `get_shared_steps/${projectId}`,
-            schema: listOf('shared_steps', SharedStepSchema),
+    async getSharedSteps(projectId: number, options?: GetSharedStepsOptions): Promise<SharedStep[]> {
+        return unwrapList<SharedStep>('shared_steps', await this.requestSharedSteps(projectId, options));
+    }
+
+    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    async getSharedStepsPage(projectId: number, options?: GetSharedStepsOptions): Promise<Page<SharedStep>> {
+        return decodePage<SharedStep>(
+            'shared_steps',
+            await this.requestSharedSteps(projectId, options, { pageProjection: true }),
+        );
+    }
+
+    /** Get every shared step under the configured pagination safety bounds. */
+    async getAllSharedSteps(projectId: number, options?: GetAllSharedStepsOptions): Promise<SharedStep[]> {
+        return collectAllPages<SharedStep>({
+            ...(options ?? {}),
+            fetchPage: (request) =>
+                this.requestSharedSteps(
+                    projectId,
+                    {
+                        limit: request.limit as number,
+                        offset: request.offset as number,
+                    },
+                    {
+                        bypassCache: request.bypassCache,
+                        remainingTimeMs: request.remainingTimeMs,
+                    },
+                ).then((raw) => decodePage<SharedStep>('shared_steps', raw)),
         });
-        return unwrapList('shared_steps', raw);
+    }
+
+    private async requestSharedSteps(
+        projectId: number,
+        options?: GetSharedStepsOptions,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
+        validateId(projectId, 'projectId');
+        validatePaginationParams(options?.limit, options?.offset);
+        const endpoint = buildEndpoint(`get_shared_steps/${projectId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
+        });
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
+            method: 'GET',
+            endpoint,
+            schema: pageProjection
+                ? pageOf('shared_steps', SharedStepSchema)
+                : listOf('shared_steps', SharedStepSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+        });
     }
 
     /** @testrail POST add_shared_step/{project_id} */
@@ -76,20 +133,64 @@ export class SharedStepModule {
         sharedStepId: number,
         options?: GetSharedStepHistoryOptions,
     ): Promise<StepHistoryEntry[]> {
+        return unwrapList<StepHistoryEntry>('step_history', await this.requestSharedStepHistory(sharedStepId, options));
+    }
+
+    /** Get one history response page without sending undocumented request controls. */
+    async getSharedStepHistoryPage(sharedStepId: number): Promise<Page<StepHistoryEntry>> {
+        return decodePage<StepHistoryEntry>(
+            'step_history',
+            await this.requestSharedStepHistory(sharedStepId, undefined, { pageProjection: true }),
+        );
+    }
+
+    /** Get every history entry under the configured pagination safety bounds. */
+    async getAllSharedStepHistory(
+        sharedStepId: number,
+        options?: GetAllSharedStepHistoryOptions,
+    ): Promise<StepHistoryEntry[]> {
+        return collectAllPages<StepHistoryEntry>({
+            ...(options ?? {}),
+            requestControls: false,
+            fetchPage: (request) =>
+                this.requestSharedStepHistory(
+                    sharedStepId,
+                    {
+                        ...(request.limit === undefined ? {} : { limit: request.limit }),
+                        ...(request.offset === undefined ? {} : { offset: request.offset }),
+                    },
+                    {
+                        bypassCache: request.bypassCache,
+                        remainingTimeMs: request.remainingTimeMs,
+                    },
+                ).then((raw) => decodePage<StepHistoryEntry>('step_history', raw)),
+        });
+    }
+
+    private async requestSharedStepHistory(
+        sharedStepId: number,
+        options?: GetSharedStepHistoryOptions,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
         validateId(sharedStepId, 'sharedStepId');
         validatePaginationParams(options?.limit, options?.offset);
         const endpoint = buildEndpoint(`get_shared_step_history/${sharedStepId}`, {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<StepHistoryEntry[] | { step_history?: StepHistoryEntry[] | null }>({
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
             // SPEC #1.7 — entries live under `step_history` (NOT `history`). Live-instance
             // audit: the endpoint actually returns a BARE top-level array, not the wrapper.
             // Accept both shapes (mirrors getSharedSteps) and unwrap.
-            schema: listOf('step_history', StepHistoryEntrySchema),
+            schema: pageProjection
+                ? pageOf('step_history', StepHistoryEntrySchema)
+                : listOf('step_history', StepHistoryEntrySchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
         });
-        return unwrapList('step_history', raw);
     }
 }

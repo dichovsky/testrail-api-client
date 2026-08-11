@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Configuration Schemas ─────────────────────────────────────────────────────
 
@@ -9,7 +9,7 @@ export const ConfigurationSchema = zObject({
     group_id: z.number(),
 });
 
-export type Configuration = z.infer<typeof ConfigurationSchema>;
+export type Configuration = KnownResponse<typeof ConfigurationSchema>;
 
 export const ConfigurationGroupSchema = zObject({
     id: z.number(),
@@ -18,7 +18,7 @@ export const ConfigurationGroupSchema = zObject({
     configs: z.array(ConfigurationSchema),
 });
 
-export type ConfigurationGroup = z.infer<typeof ConfigurationGroupSchema>;
+export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>;
 
 // ── Configuration write payloads ──────────────────────────────────────────────
 // TestRail's `add_config_group` / `update_config_group` / `add_config` /

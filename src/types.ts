@@ -1,5 +1,54 @@
-import type { ZodError } from 'zod';
-import type { LabelEmbedded } from './schemas.js';
+import type { z, ZodError } from 'zod';
+import type { KnownResponse } from './schemas/common.js';
+import type {
+    AttachmentSchema,
+    CaseFieldConfigSchema,
+    CaseFieldSchema,
+    CaseSchema,
+    CaseStatusSchema,
+    CaseTypeSchema,
+    ConfigurationGroupSchema,
+    ConfigurationSchema,
+    HistoryChangeSchema,
+    HistoryEntrySchema,
+    MilestoneSchema,
+    PlanEntrySchema,
+    PlanSchema,
+    PrioritySchema,
+    ProjectSchema,
+    ReportResultSchema,
+    ReportSchema,
+    ResultFieldConfigSchema,
+    ResultFieldSchema,
+    ResultSchema,
+    RoleSchema,
+    RunSchema,
+    SectionSchema,
+    StatusSchema,
+    SuiteSchema,
+    TemplateSchema,
+    TestSchema,
+    UserSchema,
+} from './schemas.js';
+
+/** Flat custom fields are supported only on cases, tests, and results. */
+type CustomFieldAccess = {
+    [key: `custom_${string}`]: unknown;
+};
+
+type ResponseWithCustomFields<
+    TSchema extends z.ZodObject,
+    TKnown extends KnownResponse<TSchema> = KnownResponse<TSchema>,
+> = TKnown extends { custom_fields?: infer TCustomFields }
+    ? Omit<TKnown, 'custom_fields'> & {
+          /**
+           * @deprecated TestRail emits response custom fields as flat
+           * `custom_*` properties. This container remains for compatibility
+           * with older servers and proxies.
+           */
+          custom_fields?: TCustomFields;
+      } & CustomFieldAccess
+    : TKnown & CustomFieldAccess;
 
 /**
  * Detail passed to {@link TestRailConfig.onSchemaMismatch} when a response
@@ -230,353 +279,40 @@ export interface UploadFilePathInput {
 
 export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput;
 
-export interface Case {
-    id: number;
-    title: string;
-    section_id: number;
-    template_id?: number | null;
-    type_id?: number | null;
-    priority_id?: number | null;
-    milestone_id?: number | null;
-    refs?: string | null;
-    created_by: number;
-    created_on: number; // Unix timestamp
-    updated_by: number;
-    updated_on: number; // Unix timestamp
-    estimate?: string | null; // e.g. "5m"
-    estimate_forecast?: string | null;
-    suite_id: number;
-    display_order?: number | null;
-    is_deleted?: number | null;
-    custom_fields?: Record<string, unknown> | null;
-    // Mirror of the `labels` array on `CaseSchema` (SPEC #2.1.3) — uses the
-    // shared `LabelEmbedded` shape so a Label object can be carried between
-    // `get_case` and `get_test` responses without re-casting. See
-    // `LabelEmbeddedSchema` for inner field choices.
-    labels?: LabelEmbedded[] | null;
-}
+export type Case = ResponseWithCustomFields<typeof CaseSchema>;
 
-export interface Suite {
-    id: number;
-    name: string;
-    description?: string | null;
-    project_id: number;
-    is_master?: boolean | null;
-    is_baseline?: boolean | null;
-    is_completed?: boolean | null;
-    completed_on?: number | null; // Unix timestamp
-    url: string;
-}
+export type Suite = KnownResponse<typeof SuiteSchema>;
 
 // AddSuitePayload and UpdateSuitePayload now live in `./schemas.ts` as Zod
 // schemas (source of truth for runtime validation + inferred TS types).
 
-export interface Section {
-    id: number;
-    suite_id: number;
-    name: string;
-    description?: string | null;
-    parent_id?: number | null;
-    display_order: number;
-    depth: number;
-}
+export type Section = KnownResponse<typeof SectionSchema>;
 
-export interface Project {
-    id: number;
-    name: string;
-    announcement?: string | null;
-    show_announcement?: boolean | null;
-    is_completed?: boolean | null;
-    completed_on?: number | null; // Unix timestamp
-    /** 1=single suite, 2=single suite+baselines, 3=multiple suites */
-    suite_mode: number;
-    url: string;
-    // Mirror of `.nullish()` SPEC #2.1.1 fields on `ProjectSchema` (TestRail 7.3+).
-    // Three absent states preserved: omitted (undefined), explicit null, typed value.
-    default_role_id?: number | null;
-    default_role?: string | null;
-    // Per-project group assignment (TestRail 7.3+). Inner object is the union of the
-    // `get_project` and `update_project` response item shapes documented by TestRail —
-    // see ProjectSchema for the field-level rationale. All inner fields optional+nullable
-    // so either form types cleanly without forcing consumers to widen via `as`.
-    groups?: Array<{
-        id?: number | null;
-        role?: string | null;
-        role_id?: number | null;
-    }> | null;
-    // Per-project user assignment (TestRail Enterprise 7.3+). Inner object is the union of
-    // the `get_project` (id/global_role*/project_role*) and `update_project`
-    // (user_id/role_id) response item shapes — see ProjectSchema.
-    users?: Array<{
-        id?: number | null;
-        user_id?: number | null;
-        global_role_id?: number | null;
-        global_role?: string | null;
-        project_role_id?: number | null;
-        project_role?: string | null;
-        role_id?: number | null;
-    }> | null;
-}
+export type Project = KnownResponse<typeof ProjectSchema>;
 
-export interface Plan {
-    id: number;
-    name: string;
-    description?: string | null;
-    milestone_id?: number | null;
-    assignedto_id?: number | null;
-    is_completed: boolean;
-    completed_on?: number | null; // Unix timestamp
-    passed_count: number;
-    blocked_count: number;
-    untested_count: number;
-    retest_count: number;
-    failed_count: number;
-    custom_status1_count?: number | null;
-    custom_status2_count?: number | null;
-    custom_status3_count?: number | null;
-    custom_status4_count?: number | null;
-    custom_status5_count?: number | null;
-    custom_status6_count?: number | null;
-    custom_status7_count?: number | null;
-    project_id: number;
-    created_on: number; // Unix timestamp
-    created_by: number;
-    url: string;
-    // Mirror of the additional response fields on `PlanSchema`: observed on
-    // `get_plan` / `get_plans` but absent from the docs. `getPlan` returns this
-    // hand-written interface rather than `z.infer`, so omitting them made
-    // runtime-delivered data unreachable without a cast.
-    is_archived?: boolean | null;
-    archived_on?: number | null; // Unix timestamp
-    entries?: PlanEntry[] | null;
-    // Mirror of SPEC #2.1.6 fields on `PlanSchema`. Per the `get_plan` response-field
-    // table: `start_on` / `due_on` are documented as timestamps (ungated); `refs`
-    // is "a string of external requirement IDs, separated by commas - requires
-    // TestRail 6.3 or later". `?: T | null` yields `T | null | undefined`, matching
-    // the schema's `.nullish()`.
-    start_on?: number | null;
-    due_on?: number | null;
-    refs?: string | null;
-}
+export type Plan = KnownResponse<typeof PlanSchema>;
 
-export interface PlanEntry {
-    id: string; // GUID
-    suite_id: number;
-    name: string;
-    description?: string | null;
-    assignedto_id?: number | null;
-    include_all: boolean;
-    case_ids?: number[] | null;
-    config_ids?: number[] | null;
-    runs: Run[];
-    // Mirror of SPEC #2.1.6 fields on `PlanEntrySchema`. The TestRail Plans API doc
-    // lists `start_on` / `due_on` / `refs` in the `add_plan_entry` request body
-    // table (entry-level), and the `get_plan` example shows `refs` in the entry
-    // object. `start_on` / `due_on` echo back on responses when set.
-    start_on?: number | null;
-    due_on?: number | null;
-    refs?: string | null;
-    /** Live-audit: present on add_plan_entry / get_plan entries; value shape uncaptured. */
-    dynamic_filters?: unknown;
-}
+export type PlanEntry = KnownResponse<typeof PlanEntrySchema>;
 
-export interface Run {
-    id: number;
-    suite_id: number;
-    name: string;
-    description?: string | null;
-    milestone_id?: number | null;
-    assignedto_id?: number | null;
-    include_all: boolean;
-    is_completed: boolean;
-    completed_on?: number | null; // Unix timestamp
-    config?: string | null;
-    config_ids?: number[] | null;
-    passed_count: number;
-    blocked_count: number;
-    untested_count: number;
-    retest_count: number;
-    failed_count: number;
-    custom_status1_count?: number | null;
-    custom_status2_count?: number | null;
-    custom_status3_count?: number | null;
-    custom_status4_count?: number | null;
-    custom_status5_count?: number | null;
-    custom_status6_count?: number | null;
-    custom_status7_count?: number | null;
-    project_id: number;
-    plan_id?: number | null;
-    created_on: number; // Unix timestamp
-    created_by: number;
-    refs?: string | null;
-    url: string;
-    // Mirror of SPEC #2.1.5 timestamp fields on `RunSchema`. `updated_on` requires
-    // TestRail 6.5.2+; `start_on` / `due_on` are ungated but only emit when set.
-    // `?: T | null` yields `T | null | undefined`, matching the schema's `.nullish()`
-    // (omitted vs explicit null vs typed Unix timestamp).
-    start_on?: number | null;
-    due_on?: number | null;
-    updated_on?: number | null;
-    // Mirror of plan-entry context fields. NOT in the documented `get_run` response;
-    // emit only when this Run is returned inside a `get_plan` entry, where it carries
-    // the parent entry's GUID (string, matching `PlanEntry.id`) and the run's index
-    // within that entry. Standalone runs from `get_run` / `get_runs` omit both.
-    entry_id?: string | null;
-    entry_index?: number | null;
-}
+export type Run = KnownResponse<typeof RunSchema>;
 
-export interface Test {
-    id: number;
-    case_id: number;
-    status_id: number;
-    assignedto_id?: number | null;
-    run_id: number;
-    title: string;
-    template_id?: number | null;
-    type_id?: number | null;
-    priority_id?: number | null;
-    estimate?: string | null;
-    estimate_forecast?: string | null;
-    refs?: string | null;
-    milestone_id?: number | null;
-    custom_fields?: Record<string, unknown> | null;
-    // Mirror of the `labels` array on `TestSchema` (SPEC #2.1.7) — uses the
-    // shared `LabelEmbedded` shape so a Label object can be carried between
-    // `get_test` and `get_case` responses without re-casting. See
-    // `LabelEmbeddedSchema` for inner field choices.
-    labels?: LabelEmbedded[] | null;
-}
+export type Test = ResponseWithCustomFields<typeof TestSchema>;
 
-export interface Result {
-    id: number;
-    test_id: number;
-    /**
-     * e.g., 1=Passed. `null` on a **comment-only** result — a comment, defect,
-     * or assignment recorded without a status change. Always present on the
-     * wire; only the value is nullable.
-     */
-    status_id: number | null;
-    comment?: string | null;
-    version?: string | null;
-    elapsed?: string | null; // e.g. "5m 30s"
-    defects?: string | null;
-    assignedto_id?: number | null;
-    created_by?: number | null;
-    created_on?: number | null; // Unix timestamp
-    custom_fields?: Record<string, unknown> | null;
-}
+export type Result = ResponseWithCustomFields<typeof ResultSchema>;
 
-export interface Milestone {
-    id: number;
-    name: string;
-    description?: string | null;
-    start_on?: number | null; // Unix timestamp
-    started_on?: number | null; // Unix timestamp
-    is_completed: boolean;
-    completed_on?: number | null; // Unix timestamp
-    due_on?: number | null; // Unix timestamp
-    project_id: number;
-    parent_id?: number | null;
-    refs?: string | null;
-    url: string;
-    milestones?: Milestone[] | null;
-    // Mirror of SPEC #2.1.9 `is_started` on `MilestoneSchema`. TestRail 5.3+ —
-    // older servers omit the key entirely. Widened to `| null` in 6.0.0 when
-    // the schema moved from `.optional()` to `.nullish()`; see schemas/milestones.ts.
-    is_started?: boolean | null;
-}
+export type Milestone = KnownResponse<typeof MilestoneSchema>;
 
-export interface User {
-    id: number;
-    name: string;
-    email: string;
-    is_active: boolean;
-    role_id?: number | null;
-    role?: string | null;
-    // Mirror of the `.nullish()` 7.3+ fields on `UserSchema`. `?:` plus `| null` yields the
-    // same `T | null | undefined` shape that `z.infer<typeof UserSchema>` produces, with
-    // three distinct absent states preserved at the type level:
-    //   - omitted (resolves to `undefined`): older TestRail servers (≤7.2), reduced
-    //     `get_current_user` response shape.
-    //   - explicit `null`: TestRail emits null for unset/unknown values.
-    //   - typed value: TestRail 7.3+ Professional response.
-    email_notifications?: boolean | null;
-    is_admin?: boolean | null;
-    group_ids?: number[] | null;
-    // Live-audit: TestRail Cloud wire-encodes this as an integer (0/1), not a
-    // boolean — widened to match `UserSchema.mfa_required` (boolean | number).
-    mfa_required?: boolean | number | null;
-    // Enterprise-only mirror (TestRail Enterprise 7.3+). Professional instances never
-    // emit these keys, so the `undefined` case is dominant for non-Enterprise traffic.
-    sso_enabled?: boolean | null;
-    assigned_projects?: number[] | null;
-}
+export type User = KnownResponse<typeof UserSchema>;
 
-export interface Status {
-    id: number;
-    name: string;
-    label: string;
-    color_dark: number;
-    color_medium: number;
-    color_bright: number;
-    is_system: boolean;
-    is_untested: boolean;
-    is_final: boolean;
-    /** Live-audit: i18n translation key (string when set, null otherwise). */
-    i18n_custom_id?: string | null;
-}
+export type Status = KnownResponse<typeof StatusSchema>;
 
-export interface Priority {
-    id: number;
-    name: string;
-    short_name: string;
-    is_default: boolean;
-    priority: number; // weight/level
-}
+export type Priority = KnownResponse<typeof PrioritySchema>;
 
-export interface CaseStatus {
-    case_status_id: number;
-    name: string;
-    /** `null` unless a custom short label is configured — the built-in Approved and Draft statuses ship without one. */
-    abbreviation?: string | null;
-    is_default: boolean;
-    is_approved: boolean;
-    /** Belongs to `get_statuses`, not `get_case_statuses` — normally absent here. */
-    is_untested?: boolean | null;
-}
+export type CaseStatus = KnownResponse<typeof CaseStatusSchema>;
 
-export interface HistoryChange {
-    field?: string | null;
-    type_id?: number | null;
-    old_text?: string | null;
-    new_text?: string | null;
-    // Mirror of SPEC #2.1.13 fields on `HistoryChangeSchema`. See schemas.ts
-    // for the per-variant rationale of `old_value` / `new_value`. The union
-    // here matches the Zod inferred type and lets callers `switch (typeof v)`
-    // to narrow at use site (vs the previous `unknown` which forced explicit
-    // runtime checks).
-    label?: string | null;
-    /**
-     * Field-config options for the changed field. An **object** on the wire
-     * (e.g. `{ is_required, default_value, items }`) despite the doc's field
-     * table calling it an array; the array form is kept in the union in case
-     * some field type does emit one.
-     */
-    options?: Record<string, unknown> | unknown[] | null;
-    old_value?: string | number | boolean | unknown[] | null;
-    new_value?: string | number | boolean | unknown[] | null;
-}
+export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>;
 
-export interface HistoryEntry {
-    id: number;
-    user_id: number;
-    type_id: number;
-    /** Present on case-history entries */
-    timestamp?: number | null;
-    /** Present on shared-step-history entries */
-    created_on?: number | null;
-    changes?: HistoryChange[] | null;
-}
+export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>;
 
 // AddCasePayload and UpdateCasePayload now live in `./schemas.ts` as Zod
 // schemas (source of truth for runtime validation + inferred TS types).
@@ -660,150 +396,33 @@ export interface GetRunsOptions {
     offset?: number;
 }
 
-export interface ResultFieldConfig {
-    /** Config-level id (UUID / legacy hex token). */
-    id?: string | null;
-    context: {
-        is_global: boolean;
-        /**
-         * `number[]` for project-scoped fields; `""` or `null` for global ones
-         * (`is_global: true`), which includes every built-in system field. The
-         * 6.0.0 removal of the normalizing `.transform()` means the raw wire
-         * shape now reaches callers — narrow before indexing.
-         */
-        project_ids?: number[] | string | null;
-    };
-    options: {
-        is_required: boolean;
-        /** Omitted on some configs (e.g. step-style fields) — not always present. */
-        default_value?: string | null;
-        /**
-         * Newline-delimited string on dropdown fields; some result-field
-         * configurations instead return an array of `{ name, machine_name }`.
-         */
-        items?: string | unknown[] | null;
-        format?: string | null;
-        rows?: string | null;
-        has_expected?: boolean | null;
-        has_actual?: boolean | null;
-        has_additional?: boolean | null;
-        has_reference?: boolean | null;
-    };
-}
+export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>;
 
-export interface ResultField {
-    id: number;
-    /** System-level name, e.g. "custom_defects" */
-    system_name: string;
-    /** Human-readable label */
-    label: string;
-    /** Short name used as the key in result payloads */
-    name: string;
-    /** Field type identifier (1=String, 2=Integer, 3=Text, 5=Checkbox, 6=Dropdown, …) */
-    type_id: number;
-    display_order: number;
-    /** One or more context/options configurations */
-    configs: ResultFieldConfig[];
-    is_active: boolean;
-    include_all: boolean;
-    template_ids: number[];
-    description?: string | null;
-    /** i18n translation key (string when set, null otherwise). */
-    i18n_custom_id?: string | null;
-}
+export type ResultField = KnownResponse<typeof ResultFieldSchema>;
 
 // ── Case Fields & Types ───────────────────────────────────────────────────────
 
-/** Context/options configuration block shared by CaseField entries */
-export interface CaseFieldConfig {
-    /** Config-level id (UUID / legacy hex token). */
-    id?: string | null;
-    context: {
-        is_global: boolean;
-        /**
-         * `number[]` for project-scoped fields; `""` or `null` for global ones
-         * (`is_global: true`), which includes every built-in system field. The
-         * 6.0.0 removal of the normalizing `.transform()` means the raw wire
-         * shape now reaches callers — narrow before indexing.
-         */
-        project_ids?: number[] | string | null;
-    };
-    options: {
-        is_required: boolean;
-        /** Omitted on some configs (e.g. step-style fields) — not always present. */
-        default_value?: string | null;
-        /**
-         * Newline-delimited string on dropdown fields; some field
-         * configurations instead return an array of `{ name, machine_name }`.
-         */
-        items?: string | unknown[] | null;
-        format?: string | null;
-        rows?: string | null;
-        has_expected?: boolean | null;
-        has_actual?: boolean | null;
-        has_additional?: boolean | null;
-        has_reference?: boolean | null;
-    };
-}
+/** Context/options configuration block shared by CaseField entries. */
+export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>;
 
-/** Custom case field definition returned by get_case_fields */
-export interface CaseField {
-    id: number;
-    /** System-level name, e.g. "custom_steps" */
-    system_name: string;
-    /** Human-readable label */
-    label: string;
-    /** Short name used as the key in case payloads */
-    name: string;
-    /** Field type identifier (1=String, 2=Integer, 3=Text, 5=Checkbox, 6=Dropdown, …) */
-    type_id: number;
-    display_order: number;
-    /** One or more context/options configurations */
-    configs: CaseFieldConfig[];
-    is_active: boolean;
-    include_all: boolean;
-    template_ids: number[];
-    description?: string | null;
-    /** Live-audit: i18n translation key (string when set, null otherwise). */
-    i18n_custom_id?: string | null;
-}
+/** Custom case field definition returned by get_case_fields. */
+export type CaseField = KnownResponse<typeof CaseFieldSchema>;
 
-/** Case type definition returned by get_case_types */
-export interface CaseType {
-    id: number;
-    name: string;
-    is_default: boolean;
-    /** Live-audit: i18n translation key (string when set, null otherwise). */
-    i18n_custom_id?: string | null;
-}
+/** Case type definition returned by get_case_types. */
+export type CaseType = KnownResponse<typeof CaseTypeSchema>;
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
-/** Case template returned by get_templates (requires TestRail 5.2+) */
-export interface Template {
-    id: number;
-    name: string;
-    is_default: boolean;
-    /** Live-audit: i18n translation key (string when set, null otherwise). */
-    i18n_custom_id?: string | null;
-}
+/** Case template returned by get_templates (requires TestRail 5.2+). */
+export type Template = KnownResponse<typeof TemplateSchema>;
 
 // ── Configurations ────────────────────────────────────────────────────────────
 
-/** An individual configuration (e.g. "Windows 10", "Chrome") within a group */
-export interface Configuration {
-    id: number;
-    name: string;
-    group_id: number;
-}
+/** An individual configuration (e.g. "Windows 10", "Chrome") within a group. */
+export type Configuration = KnownResponse<typeof ConfigurationSchema>;
 
-/** A configuration group (e.g. "Operating Systems", "Browsers") */
-export interface ConfigurationGroup {
-    id: number;
-    name: string;
-    project_id: number;
-    configs: Configuration[];
-}
+/** A configuration group (e.g. "Operating Systems", "Browsers"). */
+export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>;
 
 // AddConfigurationGroupPayload, UpdateConfigurationGroupPayload,
 // AddConfigurationPayload, and UpdateConfigurationPayload now live in
@@ -920,16 +539,7 @@ export interface GetMilestonesOptions {
 // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────────
 
 /** A user role returned by GET /get_roles (TestRail 7.3+) */
-export interface Role {
-    /** Unique role ID */
-    id: number;
-    /** Display name of the role */
-    name: string;
-    /** Whether this is the default role assigned to new users */
-    is_default: boolean;
-    /** Live-audit: per-role project-admin flag (omitted on older servers). */
-    is_project_admin?: boolean | null;
-}
+export type Role = KnownResponse<typeof RoleSchema>;
 
 // ── Groups (TASK-026, requires TestRail 7.5+) ─────────────────────────────────
 // `Group`, `AddGroupPayload`, and `UpdateGroupPayload` now live in
@@ -957,61 +567,7 @@ export interface Role {
  * Every field is optional/nullable so a single type covers the union; consume
  * the field appropriate for the endpoint you called.
  */
-export interface Attachment {
-    /** Upload-POST response: the ID of the attachment uploaded to TestRail. Absent on list responses. */
-    attachment_id?: number | null;
-    /** Primary key on list responses: integer pre-7.1, UUID string on cloud 7.1+. */
-    id?: number | string | null;
-    /** Original filename / display name. Absent on the upload-POST response. */
-    name?: string | null;
-    /** Filename returned by the API (when available). */
-    filename?: string | null;
-    /** File extension/type label (cloud 7.1+). */
-    filetype?: string | null;
-    /** File size in bytes. */
-    size?: number | null;
-    /** Unix timestamp when the attachment was created. */
-    created_on?: number | null;
-    /**
-     * Legacy / non-documented uploader ID. The documented field is `user_id`;
-     * `created_by` is retained for backward compatibility with existing callers.
-     */
-    created_by?: number | null;
-    /** ID of the user who uploaded the attachment (documented field). */
-    user_id?: number | null;
-    /** ID of the project the attachment was uploaded against. */
-    project_id?: number | null;
-    /** ID of the case the attachment belongs to. `null` for plan-level attachments. */
-    case_id?: number | null;
-    /** Test result ID the attachment belongs to (may be `null`). */
-    result_id?: number | null;
-    /**
-     * ID of the entity the attachment belongs to. Integer on older endpoints,
-     * string (e.g. `"3"`) on cloud TestRail 7.1+.
-     */
-    entity_id?: number | string | null;
-    /** Plan/run-list field: the attachment record's own ID (separate from the file ID). */
-    entity_attachments_id?: number | null;
-    /** Entity kind label on cloud 7.1+ (e.g. `"case"`). */
-    entity_type?: string | null;
-    /** Plan/run-list field: name of the icon used within the TestRail UI. */
-    icon_name?: string | null;
-    /** Cloud 7.1+ tenant ID. */
-    client_id?: number | null;
-    /**
-     * Cloud 7.1+ underlying data record reference. Live-audit: observed as an
-     * INTEGER on this instance, but a UUID string on others — accept both.
-     */
-    data_id?: number | string | null;
-    /** Live-audit: Cassandra file store UUID present on populated list entities. */
-    cassandra_file_id?: string | null;
-    /** Cloud 7.1+ legacy/migration ID (0 when none). */
-    legacy_id?: number | null;
-    /** Cloud 7.1+ flag for whether the attachment is renderable as an image. */
-    is_image?: boolean | null;
-    /** Cloud 7.1+ icon identifier string. */
-    icon?: string | null;
-}
+export type Attachment = KnownResponse<typeof AttachmentSchema>;
 
 // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────────
 // `SharedStep` + write payloads (`AddSharedStepPayload` / `UpdateSharedStepPayload`)
@@ -1042,28 +598,7 @@ export interface Attachment {
  * `null`. `is_shared` is not in the current doc field table; it
  * remains as a forward-compat placeholder.
  */
-export interface Report {
-    /** Unique report template ID */
-    id: number;
-    /** Display name of the report */
-    name: string;
-    /** Description of the report */
-    description?: string | null;
-    /** Indicates whether the author should be notified once the report has been executed */
-    notify_user?: boolean | null;
-    /** Indicates whether emails with links to the report should be sent */
-    notify_link?: boolean | null;
-    /** List of users to whom the report should be sent */
-    notify_link_recipients?: string | null;
-    /** Indicates whether the report should be emailed as an attachment */
-    notify_attachment?: boolean | null;
-    /** Indicates whether the attachment should be emailed in HTML format, if notify_attachment is true */
-    notify_attachment_html_format?: boolean | null;
-    /** Indicates whether the attachment should be emailed in PDF format, if notify_attachment is true */
-    notify_attachment_pdf_format?: boolean | null;
-    /** Whether the report is shared with other users (not in current doc; forward-compat) */
-    is_shared?: boolean | null;
-}
+export type Report = KnownResponse<typeof ReportSchema>;
 
 /**
  * Result returned by GET /run_report/{report_template_id}.
@@ -1073,13 +608,4 @@ export interface Report {
  * response fields per the current doc example; `user_report_url` is
  * not in the current doc but retained as a legacy-compat placeholder.
  */
-export interface ReportResult {
-    /** URL to the generated report view */
-    report_url: string;
-    /** URL to fetch the report HTML (TestRail 5.7+, may be omitted on older servers) */
-    report_html?: string | null;
-    /** URL to fetch the report PDF (TestRail 5.7+, may be omitted on older servers) */
-    report_pdf?: string | null;
-    /** URL to the generated report user interface (legacy field; not in current doc) */
-    user_report_url?: string | null;
-}
+export type ReportResult = KnownResponse<typeof ReportResultSchema>;

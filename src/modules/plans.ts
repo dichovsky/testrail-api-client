@@ -14,7 +14,15 @@ import {
 import { serializeIdList } from '../utils.js';
 import { validateId, validateEntryId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+
+export type GetAllPlansOptions = Omit<GetPlansOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
 
 export class PlanModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -27,6 +35,38 @@ export class PlanModule {
 
     /** @testrail GET get_plans/{project_id} */
     async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
+        return unwrapList<Plan>('plans', await this.requestPlans(projectId, options));
+    }
+
+    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    async getPlansPage(projectId: number, options?: GetPlansOptions): Promise<Page<Plan>> {
+        return decodePage<Plan>('plans', await this.requestPlans(projectId, options, { pageProjection: true }));
+    }
+
+    /** Get every plan under the configured pagination safety bounds. */
+    async getAllPlans(projectId: number, options?: GetAllPlansOptions): Promise<Plan[]> {
+        return collectAllPages<Plan>({
+            ...(options ?? {}),
+            fetchPage: async (request) => {
+                const pageOptions: GetPlansOptions = {
+                    ...(options ?? {}),
+                    limit: request.limit as number,
+                    offset: request.offset as number,
+                };
+                const raw = await this.requestPlans(projectId, pageOptions, {
+                    bypassCache: request.bypassCache,
+                    remainingTimeMs: request.remainingTimeMs,
+                });
+                return decodePage<Plan>('plans', raw);
+            },
+        });
+    }
+
+    private async requestPlans(
+        projectId: number,
+        options?: GetPlansOptions,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
         validateId(projectId, 'projectId');
         validatePaginationParams(options?.limit, options?.offset);
         const createdAfter = options?.createdAfter ?? options?.created_after;
@@ -50,12 +90,15 @@ export class PlanModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<Plan[] | { plans?: Plan[] }>({
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
-            schema: listOf('plans', PlanSchema),
+            schema: pageProjection ? pageOf('plans', PlanSchema) : listOf('plans', PlanSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
         });
-        return unwrapList<Plan>('plans', raw);
     }
 
     /** @testrail POST add_plan/{project_id} */

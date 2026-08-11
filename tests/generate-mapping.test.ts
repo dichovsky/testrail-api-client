@@ -3,12 +3,16 @@
  *
  * The pure helpers (schema validation, path normalization, tag parsing,
  * cell renderers, document assembly) are exercised here. The full integration
- * (script invocation + AST crawl + gates B/C/C2/D + filesystem write/check) is
+ * (script invocation + AST crawl + gates B/C/C2/D/E + filesystem write/check) is
  * exercised in CI by the `Run API mapping drift check` step
  * (`.github/workflows/ci.yml`), which runs `npm run mapping:check` and fails
  * the build if the committed `docs/API-MAPPING.md` is out of date.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { collectActionsFromSource } from '../scripts/action-metadata-parser.js';
 import {
     EndpointsArraySchema,
     EndpointSchema,
@@ -35,6 +39,12 @@ type RecipeMap = Map<string, Recipe>;
 
 type EndpointEntry = { method: string; path: string };
 
+const PAGINATION = {
+    response: 'envelope' as const,
+    requestControls: true,
+    collectionKey: 'cases',
+};
+
 describe('EndpointSchema', () => {
     const VALID = {
         resource: 'Cases',
@@ -50,6 +60,28 @@ describe('EndpointSchema', () => {
 
     it('accepts an optional docUrl when valid', () => {
         expect(() => EndpointSchema.parse({ ...VALID, docUrl: 'https://example.com/docs' })).not.toThrow();
+    });
+
+    it('accepts a complete pagination contract', () => {
+        expect(() => EndpointSchema.parse({ ...VALID, pagination: PAGINATION })).not.toThrow();
+    });
+
+    it('rejects incomplete or malformed pagination contracts', () => {
+        expect(() =>
+            EndpointSchema.parse({ ...VALID, pagination: { response: 'envelope', requestControls: true } }),
+        ).toThrow();
+        expect(() =>
+            EndpointSchema.parse({
+                ...VALID,
+                pagination: { ...PAGINATION, response: 'array' },
+            }),
+        ).toThrow();
+        expect(() =>
+            EndpointSchema.parse({
+                ...VALID,
+                pagination: { ...PAGINATION, collectionKey: 'case-items' },
+            }),
+        ).toThrow();
     });
 
     it('rejects non-GET-or-POST methods', () => {
@@ -73,6 +105,82 @@ describe('EndpointSchema', () => {
 
     it('rejects malformed docUrl', () => {
         expect(() => EndpointSchema.parse({ ...VALID, docUrl: 'not-a-url' })).toThrow();
+    });
+});
+
+describe('pagination registry', () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const inventory = EndpointsArraySchema.parse(
+        JSON.parse(readFileSync(join(root, 'docs', 'testrail-endpoints.json'), 'utf8')),
+    );
+    const paginated = inventory.filter((endpoint) => endpoint.pagination !== undefined);
+
+    it('pins the agreed 23 endpoints and 17/6 request-control split', () => {
+        expect(paginated).toHaveLength(23);
+        expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === true)).toHaveLength(17);
+        expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === false)).toHaveLength(6);
+        expect(paginated.filter((endpoint) => endpoint.pagination?.response === 'nested-envelope')).toEqual([
+            expect.objectContaining({ operation: 'get_history_for_case' }),
+        ]);
+    });
+
+    it('excludes users and the two attachment endpoints without a documented pagination contract', () => {
+        const operations = new Set(paginated.map((endpoint) => endpoint.operation));
+        expect(operations.has('get_users')).toBe(false);
+        expect(operations.has('get_attachments_for_test')).toBe(false);
+        expect(operations.has('get_attachments_for_plan_entry')).toBe(false);
+    });
+
+    it('matches source ActionSpec pagination metadata bidirectionally', () => {
+        const endpointByApi = new Map(
+            paginated.map((endpoint) => [`${endpoint.method} ${endpoint.path}`, endpoint.pagination]),
+        );
+        const metadataDir = join(root, 'src', 'cli', 'metadata');
+        const actionsWithPagination = readdirSync(metadataDir)
+            .filter((name) => name.endsWith('.ts') && name !== 'types.ts')
+            .flatMap((name) => {
+                const path = join(metadataDir, name);
+                return collectActionsFromSource(readFileSync(path, 'utf8'), path);
+            })
+            .filter((action) => action.pagination !== undefined);
+        expect(actionsWithPagination).toHaveLength(23);
+
+        for (const action of actionsWithPagination) {
+            expect(action.pagination, action.apiEndpoint).toEqual(endpointByApi.get(action.apiEndpoint));
+        }
+        for (const [apiEndpoint] of endpointByApi) {
+            expect(
+                actionsWithPagination.some((action) => action.apiEndpoint === apiEndpoint),
+                apiEndpoint,
+            ).toBe(true);
+        }
+    });
+
+    it('parses nested pagination object literals without executing action modules', () => {
+        const source = `
+            const sampleActions = [{
+                resource: 'case',
+                action: 'history',
+                apiEndpoint: 'GET get_history_for_case/{case_id}',
+                pagination: {
+                    response: 'nested-envelope',
+                    requestControls: true,
+                    collectionKey: 'history',
+                },
+            }];
+        `;
+        expect(collectActionsFromSource(source, 'sample.ts')).toEqual([
+            {
+                resource: 'case',
+                action: 'history',
+                apiEndpoint: 'GET get_history_for_case/{case_id}',
+                pagination: {
+                    response: 'nested-envelope',
+                    requestControls: true,
+                    collectionKey: 'history',
+                },
+            },
+        ]);
     });
 });
 
@@ -403,7 +511,7 @@ describe('aggregate renderers', () => {
     });
 });
 
-describe('validateGates — gates B, C, C2, D', () => {
+describe('validateGates — gates B, C, C2, D, E', () => {
     // Reusable, well-formed fixtures: one endpoint, one client call site, one
     // ActionSpec, one recipe — all bound. Tests perturb a single field to
     // exercise each gate in isolation.
@@ -650,6 +758,82 @@ describe('validateGates — gates B, C, C2, D', () => {
             // Strips rootPrefix from the file path, same as gate B.
             expect(gateD[0]).toContain('src/modules/runs.ts:10');
             expect(gateD[0]).toContain('no ActionSpec entry surfaces it on the CLI');
+        });
+    });
+
+    describe('gate E (pagination inventory ↔ ActionSpec)', () => {
+        const PAGINATED_ENDPOINT = { ...HAPPY_ENDPOINT, pagination: PAGINATION };
+        const PAGINATED_ACTION: ActionEntry = { ...HAPPY_ACTION, pagination: PAGINATION };
+
+        it('passes when both sides carry the same pagination contract', () => {
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [PAGINATED_ACTION],
+                endpoints: [PAGINATED_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+            });
+            expect(errors.filter((error) => error.includes('[gate E'))).toEqual([]);
+        });
+
+        it('flags endpoint pagination omitted from the matching ActionSpec', () => {
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [HAPPY_ACTION],
+                endpoints: [PAGINATED_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+            });
+            const gateE = errors.filter((error) => error.includes('[gate E'));
+            expect(gateE).toHaveLength(1);
+            expect(gateE[0]).toContain('endpoint→ACTIONS');
+            expect(gateE[0]).toContain('GET get_case/{case_id}');
+        });
+
+        it('flags any duplicate ActionSpec for a paginated endpoint that omits the contract', () => {
+            const alias: ActionEntry = {
+                resource: 'case',
+                action: 'list-alias',
+                apiEndpoint: HAPPY_ACTION.apiEndpoint,
+                skillRecipeExempt: true,
+            };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [PAGINATED_ACTION, alias],
+                endpoints: [PAGINATED_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+            });
+            const gateE = errors.filter((error) => error.includes('[gate E'));
+            expect(gateE).toHaveLength(1);
+            expect(gateE[0]).toContain('case:list-alias');
+        });
+
+        it('flags ActionSpec pagination omitted from the endpoint inventory', () => {
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [PAGINATED_ACTION],
+                endpoints: [HAPPY_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+            });
+            const gateE = errors.filter((error) => error.includes('[gate E'));
+            expect(gateE).toHaveLength(1);
+            expect(gateE[0]).toContain('ACTIONS→endpoint');
+            expect(gateE[0]).toContain('case:get');
+        });
+
+        it('reports metadata disagreement in both directions', () => {
+            const mismatched: ActionEntry = {
+                ...PAGINATED_ACTION,
+                pagination: { ...PAGINATION, collectionKey: 'wrong_cases' },
+            };
+            const errors = validateGates({
+                callSites: [HAPPY_CALL_SITE],
+                actions: [mismatched],
+                endpoints: [PAGINATED_ENDPOINT],
+                recipes: HAPPY_RECIPE,
+            });
+            const gateE = errors.filter((error) => error.includes('[gate E'));
+            expect(gateE).toHaveLength(2);
+            expect(gateE.some((error) => error.includes('endpoint→ACTIONS'))).toBe(true);
+            expect(gateE.some((error) => error.includes('ACTIONS→endpoint'))).toBe(true);
         });
     });
 });

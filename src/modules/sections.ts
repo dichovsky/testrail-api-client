@@ -4,7 +4,21 @@ import type { AddSectionPayload, MoveSectionPayload, SoftDeletePreview, UpdateSe
 import { SectionSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+
+export interface GetSectionsOptions {
+    suiteId?: number;
+    limit?: number;
+    offset?: number;
+}
+
+export type GetAllSectionsOptions = Omit<GetSectionsOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
 
 export class SectionModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -20,10 +34,42 @@ export class SectionModule {
     }
 
     /** @testrail GET get_sections/{project_id} */
-    async getSections(
+    async getSections(projectId: number, options?: GetSectionsOptions): Promise<Section[]> {
+        return unwrapList<Section>('sections', await this.requestSections(projectId, options));
+    }
+
+    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    async getSectionsPage(projectId: number, options?: GetSectionsOptions): Promise<Page<Section>> {
+        return decodePage<Section>(
+            'sections',
+            await this.requestSections(projectId, options, { pageProjection: true }),
+        );
+    }
+
+    /** Get every section under the configured pagination safety bounds. */
+    async getAllSections(projectId: number, options?: GetAllSectionsOptions): Promise<Section[]> {
+        return collectAllPages<Section>({
+            ...(options ?? {}),
+            fetchPage: async (request) => {
+                const pageOptions: GetSectionsOptions = {
+                    ...(options ?? {}),
+                    limit: request.limit as number,
+                    offset: request.offset as number,
+                };
+                const raw = await this.requestSections(projectId, pageOptions, {
+                    bypassCache: request.bypassCache,
+                    remainingTimeMs: request.remainingTimeMs,
+                });
+                return decodePage<Section>('sections', raw);
+            },
+        });
+    }
+
+    private async requestSections(
         projectId: number,
-        options?: { suiteId?: number; limit?: number; offset?: number },
-    ): Promise<Section[]> {
+        options?: GetSectionsOptions,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
         validateId(projectId, 'projectId');
         const { suiteId, limit, offset } = options ?? {};
         if (suiteId !== undefined) {
@@ -34,13 +80,16 @@ export class SectionModule {
         // Same 6.7+ envelope gate as `cases.getCases()` — `limit`/`offset` on
         // get_sections require TestRail 6.7 or later, and older servers return a
         // bare array. Accept both.
-        // SPEC #1.5 — `{ sections: null }` is a valid empty wrapper, hence `.nullish()`.
-        const raw = await this.client.request<Section[] | { sections?: Section[] }>({
+        // SPEC #1.5 — `{ sections: null }` is a valid empty wrapper.
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
-            schema: listOf('sections', SectionSchema),
+            schema: pageProjection ? pageOf('sections', SectionSchema) : listOf('sections', SectionSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
         });
-        return unwrapList('sections', raw);
     }
 
     /** @testrail POST add_section/{project_id} */

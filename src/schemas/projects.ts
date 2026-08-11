@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Project Schemas ───────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ export const ProjectSchema = zObject({
         .nullish(),
 });
 
-export type Project = z.infer<typeof ProjectSchema>;
+export type Project = KnownResponse<typeof ProjectSchema>;
 
 // ── Project write payloads ────────────────────────────────────────────────────
 

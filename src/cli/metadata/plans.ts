@@ -52,6 +52,7 @@ export const planActions: readonly ActionSpec[] = [
         summary: 'List plans in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_plans/{project_id}',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'plans' },
         isWrite: false,
         handler: handlePlanList,
     },

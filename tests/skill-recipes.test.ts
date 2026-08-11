@@ -53,7 +53,7 @@ describe('skill/SKILL.md — Results pipeline recipe', () => {
         // Pin the exact one-liner so renaming the flag or the command
         // surfaces as a diff. The 4242 / status-id sample is the canonical
         // happy-path example in the prose.
-        expect(section).toContain('testrail result list-for-test 4242 --limit 50 --status-id 1,5');
+        expect(section).toContain('testrail result list-for-test 4242 --all --page-size 50 --status-id 1,5');
     });
 
     it('matches the pinned snapshot for the per-case-in-run invocation example', () => {
@@ -65,7 +65,7 @@ describe('skill/SKILL.md — Results pipeline recipe', () => {
 
     it('matches the pinned snapshot for the whole-run fallback example', () => {
         const section = extractSection(md, 'Results pipeline');
-        expect(section).toContain('testrail result list --run-id 100 --limit 100 --offset 0');
+        expect(section).toContain('testrail result list --run-id 100 --all --page-size 100');
     });
 
     it('enumerates the 4-option decision tree', () => {
@@ -258,9 +258,9 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         // teaching.
         expect(section).toContain('testrail shared-step add 5 --data');
         expect(section).toContain('testrail case add "$SECTION_ID" --data');
-        expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --limit 50');
+        expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --all --max-items 25000');
         expect(section).toContain('testrail shared-step update "$SHARED_STEP_ID" --data');
-        expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --limit 1');
+        expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --page');
         expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --yes --dry-run');
         expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --yes');
     });
@@ -354,7 +354,7 @@ describe('skill/SKILL.md — Data-driven runs via Variables + Datasets recipe', 
         // A reorder would change the setup-then-teardown narrative.
         expect(section).toContain('testrail variable add 5');
         expect(section).toContain('testrail dataset add 5');
-        expect(section).toContain('testrail dataset list 5');
+        expect(section).toContain('testrail dataset list 5 --all');
         expect(section).toContain('testrail dataset get "$DATASET_ID"');
         expect(section).toContain('testrail dataset update "$DATASET_ID"');
         expect(section).toContain('testrail dataset delete "$DATASET_ID" --yes');

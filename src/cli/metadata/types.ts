@@ -13,6 +13,16 @@ export interface PathParam {
     description: string;
 }
 
+/** Pagination contract mirrored from the upstream endpoint inventory. */
+export interface PaginationSpec {
+    /** Standard object envelope, or the outer-array envelope used by case history. */
+    response: 'envelope' | 'nested-envelope';
+    /** Whether TestRail documents caller-controlled page parameters. */
+    requestControls: boolean;
+    /** Response property containing the endpoint's entities. */
+    collectionKey: string;
+}
+
 export interface ActionSpec {
     resource: string;
     action: string;
@@ -31,6 +41,8 @@ export interface ActionSpec {
      *  directions (no orphan ActionSpec referencing a non-existent endpoint,
      *  no missing endpoints when the JSON says the CLI covers it). */
     apiEndpoint: string;
+    /** Kept in lockstep with `docs/testrail-endpoints.json` by mapping gate E. */
+    pagination?: PaginationSpec;
     /** Zod schema for the request body. `undefined` for read actions, for
      *  no-body POSTs like `run close`, and for file-input write actions
      *  (which take `--file <path>` instead of a JSON body). */

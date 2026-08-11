@@ -272,7 +272,13 @@ describe('SPEC #A.1 — schema conventions lint (CLAUDE.md (Schema authoring con
             // previous `z\.[\w.]*\.(…)\(` form could never match: `[\w.]*`
             // cannot cross the `()` in `z.string().email()`, so the rule was
             // dead and the #236 regression it cites would have passed silently.
-            if (FORMAT_VALIDATOR.test(body)) {
+            // The one transport-level exception is the TestRail pagination
+            // protocol's hard page-size ceiling. It is not an entity-field
+            // format guess: Page decoding enforces the same published bound,
+            // and the response schema must reject it before cache insertion so
+            // an impossible envelope cannot poison strict Page reads.
+            const withoutPaginationProtocolBound = body.replace(/\.max\(MAX_PAGINATION_LIMIT\)/g, '');
+            if (FORMAT_VALIDATOR.test(withoutPaginationProtocolBound)) {
                 violations.push(`  - src/modules/${file} constrains a response field's format`);
             }
         }

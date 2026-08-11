@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Report Schemas ────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ export const ReportSchema = zObject({
     is_shared: z.boolean().nullish(),
 });
 
-export type Report = z.infer<typeof ReportSchema>;
+export type Report = KnownResponse<typeof ReportSchema>;
 
 /**
  * SPEC #2.1.16 — verified against the official TestRail "Reports and
@@ -50,4 +50,4 @@ export const ReportResultSchema = zObject({
     user_report_url: z.string().nullish(),
 });
 
-export type ReportResult = z.infer<typeof ReportResultSchema>;
+export type ReportResult = KnownResponse<typeof ReportResultSchema>;

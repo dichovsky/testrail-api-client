@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 import { LabelEmbeddedSchema } from './metadata.js';
 
 // ── Case Schema ───────────────────────────────────────────────────────────────
@@ -22,6 +22,11 @@ export const CaseSchema = zObject({
     suite_id: z.number(),
     display_order: z.number().nullish(),
     is_deleted: z.number().nullish(),
+    /**
+     * @deprecated TestRail response custom fields are emitted as flat
+     * `custom_*` properties. Retained for compatibility with older servers
+     * and proxies that still return a nested container.
+     */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // SPEC #2.1.3 — `labels` array uses the shared `LabelEmbeddedSchema` so the
     // same Label shape is enforced across `get_case` and `get_test` responses
@@ -37,13 +42,13 @@ export const CaseSchema = zObject({
     ai_automated_test: z.unknown().nullish(),
 });
 
-export type Case = z.infer<typeof CaseSchema>;
+export type Case = KnownResponse<typeof CaseSchema>;
 
 // ── History Schemas ───────────────────────────────────────────────────────────
 
 // Per-field delta inside a history entry's `changes[]`. All fields optional
 // because TestRail emits different subsets per change type.
-const HistoryChangeSchema = zObject({
+export const HistoryChangeSchema = zObject({
     field: z.string().nullish(),
     type_id: z.number().nullish(),
     old_text: z.string().nullish(),
@@ -92,7 +97,7 @@ export const HistoryEntrySchema = zObject({
     comments: z.array(z.unknown()).nullish(),
 });
 
-export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
+export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>;
 
 // ── Case write payloads ───────────────────────────────────────────────────────
 
@@ -194,7 +199,7 @@ export const SoftDeletePreviewSchema = zObject({
     affected_suites: z.number().nullish(),
 });
 
-export type SoftDeletePreview = z.infer<typeof SoftDeletePreviewSchema>;
+export type SoftDeletePreview = KnownResponse<typeof SoftDeletePreviewSchema>;
 
 // Identical shape to DeleteCasesPayloadSchema but intentionally a separate
 // schema — a future TestRail change to either endpoint (e.g. delete adds a

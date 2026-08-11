@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 import { RunSchema } from './runs.js';
 
 // ── Plan Entry & Plan Schemas ─────────────────────────────────────────────────
@@ -29,7 +29,7 @@ export const PlanEntrySchema = zObject({
     refs: z.string().nullish(),
 });
 
-export type PlanEntry = z.infer<typeof PlanEntrySchema>;
+export type PlanEntry = KnownResponse<typeof PlanEntrySchema>;
 
 export const PlanSchema = zObject({
     id: z.number(),
@@ -74,7 +74,7 @@ export const PlanSchema = zObject({
     refs: z.string().nullish(),
 });
 
-export type Plan = z.infer<typeof PlanSchema>;
+export type Plan = KnownResponse<typeof PlanSchema>;
 
 // ── Plan write payloads ───────────────────────────────────────────────────────
 // Plans nest entries, and entries nest runs. The run shape inside a plan entry

@@ -2,9 +2,22 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Suite, SoftDeleteOptions } from '../types.js';
 import { SuiteSchema, SoftDeletePreviewSchema } from '../schemas.js';
 import type { AddSuitePayload, SoftDeletePreview, UpdateSuitePayload } from '../schemas.js';
-import { validateId } from '../validation.js';
+import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+
+export interface GetSuitesOptions {
+    limit?: number;
+    offset?: number;
+}
+
+export type GetAllSuitesOptions = PaginatedRequestOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
 
 export class SuiteModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -25,25 +38,63 @@ export class SuiteModule {
     }
 
     /**
-     * Get all suites for a project.
+     * Get the suites from one TestRail response for a project.
      * @throws {TestRailValidationError} When projectId is invalid
      * @throws {TestRailApiError} When the API request fails
      * @testrail GET get_suites/{project_id}
      */
-    async getSuites(projectId: number): Promise<Suite[]> {
+    async getSuites(projectId: number, options?: GetSuitesOptions): Promise<Suite[]> {
+        return unwrapList<Suite>('suites', await this.requestSuites(projectId, options));
+    }
+
+    /** Get one response page, preserving TestRail's pagination metadata when present. */
+    async getSuitesPage(projectId: number, options?: GetSuitesOptions): Promise<Page<Suite>> {
+        return decodePage<Suite>('suites', await this.requestSuites(projectId, options, { pageProjection: true }));
+    }
+
+    /** Get every suite under the configured pagination safety bounds. */
+    async getAllSuites(projectId: number, options?: GetAllSuitesOptions): Promise<Suite[]> {
+        return collectAllPages<Suite>({
+            ...(options ?? {}),
+            fetchPage: async (request) => {
+                const pageOptions: GetSuitesOptions = {
+                    limit: request.limit as number,
+                    offset: request.offset as number,
+                };
+                const raw = await this.requestSuites(projectId, pageOptions, {
+                    bypassCache: request.bypassCache,
+                    remainingTimeMs: request.remainingTimeMs,
+                });
+                return decodePage<Suite>('suites', raw);
+            },
+        });
+    }
+
+    private async requestSuites(
+        projectId: number,
+        options?: GetSuitesOptions,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
         validateId(projectId, 'projectId');
+        validatePaginationParams(options?.limit, options?.offset);
         // `get_suites` is bimodal across TestRail versions: it returns a bare
         // array up to 9.3.0, and a paginated `{ offset, limit, size, _links,
         // suites: [...] }` wrapper from 9.3.1+ (documented breaking change).
-        // Accept both shapes so the client works regardless of server version —
-        // the bare array stays the common path; the wrapper is unwrapped via
-        // `.suites ?? []`. `z.object` strips the extra pagination keys.
-        const raw = await this.client.request<Suite[] | { suites?: Suite[] }>({
-            method: 'GET',
-            endpoint: `get_suites/${projectId}`,
-            schema: listOf('suites', SuiteSchema),
+        // Accept both shapes so the client works regardless of server version;
+        // keep envelope metadata for the explicit page and aggregate projections.
+        const endpoint = buildEndpoint(`get_suites/${projectId}`, {
+            limit: options?.limit,
+            offset: options?.offset,
         });
-        return unwrapList('suites', raw);
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
+            method: 'GET',
+            endpoint,
+            schema: pageProjection ? pageOf('suites', SuiteSchema) : listOf('suites', SuiteSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+        });
     }
 
     /**

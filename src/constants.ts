@@ -24,6 +24,14 @@ export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
  */
 export const MAX_PAGINATION_LIMIT = 250;
 
+/** Defaults and hard bounds for bounded multi-page aggregation. */
+export const DEFAULT_PAGE_SIZE = MAX_PAGINATION_LIMIT;
+export const DEFAULT_MAX_PAGES = 100;
+export const DEFAULT_MAX_ITEMS = 25_000;
+export const DEFAULT_MAX_PAGINATION_DURATION_MS = MAX_TIMEOUT_MS;
+export const DEFAULT_MAX_PAGINATION_BYTES = 100 * 1024 * 1024;
+export const MAX_PAGINATION_BYTES = 1024 * 1024 * 1024;
+
 /**
  * Per-response byte caps (SEC #12 — unbounded body OOM protection).
  *

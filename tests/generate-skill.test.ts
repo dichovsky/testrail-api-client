@@ -4,7 +4,8 @@
  * Focus is on the sentinel-replacement behavior (the part most likely to
  * drift) and a smoke check on the table renderer. The full integration
  * (script invocation + dist/ import) is exercised in CI by the
- * `skill:check` npm-script which runs `git diff --exit-code skill/SKILL.md`
+ * `skill:check` npm-script which checks both `skill/SKILL.md` and the generated
+ * `skill/reference/payload-schemas.yaml` reference
  * after regeneration.
  */
 import { describe, it, expect } from 'vitest';

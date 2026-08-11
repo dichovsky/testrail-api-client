@@ -1,6 +1,7 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Status, Priority, ResultField, CaseField, CaseType, Template, Role, CaseStatus } from '../types.js';
-import { validateId } from '../validation.js';
+import { validateId, validatePaginationParams } from '../validation.js';
+import { buildEndpoint } from '../url.js';
 import {
     StatusSchema,
     PrioritySchema,
@@ -14,7 +15,21 @@ import {
 } from '../schemas.js';
 import type { AddCaseFieldPayload, AddCaseFieldResponse } from '../schemas.js';
 import { z } from 'zod';
-import { listOf, unwrapList } from './list.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import type { Page, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+
+export type GetAllCaseStatusesOptions = PaginationSafetyOptions;
+export type GetAllRolesOptions = PaginationSafetyOptions;
+
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
+
+interface MetadataPaginationControls {
+    limit?: number;
+    offset?: number;
+}
 
 export class MetadataModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -30,10 +45,55 @@ export class MetadataModule {
 
     /** @testrail GET get_case_statuses */
     async getCaseStatuses(): Promise<CaseStatus[]> {
-        return this.client.request<CaseStatus[]>({
+        return unwrapList<CaseStatus>('case_statuses', await this.requestCaseStatuses());
+    }
+
+    /** Get one response page without sending undocumented request controls. */
+    async getCaseStatusesPage(): Promise<Page<CaseStatus>> {
+        return decodePage<CaseStatus>(
+            'case_statuses',
+            await this.requestCaseStatuses(undefined, { pageProjection: true }),
+        );
+    }
+
+    /** Get every case status under the configured pagination safety bounds. */
+    async getAllCaseStatuses(options?: GetAllCaseStatusesOptions): Promise<CaseStatus[]> {
+        return collectAllPages<CaseStatus>({
+            ...(options ?? {}),
+            requestControls: false,
+            fetchPage: (request) =>
+                this.requestCaseStatuses(
+                    {
+                        ...(request.limit === undefined ? {} : { limit: request.limit }),
+                        ...(request.offset === undefined ? {} : { offset: request.offset }),
+                    },
+                    {
+                        bypassCache: request.bypassCache,
+                        remainingTimeMs: request.remainingTimeMs,
+                    },
+                ).then((raw) => decodePage<CaseStatus>('case_statuses', raw)),
+        });
+    }
+
+    private async requestCaseStatuses(
+        pagination?: MetadataPaginationControls,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
+        validatePaginationParams(pagination?.limit, pagination?.offset);
+        const endpoint = buildEndpoint('get_case_statuses', {
+            limit: pagination?.limit,
+            offset: pagination?.offset,
+        });
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
-            endpoint: 'get_case_statuses',
-            schema: z.array(CaseStatusSchema),
+            endpoint,
+            schema: pageProjection
+                ? pageOf('case_statuses', CaseStatusSchema)
+                : listOf('case_statuses', CaseStatusSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
         });
     }
 
@@ -117,15 +177,54 @@ export class MetadataModule {
 
     /** @testrail GET get_roles */
     async getRoles(): Promise<Role[]> {
+        return unwrapList<Role>('roles', await this.requestRoles());
+    }
+
+    /** Get one response page without sending undocumented request controls. */
+    async getRolesPage(): Promise<Page<Role>> {
+        return decodePage<Role>('roles', await this.requestRoles(undefined, { pageProjection: true }));
+    }
+
+    /** Get every role under the configured pagination safety bounds. */
+    async getAllRoles(options?: GetAllRolesOptions): Promise<Role[]> {
+        return collectAllPages<Role>({
+            ...(options ?? {}),
+            requestControls: false,
+            fetchPage: (request) =>
+                this.requestRoles(
+                    {
+                        ...(request.limit === undefined ? {} : { limit: request.limit }),
+                        ...(request.offset === undefined ? {} : { offset: request.offset }),
+                    },
+                    {
+                        bypassCache: request.bypassCache,
+                        remainingTimeMs: request.remainingTimeMs,
+                    },
+                ).then((raw) => decodePage<Role>('roles', raw)),
+        });
+    }
+
+    private async requestRoles(
+        pagination?: MetadataPaginationControls,
+        controls?: PaginationFetchControls,
+    ): Promise<unknown> {
+        validatePaginationParams(pagination?.limit, pagination?.offset);
+        const endpoint = buildEndpoint('get_roles', {
+            limit: pagination?.limit,
+            offset: pagination?.offset,
+        });
         // `get_roles` (TestRail 7.3+) documents the `{ offset, limit, size, _links,
         // roles: [...] }` wrapper, but the docs are not a reliable guide to which
         // shape a given server sends — see the `listOf` docblock in `./list.js` for
         // the full rationale. Accept both; `unwrapList` normalizes.
-        const raw = await this.client.request<Role[] | { roles?: Role[] }>({
+        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
-            endpoint: 'get_roles',
-            schema: listOf('roles', RoleSchema),
+            endpoint,
+            schema: pageProjection ? pageOf('roles', RoleSchema) : listOf('roles', RoleSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
+            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
         });
-        return unwrapList<Role>('roles', raw);
     }
 }

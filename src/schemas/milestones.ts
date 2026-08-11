@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Milestone Schema ──────────────────────────────────────────────────────────
 
-export const MilestoneSchema = zObject({
+const MilestoneBaseSchema = zObject({
     id: z.number(),
     name: z.string(),
     description: z.string().nullish(),
@@ -16,8 +16,6 @@ export const MilestoneSchema = zObject({
     parent_id: z.number().nullish(),
     refs: z.string().nullish(),
     url: z.string(),
-    // Sub-milestones are typed as unknown[] to avoid a recursive schema definition.
-    milestones: z.array(z.unknown()).nullish(),
     // SPEC #2.1.9 — `is_started` response field. TestRail 5.3+ — older servers
     // omit the key entirely.
     //
@@ -32,7 +30,20 @@ export const MilestoneSchema = zObject({
     is_started: z.boolean().nullish(),
 });
 
-export type Milestone = z.infer<typeof MilestoneSchema>;
+type MilestoneBase = z.output<z.ZodObject<typeof MilestoneBaseSchema.shape>>;
+type MilestoneNode = MilestoneBase & { milestones?: MilestoneNode[] | null | undefined };
+
+// The lazy callback is evaluated only while parsing, after MilestoneSchema has
+// initialized. Its explicit recursive output keeps child milestones fully
+// typed without erasing the outer object's `.shape` API.
+const MilestoneNodeSchema: z.ZodType<MilestoneNode> = z.lazy(() => MilestoneSchema);
+
+export const MilestoneSchema = zObject({
+    ...MilestoneBaseSchema.shape,
+    milestones: z.array(MilestoneNodeSchema).nullish(),
+});
+
+export type Milestone = KnownResponse<typeof MilestoneSchema>;
 
 // ── Milestone write payloads ──────────────────────────────────────────────────
 

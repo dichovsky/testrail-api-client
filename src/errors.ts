@@ -1,4 +1,5 @@
 import { ZodError } from 'zod';
+import type { PaginationErrorReason } from './pagination.js';
 
 /**
  * Thrown when the TestRail API returns a non-2xx response or a network error occurs.
@@ -89,6 +90,24 @@ export class TestRailValidationError extends Error {
     ) {
         super(`TestRail Validation Error: ${message}`);
         this.name = 'TestRailValidationError';
+    }
+}
+
+/**
+ * Thrown when a bounded multi-page read cannot complete safely. HTTP and
+ * network failures remain {@link TestRailApiError}; this subtype represents
+ * client-side page structure, continuation, and aggregation-policy failures.
+ */
+export class TestRailPaginationError extends TestRailValidationError {
+    constructor(
+        public readonly reason: PaginationErrorReason,
+        message: string,
+        public readonly pagesFetched: number,
+        public readonly itemsFetched: number,
+        context: Readonly<Record<string, string | number | boolean | null>> = {},
+    ) {
+        super(message, { reason, pagesFetched, itemsFetched, ...context });
+        this.name = 'TestRailPaginationError';
     }
 }
 

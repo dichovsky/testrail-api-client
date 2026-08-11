@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Shared Steps Schema ───────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ export const SharedStepSchema = zObject({
     custom_steps_separated: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 
-export type SharedStep = z.infer<typeof SharedStepSchema>;
+export type SharedStep = KnownResponse<typeof SharedStepSchema>;
 
 // ── Shared-step write payloads (TestRail 7.0+) ────────────────────────────────
 // `custom_steps_separated` is intentionally typed as `z.array(z.record(z.string(), z.unknown()))`
@@ -102,4 +102,4 @@ export const StepHistoryEntrySchema = zObject({
     custom_steps_separated: z.array(z.record(z.string(), z.unknown())).nullish(),
 });
 
-export type StepHistoryEntry = z.infer<typeof StepHistoryEntrySchema>;
+export type StepHistoryEntry = KnownResponse<typeof StepHistoryEntrySchema>;

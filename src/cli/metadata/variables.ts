@@ -14,9 +14,10 @@ export const variableActions: readonly ActionSpec[] = [
     {
         resource: 'variable',
         action: 'list',
-        summary: 'List variables in a project',
+        summary: 'List variables in a project (pagination envelope)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_variables/{project_id}',
+        pagination: { response: 'envelope', requestControls: false, collectionKey: 'variables' },
         isWrite: false,
         handler: handleVariableList,
     },

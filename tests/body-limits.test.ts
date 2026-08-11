@@ -125,6 +125,113 @@ describe('readBodyWithLimits (SEC #12 / SEC #21)', () => {
         });
     });
 
+    it('enforces the absolute deadline when resolved stream reads starve the timer queue', async () => {
+        let nowMs = 1_000;
+        let reads = 0;
+        const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => nowMs);
+        const reader = {
+            read: vi.fn().mockImplementation(() => {
+                reads += 1;
+                nowMs += 1;
+                return Promise.resolve(
+                    reads < 100
+                        ? { done: false, value: new Uint8Array([reads % 256]) }
+                        : { done: true, value: undefined },
+                );
+            }),
+            cancel: vi.fn().mockResolvedValue(undefined),
+            releaseLock: vi.fn(),
+        };
+        const response = {
+            body: { getReader: () => reader },
+        } as unknown as Response;
+
+        try {
+            // Every read settles in the microtask queue, so the timer callback
+            // cannot run between chunks. The absolute check must reject at the
+            // exact inclusive boundary when the terminal read settles instead
+            // of accepting the completed 99-byte body.
+            await expect(readBodyWithLimits(response, { maxBytes: 1_000, deadlineMs: 100 })).rejects.toMatchObject({
+                status: 0,
+                statusText: 'Body read timeout',
+            });
+            expect(reader.read).toHaveBeenCalledTimes(100);
+            expect(reader.cancel).toHaveBeenCalledOnce();
+            expect(reader.releaseLock).toHaveBeenCalledOnce();
+        } finally {
+            nowSpy.mockRestore();
+        }
+    });
+
+    it('enforces the absolute deadline after a microtask-heavy fallback read resolves', async () => {
+        let nowMs = 5_000;
+        const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => nowMs);
+        const response = {
+            body: null,
+            arrayBuffer: () =>
+                Array.from({ length: 100 })
+                    .reduce<Promise<void>>(
+                        (chain) =>
+                            chain.then(() => {
+                                nowMs += 1;
+                            }),
+                        Promise.resolve(),
+                    )
+                    .then(() => new Uint8Array([1]).buffer),
+        } as unknown as Response;
+
+        try {
+            // The fallback settles at the exact deadline in microtasks, before
+            // a same-deadline timer gets a turn. Post-await validation must
+            // still reject it.
+            await expect(readBodyWithLimits(response, { maxBytes: 10, deadlineMs: 100 })).rejects.toMatchObject({
+                status: 0,
+                statusText: 'Body read timeout',
+            });
+        } finally {
+            nowSpy.mockRestore();
+        }
+    });
+
+    it.each([
+        {
+            name: 'arrayBuffer view/accounting',
+            response: {
+                body: null,
+                arrayBuffer: async () => new Uint8Array([1]).buffer,
+            },
+        },
+        {
+            name: 'text encoding/accounting',
+            response: {
+                body: null,
+                text: async () => 'a',
+            },
+        },
+    ])('keeps the fallback deadline active through $name', async ({ response }) => {
+        // Calls 1–3 cover deadline creation, timer arming, and the post-await
+        // check. Call 4 represents time consumed by the local conversion work;
+        // the read must not return success once that work reaches the inclusive
+        // deadline.
+        const nowSpy = vi
+            .spyOn(Date, 'now')
+            .mockReturnValueOnce(1_000)
+            .mockReturnValueOnce(1_000)
+            .mockReturnValueOnce(1_000)
+            .mockReturnValue(1_100);
+
+        try {
+            await expect(
+                readBodyWithLimits(response as unknown as Response, { maxBytes: 10, deadlineMs: 100 }),
+            ).rejects.toMatchObject({
+                status: 0,
+                statusText: 'Body read timeout',
+            });
+        } finally {
+            nowSpy.mockRestore();
+        }
+    });
+
     it('ignores the deadline when deadlineMs is 0 (cap-only mode)', async () => {
         // With deadlineMs=0 the timer is not armed; we still finish quickly
         // because the stream closes on its own.

@@ -3,15 +3,15 @@ import { parseId, parseEntryId, parseAttachmentId, optInt } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteBinary } from '../safe-write.js';
 import { emitStdoutAck } from '../output.js';
+import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 /**
  * Build the `{ limit?, offset? }` options object for the per-resource
  * attachment-list endpoints. Mirrors the `case list` / `run list` /
  * `result list` pagination convention. Both flags are optional; either one
- * can be set independently. Malformed input (negative, leading-zero, hex,
- * scientific notation) is silently dropped to `undefined` by `optInt` — the
- * client-side `validatePaginationParams` then catches non-positive `limit`
- * etc. and surfaces `TestRailValidationError` before any network call.
+ * can be set independently. In the backward-compatible default mode,
+ * malformed values are omitted by `optInt`; explicit `--page`/`--all` modes
+ * validate their numeric controls strictly before handler dispatch.
  */
 function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number } {
     const limit = optInt(ctx.args.limit);
@@ -24,12 +24,22 @@ function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: numb
 
 export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<void> {
     const caseId = parseId(ctx.args.pathParams[0], 'case_id');
-    ctx.out(await ctx.client.attachments.getAttachmentsForCase(caseId, paginationFromCtx(ctx)));
+    const pageOptions = paginationFromCtx(ctx);
+    await outputPaginated(ctx, {
+        items: () => ctx.client.attachments.getAttachmentsForCase(caseId, pageOptions),
+        page: () => ctx.client.attachments.getAttachmentsForCasePage(caseId, pageOptions),
+        all: () => ctx.client.attachments.getAllAttachmentsForCase(caseId, getPaginatedRequestOptions(ctx.args)),
+    });
 }
 
 export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run_id');
-    ctx.out(await ctx.client.attachments.getAttachmentsForRun(runId, paginationFromCtx(ctx)));
+    const pageOptions = paginationFromCtx(ctx);
+    await outputPaginated(ctx, {
+        items: () => ctx.client.attachments.getAttachmentsForRun(runId, pageOptions),
+        page: () => ctx.client.attachments.getAttachmentsForRunPage(runId, pageOptions),
+        all: () => ctx.client.attachments.getAllAttachmentsForRun(runId, getPaginatedRequestOptions(ctx.args)),
+    });
 }
 
 export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void> {
@@ -39,7 +49,16 @@ export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<
 
 export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void> {
     const planId = parseId(ctx.args.pathParams[0], 'plan_id');
-    ctx.out(await ctx.client.attachments.getAttachmentsForPlan(planId));
+    const pageOptions = paginationFromCtx(ctx);
+    const hasRequestControls = pageOptions.limit !== undefined || pageOptions.offset !== undefined;
+    await outputPaginated(ctx, {
+        items: () =>
+            hasRequestControls
+                ? ctx.client.attachments.getAttachmentsForPlan(planId, pageOptions)
+                : ctx.client.attachments.getAttachmentsForPlan(planId),
+        page: () => ctx.client.attachments.getAttachmentsForPlanPage(planId, pageOptions),
+        all: () => ctx.client.attachments.getAllAttachmentsForPlan(planId, getPaginatedRequestOptions(ctx.args)),
+    });
 }
 
 export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void> {

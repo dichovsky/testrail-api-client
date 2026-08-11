@@ -1,5 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, IdParseError } from '../ids.js';
+import { getPaginationSafetyOptions, outputPaginated } from '../pagination.js';
 
 /**
  * `group get <group_id>` — fetch a single user group by ID. Mirrors the
@@ -25,5 +26,9 @@ export async function handleGroupList(ctx: HandlerContext): Promise<void> {
             `group list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.users.getGroups());
+    await outputPaginated(ctx, {
+        items: () => ctx.client.users.getGroups(),
+        page: () => ctx.client.users.getGroupsPage(),
+        all: () => ctx.client.users.getAllGroups(getPaginationSafetyOptions(ctx.args)),
+    });
 }

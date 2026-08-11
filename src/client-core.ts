@@ -236,6 +236,7 @@ function registerProcessHandlers(): void {
 interface ResolvedTimeouts {
     readonly timeout: number;
     readonly bodyTimeout: number;
+    readonly deadlineAt?: number;
 }
 
 /**
@@ -889,24 +890,37 @@ export class TestRailClientCore {
         // "no deadline" value and is left as-is.
         if (spec.timeout !== undefined) validateTimeout(spec.timeout);
         if (spec.bodyTimeout !== undefined && spec.bodyTimeout !== 0) validateTimeout(spec.bodyTimeout);
+        if (spec.remainingTimeMs !== undefined) validateTimeout(spec.remainingTimeMs);
 
         // Resolve the effective timeouts once. A `withTimeout(ms)` view sets
         // `spec.timeout`/`spec.bodyTimeout`; a normal call leaves them undefined
         // and falls back to the client-wide values. Threaded into every pipeline
         // execution so the override reaches the abort timer and body-read deadline.
+        const configuredTimeout = spec.timeout ?? this.timeout;
+        const configuredBodyTimeout = spec.bodyTimeout ?? this.bodyTimeout;
+        const remainingTimeMs = spec.remainingTimeMs;
         const timeouts: ResolvedTimeouts = {
-            timeout: spec.timeout ?? this.timeout,
-            bodyTimeout: spec.bodyTimeout ?? this.bodyTimeout,
+            timeout: remainingTimeMs === undefined ? configuredTimeout : Math.min(configuredTimeout, remainingTimeMs),
+            bodyTimeout:
+                remainingTimeMs === undefined
+                    ? configuredBodyTimeout
+                    : configuredBodyTimeout === 0
+                      ? remainingTimeMs
+                      : Math.min(configuredBodyTimeout, remainingTimeMs),
+            ...(remainingTimeMs === undefined ? {} : { deadlineAt: Date.now() + remainingTimeMs }),
         };
 
         // Cache key namespace selection — preserves the prior split where the
         // raw `request<T>()` and the validated `requestParsed<T>()` lived in
-        // separate namespaces (`GET:` vs `PARSED:GET:`). Without that split a
-        // raw response could be returned unvalidated, or a Zod-transformed
-        // value could surface to a raw-bytes caller.
+        // separate namespaces (`GET:` vs `PARSED:GET:`), and adds `PAGE:` for
+        // explicit pagination projections with a stricter response schema.
+        // Without those splits a raw response could be returned unvalidated,
+        // a Zod-transformed value could surface to a raw-bytes caller, or a
+        // collection-only legacy wrapper could poison a Page<T> read.
         let cacheKey: string | undefined;
-        if (method === 'GET' && responseKind === 'json') {
-            cacheKey = schema !== undefined ? `PARSED:GET:${endpoint}` : `GET:${endpoint}`;
+        if (method === 'GET' && responseKind === 'json' && spec.bypassCache !== true) {
+            const variant = spec.cacheVariant === 'page' ? 'PAGE:' : '';
+            cacheKey = schema !== undefined ? `${variant}PARSED:GET:${endpoint}` : `${variant}GET:${endpoint}`;
         }
 
         // When a schema is supplied we replicate the historical `requestParsed`
@@ -1003,10 +1017,14 @@ export class TestRailClientCore {
             sendJsonContentType: body?.kind !== 'multipart',
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
+            ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
             retryPolicy: getRetryPolicy(retry),
             cache: { key: cacheKey, skipRead: false },
             parseSuccess: async (response: Response) => {
-                const responseText = await readBodyAsText(response, jsonLimits);
+                const responseText = await readBodyAsText(response, {
+                    ...jsonLimits,
+                    deadlineMs: this.clipBodyTimeout(timeouts.bodyTimeout, timeouts.deadlineAt),
+                });
                 if (!responseText) return {} as T;
                 try {
                     return JSON.parse(responseText) as T;
@@ -1060,9 +1078,14 @@ export class TestRailClientCore {
             sendJsonContentType: body?.kind !== 'multipart',
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
+            ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
             retryPolicy: getRetryPolicy(retry),
             cache: { key: undefined, skipRead: false },
-            parseSuccess: async (response: Response) => (await readBodyAsText(response, jsonLimits)) as T,
+            parseSuccess: async (response: Response) =>
+                (await readBodyAsText(response, {
+                    ...jsonLimits,
+                    deadlineMs: this.clipBodyTimeout(timeouts.bodyTimeout, timeouts.deadlineAt),
+                })) as T,
             ...this.cacheInvalidationHook(method, body),
         });
     }
@@ -1084,12 +1107,13 @@ export class TestRailClientCore {
             sendJsonContentType: false,
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
+            ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
             retryPolicy: getRetryPolicy(retry),
             cache: { key: undefined, skipRead: false },
             parseSuccess: async (response: Response) => {
                 const bytes = await readBodyWithLimits(response, {
                     maxBytes: this.maxBinaryResponseBytes,
-                    deadlineMs: timeouts.bodyTimeout,
+                    deadlineMs: this.clipBodyTimeout(timeouts.bodyTimeout, timeouts.deadlineAt),
                 });
                 const buf =
                     bytes.byteLength === bytes.buffer.byteLength
@@ -1217,6 +1241,57 @@ export class TestRailClientCore {
         };
     }
 
+    /** Remaining milliseconds before an aggregate request deadline. */
+    private remainingDeadlineMs(deadlineAt: number): number {
+        return Math.ceil(deadlineAt - Date.now());
+    }
+
+    /**
+     * Clips a body-read timeout to an aggregate deadline without increasing a
+     * stricter configured timeout. Called immediately before every body read,
+     * including retries, so time already spent on DNS/headers is deducted.
+     */
+    private clipBodyTimeout(bodyTimeout: number, deadlineAt?: number): number {
+        if (deadlineAt === undefined) return bodyTimeout;
+        const remaining = this.remainingDeadlineMs(deadlineAt);
+        if (remaining <= 0) {
+            throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
+        }
+        return bodyTimeout === 0 ? remaining : Math.min(bodyTimeout, remaining);
+    }
+
+    /** Bounds DNS, fetch, and retry-delay awaits by the same aggregate deadline. */
+    private withDeadline<T>(promise: Promise<T>, deadlineAt?: number, onTimeout?: () => void): Promise<T> {
+        if (deadlineAt === undefined) return promise;
+        const remaining = this.remainingDeadlineMs(deadlineAt);
+        if (remaining <= 0) {
+            // The caller has already created the losing operation. Attach a
+            // rejection handler before cancellation so an immediate abort
+            // cannot become an unhandled rejection.
+            void promise.catch(() => undefined);
+            onTimeout?.();
+            return Promise.reject(new TestRailApiError(408, 'Aggregate request deadline exceeded'));
+        }
+
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const deadline = new Promise<never>((_resolve, reject) => {
+            timeoutId = setTimeout(() => {
+                reject(new TestRailApiError(408, 'Aggregate request deadline exceeded'));
+                onTimeout?.();
+            }, remaining);
+        });
+        return Promise.race([promise, deadline]).finally(() => {
+            if (timeoutId !== undefined) clearTimeout(timeoutId);
+        });
+    }
+
+    /** Waits between retries without leaving the losing delay timer alive. */
+    private waitForRetryDelay(delayMs: number, deadlineAt?: number): Promise<void> {
+        if (deadlineAt === undefined) return sleep(delayMs);
+        const controller = new AbortController();
+        return this.withDeadline(sleep(delayMs, controller.signal), deadlineAt, () => controller.abort());
+    }
+
     /**
      * Shared HTTP pipeline: DNS validation, rate limiting, fetch, redirect guard,
      * error-body read, retry (via spec.retryPolicy), success parse, cache write.
@@ -1237,7 +1312,7 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        await this.awaitDnsValidation();
+        await this.withDeadline(this.awaitDnsValidation(), spec.deadlineAt);
 
         const { key: cacheKey, skipRead } = spec.cache;
 
@@ -1273,7 +1348,13 @@ export class TestRailClientCore {
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), spec.timeout);
+        const deadlineRemaining =
+            spec.deadlineAt === undefined ? spec.timeout : this.remainingDeadlineMs(spec.deadlineAt);
+        if (deadlineRemaining <= 0) {
+            throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
+        }
+        const effectiveTimeout = Math.min(spec.timeout, deadlineRemaining);
+        const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
         const retrySpec: PipelineSpec<TParsed> = { ...spec, cache: { key: cacheKey, skipRead: true } };
 
@@ -1298,7 +1379,11 @@ export class TestRailClientCore {
                 }
                 // kind === 'none': no body
 
-                const response: Response = await (this.fetchOverride ?? globalThis.fetch)(url, options);
+                const response: Response = await this.withDeadline(
+                    (this.fetchOverride ?? globalThis.fetch)(url, options),
+                    spec.deadlineAt,
+                    () => controller.abort(),
+                );
                 // Headers received — header timeout has done its job. The body
                 // read is bounded independently by readBodyWithLimits, so clearing
                 // here does not re-open the slowloris-on-body window (SEC #21).
@@ -1306,7 +1391,10 @@ export class TestRailClientCore {
 
                 this.assertNotRedirect(response);
 
-                const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: spec.bodyTimeout };
+                const jsonLimits = {
+                    maxBytes: this.maxJsonResponseBytes,
+                    deadlineMs: this.clipBodyTimeout(spec.bodyTimeout, spec.deadlineAt),
+                };
 
                 if (!response.ok) {
                     // Error bodies inherit the same cap so an attacker cannot OOM
@@ -1327,7 +1415,7 @@ export class TestRailClientCore {
                     if (spec.retryPolicy.isStatusRetryable(status, spec.method) && retryCount < this.maxRetries) {
                         const retryAfterMs = this.parseRetryAfterMs(response);
                         const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
-                        await sleep(delay);
+                        await this.waitForRetryDelay(delay, spec.deadlineAt);
                         return this.executePipeline<TParsed>(retrySpec, retryCount + 1, cacheGeneration);
                     }
 
@@ -1358,11 +1446,15 @@ export class TestRailClientCore {
                 if (error instanceof TestRailApiError) throw error;
 
                 if ((error as Error).name === 'AbortError') {
-                    throw new TestRailApiError(408, `Request timeout after ${spec.timeout}ms`);
+                    const aggregateExpired =
+                        spec.deadlineAt !== undefined && this.remainingDeadlineMs(spec.deadlineAt) <= 0;
+                    throw aggregateExpired
+                        ? new TestRailApiError(408, 'Aggregate request deadline exceeded')
+                        : new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
                 }
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
-                    await sleep(this.getRetryDelay(retryCount));
+                    await this.waitForRetryDelay(this.getRetryDelay(retryCount), spec.deadlineAt);
                     return this.executePipeline<TParsed>(retrySpec, retryCount + 1, cacheGeneration);
                 }
 

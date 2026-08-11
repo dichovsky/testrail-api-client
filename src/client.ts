@@ -19,7 +19,7 @@ import { DatasetModule } from './modules/datasets.js';
 import { ReportModule } from './modules/reports.js';
 import { LabelModule } from './modules/labels.js';
 
-export { TestRailApiError, TestRailLicenseError, TestRailValidationError } from './errors.js';
+export { TestRailApiError, TestRailLicenseError, TestRailPaginationError, TestRailValidationError } from './errors.js';
 
 /** Strips `readonly` so `withTimeout` can rebind the module fields on a view. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };

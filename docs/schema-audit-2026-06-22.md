@@ -57,15 +57,47 @@ Each row was proven by running the **shipped** schema against the **real** captu
 | `PlanEntrySchema`                                                                          | `dynamic_filters: z.unknown().nullish()`                                                     |
 | `FieldConfigOptionsSchema`                                                                 | `has_expected` / `has_actual` / `has_additional` / `has_reference` (`z.boolean().nullish()`) |
 
-## Deliberately NOT changed (over-fit / by-design)
+## Deliberately NOT changed in the original audit
 
-- **Pagination envelopes** (`offset`/`limit`/`size`/`_links`) on list endpoints are intentionally unwrapped-and-dropped — the method contracts return `Entity[]`. No change.
+- **Pagination envelopes** (`offset`/`limit`/`size`/`_links`) were originally unwrapped-and-dropped so existing method contracts remained `Entity[]`. This historical conclusion is superseded by the follow-up below; the existing methods still retain that contract.
 - **`missing_in_real`** fields (e.g. `ProjectSchema.users[].id/role_id` from a single thin sample, `custom_fields` records) — kept; absence on one instance is not evidence to remove.
-- **Flattened `custom_*` fields** on Case/Test/Result (e.g. `custom_ai_*`, `custom_steps_separated`) are dynamic per-instance and remain carried by `.passthrough()` rather than statically typed.
+- **Flattened `custom_*` fields** on Case/Test/Result (e.g. `custom_ai_*`, `custom_steps_separated`) remain dynamic per-instance and are not enumerated as static properties.
+
+## Follow-up — explicit pagination and type coverage (2026-08)
+
+The defect-report review separated backward compatibility from metadata access.
+For 23 audited endpoints, existing `get*()` methods still make one request and
+return `Entity[]`; new `get*Page()` methods preserve a normalized `Page<T>`, and
+new `getAll*()` methods collect every page under explicit bounds. The registry
+covers cases/history; projects, suites, sections, plans, runs, tests,
+milestones; all three result lists; labels; shared steps/history;
+case/run/plan attachments; datasets, variables, roles, groups, and case
+statuses. Test attachments, plan-entry attachments, users, and ordinary
+metadata/configuration/report lists are intentionally excluded.
+
+`_links.next` is authoritative, but the client never follows its host or path:
+it validates continuation controls and rebuilds the known endpoint with the
+original filters. Legacy bare arrays are terminal. Page reads use a separate
+strict-schema cache namespace; all-page walks bypass cache reads/writes/coalescing
+and never return partial results. Default bounds are
+250/page, offset 0, 100 pages, 25,000 items, 300,000 ms, and 100 MiB; hard
+ceilings are 250/page, 300,000 ms, and 1 GiB. Failures use
+`TestRailPaginationError` with a stable reason and progress counters.
+Shared-step history, datasets, variables, roles, groups, and case statuses are
+response-driven: page/all mode does not invent caller-controlled size/offset.
+
+Public response aliases now derive from declared schema keys, preventing
+`.passthrough()` from advertising a broad string index signature. Only `Case`,
+`Test`, and `Result` add template-literal `custom_*` bracket access, with values
+typed `unknown`; the nested `custom_fields` record remains deprecated. Stable
+coverage added in the same follow-up: `Test.refs_data`/`case_title`,
+`Result.case_title`/`case_refs`, `CaseField.is_indexed`/`is_system`,
+`ResultField.is_system`, writable `AddCaseFieldPayload.is_indexed`, and
+recursive milestone children.
 
 ## Verification
 
 - New regression suite `tests/live-audit-regression.test.ts` (16 tests) pins every fix using **sanitized** fixtures under `tests/fixtures/live-audit/` (strings deep-scrubbed to `redacted`; numbers/booleans/null/key-presence preserved exactly — no PII committed). Confirmed RED before the fixes, GREEN after.
 - Existing `getSharedStepHistory` tests (client + CLI) were corrected from the prior string-`id` assumption to the real numeric shape.
-- **Manual `src/types.ts` interfaces were synced to the widened schemas** — `getCaseFields`/`getResultFields`/`getUser`/`getAttachments*`/`getPlan` return these hand-written interfaces (not the Zod-inferred types), so the widening (`default_value` now optional, `data_id`/`mfa_required` unions, plus the new gap fields) was mirrored there to keep the public types honest (review follow-up).
+- **At the time of this audit, manual `src/types.ts` interfaces were synced to the widened schemas.** The 2026-08 follow-up replaced those mirrors with aliases derived from declared schema keys, removing that drift seam.
 - Full gate suite green: `typecheck`, `lint`, full `vitest` (3255 passing), `codemap:check`, `mapping:check`, `agents-md:check`, `schema-conventions`.

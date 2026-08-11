@@ -1,5 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { IdParseError } from '../ids.js';
+import { getPaginationSafetyOptions, outputPaginated } from '../pagination.js';
 
 /**
  * `case-status list` — list every case status defined on the TestRail
@@ -16,5 +17,9 @@ export async function handleCaseStatusList(ctx: HandlerContext): Promise<void> {
             `case-status list takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Run --help for usage.`,
         );
     }
-    ctx.out(await ctx.client.metadata.getCaseStatuses());
+    await outputPaginated(ctx, {
+        items: () => ctx.client.metadata.getCaseStatuses(),
+        page: () => ctx.client.metadata.getCaseStatusesPage(),
+        all: () => ctx.client.metadata.getAllCaseStatuses(getPaginationSafetyOptions(ctx.args)),
+    });
 }

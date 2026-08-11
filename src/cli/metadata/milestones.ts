@@ -27,6 +27,7 @@ export const milestoneActions: readonly ActionSpec[] = [
         summary: 'List milestones in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_milestones/{project_id}',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'milestones' },
         isWrite: false,
         handler: handleMilestoneList,
     },

@@ -5,7 +5,15 @@ import type { UpdateTestLabelsPayload, UpdateTestsLabelsPayload, UpdateTestsResp
 import { serializeIdList } from '../utils.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { listOf, unwrapList } from './list.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { collectAllPages, decodePage } from '../pagination.js';
+import { listOf, pageOf, unwrapList } from './list.js';
+
+export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
+
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
 
 export class TestModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -22,6 +30,45 @@ export class TestModule {
 
     /** @testrail GET get_tests/{run_id} */
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
+        return unwrapList<Test>('tests', await this.requestTestsPage(runId, options));
+    }
+
+    /** Fetch one normalized tests page while preserving TestRail pagination metadata. */
+    async getTestsPage(runId: number, options?: GetTestsOptions): Promise<Page<Test>> {
+        return decodePage<Test>('tests', await this.requestTestsPage(runId, options, { pageProjection: true }));
+    }
+
+    /** Fetch every tests page under explicit aggregate safety bounds. */
+    async getAllTests(runId: number, options?: GetAllTestsOptions): Promise<Test[]> {
+        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...filters } = options ?? {};
+        return collectAllPages({
+            ...(pageSize !== undefined && { pageSize }),
+            ...(startOffset !== undefined && { startOffset }),
+            ...(maxPages !== undefined && { maxPages }),
+            ...(maxItems !== undefined && { maxItems }),
+            ...(maxDurationMs !== undefined && { maxDurationMs }),
+            ...(maxBytes !== undefined && { maxBytes }),
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+                decodePage<Test>(
+                    'tests',
+                    await this.requestTestsPage(
+                        runId,
+                        {
+                            ...filters,
+                            ...(limit !== undefined && { limit }),
+                            ...(offset !== undefined && { offset }),
+                        },
+                        { bypassCache, remainingTimeMs },
+                    ),
+                ),
+        });
+    }
+
+    private async requestTestsPage(
+        runId: number,
+        options?: GetTestsOptions,
+        transport?: PageTransportOptions,
+    ): Promise<unknown> {
         validateId(runId, 'runId');
         validatePaginationParams(options?.limit, options?.offset);
         const statusId = options?.statusId ?? options?.status_id;
@@ -33,12 +80,15 @@ export class TestModule {
             limit: options?.limit,
             offset: options?.offset,
         });
-        const raw = await this.client.request<Test[] | { tests?: Test[] }>({
+        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
-            schema: listOf('tests', TestSchema),
+            schema: pageProjection ? pageOf('tests', TestSchema) : listOf('tests', TestSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
+            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
         });
-        return unwrapList<Test>('tests', raw);
     }
 
     /**

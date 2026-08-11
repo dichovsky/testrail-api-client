@@ -30,6 +30,7 @@ export const testActions: readonly ActionSpec[] = [
         summary: 'List tests in a run (optionally filtered by status, paginated)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_tests/{run_id}',
+        pagination: { response: 'envelope', requestControls: true, collectionKey: 'tests' },
         isWrite: false,
         handler: handleTestList,
     },

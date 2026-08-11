@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Identity & User Schemas ───────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ export const UserSchema = zObject({
     assigned_projects: z.array(z.number()).nullish(),
 });
 
-export type User = z.infer<typeof UserSchema>;
+export type User = KnownResponse<typeof UserSchema>;
 
 export const RoleSchema = zObject({
     id: z.number(),
@@ -48,7 +48,7 @@ export const RoleSchema = zObject({
     is_project_admin: z.boolean().nullish(),
 });
 
-export type Role = z.infer<typeof RoleSchema>;
+export type Role = KnownResponse<typeof RoleSchema>;
 
 export const GroupSchema = zObject({
     id: z.number(),
@@ -56,7 +56,7 @@ export const GroupSchema = zObject({
     user_ids: z.array(z.number()).nullish(),
 });
 
-export type Group = z.infer<typeof GroupSchema>;
+export type Group = KnownResponse<typeof GroupSchema>;
 
 /**
  * Group write-payload schemas (TestRail 7.5+). Mirror the

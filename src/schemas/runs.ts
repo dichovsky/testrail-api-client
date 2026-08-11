@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Run Schema ────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export const RunSchema = zObject({
     dynamic_filters: z.unknown().nullish(),
 });
 
-export type Run = z.infer<typeof RunSchema>;
+export type Run = KnownResponse<typeof RunSchema>;
 
 // ── Run write payloads ────────────────────────────────────────────────────────
 

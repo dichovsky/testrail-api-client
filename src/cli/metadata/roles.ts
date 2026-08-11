@@ -9,9 +9,10 @@ export const roleActions: readonly ActionSpec[] = [
     {
         resource: 'role',
         action: 'list',
-        summary: 'List all user roles defined on the TestRail instance',
+        summary: 'List all user roles defined on the TestRail instance (pagination envelope)',
         pathParams: [],
         apiEndpoint: 'GET get_roles',
+        pagination: { response: 'envelope', requestControls: false, collectionKey: 'roles' },
         isWrite: false,
         handler: handleRoleList,
     },

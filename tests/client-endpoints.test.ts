@@ -204,11 +204,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockProjects);
         });
 
-        it('should handle empty projects list', async () => {
+        it('should reject a response missing the projects collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.projects.getProjects();
-            expect(result).toEqual([]);
+            await expect(client.projects.getProjects()).rejects.toThrow(TestRailValidationError);
         });
 
         it('should treat null projects list as empty', async () => {
@@ -574,11 +573,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockSections);
         });
 
-        it('should handle empty sections list', async () => {
+        it('should reject a response missing the sections collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.sections.getSections(1);
-            expect(result).toEqual([]);
+            await expect(client.sections.getSections(1)).rejects.toThrow(TestRailValidationError);
         });
 
         describe('moveSection', () => {
@@ -702,11 +700,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockCases);
         });
 
-        it('should handle empty cases list', async () => {
+        it('should reject a response missing the cases collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.cases.getCases(1);
-            expect(result).toEqual([]);
+            await expect(client.cases.getCases(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should treat null cases list as empty', async () => {
@@ -868,10 +865,9 @@ describe('TestRailClient', () => {
             expect(url).toContain('offset=100');
         });
 
-        it('should return empty array when history envelope is missing', async () => {
+        it('should reject a response missing the history collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            const result = await client.cases.getHistoryForCase(42);
-            expect(result).toEqual([]);
+            await expect(client.cases.getHistoryForCase(42)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should reject invalid caseId in getHistoryForCase', async () => {
@@ -1684,11 +1680,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockPlans);
         });
 
-        it('should handle empty plans list', async () => {
+        it('should reject a response missing the plans collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.plans.getPlans(1);
-            expect(result).toEqual([]);
+            await expect(client.plans.getPlans(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should get plans with limit and offset', async () => {
@@ -2660,11 +2655,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockRuns);
         });
 
-        it('should handle empty runs list', async () => {
+        it('should reject a response missing the runs collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.runs.getRuns(1);
-            expect(result).toEqual([]);
+            await expect(client.runs.getRuns(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should pass isCompleted=true filter', async () => {
@@ -3148,11 +3142,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockTests);
         });
 
-        it('should handle empty tests list', async () => {
+        it('should reject a response missing the tests collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.tests.getTests(1);
-            expect(result).toEqual([]);
+            await expect(client.tests.getTests(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should get tests filtered by status_id', async () => {
@@ -3516,9 +3509,11 @@ describe('TestRailClient', () => {
                 expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_labels/1'), expect.anything());
             });
 
-            it('returns [] when labels key is omitted or null', async () => {
+            it('rejects an envelope with an omitted labels key and accepts explicit null as empty', async () => {
                 mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {} }));
-                expect(await client.labels.getLabels(1)).toEqual([]);
+                await expect(client.labels.getLabels(1)).rejects.toThrow(
+                    'List response field "labels" must be an array or null',
+                );
                 mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, labels: null }));
                 expect(await client.labels.getLabels(1)).toEqual([]);
             });
@@ -3576,11 +3571,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockResults);
         });
 
-        it('should handle empty results list', async () => {
+        it('should reject a response missing the results collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.results.getResults(1);
-            expect(result).toEqual([]);
+            await expect(client.results.getResults(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should treat null results list as empty', async () => {
@@ -3605,11 +3599,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockResults);
         });
 
-        it('should handle empty results for case', async () => {
+        it('should reject a results-for-case response missing the collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.results.getResultsForCase(1, 1);
-            expect(result).toEqual([]);
+            await expect(client.results.getResultsForCase(1, 1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should get results for a run', async () => {
@@ -3627,11 +3620,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockResults);
         });
 
-        it('should handle empty results for run', async () => {
+        it('should reject a results-for-run response missing the collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.results.getResultsForRun(1);
-            expect(result).toEqual([]);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should get results filtered by created_after and created_before', async () => {
@@ -4041,11 +4033,10 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockMilestones);
         });
 
-        it('should handle empty milestones list', async () => {
+        it('should reject a response missing the milestones collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
 
-            const result = await client.milestones.getMilestones(1);
-            expect(result).toEqual([]);
+            await expect(client.milestones.getMilestones(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should get milestones filtered by is_completed', async () => {
@@ -4343,10 +4334,9 @@ describe('TestRailClient', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_users'), expect.anything());
         });
 
-        it('should handle empty users list', async () => {
+        it('should reject a response missing the users collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            const result = await client.users.getUsers();
-            expect(result).toEqual([]);
+            await expect(client.users.getUsers()).rejects.toThrow(TestRailValidationError);
         });
 
         it('should treat null users list as empty', async () => {
@@ -5281,17 +5271,15 @@ describe('TestRailClient', () => {
             expect(await client.metadata.getRoles()).toEqual([]);
         });
 
-        it('should return [] when the roles key is omitted (pagination keys present)', async () => {
-            // Represents a wrapper whose `roles` key is absent rather than `[]`
-            // — the pagination envelope is still present, exercising the
-            // `undefined ?? []` branch on a realistic server shape.
+        it('should reject a pagination envelope whose roles key is omitted', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
-            expect(await client.metadata.getRoles()).toEqual([]);
+            await expect(client.metadata.getRoles()).rejects.toThrow(
+                'List response field "roles" must be an array or null',
+            );
         });
 
-        it('should return [] when roles is explicitly null (.nullish() contract)', async () => {
-            // `.nullish()` accepts `null` as well as omitted; `null ?? []` → [].
-            // Mirrors the getUsers/getGroups paginated-wrapper behavior.
+        it('should return [] when roles is explicitly null (nullable collection contract)', async () => {
+            // Explicit null is the only empty envelope alternative to `roles: []`.
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, roles: null }));
             expect(await client.metadata.getRoles()).toEqual([]);
         });
@@ -5332,10 +5320,16 @@ describe('TestRailClient', () => {
             expect(result).toEqual(groups);
         });
 
-        it('should handle empty groups list', async () => {
+        it('should reject a response whose groups key is omitted', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            const result = await client.users.getGroups();
-            expect(result).toEqual([]);
+            await expect(client.users.getGroups()).rejects.toThrow(
+                'List response field "groups" must be an array or null',
+            );
+        });
+
+        it('should treat an explicit null groups collection as empty', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ groups: null }));
+            await expect(client.users.getGroups()).resolves.toEqual([]);
         });
     });
 
@@ -5403,9 +5397,9 @@ describe('TestRailClient', () => {
             expect(await client.attachments.getAttachmentsForCase(1)).toEqual([]);
         });
 
-        it('should return empty array when response has no attachments key', async () => {
+        it('should reject a response missing the attachments collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            expect(await client.attachments.getAttachmentsForCase(1)).toEqual([]);
+            await expect(client.attachments.getAttachmentsForCase(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw for invalid caseId', async () => {
@@ -5445,9 +5439,9 @@ describe('TestRailClient', () => {
             expect(result).toEqual(attachments);
         });
 
-        it('should return empty array when response has no attachments key', async () => {
+        it('should reject a response missing the attachments collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            expect(await client.attachments.getAttachmentsForRun(1)).toEqual([]);
+            await expect(client.attachments.getAttachmentsForRun(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw for invalid runId', async () => {
@@ -5473,9 +5467,9 @@ describe('TestRailClient', () => {
             expect(result).toEqual(attachments);
         });
 
-        it('should return empty array when response has no attachments key', async () => {
+        it('should reject a response missing the attachments collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            expect(await client.attachments.getAttachmentsForTest(5)).toEqual([]);
+            await expect(client.attachments.getAttachmentsForTest(5)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw for invalid testId', async () => {
@@ -5501,9 +5495,9 @@ describe('TestRailClient', () => {
             expect(result).toEqual(attachments);
         });
 
-        it('should return empty array when response has no attachments key', async () => {
+        it('should reject a response missing the attachments collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            expect(await client.attachments.getAttachmentsForPlan(1)).toEqual([]);
+            await expect(client.attachments.getAttachmentsForPlan(1)).rejects.toThrow(TestRailValidationError);
         });
 
         it('should throw for invalid planId', async () => {
@@ -5528,9 +5522,11 @@ describe('TestRailClient', () => {
             );
         });
 
-        it('should return empty array when response has no attachments key', async () => {
+        it('should reject a response missing the attachments collection', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            expect(await client.attachments.getAttachmentsForPlanEntry(1, ENTRY_ID)).toEqual([]);
+            await expect(client.attachments.getAttachmentsForPlanEntry(1, ENTRY_ID)).rejects.toThrow(
+                TestRailValidationError,
+            );
         });
 
         it('should throw for invalid planId', async () => {
@@ -5942,10 +5938,11 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
-        it('SPEC #1.6 — returns [] when shared_steps key is missing from the envelope', async () => {
+        it('SPEC #1.6 — rejects an envelope whose shared_steps key is missing', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            const result = await client.sharedSteps.getSharedSteps(1);
-            expect(result).toEqual([]);
+            await expect(client.sharedSteps.getSharedSteps(1)).rejects.toThrow(
+                'List response field "shared_steps" must be an array or null',
+            );
         });
 
         it('should throw for invalid projectId', async () => {
@@ -6168,10 +6165,11 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
-        it('SPEC #1.7 — returns [] when step_history key is missing', async () => {
+        it('SPEC #1.7 — rejects an envelope whose step_history key is missing', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({}));
-            const result = await client.sharedSteps.getSharedStepHistory(42);
-            expect(result).toEqual([]);
+            await expect(client.sharedSteps.getSharedStepHistory(42)).rejects.toThrow(
+                'List response field "step_history" must be an array or null',
+            );
         });
 
         it('should reject invalid sharedStepId', async () => {
@@ -6211,12 +6209,14 @@ describe('TestRailClient', () => {
             expect(await client.variables.getVariables(1)).toEqual([]);
         });
 
-        it('should return [] when the variables key is omitted (pagination keys present)', async () => {
+        it('should reject a pagination envelope whose variables key is omitted', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
-            expect(await client.variables.getVariables(1)).toEqual([]);
+            await expect(client.variables.getVariables(1)).rejects.toThrow(
+                'List response field "variables" must be an array or null',
+            );
         });
 
-        it('should return [] when variables is explicitly null (.nullish() contract)', async () => {
+        it('should return [] when variables is explicitly null (nullable collection contract)', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, variables: null }));
             expect(await client.variables.getVariables(1)).toEqual([]);
         });
@@ -6328,12 +6328,14 @@ describe('TestRailClient', () => {
             expect(await client.datasets.getDatasets(1)).toEqual([]);
         });
 
-        it('should return [] when the datasets key is omitted (pagination keys present)', async () => {
+        it('should reject a pagination envelope whose datasets key is omitted', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: { next: null } }));
-            expect(await client.datasets.getDatasets(1)).toEqual([]);
+            await expect(client.datasets.getDatasets(1)).rejects.toThrow(
+                'List response field "datasets" must be an array or null',
+            );
         });
 
-        it('should return [] when datasets is explicitly null (.nullish() contract)', async () => {
+        it('should return [] when datasets is explicitly null (nullable collection contract)', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 0, _links: {}, datasets: null }));
             expect(await client.datasets.getDatasets(1)).toEqual([]);
         });

@@ -63,6 +63,8 @@ export interface PipelineSpec<TParsed> {
      * response-body read (success and error paths).
      */
     readonly bodyTimeout: number;
+    /** Absolute wall-clock deadline shared by every retry in this execution. */
+    readonly deadlineAt?: number;
     /**
      * When `true`, the pipeline adds `Content-Type: application/json` to
      * outbound headers. Set `false` for binary GETs and multipart POSTs where
@@ -117,8 +119,9 @@ export interface RequestSpec<T> {
     /**
      * Zod schema for validating the response. When set on a GET, the parsed
      * value is cached under `PARSED:GET:{endpoint}` only after validation
-     * succeeds (schema-invalid responses are never cached). When omitted on
-     * a GET, the raw body is cached under `GET:{endpoint}`.
+     * succeeds (schema-invalid responses are never cached). A `page` cache
+     * variant uses `PAGE:PARSED:GET:{endpoint}`. When omitted on a GET, the
+     * raw body is cached under `GET:{endpoint}`.
      *
      * Typed as untyped `ZodType` (no `<T>` generic) deliberately — Zod 4 +
      * TypeScript `exactOptionalPropertyTypes` make `ZodType<T>` invariant in
@@ -134,6 +137,24 @@ export interface RequestSpec<T> {
     readonly responseKind?: 'json' | 'text' | 'binary';
     /** Default `'full'`. Use `'binaryGet'` for binary downloads, `'none'` for uploads. */
     readonly retry?: RetryPolicyName;
+    /**
+     * @internal Disable cache reads, writes, and pending-request coalescing.
+     * Multi-page aggregation uses this to avoid combining differently aged
+     * cached pages and evicting unrelated entries.
+     */
+    readonly bypassCache?: boolean;
+    /**
+     * @internal Optional validated-cache namespace. Explicit pagination Page
+     * reads use `page` so their stricter envelope schema cannot share cached
+     * collection-only wrappers with legacy one-response list methods.
+     */
+    readonly cacheVariant?: 'page';
+    /**
+     * @internal Remaining aggregate wall-clock budget. It clips both request
+     * phases without increasing a stricter client/view timeout and is shared
+     * by retries as one absolute deadline.
+     */
+    readonly remainingTimeMs?: number;
     /**
      * @internal Per-request override for the connect/send/response-headers
      * timeout, in milliseconds. Set by {@link TestRailClient.withTimeout}

@@ -76,6 +76,7 @@ Prefer `TESTRAIL_API_KEY`. If an environment variable is not an option, pipe the
 | Capability         | What it does                                                                         | Documented in                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Response caching   | GET-only in-process LRU cache with TTL; any write invalidates it                     | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-lru-cache)                             |
+| Bounded pagination | Preserve page metadata or collect every page with explicit safety limits             | [Pagination](#pagination)                                                                                                                             |
 | Rate limiting      | Sliding-window limiter (default 100 req/60s); rejects over-limit before fetch        | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
 | Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, writes only 429 | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
 | SSRF guard         | Per-request DNS pin, private-host blocking, manual-redirect rejection                | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
@@ -136,11 +137,60 @@ const client = new TestRailClient({
 
 Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
 
+## Pagination
+
+The 23 endpoints in the pagination registry expose three projections. Existing
+methods keep their backward-compatible behavior: `get*()` performs one request
+and returns that response's item array. `get*Page()` performs one request and
+returns a discriminated `Page<T>` with the server's `offset`, `limit`, `size`,
+and `_links` when an envelope was returned. `getAll*()` follows every response
+continuation and returns one concatenated array:
+
+```typescript
+const firstResponse = await client.runs.getRuns(5); // Run[]; one response
+const page = await client.runs.getRunsPage(5, { limit: 25, offset: 50 }); // Page<Run>
+const all = await client.runs.getAllRuns(5, { pageSize: 100, maxItems: 10_000 }); // Run[]
+```
+
+An envelope's `_links.next` decides whether another request is required. The
+client extracts only a validated `offset` and optional `limit`, then rebuilds
+the known TestRail endpoint with the original filters; it never follows the
+link's host or path. A legacy bare-array response is necessarily one terminal
+page. All-page reads bypass GET cache reads, writes, and request coalescing so
+one aggregate cannot combine pages captured at different times. A page read
+uses normal GET caching in a separate validated namespace, so a permissive
+legacy one-response wrapper cannot poison the stricter `Page<T>` projection.
+
+Aggregation is fail-closed and never returns partial results. Defaults are a
+page size of 250, start offset 0, 100 pages, 25,000 items, five minutes, and
+100 MiB of UTF-8 serialized items. Page size is capped at 250, duration at five
+minutes, and the byte bound at 1 GiB. A safety, continuation, or page-structure
+failure throws `TestRailPaginationError` with `reason`, `pagesFetched`, and
+`itemsFetched`. Reasons are `max_pages`, `max_items`, `max_duration`,
+`max_bytes`, `invalid_page`, `invalid_continuation`, and `non_progress`.
+
+Registry scope is deliberately finite: cases and case history; projects,
+suites, sections, plans, runs, tests, and milestones; the three result lists;
+labels; shared-step lists and history; case/run/plan attachment lists; datasets,
+variables, roles, groups, and case statuses. Shared-step history, datasets,
+variables, roles, groups, and case statuses expose response-driven pagination
+but no caller-controlled page size or start offset. Test attachments,
+plan-entry attachments, users, and ordinary metadata/configuration/report
+lists remain one-response-only; some legacy methods may still accept
+`limit`/`offset`, but that is not a `get*Page()`/`getAll*()` guarantee.
+
+The CLI mirrors the projections. Its default output remains an item array;
+`--page` emits the normalized page object, and `--all` emits the complete
+array. `--all` uses `--page-size`, `--start-offset`, `--max-pages`,
+`--max-items`, `--max-duration-ms`, and `--max-bytes`. It cannot be combined
+with `--page`, `--limit`, or `--offset`; aggregate controls require `--all`.
+Response-driven endpoints reject caller-controlled size/offset flags.
+
 ## Response types are a description, not a guarantee
 
-Since 6.0.0, **response validation is advisory**. When a TestRail response does not match its Zod schema, the client normally returns the raw body unchanged and notifies `onSchemaMismatch` — it does not throw.
+Since 6.0.0, **Zod response validation is advisory**. When entity fields do not match their schema, the client normally returns the raw body unchanged and notifies `onSchemaMismatch`; the Zod mismatch alone does not throw. Domain methods still enforce list/page outer structure so a malformed collection cannot masquerade as a successful empty result.
 
-The exception is an unrecognized successful response from `cases.addCases()` or `cases.updateCases()`. Those non-idempotent bulk writes may already have changed server state, so reporting an empty result could prompt a duplicate retry. They notify `onSchemaMismatch` and then throw `TestRailApiError` with an explicit “write outcome is indeterminate” message.
+The write exception is an unrecognized successful response from `cases.addCases()` or `cases.updateCases()`. Those non-idempotent bulk writes may already have changed server state, so reporting an empty result could prompt a duplicate retry. They notify `onSchemaMismatch` and then throw `TestRailApiError` with an explicit “write outcome is indeterminate” message.
 
 This is deliberate. TestRail's published API documentation is not a reliable description of what the API actually sends: it documents a `{step_history}` wrapper for an endpoint that returns a bare array, a boolean `mfa_required` that arrives as integer `0`, and an `is_untested` field on the wrong endpoint entirely. Because list endpoints validate a whole page at once, a single unmodelled row used to discard up to 250 valid ones — so strict validation reliably converted a working response into an outage, and never once caught a server-side regression.
 
@@ -149,6 +199,17 @@ Two consequences worth knowing:
 - **Exported response types state the expected shape, not a runtime guarantee.** A field typed `number` can hold whatever TestRail sent. Fields are widened to match reality as wire evidence arrives, in any release — pin an exact version if you need frozen types.
 - **Caller-supplied input still fails closed.** Client configuration and CLI write payloads are validated on a separate path and reject invalid input as before.
 - **The hook must be synchronous, and what it logs can contain personal data.** An `async` hook cannot restore fail-closed validation and is rejected with `TestRailValidationError`; see the comment in the example below before logging `endpoint` or `data`.
+
+Public response types are derived from the declared Zod response shapes, so a
+runtime `.passthrough()` no longer leaks a broad `[key: string]: unknown` into
+every entity. Flat response custom fields are modeled only where TestRail emits
+them: `Case`, `Test`, and `Result` support bracket access such as
+`test['custom_browser']`, typed `unknown`; narrow before use. Their older
+`custom_fields` container remains deprecated for compatibility. Stable fields
+added in 6.0 include `Test.refs_data`/`case_title`,
+`Result.case_title`/`case_refs`,
+`CaseField.is_indexed`/`is_system`, and `ResultField.is_system`; milestone
+children are now recursively typed.
 
 ```typescript
 // Observe drift without changing behavior.
@@ -179,10 +240,10 @@ const strict = new TestRailClient({
 
 ## Error handling
 
-The client throws two error classes:
+The client exposes three primary error classes:
 
 ```typescript
-import { TestRailApiError, TestRailValidationError } from '@dichovsky/testrail-api-client';
+import { TestRailApiError, TestRailPaginationError, TestRailValidationError } from '@dichovsky/testrail-api-client';
 
 try {
     await client.projects.getProject(999);
@@ -190,6 +251,9 @@ try {
     if (error instanceof TestRailApiError) {
         // HTTP non-2xx, network error, rate limit, timeout, invalid JSON, blocked redirect
         console.error(error.status, error.statusText, error.response);
+    } else if (error instanceof TestRailPaginationError) {
+        // Bounded aggregation or structural page/continuation failure
+        console.error(error.reason, error.pagesFetched, error.itemsFetched);
     } else if (error instanceof TestRailValidationError) {
         // Bad config, invalid ID, or invalid params
         console.error(error.message);
@@ -197,7 +261,7 @@ try {
 }
 ```
 
-`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body lives only in `response`, never in `message`). `TestRailValidationError` signals a caller mistake — bad config, an invalid ID, or an invalid parameter. Since 6.0.0 it is **not** thrown for a malformed TestRail _response_; see [Response types are a description, not a guarantee](#response-types-are-a-description-not-a-guarantee). Calling any method after `destroy()` throws a plain `Error`.
+`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body lives only in `response`, never in `message`). `TestRailPaginationError` extends `TestRailValidationError`; catch it first when its structured reason matters. Ordinary entity-field schema mismatches remain advisory. Every list projection rejects a missing or scalar collection rather than silently reporting zero rows; explicit page/all projections additionally require complete envelope metadata, valid links, and a safe continuation. `TestRailValidationError` otherwise signals a caller mistake — bad config, an invalid ID, or an invalid parameter. Calling any method after `destroy()` throws a plain `Error`.
 
 For list filters that carry numeric IDs, validation also happens before any request is sent. Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers; invalid values fail locally with `TestRailValidationError` instead of reaching the API.
 

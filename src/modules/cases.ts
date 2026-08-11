@@ -3,6 +3,8 @@ import { TestRailApiError } from '../errors.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
+import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
+import { collectAllPages, decodeNestedPage, decodePage } from '../pagination.js';
 import type {
     AddCasePayload,
     AddCasesBulkPayload,
@@ -14,7 +16,7 @@ import type {
     SoftDeletePreview,
 } from '../schemas.js';
 import { CaseSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { listOf, listOfNested, unwrapList, unwrapNestedList } from './list.js';
+import { listOf, listOfNested, pageOf, pageOfNested, unwrapList, unwrapNestedList } from './list.js';
 
 export interface GetHistoryForCaseOptions {
     /** Maximum number of history entries to return */
@@ -22,6 +24,14 @@ export interface GetHistoryForCaseOptions {
     /** Pagination offset */
     offset?: number;
 }
+
+export interface GetAllCasesOptions extends Omit<GetCasesOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
+
+export type GetAllHistoryForCaseOptions = PaginatedRequestOptions;
+
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+    pageProjection?: boolean;
+};
 
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -34,6 +44,45 @@ export class CaseModule {
 
     /** @testrail GET get_cases/{project_id} */
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
+        return unwrapList<Case>('cases', await this.requestCasesPage(projectId, options));
+    }
+
+    /** Fetch one normalized cases page while preserving TestRail pagination metadata. */
+    async getCasesPage(projectId: number, options?: GetCasesOptions): Promise<Page<Case>> {
+        return decodePage<Case>('cases', await this.requestCasesPage(projectId, options, { pageProjection: true }));
+    }
+
+    /** Fetch every cases page under explicit aggregate safety bounds. */
+    async getAllCases(projectId: number, options?: GetAllCasesOptions): Promise<Case[]> {
+        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...filters } = options ?? {};
+        return collectAllPages({
+            ...(pageSize !== undefined && { pageSize }),
+            ...(startOffset !== undefined && { startOffset }),
+            ...(maxPages !== undefined && { maxPages }),
+            ...(maxItems !== undefined && { maxItems }),
+            ...(maxDurationMs !== undefined && { maxDurationMs }),
+            ...(maxBytes !== undefined && { maxBytes }),
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+                decodePage<Case>(
+                    'cases',
+                    await this.requestCasesPage(
+                        projectId,
+                        {
+                            ...filters,
+                            ...(limit !== undefined && { limit }),
+                            ...(offset !== undefined && { offset }),
+                        },
+                        { bypassCache, remainingTimeMs },
+                    ),
+                ),
+        });
+    }
+
+    private async requestCasesPage(
+        projectId: number,
+        options?: GetCasesOptions,
+        transport?: PageTransportOptions,
+    ): Promise<unknown> {
         validateId(projectId, 'projectId');
         const {
             suiteId,
@@ -75,13 +124,16 @@ export class CaseModule {
         // `limit`/`offset` in the get_cases docs); older servers return a bare
         // array. This package declares no minimum server version, so accept
         // both — same defence as `suites.getSuites()`.
-        // SPEC #1.5 — `{ cases: null }` is a valid empty wrapper, hence `.nullish()`.
-        const raw = await this.client.request<Case[] | { cases?: Case[] }>({
+        // SPEC #1.5 — `{ cases: null }` is a valid empty wrapper, hence `.nullable()`.
+        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
-            schema: listOf('cases', CaseSchema),
+            schema: pageProjection ? pageOf('cases', CaseSchema) : listOf('cases', CaseSchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
+            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
         });
-        return unwrapList('cases', raw);
     }
 
     /** @testrail POST add_case/{section_id} */
@@ -341,6 +393,47 @@ export class CaseModule {
 
     /** @testrail GET get_history_for_case/{case_id} */
     async getHistoryForCase(caseId: number, options?: GetHistoryForCaseOptions): Promise<HistoryEntry[]> {
+        return unwrapNestedList<HistoryEntry>('history', await this.requestHistoryForCasePage(caseId, options));
+    }
+
+    /** Fetch one normalized case-history page, including its nested envelope variant. */
+    async getHistoryForCasePage(caseId: number, options?: GetHistoryForCaseOptions): Promise<Page<HistoryEntry>> {
+        return decodeNestedPage<HistoryEntry>(
+            'history',
+            await this.requestHistoryForCasePage(caseId, options, { pageProjection: true }),
+        );
+    }
+
+    /** Fetch all case-history pages under explicit aggregate safety bounds. */
+    async getAllHistoryForCase(caseId: number, options?: GetAllHistoryForCaseOptions): Promise<HistoryEntry[]> {
+        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes } = options ?? {};
+        return collectAllPages({
+            ...(pageSize !== undefined && { pageSize }),
+            ...(startOffset !== undefined && { startOffset }),
+            ...(maxPages !== undefined && { maxPages }),
+            ...(maxItems !== undefined && { maxItems }),
+            ...(maxDurationMs !== undefined && { maxDurationMs }),
+            ...(maxBytes !== undefined && { maxBytes }),
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+                decodeNestedPage<HistoryEntry>(
+                    'history',
+                    await this.requestHistoryForCasePage(
+                        caseId,
+                        {
+                            ...(limit !== undefined && { limit }),
+                            ...(offset !== undefined && { offset }),
+                        },
+                        { bypassCache, remainingTimeMs },
+                    ),
+                ),
+        });
+    }
+
+    private async requestHistoryForCasePage(
+        caseId: number,
+        options?: GetHistoryForCaseOptions,
+        transport?: PageTransportOptions,
+    ): Promise<unknown> {
         validateId(caseId, 'caseId');
         validatePaginationParams(options?.limit, options?.offset);
         const endpoint = buildEndpoint(`get_history_for_case/${caseId}`, {
@@ -356,11 +449,16 @@ export class CaseModule {
         // `unwrapList` handed the caller the envelope itself as `result[0]`,
         // typed `HistoryEntry` but with no `id`/`user_id`. SPEC #1.5 —
         // `{ history: null }` is a valid empty wrapper.
-        const raw = await this.client.request<HistoryEntry[] | { history?: HistoryEntry[] }>({
+        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
+        return this.client.request<unknown>({
             method: 'GET',
             endpoint,
-            schema: listOfNested('history', HistoryEntrySchema),
+            schema: pageProjection
+                ? pageOfNested('history', HistoryEntrySchema)
+                : listOfNested('history', HistoryEntrySchema),
+            ...(pageProjection && { cacheVariant: 'page' as const }),
+            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
+            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
         });
-        return unwrapNestedList('history', raw);
     }
 }

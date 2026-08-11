@@ -1,5 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, optInt } from '../ids.js';
+import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 /**
  * Parse a comma-separated `--status-id` flag value into a positive-integer
@@ -23,11 +24,19 @@ export async function handleTestList(ctx: HandlerContext): Promise<void> {
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
     const statusIds = parseStatusIdList(ctx.args.statusId);
-    ctx.out(
-        await ctx.client.tests.getTests(runId, {
-            ...(statusIds !== undefined && { status_id: statusIds }),
-            ...(limit !== undefined && { limit }),
-            ...(offset !== undefined && { offset }),
-        }),
-    );
+    const filters = { ...(statusIds !== undefined && { status_id: statusIds }) };
+    const pageOptions = {
+        ...filters,
+        ...(limit !== undefined && { limit }),
+        ...(offset !== undefined && { offset }),
+    };
+    await outputPaginated(ctx, {
+        items: () => ctx.client.tests.getTests(runId, pageOptions),
+        page: () => ctx.client.tests.getTestsPage(runId, pageOptions),
+        all: () =>
+            ctx.client.tests.getAllTests(runId, {
+                ...filters,
+                ...getPaginatedRequestOptions(ctx.args),
+            }),
+    });
 }

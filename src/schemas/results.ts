@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { zObject } from './common.js';
+import { zObject, type KnownResponse } from './common.js';
 
 // ── Result Schema ─────────────────────────────────────────────────────────────
 
@@ -31,6 +31,11 @@ export const ResultSchema = zObject({
     assignedto_id: z.number().nullish(),
     created_by: z.number().nullish(),
     created_on: z.number().nullish(),
+    /**
+     * @deprecated TestRail response custom fields are emitted as flat
+     * `custom_*` properties. Retained for compatibility with older servers
+     * and proxies that still return a nested container.
+     */
     custom_fields: z.record(z.string(), z.unknown()).nullish(),
     // Observed response fields on `get_results_for_run` elements that were
     // previously unmodeled. `case_id` is a numeric id; `quality_rating` a numeric
@@ -41,9 +46,12 @@ export const ResultSchema = zObject({
     quality_rating: z.number().nullish(),
     defects_data: z.unknown().nullish(),
     attachment_ids: z.array(z.unknown()).nullish(),
+    // TestRail 10.5+: source-case metadata included on result responses.
+    case_title: z.string().nullish(),
+    case_refs: z.string().nullish(),
 });
 
-export type Result = z.infer<typeof ResultSchema>;
+export type Result = KnownResponse<typeof ResultSchema>;
 
 // ── Result write payloads ─────────────────────────────────────────────────────
 

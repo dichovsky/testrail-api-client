@@ -15,6 +15,18 @@ export interface HandlerArgs {
     caseId?: string;
     limit?: string;
     offset?: string;
+    /** Return a normalized pagination envelope instead of the legacy item array. */
+    page?: boolean;
+    /** Fetch every page subject to the explicit aggregate safety bounds. */
+    all?: boolean;
+    /** Per-request page size for `--all`; distinct from the legacy `--limit`. */
+    pageSize?: string;
+    /** Initial offset for `--all`; distinct from the legacy `--offset`. */
+    startOffset?: string;
+    maxPages?: string;
+    maxItems?: string;
+    maxDurationMs?: string;
+    maxBytes?: string;
     /** Comma-separated list of status IDs (`--status-id 1,5`). Consumed by
      *  `test list` (filters on TestRail's `status_id` query param) and by
      *  `result list-for-test` / `result list-for-case` (filters by result

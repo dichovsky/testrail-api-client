@@ -232,7 +232,9 @@ describe('advisory response validation (6.0.0)', () => {
         ];
 
         it.each(cases)('%s accepts the paginated envelope', async (_name, call, key, entity) => {
-            mockFetch.mockResolvedValueOnce(mockOk({ offset: 0, limit: 250, size: 1, _links: {}, [key]: [entity] }));
+            mockFetch.mockResolvedValueOnce(
+                mockOk({ offset: 0, limit: 250, size: 1, _links: { next: null, prev: null }, [key]: [entity] }),
+            );
             await expect(call()).resolves.toHaveLength(1);
             expect(mismatches).toHaveLength(0);
         });
@@ -514,7 +516,8 @@ describe('advisory response validation (6.0.0)', () => {
         // The failure mode `listOf`/`unwrapList` exist to prevent: a body that
         // is not the expected list resolving to `[]` with no error and no hook
         // notification, so a caller reads "this run has no results" and acts on
-        // it. Every case below must EITHER return the rows OR report a mismatch.
+        // it. Valid outer shapes return rows; invalid outer shapes both report
+        // a mismatch and fail closed rather than fabricating an empty list.
 
         it('unwraps get_history_for_case documented outer-array-of-envelope shape', async () => {
             // The documented example wraps the pagination object in an outer
@@ -523,7 +526,17 @@ describe('advisory response validation (6.0.0)', () => {
             // treated any array as already normalized — handing the caller the
             // envelope itself as result[0], typed HistoryEntry but with no id.
             const entry = { id: 5, user_id: 1, type_id: 1, created_on: 1 };
-            mockFetch.mockResolvedValueOnce(mockOk([{ offset: 0, limit: 250, size: 1, _links: {}, history: [entry] }]));
+            mockFetch.mockResolvedValueOnce(
+                mockOk([
+                    {
+                        offset: 0,
+                        limit: 250,
+                        size: 1,
+                        _links: { next: null, prev: null },
+                        history: [entry],
+                    },
+                ]),
+            );
             const history = await client.cases.getHistoryForCase(1);
             expect(history).toEqual([entry]);
             expect(history[0]?.id).toBe(5);
@@ -539,27 +552,27 @@ describe('advisory response validation (6.0.0)', () => {
             expect(mismatches).toHaveLength(0);
         });
 
-        it('reports a mismatch when the body is an object without the envelope key', async () => {
+        it('reports and rejects an object without the envelope key', async () => {
             // `{ [key]: ... }` is `.nullable()`, not `.nullish()`. With
             // `.nullish()` this object would parse *successfully* to `{}` —
             // silent, invisible even to a hook-configured client.
             mockFetch.mockResolvedValueOnce(mockOk({ error: 'Something went wrong' }));
-            await expect(client.results.getResultsForRun(1)).resolves.toEqual([]);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
             expect(mismatches).toHaveLength(1);
             expect(mismatches[0]?.endpoint).toContain('get_results_for_run/1');
         });
 
-        it('reports a mismatch when the envelope key is renamed', async () => {
+        it('reports and rejects when the envelope key is renamed', async () => {
             // A server-side rename, or a `key` typo between the paired listOf
             // and unwrapList calls, lands here.
             mockFetch.mockResolvedValueOnce(mockOk({ result_list: [{ id: 1, test_id: 2, status_id: 1 }] }));
-            await expect(client.results.getResultsForRun(1)).resolves.toEqual([]);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
             expect(mismatches).toHaveLength(1);
         });
 
-        it('reports a mismatch on a single-entity body', async () => {
+        it('reports and rejects a single-entity body', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ id: 1, test_id: 2, status_id: 1 }));
-            await expect(client.results.getResultsForRun(1)).resolves.toEqual([]);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
             expect(mismatches).toHaveLength(1);
         });
 
@@ -571,21 +584,18 @@ describe('advisory response validation (6.0.0)', () => {
             expect(mismatches).toHaveLength(0);
         });
 
-        it('returns an array, not a scalar, when the envelope key holds a non-array', async () => {
+        it('reports and rejects when the envelope key holds a non-array', async () => {
             // Without the Array.isArray guard in unwrapList this resolved to the
             // string "oops" typed as Result[]: `.map` throws TypeError, `.length`
             // reports 4, and for...of iterates characters.
             mockFetch.mockResolvedValueOnce(mockOk({ results: 'oops' }));
-            const results = await client.results.getResultsForRun(1);
-            expect(Array.isArray(results)).toBe(true);
-            expect(results).toEqual([]);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
             expect(mismatches).toHaveLength(1);
         });
 
-        it('returns an array when the whole body is a scalar', async () => {
+        it('reports and rejects when the whole body is a scalar', async () => {
             mockFetch.mockResolvedValueOnce(mockOk('nope'));
-            const results = await client.results.getResultsForRun(1);
-            expect(Array.isArray(results)).toBe(true);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
             expect(mismatches).toHaveLength(1);
         });
     });
