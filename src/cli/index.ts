@@ -18,6 +18,11 @@ import { STDOUT_SENTINEL } from './file-output.js';
 import { parseId } from './ids.js';
 import type { BodyInput, HandlerArgs } from './handler-context.js';
 import { validateCliPagination } from './pagination.js';
+import {
+    createCliSchemaMismatchReporter,
+    resolveStrictResponses,
+    STRICT_RESPONSES_ENV_VAR,
+} from './response-validation.js';
 
 // ── Version ───────────────────────────────────────────────────────────────────
 
@@ -157,6 +162,21 @@ async function main(): Promise<number> {
     const dispatched = dispatch(resource, action);
     if (!dispatched.ok) {
         err(dispatched.error);
+        return 1;
+    }
+
+    // Validate response-mode configuration before auth resolution or any
+    // network work. Exact tokens prevent CI typos such as `true` from silently
+    // selecting advisory mode. The explicit flag is additive, but does not
+    // conceal an invalid environment value.
+    const strictResponsesFlag = values['strict-responses'];
+    if (strictResponsesFlag !== undefined && typeof strictResponsesFlag !== 'boolean') {
+        err('--strict-responses does not take a value; pass the flag without `=`.');
+        return 1;
+    }
+    const strictResponses = resolveStrictResponses(strictResponsesFlag === true, process.env[STRICT_RESPONSES_ENV_VAR]);
+    if (!strictResponses.ok) {
+        err(strictResponses.error);
         return 1;
     }
 
@@ -374,6 +394,12 @@ async function main(): Promise<number> {
 
     const force = values['force'] === true;
     const confirmDestructive = values['yes'] === true;
+    const schemaMismatchReporter = createCliSchemaMismatchReporter({
+        strict: strictResponses.strict,
+        quiet,
+        resource,
+        action,
+    });
 
     let client: TestRailClient | undefined;
     try {
@@ -398,10 +424,17 @@ async function main(): Promise<number> {
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
-        client = new TestRailClient({ ...auth.config, ...timeoutConfig, registerProcessHandlers: true });
+        client = new TestRailClient({
+            ...auth.config,
+            ...timeoutConfig,
+            registerProcessHandlers: true,
+            onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
+        });
         await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out, err, errRaw });
+        schemaMismatchReporter.flush();
         return 0;
     } catch (e: unknown) {
+        schemaMismatchReporter.flush();
         // err() already sanitizes; passing the raw message is safe.
         err(e instanceof Error ? e.message : String(e));
         return 1;

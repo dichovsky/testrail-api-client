@@ -557,7 +557,7 @@ describe('advisory response validation (6.0.0)', () => {
             // `.nullish()` this object would parse *successfully* to `{}` —
             // silent, invisible even to a hook-configured client.
             mockFetch.mockResolvedValueOnce(mockOk({ error: 'Something went wrong' }));
-            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailApiError);
             expect(mismatches).toHaveLength(1);
             expect(mismatches[0]?.endpoint).toContain('get_results_for_run/1');
         });
@@ -566,13 +566,13 @@ describe('advisory response validation (6.0.0)', () => {
             // A server-side rename, or a `key` typo between the paired listOf
             // and unwrapList calls, lands here.
             mockFetch.mockResolvedValueOnce(mockOk({ result_list: [{ id: 1, test_id: 2, status_id: 1 }] }));
-            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailApiError);
             expect(mismatches).toHaveLength(1);
         });
 
         it('reports and rejects a single-entity body', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ id: 1, test_id: 2, status_id: 1 }));
-            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailApiError);
             expect(mismatches).toHaveLength(1);
         });
 
@@ -589,13 +589,13 @@ describe('advisory response validation (6.0.0)', () => {
             // string "oops" typed as Result[]: `.map` throws TypeError, `.length`
             // reports 4, and for...of iterates characters.
             mockFetch.mockResolvedValueOnce(mockOk({ results: 'oops' }));
-            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailApiError);
             expect(mismatches).toHaveLength(1);
         });
 
         it('reports and rejects when the whole body is a scalar', async () => {
             mockFetch.mockResolvedValueOnce(mockOk('nope'));
-            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailValidationError);
+            await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailApiError);
             expect(mismatches).toHaveLength(1);
         });
     });

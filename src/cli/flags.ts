@@ -31,6 +31,7 @@ export const CLI_OPTIONS = {
     // 30s default. A present-but-invalid value is rejected (parseId → exit 1);
     // out-of-range is rejected by the client constructor's validateTimeout.
     timeout: { type: 'string' as const },
+    'strict-responses': { type: 'boolean' as const, default: false },
     quiet: { type: 'boolean' as const, default: false },
     help: { type: 'boolean' as const, default: false },
     version: { type: 'boolean' as const, default: false },

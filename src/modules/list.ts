@@ -1,9 +1,14 @@
 import { z } from 'zod';
-import { MAX_PAGINATION_LIMIT } from '../constants.js';
-import { TestRailValidationError } from '../errors.js';
+import { HTTP_OK_STATUS, MAX_PAGINATION_LIMIT } from '../constants.js';
+import { TestRailApiError } from '../errors.js';
 
 const pageLinksSchema = z.object({ next: z.string().nullable(), prev: z.string().nullable() }).passthrough();
 const PAGINATION_METADATA_KEYS = ['offset', 'limit', 'size', '_links'] as const;
+const MALFORMED_LIST_STATUS_TEXT = 'Unexpected list response structure';
+
+function malformedListResponse(raw: unknown): TestRailApiError {
+    return new TestRailApiError(HTTP_OK_STATUS, MALFORMED_LIST_STATUS_TEXT, raw);
+}
 
 function hasPaginationMetadataSignature(value: unknown): boolean {
     return (
@@ -119,12 +124,12 @@ export const pageOf = <T extends z.ZodTypeAny>(key: string, item: T) =>
 export const unwrapList = <T>(key: string, raw: unknown): T[] => {
     if (Array.isArray(raw)) return raw as T[];
     if (typeof raw !== 'object' || raw === null) {
-        throw new TestRailValidationError(`List response must be an array or an envelope containing "${key}"`);
+        throw malformedListResponse(raw);
     }
     const value = (raw as Record<string, unknown>)[key];
     if (value === null) return [];
     if (Array.isArray(value)) return value as T[];
-    throw new TestRailValidationError(`List response field "${key}" must be an array or null`);
+    throw malformedListResponse(raw);
 };
 
 /**
@@ -162,16 +167,12 @@ export const unwrapNestedList = <T>(key: string, raw: unknown): T[] => {
         );
         if (envelopes.length === 0) {
             if (raw.some(hasPaginationMetadataSignature)) {
-                throw new TestRailValidationError(
-                    `Nested list response contains a pagination metadata signature but is missing the "${key}" collection`,
-                );
+                throw malformedListResponse(raw);
             }
             return raw as T[];
         }
         if (raw.length !== 1 || envelopes.length !== 1) {
-            throw new TestRailValidationError(
-                `Nested list response must contain exactly one "${key}" envelope and no entity rows`,
-            );
+            throw malformedListResponse(raw);
         }
         return unwrapList<T>(key, envelopes[0]);
     }

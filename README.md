@@ -188,9 +188,35 @@ Response-driven endpoints reject caller-controlled size/offset flags.
 
 ## Response types are a description, not a guarantee
 
-Since 6.0.0, **Zod response validation is advisory**. When entity fields do not match their schema, the client normally returns the raw body unchanged and notifies `onSchemaMismatch`; the Zod mismatch alone does not throw. Domain methods still enforce list/page outer structure so a malformed collection cannot masquerade as a successful empty result.
+Since 6.0.0, **Zod response validation is advisory**. When entity fields do not match their schema, the client normally returns the raw body unchanged and notifies `onSchemaMismatch`; the Zod mismatch alone does not throw. With the default or another non-throwing hook, domain methods still enforce list/page outer structure so a malformed collection cannot masquerade as a successful empty result. A caller-supplied hook that throws takes precedence over downstream structural decoding.
 
-The write exception is an unrecognized successful response from `cases.addCases()` or `cases.updateCases()`. Those non-idempotent bulk writes may already have changed server state, so reporting an empty result could prompt a duplicate retry. They notify `onSchemaMismatch` and then throw `TestRailApiError` with an explicit “write outcome is indeterminate” message.
+In non-throwing advisory mode, the hard protocol exceptions are structural
+rather than entity-field drift. A malformed default list response throws
+`TestRailApiError`; explicit page/all reads throw `TestRailPaginationError`. An
+unrecognized successful response from `cases.addCases()` or
+`cases.updateCases()` also throws `TestRailApiError` with an explicit “write
+outcome is indeterminate” message. Those non-idempotent writes may already have
+changed server state, so reporting an empty result could prompt a duplicate
+retry.
+
+The CLI makes advisory mismatches visible without copying the response into
+logs. By default it writes at most 10 unique, deduplicated warnings to stderr,
+then a safe suppressed-count summary. Warnings contain only the request method,
+CLI resource/action, Zod issue codes, and shape-only paths whose segments are
+all masked as `*`; they never include the endpoint, field/record keys, issue
+messages, or raw response. Pass
+`--strict-responses` or set `TESTRAIL_STRICT_RESPONSES=1` to stop at the first
+mismatch with exit code 1. Read mismatches use `TestRailValidationError`; a
+successful mutating request with a mismatched response uses a privacy-safe
+`TestRailApiError` that says the write outcome is indeterminate, and must not be
+retried blindly. One-shot commands emit no value for the mismatched response,
+and bounded aggregates emit no partial array. A streaming `run watch` may
+already have emitted completed earlier polls before a later mismatch; those
+events cannot be retracted. The environment variable accepts only `1`, `0`, an
+empty value, or unset; any other value is rejected before authentication or a
+network request. The flag is boolean-only, so forms such as
+`--strict-responses=true` are rejected instead of guessed. `--quiet` suppresses
+advisory warnings as well as normal output.
 
 This is deliberate. TestRail's published API documentation is not a reliable description of what the API actually sends: it documents a `{step_history}` wrapper for an endpoint that returns a bare array, a boolean `mfa_required` that arrives as integer `0`, and an `is_untested` field on the wrong endpoint entirely. Because list endpoints validate a whole page at once, a single unmodelled row used to discard up to 250 valid ones — so strict validation reliably converted a working response into an outage, and never once caught a server-side regression.
 
@@ -213,15 +239,21 @@ children are now recursively typed.
 
 ```typescript
 // Observe drift without changing behavior.
-// `error.issues` carries paths and codes but no field values, so it is the safe
-// thing to log. `endpoint` and `data` are not: endpoint paths can contain
-// entity IDs, query parameters can contain email addresses, and `data` is the
-// raw body, with user names, comments, and custom fields in it. Keep only the
-// operation token before the first path or query separator.
+// Never log `endpoint`, `error`, or `data` wholesale. Endpoint path/query values
+// and the raw body can contain personal data, while Zod paths can contain
+// response-controlled record/catchall keys. Keep only the operation token,
+// issue code, and path depth; mask every path segment.
 const client = new TestRailClient({
     ...config,
     onSchemaMismatch: ({ method, endpoint, error }) =>
-        log.warn({ method, operation: endpoint.replace(/[\/&].*$/, ''), issues: error.issues }),
+        log.warn({
+            method,
+            operation: endpoint.replace(/[\/&].*$/, ''),
+            issues: error.issues.map(({ code, path }) => ({
+                code,
+                path: path.length === 0 ? '$' : `$.${path.map(() => '*').join('.')}`,
+            })),
+        }),
 });
 
 // Or restore strict, fail-closed validation — useful in CI.
@@ -249,7 +281,7 @@ try {
     await client.projects.getProject(999);
 } catch (error) {
     if (error instanceof TestRailApiError) {
-        // HTTP non-2xx, network error, rate limit, timeout, invalid JSON, blocked redirect
+        // HTTP/network/protocol failure, including a malformed successful default-list response
         console.error(error.status, error.statusText, error.response);
     } else if (error instanceof TestRailPaginationError) {
         // Bounded aggregation or structural page/continuation failure
@@ -261,7 +293,20 @@ try {
 }
 ```
 
-`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body lives only in `response`, never in `message`). `TestRailPaginationError` extends `TestRailValidationError`; catch it first when its structured reason matters. Ordinary entity-field schema mismatches remain advisory. Every list projection rejects a missing or scalar collection rather than silently reporting zero rows; explicit page/all projections additionally require complete envelope metadata, valid links, and a safe continuation. `TestRailValidationError` otherwise signals a caller mistake — bad config, an invalid ID, or an invalid parameter. Calling any method after `destroy()` throws a plain `Error`.
+`TestRailApiError` carries `status`, `statusText`, and `response` (the raw body
+lives only in `response`, never in `message`). In non-throwing advisory mode, it
+also represents an unrecognized successful outer structure from a default list
+read or non-idempotent bulk case write. CLI strict mode uses the same class for
+any successful mutating request whose response mismatches, with an indeterminate
+outcome message and no raw response attached. `TestRailPaginationError`
+extends `TestRailValidationError`; catch it first when its structured reason
+matters. Ordinary entity-field schema mismatches remain advisory. Explicit
+page/all projections require complete envelope metadata, valid links, and a
+safe continuation. A throwing SDK mismatch hook takes precedence over these
+downstream decoders; never treat its error as proof that a write did not happen.
+Other `TestRailValidationError`s signal caller mistakes — bad config, an invalid
+ID, or an invalid parameter. Calling any method after `destroy()` throws a plain
+`Error`.
 
 For list filters that carry numeric IDs, validation also happens before any request is sent. Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers; invalid values fail locally with `TestRailValidationError` instead of reaching the API.
 
