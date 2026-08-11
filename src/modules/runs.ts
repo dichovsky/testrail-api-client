@@ -8,10 +8,11 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export type GetAllRunsOptions = Omit<GetRunsOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -36,11 +37,21 @@ export class RunModule {
 
     /** Get every run under the configured pagination safety bounds. */
     async getAllRuns(projectId: number, options?: GetAllRunsOptions): Promise<Run[]> {
+        const filters = snapshotOptionFields(options, [
+            'createdAfter',
+            'createdBefore',
+            'createdBy',
+            'isCompleted',
+            'milestoneId',
+            'refsFilter',
+            'suiteId',
+        ]);
         return collectAllPages<Run>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: async (request) => {
                 const pageOptions: GetRunsOptions = {
-                    ...(options ?? {}),
+                    ...filters,
                     // Controlled collectors always resolve both values before
                     // invoking this adapter; only envelope-driven collectors
                     // can receive `undefined` request controls.
@@ -50,6 +61,7 @@ export class RunModule {
                 const raw = await this.requestRuns(projectId, pageOptions, {
                     bypassCache: request.bypassCache,
                     remainingTimeMs: request.remainingTimeMs,
+                    deadlineAt: request.deadlineAt,
                 });
                 return decodePage<Run>('runs', raw);
             },
@@ -93,6 +105,7 @@ export class RunModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 

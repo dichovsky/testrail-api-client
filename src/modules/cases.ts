@@ -17,6 +17,7 @@ import type {
 } from '../schemas.js';
 import { CaseSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { listOf, listOfNested, pageOf, pageOfNested, unwrapList, unwrapNestedList } from './list.js';
+import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetHistoryForCaseOptions {
     /** Maximum number of history entries to return */
@@ -29,7 +30,7 @@ export interface GetAllCasesOptions extends Omit<GetCasesOptions, 'limit' | 'off
 
 export type GetAllHistoryForCaseOptions = PaginatedRequestOptions;
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -54,15 +55,22 @@ export class CaseModule {
 
     /** Fetch every cases page under explicit aggregate safety bounds. */
     async getAllCases(projectId: number, options?: GetAllCasesOptions): Promise<Case[]> {
-        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...filters } = options ?? {};
+        const filters = snapshotOptionFields(options, [
+            'suiteId',
+            'sectionId',
+            'typeId',
+            'priorityId',
+            'templateId',
+            'milestoneId',
+            'createdAfter',
+            'createdBefore',
+            'updatedAfter',
+            'updatedBefore',
+        ]);
         return collectAllPages({
-            ...(pageSize !== undefined && { pageSize }),
-            ...(startOffset !== undefined && { startOffset }),
-            ...(maxPages !== undefined && { maxPages }),
-            ...(maxItems !== undefined && { maxItems }),
-            ...(maxDurationMs !== undefined && { maxDurationMs }),
-            ...(maxBytes !== undefined && { maxBytes }),
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
                 decodePage<Case>(
                     'cases',
                     await this.requestCasesPage(
@@ -72,7 +80,7 @@ export class CaseModule {
                             ...(limit !== undefined && { limit }),
                             ...(offset !== undefined && { offset }),
                         },
-                        { bypassCache, remainingTimeMs },
+                        { bypassCache, remainingTimeMs, deadlineAt },
                     ),
                 ),
         });
@@ -133,6 +141,7 @@ export class CaseModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
             ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
+            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
     }
 
@@ -406,15 +415,10 @@ export class CaseModule {
 
     /** Fetch all case-history pages under explicit aggregate safety bounds. */
     async getAllHistoryForCase(caseId: number, options?: GetAllHistoryForCaseOptions): Promise<HistoryEntry[]> {
-        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes } = options ?? {};
         return collectAllPages({
-            ...(pageSize !== undefined && { pageSize }),
-            ...(startOffset !== undefined && { startOffset }),
-            ...(maxPages !== undefined && { maxPages }),
-            ...(maxItems !== undefined && { maxItems }),
-            ...(maxDurationMs !== undefined && { maxDurationMs }),
-            ...(maxBytes !== undefined && { maxBytes }),
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
                 decodeNestedPage<HistoryEntry>(
                     'history',
                     await this.requestHistoryForCasePage(
@@ -423,7 +427,7 @@ export class CaseModule {
                             ...(limit !== undefined && { limit }),
                             ...(offset !== undefined && { offset }),
                         },
-                        { bypassCache, remainingTimeMs },
+                        { bypassCache, remainingTimeMs, deadlineAt },
                     ),
                 ),
         });
@@ -459,6 +463,7 @@ export class CaseModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
             ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
+            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
     }
 }

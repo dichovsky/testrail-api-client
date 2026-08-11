@@ -7,6 +7,7 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetSuitesOptions {
     limit?: number;
@@ -15,7 +16,7 @@ export interface GetSuitesOptions {
 
 export type GetAllSuitesOptions = PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -55,7 +56,8 @@ export class SuiteModule {
     /** Get every suite under the configured pagination safety bounds. */
     async getAllSuites(projectId: number, options?: GetAllSuitesOptions): Promise<Suite[]> {
         return collectAllPages<Suite>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: async (request) => {
                 const pageOptions: GetSuitesOptions = {
                     limit: request.limit as number,
@@ -64,6 +66,7 @@ export class SuiteModule {
                 const raw = await this.requestSuites(projectId, pageOptions, {
                     bypassCache: request.bypassCache,
                     remainingTimeMs: request.remainingTimeMs,
+                    deadlineAt: request.deadlineAt,
                 });
                 return decodePage<Suite>('suites', raw);
             },
@@ -94,6 +97,7 @@ export class SuiteModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 

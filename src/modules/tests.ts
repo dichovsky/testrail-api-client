@@ -8,10 +8,11 @@ import { buildEndpoint } from '../url.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -40,15 +41,11 @@ export class TestModule {
 
     /** Fetch every tests page under explicit aggregate safety bounds. */
     async getAllTests(runId: number, options?: GetAllTestsOptions): Promise<Test[]> {
-        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...filters } = options ?? {};
+        const filters = snapshotOptionFields(options, ['statusId', 'status_id']);
         return collectAllPages({
-            ...(pageSize !== undefined && { pageSize }),
-            ...(startOffset !== undefined && { startOffset }),
-            ...(maxPages !== undefined && { maxPages }),
-            ...(maxItems !== undefined && { maxItems }),
-            ...(maxDurationMs !== undefined && { maxDurationMs }),
-            ...(maxBytes !== undefined && { maxBytes }),
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
                 decodePage<Test>(
                     'tests',
                     await this.requestTestsPage(
@@ -58,7 +55,7 @@ export class TestModule {
                             ...(limit !== undefined && { limit }),
                             ...(offset !== undefined && { offset }),
                         },
-                        { bypassCache, remainingTimeMs },
+                        { bypassCache, remainingTimeMs, deadlineAt },
                     ),
                 ),
         });
@@ -88,6 +85,7 @@ export class TestModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
             ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
+            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
     }
 

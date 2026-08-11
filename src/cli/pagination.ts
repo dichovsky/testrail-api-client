@@ -27,6 +27,10 @@ type PaginationArgs = Pick<
     | 'maxBytes'
 >;
 
+type RawPaginationArgs = {
+    readonly [Property in keyof PaginationArgs]?: unknown;
+};
+
 interface NumericFlag {
     readonly property: keyof PaginationArgs;
     readonly flag: string;
@@ -69,7 +73,10 @@ const NUMERIC_FLAGS: readonly NumericFlag[] = [
     MAX_BYTES_FLAG,
 ];
 
-function parseCanonicalInteger(raw: string, flag: string, allowZero: boolean, maximum?: number): number {
+function parseCanonicalInteger(raw: unknown, flag: string, allowZero: boolean, maximum?: number): number {
+    if (typeof raw !== 'string') {
+        throw new Error(`${flag} requires a value.`);
+    }
     const pattern = allowZero ? /^(0|[1-9]\d*)$/ : /^[1-9]\d*$/;
     const value = pattern.test(raw) ? Number(raw) : Number.NaN;
     const range = allowZero ? 'a non-negative safe integer' : 'a positive safe integer';
@@ -82,9 +89,9 @@ function parseCanonicalInteger(raw: string, flag: string, allowZero: boolean, ma
     return value;
 }
 
-function parseOptional(args: PaginationArgs, definition: NumericFlag): number | undefined {
+function parseOptional(args: RawPaginationArgs, definition: NumericFlag): number | undefined {
     const raw = args[definition.property];
-    if (typeof raw !== 'string') return undefined;
+    if (raw === undefined) return undefined;
     return parseCanonicalInteger(raw, definition.flag, definition.allowZero, definition.maximum);
 }
 
@@ -95,8 +102,18 @@ function parseOptional(args: PaginationArgs, definition: NumericFlag): number | 
  */
 export function validateCliPagination(
     actionSpec: ActionSpec | undefined,
-    args: PaginationArgs,
+    args: RawPaginationArgs,
 ): CliPaginationValidationResult {
+    for (const [property, flag] of [
+        ['page', '--page'],
+        ['all', '--all'],
+    ] as const) {
+        const value = args[property];
+        if (value !== undefined && typeof value !== 'boolean') {
+            return { ok: false, error: `${flag} does not accept a value.` };
+        }
+    }
+
     if (args.page === true && args.all === true) {
         return { ok: false, error: '--page and --all are mutually exclusive.' };
     }
@@ -149,7 +166,7 @@ export function validateCliPagination(
     return { ok: true };
 }
 
-export function getCliPaginationMode(args: Pick<PaginationArgs, 'page' | 'all'>): CliPaginationMode {
+export function getCliPaginationMode(args: Pick<RawPaginationArgs, 'page' | 'all'>): CliPaginationMode {
     if (args.page === true) return 'page';
     if (args.all === true) return 'all';
     return 'items';

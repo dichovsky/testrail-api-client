@@ -53,6 +53,8 @@ export interface PaginationRequest {
     readonly offset: number | undefined;
     readonly limit: number | undefined;
     readonly bypassCache: true;
+    /** Absolute wall-clock deadline shared by every request in one aggregate. */
+    readonly deadlineAt: number;
     readonly remainingTimeMs: number;
 }
 
@@ -136,6 +138,12 @@ function decodeEnvelope<T>(key: string, raw: Record<string, unknown>, stats?: Co
     }
     if (!isNonNegativeInteger(raw['size'])) {
         return invalidPage('Pagination envelope size must be a non-negative safe integer', stats);
+    }
+    if (raw['size'] > raw['limit']) {
+        return invalidPage('Pagination envelope size must not exceed its limit', stats);
+    }
+    if (collection !== null && collection.length > raw['limit']) {
+        return invalidPage(`Pagination envelope collection "${key}" must not exceed its limit`, stats);
     }
 
     const links = raw['_links'];
@@ -300,14 +308,19 @@ function validatePositiveBound(value: number, name: string, maximum?: number): v
     }
 }
 
+function defaultWhenUndefined<T>(value: T | undefined, fallback: T): T {
+    if (value === undefined) return fallback;
+    return value;
+}
+
 function resolveCollectionOptions<T>(options: CollectAllPagesOptions<T>): ResolvedCollectionOptions {
     const requestControls = options.requestControls !== false;
-    const pageSize = requestControls ? (options.pageSize ?? DEFAULT_PAGE_SIZE) : undefined;
-    const startOffset = requestControls ? (options.startOffset ?? 0) : undefined;
-    const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
-    const maxItems = options.maxItems ?? DEFAULT_MAX_ITEMS;
-    const maxDurationMs = options.maxDurationMs ?? DEFAULT_MAX_PAGINATION_DURATION_MS;
-    const maxBytes = options.maxBytes ?? DEFAULT_MAX_PAGINATION_BYTES;
+    const pageSize = requestControls ? defaultWhenUndefined(options.pageSize, DEFAULT_PAGE_SIZE) : undefined;
+    const startOffset = requestControls ? defaultWhenUndefined(options.startOffset, 0) : undefined;
+    const maxPages = defaultWhenUndefined(options.maxPages, DEFAULT_MAX_PAGES);
+    const maxItems = defaultWhenUndefined(options.maxItems, DEFAULT_MAX_ITEMS);
+    const maxDurationMs = defaultWhenUndefined(options.maxDurationMs, DEFAULT_MAX_PAGINATION_DURATION_MS);
+    const maxBytes = defaultWhenUndefined(options.maxBytes, DEFAULT_MAX_PAGINATION_BYTES);
 
     if (pageSize !== undefined) validatePositiveBound(pageSize, 'pageSize', MAX_PAGINATION_LIMIT);
     if (startOffset !== undefined && !isNonNegativeInteger(startOffset)) {
@@ -374,6 +387,7 @@ export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Pr
                 offset: nextOffset,
                 limit: nextLimit,
                 bypassCache: true,
+                deadlineAt,
                 remainingTimeMs,
             });
         } catch (error) {
@@ -418,16 +432,17 @@ export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Pr
             );
         }
 
+        if (itemsFetched > resolved.maxItems) {
+            return policyError('max_items', 'Pagination aggregate exceeded maxItems', stats, {
+                maxItems: resolved.maxItems,
+            });
+        }
+
         const pageBytes = serializedByteLength(page.items, stats);
         bytesFetched += pageBytes;
         if (now() >= deadlineAt) {
             return policyError('max_duration', 'Pagination aggregate exceeded maxDurationMs', stats, {
                 maxDurationMs: resolved.maxDurationMs,
-            });
-        }
-        if (itemsFetched > resolved.maxItems) {
-            return policyError('max_items', 'Pagination aggregate exceeded maxItems', stats, {
-                maxItems: resolved.maxItems,
             });
         }
         if (bytesFetched > resolved.maxBytes) {
@@ -453,6 +468,15 @@ export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Pr
             return policyError('non_progress', 'Pagination continuation offset does not advance', stats, {
                 offset: continuation.offset,
                 currentOffset: page.offset,
+            });
+        }
+        // Both offsets are non-negative safe integers and next > current here,
+        // so subtraction stays safe even when addition at MAX_SAFE_INTEGER would not.
+        if (page.kind === 'envelope' && continuation.offset - page.offset < page.items.length) {
+            return policyError('non_progress', 'Pagination continuation overlaps the current page', stats, {
+                offset: continuation.offset,
+                currentOffset: page.offset,
+                pageItems: page.items.length,
             });
         }
         if (pagesFetched >= resolved.maxPages) {

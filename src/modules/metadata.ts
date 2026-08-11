@@ -18,11 +18,12 @@ import { z } from 'zod';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginationSafetyOptions } from './pagination-options.js';
 
 export type GetAllCaseStatusesOptions = PaginationSafetyOptions;
 export type GetAllRolesOptions = PaginationSafetyOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -59,7 +60,7 @@ export class MetadataModule {
     /** Get every case status under the configured pagination safety bounds. */
     async getAllCaseStatuses(options?: GetAllCaseStatusesOptions): Promise<CaseStatus[]> {
         return collectAllPages<CaseStatus>({
-            ...(options ?? {}),
+            ...snapshotPaginationSafetyOptions(options),
             requestControls: false,
             fetchPage: (request) =>
                 this.requestCaseStatuses(
@@ -70,6 +71,7 @@ export class MetadataModule {
                     {
                         bypassCache: request.bypassCache,
                         remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
                     },
                 ).then((raw) => decodePage<CaseStatus>('case_statuses', raw)),
         });
@@ -94,6 +96,7 @@ export class MetadataModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 
@@ -188,7 +191,7 @@ export class MetadataModule {
     /** Get every role under the configured pagination safety bounds. */
     async getAllRoles(options?: GetAllRolesOptions): Promise<Role[]> {
         return collectAllPages<Role>({
-            ...(options ?? {}),
+            ...snapshotPaginationSafetyOptions(options),
             requestControls: false,
             fetchPage: (request) =>
                 this.requestRoles(
@@ -199,6 +202,7 @@ export class MetadataModule {
                     {
                         bypassCache: request.bypassCache,
                         remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
                     },
                 ).then((raw) => decodePage<Role>('roles', raw)),
         });
@@ -225,6 +229,7 @@ export class MetadataModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 }

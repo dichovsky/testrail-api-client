@@ -50,6 +50,17 @@ describe('CLI pagination modes', () => {
         });
     });
 
+    it('rejects attached values on boolean mode flags', () => {
+        expect(validateCliPagination(paginatedAction(true), { all: 'true' })).toEqual({
+            ok: false,
+            error: '--all does not accept a value.',
+        });
+        expect(validateCliPagination(paginatedAction(true), { page: 'false' })).toEqual({
+            ok: false,
+            error: '--page does not accept a value.',
+        });
+    });
+
     it('keeps legacy limit/offset compatible but rejects their ambiguous all-page meaning', () => {
         expect(validateCliPagination(undefined, { limit: '10', offset: '20' })).toEqual({ ok: true });
         expect(validateCliPagination(paginatedAction(true), { all: true, limit: '10' })).toEqual({
@@ -62,6 +73,17 @@ describe('CLI pagination modes', () => {
         expect(validateCliPagination(paginatedAction(true), { maxPages: '2' })).toEqual({
             ok: false,
             error: '--max-pages is only valid together with --all.',
+        });
+    });
+
+    it('rejects aggregate controls whose values are missing', () => {
+        expect(validateCliPagination(paginatedAction(true), { all: true, maxPages: true })).toEqual({
+            ok: false,
+            error: '--max-pages requires a value.',
+        });
+        expect(validateCliPagination(paginatedAction(true), { all: true, pageSize: true })).toEqual({
+            ok: false,
+            error: '--page-size requires a value.',
         });
     });
 

@@ -9,6 +9,7 @@ import {
     decodeNestedPage,
     decodePage,
     parsePaginationContinuation,
+    type CollectAllPagesOptions,
     type Page,
     type PaginationRequest,
 } from '../src/pagination.js';
@@ -52,6 +53,30 @@ describe('strict list and page decoding', () => {
 
         expect(listOf('items', ItemSchema).safeParse(raw).success).toBe(false);
         expect(() => decodePage('items', raw)).toThrow(TestRailPaginationError);
+    });
+
+    it('enforces the response limit without treating size as a completeness signal', () => {
+        const staleSize = {
+            offset: 0,
+            limit: 2,
+            size: 2,
+            _links: { next: null, prev: null },
+            items: [{ id: 1 }],
+        };
+        expect(listOf('items', ItemSchema).safeParse(staleSize).success).toBe(true);
+        expect(decodePage<{ id: number }>('items', staleSize)).toMatchObject({
+            kind: 'envelope',
+            items: [{ id: 1 }],
+            size: 2,
+        });
+
+        const sizeAboveLimit = { ...staleSize, size: 3 };
+        expect(listOf('items', ItemSchema).safeParse(sizeAboveLimit).success).toBe(false);
+        expect(() => decodePage('items', sizeAboveLimit)).toThrow(TestRailPaginationError);
+
+        const collectionAboveLimit = { ...staleSize, limit: 1, size: 1, items: [{ id: 1 }, { id: 2 }] };
+        expect(listOf('items', ItemSchema).safeParse(collectionAboveLimit).success).toBe(false);
+        expect(() => decodePage('items', collectionAboveLimit)).toThrow(TestRailPaginationError);
     });
 
     it('keeps explicit null as empty but rejects missing and wrongly typed collections', () => {
@@ -267,6 +292,32 @@ describe('bounded sequential collection', () => {
         ]);
     });
 
+    it('passes one fixed absolute deadline through every page request', async () => {
+        let clock = 1_000;
+        const requests: PaginationRequest[] = [];
+        const pages = [envelope([1], 0, '?offset=1&limit=1', 1), envelope([2], 1, null, 1)];
+
+        await expect(
+            collectAllPages({
+                pageSize: 1,
+                maxDurationMs: 100,
+                now: () => clock,
+                fetchPage: (request) => {
+                    requests.push(request);
+                    clock += 10;
+                    const page = pages.shift();
+                    if (page === undefined) throw new Error('unexpected fetch');
+                    return Promise.resolve(page);
+                },
+            }),
+        ).resolves.toEqual([1, 2]);
+
+        expect(requests).toEqual([
+            expect.objectContaining({ deadlineAt: 1_100, remainingTimeMs: 100 }),
+            expect.objectContaining({ deadlineAt: 1_100, remainingTimeMs: 90 }),
+        ]);
+    });
+
     it('rejects a nonzero initial envelope offset for response-driven endpoints', async () => {
         const requests: PaginationRequest[] = [];
         await expect(
@@ -438,12 +489,35 @@ describe('bounded sequential collection', () => {
         ).rejects.toMatchObject({ reason: 'invalid_page', pagesFetched: 2, itemsFetched: 2 });
     });
 
+    it('rejects a continuation that starts inside the current page span', async () => {
+        const fetchPage = vi.fn().mockResolvedValue(envelope([1, 2], 0, '?offset=1&limit=2'));
+
+        await expect(collectAllPages({ pageSize: 2, fetchPage })).rejects.toMatchObject({
+            reason: 'non_progress',
+            pagesFetched: 1,
+            itemsFetched: 2,
+        });
+        expect(fetchPage).toHaveBeenCalledOnce();
+    });
+
     it('classifies unserializable page items as an invalid page', async () => {
         const cyclic: Record<string, unknown> = {};
         cyclic['self'] = cyclic;
         await expect(
             collectAllPages({ fetchPage: () => Promise.resolve(envelope([cyclic], 0, null)) }),
         ).rejects.toMatchObject({ reason: 'invalid_page', pagesFetched: 1, itemsFetched: 1 });
+    });
+
+    it('reports a known item overflow before attempting page serialization', async () => {
+        const cyclic: Record<string, unknown> = {};
+        cyclic['self'] = cyclic;
+
+        await expect(
+            collectAllPages({
+                maxItems: 1,
+                fetchPage: () => Promise.resolve(envelope([cyclic, cyclic], 0, null)),
+            }),
+        ).rejects.toMatchObject({ reason: 'max_items', pagesFetched: 1, itemsFetched: 2 });
     });
 
     it('rebases a decoder failure to the successfully collected progress', async () => {
@@ -482,6 +556,17 @@ describe('bounded sequential collection', () => {
         );
         expect(fetchPage).not.toHaveBeenCalled();
     });
+
+    it.each(['pageSize', 'startOffset', 'maxPages', 'maxItems', 'maxDurationMs', 'maxBytes'] as const)(
+        'rejects an explicit null %s instead of applying a default',
+        async (field) => {
+            const fetchPage = vi.fn();
+            const options = { [field]: null, fetchPage } as unknown as CollectAllPagesOptions<number>;
+
+            await expect(collectAllPages(options)).rejects.toThrow(TestRailValidationError);
+            expect(fetchPage).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('request hooks used by pagination adapters', () => {

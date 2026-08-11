@@ -6,6 +6,7 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetLabelsOptions {
     /** Maximum number of labels to return */
@@ -16,7 +17,7 @@ export interface GetLabelsOptions {
 
 export type GetAllLabelsOptions = PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -53,7 +54,8 @@ export class LabelModule {
     /** Get every label under the configured pagination safety bounds. */
     async getAllLabels(projectId: number, options?: GetAllLabelsOptions): Promise<Label[]> {
         return collectAllPages<Label>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: (request) =>
                 this.requestLabels(
                     projectId,
@@ -64,6 +66,7 @@ export class LabelModule {
                     {
                         bypassCache: request.bypassCache,
                         remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
                     },
                 ).then((raw) => decodePage<Label>('labels', raw)),
         });
@@ -92,6 +95,7 @@ export class LabelModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 

@@ -650,8 +650,7 @@ export class TestRailClientCore {
      *   mask the server-side condition that triggered the retry.
      * @throws {TestRailApiError} when `enforce` and the limit is exceeded
      */
-    private checkRateLimit(enforce: boolean): void {
-        const now = Date.now();
+    private checkRateLimit(enforce: boolean, now = Date.now()): void {
         const windowStart = now - this.rateLimiter.windowMs;
 
         // Clean old requests outside the window
@@ -890,7 +889,26 @@ export class TestRailClientCore {
         // "no deadline" value and is left as-is.
         if (spec.timeout !== undefined) validateTimeout(spec.timeout);
         if (spec.bodyTimeout !== undefined && spec.bodyTimeout !== 0) validateTimeout(spec.bodyTimeout);
-        if (spec.remainingTimeMs !== undefined) validateTimeout(spec.remainingTimeMs);
+        if (
+            spec.deadlineAt !== undefined &&
+            (typeof spec.deadlineAt !== 'number' || !Number.isFinite(spec.deadlineAt))
+        ) {
+            throw new TestRailValidationError('deadlineAt must be a finite number');
+        }
+        if (spec.remainingTimeMs !== undefined) {
+            if (spec.deadlineAt === undefined) {
+                validateTimeout(spec.remainingTimeMs);
+            } else if (
+                typeof spec.remainingTimeMs !== 'number' ||
+                !Number.isFinite(spec.remainingTimeMs) ||
+                spec.remainingTimeMs <= 0
+            ) {
+                // A fixed deadline is authoritative and deliberately permits a
+                // derived relative value above MAX_TIMEOUT_MS after a backward
+                // clock step, but malformed/non-positive values still fail fast.
+                throw new TestRailValidationError('remainingTimeMs must be a positive finite number');
+            }
+        }
 
         // Resolve the effective timeouts once. A `withTimeout(ms)` view sets
         // `spec.timeout`/`spec.bodyTimeout`; a normal call leaves them undefined
@@ -899,15 +917,12 @@ export class TestRailClientCore {
         const configuredTimeout = spec.timeout ?? this.timeout;
         const configuredBodyTimeout = spec.bodyTimeout ?? this.bodyTimeout;
         const remainingTimeMs = spec.remainingTimeMs;
+        const deadlineAt =
+            spec.deadlineAt ?? (remainingTimeMs === undefined ? undefined : Date.now() + remainingTimeMs);
         const timeouts: ResolvedTimeouts = {
-            timeout: remainingTimeMs === undefined ? configuredTimeout : Math.min(configuredTimeout, remainingTimeMs),
-            bodyTimeout:
-                remainingTimeMs === undefined
-                    ? configuredBodyTimeout
-                    : configuredBodyTimeout === 0
-                      ? remainingTimeMs
-                      : Math.min(configuredBodyTimeout, remainingTimeMs),
-            ...(remainingTimeMs === undefined ? {} : { deadlineAt: Date.now() + remainingTimeMs }),
+            timeout: configuredTimeout,
+            bodyTimeout: configuredBodyTimeout,
+            ...(deadlineAt === undefined ? {} : { deadlineAt }),
         };
 
         // Cache key namespace selection — preserves the prior split where the
@@ -950,9 +965,9 @@ export class TestRailClientCore {
                 throw new Error('Cannot use TestRailClient after destroy() has been called');
             }
             const cached = this.getCachedData<T>(cacheKey);
-            if (cached !== undefined) return cached;
+            if (cached !== undefined) return this.withDeadline(Promise.resolve(cached), timeouts.deadlineAt);
             const existing = this.pendingRequests.get(cacheKey) as Promise<T> | undefined;
-            if (existing !== undefined) return existing;
+            if (existing !== undefined) return this.withDeadline(existing, timeouts.deadlineAt);
         }
 
         const validatedPromise: Promise<T> = (async () => {
@@ -981,7 +996,11 @@ export class TestRailClientCore {
             return result;
         })();
 
-        if (writeValidatedAfterPipeline && cacheKey !== undefined) {
+        // A bounded initiator is not published for unbounded callers to join:
+        // its transport will abort at its own deadline. Bounded callers may
+        // still join an ordinary request in the early-return branch above,
+        // where withDeadline applies only to that waiter.
+        if (writeValidatedAfterPipeline && cacheKey !== undefined && timeouts.deadlineAt === undefined) {
             this.pendingRequests.set(cacheKey, validatedPromise);
             validatedPromise
                 .finally(() => {
@@ -1318,7 +1337,7 @@ export class TestRailClientCore {
 
         if (cacheKey !== undefined && !skipRead) {
             const cached = this.getCachedData<TParsed>(cacheKey);
-            if (cached !== undefined) return cached;
+            if (cached !== undefined) return this.withDeadline(Promise.resolve(cached), spec.deadlineAt);
 
             // Coalesce concurrent identical requests (SEC #23): return the
             // in-flight promise instead of starting a new upstream request.
@@ -1328,15 +1347,8 @@ export class TestRailClientCore {
             // one slot per distinct upstream request, not per coalesced caller
             // (see checkRateLimit's accounting-unit note).
             const existing = this.pendingRequests.get(cacheKey) as Promise<TParsed> | undefined;
-            if (existing !== undefined) return existing;
+            if (existing !== undefined) return this.withDeadline(existing, spec.deadlineAt);
         }
-
-        // Enforce admission only on the initial attempt. A retry of an
-        // already-admitted request is still recorded (so the sliding-window
-        // count stays accurate and server-side limits are respected) but must
-        // not be rejected by a local 429, which would mask the server 5xx/429
-        // that triggered the retry.
-        this.checkRateLimit(retryCount === 0);
 
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
@@ -1354,6 +1366,7 @@ export class TestRailClientCore {
             throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
         }
         const effectiveTimeout = Math.min(spec.timeout, deadlineRemaining);
+        const requestDeadlineAt = Date.now() + effectiveTimeout;
         const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
         const retrySpec: PipelineSpec<TParsed> = { ...spec, cache: { key: cacheKey, skipRead: true } };
@@ -1379,6 +1392,24 @@ export class TestRailClientCore {
                 }
                 // kind === 'none': no body
 
+                // Admit only when an upstream request is actually about to be
+                // invoked. DNS, cache lookup, multipart construction, and any
+                // expired request/aggregate deadline therefore cannot consume
+                // a limiter slot without a corresponding fetch.
+                const admissionTime = Date.now();
+                if (spec.deadlineAt !== undefined && admissionTime >= spec.deadlineAt) {
+                    throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
+                }
+                if (controller.signal.aborted || admissionTime >= requestDeadlineAt) {
+                    controller.abort();
+                    throw new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
+                }
+                // Enforce admission only on the initial attempt. A retry of an
+                // already-admitted request is still recorded (so the
+                // sliding-window count stays accurate and server-side limits
+                // are respected) but must not be rejected by a local 429.
+                this.checkRateLimit(retryCount === 0, admissionTime);
+
                 const response: Response = await this.withDeadline(
                     (this.fetchOverride ?? globalThis.fetch)(url, options),
                     spec.deadlineAt,
@@ -1390,6 +1421,13 @@ export class TestRailClientCore {
                 clearTimeout(timeoutId);
 
                 this.assertNotRedirect(response);
+
+                // A successful write may already have committed upstream.
+                // Invalidate GET state before clipping or reading the body can
+                // throw, otherwise stale cached reads can survive a mutation.
+                if (response.ok) {
+                    spec.onSuccessBeforeParse?.();
+                }
 
                 const jsonLimits = {
                     maxBytes: this.maxJsonResponseBytes,
@@ -1434,7 +1472,6 @@ export class TestRailClientCore {
                     throw new TestRailApiError(status, response.statusText, errorText);
                 }
 
-                spec.onSuccessBeforeParse?.();
                 const result = await spec.parseSuccess(response);
                 if (cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
                     this.setCachedData(cacheKey, result);
@@ -1467,7 +1504,11 @@ export class TestRailClientCore {
         // Register the in-flight promise so concurrent callers with the same
         // cache key (and skipRead=false) share this single fetch (SEC #23).
         // Remove on settle so rejections don't permanently block a cache key.
-        if (cacheKey !== undefined && !skipRead) {
+        // Do not publish a deadline-bearing initiator: an ordinary caller that
+        // joined it would otherwise inherit the initiator's abort deadline.
+        // Deadline-bearing waiters can still join an ordinary promise above
+        // and race it without cancelling the shared upstream request.
+        if (cacheKey !== undefined && !skipRead && spec.deadlineAt === undefined) {
             this.pendingRequests.set(cacheKey, fetchPromise);
             // Suppress the rejection on the cleanup chain; callers own the
             // returned promise and are responsible for catching it.

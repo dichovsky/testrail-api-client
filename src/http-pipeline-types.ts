@@ -150,9 +150,16 @@ export interface RequestSpec<T> {
      */
     readonly cacheVariant?: 'page';
     /**
-     * @internal Remaining aggregate wall-clock budget. It clips both request
-     * phases without increasing a stricter client/view timeout and is shared
-     * by retries as one absolute deadline.
+     * @internal Absolute aggregate wall-clock deadline. Pagination computes
+     * this once before the first page so adapter work cannot silently rebase
+     * the duration budget. It clips both request phases without increasing a
+     * stricter client/view timeout and is shared by retries.
+     */
+    readonly deadlineAt?: number;
+    /**
+     * @internal Legacy relative aggregate budget used by direct/internal
+     * callers. Pagination also supplies {@link deadlineAt}; when both are
+     * present, the fixed absolute deadline is authoritative.
      */
     readonly remainingTimeMs?: number;
     /**

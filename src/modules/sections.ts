@@ -7,6 +7,7 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetSectionsOptions {
     suiteId?: number;
@@ -16,7 +17,7 @@ export interface GetSectionsOptions {
 
 export type GetAllSectionsOptions = Omit<GetSectionsOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -48,17 +49,20 @@ export class SectionModule {
 
     /** Get every section under the configured pagination safety bounds. */
     async getAllSections(projectId: number, options?: GetAllSectionsOptions): Promise<Section[]> {
+        const filters = snapshotOptionFields(options, ['suiteId']);
         return collectAllPages<Section>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: async (request) => {
                 const pageOptions: GetSectionsOptions = {
-                    ...(options ?? {}),
+                    ...filters,
                     limit: request.limit as number,
                     offset: request.offset as number,
                 };
                 const raw = await this.requestSections(projectId, pageOptions, {
                     bypassCache: request.bypassCache,
                     remainingTimeMs: request.remainingTimeMs,
+                    deadlineAt: request.deadlineAt,
                 });
                 return decodePage<Section>('sections', raw);
             },
@@ -89,6 +93,7 @@ export class SectionModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 

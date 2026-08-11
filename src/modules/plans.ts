@@ -17,10 +17,11 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export type GetAllPlansOptions = Omit<GetPlansOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -45,17 +46,31 @@ export class PlanModule {
 
     /** Get every plan under the configured pagination safety bounds. */
     async getAllPlans(projectId: number, options?: GetAllPlansOptions): Promise<Plan[]> {
+        const filters = snapshotOptionFields(options, [
+            'createdAfter',
+            'createdBefore',
+            'createdBy',
+            'isCompleted',
+            'milestoneId',
+            'created_after',
+            'created_before',
+            'created_by',
+            'is_completed',
+            'milestone_id',
+        ]);
         return collectAllPages<Plan>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: async (request) => {
                 const pageOptions: GetPlansOptions = {
-                    ...(options ?? {}),
+                    ...filters,
                     limit: request.limit as number,
                     offset: request.offset as number,
                 };
                 const raw = await this.requestPlans(projectId, pageOptions, {
                     bypassCache: request.bypassCache,
                     remainingTimeMs: request.remainingTimeMs,
+                    deadlineAt: request.deadlineAt,
                 });
                 return decodePage<Plan>('plans', raw);
             },
@@ -98,6 +113,7 @@ export class PlanModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 

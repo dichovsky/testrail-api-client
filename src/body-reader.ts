@@ -107,6 +107,10 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
                 }
                 reject(bodyTimeoutError(deadlineMs));
             }, deadlineMs);
+            // Deliberately keep this timer referenced. It is the only handle
+            // capable of settling the caller-visible Promise when both read()
+            // and cancel() never settle; unref() would let a standalone Node
+            // process exit before an awaited timeout can reject.
         });
     }
 
@@ -227,6 +231,9 @@ async function awaitFallbackBody<T>(
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
         timeoutId = setTimeout(() => reject(bodyTimeoutError(deadlineMs)), Math.max(0, deadlineAt - Date.now()));
+        // As above, this is an operation deadline rather than a detached
+        // cleanup timer. It must remain referenced so an awaited fallback read
+        // is guaranteed an opportunity to reject before Node exits.
     });
     try {
         const result = await Promise.race([promise, timeout]);

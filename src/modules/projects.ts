@@ -7,6 +7,7 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetProjectsPageOptions {
     limit?: number;
@@ -15,7 +16,7 @@ export interface GetProjectsPageOptions {
 
 export type GetAllProjectsOptions = PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -58,11 +59,13 @@ export class ProjectModule {
     /** Get every project under the configured pagination safety bounds. */
     async getAllProjects(options?: GetAllProjectsOptions): Promise<Project[]> {
         return collectAllPages<Project>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: async (request) => {
                 const raw = await this.requestProjects(request.limit, request.offset, {
                     bypassCache: request.bypassCache,
                     remainingTimeMs: request.remainingTimeMs,
+                    deadlineAt: request.deadlineAt,
                 });
                 return decodePage<Project>('projects', raw);
             },
@@ -84,6 +87,7 @@ export class ProjectModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 

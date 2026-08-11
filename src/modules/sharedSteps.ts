@@ -6,6 +6,7 @@ import { buildEndpoint } from '../url.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions, snapshotPaginationSafetyOptions } from './pagination-options.js';
 
 export interface GetSharedStepsOptions {
     /** Maximum number of shared steps to return */
@@ -24,7 +25,7 @@ export interface GetSharedStepHistoryOptions {
 export type GetAllSharedStepsOptions = PaginatedRequestOptions;
 export type GetAllSharedStepHistoryOptions = PaginationSafetyOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -57,7 +58,8 @@ export class SharedStepModule {
     /** Get every shared step under the configured pagination safety bounds. */
     async getAllSharedSteps(projectId: number, options?: GetAllSharedStepsOptions): Promise<SharedStep[]> {
         return collectAllPages<SharedStep>({
-            ...(options ?? {}),
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
             fetchPage: (request) =>
                 this.requestSharedSteps(
                     projectId,
@@ -68,6 +70,7 @@ export class SharedStepModule {
                     {
                         bypassCache: request.bypassCache,
                         remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
                     },
                 ).then((raw) => decodePage<SharedStep>('shared_steps', raw)),
         });
@@ -94,6 +97,7 @@ export class SharedStepModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 
@@ -150,7 +154,7 @@ export class SharedStepModule {
         options?: GetAllSharedStepHistoryOptions,
     ): Promise<StepHistoryEntry[]> {
         return collectAllPages<StepHistoryEntry>({
-            ...(options ?? {}),
+            ...snapshotPaginationSafetyOptions(options),
             requestControls: false,
             fetchPage: (request) =>
                 this.requestSharedStepHistory(
@@ -162,6 +166,7 @@ export class SharedStepModule {
                     {
                         bypassCache: request.bypassCache,
                         remainingTimeMs: request.remainingTimeMs,
+                        deadlineAt: request.deadlineAt,
                     },
                 ).then((raw) => decodePage<StepHistoryEntry>('step_history', raw)),
         });
@@ -191,6 +196,7 @@ export class SharedStepModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
             ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
+            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
         });
     }
 }

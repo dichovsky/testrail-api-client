@@ -9,10 +9,11 @@ import { buildEndpoint } from '../url.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 export interface GetAllResultsOptions extends Omit<GetResultsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -98,15 +99,22 @@ export class ResultModule {
         options: GetAllResultsOptions | undefined,
         includeDefectsFilter: boolean,
     ): Promise<Result[]> {
-        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...filters } = options ?? {};
+        const filters = snapshotOptionFields(options, [
+            'createdAfter',
+            'createdBefore',
+            'createdBy',
+            'statusId',
+            'defectsFilter',
+            'created_after',
+            'created_before',
+            'created_by',
+            'status_id',
+            'defects_filter',
+        ]);
         return collectAllPages({
-            ...(pageSize !== undefined && { pageSize }),
-            ...(startOffset !== undefined && { startOffset }),
-            ...(maxPages !== undefined && { maxPages }),
-            ...(maxItems !== undefined && { maxItems }),
-            ...(maxDurationMs !== undefined && { maxDurationMs }),
-            ...(maxBytes !== undefined && { maxBytes }),
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
                 decodePage<Result>(
                     'results',
                     await this.requestResultsPage(
@@ -117,7 +125,7 @@ export class ResultModule {
                             ...(offset !== undefined && { offset }),
                         },
                         includeDefectsFilter,
-                        { bypassCache, remainingTimeMs },
+                        { bypassCache, remainingTimeMs, deadlineAt },
                     ),
                 ),
         });
@@ -158,6 +166,7 @@ export class ResultModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
             ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
+            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
     }
 

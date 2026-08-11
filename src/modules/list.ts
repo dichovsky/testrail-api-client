@@ -24,7 +24,24 @@ const paginatedEnvelopeOf = <T extends z.ZodTypeAny>(key: string, item: T) => {
             size: z.number().int().nonnegative(),
             _links: pageLinksSchema,
         })
-        .passthrough();
+        .passthrough()
+        .superRefine((value, context) => {
+            if (value.size > value.limit) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['size'],
+                    message: 'Pagination envelope size must not exceed its limit',
+                });
+            }
+            const items = value[key];
+            if (Array.isArray(items) && items.length > value.limit) {
+                context.addIssue({
+                    code: 'custom',
+                    path: [key],
+                    message: `Pagination envelope collection "${key}" must not exceed its limit`,
+                });
+            }
+        });
 };
 
 const envelopeOf = <T extends z.ZodTypeAny>(key: string, item: T) => {

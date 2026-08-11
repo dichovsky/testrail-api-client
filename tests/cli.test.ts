@@ -3640,6 +3640,9 @@ describe('CLI', () => {
             [['project', 'list', '--all', '--limit', '2'], /--all cannot be combined with --limit or --offset/],
             [['role', 'list', '--all', '--page-size', '2'], /does not document caller-controlled pagination/],
             [['project', 'list', '--all', '--max-pages', '01'], /--max-pages must be a positive safe integer/],
+            [['project', 'list', '--all=true', '--limit', '1'], /--all does not accept a value/],
+            [['project', 'list', '--page=true'], /--page does not accept a value/],
+            [['project', 'list', '--all', '--max-pages'], /--max-pages requires a value/],
         ] as const)('rejects incompatible pagination argv before fetching: %j', async (argv, message) => {
             const { exitCodes, stderr, stdout } = await runCli([...argv]);
             expect(exitCodes).toContain(1);

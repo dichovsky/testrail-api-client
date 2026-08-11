@@ -6,6 +6,7 @@ import { buildEndpoint } from '../url.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
+import { snapshotPaginatedRequestOptions } from './pagination-options.js';
 
 /**
  * Optional pagination params. TestRail documents them for case-, run-, and
@@ -21,7 +22,7 @@ export interface GetAttachmentsOptions {
 
 export type GetAllAttachmentsOptions = PaginatedRequestOptions;
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs'>> & {
+type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
 
@@ -119,15 +120,10 @@ export class AttachmentModule {
         endpointBase: string,
         options: GetAllAttachmentsOptions | undefined,
     ): Promise<Attachment[]> {
-        const { pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes } = options ?? {};
         return collectAllPages({
-            ...(pageSize !== undefined && { pageSize }),
-            ...(startOffset !== undefined && { startOffset }),
-            ...(maxPages !== undefined && { maxPages }),
-            ...(maxItems !== undefined && { maxItems }),
-            ...(maxDurationMs !== undefined && { maxDurationMs }),
-            ...(maxBytes !== undefined && { maxBytes }),
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs }) =>
+            ...snapshotPaginatedRequestOptions(options),
+            requestControls: true,
+            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
                 decodePage<Attachment>(
                     'attachments',
                     await this.requestAttachmentsPage(
@@ -136,7 +132,7 @@ export class AttachmentModule {
                             ...(limit !== undefined && { limit }),
                             ...(offset !== undefined && { offset }),
                         },
-                        { bypassCache, remainingTimeMs },
+                        { bypassCache, remainingTimeMs, deadlineAt },
                     ),
                 ),
         });
@@ -157,6 +153,7 @@ export class AttachmentModule {
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
             ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
+            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
     }
 

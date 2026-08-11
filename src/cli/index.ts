@@ -171,18 +171,18 @@ async function main(): Promise<number> {
     const dryRun = values['dry-run'] === true;
     const actionSpec = getActionSpec(resource, action);
     const paginationValidation = validateCliPagination(actionSpec, {
-        ...(values['page'] === true && { page: true }),
-        ...(values['all'] === true && { all: true }),
-        ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
-        ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
-        ...(values['page-size'] !== undefined && { pageSize: values['page-size'] as string }),
-        ...(values['start-offset'] !== undefined && { startOffset: values['start-offset'] as string }),
-        ...(values['max-pages'] !== undefined && { maxPages: values['max-pages'] as string }),
-        ...(values['max-items'] !== undefined && { maxItems: values['max-items'] as string }),
+        ...(values['page'] !== undefined && { page: values['page'] }),
+        ...(values['all'] !== undefined && { all: values['all'] }),
+        ...(values['limit'] !== undefined && { limit: values['limit'] }),
+        ...(values['offset'] !== undefined && { offset: values['offset'] }),
+        ...(values['page-size'] !== undefined && { pageSize: values['page-size'] }),
+        ...(values['start-offset'] !== undefined && { startOffset: values['start-offset'] }),
+        ...(values['max-pages'] !== undefined && { maxPages: values['max-pages'] }),
+        ...(values['max-items'] !== undefined && { maxItems: values['max-items'] }),
         ...(values['max-duration-ms'] !== undefined && {
-            maxDurationMs: values['max-duration-ms'] as string,
+            maxDurationMs: values['max-duration-ms'],
         }),
-        ...(values['max-bytes'] !== undefined && { maxBytes: values['max-bytes'] as string }),
+        ...(values['max-bytes'] !== undefined && { maxBytes: values['max-bytes'] }),
     });
     if (!paginationValidation.ok) {
         err(paginationValidation.error);
