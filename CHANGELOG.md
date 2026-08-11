@@ -13,17 +13,21 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > source was reverted in that reconciliation; only the version number and this log
 > were realigned with what npm actually shipped.
 
-## [Unreleased] — response validation becomes advisory
+## [Unreleased] — advisory validation, safe pagination, and response coverage
 
 > Staged for the next **major** (`6.0.0`): the type widenings below break
 > consumer builds. Not yet released — no version bump, tag, or publish.
 
-Response validation no longer fails closed. A TestRail response that does not
-match its Zod schema is returned raw and reported to a new `onSchemaMismatch`
-hook instead of throwing. The only exception is an unrecognized successful
-response from the non-idempotent `addCases` / `updateCases` bulk writes: those
-calls report the mismatch and throw an explicit indeterminate-outcome error so
-callers do not interpret an unknown response as zero affected cases and retry.
+Entity-field response validation no longer fails closed. A TestRail response
+whose entity fields do not match their Zod schema is returned raw and reported
+to a new `onSchemaMismatch` hook instead of throwing. With a non-throwing hook,
+structural list/page invariants still fail closed: default list projections
+throw `TestRailApiError`, explicit page/all projections throw
+`TestRailPaginationError`, and the non-idempotent `addCases` / `updateCases`
+bulk writes throw an explicit indeterminate-outcome `TestRailApiError`. These
+guards prevent an unknown successful response from masquerading as zero rows or
+zero affected cases. A caller hook that throws takes precedence over the
+downstream decoder.
 
 The evidence for the change: response-schema corrections have consistently
 widened schemas to admit valid TestRail responses rather than narrowed them to
@@ -54,6 +58,31 @@ page.
   the caller, but caching it would pin a rejected body for the full TTL with no
   further hook notifications. Each subsequent call now re-fetches and re-reports,
   so a transient blip self-heals as it did in 5.x.
+- **The CLI reports entity-field drift safely and can opt back into strict
+  behavior.** Its default remains advisory, with at most 10 unique,
+  deduplicated warnings followed by a safe suppressed-count summary. Warnings
+  contain only the HTTP method, CLI resource/action, normalized Zod issue codes,
+  and shape-only paths with every segment masked; they never include the
+  endpoint, field/record keys, issue messages, or raw response.
+  `--strict-responses` or `TESTRAIL_STRICT_RESPONSES=1` stops at the
+  first mismatch with exit code 1. A successful mutating request instead throws
+  an indeterminate-outcome `TestRailApiError` so CI does not retry it blindly.
+  One-shot commands emit no mismatched value and bounded aggregates emit no
+  partial array; streaming `run watch` output from completed earlier polls
+  cannot be retracted. The environment variable accepts only `1`, `0`, an empty
+  value, or unset; every other value fails before authentication/network access.
+  `--strict-responses=<value>` forms are rejected. `--quiet` suppresses advisory
+  warnings.
+- **Malformed default-list outer responses are `TestRailApiError`s in
+  non-throwing advisory mode.** The
+  successful HTTP response had an unrecognized protocol shape, not a bad caller
+  argument, so it no longer surfaces as `TestRailValidationError`. The raw body
+  is available only through `.response`; it is never interpolated into the error
+  message. Explicit page/all failures retain the structured
+  `TestRailPaginationError` contract. Consumers that caught
+  `TestRailValidationError` around default list reads with the default hook must catch
+  `TestRailApiError` for this condition instead; page/all catch logic is
+  unchanged. A throwing hook still propagates before either structural decoder.
 - **`tests.updateTests()` returns `UpdateTestsResponse`, not `Test[]`.**
   `update_tests` acknowledges the bulk label assignment —
   `{ test_ids: [1, 2, 3], labels: [{ id, title }] }` — and does not return the

@@ -56,9 +56,10 @@ type ResponseWithCustomFields<
  *
  * Nothing here is disclosed that the caller does not already receive — but a
  * hook usually *logs*, which moves the data somewhere the API response never
- * went. Both `endpoint` and `data` can carry personal data; see the per-field
- * notes below and prefer `error.issues` (paths and codes only, no values) when
- * a redacted signal is enough.
+ * went. `endpoint`, `error`, and `data` can all carry personal or project data;
+ * see the per-field notes below. In particular, Zod paths can contain
+ * response-controlled record/catchall keys, so select only issue codes and
+ * replace every path segment before sending them to telemetry.
  */
 export interface SchemaMismatch {
     /** HTTP method of the originating request (e.g. `'GET'`). */
@@ -72,7 +73,13 @@ export interface SchemaMismatch {
      * `/` or `&` rather than logging this value directly.
      */
     endpoint: string;
-    /** The Zod failure, listing every offending path. */
+    /**
+     * The Zod failure, listing every offending path.
+     *
+     * **May contain instance data.** Record/catchall keys can appear as path
+     * segments, and issue messages/inputs are not a privacy boundary. Do not log
+     * the error or raw issues wholesale.
+     */
     error: ZodError;
     /**
      * The raw response body, returned to the caller unchanged.
@@ -218,12 +225,15 @@ export interface TestRailConfig {
      * build, while production stays available:
      *
      * @example
-     * // Observe drift without logging path IDs or query values
+     * // Observe drift without logging path IDs, query values, or response keys
      * onSchemaMismatch: ({ method, endpoint, error }) =>
      *     log.warn({
      *         method,
      *         operation: endpoint.replace(/[\/&].*$/, ''),
-     *         issues: error.issues,
+     *         issues: error.issues.map(({ code, path }) => ({
+     *             code,
+     *             path: path.length === 0 ? '$' : `$.${path.map(() => '*').join('.')}`,
+     *         })),
      *     })
      *
      * @example
@@ -235,6 +245,11 @@ export interface TestRailConfig {
      * @example
      * // Or throw the ZodError as-is, if you prefer the raw issue tree
      * onSchemaMismatch: ({ error }) => { throw error; }
+     *
+     * A response hook runs after TestRail has answered. For a mutating request,
+     * its throw is not evidence that the server-side write failed and can
+     * preempt a domain method's downstream response-shape guard. Never retry a
+     * write blindly based only on an error thrown by this hook.
      *
      * **The hook must be synchronous.** An `async` function satisfies the `void`
      * return type but cannot restore fail-closed behavior — its throw becomes a

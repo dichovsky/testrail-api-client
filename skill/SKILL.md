@@ -423,6 +423,26 @@ walks bypass the GET cache to avoid mixing differently aged pages. Page reads
 use normal caching in a separate strict-schema namespace, so a collection-only
 legacy wrapper cannot poison `Page<T>` reads.
 
+### Response validation policy
+
+Entity-field response mismatches are advisory in the CLI. By default the
+command continues and writes at most 10 unique, deduplicated warnings to stderr,
+then a safe suppressed-count summary. Warnings contain only the HTTP method,
+known resource/action, normalized issue codes, and shape-only paths whose
+segments are all masked. They never include the endpoint, field/record keys,
+issue messages, or raw response data.
+
+Use `--strict-responses` or `TESTRAIL_STRICT_RESPONSES=1` in CI to stop at the
+first mismatch with exit code 1. Read mismatches raise
+`TestRailValidationError`; successful mutating-response mismatches raise a
+privacy-safe `TestRailApiError` whose message says the write outcome is
+indeterminate—do not retry it blindly. One-shot commands emit no mismatched
+value and bounded aggregates emit no partial array. A streaming `run watch` can
+retain completed events from earlier polls. The environment variable accepts
+`1`, `0`, an empty value, or unset; any other value is rejected before
+authentication or a network request. `--strict-responses=<value>` forms are
+rejected. `--quiet` suppresses advisory warnings.
+
 Response types derive from declared schema keys. Only `Case`, `Test`,
 and `Result` declare flat `custom_*` bracket access, returning
 `unknown`; narrow it before use. Their nested `custom_fields` member is
@@ -3382,13 +3402,13 @@ try {
     console.log(project.name);
 } catch (e) {
     if (e instanceof TestRailApiError) {
-        // HTTP/network errors carry .status / .statusText / .response.
+        // HTTP/network/protocol errors carry .status / .statusText / .response.
         console.error(`HTTP ${e.status}: ${e.statusText}`);
     } else if (e instanceof TestRailPaginationError) {
         // Safe aggregate/page failure; no partial result was returned.
         console.error(e.reason, e.pagesFetched, e.itemsFetched);
     } else if (e instanceof TestRailValidationError) {
-        // Bad config/args or malformed list outer structure.
+        // Bad config or caller arguments.
         console.error(`Invalid input: ${e.message}`);
     }
     throw e;
@@ -3402,7 +3422,7 @@ try {
 
 Each snippet below is self-contained and uses only published types — copy,
 paste, and adjust the IDs. All methods return `Promise<T>`; all errors
-inherit from `Error` (`TestRailApiError` for HTTP/network,
+inherit from `Error` (`TestRailApiError` for HTTP/network/protocol failures,
 `TestRailPaginationError` for safe pagination failure, and
 `TestRailValidationError` for other validation failures).
 

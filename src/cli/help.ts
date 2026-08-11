@@ -207,7 +207,11 @@ const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other process
                     'on'. Failure exits with code 2 (distinct from the
                     generic exit code 1) so CI can branch on "blocked by
                     env gate" vs "invalid argv / auth / 4xx". --dry-run
-                    bypasses this gate (preview hits no API).`;
+                    bypasses this gate (preview hits no API).
+  TESTRAIL_STRICT_RESPONSES=1|0
+                    Fail closed on response-schema drift when set to exactly
+                    '1'. '0', empty, or unset keeps privacy-safe advisory
+                    warnings. Other non-empty values are rejected.`;
 
 const OPTIONS_BLOCK = `Options:
   --api-key-stdin       Read API key from stdin (single line; mutually
@@ -224,6 +228,8 @@ const OPTIONS_BLOCK = `Options:
                         as headers, and nested objects/arrays JSON-stringified
                         into the cell (no dot-path flattening).
   --quiet               Suppress output; use exit code 0/1
+  --strict-responses    Fail closed on the first response-schema mismatch.
+                        Overrides advisory mode for this invocation.
   --timeout <ms>        Request timeout in milliseconds. Overrides the
                         TESTRAIL_TIMEOUT env var; default 30000, max 300000.
   --page                Return one normalized page with pagination metadata.

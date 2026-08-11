@@ -329,22 +329,23 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 
 ### 6.5 Cross-cutting CLI infrastructure
 
-| File                 | Role                                                                                                                                                                                     |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth.ts`            | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                    |
-| `output.ts`          | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
-| `flags.ts`           | `CLI_OPTIONS` (parseArgs table) + `KNOWN_FLAGS` (Set). Single source of truth — tests lock it against drift.                                                                             |
-| `ids.ts`             | `parseId` / `optInt` with consistent error shapes.                                                                                                                                       |
-| `pagination.ts`      | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                |
-| `body.ts`            | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                           |
-| `stdin.ts`           | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                          |
-| `file-input.ts`      | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                    |
-| `file-output.ts`     | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                       |
-| `sanitize.ts`        | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                 |
-| `safe-write.ts`      | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                          |
-| `handler-context.ts` | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                          |
-| `install-skill.ts`   | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                     |
-| `uninstall-skill.ts` | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                        |
+| File                     | Role                                                                                                                                                                                     |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.ts`                | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                    |
+| `output.ts`              | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
+| `flags.ts`               | `CLI_OPTIONS` (parseArgs table) + `KNOWN_FLAGS` (Set). Single source of truth — tests lock it against drift.                                                                             |
+| `ids.ts`                 | `parseId` / `optInt` with consistent error shapes.                                                                                                                                       |
+| `pagination.ts`          | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                |
+| `response-validation.ts` | Resolves strict-response flag/env policy and builds the bounded privacy-safe advisory mismatch reporter.                                                                                 |
+| `body.ts`                | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                           |
+| `stdin.ts`               | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                          |
+| `file-input.ts`          | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                    |
+| `file-output.ts`         | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                       |
+| `sanitize.ts`            | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                 |
+| `safe-write.ts`          | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                          |
+| `handler-context.ts`     | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                          |
+| `install-skill.ts`       | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                     |
+| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                        |
 
 Pagination validation runs before auth resolution and client construction.
 Default mode emits the existing item array; `--page` emits `Page<T>` and
@@ -354,6 +355,20 @@ exclusive. `--all` rejects `--limit`/`--offset`; `--page-size`,
 `--max-bytes` require `--all`. Endpoints with `requestControls: false` allow
 aggregate safety bounds but reject caller-supplied page size/start offset (and
 reject limit/offset in page mode).
+
+CLI entity-field mismatch reporting is advisory by default. Its synchronous
+hook emits only the HTTP method, already validated resource/action, normalized
+issue codes, and path depth with every segment masked; it never prints the
+endpoint, field/record keys, issue message, or response data. Fingerprints are deduplicated and capped so a
+multi-page aggregate cannot flood stderr: at most 10 unique warnings are
+printed, followed by a safe suppressed-count summary. `--strict-responses` or
+`TESTRAIL_STRICT_RESPONSES=1` converts the first read mismatch to
+`handleZodError(error)` and a successful mutating-response mismatch to an
+indeterminate-outcome `TestRailApiError`; `0`, empty, and unset select advisory
+mode, while other environment values fail before auth/network work. Boolean flag
+value forms are rejected. `--quiet` suppresses advisory warnings. A strict
+bounded aggregate emits no partial array; a streaming watch can retain completed
+events emitted before a later mismatch.
 
 ### 6.6 `--dry-run`, `--yes`, `--soft`, `TESTRAIL_ALLOW_DESTRUCTIVE` semantics
 
@@ -372,20 +387,21 @@ Both gates must clear. The env var is process-wide audit-friendly (visible in `p
 
 ## 7. Errors
 
-| Class                     | Thrown for                                                                             | Carries                            |
-| ------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------- |
-| `TestRailApiError`        | HTTP non-2xx, network error, rate limit, timeout (408), invalid JSON, blocked redirect | `status`, `statusText`, `response` |
-| `TestRailPaginationError` | Invalid page/continuation, non-progress, or aggregate bound                            | reason + progress counters         |
-| `TestRailValidationError` | Bad config/arguments or malformed list outer structure                                 | `details`                          |
-| `Error` (plain)           | Call after `destroy()`                                                                 | —                                  |
+| Class                     | Thrown for                                                                         | Carries                            |
+| ------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------- |
+| `TestRailApiError`        | HTTP/network/protocol error, including malformed successful default-list structure | `status`, `statusText`, `response` |
+| `TestRailPaginationError` | Invalid page/continuation, non-progress, or aggregate bound                        | reason + progress counters         |
+| `TestRailValidationError` | Bad config or caller arguments                                                     | `details`                          |
+| `Error` (plain)           | Call after `destroy()`                                                             | —                                  |
 
-Entity-field Zod mismatches are advisory and use `onSchemaMismatch`. Outer
-list/page structure is a hard protocol invariant: every projection rejects a
-missing/scalar collection, while page/all projections also reject partial
-metadata, malformed links, and unsafe continuations rather than silently
-returning zero rows. `TestRailPaginationError` extends
-`TestRailValidationError`, so subtype checks come first. Plain `Error` for a
-destroyed client signals a programmer mistake.
+Entity-field Zod mismatches are advisory and use `onSchemaMismatch`. With a
+non-throwing hook, outer list/page structure is a hard protocol invariant:
+default list projections reject a missing/scalar collection with
+`TestRailApiError`, while page/all projections use `TestRailPaginationError` for
+partial metadata, malformed links, and unsafe continuations rather than silently
+returning zero rows. A throwing hook propagates before those downstream decoders.
+`TestRailPaginationError` extends `TestRailValidationError`, so subtype checks
+come first. Plain `Error` for a destroyed client signals a programmer mistake.
 
 ---
 

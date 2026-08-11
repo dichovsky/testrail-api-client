@@ -2,7 +2,11 @@ import { ZodError } from 'zod';
 import type { PaginationErrorReason } from './pagination.js';
 
 /**
- * Thrown when the TestRail API returns a non-2xx response or a network error occurs.
+ * Thrown when communication with TestRail fails or a successful response cannot
+ * be used safely. This includes non-2xx responses, network/body-processing
+ * failures, and unrecognized outer response structures. The optional `response`
+ * retains the raw server value for programmatic inspection; callers should not
+ * expose it in logs because it can contain instance data.
  */
 export class TestRailApiError extends Error {
     constructor(

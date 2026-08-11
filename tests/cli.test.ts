@@ -1505,7 +1505,7 @@ describe('CLI', () => {
             const { exitCodes, stdout, stderr } = await runCli(['test', 'list', '5'], [jsonResponse({})]);
             expect(exitCodes).toContain(1);
             expect(stdout.trim()).toBe('');
-            expect(stderr).toContain('List response field "tests" must be an array or null');
+            expect(stderr).toContain('TestRail API error: 200 Unexpected list response structure');
         });
 
         it('test get with explicit --format json emits parseable JSON', async () => {

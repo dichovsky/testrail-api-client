@@ -5,6 +5,9 @@ export const MAX_RETRY_DELAY_MS = 10000;
 /** Maximum allowed request timeout: 5 minutes */
 export const MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
+/** HTTP status code for a successful response whose protocol shape is unusable. */
+export const HTTP_OK_STATUS = 200;
+
 // TestRailConfig defaults
 export const DEFAULT_TIMEOUT_MS = 30000;
 export const DEFAULT_MAX_RETRIES = 3;
@@ -80,6 +83,9 @@ export const MAX_DATA_FILE_BYTES = 1_048_576;
  * orders of magnitude beyond any sensible API key).
  */
 export const MAX_STDIN_BYTES = 1024 * 1024;
+
+/** Maximum number of unique advisory response-schema warnings per CLI run. */
+export const MAX_CLI_SCHEMA_MISMATCH_WARNINGS = 10;
 
 /**
  * CLI binary stdin upload cap (PR3a — `--file -` sentinel). The text-body

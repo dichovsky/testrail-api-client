@@ -79,11 +79,29 @@ describe('strict list and page decoding', () => {
         expect(() => decodePage('items', collectionAboveLimit)).toThrow(TestRailPaginationError);
     });
 
-    it('keeps explicit null as empty but rejects missing and wrongly typed collections', () => {
+    it('keeps explicit null as empty but classifies malformed outer list structures as API errors', () => {
         expect(unwrapList('items', { items: null })).toEqual([]);
-        expect(() => unwrapList('items', { items: 'oops' })).toThrow(TestRailValidationError);
-        expect(() => unwrapList('items', { error: 'not a list' })).toThrow(TestRailValidationError);
-        expect(() => unwrapList('items', null)).toThrow(TestRailValidationError);
+
+        const malformed = { items: 'private-row-value', customer_email: 'person@example.test' };
+        let caught: unknown;
+        try {
+            unwrapList('items', malformed);
+        } catch (error: unknown) {
+            caught = error;
+        }
+
+        expect(caught).toBeInstanceOf(TestRailApiError);
+        expect(caught).toMatchObject({
+            status: 200,
+            statusText: 'Unexpected list response structure',
+        });
+        expect((caught as TestRailApiError).response).toBe(malformed);
+        expect((caught as Error).message).toBe('TestRail API error: 200 Unexpected list response structure');
+        expect((caught as Error).message).not.toContain('private-row-value');
+        expect((caught as Error).message).not.toContain('person@example.test');
+
+        expect(() => unwrapList('items', { error: 'not a list' })).toThrow(TestRailApiError);
+        expect(() => unwrapList('items', null)).toThrow(TestRailApiError);
     });
 
     it('preserves advisory row drift inside a structurally valid collection', () => {
@@ -96,8 +114,8 @@ describe('strict list and page decoding', () => {
         const valid = [{ history: [{ id: 1 }], offset: 0, limit: 1, size: 1, _links: { next: null, prev: null } }];
         expect(listOfNested('history', ItemSchema).parse(valid)).toEqual(valid);
         expect(unwrapNestedList('history', valid)).toEqual([{ id: 1 }]);
-        expect(() => unwrapNestedList('history', [valid[0], valid[0]])).toThrow(TestRailValidationError);
-        expect(() => unwrapNestedList('history', [valid[0], { id: 2 }])).toThrow(TestRailValidationError);
+        expect(() => unwrapNestedList('history', [valid[0], valid[0]])).toThrow(TestRailApiError);
+        expect(() => unwrapNestedList('history', [valid[0], { id: 2 }])).toThrow(TestRailApiError);
     });
 
     it('normalizes envelopes and legacy arrays without inventing legacy offsets', () => {
@@ -179,11 +197,11 @@ describe('strict list and page decoding', () => {
             _links: { next: null, prev: null },
         };
 
-        expect(() => unwrapNestedList('items', [misspelled])).toThrow(TestRailValidationError);
+        expect(() => unwrapNestedList('items', [misspelled])).toThrow(TestRailApiError);
         expect(() => decodeNestedPage('items', [misspelled])).toThrow(TestRailPaginationError);
 
         const partial = { itmes: [], offset: 0, limit: 2, size: 0 };
-        expect(() => unwrapNestedList('items', [partial])).toThrow(TestRailValidationError);
+        expect(() => unwrapNestedList('items', [partial])).toThrow(TestRailApiError);
         expect(() => decodeNestedPage('items', [partial])).toThrow(TestRailPaginationError);
     });
 
