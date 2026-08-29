@@ -1,6 +1,7 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, optInt } from '../ids.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
+import { parseOptionalIdList } from '../filters.js';
 
 /**
  * Parse a comma-separated `--status-id` flag value into a positive-integer
@@ -24,7 +25,11 @@ export async function handleTestList(ctx: HandlerContext): Promise<void> {
     const limit = optInt(ctx.args.limit);
     const offset = optInt(ctx.args.offset);
     const statusIds = parseStatusIdList(ctx.args.statusId);
-    const filters = { ...(statusIds !== undefined && { status_id: statusIds }) };
+    const labelIds = parseOptionalIdList(ctx.args.labelId, '--label-id');
+    const filters = {
+        ...(statusIds !== undefined && { status_id: statusIds }),
+        ...(labelIds !== undefined && { label_id: labelIds }),
+    };
     const pageOptions = {
         ...filters,
         ...(limit !== undefined && { limit }),

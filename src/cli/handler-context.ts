@@ -11,8 +11,29 @@ export interface HandlerArgs {
     pathParams: readonly string[];
     projectId?: string;
     suiteId?: string;
+    sectionId?: string;
     runId?: string;
     caseId?: string;
+    typeId?: string;
+    priorityId?: string;
+    templateId?: string;
+    milestoneId?: string;
+    createdAfter?: string;
+    createdBefore?: string;
+    createdBy?: string;
+    updatedAfter?: string;
+    updatedBefore?: string;
+    updatedBy?: string;
+    labelId?: string;
+    /** Comma-separated external references. TestRail 10.7 list endpoints
+     *  serialize multiple values as repeated `refs[]` query parameters. */
+    refs?: string;
+    /** Case-title substring filter used by `case list`. */
+    filter?: string;
+    /** Include plan-owned runs in `run list`. */
+    includePlanRuns?: boolean;
+    /** Boolean list filter encoded as `true|false|1|0`. */
+    isCompleted?: string;
     limit?: string;
     offset?: string;
     /** Return a normalized pagination envelope instead of the legacy item array. */

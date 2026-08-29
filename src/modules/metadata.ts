@@ -12,8 +12,10 @@ import {
     TemplateSchema,
     RoleSchema,
     CaseStatusSchema,
+    DynamicFilterFieldSchema,
+    TestRailVersionSchema,
 } from '../schemas.js';
-import type { AddCaseFieldPayload, AddCaseFieldResponse } from '../schemas.js';
+import type { AddCaseFieldPayload, AddCaseFieldResponse, DynamicFilterField, TestRailVersion } from '../schemas.js';
 import { z } from 'zod';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
@@ -34,6 +36,15 @@ interface MetadataPaginationControls {
 
 export class MetadataModule {
     constructor(private readonly client: TestRailClientCore) {}
+
+    /** @testrail GET get_version */
+    async getVersion(): Promise<TestRailVersion> {
+        return this.client.request<TestRailVersion>({
+            method: 'GET',
+            endpoint: 'get_version',
+            schema: TestRailVersionSchema,
+        });
+    }
 
     /** @testrail GET get_statuses */
     async getStatuses(): Promise<Status[]> {
@@ -106,6 +117,16 @@ export class MetadataModule {
             method: 'GET',
             endpoint: 'get_priorities',
             schema: z.array(PrioritySchema),
+        });
+    }
+
+    /** @testrail GET get_dynamic_filter_fields/{project_id} */
+    async getDynamicFilterFields(projectId: number): Promise<DynamicFilterField[]> {
+        validateId(projectId, 'projectId');
+        return this.client.request<DynamicFilterField[]>({
+            method: 'GET',
+            endpoint: `get_dynamic_filter_fields/${projectId}`,
+            schema: z.array(DynamicFilterFieldSchema),
         });
     }
 

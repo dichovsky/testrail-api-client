@@ -1,10 +1,16 @@
-import { AddResultPayloadSchema, AddResultsForCasesPayloadSchema, AddResultsPayloadSchema } from '../../schemas.js';
+import {
+    AddResultPayloadSchema,
+    AddResultsForCasesPayloadSchema,
+    AddResultsPayloadSchema,
+    EditResultPayloadSchema,
+} from '../../schemas.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from '../handlers/result.js';
 import {
     handleResultAdd,
     handleResultAddBulk,
     handleResultAddBulkByTest,
     handleResultAddByTest,
+    handleResultEdit,
 } from '../handlers/result-write.js';
 import type { ActionSpec } from './types.js';
 
@@ -17,6 +23,7 @@ import type { ActionSpec } from './types.js';
  *   [4] add-bulk          — write
  *   [5] add-bulk-by-test  — write
  *   [6] add-by-test       — write
+ *   [7] edit              — write
  */
 export const resultActions: readonly ActionSpec[] = [
     {
@@ -98,5 +105,16 @@ export const resultActions: readonly ActionSpec[] = [
         helpExample: `--data '{"status_id":1}'`,
         isWrite: true,
         handler: handleResultAddByTest,
+    },
+    {
+        resource: 'result',
+        action: 'edit',
+        summary: 'Partially update an existing result (TestRail 10.4+)',
+        pathParams: [{ name: 'result_id', description: 'TestRail result ID' }],
+        apiEndpoint: 'POST edit_result/{result_id}',
+        bodySchema: EditResultPayloadSchema,
+        helpExample: `--data '{"comment":"Updated comment"}'`,
+        isWrite: true,
+        handler: handleResultEdit,
     },
 ];

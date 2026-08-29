@@ -84,6 +84,27 @@ export const AddResultPayloadSchema = zObject({
 
 export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>;
 
+/**
+ * Partial payload accepted by `edit_result/{result_id}` (TestRail 10.4+).
+ * Every standard result field is optional because the endpoint changes only
+ * the fields supplied by the caller. Flat `custom_*` fields pass through via
+ * `zObject`; the built-in separated-step field is declared explicitly so its
+ * replacement-array contract is visible to TypeScript consumers.
+ */
+export const EditResultPayloadSchema = zObject({
+    status_id: z.number().optional(),
+    comment: z.string().optional(),
+    version: z.string().optional(),
+    elapsed: z.string().optional(),
+    defects: z.string().optional(),
+    assignedto_id: z.number().optional(),
+    custom_step_results: z.array(z.record(z.string(), z.unknown())).optional(),
+}).refine((payload) => Object.keys(payload).length > 0, {
+    message: 'At least one result field is required',
+});
+
+export type EditResultPayload = z.infer<typeof EditResultPayloadSchema>;
+
 // SPEC #A.1 — see CLAUDE.md (Schema authoring conventions) §3 (no .extend() across directions)
 // Inlined rather than `.extend(AddResultPayloadSchema)` so the passthrough()
 // behavior is unambiguous and the inferred type stays a plain object literal.

@@ -76,6 +76,7 @@ Compact table legend:
 | `case get` | R | `<case_id>` | - |
 | `case list` | R | - | - |
 | `case history` | R | `<case_id>` | - |
+| `case titles` | R | `<case_ids>` | - |
 | `run get` | R | `<run_id>` | - |
 | `run list` | R | - | - |
 | `run watch` | R | `<run_id>` | - |
@@ -112,6 +113,7 @@ Compact table legend:
 | `result add-bulk` | W | `<run_id>` | AddResultsForCasesPayloadSchema |
 | `result add-bulk-by-test` | W | `<run_id>` | AddResultsPayloadSchema |
 | `result add-by-test` | W | `<test_id>` | AddResultPayloadSchema |
+| `result edit` | W | `<result_id>` | EditResultPayloadSchema |
 | `plan add` | W | `<project_id>` | AddPlanPayloadSchema |
 | `plan update` | W | `<plan_id>` | UpdatePlanPayloadSchema |
 | `plan add-entry` | W | `<plan_id>` | AddPlanEntryPayloadSchema |
@@ -142,6 +144,8 @@ Compact table legend:
 | `shared-step history` | R | `<shared_step_id>` | - |
 | `report list` | R | `<project_id>` | - |
 | `report run` | R | `<report_template_id>` | - |
+| `report list-cross-project` | R | - | - |
+| `report run-cross-project` | R | `<report_template_id>` | - |
 | `shared-step add` | W | `<project_id>` | AddSharedStepPayloadSchema |
 | `shared-step update` | W | `<shared_step_id>` | UpdateSharedStepPayloadSchema |
 | `shared-step delete` | D | `<shared_step_id>` | none+yes |
@@ -153,6 +157,8 @@ Compact table legend:
 | `role list` | R | - | - |
 | `priority list` | R | - | - |
 | `case-type list` | R | - | - |
+| `version get` | R | - | - |
+| `dynamic-filter-field list` | R | `<project_id>` | - |
 | `case-field add` | W | - | AddCaseFieldPayloadSchema |
 | `attachment list-for-case` | R | `<case_id>` | - |
 | `attachment list-for-run` | R | `<run_id>` | - |
@@ -167,7 +173,9 @@ Compact table legend:
 | `attachment add-to-plan-entry` | W | `<plan_id>` `<entry_id>` | file |
 | `attachment delete` | D | `<attachment_id>` | none+yes |
 | `bdd get` | R | `<case_id>` | out:text |
-| `bdd add` | W | `<case_id>` | file |
+| `bdd list` | R | - | - |
+| `bdd add` | W | `<section_id>` | file |
+| `bdd update` | W | `<case_id>` | file |
 | `variable list` | R | `<project_id>` | - |
 | `variable add` | W | `<project_id>` | AddVariablePayloadSchema |
 | `variable update` | W | `<variable_id>` | UpdateVariablePayloadSchema |
@@ -191,7 +199,10 @@ Compact table legend:
 | `configuration delete` | D | `<config_id>` | none+yes |
 | `label get` | R | `<label_id>` | - |
 | `label list` | R | `<project_id>` | - |
+| `label add` | W | `<project_id>` | AddLabelPayloadSchema |
 | `label update` | W | `<label_id>` | UpdateLabelPayloadSchema |
+| `label delete` | D | `<label_id>` | none+yes |
+| `label delete-bulk` | D | - | DeleteLabelsPayloadSchema |
 <!-- /GENERATED:command-table -->
 
 ## Body input for write actions
@@ -294,27 +305,28 @@ Router pattern: use the compact index below first; open
 ```yaml
 # compact schema index
 schemas:
-- {s: AddCasePayloadSchema, a: "case add", req: [title], opt: 7, ref: "./reference/payload-schemas.yaml#addcasepayloadschema"}
+- {s: AddCasePayloadSchema, a: "case add", req: [title], opt: 9, ref: "./reference/payload-schemas.yaml#addcasepayloadschema"}
 - {s: AddCasesBulkPayloadSchema, a: "case add-bulk", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#addcasesbulkpayloadschema"}
-- {s: UpdateCasePayloadSchema, a: "case update", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updatecasepayloadschema"}
-- {s: UpdateCasesPayloadSchema, a: "case update-bulk", req: [case_ids], opt: 8, ref: "./reference/payload-schemas.yaml#updatecasespayloadschema"}
+- {s: UpdateCasePayloadSchema, a: "case update", req: [], opt: 11, ref: "./reference/payload-schemas.yaml#updatecasepayloadschema"}
+- {s: UpdateCasesPayloadSchema, a: "case update-bulk", req: [case_ids], opt: 11, ref: "./reference/payload-schemas.yaml#updatecasespayloadschema"}
 - {s: DeleteCasesPayloadSchema, a: "case delete-bulk", req: [case_ids], opt: 0, ref: "./reference/payload-schemas.yaml#deletecasespayloadschema"}
 - {s: CopyCasesToSectionPayloadSchema, a: "case copy-to-section", req: [case_ids], opt: 0, ref: "./reference/payload-schemas.yaml#copycasestosectionpayloadschema"}
 - {s: MoveCasesToSectionPayloadSchema, a: "case move-to-section", req: [case_ids, suite_id], opt: 0, ref: "./reference/payload-schemas.yaml#movecasestosectionpayloadschema"}
-- {s: AddRunPayloadSchema, a: "run add", req: [name], opt: 7, ref: "./reference/payload-schemas.yaml#addrunpayloadschema"}
-- {s: UpdateRunPayloadSchema, a: "run update", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#updaterunpayloadschema"}
+- {s: AddRunPayloadSchema, a: "run add", req: [name], opt: 10, ref: "./reference/payload-schemas.yaml#addrunpayloadschema"}
+- {s: UpdateRunPayloadSchema, a: "run update", req: [], opt: 10, ref: "./reference/payload-schemas.yaml#updaterunpayloadschema"}
 - {s: UpdateTestLabelsPayloadSchema, a: "test update-labels", req: [labels], opt: 0, ref: "./reference/payload-schemas.yaml#updatetestlabelspayloadschema"}
 - {s: UpdateTestsLabelsPayloadSchema, a: "test update-labels-bulk", req: [test_ids, labels], opt: 0, ref: "./reference/payload-schemas.yaml#updatetestslabelspayloadschema"}
 - {s: AddResultPayloadSchema, a: "result add", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
 - {s: AddResultsForCasesPayloadSchema, a: "result add-bulk", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultsforcasespayloadschema"}
 - {s: AddResultsPayloadSchema, a: "result add-bulk-by-test", req: [results], opt: 0, ref: "./reference/payload-schemas.yaml#addresultspayloadschema"}
 - {s: AddResultPayloadSchema, a: "result add-by-test", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
-- {s: AddPlanPayloadSchema, a: "plan add", req: [name], opt: 5, ref: "./reference/payload-schemas.yaml#addplanpayloadschema"}
-- {s: UpdatePlanPayloadSchema, a: "plan update", req: [], opt: 6, ref: "./reference/payload-schemas.yaml#updateplanpayloadschema"}
-- {s: AddPlanEntryPayloadSchema, a: "plan add-entry", req: [suite_id], opt: 10, ref: "./reference/payload-schemas.yaml#addplanentrypayloadschema"}
-- {s: AddRunToPlanEntryPayloadSchema, a: "plan add-run-to-entry", req: [config_ids], opt: 5, ref: "./reference/payload-schemas.yaml#addruntoplanentrypayloadschema"}
-- {s: UpdatePlanEntryPayloadSchema, a: "plan update-entry", req: [], opt: 11, ref: "./reference/payload-schemas.yaml#updateplanentrypayloadschema"}
-- {s: UpdateRunInPlanEntryPayloadSchema, a: "plan update-run-in-entry", req: [], opt: 4, ref: "./reference/payload-schemas.yaml#updateruninplanentrypayloadschema"}
+- {s: EditResultPayloadSchema, a: "result edit", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#editresultpayloadschema"}
+- {s: AddPlanPayloadSchema, a: "plan add", req: [name], opt: 6, ref: "./reference/payload-schemas.yaml#addplanpayloadschema"}
+- {s: UpdatePlanPayloadSchema, a: "plan update", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#updateplanpayloadschema"}
+- {s: AddPlanEntryPayloadSchema, a: "plan add-entry", req: [suite_id], opt: 11, ref: "./reference/payload-schemas.yaml#addplanentrypayloadschema"}
+- {s: AddRunToPlanEntryPayloadSchema, a: "plan add-run-to-entry", req: [config_ids], opt: 8, ref: "./reference/payload-schemas.yaml#addruntoplanentrypayloadschema"}
+- {s: UpdatePlanEntryPayloadSchema, a: "plan update-entry", req: [], opt: 9, ref: "./reference/payload-schemas.yaml#updateplanentrypayloadschema"}
+- {s: UpdateRunInPlanEntryPayloadSchema, a: "plan update-run-in-entry", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updateruninplanentrypayloadschema"}
 - {s: AddSectionPayloadSchema, a: "section add", req: [name], opt: 3, ref: "./reference/payload-schemas.yaml#addsectionpayloadschema"}
 - {s: UpdateSectionPayloadSchema, a: "section update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesectionpayloadschema"}
 - {s: MoveSectionPayloadSchema, a: "section move", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#movesectionpayloadschema"}
@@ -339,7 +351,9 @@ schemas:
 - {s: UpdateConfigurationGroupPayloadSchema, a: "configuration-group update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationgrouppayloadschema"}
 - {s: AddConfigurationPayloadSchema, a: "configuration add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addconfigurationpayloadschema"}
 - {s: UpdateConfigurationPayloadSchema, a: "configuration update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationpayloadschema"}
-- {s: UpdateLabelPayloadSchema, a: "label update", req: [title], opt: 0, ref: "./reference/payload-schemas.yaml#updatelabelpayloadschema"}
+- {s: AddLabelPayloadSchema, a: "label add", req: [title], opt: 0, ref: "./reference/payload-schemas.yaml#addlabelpayloadschema"}
+- {s: UpdateLabelPayloadSchema, a: "label update", req: [project_id, title], opt: 0, ref: "./reference/payload-schemas.yaml#updatelabelpayloadschema"}
+- {s: DeleteLabelsPayloadSchema, a: "label delete-bulk", req: [label_ids], opt: 0, ref: "./reference/payload-schemas.yaml#deletelabelspayloadschema"}
 ```
 <!-- /GENERATED:payload-schemas -->
 
@@ -740,6 +754,7 @@ testrail plan add-entry 50 --data '{
 
 <!-- recipe-for: result:list-for-test -->
 <!-- recipe-for: result:list-for-case -->
+<!-- recipe-for: result:edit -->
 
 TestRail exposes four ways to fetch results; the right one depends on what
 IDs you already have and the granularity you need. Decision tree:
@@ -775,6 +790,14 @@ IDs you already have and the granularity you need. Decision tree:
    add-bulk` (many by `case_id`), or `result add-bulk-by-test` (many by
    `test_id`). Already shipped; mirror the per-test / per-case split on
    the write side.
+
+5. **You need to correct an existing result** → `result edit
+   <result_id>`. TestRail 10.4+ accepts a partial payload, so send only the
+   fields that need changing:
+
+    ```bash
+    testrail result edit 9876 --data '{"comment":"Corrected after investigation"}'
+    ```
 
 Filter flags shared by `list-for-test` and `list-for-case`:
 
@@ -2293,6 +2316,7 @@ const roles = await client.metadata.getAllRoles();
 
 <!-- recipe-for: case:get -->
 <!-- recipe-for: case:history -->
+<!-- recipe-for: case:titles -->
 <!-- recipe-for: case:copy-to-section -->
 <!-- recipe-for: case:move-to-section -->
 <!-- recipe-for: case:update-bulk -->
@@ -2309,6 +2333,13 @@ testrail case get 1337 | jq '{id, title, section_id, type_id, priority_id, assig
 
 The response includes every custom field defined on the TestRail instance
 (those starting with `custom_`). Pipe to `jq` to extract fields of interest.
+
+For a lightweight lookup of several known case IDs on TestRail 10.5+, request
+only their IDs and titles:
+
+```bash
+testrail case titles 1337,1338,1339
+```
 
 **Audit edit history (TestRail 7.5+):**
 
@@ -2877,16 +2908,24 @@ testrail case add 42 --data "{
 }"
 ```
 
-### 51. BDD scenarios (get → add)
+### 51. BDD scenarios (list → get → add → update)
 
 <!-- recipe-for: bdd:get -->
+<!-- recipe-for: bdd:list -->
 <!-- recipe-for: bdd:add -->
+<!-- recipe-for: bdd:update -->
 
 TestRail's BDD (Behavior-Driven Development) mode stores Gherkin
 .feature files as case content. This recipe covers downloading and
 uploading Gherkin scenarios.
 
-**1. Download a case's BDD (Gherkin .feature) content to a file:**
+**1. List BDD entries in a project:**
+
+```bash
+testrail bdd list --project-id 5 --all --refs JIRA-1234,JIRA-5678
+```
+
+**2. Download a case's BDD (Gherkin .feature) content to a file:**
 
 ```bash
 testrail bdd get 1337 --out scenario.feature
@@ -2909,10 +2948,10 @@ Use `--force` to overwrite an existing file:
 testrail bdd get 1337 --out scenario.feature --force
 ```
 
-**2. Upload a .feature file as the BDD content for a case:**
+**3. Create a BDD case under a section from a `.feature` file:**
 
 ```bash
-testrail bdd add 1337 --file scenario.feature
+testrail bdd add 42 --file scenario.feature
 ```
 
 The file must be valid UTF-8 Gherkin. TestRail validates the syntax
@@ -2922,18 +2961,24 @@ a 400 / validation error with details.
 **Dry-run preview:**
 
 ```bash
-testrail bdd add 1337 --file scenario.feature --dry-run
+testrail bdd add 42 --file scenario.feature --dry-run
 ```
 
 Shows the parsed file size and mimetype without uploading.
 
-**Integration pattern:** Maintain scenarios in version control, then
-sync to TestRail:
+**4. Replace an existing case's BDD content:**
+
+```bash
+testrail bdd update 1337 --file scenario.feature
+```
+
+**Integration pattern:** Maintain existing scenarios in version control, then
+sync them to TestRail using the case ID encoded in each filename:
 
 ```bash
 for feature in features/*.feature; do
     CASE_ID=$(echo "$feature" | sed 's/.*-\([0-9]*\)\.feature/\1/')
-    testrail bdd add "$CASE_ID" --file "$feature" --yes
+    testrail bdd update "$CASE_ID" --file "$feature"
 done
 ```
 
@@ -3033,11 +3078,20 @@ testrail result add-bulk-by-test 42 --data '[
 <!-- recipe-for: result-field:list -->
 <!-- recipe-for: status:list -->
 <!-- recipe-for: priority:list -->
+<!-- recipe-for: version:get -->
+<!-- recipe-for: dynamic-filter-field:list -->
 
-TestRail exposes three read-only reference-data endpoints that return
-instance-wide metadata for use in dropdowns, validation, and result/case
-payloads. All three take no positional arguments and return a JSON array of
-small objects.
+TestRail exposes read-only reference-data endpoints for dropdowns, validation,
+and result/case payloads. Check the installed server version directly, and on
+TestRail 10.4+ inspect the filter fields available to a project:
+
+```bash
+testrail version get
+testrail dynamic-filter-field list 5
+```
+
+The remaining commands in this recipe return instance-wide metadata as JSON
+arrays of small objects.
 
 **List all custom result fields (instance-level metadata):**
 
@@ -3137,6 +3191,8 @@ console.log(failedStatus?.id); // 5 (typically)
 
 <!-- recipe-for: report:list -->
 <!-- recipe-for: report:run -->
+<!-- recipe-for: report:list-cross-project -->
+<!-- recipe-for: report:run-cross-project -->
 
 TestRail exposes pre-configured report templates. You can list the templates
 available in a project and trigger an async generation job that returns
@@ -3182,6 +3238,14 @@ Output:
   "report_url": "https://instance.testrail.io/reports/index.html?user_id=1",
   "report_url_pdf": "https://instance.testrail.io/reports/index.pdf?user_id=1"
 }
+```
+
+Enterprise instances can discover and execute API-enabled cross-project
+templates without a project ID:
+
+```bash
+testrail report list-cross-project
+testrail report run-cross-project 12
 ```
 
 **Saving a report to a file:**
@@ -3284,6 +3348,9 @@ testrail test list 42 --all
 
 # Filter by current status (e.g. Failed=5)
 testrail test list 42 --all --status-id 5
+
+# Filter by one or more label IDs (TestRail 10.5+)
+testrail test list 42 --all --label-id 7,8
 ```
 
 ```bash
@@ -3337,16 +3404,18 @@ await client.tests.updateTest(1337, { labels: [1, 'regression'] });
 await client.tests.updateTests({ test_ids: [1337, 1338], labels: ['smoke'] });
 ```
 
-### 59. Labels: list a project's labels and rename one
+### 59. Labels: manage project label definitions
 
 <!-- recipe-for: label:get -->
 <!-- recipe-for: label:list -->
+<!-- recipe-for: label:add -->
 <!-- recipe-for: label:update -->
+<!-- recipe-for: label:delete -->
+<!-- recipe-for: label:delete-bulk -->
 
-The Labels API manages label *definitions*. TestRail exposes only
-get/list/rename over REST — there is no `add`/`delete` label endpoint
-(label creation/deletion is the TestRail CLI's job). Renaming a label
-propagates to every case and test using it. Titles are capped at 20 chars.
+The Labels API manages label *definitions*. Labels are project-scoped, titles
+are capped at 20 characters, and renaming a label propagates to every case and
+test using it. Deletes are irreversible and use the CLI's two safety gates.
 
 ```bash
 # List every label defined in a project.
@@ -3355,15 +3424,27 @@ testrail label list 1 --all
 # Fetch one label by ID
 testrail label get 7
 
+# Create a project-scoped label
+testrail label add 1 --data '{"title":"Release 2.0"}'
+
 # Rename a label (propagates to all cases/tests that carry it)
-testrail label update 7 --data '{"title":"Release 2.0"}'
+testrail label update 7 --data '{"project_id":1,"title":"Release 2.1"}'
+
+# Preview one or many deletions without making an API call
+testrail label delete 7 --dry-run
+testrail label delete-bulk --data '{"label_ids":[7,8]}' --dry-run
+
+# Execute an irreversible delete (requires both gates)
+TESTRAIL_ALLOW_DESTRUCTIVE=1 testrail label delete 7 --yes
 ```
 
 ```typescript
 // Programmatic equivalent
 const labels = await client.labels.getAllLabels(1);
 const label = await client.labels.getLabel(7);
-await client.labels.updateLabel(7, { title: 'Release 2.0' });
+const created = await client.labels.addLabel(1, { title: 'Release 2.0' });
+await client.labels.updateLabel(created.id, { project_id: 1, title: 'Release 2.1' });
+await client.labels.deleteLabels({ label_ids: [7, 8] });
 
 // Note the field-name divergence: `get_label` returns `name`, while
 // `get_labels` / `update_label` return `title`. `Label` carries both as
@@ -3701,9 +3782,9 @@ Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
 `project delete`, `plan close`, `plan delete`, `plan delete-entry`,
 `plan delete-run-from-entry`, `variable delete`, `dataset delete`,
 `shared-step delete`, `group delete`, `configuration delete`,
-`configuration-group delete`) require `TESTRAIL_ALLOW_DESTRUCTIVE=1` and
-`--yes` to execute. A missing env unlock exits 2. With the env unlock set
-but no `--yes`, the CLI exits 1 with
+`configuration-group delete`, `label delete`, and `label delete-bulk`) require
+`TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes` to execute. A missing env unlock
+exits 2. With the env unlock set but no `--yes`, the CLI exits 1 with
 `Destructive action; pass --yes to confirm.` There is no interactive prompt
 (by design; this skill targets agents, not humans).
 
@@ -3829,11 +3910,10 @@ const created = await client.cases.addCase(12, {
   This skill documents the CLI surface only. For programmatic use,
   read `README.md` and `CODEMAP.md` in the package — the programmatic
   API exposes 100+ methods, a superset of the CLI surface.
-- **Structural CRUD beyond what the command table lists.** The CLI
-  surfaces project/suite/section/milestone create+update, but no
-  per-entity delete (other than `case delete-bulk` and `attachment
-  delete`). User CRUD and case-status CRUD are read-only via the CLI.
-  Use the TestRail web UI or the programmatic API for unsurfaced ops.
+- **Structural CRUD beyond what the command table lists.** Treat the command
+  table as the authoritative CLI surface. Use the TestRail web UI or the
+  programmatic API for operations absent from that table; case-status CRUD,
+  for example, remains read-only via the CLI.
 - **Browser/UI workflows.** This is a non-interactive CLI.
 
 The CLI **does** support attachment upload/download/delete and BDD

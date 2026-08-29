@@ -15,6 +15,35 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added — TestRail 10.7.0 API compatibility
+
+- Added the cumulative API surface introduced through TestRail 10.7.0:
+  `edit_result`, dynamic-filter discovery/payloads, and run/plan reference
+  filters from 10.4; project BDD listing and lightweight case-title lookup
+  from 10.5; `get_version` from 10.6; and the repeated `refs[]` query form for
+  case and BDD lists from 10.7.
+- Added typed programmatic methods and matching CLI actions for
+  `case titles`, `bdd list`, `bdd update`, `result edit`, `version get`, and
+  `dynamic-filter-field list`. Existing scalar `refs` values remain supported;
+  arrays are serialized as repeated `refs[]` parameters where TestRail 10.7
+  requires them.
+- Completed the TestRail 10.5 label-management surface with create, update,
+  single-delete, and bulk-delete operations; `update_label` now requires the
+  documented `project_id` in its payload. Case add/update/bulk-update payloads
+  now type and validate mixed label IDs/titles instead of exposing them only
+  through passthrough fields.
+- Added Enterprise cross-project report discovery and execution through
+  `report list-cross-project` and `report run-cross-project`.
+- Expanded current case/run/plan list filters, including list-valued ID
+  filters, labels, references, and the `include_plan_runs` option where the
+  corresponding TestRail endpoint supports them. Test lists now expose the
+  documented label-ID filter as well.
+- Aligned run, plan, and plan-entry write payloads with the current request tables,
+  including `start_on`, `due_on`, and `refs`, and stopped advertising fields
+  that `update_plan_entry` explicitly does not support. Result edits use flat
+  `custom_*` fields as documented and reject empty updates. Dynamic-filter
+  payloads now require their documented `mode` and `filters` structure.
+
 ## [6.0.0] — 2026-08-11 — advisory validation, safe pagination, and response coverage
 
 Entity-field response validation no longer fails closed. A TestRail response

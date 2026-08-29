@@ -13,8 +13,8 @@ dependency: Zod. ESM only. Ships two surfaces:
 - **Programmatic**: `import { TestRailClient } from "@dichovsky/testrail-api-client"`
 - **CLI**: the `testrail` binary (also `npx testrail`)
 
-Today the CLI exposes 123 actions across 28 resources
-(53 read, 70 write, 19 destructive). The
+Today the CLI exposes 134 actions across 30 resources
+(59 read, 75 write, 21 destructive). The
 programmatic API is a strict superset — every CLI action calls a
 method on one of the `TestRailClient` domain modules.
 
@@ -92,7 +92,7 @@ try {
   in a separate strict-schema namespace from legacy list reads;
   `getAll*()` bypasses cache reads, writes, and request coalescing so
   a multi-page aggregate cannot mix snapshots.
-- **Pagination**: 23 documented list endpoints expose an explicit
+- **Pagination**: 24 documented list endpoints expose an explicit
   trio. Existing `get*()` methods project one response to an item
   array; `get*Page()` preserves envelope metadata; `getAll*()` follows
   validated continuation controls under page, item, duration, and
@@ -157,6 +157,8 @@ All destructive CLI actions require BOTH `--yes` and
 - `dataset delete`
 - `configuration-group delete`
 - `configuration delete`
+- `label delete`
+- `label delete-bulk`
 
 `--dry-run` always wins over `--yes` — pass both to preview without
 calling the API. `--soft` adds TestRail's server-side preview

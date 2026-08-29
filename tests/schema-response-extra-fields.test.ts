@@ -6,10 +6,7 @@
  * but were invisible to typed consumers (`unknown`). This test pins each
  * newly-declared field: it must exist in the schema's `.shape`, accept the
  * observed value shape, accept `null`/`undefined` (every field is `.nullish()`),
- * and — for fields typed beyond `z.unknown()` — reject a wrong-typed value.
- *
- * Fields typed `z.unknown().nullish()` (value never observed on the wire) accept
- * anything by design and are only checked for presence + null tolerance.
+ * and reject a wrong-typed value.
  */
 import { describe, it, expect } from 'vitest';
 import { RunSchema, PlanSchema, CaseSchema, HistoryEntrySchema, ResultSchema, TestSchema } from '../src/schemas.js';
@@ -40,10 +37,11 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
             expect(f.safeParse('2026').success).toBe(false);
         });
 
-        it('declares dynamic_filters as a nullish unknown', () => {
+        it('declares dynamic_filters as the documented nullish filter structure', () => {
             const f = RunSchema.shape.dynamic_filters;
             expectNullishField(f);
-            expect(f.safeParse({ any: 'shape' }).success).toBe(true);
+            expect(f.safeParse({ mode: '1', filters: { 'cases:priority_id': { values: [2] } } }).success).toBe(true);
+            expect(f.safeParse({ any: 'shape' }).success).toBe(false);
         });
 
         it('round-trips a realistic run body carrying the new fields', () => {

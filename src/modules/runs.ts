@@ -41,8 +41,10 @@ export class RunModule {
             'createdAfter',
             'createdBefore',
             'createdBy',
+            'includePlanRuns',
             'isCompleted',
             'milestoneId',
+            'refs',
             'refsFilter',
             'suiteId',
         ]);
@@ -74,15 +76,25 @@ export class RunModule {
         controls?: PaginationFetchControls,
     ): Promise<unknown> {
         validateId(projectId, 'projectId');
-        const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
-            options ?? {};
+        const {
+            createdAfter,
+            createdBefore,
+            createdBy,
+            includePlanRuns,
+            isCompleted,
+            milestoneId,
+            refs,
+            refsFilter,
+            suiteId,
+            limit,
+            offset,
+        } = options ?? {};
         validatePaginationParams(limit, offset);
-        if (milestoneId !== undefined) {
-            validateId(milestoneId, 'milestoneId');
-        }
-        if (suiteId !== undefined) {
-            validateId(suiteId, 'suiteId');
-        }
+        const milestoneIds =
+            milestoneId === undefined ? undefined : Array.isArray(milestoneId) ? milestoneId : [milestoneId];
+        const suiteIds = suiteId === undefined ? undefined : Array.isArray(suiteId) ? suiteId : [suiteId];
+        milestoneIds?.forEach((id) => validateId(id, 'milestoneId'));
+        suiteIds?.forEach((id) => validateId(id, 'suiteId'));
         if (createdBy !== undefined) {
             createdBy.forEach((userId) => validateId(userId, 'createdBy'));
         }
@@ -90,10 +102,11 @@ export class RunModule {
             created_after: createdAfter,
             created_before: createdBefore,
             created_by: serializeIdList(createdBy),
+            include_plan_runs: includePlanRuns !== undefined ? (includePlanRuns ? 1 : 0) : undefined,
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-            milestone_id: milestoneId,
-            refs_filter: refsFilter,
-            suite_id: suiteId,
+            milestone_id: serializeIdList(milestoneIds),
+            refs: refs ?? refsFilter,
+            suite_id: serializeIdList(suiteIds),
             limit,
             offset,
         });

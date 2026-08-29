@@ -32,6 +32,7 @@ const SCHEMA_NAMES: ReadonlyMap<string, string> = new Map([
     ['result:add-bulk', 'AddResultsForCasesPayloadSchema'],
     ['result:add-bulk-by-test', 'AddResultsPayloadSchema'],
     ['result:add-by-test', 'AddResultPayloadSchema'],
+    ['result:edit', 'EditResultPayloadSchema'],
     ['plan:add', 'AddPlanPayloadSchema'],
     ['plan:update', 'UpdatePlanPayloadSchema'],
     ['plan:add-entry', 'AddPlanEntryPayloadSchema'],
@@ -61,7 +62,9 @@ const SCHEMA_NAMES: ReadonlyMap<string, string> = new Map([
     ['configuration:update', 'UpdateConfigurationPayloadSchema'],
     ['user:add', 'UserAddPayloadSchema'],
     ['user:update', 'UserUpdatePayloadSchema'],
+    ['label:add', 'AddLabelPayloadSchema'],
     ['label:update', 'UpdateLabelPayloadSchema'],
+    ['label:delete-bulk', 'DeleteLabelsPayloadSchema'],
     ['test:update-labels', 'UpdateTestLabelsPayloadSchema'],
     ['test:update-labels-bulk', 'UpdateTestsLabelsPayloadSchema'],
 ]);

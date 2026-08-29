@@ -884,6 +884,7 @@ describe('metadata vs dispatch consistency', () => {
             'shared-step:delete',
             'configuration:delete',
             'configuration-group:delete',
+            'label:delete',
         ]);
         for (const spec of ACTIONS) {
             if (!spec.isWrite) continue;
@@ -931,7 +932,7 @@ describe('metadata vs dispatch consistency', () => {
      * audit finding #6 caught `run close` missing from this set — locked
      * in here to prevent regression.
      */
-    it('destructive action set includes attachment:delete, case:delete, case:delete-bulk, run:close, run:delete, suite:delete, section:delete, milestone:delete, project:delete, plan:close, plan:delete, plan:delete-entry, plan:delete-run-from-entry, variable:delete, group:delete, dataset:delete, shared-step:delete, configuration:delete, configuration-group:delete', () => {
+    it('pins the complete destructive action set, including label single/bulk deletes', () => {
         const got = new Set(ACTIONS.filter((s) => s.destructive === true).map((s) => `${s.resource}:${s.action}`));
         const want = new Set([
             'attachment:delete',
@@ -953,6 +954,8 @@ describe('metadata vs dispatch consistency', () => {
             'shared-step:delete',
             'configuration:delete',
             'configuration-group:delete',
+            'label:delete',
+            'label:delete-bulk',
         ]);
         expect(got).toEqual(want);
     });
@@ -963,17 +966,17 @@ describe('metadata vs dispatch consistency', () => {
      * stdin purely on `--file` presence would also kill piped JSON bodies
      * for unrelated write actions that happened to have `--file` typo'd in.
      * Lock the discriminator's expected shape so the gate stays correct:
-     * only attachment uploads and the BDD upload carry `fileInput: true`;
-     * nothing else. `bdd:add` is included because it shares the same
+     * only attachment uploads and the BDD uploads carry `fileInput: true`;
+     * nothing else. `bdd:add` and `bdd:update` are included because they share the same
      * multipart pipeline and the same stdin-suppression rationale.
      */
-    it('only attachment add-to-* and bdd:add actions are flagged as fileInput', () => {
+    it('only attachment add-to-* and bdd:add/update actions are flagged as fileInput', () => {
         for (const spec of ACTIONS) {
             if (spec.fileInput === true) {
                 const isAttachmentAdd = spec.resource === 'attachment' && spec.action.startsWith('add-to-');
-                const isBddAdd = spec.resource === 'bdd' && spec.action === 'add';
+                const isBddUpload = spec.resource === 'bdd' && (spec.action === 'add' || spec.action === 'update');
                 expect(
-                    isAttachmentAdd || isBddAdd,
+                    isAttachmentAdd || isBddUpload,
                     `${spec.resource}:${spec.action} carries fileInput but is not an attachment/bdd upload`,
                 ).toBe(true);
             }
@@ -987,10 +990,13 @@ describe('metadata vs dispatch consistency', () => {
                 ).toBe(true);
             }
         }
-        // Inverse: bdd:add must carry fileInput.
+        // Inverse: both BDD uploads must carry fileInput.
         for (const spec of ACTIONS) {
-            if (spec.resource === 'bdd' && spec.action === 'add') {
-                expect(spec.fileInput, 'bdd:add is a multipart upload; must carry fileInput').toBe(true);
+            if (spec.resource === 'bdd' && (spec.action === 'add' || spec.action === 'update')) {
+                expect(
+                    spec.fileInput,
+                    `${spec.resource}:${spec.action} is a multipart upload; must carry fileInput`,
+                ).toBe(true);
             }
         }
     });
@@ -1013,6 +1019,7 @@ describe('metadata vs dispatch consistency', () => {
             'group:add',
             'user:add',
             'test:update-labels-bulk',
+            'label:delete-bulk',
         ]);
         // Flag-driven / zero-arg reads: the endpoint takes no path param.
         // `user:get-by-email` is driven by the shared `--email` flag (also
@@ -1020,7 +1027,12 @@ describe('metadata vs dispatch consistency', () => {
         // returns the auth-identified user (no input needed beyond the
         // credential itself). Both intentionally declare `pathParams: []`
         // and reject extra positional args fail-fast in the handler.
-        const FLAG_OR_ZERO_ARG_READS = new Set<string>(['user:get-by-email', 'user:get-current']);
+        const FLAG_OR_ZERO_ARG_READS = new Set<string>([
+            'user:get-by-email',
+            'user:get-current',
+            'version:get',
+            'report:list-cross-project',
+        ]);
         for (const spec of ACTIONS) {
             if (spec.action === 'list') continue;
             if (PAYLOAD_ONLY_WRITES.has(`${spec.resource}:${spec.action}`)) continue;
@@ -1068,8 +1080,24 @@ describe('KNOWN_FLAGS inventory', () => {
             'version',
             'project-id',
             'suite-id',
+            'section-id',
             'run-id',
             'case-id',
+            'type-id',
+            'priority-id',
+            'template-id',
+            'milestone-id',
+            'created-after',
+            'created-before',
+            'created-by',
+            'updated-after',
+            'updated-before',
+            'updated-by',
+            'label-id',
+            'refs',
+            'filter',
+            'include-plan-runs',
+            'is-completed',
             'limit',
             'offset',
             'page',

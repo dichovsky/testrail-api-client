@@ -35,7 +35,7 @@ describe('buildHelpText', () => {
         // every action so a missing-from-help spec is impossible.
         const help = buildHelpText();
         for (const spec of ACTIONS) {
-            const needle = `  ${spec.resource.padEnd(20)}${spec.action}`;
+            const needle = `  ${`${spec.resource} `.padEnd(20)}${spec.action}`;
             expect(help.includes(needle), `${spec.resource} ${spec.action} not present on a help action line`).toBe(
                 true,
             );

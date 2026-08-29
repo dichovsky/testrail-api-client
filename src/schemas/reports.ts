@@ -25,12 +25,53 @@ export const ReportSchema = zObject({
     notify_link: z.boolean().nullish(),
     notify_link_recipients: z.string().nullish(),
     notify_attachment: z.boolean().nullish(),
+    notify_attachment_recipients: z.string().nullish(),
     notify_attachment_html_format: z.boolean().nullish(),
     notify_attachment_pdf_format: z.boolean().nullish(),
     is_shared: z.boolean().nullish(),
 });
 
 export type Report = KnownResponse<typeof ReportSchema>;
+
+/**
+ * Enterprise cross-project report template returned by
+ * `get_cross_project_reports`.
+ *
+ * Verified against the official TestRail "Reports and Cross-Project Reports"
+ * API documentation on 2026-08-29. `project_ids`, the run/plan inclusion
+ * switches, and `report_timeframe` appear in both documented report families,
+ * so they form the required common response shape. Summary-only and User
+ * Workload-only selections remain optional because TestRail omits them from
+ * the other family. `included_statuses` accepts both the documentation table's
+ * list representation and the comma-separated string shown in its wire
+ * example.
+ */
+export const CrossProjectReportSchema = zObject({
+    id: z.number(),
+    name: z.string(),
+    description: z.string().nullish(),
+    project_ids: z.array(z.number()),
+    user_ids: z.array(z.number()).nullish(),
+    include_elapsed_test_time: z.boolean().nullish(),
+    include_estimated_test_time: z.boolean().nullish(),
+    sort_by: z.string().nullish(),
+    include_open_milestones: z.boolean().nullish(),
+    include_completed_milestones: z.boolean().nullish(),
+    include_open_runs_and_plans: z.boolean(),
+    include_completed_runs_and_plans: z.boolean(),
+    report_timeframe: z.string(),
+    included_statuses: z.union([z.string(), z.array(z.string())]).nullish(),
+    content_hide_links: z.boolean().nullish(),
+    notify_user: z.boolean().nullish(),
+    notify_link: z.boolean().nullish(),
+    notify_link_recipients: z.string().nullish(),
+    notify_attachment: z.boolean().nullish(),
+    notify_attachment_recipients: z.string().nullish(),
+    notify_attachment_html_format: z.boolean().nullish(),
+    notify_attachment_pdf_format: z.boolean().nullish(),
+});
+
+export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>;
 
 /**
  * SPEC #2.1.16 — verified against the official TestRail "Reports and

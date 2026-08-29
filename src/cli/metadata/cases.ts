@@ -7,7 +7,7 @@ import {
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
 } from '../../schemas.js';
-import { handleCaseGet, handleCaseList, handleCaseHistory } from '../handlers/case.js';
+import { handleCaseGet, handleCaseList, handleCaseHistory, handleCaseTitles } from '../handlers/case.js';
 import {
     handleCaseAdd,
     handleCaseAddBulk,
@@ -25,14 +25,15 @@ import type { ActionSpec } from './types.js';
  *   [0] get             — read
  *   [1] list            — read
  *   [2] history         — read
- *   [3] add             — write
- *   [4] add-bulk        — write
- *   [5] update          — write
- *   [6] update-bulk     — write
- *   [7] delete          — write (destructive)
- *   [8] delete-bulk     — write (destructive)
- *   [9] copy-to-section — write
- *   [10] move-to-section — write
+ *   [3] titles          — read (TestRail 10.5+)
+ *   [4] add             — write
+ *   [5] add-bulk        — write
+ *   [6] update          — write
+ *   [7] update-bulk     — write
+ *   [8] delete          — write (destructive)
+ *   [9] delete-bulk     — write (destructive)
+ *   [10] copy-to-section — write
+ *   [11] move-to-section — write
  */
 export const caseActions: readonly ActionSpec[] = [
     {
@@ -63,6 +64,15 @@ export const caseActions: readonly ActionSpec[] = [
         pagination: { response: 'nested-envelope', requestControls: true, collectionKey: 'history' },
         isWrite: false,
         handler: handleCaseHistory,
+    },
+    {
+        resource: 'case',
+        action: 'titles',
+        summary: 'Resolve a comma-separated case ID list to lightweight id/title objects (TestRail 10.5+)',
+        pathParams: [{ name: 'case_ids', description: 'Comma-separated TestRail case IDs' }],
+        apiEndpoint: 'GET get_case_titles',
+        isWrite: false,
+        handler: handleCaseTitles,
     },
     {
         resource: 'case',

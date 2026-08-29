@@ -253,12 +253,12 @@ describe('CODEMAP.md structural invariants', () => {
         expect(Array.isArray(data.files)).toBe(true);
     });
 
-    it('size is under the 380 KB sanity bound', () => {
+    it('size is under the 400 KB sanity bound', () => {
         // Guards against runaway generation (duplicated entries, an unbounded
-        // loop), not against ordinary growth. Raised after the 23-endpoint
-        // pagination trios added their methods, option types, error, constants,
-        // and page model to the generated public symbol inventory.
+        // loop), not against ordinary growth. Raised after the TestRail 10.7
+        // surface added BDD pagination, labels, filters, and metadata symbols
+        // to the generated public symbol inventory.
         const md = readFileSync(join(REPO_ROOT, 'CODEMAP.md'), 'utf8');
-        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(380_000);
+        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(400_000);
     });
 });

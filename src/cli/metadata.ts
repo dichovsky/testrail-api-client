@@ -28,6 +28,8 @@ import { datasetActions } from './metadata/datasets.js';
 import { configurationActions } from './metadata/configurations.js';
 import { configurationGroupActions } from './metadata/configurationGroups.js';
 import { labelActions } from './metadata/labels.js';
+import { versionActions } from './metadata/versions.js';
+import { dynamicFilterFieldActions } from './metadata/dynamicFilterFields.js';
 
 export type { ActionSpec, PathParam } from './metadata/types.js';
 
@@ -63,7 +65,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     // ── Read actions ──────────────────────────────────────────────────────
     ...projectActions.slice(0, 2), // project get, list
     ...suiteActions.slice(0, 2), // suite get, list
-    ...caseActions.slice(0, 3), // case get, list, history
+    ...caseActions.slice(0, 4), // case get, list, history, titles
     ...runActions.slice(0, 3), // run get, list, watch
     ...testActions.slice(0, 2), // test get, list
     ...resultActions.slice(0, 3), // result list, list-for-test, list-for-case
@@ -72,10 +74,10 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...planActions.slice(0, 2), // plan get, list
     ...sectionActions.slice(0, 2), // section get, list
     // ── Write actions ─────────────────────────────────────────────────────
-    ...caseActions.slice(3, 11), // case add, add-bulk, update, update-bulk, delete, delete-bulk, copy-to-section, move-to-section
+    ...caseActions.slice(4, 12), // case add, add-bulk, update, update-bulk, delete, delete-bulk, copy-to-section, move-to-section
     ...runActions.slice(3, 7), // run add, update, close, delete
     ...testActions.slice(2, 4), // test update-labels, update-labels-bulk
-    ...resultActions.slice(3, 7), // result add, add-bulk, add-bulk-by-test, add-by-test
+    ...resultActions.slice(3, 8), // result add, add-bulk, add-bulk-by-test, add-by-test, edit
     ...planActions.slice(2, 12), // plan add, update, add-entry, add-run-to-entry, update-entry, update-run-in-entry, close, delete, delete-entry, delete-run-from-entry
     ...sectionActions.slice(2, 6), // section add, update, move, delete
     // ── Structural-setup write actions ────────────────────────────────────
@@ -112,6 +114,8 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...roleActions, // role list
     ...priorityActions, // priority list
     ...caseTypeActions, // case-type list
+    ...versionActions, // version get (TestRail 10.6+)
+    ...dynamicFilterFieldActions, // dynamic-filter-field list (TestRail 10.4+)
     // ── Case-field write action ───────────────────────────────────────────
     ...caseFieldActions.slice(1, 2), // case-field add
     // ── Attachment read actions ───────────────────────────────────────────
@@ -121,7 +125,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     // ── Attachment destructive action (requires --yes) ────────────────────
     ...attachmentActions.slice(11, 12), // attachment delete
     // ── BDD actions (text I/O for `get`, file input for `add`) ────────────
-    ...bddActions, // bdd get, add
+    ...bddActions, // bdd get, list, add, update
     // ── Variable actions (data-driven testing) ────────────────────────────
     ...variableActions, // variable list, add, update, delete
     // ── Group actions (TestRail 7.5+) ─────────────────────────────────────
@@ -133,7 +137,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...configurationGroupActions, // configuration-group add, update, delete
     ...configurationActions.slice(1, 4), // configuration add, update, delete
     // ── Label actions (TestRail Labels API, 2025) ─────────────────────────
-    ...labelActions, // label get, list, update
+    ...labelActions, // label get, list, add, update, delete, delete-bulk
 ];
 
 /** Look up the spec for a resource:action pair, or return undefined. */

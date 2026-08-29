@@ -1,9 +1,42 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
+import { optInt, parseId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { resolveFile } from '../file-input.js';
 import { safeWriteText } from '../safe-write.js';
 import { emitStdoutAck } from '../output.js';
+import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
+import { parseOptionalId, parseOptionalIdList, parseOptionalRefs } from '../filters.js';
+
+/** List project BDD entries through the TestRail 10.5+ paginated endpoint. */
+export async function handleBddList(ctx: HandlerContext): Promise<void> {
+    const projectId = parseId(ctx.args.projectId, '--project-id');
+    const suiteId = parseOptionalId(ctx.args.suiteId, '--suite-id');
+    const sectionId = parseOptionalId(ctx.args.sectionId, '--section-id');
+    const labelId = parseOptionalIdList(ctx.args.labelId, '--label-id');
+    const refs = parseOptionalRefs(ctx.args.refs);
+    const limit = optInt(ctx.args.limit);
+    const offset = optInt(ctx.args.offset);
+    const filters = {
+        ...(suiteId !== undefined && { suiteId }),
+        ...(sectionId !== undefined && { sectionId }),
+        ...(labelId !== undefined && { labelId }),
+        ...(refs !== undefined && { refs }),
+    };
+    const pageOptions = {
+        ...filters,
+        ...(limit !== undefined && { limit }),
+        ...(offset !== undefined && { offset }),
+    };
+    await outputPaginated(ctx, {
+        items: () => ctx.client.bdd.getBdds(projectId, pageOptions),
+        page: () => ctx.client.bdd.getBddsPage(projectId, pageOptions),
+        all: () =>
+            ctx.client.bdd.getAllBdds(projectId, {
+                ...filters,
+                ...getPaginatedRequestOptions(ctx.args),
+            }),
+    });
+}
 
 /**
  * Download a case's BDD (Gherkin `.feature`) content to a local file or to
@@ -53,7 +86,7 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
 }
 
 /**
- * Upload a `.feature` file to a case as its BDD content. Mirrors the
+ * Upload a `.feature` file to a section, creating a BDD case. Mirrors the
  * `attachment add-to-case` flow exactly: stat the `--file`, emit dry-run
  * preview if requested, otherwise hand the path to the streaming multipart
  * pipeline (bytes are read from disk via `node:fs.openAsBlob` — never loaded
@@ -62,7 +95,7 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
  * `STDIN_READ_TIMEOUT_MS`). Async because `resolveFile` may drain stdin.
  */
 export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
-    const caseId = parseId(ctx.args.pathParams[0], 'case_id');
+    const sectionId = parseId(ctx.args.pathParams[0], 'section_id');
     const resolved = await resolveFile(
         {
             ...(ctx.args.file !== undefined && { fileFlag: ctx.args.file }),
@@ -76,7 +109,7 @@ export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
         ctx.out({
             dryRun: true,
             action: 'bdd add',
-            caseId,
+            sectionId,
             file: resolved.path,
             filename: resolved.filename,
             size: resolved.size,
@@ -91,5 +124,37 @@ export async function handleBddAdd(ctx: HandlerContext): Promise<void> {
         resolved.source === 'stdin' && resolved.contents !== undefined
             ? resolved.contents
             : { path: resolved.path, fd: resolved.fd };
-    ctx.out(await ctx.client.bdd.addBdd(caseId, payload, resolved.filename));
+    ctx.out(await ctx.client.bdd.addBdd(sectionId, payload, resolved.filename));
+}
+
+/** Replace an existing case's BDD content with a `.feature` file. */
+export async function handleBddUpdate(ctx: HandlerContext): Promise<void> {
+    const caseId = parseId(ctx.args.pathParams[0], 'case_id');
+    const resolved = await resolveFile(
+        {
+            ...(ctx.args.file !== undefined && { fileFlag: ctx.args.file }),
+            ...(ctx.args.filename !== undefined && { filenameFlag: ctx.args.filename }),
+        },
+        { read: !ctx.dryRun },
+    );
+    if (!resolved.ok) throw new Error(resolved.error);
+
+    if (ctx.dryRun) {
+        ctx.out({
+            dryRun: true,
+            action: 'bdd update',
+            caseId,
+            file: resolved.path,
+            filename: resolved.filename,
+            size: resolved.size,
+            ...(resolved.source === 'stdin' && { source: 'stdin' }),
+        });
+        return;
+    }
+
+    const payload =
+        resolved.source === 'stdin' && resolved.contents !== undefined
+            ? resolved.contents
+            : { path: resolved.path, fd: resolved.fd };
+    ctx.out(await ctx.client.bdd.updateBdd(caseId, payload, resolved.filename));
 }

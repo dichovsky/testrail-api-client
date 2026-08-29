@@ -44,7 +44,10 @@ import {
     UpdateSectionPayloadSchema,
     AddMilestonePayloadSchema,
     UpdateMilestonePayloadSchema,
+    LabelWriteResponseSchema,
+    AddLabelPayloadSchema,
     UpdateLabelPayloadSchema,
+    DeleteLabelsPayloadSchema,
     UpdateTestLabelsPayloadSchema,
     UpdateTestsLabelsPayloadSchema,
     AddVariablePayloadSchema,
@@ -79,9 +82,12 @@ describe('AddCasePayloadSchema', () => {
             estimate: '5m',
             milestone_id: 4,
             refs: 'JIRA-1, JIRA-2',
+            labels: [1, 'regression'],
+            is_legacy: false,
             custom_fields: { steps: 'do thing' },
         });
         expect(parsed.refs).toBe('JIRA-1, JIRA-2');
+        expect(parsed.labels).toEqual([1, 'regression']);
     });
 
     it('rejects when title is missing', () => {
@@ -94,6 +100,10 @@ describe('AddCasePayloadSchema', () => {
 
     it('rejects when type_id is a string (no coercion)', () => {
         expect(() => AddCasePayloadSchema.parse({ title: 'x', type_id: '2' })).toThrow();
+    });
+
+    it('rejects unsupported label value types', () => {
+        expect(() => AddCasePayloadSchema.parse({ title: 'x', labels: [{ id: 1 }] })).toThrow();
     });
 
     it('preserves unknown custom_* fields via passthrough()', () => {
@@ -116,6 +126,15 @@ describe('UpdateCasePayloadSchema', () => {
         expect(parsed.title).toBe('Renamed');
     });
 
+    it('parses documented section, label, and legacy-content fields', () => {
+        const parsed = UpdateCasePayloadSchema.parse({
+            section_id: 4,
+            labels: [1, 'smoke'],
+            is_legacy: true,
+        });
+        expect(parsed).toMatchObject({ section_id: 4, labels: [1, 'smoke'], is_legacy: true });
+    });
+
     it('rejects wrong type on optional field (no coercion)', () => {
         expect(() => UpdateCasePayloadSchema.parse({ priority_id: 'high' })).toThrow();
     });
@@ -133,9 +152,13 @@ describe('UpdateCasesPayloadSchema', () => {
             priority_id: 3,
             milestone_id: 10,
             refs: 'JIRA-1',
+            section_id: 4,
+            labels: [1, 'regression'],
+            is_legacy: true,
         });
         expect(parsed.priority_id).toBe(3);
         expect(parsed.refs).toBe('JIRA-1');
+        expect(parsed.labels).toEqual([1, 'regression']);
     });
 
     it('rejects when case_ids is missing', () => {
@@ -579,6 +602,12 @@ describe('AddRunPayloadSchema', () => {
         expect(parsed.case_ids).toEqual([1, 2, 3]);
     });
 
+    it('parses documented start and due timestamps', () => {
+        const parsed = AddRunPayloadSchema.parse({ name: 'r', start_on: 1_646_058_600, due_on: 1_648_650_671 });
+        expect(parsed.start_on).toBe(1_646_058_600);
+        expect(parsed.due_on).toBe(1_648_650_671);
+    });
+
     it('rejects case_ids with string elements (no coercion)', () => {
         expect(() => AddRunPayloadSchema.parse({ name: 'r', case_ids: ['1', '2'] })).toThrow();
     });
@@ -601,6 +630,12 @@ describe('UpdateRunPayloadSchema', () => {
         });
         expect(parsed.include_all).toBe(false);
         expect(parsed.case_ids).toEqual([1, 2, 3]);
+    });
+
+    it('parses documented start and due timestamps', () => {
+        const parsed = UpdateRunPayloadSchema.parse({ start_on: 1_646_058_600, due_on: 1_648_650_671 });
+        expect(parsed.start_on).toBe(1_646_058_600);
+        expect(parsed.due_on).toBe(1_648_650_671);
     });
 
     it('rejects non-string name', () => {
@@ -838,21 +873,22 @@ describe('AddPlanEntryPayloadSchema', () => {
 });
 
 describe('UpdatePlanEntryPayloadSchema', () => {
-    it('parses an empty payload (suite_id optional on update)', () => {
+    it('parses an empty partial-update payload', () => {
         const parsed = UpdatePlanEntryPayloadSchema.parse({});
         expect(parsed).toEqual({});
     });
 
-    it('parses a payload with name + runs', () => {
+    it('parses a name update', () => {
         const parsed = UpdatePlanEntryPayloadSchema.parse({
             name: 'renamed entry',
-            runs: [{ name: 'override' }],
         });
         expect(parsed.name).toBe('renamed entry');
     });
 
-    it('rejects non-array runs', () => {
-        expect(() => UpdatePlanEntryPayloadSchema.parse({ runs: 'nope' })).toThrow();
+    it('does not advertise fields that TestRail explicitly does not support', () => {
+        expect(Object.keys(UpdatePlanEntryPayloadSchema.shape)).not.toEqual(
+            expect.arrayContaining(['suite_id', 'config_ids', 'runs']),
+        );
     });
 
     it('parses SPEC #2.1.6 fields (start_on / due_on / refs) on the update request side', () => {
@@ -887,12 +923,16 @@ describe('AddRunToPlanEntryPayloadSchema', () => {
             config_ids: [1, 2],
             description: 'Smoke',
             assignedto_id: 7,
+            start_on: 1_646_058_600,
+            due_on: 1_648_650_671,
             include_all: false,
             case_ids: [10, 20, 30],
             refs: 'JIRA-1',
         });
         expect(parsed.case_ids).toEqual([10, 20, 30]);
         expect(parsed.refs).toBe('JIRA-1');
+        expect(parsed.start_on).toBe(1_646_058_600);
+        expect(parsed.due_on).toBe(1_648_650_671);
     });
 
     it('rejects payload missing config_ids', () => {
@@ -922,15 +962,19 @@ describe('UpdateRunInPlanEntryPayloadSchema', () => {
         expect(parsed).toEqual({});
     });
 
-    it('parses a payload with all four mutable fields', () => {
+    it('parses all documented mutable fields', () => {
         const parsed = UpdateRunInPlanEntryPayloadSchema.parse({
             description: 'updated',
             assignedto_id: 7,
+            start_on: 1_646_058_600,
+            due_on: 1_648_650_671,
             include_all: false,
             case_ids: [1, 2],
+            refs: 'JIRA-2',
         });
         expect(parsed.description).toBe('updated');
         expect(parsed.case_ids).toEqual([1, 2]);
+        expect(parsed.refs).toBe('JIRA-2');
     });
 
     it('rejects bad types for case_ids', () => {
@@ -1613,22 +1657,60 @@ describe('AttachmentSchema', () => {
     });
 });
 
-describe('UpdateLabelPayloadSchema', () => {
+describe('LabelWriteResponseSchema', () => {
+    it('normalizes flat and wrapped label responses to the flat entity', () => {
+        const label = { id: 7, title: 'Release 2.0' };
+        expect(LabelWriteResponseSchema.parse(label)).toEqual(label);
+        expect(LabelWriteResponseSchema.parse({ label })).toEqual(label);
+    });
+});
+
+describe('AddLabelPayloadSchema', () => {
     it('parses a payload with title', () => {
-        expect(UpdateLabelPayloadSchema.parse({ title: 'Release 2.0' }).title).toBe('Release 2.0');
+        expect(AddLabelPayloadSchema.parse({ title: 'Release 2.0' }).title).toBe('Release 2.0');
     });
 
-    it('rejects a payload missing title (required)', () => {
+    it('rejects a payload missing title', () => {
+        expect(() => AddLabelPayloadSchema.parse({})).toThrow();
+    });
+});
+
+describe('UpdateLabelPayloadSchema', () => {
+    it('parses a payload with project_id and title', () => {
+        const parsed = UpdateLabelPayloadSchema.parse({ project_id: 1, title: 'Release 2.0' });
+        expect(parsed).toMatchObject({ project_id: 1, title: 'Release 2.0' });
+    });
+
+    it('rejects a payload missing either required field', () => {
         expect(() => UpdateLabelPayloadSchema.parse({})).toThrow();
+        expect(() => UpdateLabelPayloadSchema.parse({ title: 'x' })).toThrow();
+        expect(() => UpdateLabelPayloadSchema.parse({ project_id: 1 })).toThrow();
     });
 
-    it('rejects non-string title (no coercion)', () => {
-        expect(() => UpdateLabelPayloadSchema.parse({ title: 42 })).toThrow();
+    it('rejects invalid project_id and non-string title (no coercion)', () => {
+        expect(() => UpdateLabelPayloadSchema.parse({ project_id: 0, title: 'x' })).toThrow();
+        expect(() => UpdateLabelPayloadSchema.parse({ project_id: 1, title: 42 })).toThrow();
     });
 
     it('lets custom_* fields pass through', () => {
-        const parsed = UpdateLabelPayloadSchema.parse({ title: 'x', custom_owner: 'y' }) as Record<string, unknown>;
+        const parsed = UpdateLabelPayloadSchema.parse({
+            project_id: 1,
+            title: 'x',
+            custom_owner: 'y',
+        }) as Record<string, unknown>;
         expect(parsed['custom_owner']).toBe('y');
+    });
+});
+
+describe('DeleteLabelsPayloadSchema', () => {
+    it('parses one or more positive label IDs', () => {
+        expect(DeleteLabelsPayloadSchema.parse({ label_ids: [1, 2] }).label_ids).toEqual([1, 2]);
+    });
+
+    it('rejects empty or invalid ID lists', () => {
+        expect(() => DeleteLabelsPayloadSchema.parse({ label_ids: [] })).toThrow();
+        expect(() => DeleteLabelsPayloadSchema.parse({ label_ids: [1, 0] })).toThrow();
+        expect(() => DeleteLabelsPayloadSchema.parse({ label_ids: [1, 2.5] })).toThrow();
     });
 });
 

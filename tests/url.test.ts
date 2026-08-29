@@ -52,4 +52,21 @@ describe('buildEndpoint', () => {
     it('handles a value containing %', () => {
         expect(buildEndpoint('base', { q: '100%' })).toBe('base&q=100%25');
     });
+
+    it('emits repeated query keys for array values in their original order', () => {
+        const refs = ['ENG-101', 'ENG-102'] as const;
+        expect(buildEndpoint('get_cases/1', { 'refs[]': refs })).toBe(
+            'get_cases/1&refs%5B%5D=ENG-101&refs%5B%5D=ENG-102',
+        );
+    });
+
+    it('encodes every repeated value independently', () => {
+        expect(buildEndpoint('get_cases/1', { 'refs[]': ['A&B', 'C=D#E'] })).toBe(
+            'get_cases/1&refs%5B%5D=A%26B&refs%5B%5D=C%3DD%23E',
+        );
+    });
+
+    it('omits empty array values', () => {
+        expect(buildEndpoint('get_cases/1', { suite_id: 2, 'refs[]': [] })).toBe('get_cases/1&suite_id=2');
+    });
 });

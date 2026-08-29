@@ -41,7 +41,7 @@ export class TestModule {
 
     /** Fetch every tests page under explicit aggregate safety bounds. */
     async getAllTests(runId: number, options?: GetAllTestsOptions): Promise<Test[]> {
-        const filters = snapshotOptionFields(options, ['statusId', 'status_id']);
+        const filters = snapshotOptionFields(options, ['statusId', 'status_id', 'labelId', 'label_id']);
         return collectAllPages({
             ...snapshotPaginatedRequestOptions(options),
             requestControls: true,
@@ -69,11 +69,16 @@ export class TestModule {
         validateId(runId, 'runId');
         validatePaginationParams(options?.limit, options?.offset);
         const statusId = options?.statusId ?? options?.status_id;
+        const labelId = options?.labelId ?? options?.label_id;
         if (statusId !== undefined) {
             statusId.forEach((id) => validateId(id, 'statusId'));
         }
+        if (labelId !== undefined) {
+            labelId.forEach((id) => validateId(id, 'labelId'));
+        }
         const endpoint = buildEndpoint(`get_tests/${runId}`, {
             status_id: serializeIdList(statusId),
+            label_id: serializeIdList(labelId),
             limit: options?.limit,
             offset: options?.offset,
         });

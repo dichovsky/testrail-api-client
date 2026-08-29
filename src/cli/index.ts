@@ -282,8 +282,24 @@ async function main(): Promise<number> {
         pathParams,
         ...(values['project-id'] !== undefined && { projectId: values['project-id'] as string }),
         ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
+        ...(values['section-id'] !== undefined && { sectionId: values['section-id'] as string }),
         ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
         ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
+        ...(values['type-id'] !== undefined && { typeId: values['type-id'] as string }),
+        ...(values['priority-id'] !== undefined && { priorityId: values['priority-id'] as string }),
+        ...(values['template-id'] !== undefined && { templateId: values['template-id'] as string }),
+        ...(values['milestone-id'] !== undefined && { milestoneId: values['milestone-id'] as string }),
+        ...(values['created-after'] !== undefined && { createdAfter: values['created-after'] as string }),
+        ...(values['created-before'] !== undefined && { createdBefore: values['created-before'] as string }),
+        ...(values['created-by'] !== undefined && { createdBy: values['created-by'] as string }),
+        ...(values['updated-after'] !== undefined && { updatedAfter: values['updated-after'] as string }),
+        ...(values['updated-before'] !== undefined && { updatedBefore: values['updated-before'] as string }),
+        ...(values['updated-by'] !== undefined && { updatedBy: values['updated-by'] as string }),
+        ...(values['label-id'] !== undefined && { labelId: values['label-id'] as string }),
+        ...(values['refs'] !== undefined && { refs: values['refs'] as string }),
+        ...(values['filter'] !== undefined && { filter: values['filter'] as string }),
+        ...(values['include-plan-runs'] === true && { includePlanRuns: true }),
+        ...(values['is-completed'] !== undefined && { isCompleted: values['is-completed'] as string }),
         ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
         ...(values['page'] === true && { page: true }),
@@ -351,7 +367,7 @@ async function main(): Promise<number> {
 
     if (fileFlagIsStdin) {
         if (!isFileInputAction) {
-            err("--file '-' is only valid for attachment upload actions and 'bdd add'.");
+            err("--file '-' is only valid for attachment upload actions, 'bdd add', and 'bdd update'.");
             return 1;
         }
         if (values['data'] !== undefined || values['data-file'] !== undefined) {

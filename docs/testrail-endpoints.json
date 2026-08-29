@@ -96,9 +96,24 @@
     },
     {
         "resource": "BDD",
+        "operation": "get_bdds",
+        "method": "GET",
+        "path": "get_bdds/{project_id}",
+        "summary": "Returns project BDD entries with optional suite, section, label, and reference filters.",
+        "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "bdd" }
+    },
+    {
+        "resource": "BDD",
         "operation": "add_bdd",
         "method": "POST",
-        "path": "add_bdd/{case_id}",
+        "path": "add_bdd/{section_id}",
+        "summary": "Creates a BDD test case under a section (multipart .feature upload)."
+    },
+    {
+        "resource": "BDD",
+        "operation": "update_bdd",
+        "method": "POST",
+        "path": "update_bdd/{case_id}",
         "summary": "Replaces the BDD scenario(s) for a case (multipart .feature upload)."
     },
 
@@ -116,6 +131,13 @@
         "path": "get_cases/{project_id}",
         "summary": "Returns a list of test cases for a project or suite, with optional filters.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "cases" }
+    },
+    {
+        "resource": "Cases",
+        "operation": "get_case_titles",
+        "method": "GET",
+        "path": "get_case_titles",
+        "summary": "Returns lightweight ID and title records for a requested list of test cases."
     },
     {
         "resource": "Cases",
@@ -293,6 +315,14 @@
     },
 
     {
+        "resource": "Dynamic Filter Fields",
+        "operation": "get_dynamic_filter_fields",
+        "method": "GET",
+        "path": "get_dynamic_filter_fields/{project_id}",
+        "summary": "Returns the fields available for dynamic filtering in a project."
+    },
+
+    {
         "resource": "Groups",
         "operation": "get_group",
         "method": "GET",
@@ -346,10 +376,31 @@
     },
     {
         "resource": "Labels",
+        "operation": "add_label",
+        "method": "POST",
+        "path": "add_label/{project_id}",
+        "summary": "Creates a label in a project."
+    },
+    {
+        "resource": "Labels",
         "operation": "update_label",
         "method": "POST",
         "path": "update_label/{label_id}",
         "summary": "Updates (renames) an existing label."
+    },
+    {
+        "resource": "Labels",
+        "operation": "delete_label",
+        "method": "POST",
+        "path": "delete_label/{label_id}",
+        "summary": "Deletes an existing label."
+    },
+    {
+        "resource": "Labels",
+        "operation": "delete_labels",
+        "method": "POST",
+        "path": "delete_labels",
+        "summary": "Deletes multiple labels."
     },
 
     {
@@ -534,6 +585,20 @@
         "path": "run_report/{report_template_id}",
         "summary": "Executes a report and returns URLs to retrieve the generated report."
     },
+    {
+        "resource": "Reports",
+        "operation": "get_cross_project_reports",
+        "method": "GET",
+        "path": "get_cross_project_reports",
+        "summary": "Returns API-enabled Enterprise cross-project report templates."
+    },
+    {
+        "resource": "Reports",
+        "operation": "run_cross_project_report",
+        "method": "GET",
+        "path": "run_cross_project_report/{report_template_id}",
+        "summary": "Executes an Enterprise cross-project report template."
+    },
 
     {
         "resource": "Result Fields",
@@ -566,6 +631,13 @@
         "path": "get_results_for_run/{run_id}",
         "summary": "Returns a list of test results for a run.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
+    },
+    {
+        "resource": "Results",
+        "operation": "edit_result",
+        "method": "POST",
+        "path": "edit_result/{result_id}",
+        "summary": "Partially updates an existing test result."
     },
     {
         "resource": "Results",
@@ -870,6 +942,14 @@
         "method": "POST",
         "path": "update_user/{user_id}",
         "summary": "Updates an existing user."
+    },
+
+    {
+        "resource": "Versions",
+        "operation": "get_version",
+        "method": "GET",
+        "path": "get_version",
+        "summary": "Returns the installed TestRail version."
     },
 
     {

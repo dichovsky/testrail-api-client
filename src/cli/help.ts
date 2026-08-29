@@ -31,18 +31,20 @@ const METADATA_RESOURCES: ReadonlySet<string> = new Set([
     'case-field',
     'case-status',
     'case-type',
+    'dynamic-filter-field',
     'priority',
     'result-field',
     'role',
     'status',
     'template',
+    'version',
 ]);
 
 // ── Resources whose actions live in their own dedicated sections ─────────────
 //
 // Excluded from the generic Read / Write / Metadata sections so they don't
 // appear twice (configuration mixes write + destructive; attachment mixes
-// every kind of I/O; bdd is text-I/O for get and file-input for add).
+// every kind of I/O; bdd is text-I/O for get and file-input for add/update).
 const CONFIGURATION_RESOURCES: ReadonlySet<string> = new Set(['configuration', 'configuration-group']);
 const SPECIAL_RESOURCES: ReadonlySet<string> = new Set(['attachment', 'bdd']);
 
@@ -102,7 +104,8 @@ export function actionArgvHint(spec: ActionSpec): string {
  *   "  resource    action <id> hint   summary"
  *
  * Indentation widths are tuned to match the existing layout: resource
- * column padded to 20 chars, action padded to 22 chars. The summary follows
+ * column padded to 20 chars with at least one separator, action padded to 22
+ * chars. The summary follows
  * the argv shape on the same line so users can see the full usage at a
  * glance without horizontal scrolling for the common cases.
  */
@@ -111,7 +114,7 @@ function renderActionLine(spec: ActionSpec): string {
     const hint = actionArgvHint(spec);
     const usage = [spec.action, path, hint].filter((s) => s !== '').join(' ');
     // Two-column layout: resource (20) | usage … summary.
-    const resourceCol = spec.resource.padEnd(20);
+    const resourceCol = `${spec.resource} `.padEnd(20);
     return `  ${resourceCol}${usage}\n      ${spec.summary}`;
 }
 
@@ -246,11 +249,29 @@ const OPTIONS_BLOCK = `Options:
                         hard maximum 1073741824).
   --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
   --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
+  --suite-id <ids>      Suite ID; run list also accepts a comma-separated list
+  --section-id <id>     Section filter (case list / bdd list)
+  --type-id <ids>       Comma-separated case type IDs (case list)
+  --priority-id <ids>   Comma-separated priority IDs (case list)
+  --template-id <ids>   Comma-separated template IDs (case list)
+  --milestone-id <ids>  Comma-separated milestone IDs (case/run/plan list)
+  --created-after <ts>  Created-after Unix timestamp (case/run/plan list)
+  --created-before <ts> Created-before Unix timestamp (case/run/plan list)
+  --created-by <ids>    Comma-separated creator user IDs (case/run/plan list)
+  --updated-after <ts>  Updated-after Unix timestamp (case list)
+  --updated-before <ts> Updated-before Unix timestamp (case list)
+  --updated-by <ids>    Comma-separated updater user IDs (case list)
+  --label-id <ids>      Comma-separated label IDs (case / bdd / test list)
+  --refs <refs>         One reference for run/plan list; case/bdd list accept
+                        comma-separated values via TestRail 10.7 refs[]
+  --filter <text>       Case-title substring filter (case list)
+  --include-plan-runs   Include plan-owned runs in run list
+  --is-completed <bool> Filter run/plan list; accepts true, false, 1, or 0
   --file <path>         Binary file to upload (attachment add-to-* actions)
   --filename <name>     Override the upload filename (default: basename of --file)
   --out <path>          Local path to write the downloaded attachment to (attachment get)
   --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete, configuration delete, configuration-group delete)
+  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete, configuration delete, configuration-group delete, label delete, label delete-bulk)
   --soft                Server-side preview for soft-capable deletes:
                           case delete, case delete-bulk, run delete,
                           section delete, suite delete.
@@ -261,7 +282,8 @@ const OPTIONS_BLOCK = `Options:
                           plan close, plan delete, plan delete-entry,
                           plan delete-run-from-entry, variable delete,
                           group delete, dataset delete, shared-step delete,
-                          configuration delete, configuration-group delete.
+                          configuration delete, configuration-group delete,
+                          label delete, label delete-bulk.
   --interval <seconds>  run watch poll interval (default: 30; min: 5; max: 600)
   --once                run watch: poll once and exit instead of running until is_completed
   --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
@@ -277,7 +299,7 @@ The following write actions take NO body
 case delete, run delete, suite delete, section delete, milestone delete,
 project delete, plan close, plan delete, plan delete-entry,
 plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete,
-configuration delete, configuration-group delete — they accept only positional id(s) (one for most
+configuration delete, configuration-group delete, label delete — they accept only positional id(s) (one for most
 actions; plan delete-entry and attachment add-to-plan-entry take two:
 <plan_id> <entry_id>) and the optional --soft flag on the soft-capable
 deletes. Attachment upload actions take a binary file via --file <path>
@@ -286,7 +308,7 @@ Destructive actions (attachment delete, case delete, case delete-bulk, run close
 run delete, section delete, suite delete, milestone delete, project delete,
 plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
 variable delete, group delete, dataset delete, shared-step delete,
-configuration delete, configuration-group delete)
+configuration delete, configuration-group delete, label delete, label delete-bulk)
 require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
 alone is insufficient — this two-gate model is intentional (env var is
 process-wide audit-friendly; --yes is per-invocation explicit). Pass

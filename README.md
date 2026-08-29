@@ -7,6 +7,14 @@
 
 Type-safe TypeScript client and `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/articles/7077819069460-Using-the-API), with a single runtime dependency: Zod. ESM only.
 
+Compatibility is tracked through
+[TestRail 10.7.0 (Default 1021)](https://support.testrail.com/hc/en-us/articles/52231138481684-TestRail-10-7-0-Default-1021),
+including the cumulative API additions from 10.4–10.7 and the 10.7 repeated
+`refs[]` filters for case and BDD lists. The compatibility surface also covers
+BDD/case-title/version discovery, result editing, dynamic filters, label
+management, and current run/plan/test filters and scheduling fields. Older
+scalar `refs` queries remain supported.
+
 ## Install
 
 ```bash
@@ -139,7 +147,7 @@ Library consumers should leave `registerProcessHandlers` off and call `client.de
 
 ## Pagination
 
-The 23 endpoints in the pagination registry expose three projections. Existing
+The 24 endpoints in the pagination registry expose three projections. Existing
 methods keep their backward-compatible behavior: `get*()` performs one request
 and returns that response's item array. `get*Page()` performs one request and
 returns a discriminated `Page<T>` with the server's `offset`, `limit`, `size`,
@@ -169,15 +177,16 @@ failure throws `TestRailPaginationError` with `reason`, `pagesFetched`, and
 `itemsFetched`. Reasons are `max_pages`, `max_items`, `max_duration`,
 `max_bytes`, `invalid_page`, `invalid_continuation`, and `non_progress`.
 
-Registry scope is deliberately finite: cases and case history; projects,
-suites, sections, plans, runs, tests, and milestones; the three result lists;
-labels; shared-step lists and history; case/run/plan attachment lists; datasets,
-variables, roles, groups, and case statuses. Shared-step history, datasets,
-variables, roles, groups, and case statuses expose response-driven pagination
-but no caller-controlled page size or start offset. Test attachments,
-plan-entry attachments, users, and ordinary metadata/configuration/report
-lists remain one-response-only; some legacy methods may still accept
-`limit`/`offset`, but that is not a `get*Page()`/`getAll*()` guarantee.
+Registry scope is deliberately finite: cases, case history, and project BDDs;
+projects, suites, sections, plans, runs, tests, and milestones; the three result
+lists; labels; shared-step lists and history; case/run/plan attachment lists;
+datasets, variables, roles, groups, and case statuses. Shared-step history,
+datasets, variables, roles, groups, and case statuses expose response-driven
+pagination but no caller-controlled page size or start offset. Test
+attachments, plan-entry attachments, users, and ordinary
+metadata/configuration/report lists remain one-response-only; some legacy
+methods may still accept `limit`/`offset`, but that is not a
+`get*Page()`/`getAll*()` guarantee.
 
 The CLI mirrors the projections. Its default output remains an item array;
 `--page` emits the normalized page object, and `--all` emits the complete
