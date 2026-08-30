@@ -52,11 +52,14 @@ export const RunSchema = zObject({
     // Live-instance audit (R-EXTRA): the server emits these on `get_run` /
     // `get_runs` but they were previously unmodeled. `is_archived` was observed
     // as a boolean and `archived_on` as `null` (epoch when set, by analogy to
-    // `completed_on`). Current API docs define the `dynamic_filters` structure.
+    // `completed_on`). `dynamic_filters` has appeared on the wire, but its
+    // response shape has not been captured. Keep it deliberately wide instead
+    // of reusing the stricter caller-supplied payload schema: TestRail response
+    // shapes can differ from their corresponding request bodies.
     // All three remain `.nullish()` for older servers and unset selections.
     is_archived: z.boolean().nullish(),
     archived_on: z.number().nullish(),
-    dynamic_filters: DynamicFiltersPayloadSchema.nullish(),
+    dynamic_filters: z.unknown().nullish(),
 });
 
 export type Run = KnownResponse<typeof RunSchema>;

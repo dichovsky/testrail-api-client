@@ -69,10 +69,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_bdd/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getBdd`](../src/modules/bdd.ts#L59) | `bdd get` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
-| [`GET get_bdds/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getBdds`](../src/modules/bdd.ts#L72) | `bdd list` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
-| [`POST add_bdd/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addBdd`](../src/modules/bdd.ts#L152) | `bdd add` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
-| [`POST update_bdd/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateBdd`](../src/modules/bdd.ts#L161) | `bdd update` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
+| [`GET get_bdd/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getBdd`](../src/modules/bdd.ts#L60) | `bdd get` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
+| [`GET get_bdds/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getBdds`](../src/modules/bdd.ts#L73) | `bdd list` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
+| [`POST add_bdd/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addBdd`](../src/modules/bdd.ts#L142) | `bdd add` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
+| [`POST update_bdd/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateBdd`](../src/modules/bdd.ts#L151) | `bdd update` | [recipe #51](../skill/SKILL.md#51-bdd-scenarios-list--get--add--update) |
 
 ## Case Fields
 
@@ -97,18 +97,18 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI command | Skill recipe |
 | --- | --- | --- | --- |
-| [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L59) | `case get` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
-| [`GET get_case_titles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTitles`](../src/modules/cases.ts#L69) | `case titles` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
-| [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L83) | `case list` | [recipe #5](../skill/SKILL.md#5-list-cases-in-a-specific-suite) |
-| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L452) | `case history` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
-| [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L197) | `case add` | [recipe #9](../skill/SKILL.md#9-author-a-new-test-case) |
-| [`POST add_cases/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCases`](../src/modules/cases.ts#L224) | `case add-bulk` | [recipe #30](../skill/SKILL.md#30-bulk-author-cases-under-a-section-in-one-api-call) |
-| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L426) | `case copy-to-section` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
-| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L304) | `case delete` | [recipe #47](../skill/SKILL.md#47-delete-a-single-test-case-with-safety-gates) |
-| [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L375) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
-| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L442) | `case move-to-section` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
-| [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L285) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
-| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L342) | `case update-bulk` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`GET get_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCase`](../src/modules/cases.ts#L44) | `case get` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`GET get_case_titles`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCaseTitles`](../src/modules/cases.ts#L54) | `case titles` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`GET get_cases/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCases`](../src/modules/cases.ts#L68) | `case list` | [recipe #5](../skill/SKILL.md#5-list-cases-in-a-specific-suite) |
+| [`GET get_history_for_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getHistoryForCase`](../src/modules/cases.ts#L437) | `case history` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`POST add_case/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCase`](../src/modules/cases.ts#L182) | `case add` | [recipe #9](../skill/SKILL.md#9-author-a-new-test-case) |
+| [`POST add_cases/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addCases`](../src/modules/cases.ts#L209) | `case add-bulk` | [recipe #30](../skill/SKILL.md#30-bulk-author-cases-under-a-section-in-one-api-call) |
+| [`POST copy_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`copyCasesToSection`](../src/modules/cases.ts#L411) | `case copy-to-section` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`POST delete_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCase`](../src/modules/cases.ts#L289) | `case delete` | [recipe #47](../skill/SKILL.md#47-delete-a-single-test-case-with-safety-gates) |
+| [`POST delete_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteCases`](../src/modules/cases.ts#L360) | `case delete-bulk` | [recipe #26](../skill/SKILL.md#26-bulk-case-delete-with---soft-server-side-preview) |
+| [`POST move_cases_to_section/{section_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`moveCasesToSection`](../src/modules/cases.ts#L427) | `case move-to-section` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
+| [`POST update_case/{case_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCase`](../src/modules/cases.ts#L270) | `case update` | [recipe #10](../skill/SKILL.md#10-update-a-test-case-partial-fields) |
+| [`POST update_cases/{suite_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateCases`](../src/modules/cases.ts#L327) | `case update-bulk` | [recipe #44](../skill/SKILL.md#44-case-lifecycle-read-edit-history-copy-move-and-bulk-update) |
 
 ## Configurations
 
@@ -270,10 +270,10 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 | --- | --- | --- | --- |
 | [`GET get_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRun`](../src/modules/runs.ts#L23) | `run get` | [recipe #7](../skill/SKILL.md#7-count-passfail-for-a-run) |
 | [`GET get_runs/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getRuns`](../src/modules/runs.ts#L29) | `run list` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
-| [`POST add_run/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addRun`](../src/modules/runs.ts#L126) | `run add` | [recipe #11](../skill/SKILL.md#11-create-a-ci-test-run) |
-| [`POST close_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`closeRun`](../src/modules/runs.ts#L148) | `run close` | [recipe #13](../skill/SKILL.md#13-close-a-run-when-ci-finishes) |
-| [`POST delete_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteRun`](../src/modules/runs.ts#L165) | `run delete` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
-| [`POST update_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateRun`](../src/modules/runs.ts#L137) | `run update` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
+| [`POST add_run/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`addRun`](../src/modules/runs.ts#L122) | `run add` | [recipe #11](../skill/SKILL.md#11-create-a-ci-test-run) |
+| [`POST close_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`closeRun`](../src/modules/runs.ts#L144) | `run close` | [recipe #13](../skill/SKILL.md#13-close-a-run-when-ci-finishes) |
+| [`POST delete_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`deleteRun`](../src/modules/runs.ts#L161) | `run delete` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
+| [`POST update_run/{run_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`updateRun`](../src/modules/runs.ts#L133) | `run update` | [recipe #39](../skill/SKILL.md#39-run-lifecycle--list-active-runs-update-metadata-close-and-delete) |
 
 ## Sections
 

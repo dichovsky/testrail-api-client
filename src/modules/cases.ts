@@ -20,6 +20,7 @@ import type {
 import { CaseSchema, CaseTitleSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { listOf, listOfNested, pageOf, pageOfNested, unwrapList, unwrapNestedList } from './list.js';
 import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { serializeIdFilter } from '../utils.js';
 
 export interface GetHistoryForCaseOptions {
     /** Maximum number of history entries to return */
@@ -35,22 +36,6 @@ export type GetAllHistoryForCaseOptions = PaginatedRequestOptions;
 type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
-
-type IdFilter = number | readonly number[];
-
-function isIdFilterList(value: IdFilter): value is readonly number[] {
-    return Array.isArray(value);
-}
-
-/** Validate and serialize TestRail's comma-separated numeric list filters. */
-function serializeIdFilter(value: IdFilter | undefined, name: string): string | number | undefined {
-    if (value !== undefined && isIdFilterList(value)) {
-        for (const id of value) validateId(id, name);
-        return value.length > 0 ? value.join(',') : undefined;
-    }
-    if (value !== undefined) validateId(value, name);
-    return value;
-}
 
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}

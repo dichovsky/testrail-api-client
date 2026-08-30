@@ -31,3 +31,12 @@ export function parseOptionalRefs(raw: string | undefined, name = '--refs'): str
     }
     return refs.length === 1 ? refs[0] : refs;
 }
+
+/** Parse a single external-reference filter, rejecting empty or list values. */
+export function parseOptionalSingleRef(raw: string | undefined, name = '--refs'): string | undefined {
+    const refs = parseOptionalRefs(raw, name);
+    if (refs !== undefined && typeof refs !== 'string') {
+        throw new IdParseError(`${name} accepts exactly one reference`);
+    }
+    return refs;
+}

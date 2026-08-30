@@ -40,8 +40,13 @@ export type Label = KnownResponse<typeof LabelSchema>;
 
 /**
  * Label mutations have shipped with both a flat label response and a
- * `{ label: ... }` wrapper. Normalize either documented/official-client shape
- * to the same flat entity returned by the public SDK methods.
+ * `{ label: ... }` wrapper. The official TestRail CLI handles both forms for
+ * `add_label` and `update_label` (gurock/trcli commit e723052,
+ * `cmd_labels.py` lines 53–55 and 90–92):
+ * - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L53-L55
+ * - https://github.com/gurock/trcli/blob/e723052d0898da6a501972c6855eddf487cd51bb/trcli/commands/cmd_labels.py#L90-L92
+ * Normalize either official-client shape to the same flat entity returned by
+ * the public SDK methods.
  */
 export const LabelWriteResponseSchema = z.union([
     LabelSchema,

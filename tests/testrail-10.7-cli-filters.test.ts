@@ -179,9 +179,15 @@ describe('TestRail 10.7 CLI filters', () => {
         const emptyBoolean = context({ runs: { getRuns } }, { projectId: '7', isCompleted: '' });
         await expect(handleRunList(emptyBoolean.ctx)).rejects.toThrow(/\(empty\)/);
 
+        const emptyRunRefs = context({ runs: { getRuns } }, { projectId: '7', refs: '' });
+        await expect(handleRunList(emptyRunRefs.ctx)).rejects.toThrow(/non-empty references/);
+
         const getPlans = vi.fn();
         const badIds = context({ plans: { getPlans } }, { projectId: '7', createdBy: '1,0' });
         await expect(handlePlanList(badIds.ctx)).rejects.toThrow(/--created-by/);
+
+        const listPlanRefs = context({ plans: { getPlans } }, { projectId: '7', refs: 'PLAN-1,PLAN-2' });
+        await expect(handlePlanList(listPlanRefs.ctx)).rejects.toThrow(/exactly one reference/);
 
         expect(getCases).not.toHaveBeenCalled();
         expect(getRuns).not.toHaveBeenCalled();

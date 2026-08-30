@@ -8,6 +8,7 @@ import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagina
 import { collectAllPages, decodePage } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
 import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { serializeIdFilter } from '../utils.js';
 
 /** Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`. */
 export interface GetBddsOptions {
@@ -109,25 +110,14 @@ export class BddModule {
         const { suiteId, sectionId, labelId, refs, limit, offset } = options ?? {};
         if (suiteId !== undefined) validateId(suiteId, 'suiteId');
         if (sectionId !== undefined) validateId(sectionId, 'sectionId');
-        if (typeof labelId === 'number') {
-            validateId(labelId, 'labelId');
-        } else if (labelId !== undefined) {
-            labelId.forEach((id, index) => validateId(id, `labelId[${index}]`));
-        }
         validatePaginationParams(limit, offset);
 
-        const labelFilter =
-            typeof labelId === 'number'
-                ? labelId
-                : labelId !== undefined && labelId.length > 0
-                  ? labelId.join(',')
-                  : undefined;
         const refsScalar = typeof refs === 'string' ? refs : undefined;
         const refsArray = refs !== undefined && typeof refs !== 'string' ? refs : undefined;
         const endpoint = buildEndpoint(`get_bdds/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
-            label_id: labelFilter,
+            label_id: serializeIdFilter(labelId, 'labelId'),
             refs: refsScalar,
             'refs[]': refsArray,
             limit,

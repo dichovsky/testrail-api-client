@@ -118,14 +118,17 @@ describe('TestRail 10.4–10.6 SDK additions', () => {
         expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('refs=ENG-101'), expect.anything());
     });
 
-    it('sends official run filter names and serializes list-valued IDs', async () => {
+    it('sends official run filter names and serializes readonly list-valued IDs', async () => {
         mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+        const milestoneId = [4, 5] as const;
+        const suiteId = [6, 7] as const;
 
         await client.runs.getRuns(3, {
             includePlanRuns: true,
-            milestoneId: [4, 5],
+            milestoneId,
             refs: 'ENG-101',
-            suiteId: [6, 7],
+            suiteId,
         });
 
         const url = mockFetch.mock.calls[0]?.[0] as string;
@@ -146,14 +149,14 @@ describe('TestRail 10.4–10.6 SDK additions', () => {
         expect(url).toContain('is_completed=0');
     });
 
-    it('keeps the old refsFilter option as an alias while fixing its wire key', async () => {
+    it('keeps refsFilter effective on current and pre-10.4 servers', async () => {
         mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
         await client.runs.getRuns(3, { refsFilter: 'LEGACY-1' });
 
         const url = mockFetch.mock.calls[0]?.[0] as string;
         expect(url).toContain('refs=LEGACY-1');
-        expect(url).not.toContain('refs_filter');
+        expect(url).toContain('refs_filter=LEGACY-1');
     });
 
     it('types and validates dynamic_filters on documented run and plan-entry payloads', () => {
@@ -193,7 +196,7 @@ describe('TestRail 10.4–10.6 SDK additions', () => {
         );
     });
 
-    it('types top-level plan refs and dynamic-filter response fields', () => {
+    it('types top-level plan refs while keeping dynamic-filter responses wide', () => {
         const dynamic_filters = {
             mode: '1',
             filters: { 'cases:priority_id': { values: [2] } },
@@ -218,5 +221,9 @@ describe('TestRail 10.4–10.6 SDK additions', () => {
                 dynamic_filters,
             }).dynamic_filters,
         ).toEqual(dynamic_filters);
+
+        expect(RunSchema.parse({ ...MOCK_RUN, dynamic_filters: ['server-defined'] }).dynamic_filters).toEqual([
+            'server-defined',
+        ]);
     });
 });

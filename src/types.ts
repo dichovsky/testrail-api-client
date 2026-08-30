@@ -417,13 +417,17 @@ export interface GetRunsOptions {
     /** `true` to return only completed runs, `false` for active runs */
     isCompleted?: boolean;
     /** Return only runs linked to any of these milestone IDs */
-    milestoneId?: number | number[];
+    milestoneId?: number | readonly number[];
     /** Return only runs matching this reference ID */
     refs?: string;
-    /** @deprecated use `refs` */
+    /**
+     * Legacy reference filter. Sends both `refs` and `refs_filter` so callers
+     * remain compatible with current and pre-10.4 TestRail servers.
+     * @deprecated use `refs` when TestRail 10.4+ is guaranteed
+     */
     refsFilter?: string;
     /** Return only runs for any of these suite IDs */
-    suiteId?: number | number[];
+    suiteId?: number | readonly number[];
     /** Maximum number of runs to return */
     limit?: number;
     /** Pagination offset */

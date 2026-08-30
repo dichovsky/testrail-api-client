@@ -2814,7 +2814,18 @@ describe('TestRailClient', () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.runs.getRuns(1, { refsFilter: 'TR-42' });
-            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('&refs=TR-42'), expect.anything());
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('&refs=TR-42');
+            expect(url).toContain('&refs_filter=TR-42');
+        });
+
+        it('should prefer explicit refs without emitting a conflicting legacy filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.runs.getRuns(1, { refs: 'CURRENT-1', refsFilter: 'LEGACY-1' });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('&refs=CURRENT-1');
+            expect(url).not.toContain('refs_filter=');
         });
 
         it('should pass limit and offset via options', async () => {

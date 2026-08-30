@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import { serializeIdList } from '../utils.js';
+import { serializeIdFilter } from '../utils.js';
 import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
@@ -90,23 +90,19 @@ export class RunModule {
             offset,
         } = options ?? {};
         validatePaginationParams(limit, offset);
-        const milestoneIds =
-            milestoneId === undefined ? undefined : Array.isArray(milestoneId) ? milestoneId : [milestoneId];
-        const suiteIds = suiteId === undefined ? undefined : Array.isArray(suiteId) ? suiteId : [suiteId];
-        milestoneIds?.forEach((id) => validateId(id, 'milestoneId'));
-        suiteIds?.forEach((id) => validateId(id, 'suiteId'));
-        if (createdBy !== undefined) {
-            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
-        }
         const endpoint = buildEndpoint(`get_runs/${projectId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
-            created_by: serializeIdList(createdBy),
+            created_by: serializeIdFilter(createdBy, 'createdBy'),
             include_plan_runs: includePlanRuns !== undefined ? (includePlanRuns ? 1 : 0) : undefined,
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-            milestone_id: serializeIdList(milestoneIds),
+            milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
+            // The current API uses `refs`; pre-10.4 servers use `refs_filter`.
+            // When the deprecated alias is supplied, send both spellings so
+            // the same public option remains effective across server versions.
             refs: refs ?? refsFilter,
-            suite_id: serializeIdList(suiteIds),
+            refs_filter: refs === undefined ? refsFilter : undefined,
+            suite_id: serializeIdFilter(suiteId, 'suiteId'),
             limit,
             offset,
         });

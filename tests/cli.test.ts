@@ -1824,6 +1824,19 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
+        it('result edit POSTs the payload to edit_result/{result_id}', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['result', 'edit', '17', '--data', '{"comment":"corrected"}'],
+                [jsonResponse({ id: 17, test_id: 42, status_id: 1, comment: 'corrected' })],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('edit_result/17');
+            expect(init.method).toBe('POST');
+            expect(JSON.parse(init.body as string)).toEqual({ comment: 'corrected' });
+            expect(JSON.parse(stdout)).toMatchObject({ id: 17, comment: 'corrected' });
+        });
+
         it('result unknown action should exit 1', async () => {
             const { stderr, exitCodes } = await runCli(['result', 'get', '1']);
             expect(exitCodes).toContain(1);
@@ -6645,6 +6658,22 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('"id"');
+        });
+
+        it('update uploads --file to update_bdd/{case_id}', async () => {
+            const filePath = join(tmp, 'updated.feature');
+            writeFileSync(filePath, 'Feature: Updated\n');
+            const updatedCase = { ...MOCK_CASE, id: 42, title: 'Updated BDD case' };
+            const { exitCodes, stdout } = await runCli(
+                ['bdd', 'update', '42', '--file', filePath],
+                [jsonResponse(updatedCase)],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('update_bdd/42');
+            expect(init.method).toBe('POST');
+            expect(init.body).toBeInstanceOf(globalThis.FormData);
+            expect(JSON.parse(stdout)).toMatchObject({ id: 42, title: 'Updated BDD case' });
         });
 
         it('add --dry-run skips fetch entirely', async () => {

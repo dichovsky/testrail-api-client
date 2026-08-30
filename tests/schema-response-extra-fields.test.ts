@@ -37,11 +37,12 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
             expect(f.safeParse('2026').success).toBe(false);
         });
 
-        it('declares dynamic_filters as the documented nullish filter structure', () => {
+        it('keeps dynamic_filters deliberately broad until a non-null wire shape is captured', () => {
             const f = RunSchema.shape.dynamic_filters;
             expectNullishField(f);
             expect(f.safeParse({ mode: '1', filters: { 'cases:priority_id': { values: [2] } } }).success).toBe(true);
-            expect(f.safeParse({ any: 'shape' }).success).toBe(false);
+            expect(f.safeParse({ any: 'shape' }).success).toBe(true);
+            expect(f.safeParse(['server-defined']).success).toBe(true);
         });
 
         it('round-trips a realistic run body carrying the new fields', () => {

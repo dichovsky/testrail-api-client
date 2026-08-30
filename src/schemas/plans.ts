@@ -15,10 +15,10 @@ export const PlanEntrySchema = zObject({
     case_ids: z.array(z.number()).nullish(),
     config_ids: z.array(z.number()).nullish(),
     runs: z.array(RunSchema),
-    // Current API docs publish the same dynamic-filter structure used by run
-    // responses. It remains nullish for older servers and entries without a
-    // Selection Filter.
-    dynamic_filters: DynamicFiltersPayloadSchema.nullish(),
+    // Observed on plan-entry responses, but without a captured non-null value.
+    // Keep the response deliberately wide instead of reusing the stricter
+    // caller-supplied payload schema; request and response shapes may diverge.
+    dynamic_filters: z.unknown().nullish(),
     // SPEC #2.1.6 — TestRail Plans API doc lists `start_on` / `due_on` / `refs` in the
     // `add_plan_entry` request body table (entry-level), and the `get_plan` example
     // shows `refs` in the entry object. `start_on` / `due_on` echo back on responses

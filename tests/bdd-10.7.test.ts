@@ -105,7 +105,7 @@ describe('TestRail 10.7 bulk BDD API', () => {
         ['projectId', () => client.bdd.getBdds(0)],
         ['suiteId', () => client.bdd.getBdds(1, { suiteId: 0 })],
         ['sectionId', () => client.bdd.getBdds(1, { sectionId: -1 })],
-        ['labelId[1]', () => client.bdd.getBdds(1, { labelId: [1, 0] })],
+        ['labelId', () => client.bdd.getBdds(1, { labelId: [1, 0] })],
     ])('rejects invalid %s before a network call', async (field, call) => {
         await expect(call()).rejects.toThrow(`${field} must be a positive integer`);
         expect(mockFetch).not.toHaveBeenCalled();
