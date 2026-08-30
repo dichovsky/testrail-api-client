@@ -1,4 +1,9 @@
-import { handleReportList, handleReportRun } from '../handlers/report.js';
+import {
+    handleCrossProjectReportList,
+    handleCrossProjectReportRun,
+    handleReportList,
+    handleReportRun,
+} from '../handlers/report.js';
 import type { ActionSpec } from './types.js';
 
 /**
@@ -24,5 +29,23 @@ export const reportActions: readonly ActionSpec[] = [
         apiEndpoint: 'GET run_report/{report_template_id}',
         isWrite: false,
         handler: handleReportRun,
+    },
+    {
+        resource: 'report',
+        action: 'list-cross-project',
+        summary: 'List API-enabled cross-project report templates (Enterprise)',
+        pathParams: [],
+        apiEndpoint: 'GET get_cross_project_reports',
+        isWrite: false,
+        handler: handleCrossProjectReportList,
+    },
+    {
+        resource: 'report',
+        action: 'run-cross-project',
+        summary: 'Execute a cross-project report template (Enterprise)',
+        pathParams: [{ name: 'report_template_id', description: 'TestRail cross-project report template ID' }],
+        apiEndpoint: 'GET run_cross_project_report/{report_template_id}',
+        isWrite: false,
+        handler: handleCrossProjectReportRun,
     },
 ];

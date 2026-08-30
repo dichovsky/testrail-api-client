@@ -271,6 +271,43 @@ export const TemplateSchema = zObject({
 
 export type Template = KnownResponse<typeof TemplateSchema>;
 
+// ── Dynamic-filter discovery & server version ───────────────────────────────
+
+/**
+ * One field definition returned by `get_dynamic_filter_fields/{project_id}`.
+ * `options` and `sub_filters` are mutually endpoint-dependent and therefore
+ * nullish; `zObject` preserves any additional field metadata introduced by a
+ * future TestRail release.
+ */
+export const DynamicFilterFieldSchema = zObject({
+    type_id: z.number(),
+    system_name: z.string(),
+    label: z.string(),
+    options: z.string().nullish(),
+    sub_filters: z.string().nullish(),
+});
+
+export type DynamicFilterField = KnownResponse<typeof DynamicFilterFieldSchema>;
+
+/**
+ * Forward-compatible object accepted by run and plan-entry `dynamic_filters`
+ * fields. TestRail requires top-level `mode` and `filters`; each field-specific
+ * criterion remains open because its shape varies by field type.
+ */
+export const DynamicFiltersPayloadSchema = zObject({
+    mode: z.string(),
+    filters: z.record(z.string(), z.record(z.string(), z.unknown())),
+});
+
+export type DynamicFiltersPayload = z.infer<typeof DynamicFiltersPayloadSchema>;
+
+/** Response from the authenticated `get_version` endpoint (TestRail 10.6+). */
+export const TestRailVersionSchema = zObject({
+    version: z.string(),
+});
+
+export type TestRailVersion = KnownResponse<typeof TestRailVersionSchema>;
+
 // ── Case-field payloads ───────────────────────────────────────────────────────
 // `add_case_field` (admin-only) creates a custom case field at the
 // instance/project level. The payload mirrors the response-side

@@ -10,3 +10,12 @@ export async function handleReportRun(ctx: HandlerContext): Promise<void> {
     const reportTemplateId = parseId(ctx.args.pathParams[0], 'report template id');
     ctx.out(await ctx.client.reports.runReport(reportTemplateId));
 }
+
+export async function handleCrossProjectReportList(ctx: HandlerContext): Promise<void> {
+    ctx.out(await ctx.client.reports.getCrossProjectReports());
+}
+
+export async function handleCrossProjectReportRun(ctx: HandlerContext): Promise<void> {
+    const reportTemplateId = parseId(ctx.args.pathParams[0], 'report template id');
+    ctx.out(await ctx.client.reports.runCrossProjectReport(reportTemplateId));
+}

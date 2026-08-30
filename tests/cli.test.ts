@@ -1665,9 +1665,9 @@ describe('CLI', () => {
         });
     });
 
-    // ── label get/list/update (Labels API, 2025) ───────────────────────────
+    // ── label management (TestRail 10.5+) ────────────────────────────────
 
-    describe('label get/list/update', () => {
+    describe('label management', () => {
         it('label get <label_id> GETs get_label/{label_id}', async () => {
             const { exitCodes, stdout } = await runCli(['label', 'get', '7'], [jsonResponse(MOCK_LABEL)]);
             expect(exitCodes).toContain(0);
@@ -1708,9 +1708,20 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('label update <label_id> POSTs update_label/{label_id} with the title body', async () => {
+        it('label add <project_id> POSTs add_label/{project_id}', async () => {
             const { exitCodes } = await runCli(
-                ['label', 'update', '7', '--data', '{"title":"Release 2.0"}'],
+                ['label', 'add', '1', '--data', '{"title":"Release 3.0"}'],
+                [jsonResponse({ id: 8, title: 'Release 3.0' })],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('add_label/1');
+            expect(JSON.parse(init.body as string)).toEqual({ title: 'Release 3.0' });
+        });
+
+        it('label update <label_id> POSTs update_label/{label_id} with project_id and title', async () => {
+            const { exitCodes } = await runCli(
+                ['label', 'update', '7', '--data', '{"project_id":1,"title":"Release 2.0"}'],
                 [jsonResponse({ id: 7, title: 'Release 2.0' })],
             );
             expect(exitCodes).toContain(0);
@@ -1718,6 +1729,7 @@ describe('CLI', () => {
             expect(url).toContain('update_label/7');
             const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
             const body = JSON.parse(init.body as string) as Record<string, unknown>;
+            expect(body['project_id']).toBe(1);
             expect(body['title']).toBe('Release 2.0');
         });
 
@@ -1727,7 +1739,7 @@ describe('CLI', () => {
                 'update',
                 '7',
                 '--data',
-                '{"title":"x"}',
+                '{"project_id":1,"title":"x"}',
                 '--dry-run',
             ]);
             expect(exitCodes).toContain(0);
@@ -1736,14 +1748,61 @@ describe('CLI', () => {
         });
 
         it('label update rejects payload missing title', async () => {
-            const { exitCodes, stderr } = await runCli(['label', 'update', '7', '--data', '{}']);
+            const { exitCodes, stderr } = await runCli(['label', 'update', '7', '--data', '{"project_id":1}']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('validation failed');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('label unknown action exits 1 (no add/delete over REST)', async () => {
+        it('label update rejects payload missing project_id', async () => {
+            const { exitCodes, stderr } = await runCli(['label', 'update', '7', '--data', '{"title":"Release 2.0"}']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label delete requires --yes', async () => {
             const { exitCodes, stderr } = await runCli(['label', 'delete', '7']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('pass --yes');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label delete <label_id> POSTs delete_label/{label_id}', async () => {
+            const { exitCodes, stdout } = await runCli(['label', 'delete', '7', '--yes'], [jsonResponse({})]);
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('delete_label/7');
+            expect(init.method).toBe('POST');
+            expect(init.body).toBeUndefined();
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('label delete-bulk POSTs delete_labels with positive IDs in the body', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['label', 'delete-bulk', '--data', '{"label_ids":[7,8]}', '--yes'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('delete_labels');
+            expect(JSON.parse(init.body as string)).toEqual({ label_ids: [7, 8] });
+            expect(stdout).toContain('"deleted": true');
+        });
+
+        it('label delete-bulk rejects empty or invalid label IDs', async () => {
+            const empty = await runCli(['label', 'delete-bulk', '--data', '{"label_ids":[]}', '--yes']);
+            expect(empty.exitCodes).toContain(1);
+            expect(empty.stderr).toContain('validation failed');
+
+            const invalid = await runCli(['label', 'delete-bulk', '--data', '{"label_ids":[1,0]}', '--yes']);
+            expect(invalid.exitCodes).toContain(1);
+            expect(invalid.stderr).toContain('validation failed');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('label unknown action exits 1', async () => {
+            const { exitCodes, stderr } = await runCli(['label', 'purge', '7']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('Unknown action');
         });
@@ -1763,6 +1822,19 @@ describe('CLI', () => {
                 [jsonResponse({ results: [] })],
             );
             expect(exitCodes).toContain(0);
+        });
+
+        it('result edit POSTs the payload to edit_result/{result_id}', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['result', 'edit', '17', '--data', '{"comment":"corrected"}'],
+                [jsonResponse({ id: 17, test_id: 42, status_id: 1, comment: 'corrected' })],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('edit_result/17');
+            expect(init.method).toBe('POST');
+            expect(JSON.parse(init.body as string)).toEqual({ comment: 'corrected' });
+            expect(JSON.parse(stdout)).toMatchObject({ id: 17, comment: 'corrected' });
         });
 
         it('result unknown action should exit 1', async () => {
@@ -5182,6 +5254,93 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
         });
+
+        it('maps every TestRail 10.7 list-filter flag into the handler argument bundle', async () => {
+            const { exitCodes } = await runCli(
+                [
+                    'case',
+                    'list',
+                    '--project-id',
+                    '3',
+                    '--suite-id',
+                    '4',
+                    '--section-id',
+                    '5',
+                    '--type-id',
+                    '1,2',
+                    '--priority-id',
+                    '3',
+                    '--template-id',
+                    '4',
+                    '--milestone-id',
+                    '5',
+                    '--created-after',
+                    '100',
+                    '--created-before',
+                    '200',
+                    '--created-by',
+                    '1,2',
+                    '--updated-after',
+                    '110',
+                    '--updated-before',
+                    '210',
+                    '--updated-by',
+                    '2,3',
+                    '--label-id',
+                    '7,8',
+                    '--refs',
+                    'REQ-1,REQ-2',
+                    '--filter',
+                    'login',
+                    '--include-plan-runs',
+                    '--is-completed',
+                    'false',
+                ],
+                [jsonResponse({ cases: [MOCK_CASE] })],
+            );
+
+            expect(exitCodes).toContain(0);
+            const url = String(mockFetch.mock.calls[0]?.[0]);
+            expect(url).toContain('suite_id=4');
+            expect(url).toContain('section_id=5');
+            expect(url).toContain('type_id=1%2C2');
+            expect(url).toContain('priority_id=3');
+            expect(url).toContain('template_id=4');
+            expect(url).toContain('milestone_id=5');
+            expect(url).toContain('created_after=100');
+            expect(url).toContain('created_before=200');
+            expect(url).toContain('created_by=1%2C2');
+            expect(url).toContain('updated_after=110');
+            expect(url).toContain('updated_before=210');
+            expect(url).toContain('updated_by=2%2C3');
+            expect(url).toContain('label_id=7%2C8');
+            expect(url).toContain('filter=login');
+            expect(url).toContain('refs%5B%5D=REQ-1');
+            expect(url).toContain('refs%5B%5D=REQ-2');
+
+            const run = await runCli(
+                [
+                    'run',
+                    'list',
+                    '--project-id',
+                    '3',
+                    '--suite-id',
+                    '5,6',
+                    '--refs',
+                    'RUN-1',
+                    '--include-plan-runs',
+                    '--is-completed',
+                    'false',
+                ],
+                [jsonResponse({ runs: [MOCK_RUN] })],
+            );
+            expect(run.exitCodes).toContain(0);
+            const runUrl = String(mockFetch.mock.calls[0]?.[0]);
+            expect(runUrl).toContain('suite_id=5%2C6');
+            expect(runUrl).toContain('refs=RUN-1');
+            expect(runUrl).toContain('include_plan_runs=1');
+            expect(runUrl).toContain('is_completed=0');
+        });
     });
 
     describe('plan', () => {
@@ -6499,6 +6658,22 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('"id"');
+        });
+
+        it('update uploads --file to update_bdd/{case_id}', async () => {
+            const filePath = join(tmp, 'updated.feature');
+            writeFileSync(filePath, 'Feature: Updated\n');
+            const updatedCase = { ...MOCK_CASE, id: 42, title: 'Updated BDD case' };
+            const { exitCodes, stdout } = await runCli(
+                ['bdd', 'update', '42', '--file', filePath],
+                [jsonResponse(updatedCase)],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('update_bdd/42');
+            expect(init.method).toBe('POST');
+            expect(init.body).toBeInstanceOf(globalThis.FormData);
+            expect(JSON.parse(stdout)).toMatchObject({ id: 42, title: 'Updated BDD case' });
         });
 
         it('add --dry-run skips fetch entirely', async () => {

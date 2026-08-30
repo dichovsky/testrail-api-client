@@ -198,9 +198,12 @@ describe('schemaNameFor', () => {
         expect(schemaNameFor({ resource: 'result', action: 'add-bulk' })).toBe('AddResultsForCasesPayloadSchema');
         expect(schemaNameFor({ resource: 'result', action: 'add-bulk-by-test' })).toBe('AddResultsPayloadSchema');
         expect(schemaNameFor({ resource: 'result', action: 'add-by-test' })).toBe('AddResultPayloadSchema');
+        expect(schemaNameFor({ resource: 'result', action: 'edit' })).toBe('EditResultPayloadSchema');
         expect(schemaNameFor({ resource: 'plan', action: 'add' })).toBe('AddPlanPayloadSchema');
         expect(schemaNameFor({ resource: 'plan', action: 'update' })).toBe('UpdatePlanPayloadSchema');
         expect(schemaNameFor({ resource: 'plan', action: 'add-entry' })).toBe('AddPlanEntryPayloadSchema');
+        expect(schemaNameFor({ resource: 'label', action: 'add' })).toBe('AddLabelPayloadSchema');
+        expect(schemaNameFor({ resource: 'label', action: 'delete-bulk' })).toBe('DeleteLabelsPayloadSchema');
     });
 
     it('returns "(body)" for unmapped actions', () => {
@@ -210,7 +213,7 @@ describe('schemaNameFor', () => {
     // Drift guard: every ACTIONS entry that carries a bodySchema (i.e., the
     // skill generator will render a schema heading for it) must be in the
     // SCHEMA_NAMES map. Without this check, a contributor adding a write
-    // action without updating skill-renderer.mjs would silently ship a skill
+    // action without updating skill-renderer.ts would silently ship a skill
     // with "(body)" instead of the schema name (the regression Copilot
     // flagged on PR #60).
     it('covers every bodySchema-bearing ActionSpec in metadata.ts', async () => {
@@ -218,7 +221,7 @@ describe('schemaNameFor', () => {
         const missing = ACTIONS.filter((a) => a.bodySchema !== undefined).filter((a) => schemaNameFor(a) === '(body)');
         expect(
             missing,
-            `Add schema-name entries in scripts/skill-renderer.mjs for: ${missing
+            `Add schema-name entries in scripts/skill-renderer.ts for: ${missing
                 .map((a) => `${a.resource}:${a.action}`)
                 .join(', ')}`,
         ).toEqual([]);

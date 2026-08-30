@@ -46,13 +46,13 @@ const adapters: readonly AdapterCase[] = [
         name: 'runs',
         key: 'runs',
         path: 'get_runs/7',
-        filterFragment: 'refs_filter=REQ',
+        filterFragment: 'refs=REQ',
         item: MOCK_RUN,
-        getDefault: (client) => client.runs.getRuns(7, { refsFilter: 'REQ' }),
-        getPage: (client) => client.runs.getRunsPage(7, { refsFilter: 'REQ', limit: 2, offset: 5 }),
+        getDefault: (client) => client.runs.getRuns(7, { refs: 'REQ' }),
+        getPage: (client) => client.runs.getRunsPage(7, { refs: 'REQ', limit: 2, offset: 5 }),
         getAll: (client) =>
             client.runs.getAllRuns(7, {
-                refsFilter: 'REQ',
+                refs: 'REQ',
                 pageSize: 1,
                 startOffset: 3,
                 maxPages: 3,

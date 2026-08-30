@@ -18,6 +18,7 @@ import type {
     ProjectSchema,
     ReportResultSchema,
     ReportSchema,
+    CrossProjectReportSchema,
     ResultFieldConfigSchema,
     ResultFieldSchema,
     ResultSchema,
@@ -358,22 +359,36 @@ export interface GetCasesOptions {
     suiteId?: number;
     /** Return only cases in this section */
     sectionId?: number;
-    /** Return only cases of this type (from `getCaseTypes()`) */
-    typeId?: number;
-    /** Return only cases with this priority (from `getPriorities()`) */
-    priorityId?: number;
-    /** Return only cases using this template (from `getTemplates()`) */
-    templateId?: number;
-    /** Return only cases linked to this milestone */
-    milestoneId?: number;
+    /** Return only cases of one or more types (from `getCaseTypes()`) */
+    typeId?: number | readonly number[];
+    /** Return only cases with one or more priorities (from `getPriorities()`) */
+    priorityId?: number | readonly number[];
+    /** Return only cases using one or more templates (from `getTemplates()`) */
+    templateId?: number | readonly number[];
+    /** Return only cases linked to one or more milestones */
+    milestoneId?: number | readonly number[];
     /** Return only cases created after this Unix timestamp */
     createdAfter?: number;
     /** Return only cases created before this Unix timestamp */
     createdBefore?: number;
+    /** Return only cases created by one or more users */
+    createdBy?: number | readonly number[];
+    /** Return only cases whose title contains this string */
+    filter?: string;
     /** Return only cases updated after this Unix timestamp */
     updatedAfter?: number;
     /** Return only cases updated before this Unix timestamp */
     updatedBefore?: number;
+    /** Return only cases updated by one or more users */
+    updatedBy?: number | readonly number[];
+    /** Return only cases assigned one or more labels */
+    labelId?: number | readonly number[];
+    /**
+     * Return only cases linked to external references. A string uses the
+     * existing single-value `refs` parameter; an array uses TestRail 10.7+'s
+     * repeated `refs[]` parameter. An empty array omits the filter.
+     */
+    refs?: string | readonly string[];
     /** Maximum number of cases to return */
     limit?: number;
     /** Pagination offset */
@@ -397,14 +412,22 @@ export interface GetRunsOptions {
     createdBefore?: number;
     /** Return only runs created by these user IDs (comma-separated list accepted by the API) */
     createdBy?: number[];
+    /** Include runs that belong to test plans as well as standalone runs */
+    includePlanRuns?: boolean;
     /** `true` to return only completed runs, `false` for active runs */
     isCompleted?: boolean;
-    /** Return only runs linked to this milestone ID */
-    milestoneId?: number;
-    /** Return only runs whose refs field contains this string */
+    /** Return only runs linked to any of these milestone IDs */
+    milestoneId?: number | readonly number[];
+    /** Return only runs matching this reference ID */
+    refs?: string;
+    /**
+     * Legacy reference filter. Sends both `refs` and `refs_filter` so callers
+     * remain compatible with current and pre-10.4 TestRail servers.
+     * @deprecated use `refs` when TestRail 10.4+ is guaranteed
+     */
     refsFilter?: string;
-    /** Return only runs for this suite ID */
-    suiteId?: number;
+    /** Return only runs for any of these suite IDs */
+    suiteId?: number | readonly number[];
     /** Maximum number of runs to return */
     limit?: number;
     /** Pagination offset */
@@ -472,6 +495,8 @@ export interface GetPlansOptions {
     isCompleted?: boolean;
     /** Only return plans with these milestone IDs */
     milestoneId?: number[];
+    /** Only return plans matching this reference ID */
+    refs?: string;
     /** Maximum number of plans to return */
     limit?: number;
     /** Offset for pagination */
@@ -494,12 +519,16 @@ export interface GetPlansOptions {
 export interface GetTestsOptions {
     /** Only return tests with these status IDs */
     statusId?: number[];
+    /** Only return tests carrying any of these label IDs */
+    labelId?: number[];
     /** Maximum number of tests to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
     /** @deprecated use `statusId` */
     status_id?: number[];
+    /** @deprecated use `labelId` */
+    label_id?: number[];
 }
 
 /**
@@ -614,6 +643,9 @@ export type Attachment = KnownResponse<typeof AttachmentSchema>;
  * remains as a forward-compat placeholder.
  */
 export type Report = KnownResponse<typeof ReportSchema>;
+
+/** Enterprise report template spanning multiple projects. */
+export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>;
 
 /**
  * Result returned by GET /run_report/{report_template_id}.

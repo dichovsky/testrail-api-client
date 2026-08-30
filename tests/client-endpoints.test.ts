@@ -653,6 +653,30 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockCase);
         });
 
+        it('should resolve multiple case titles in one request', async () => {
+            const titles = [
+                { id: 1, title: 'Login' },
+                { id: 2, title: 'Logout' },
+            ];
+            mockFetch.mockResolvedValueOnce(mockOk(titles));
+
+            await expect(client.cases.getCaseTitles([1, 2])).resolves.toEqual(titles);
+            const url = decodeURIComponent(String(mockFetch.mock.calls[0]?.[0]));
+            expect(url).toContain('get_case_titles&case_ids=1,2');
+        });
+
+        it.each([0, -1, 1.5])('should reject invalid getCaseTitles ID %s before fetching', async (caseId) => {
+            await expect(client.cases.getCaseTitles([1, caseId])).rejects.toThrow('caseId must be a positive integer');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('should reject an empty getCaseTitles list before fetching', async () => {
+            await expect(client.cases.getCaseTitles([])).rejects.toThrow(
+                'caseIds must contain at least one positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('should get all cases for a project', async () => {
             const mockCases: Case[] = [
                 {
@@ -737,6 +761,58 @@ describe('TestRailClient', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('milestone_id=5'), expect.anything());
         });
 
+        it('should serialize all numeric list filters while preserving scalar callers', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.cases.getCases(1, {
+                typeId: [1, 2],
+                priorityId: 3,
+                templateId: [4, 5],
+                milestoneId: 6,
+                createdBy: [7, 8],
+                updatedBy: 9,
+                labelId: [10, 11],
+            });
+            const url = decodeURIComponent(String(mockFetch.mock.calls[0]?.[0]));
+            expect(url).toContain('type_id=1,2');
+            expect(url).toContain('priority_id=3');
+            expect(url).toContain('template_id=4,5');
+            expect(url).toContain('milestone_id=6');
+            expect(url).toContain('created_by=7,8');
+            expect(url).toContain('updated_by=9');
+            expect(url).toContain('label_id=10,11');
+        });
+
+        it('should pass the title filter safely', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.cases.getCases(1, { filter: 'login & SSO' });
+            expect(String(mockFetch.mock.calls[0]?.[0])).toContain('filter=login%20%26%20SSO');
+        });
+
+        it('should preserve the existing single-value refs parameter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.cases.getCases(1, { refs: 'ENG-101' });
+            const url = decodeURIComponent(String(mockFetch.mock.calls[0]?.[0]));
+            expect(url).toContain('&refs=ENG-101');
+            expect(url).not.toContain('refs[]=');
+        });
+
+        it('should emit TestRail 10.7 repeated refs[] parameters for an array', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.cases.getCases(1, { refs: ['ENG-101', 'ENG-102'] });
+            const url = decodeURIComponent(String(mockFetch.mock.calls[0]?.[0]));
+            expect(url).toContain('&refs[]=ENG-101&refs[]=ENG-102');
+            expect(url).not.toContain('refs=ENG-101,ENG-102');
+        });
+
+        it('should omit empty numeric and refs arrays', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
+            await client.cases.getCases(1, { typeId: [], createdBy: [], refs: [] });
+            const url = decodeURIComponent(String(mockFetch.mock.calls[0]?.[0]));
+            expect(url).not.toContain('type_id=');
+            expect(url).not.toContain('created_by=');
+            expect(url).not.toContain('refs[]=');
+        });
+
         it('should filter by createdAfter and createdBefore timestamps', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ cases: [] }));
             await client.cases.getCases(1, { createdAfter: 1700000000, createdBefore: 1710000000 });
@@ -783,6 +859,19 @@ describe('TestRailClient', () => {
             await expect(client.cases.getCases(1, { milestoneId: -5 })).rejects.toThrow(
                 'milestoneId must be a positive integer',
             );
+        });
+
+        it.each([
+            ['typeId', { typeId: [1, 0] }, 'typeId'],
+            ['priorityId', { priorityId: [2, -1] }, 'priorityId'],
+            ['templateId', { templateId: [3, 1.5] }, 'templateId'],
+            ['milestoneId', { milestoneId: [4, 0] }, 'milestoneId'],
+            ['createdBy', { createdBy: [5, -1] }, 'createdBy'],
+            ['updatedBy', { updatedBy: [6, 0] }, 'updatedBy'],
+            ['labelId', { labelId: [7, 1.5] }, 'labelId'],
+        ] as const)('should reject an invalid ID inside the %s list', async (_label, options, errorName) => {
+            await expect(client.cases.getCases(1, options)).rejects.toThrow(`${errorName} must be a positive integer`);
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('should add a new case', async () => {
@@ -2721,11 +2810,22 @@ describe('TestRailClient', () => {
             expect(calledUrl).not.toContain('created_by=');
         });
 
-        it('should pass refsFilter filter', async () => {
+        it('should keep refsFilter as a deprecated alias for the official refs filter', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
 
             await client.runs.getRuns(1, { refsFilter: 'TR-42' });
-            expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('refs_filter=TR-42'), expect.anything());
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('&refs=TR-42');
+            expect(url).toContain('&refs_filter=TR-42');
+        });
+
+        it('should prefer explicit refs without emitting a conflicting legacy filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ runs: [] }));
+
+            await client.runs.getRuns(1, { refs: 'CURRENT-1', refsFilter: 'LEGACY-1' });
+            const url = mockFetch.mock.calls[0]?.[0] as string;
+            expect(url).toContain('&refs=CURRENT-1');
+            expect(url).not.toContain('refs_filter=');
         });
 
         it('should pass limit and offset via options', async () => {
@@ -3194,6 +3294,31 @@ describe('TestRailClient', () => {
             );
         });
 
+        it('should serialize the documented label ID list filter for getTests', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+            await client.tests.getTests(1, { labelId: [2, 3] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_tests/1&label_id=2%2C3'),
+                expect.any(Object),
+            );
+        });
+
+        it('should preserve the deprecated label_id spelling for getTests', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
+            await client.tests.getTests(1, { label_id: [2, 3] });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_tests/1&label_id=2%2C3'),
+                expect.any(Object),
+            );
+        });
+
+        it('should reject an invalid getTests label ID before fetching', async () => {
+            await expect(client.tests.getTests(1, { labelId: [2, 0] })).rejects.toThrow(
+                'labelId must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('should preserve deprecated status_id for getTests (snake_case still works)', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ tests: [] }));
             await client.tests.getTests(1, { status_id: [1, 5] });
@@ -3535,20 +3660,103 @@ describe('TestRailClient', () => {
             });
         });
 
+        describe('addLabel', () => {
+            it('POSTs add_label/{project_id} with the title body and returns the created label', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ id: 8, title: 'Release 3.0' }));
+                const result = await client.labels.addLabel(1, { title: 'Release 3.0' });
+                expect(result).toEqual({ id: 8, title: 'Release 3.0' });
+                const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
+                expect(url).toContain('add_label/1');
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body)).toEqual({ title: 'Release 3.0' });
+            });
+
+            it('normalizes the wrapped { label: ... } response form', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ label: { id: 8, title: 'Release 3.0' } }));
+                await expect(client.labels.addLabel(1, { title: 'Release 3.0' })).resolves.toEqual({
+                    id: 8,
+                    title: 'Release 3.0',
+                });
+            });
+
+            it('throws for invalid projectId before any network call', async () => {
+                await expect(client.labels.addLabel(0, { title: 'x' })).rejects.toThrow(
+                    'projectId must be a positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
+
         describe('updateLabel', () => {
-            it('POSTs update_label/{label_id} with the title body and returns the updated label', async () => {
+            it('POSTs update_label/{label_id} with project_id and title and returns the updated label', async () => {
                 mockFetch.mockResolvedValueOnce(mockOk({ id: 7, title: 'Release 2.0' }));
-                const result = await client.labels.updateLabel(7, { title: 'Release 2.0' });
+                const result = await client.labels.updateLabel(7, { project_id: 1, title: 'Release 2.0' });
                 expect(result).toEqual({ id: 7, title: 'Release 2.0' });
                 const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
                 expect(url).toContain('update_label/7');
                 expect(init.method).toBe('POST');
-                expect(JSON.parse(init.body)).toEqual({ title: 'Release 2.0' });
+                expect(JSON.parse(init.body)).toEqual({ project_id: 1, title: 'Release 2.0' });
+            });
+
+            it('normalizes the wrapped { label: ... } response form', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({ label: { id: 7, title: 'Release 2.0' } }));
+                await expect(client.labels.updateLabel(7, { project_id: 1, title: 'Release 2.0' })).resolves.toEqual({
+                    id: 7,
+                    title: 'Release 2.0',
+                });
             });
 
             it('throws for invalid labelId before any network call', async () => {
-                await expect(client.labels.updateLabel(0, { title: 'x' })).rejects.toThrow(
+                await expect(client.labels.updateLabel(0, { project_id: 1, title: 'x' })).rejects.toThrow(
                     'labelId must be a positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+
+            it('throws for invalid body project_id before any network call', async () => {
+                await expect(client.labels.updateLabel(7, { project_id: 0, title: 'x' })).rejects.toThrow(
+                    'projectId must be a positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('deleteLabel', () => {
+            it('POSTs delete_label/{label_id} without a body', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({}));
+                await client.labels.deleteLabel(7);
+                const [[url, init]] = mockFetch.mock.calls as [[string, RequestInit]];
+                expect(url).toContain('delete_label/7');
+                expect(init.method).toBe('POST');
+                expect(init.body).toBeUndefined();
+            });
+
+            it('throws for invalid labelId before any network call', async () => {
+                await expect(client.labels.deleteLabel(0)).rejects.toThrow('labelId must be a positive integer');
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('deleteLabels', () => {
+            it('POSTs delete_labels with label_ids in the body', async () => {
+                mockFetch.mockResolvedValueOnce(mockOk({}));
+                await client.labels.deleteLabels({ label_ids: [7, 8] });
+                const [[url, init]] = mockFetch.mock.calls as [[string, { method: string; body: string }]];
+                expect(url).toContain('delete_labels');
+                expect(init.method).toBe('POST');
+                expect(JSON.parse(init.body)).toEqual({ label_ids: [7, 8] });
+            });
+
+            it('rejects an empty label_ids list before any network call', async () => {
+                await expect(client.labels.deleteLabels({ label_ids: [] })).rejects.toThrow(
+                    'labelIds must contain at least one positive integer',
+                );
+                expect(mockFetch).not.toHaveBeenCalled();
+            });
+
+            it('rejects every invalid label ID before any network call', async () => {
+                await expect(client.labels.deleteLabels({ label_ids: [1, 0] })).rejects.toThrow(
+                    'labelIds[1] must be a positive integer',
                 );
                 expect(mockFetch).not.toHaveBeenCalled();
             });
@@ -6728,7 +6936,7 @@ describe('TestRailClient', () => {
     });
 
     describe('addBdd', () => {
-        it('should upload a .feature file and return the updated Case', async () => {
+        it('should upload a .feature file to a section and return the created Case', async () => {
             const updatedCase = {
                 id: 1,
                 title: 'BDD case',
@@ -6766,9 +6974,40 @@ describe('TestRailClient', () => {
             expect(result.id).toBe(2);
         });
 
+        it('should throw for invalid sectionId', async () => {
+            const blob = new globalThis.Blob(['data']);
+            await expect(client.bdd.addBdd(0, blob, 'x.feature')).rejects.toThrow(
+                'sectionId must be a positive integer',
+            );
+        });
+    });
+
+    describe('updateBdd', () => {
+        it('should replace a case BDD and return the updated Case', async () => {
+            const updatedCase = {
+                id: 7,
+                title: 'Updated BDD case',
+                section_id: 1,
+                suite_id: 1,
+                created_by: 1,
+                created_on: 0,
+                updated_by: 1,
+                updated_on: 1,
+            };
+            mockFetch.mockResolvedValueOnce(mockOk(updatedCase));
+            const blob = new globalThis.Blob(['Feature: updated\n'], { type: 'text/plain' });
+            await expect(client.bdd.updateBdd(7, blob, 'updated.feature')).resolves.toEqual(updatedCase);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('update_bdd/7'),
+                expect.objectContaining({ method: 'POST' }),
+            );
+        });
+
         it('should throw for invalid caseId', async () => {
             const blob = new globalThis.Blob(['data']);
-            await expect(client.bdd.addBdd(0, blob, 'x.feature')).rejects.toThrow('caseId must be a positive integer');
+            await expect(client.bdd.updateBdd(0, blob, 'x.feature')).rejects.toThrow(
+                'caseId must be a positive integer',
+            );
         });
     });
 

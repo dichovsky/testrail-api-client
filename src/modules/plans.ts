@@ -52,6 +52,7 @@ export class PlanModule {
             'createdBy',
             'isCompleted',
             'milestoneId',
+            'refs',
             'created_after',
             'created_before',
             'created_by',
@@ -102,6 +103,7 @@ export class PlanModule {
             created_by: serializeIdList(createdBy),
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
             milestone_id: serializeIdList(milestoneId),
+            refs: options?.refs,
             limit: options?.limit,
             offset: options?.offset,
         });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { zObject, type KnownResponse } from './common.js';
+import { DynamicFiltersPayloadSchema } from './metadata.js';
 
 // ── Run Schema ────────────────────────────────────────────────────────────────
 
@@ -49,11 +50,13 @@ export const RunSchema = zObject({
     entry_id: z.string().nullish(),
     entry_index: z.number().nullish(),
     // Live-instance audit (R-EXTRA): the server emits these on `get_run` /
-    // `get_runs` but they were unmodeled, so `.passthrough()` carried them as
-    // `unknown`. `is_archived` was observed as a boolean and `archived_on` as
-    // `null` (epoch when set, by analogy to `completed_on`). `dynamic_filters`
-    // appeared on the wire but its value shape was never captured, so it stays
-    // `z.unknown()` rather than a speculative structure. All `.nullish()`.
+    // `get_runs` but they were previously unmodeled. `is_archived` was observed
+    // as a boolean and `archived_on` as `null` (epoch when set, by analogy to
+    // `completed_on`). `dynamic_filters` has appeared on the wire, but its
+    // response shape has not been captured. Keep it deliberately wide instead
+    // of reusing the stricter caller-supplied payload schema: TestRail response
+    // shapes can differ from their corresponding request bodies.
+    // All three remain `.nullish()` for older servers and unset selections.
     is_archived: z.boolean().nullish(),
     archived_on: z.number().nullish(),
     dynamic_filters: z.unknown().nullish(),
@@ -72,6 +75,9 @@ export const AddRunPayloadSchema = zObject({
     include_all: z.boolean().optional(),
     case_ids: z.array(z.number()).optional(),
     refs: z.string().optional(),
+    start_on: z.number().optional(),
+    due_on: z.number().optional(),
+    dynamic_filters: DynamicFiltersPayloadSchema.optional(),
 });
 
 export type AddRunPayload = z.infer<typeof AddRunPayloadSchema>;
@@ -84,6 +90,9 @@ export const UpdateRunPayloadSchema = zObject({
     include_all: z.boolean().optional(),
     case_ids: z.array(z.number()).optional(),
     refs: z.string().optional(),
+    start_on: z.number().optional(),
+    due_on: z.number().optional(),
+    dynamic_filters: DynamicFiltersPayloadSchema.optional(),
 });
 
 export type UpdateRunPayload = z.infer<typeof UpdateRunPayloadSchema>;

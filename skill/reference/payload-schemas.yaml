@@ -12,6 +12,8 @@ schemas:
       - "estimate:string"
       - "milestone_id:number"
       - "refs:string"
+      - "labels:union[]"
+      - "is_legacy:boolean"
       - "custom_fields:Record<string, unknown>"
 
   AddCasesBulkPayloadSchema:
@@ -23,6 +25,7 @@ schemas:
     actions: ["case update"]
     req: []
     opt:
+      - "section_id:number"
       - "title:string"
       - "template_id:number"
       - "type_id:number"
@@ -30,6 +33,8 @@ schemas:
       - "estimate:string"
       - "milestone_id:number"
       - "refs:string"
+      - "labels:union[]"
+      - "is_legacy:boolean"
       - "custom_fields:Record<string, unknown>"
 
   UpdateCasesPayloadSchema:
@@ -37,6 +42,7 @@ schemas:
     req:
       - "case_ids:number[]"
     opt:
+      - "section_id:number"
       - "title:string"
       - "template_id:number"
       - "type_id:number"
@@ -44,6 +50,8 @@ schemas:
       - "estimate:string"
       - "milestone_id:number"
       - "refs:string"
+      - "labels:union[]"
+      - "is_legacy:boolean"
       - "custom_fields:Record<string, unknown>"
 
   DeleteCasesPayloadSchema:
@@ -77,6 +85,9 @@ schemas:
       - "include_all:boolean"
       - "case_ids:number[]"
       - "refs:string"
+      - "start_on:number"
+      - "due_on:number"
+      - "dynamic_filters:object"
 
   UpdateRunPayloadSchema:
     actions: ["run update"]
@@ -89,6 +100,9 @@ schemas:
       - "include_all:boolean"
       - "case_ids:number[]"
       - "refs:string"
+      - "start_on:number"
+      - "due_on:number"
+      - "dynamic_filters:object"
 
   UpdateTestLabelsPayloadSchema:
     actions: ["test update-labels"]
@@ -127,6 +141,18 @@ schemas:
       - "results:object[]"
     opt: []
 
+  EditResultPayloadSchema:
+    actions: ["result edit"]
+    req: []
+    opt:
+      - "status_id:number"
+      - "comment:string"
+      - "version:string"
+      - "elapsed:string"
+      - "defects:string"
+      - "assignedto_id:number"
+      - "custom_step_results:Record<string, unknown>[]"
+
   AddPlanPayloadSchema:
     actions: ["plan add"]
     req:
@@ -136,6 +162,7 @@ schemas:
       - "milestone_id:number"
       - "start_on:number"
       - "due_on:number"
+      - "refs:string"
       - "entries:object[]"
 
   UpdatePlanPayloadSchema:
@@ -148,6 +175,7 @@ schemas:
       - "assignedto_id:number"
       - "start_on:number"
       - "due_on:number"
+      - "refs:string"
 
   AddPlanEntryPayloadSchema:
     actions: ["plan add-entry"]
@@ -161,6 +189,7 @@ schemas:
       - "case_ids:number[]"
       - "config_ids:number[]"
       - "runs:object[]"
+      - "dynamic_filters:object"
       - "start_on:number"
       - "due_on:number"
       - "refs:string"
@@ -172,22 +201,23 @@ schemas:
     opt:
       - "description:string"
       - "assignedto_id:number"
+      - "start_on:number"
+      - "due_on:number"
       - "include_all:boolean"
       - "case_ids:number[]"
       - "refs:string"
+      - "dynamic_filters:object"
 
   UpdatePlanEntryPayloadSchema:
     actions: ["plan update-entry"]
     req: []
     opt:
-      - "suite_id:number"
       - "name:string"
       - "description:string"
       - "assignedto_id:number"
       - "include_all:boolean"
       - "case_ids:number[]"
-      - "config_ids:number[]"
-      - "runs:object[]"
+      - "dynamic_filters:object"
       - "start_on:number"
       - "due_on:number"
       - "refs:string"
@@ -198,8 +228,12 @@ schemas:
     opt:
       - "description:string"
       - "assignedto_id:number"
+      - "start_on:number"
+      - "due_on:number"
       - "include_all:boolean"
       - "case_ids:number[]"
+      - "refs:string"
+      - "dynamic_filters:object"
 
   AddSectionPayloadSchema:
     actions: ["section add"]
@@ -397,8 +431,21 @@ schemas:
     opt:
       - "name:string"
 
+  AddLabelPayloadSchema:
+    actions: ["label add"]
+    req:
+      - "title:string"
+    opt: []
+
   UpdateLabelPayloadSchema:
     actions: ["label update"]
     req:
+      - "project_id:number"
       - "title:string"
+    opt: []
+
+  DeleteLabelsPayloadSchema:
+    actions: ["label delete-bulk"]
+    req:
+      - "label_ids:number[]"
     opt: []

@@ -239,14 +239,17 @@ const filterAdapters: readonly FilterAdapter[] = [
         key: 'cases',
         endpoint: 'get_cases/1',
         start: (client) => {
-            const options = { suiteId: 1, ...BOUNDS };
+            const options = { suiteId: 1, typeId: [2], createdBy: [3], refs: ['ENG-101'], ...BOUNDS };
             return {
                 promise: client.cases.getAllCases(1, options),
                 mutate: () => {
                     options.suiteId = 2;
+                    options.typeId.push(4);
+                    options.createdBy.push(5);
+                    options.refs.push('ENG-102');
                 },
-                expected: ['suite_id=1'],
-                rejected: ['suite_id=2'],
+                expected: ['suite_id=1', 'type_id=2', 'created_by=3', 'refs[]=ENG-101'],
+                rejected: ['suite_id=2', 'type_id=2,4', 'created_by=3,5', 'refs[]=ENG-102'],
             };
         },
     },
@@ -255,15 +258,15 @@ const filterAdapters: readonly FilterAdapter[] = [
         key: 'runs',
         endpoint: 'get_runs/1',
         start: (client) => {
-            const options = { refsFilter: 'A', createdBy: [1], ...BOUNDS };
+            const options = { refs: 'A', createdBy: [1], ...BOUNDS };
             return {
                 promise: client.runs.getAllRuns(1, options),
                 mutate: () => {
-                    options.refsFilter = 'B';
+                    options.refs = 'B';
                     options.createdBy.push(2);
                 },
-                expected: ['refs_filter=A', 'created_by=1'],
-                rejected: ['refs_filter=B', 'created_by=1,2'],
+                expected: ['refs=A', 'created_by=1'],
+                rejected: ['refs=B', 'created_by=1,2', 'refs_filter='],
             };
         },
     },
@@ -322,12 +325,15 @@ const filterAdapters: readonly FilterAdapter[] = [
         key: 'tests',
         endpoint: 'get_tests/1',
         start: (client) => {
-            const options = { statusId: [1], ...BOUNDS };
+            const options = { statusId: [1], labelId: [7], ...BOUNDS };
             return {
                 promise: client.tests.getAllTests(1, options),
-                mutate: () => options.statusId.push(2),
-                expected: ['status_id=1'],
-                rejected: ['status_id=1,2'],
+                mutate: () => {
+                    options.statusId.push(2);
+                    options.labelId.push(8);
+                },
+                expected: ['status_id=1', 'label_id=7'],
+                rejected: ['status_id=1,2', 'label_id=7,8'],
             };
         },
     },

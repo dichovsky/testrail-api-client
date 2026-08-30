@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import { serializeIdList } from '../utils.js';
+import { serializeIdFilter } from '../utils.js';
 import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
@@ -41,8 +41,10 @@ export class RunModule {
             'createdAfter',
             'createdBefore',
             'createdBy',
+            'includePlanRuns',
             'isCompleted',
             'milestoneId',
+            'refs',
             'refsFilter',
             'suiteId',
         ]);
@@ -74,26 +76,33 @@ export class RunModule {
         controls?: PaginationFetchControls,
     ): Promise<unknown> {
         validateId(projectId, 'projectId');
-        const { createdAfter, createdBefore, createdBy, isCompleted, milestoneId, refsFilter, suiteId, limit, offset } =
-            options ?? {};
+        const {
+            createdAfter,
+            createdBefore,
+            createdBy,
+            includePlanRuns,
+            isCompleted,
+            milestoneId,
+            refs,
+            refsFilter,
+            suiteId,
+            limit,
+            offset,
+        } = options ?? {};
         validatePaginationParams(limit, offset);
-        if (milestoneId !== undefined) {
-            validateId(milestoneId, 'milestoneId');
-        }
-        if (suiteId !== undefined) {
-            validateId(suiteId, 'suiteId');
-        }
-        if (createdBy !== undefined) {
-            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
-        }
         const endpoint = buildEndpoint(`get_runs/${projectId}`, {
             created_after: createdAfter,
             created_before: createdBefore,
-            created_by: serializeIdList(createdBy),
+            created_by: serializeIdFilter(createdBy, 'createdBy'),
+            include_plan_runs: includePlanRuns !== undefined ? (includePlanRuns ? 1 : 0) : undefined,
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-            milestone_id: milestoneId,
-            refs_filter: refsFilter,
-            suite_id: suiteId,
+            milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
+            // The current API uses `refs`; pre-10.4 servers use `refs_filter`.
+            // When the deprecated alias is supplied, send both spellings so
+            // the same public option remains effective across server versions.
+            refs: refs ?? refsFilter,
+            refs_filter: refs === undefined ? refsFilter : undefined,
+            suite_id: serializeIdFilter(suiteId, 'suiteId'),
             limit,
             offset,
         });

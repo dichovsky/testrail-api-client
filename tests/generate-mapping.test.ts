@@ -115,9 +115,9 @@ describe('pagination registry', () => {
     );
     const paginated = inventory.filter((endpoint) => endpoint.pagination !== undefined);
 
-    it('pins the agreed 23 endpoints and 17/6 request-control split', () => {
-        expect(paginated).toHaveLength(23);
-        expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === true)).toHaveLength(17);
+    it('pins the agreed 24 endpoints and 18/6 request-control split', () => {
+        expect(paginated).toHaveLength(24);
+        expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === true)).toHaveLength(18);
         expect(paginated.filter((endpoint) => endpoint.pagination?.requestControls === false)).toHaveLength(6);
         expect(paginated.filter((endpoint) => endpoint.pagination?.response === 'nested-envelope')).toEqual([
             expect.objectContaining({ operation: 'get_history_for_case' }),
@@ -143,7 +143,7 @@ describe('pagination registry', () => {
                 return collectActionsFromSource(readFileSync(path, 'utf8'), path);
             })
             .filter((action) => action.pagination !== undefined);
-        expect(actionsWithPagination).toHaveLength(23);
+        expect(actionsWithPagination).toHaveLength(24);
 
         for (const action of actionsWithPagination) {
             expect(action.pagination, action.apiEndpoint).toEqual(endpointByApi.get(action.apiEndpoint));

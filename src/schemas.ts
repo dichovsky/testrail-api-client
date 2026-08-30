@@ -16,6 +16,7 @@ export * from './schemas/metadata.js';
 export * from './schemas/labels.js';
 export * from './schemas/sections.js';
 export * from './schemas/cases.js';
+export * from './schemas/bdd.js';
 export * from './schemas/runs.js';
 export * from './schemas/plans.js';
 export * from './schemas/tests.js';

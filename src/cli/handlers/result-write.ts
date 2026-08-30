@@ -1,4 +1,9 @@
-import { AddResultPayloadSchema, AddResultsForCasesPayloadSchema, AddResultsPayloadSchema } from '../../schemas.js';
+import {
+    AddResultPayloadSchema,
+    AddResultsForCasesPayloadSchema,
+    AddResultsPayloadSchema,
+    EditResultPayloadSchema,
+} from '../../schemas.js';
 import { createWriteHandler } from '../write-handler-factory.js';
 
 export const handleResultAddByTest = createWriteHandler({
@@ -27,4 +32,11 @@ export const handleResultAddBulkByTest = createWriteHandler({
     pathParams: ['run_id'],
     bodySchema: AddResultsPayloadSchema,
     call: (client, [runId], body) => client.results.addResults(runId, body),
+});
+
+export const handleResultEdit = createWriteHandler({
+    action: 'result edit',
+    pathParams: ['result_id'],
+    bodySchema: EditResultPayloadSchema,
+    call: (client, [resultId], body) => client.results.editResult(resultId, body),
 });

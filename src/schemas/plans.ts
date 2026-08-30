@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { zObject, type KnownResponse } from './common.js';
 import { RunSchema } from './runs.js';
+import { DynamicFiltersPayloadSchema } from './metadata.js';
 
 // ── Plan Entry & Plan Schemas ─────────────────────────────────────────────────
 
@@ -14,10 +15,9 @@ export const PlanEntrySchema = zObject({
     case_ids: z.array(z.number()).nullish(),
     config_ids: z.array(z.number()).nullish(),
     runs: z.array(RunSchema),
-    // Live-instance audit: `add_plan_entry` / `get_plan` entries carry a
-    // `dynamic_filters` key (value shape not captured) — unmodeled, so typed as
-    // `z.unknown().nullish()` rather than a speculative structure (mirrors the
-    // RunSchema.dynamic_filters precedent).
+    // Observed on plan-entry responses, but without a captured non-null value.
+    // Keep the response deliberately wide instead of reusing the stricter
+    // caller-supplied payload schema; request and response shapes may diverge.
     dynamic_filters: z.unknown().nullish(),
     // SPEC #2.1.6 — TestRail Plans API doc lists `start_on` / `due_on` / `refs` in the
     // `add_plan_entry` request body table (entry-level), and the `get_plan` example
@@ -104,21 +104,27 @@ export const AddRunToPlanEntryPayloadSchema = zObject({
     config_ids: z.array(z.number()),
     description: z.string().optional(),
     assignedto_id: z.number().optional(),
+    start_on: z.number().optional(),
+    due_on: z.number().optional(),
     include_all: z.boolean().optional(),
     case_ids: z.array(z.number()).optional(),
     refs: z.string().optional(),
+    dynamic_filters: DynamicFiltersPayloadSchema.optional(),
 });
 
 export type AddRunToPlanEntryPayload = z.infer<typeof AddRunToPlanEntryPayloadSchema>;
 
-// Payload for POST update_run_in_plan_entry/{run_id}. The endpoint only accepts
-// `description`, `assignedto_id`, `include_all`, and `case_ids`. `config_ids`,
-// `name`, and `refs` are silently dropped, so we omit them client-side.
+// Payload for POST update_run_in_plan_entry/{run_id}. `config_ids` and `name`
+// are intentionally absent: TestRail documents neither field for this endpoint.
 export const UpdateRunInPlanEntryPayloadSchema = zObject({
     description: z.string().optional(),
     assignedto_id: z.number().optional(),
+    start_on: z.number().optional(),
+    due_on: z.number().optional(),
     include_all: z.boolean().optional(),
     case_ids: z.array(z.number()).optional(),
+    refs: z.string().optional(),
+    dynamic_filters: DynamicFiltersPayloadSchema.optional(),
 });
 
 export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>;
@@ -132,6 +138,7 @@ export const AddPlanEntryPayloadSchema = zObject({
     case_ids: z.array(z.number()).optional(),
     config_ids: z.array(z.number()).optional(),
     runs: z.array(PlanEntryRunPayloadSchema).optional(),
+    dynamic_filters: DynamicFiltersPayloadSchema.optional(),
     // SPEC #2.1.6 — request-side counterparts of the response fields added to
     // `PlanEntrySchema`. The TestRail Plans API doc's `add_plan_entry` request
     // body table lists `start_on` (timestamp, false), `due_on` (timestamp, false),
@@ -148,15 +155,15 @@ export const AddPlanEntryPayloadSchema = zObject({
 
 export type AddPlanEntryPayload = z.infer<typeof AddPlanEntryPayloadSchema>;
 
+// TestRail supports partial entry updates, but explicitly excludes `config_ids`
+// and `runs`; `suite_id` is not part of the endpoint's documented request body.
 export const UpdatePlanEntryPayloadSchema = zObject({
-    suite_id: z.number().optional(),
     name: z.string().optional(),
     description: z.string().optional(),
     assignedto_id: z.number().optional(),
     include_all: z.boolean().optional(),
     case_ids: z.array(z.number()).optional(),
-    config_ids: z.array(z.number()).optional(),
-    runs: z.array(PlanEntryRunPayloadSchema).optional(),
+    dynamic_filters: DynamicFiltersPayloadSchema.optional(),
     // SPEC #2.1.6 — TestRail Plans API doc's `update_plan_entry` request body
     // table independently lists `start_on` (timestamp, false), `due_on`
     // (timestamp, false), and `refs` (string, false — "requires TestRail 6.3 or
@@ -175,11 +182,11 @@ export const AddPlanPayloadSchema = zObject({
     description: z.string().optional(),
     milestone_id: z.number().optional(),
     // SPEC #2.1.6 — TestRail Plans API doc's `add_plan` request body table lists
-    // `start_on` (timestamp, false) and `due_on` (timestamp, false). `refs` is NOT
-    // in the request body table for `add_plan` (only in the response field table),
-    // so it is intentionally omitted here.
+    // `start_on` (timestamp, false) and `due_on` (timestamp, false), and the
+    // section explicitly confirms support for `refs` on TestRail 6.3+.
     start_on: z.number().optional(),
     due_on: z.number().optional(),
+    refs: z.string().optional(),
     entries: z.array(AddPlanEntryPayloadSchema).optional(),
 });
 
@@ -192,10 +199,10 @@ export const UpdatePlanPayloadSchema = zObject({
     assignedto_id: z.number().optional(),
     // SPEC #2.1.6 — TestRail Plans API doc says `update_plan` "supports the same
     // POST fields as `add_plan`" (with the exception of `entries`). That makes
-    // `start_on` / `due_on` valid here. `refs` is intentionally omitted to mirror
-    // `AddPlanPayloadSchema` (not in the `add_plan` request body table).
+    // `start_on`, `due_on`, and `refs` valid here.
     start_on: z.number().optional(),
     due_on: z.number().optional(),
+    refs: z.string().optional(),
 });
 
 export type UpdatePlanPayload = z.infer<typeof UpdatePlanPayloadSchema>;

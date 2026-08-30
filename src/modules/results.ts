@@ -1,7 +1,8 @@
 import { TestRailClientCore } from '../client-core.js';
 import type { Result, GetResultsOptions } from '../types.js';
-import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload } from '../schemas.js';
+import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload, EditResultPayload } from '../schemas.js';
 import { ResultSchema } from '../schemas.js';
+import { TestRailValidationError } from '../errors.js';
 import { serializeIdList } from '../utils.js';
 import { z } from 'zod';
 import { validateId, validatePaginationParams } from '../validation.js';
@@ -211,6 +212,24 @@ export class ResultModule {
             method: 'POST',
             endpoint: `add_results/${runId}`,
             schema: z.array(ResultSchema),
+            body: { kind: 'json', data: payload },
+        });
+    }
+
+    /**
+     * Partially update an existing result (TestRail 10.4+). Only supplied
+     * standard or `custom_*` fields are changed by TestRail.
+     * @testrail POST edit_result/{result_id}
+     */
+    async editResult(resultId: number, payload: EditResultPayload): Promise<Result> {
+        validateId(resultId, 'resultId');
+        if (Object.keys(payload).length === 0) {
+            throw new TestRailValidationError('At least one result field is required');
+        }
+        return this.client.request<Result>({
+            method: 'POST',
+            endpoint: `edit_result/${resultId}`,
+            schema: ResultSchema,
             body: { kind: 'json', data: payload },
         });
     }

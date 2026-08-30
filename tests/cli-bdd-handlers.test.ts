@@ -1,5 +1,5 @@
 /**
- * Unit tests for the 2 BDD handlers in src/cli/handlers/bdd.ts.
+ * Unit tests for the BDD handlers in src/cli/handlers/bdd.ts.
  *
  * Each handler is tested in isolation with a mocked TestRailClient (no
  * subprocess, no real HTTP). Coverage:
@@ -7,20 +7,25 @@
  *     byte size; dry-run skips both API call and write
  *   - add: --file resolved, client method invoked with bytes + filename;
  *     dry-run skips API call and emits a stat-only preview
+ *   - list/update: pagination projection and case replacement routing
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
-import { handleBddGet, handleBddAdd } from '../src/cli/handlers/bdd.js';
+import { handleBddAdd, handleBddGet, handleBddList, handleBddUpdate } from '../src/cli/handlers/bdd.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 
 interface MockedClient {
     bdd: {
         getBdd: ReturnType<typeof vi.fn>;
+        getBdds: ReturnType<typeof vi.fn>;
+        getBddsPage: ReturnType<typeof vi.fn>;
+        getAllBdds: ReturnType<typeof vi.fn>;
         addBdd: ReturnType<typeof vi.fn>;
+        updateBdd: ReturnType<typeof vi.fn>;
     };
 }
 
@@ -28,7 +33,11 @@ function buildClient(): MockedClient {
     return {
         bdd: {
             getBdd: vi.fn().mockResolvedValue('Feature: Login\n  Scenario: ok\n'),
+            getBdds: vi.fn().mockResolvedValue([{ name: 'login.feature' }]),
+            getBddsPage: vi.fn().mockResolvedValue({ kind: 'legacy-array', items: [], size: 0 }),
+            getAllBdds: vi.fn().mockResolvedValue([{ name: 'all.feature' }]),
             addBdd: vi.fn().mockResolvedValue({ id: 42, title: 'BDD case' }),
+            updateBdd: vi.fn().mockResolvedValue({ id: 42, title: 'Updated BDD case' }),
         },
     };
 }
@@ -40,6 +49,13 @@ interface CtxOverrides {
     out?: string;
     dryRun?: boolean;
     force?: boolean;
+    projectId?: string;
+    suiteId?: string;
+    limit?: string;
+    offset?: string;
+    page?: boolean;
+    all?: boolean;
+    pageSize?: string;
 }
 
 function buildCtx(
@@ -55,6 +71,13 @@ function buildCtx(
             ...(overrides.file !== undefined && { file: overrides.file }),
             ...(overrides.filename !== undefined && { filename: overrides.filename }),
             ...(overrides.out !== undefined && { out: overrides.out }),
+            ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),
+            ...(overrides.suiteId !== undefined && { suiteId: overrides.suiteId }),
+            ...(overrides.limit !== undefined && { limit: overrides.limit }),
+            ...(overrides.offset !== undefined && { offset: overrides.offset }),
+            ...(overrides.page !== undefined && { page: overrides.page }),
+            ...(overrides.all !== undefined && { all: overrides.all }),
+            ...(overrides.pageSize !== undefined && { pageSize: overrides.pageSize }),
         },
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
@@ -65,6 +88,40 @@ function buildCtx(
     };
     return { ctx, out, errRaw };
 }
+
+// ── bdd list ─────────────────────────────────────────────────────────────
+
+describe('handleBddList', () => {
+    it('lists a project with suite and page controls', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            projectId: '9',
+            suiteId: '4',
+            limit: '25',
+            offset: '5',
+        });
+        await handleBddList(ctx);
+        expect(client.bdd.getBdds).toHaveBeenCalledWith(9, { suiteId: 4, limit: 25, offset: 5 });
+        expect(out).toHaveBeenCalledWith([{ name: 'login.feature' }]);
+    });
+
+    it('selects the page and all projections', async () => {
+        const pageClient = buildClient();
+        await handleBddList(buildCtx(pageClient, { projectId: '9', page: true }).ctx);
+        expect(pageClient.bdd.getBddsPage).toHaveBeenCalledWith(9, {});
+
+        const allClient = buildClient();
+        const { ctx } = buildCtx(allClient, { projectId: '9', suiteId: '4', all: true, pageSize: '50' });
+        await handleBddList(ctx);
+        expect(allClient.bdd.getAllBdds).toHaveBeenCalledWith(9, { suiteId: 4, pageSize: 50 });
+    });
+
+    it('rejects an invalid project ID before any client call', async () => {
+        const client = buildClient();
+        await expect(handleBddList(buildCtx(client, { projectId: '0' }).ctx)).rejects.toThrow(/--project-id/);
+        expect(client.bdd.getBdds).not.toHaveBeenCalled();
+    });
+});
 
 // ── bdd get ──────────────────────────────────────────────────────────────
 
@@ -268,14 +325,14 @@ describe('handleBddAdd', () => {
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'bdd add',
-            caseId: 42,
+            sectionId: 42,
             file: filePath,
             filename: 'login.feature',
             size: Buffer.byteLength('Feature: Login\n', 'utf-8'),
         });
     });
 
-    it('rejects non-positive case_id before client call', async () => {
+    it('rejects non-positive section_id before client call', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, { pathParams: ['0'], file: filePath });
         await expect(handleBddAdd(ctx)).rejects.toThrow();
@@ -336,12 +393,54 @@ describe('handleBddAdd', () => {
                 expect.objectContaining({
                     dryRun: true,
                     action: 'bdd add',
-                    caseId: 42,
+                    sectionId: 42,
                     file: '<stdin>',
                     filename: 'stdin',
                     source: 'stdin',
                 }),
             );
+        });
+    });
+});
+
+// ── bdd update ───────────────────────────────────────────────────────────
+
+describe('handleBddUpdate', () => {
+    let tmp: string;
+    let filePath: string;
+    beforeEach(() => {
+        tmp = mkdtempSync(join(tmpdir(), 'tr-cli-bdd-update-'));
+        filePath = join(tmp, 'updated.feature');
+        writeFileSync(filePath, 'Feature: Updated\n');
+    });
+    afterEach(() => {
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('uploads a feature file for an existing case', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath });
+        await handleBddUpdate(ctx);
+        expect(client.bdd.updateBdd).toHaveBeenCalledWith(
+            42,
+            expect.objectContaining({ path: filePath }),
+            'updated.feature',
+        );
+        expect(out).toHaveBeenCalledWith({ id: 42, title: 'Updated BDD case' });
+    });
+
+    it('emits a dry-run preview without uploading', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['42'], file: filePath, dryRun: true });
+        await handleBddUpdate(ctx);
+        expect(client.bdd.updateBdd).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'bdd update',
+            caseId: 42,
+            file: filePath,
+            filename: 'updated.feature',
+            size: Buffer.byteLength('Feature: Updated\n', 'utf-8'),
         });
     });
 });

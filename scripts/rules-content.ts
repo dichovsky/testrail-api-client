@@ -127,7 +127,7 @@ export function renderRulesBody(actions: readonly ActionLike[]): string {
         '  in a separate strict-schema namespace from legacy list reads;',
         '  `getAll*()` bypasses cache reads, writes, and request coalescing so',
         '  a multi-page aggregate cannot mix snapshots.',
-        '- **Pagination**: 23 documented list endpoints expose an explicit',
+        '- **Pagination**: 24 documented list endpoints expose an explicit',
         '  trio. Existing `get*()` methods project one response to an item',
         '  array; `get*Page()` preserves envelope metadata; `getAll*()` follows',
         '  validated continuation controls under page, item, duration, and',

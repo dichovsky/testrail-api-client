@@ -44,6 +44,14 @@ export const CaseSchema = zObject({
 
 export type Case = KnownResponse<typeof CaseSchema>;
 
+// Lightweight projection returned by TestRail 10.5+'s `get_case_titles`.
+export const CaseTitleSchema = zObject({
+    id: z.number(),
+    title: z.string(),
+});
+
+export type CaseTitle = KnownResponse<typeof CaseTitleSchema>;
+
 // ── History Schemas ───────────────────────────────────────────────────────────
 
 // Per-field delta inside a history entry's `changes[]`. All fields optional
@@ -109,12 +117,15 @@ export const AddCasePayloadSchema = zObject({
     estimate: z.string().optional(),
     milestone_id: z.number().optional(),
     refs: z.string().optional(),
+    labels: z.array(z.union([z.number(), z.string()])).optional(),
+    is_legacy: z.boolean().optional(),
     custom_fields: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type AddCasePayload = z.infer<typeof AddCasePayloadSchema>;
 
 export const UpdateCasePayloadSchema = zObject({
+    section_id: z.number().optional(),
     title: z.string().optional(),
     template_id: z.number().optional(),
     type_id: z.number().optional(),
@@ -122,6 +133,8 @@ export const UpdateCasePayloadSchema = zObject({
     estimate: z.string().optional(),
     milestone_id: z.number().optional(),
     refs: z.string().optional(),
+    labels: z.array(z.union([z.number(), z.string()])).optional(),
+    is_legacy: z.boolean().optional(),
     custom_fields: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -149,6 +162,7 @@ export type AddCasesBulkPayload = z.infer<typeof AddCasesBulkPayloadSchema>;
 // agents see the contract failure at the CLI boundary.
 export const UpdateCasesPayloadSchema = zObject({
     case_ids: z.array(z.number()),
+    section_id: z.number().optional(),
     title: z.string().optional(),
     template_id: z.number().optional(),
     type_id: z.number().optional(),
@@ -156,6 +170,8 @@ export const UpdateCasesPayloadSchema = zObject({
     estimate: z.string().optional(),
     milestone_id: z.number().optional(),
     refs: z.string().optional(),
+    labels: z.array(z.union([z.number(), z.string()])).optional(),
+    is_legacy: z.boolean().optional(),
     custom_fields: z.record(z.string(), z.unknown()).optional(),
 });
 

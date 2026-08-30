@@ -64,7 +64,12 @@ import {
 } from '../src/cli/handlers/milestone-write.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../src/cli/handlers/variable-write.js';
 import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from '../src/cli/handlers/group-write.js';
-import { handleLabelUpdate } from '../src/cli/handlers/label-write.js';
+import {
+    handleLabelAdd,
+    handleLabelDelete,
+    handleLabelDeleteBulk,
+    handleLabelUpdate,
+} from '../src/cli/handlers/label-write.js';
 import { handleTestUpdate, handleTestUpdateBulk } from '../src/cli/handlers/test-write.js';
 import { handleDatasetAdd, handleDatasetDelete, handleDatasetUpdate } from '../src/cli/handlers/dataset-write.js';
 import {
@@ -178,7 +183,10 @@ interface MockedClient {
         updateTests: ReturnType<typeof vi.fn>;
     };
     labels: {
+        addLabel: ReturnType<typeof vi.fn>;
         updateLabel: ReturnType<typeof vi.fn>;
+        deleteLabel: ReturnType<typeof vi.fn>;
+        deleteLabels: ReturnType<typeof vi.fn>;
     };
 }
 
@@ -302,7 +310,10 @@ function buildClient(): MockedClient {
             updateTests: vi.fn().mockResolvedValue({ test_ids: [100], labels: [{ id: 1, title: 'regression' }] }),
         },
         labels: {
+            addLabel: vi.fn().mockResolvedValue({ id: 8, title: 'Release 3.0' }),
             updateLabel: vi.fn().mockResolvedValue({ id: 7, title: 'Release 2.0' }),
+            deleteLabel: vi.fn().mockResolvedValue(undefined),
+            deleteLabels: vi.fn().mockResolvedValue(undefined),
         },
     };
 }
@@ -3633,18 +3644,57 @@ describe('handleUserUpdate', () => {
 
 // ── label update ──────────────────────────────────────────────────────────
 
+describe('handleLabelAdd', () => {
+    it('calls client.addLabel with project ID and parsed payload', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['1'], dataFlag: '{"title":"Release 3.0"}' });
+        await handleLabelAdd(ctx);
+        expect(client.labels.addLabel).toHaveBeenCalledWith(1, { title: 'Release 3.0' });
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 8, title: 'Release 3.0' }));
+    });
+
+    it('dry-run validates without calling the client', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['1'],
+            dataFlag: '{"title":"x"}',
+            dryRun: true,
+        });
+        await handleLabelAdd(ctx);
+        expect(client.labels.addLabel).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'label add', projectId: 1 }));
+    });
+
+    it('rejects an invalid project_id before any client call', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['0'], dataFlag: '{"title":"x"}' });
+        await expect(handleLabelAdd(ctx)).rejects.toThrow(/project_id/);
+        expect(client.labels.addLabel).not.toHaveBeenCalled();
+    });
+});
+
 describe('handleLabelUpdate', () => {
     it('calls client.updateLabel with parsed payload', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"title":"Release 2.0"}' });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"project_id":1,"title":"Release 2.0"}',
+        });
         await handleLabelUpdate(ctx);
-        expect(client.labels.updateLabel).toHaveBeenCalledWith(7, expect.objectContaining({ title: 'Release 2.0' }));
+        expect(client.labels.updateLabel).toHaveBeenCalledWith(7, {
+            project_id: 1,
+            title: 'Release 2.0',
+        });
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 7, title: 'Release 2.0' }));
     });
 
     it('dry-run does not call client', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"title":"x"}', dryRun: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"project_id":1,"title":"x"}',
+            dryRun: true,
+        });
         await handleLabelUpdate(ctx);
         expect(client.labels.updateLabel).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true, action: 'label update', labelId: 7 }));
@@ -3656,17 +3706,106 @@ describe('handleLabelUpdate', () => {
     });
 
     it('rejects body missing required title', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{}' });
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"project_id":1}' });
+        await expect(handleLabelUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('rejects body missing required project_id', async () => {
+        const { ctx } = buildCtx(buildClient(), { pathParams: ['7'], dataFlag: '{"title":"x"}' });
         await expect(handleLabelUpdate(ctx)).rejects.toThrow(/validation failed/);
     });
 
     it('rejects when label_id is not a positive integer', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['-2'], dataFlag: '{"title":"x"}' });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['-2'],
+            dataFlag: '{"project_id":1,"title":"x"}',
+        });
         await expect(handleLabelUpdate(ctx)).rejects.toThrow(/label_id/);
     });
 });
 
 // ── test update-labels (single test) ──────────────────────────────────────
+
+describe('handleLabelDelete', () => {
+    it('deletes after explicit confirmation', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], confirmDestructive: true });
+        await handleLabelDelete(ctx);
+        expect(client.labels.deleteLabel).toHaveBeenCalledWith(7);
+        expect(out).toHaveBeenCalledWith({ labelId: 7, deleted: true });
+    });
+
+    it('rejects without --yes and does not call the client', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['7'] });
+        await expect(handleLabelDelete(ctx)).rejects.toThrow(/pass --yes/);
+        expect(client.labels.deleteLabel).not.toHaveBeenCalled();
+    });
+
+    it('dry-run wins without confirmation', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dryRun: true });
+        await handleLabelDelete(ctx);
+        expect(client.labels.deleteLabel).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith({
+            dryRun: true,
+            action: 'label delete',
+            labelId: 7,
+            destructive: true,
+        });
+    });
+});
+
+describe('handleLabelDeleteBulk', () => {
+    it('deletes all validated IDs after explicit confirmation', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            dataFlag: '{"label_ids":[7,8]}',
+            confirmDestructive: true,
+        });
+        await handleLabelDeleteBulk(ctx);
+        expect(client.labels.deleteLabels).toHaveBeenCalledWith({ label_ids: [7, 8] });
+        expect(out).toHaveBeenCalledWith({ labelIds: [7, 8], deleted: true });
+    });
+
+    it('dry-run validates and wins without confirmation', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, { dataFlag: '{"label_ids":[7]}', dryRun: true });
+        await handleLabelDeleteBulk(ctx);
+        expect(client.labels.deleteLabels).not.toHaveBeenCalled();
+        expect(out).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true, action: 'label delete-bulk', destructive: true }),
+        );
+    });
+
+    it('rejects --soft and missing confirmation without calling the client', async () => {
+        const client = buildClient();
+        const withSoft = buildCtx(client, {
+            dataFlag: '{"label_ids":[7]}',
+            soft: true,
+            confirmDestructive: true,
+        }).ctx;
+        await expect(handleLabelDeleteBulk(withSoft)).rejects.toThrow(/does not support --soft/);
+
+        const withoutYes = buildCtx(client, { dataFlag: '{"label_ids":[7]}' }).ctx;
+        await expect(handleLabelDeleteBulk(withoutYes)).rejects.toThrow(/pass --yes/);
+        expect(client.labels.deleteLabels).not.toHaveBeenCalled();
+    });
+
+    it('rejects empty/invalid IDs and positional args', async () => {
+        const client = buildClient();
+        await expect(handleLabelDeleteBulk(buildCtx(client, { dataFlag: '{"label_ids":[]}' }).ctx)).rejects.toThrow(
+            /validation failed/,
+        );
+        await expect(handleLabelDeleteBulk(buildCtx(client, { dataFlag: '{"label_ids":[1,0]}' }).ctx)).rejects.toThrow(
+            /validation failed/,
+        );
+        await expect(
+            handleLabelDeleteBulk(buildCtx(client, { pathParams: ['7'], dataFlag: '{"label_ids":[7]}' }).ctx),
+        ).rejects.toThrow(/takes no positional arguments/);
+        expect(client.labels.deleteLabels).not.toHaveBeenCalled();
+    });
+});
 
 describe('handleTestUpdate', () => {
     it('calls client.updateTest with parsed payload (IDs or titles)', async () => {

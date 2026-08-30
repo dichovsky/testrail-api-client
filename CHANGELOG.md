@@ -15,6 +15,60 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+This set includes public SDK and CLI output changes and must be published as
+the next major package release (`7.0.0`), not as a `6.x` minor.
+
+### Added — TestRail 10.7.0 API compatibility
+
+- Added the cumulative API surface introduced through TestRail 10.7.0:
+  `edit_result`, dynamic-filter discovery/payloads, and run/plan reference
+  filters from 10.4; project BDD listing and lightweight case-title lookup
+  from 10.5; `get_version` from 10.6; and the repeated `refs[]` query form for
+  case and BDD lists from 10.7.
+- Added typed programmatic methods and matching CLI actions for
+  `case titles`, `bdd list`, `bdd update`, `result edit`, `version get`, and
+  `dynamic-filter-field list`. Existing scalar `refs` values remain supported;
+  arrays are serialized as repeated `refs[]` parameters where TestRail 10.7
+  requires them.
+- Completed the TestRail 10.5 label-management surface with create, update,
+  single-delete, and bulk-delete operations. Case add/update/bulk-update
+  payloads now type and validate mixed label IDs/titles instead of exposing
+  them only through passthrough fields.
+- Added Enterprise cross-project report discovery and execution through
+  `report list-cross-project` and `report run-cross-project`.
+- Expanded current case/run/plan list filters, including list-valued ID
+  filters, labels, references, and the `include_plan_runs` option where the
+  corresponding TestRail endpoint supports them. Test lists now expose the
+  documented label-ID filter as well.
+- Aligned run, plan, and plan-entry write payloads with the current request tables,
+  including `start_on`, `due_on`, and `refs`. Result edits use flat `custom_*`
+  fields as documented and reject empty updates. Dynamic-filter payloads now
+  require their documented `mode` and `filters` structure.
+
+### Changed — BREAKING
+
+- `UpdateLabelPayload` and `label update` now require the owning
+  `project_id`, matching TestRail's `update_label` request contract. Migrate
+  `{ "title": "New" }` payloads to
+  `{ "project_id": 123, "title": "New" }`.
+- `UpdatePlanEntryPayload` no longer declares `suite_id`, `config_ids`, or
+  `runs`: the current `update_plan_entry` contract omits `suite_id` and
+  explicitly does not support the other two fields. Because write schemas
+  preserve unknown keys for forward compatibility, those legacy keys are no
+  longer type-checked locally if supplied through an untyped object; remove
+  them instead of relying on client-side validation.
+- The `bdd add --dry-run` acknowledgement now reports `sectionId` rather than
+  the incorrect `caseId`. Update automation that reads this JSON field.
+
+### Fixed
+
+- Preserved the deprecated `GetRunsOptions.refsFilter` behavior across server
+  generations: the alias now emits both current `refs` and legacy
+  `refs_filter`; an explicit `refs` value takes precedence.
+- Corrected the `addBdd` parameter and CLI documentation from `caseId` to
+  `sectionId`. TestRail's `add_bdd/{section_id}` endpoint creates a new BDD
+  case under a section; the request path itself is unchanged.
+
 ## [6.0.0] — 2026-08-11 — advisory validation, safe pagination, and response coverage
 
 Entity-field response validation no longer fails closed. A TestRail response

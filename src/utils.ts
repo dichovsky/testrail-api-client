@@ -1,3 +1,5 @@
+import { validateId } from './validation.js';
+
 /** Base64-encodes a string. Uses Buffer in Node.js, UTF-8-safe btoa in browsers. */
 export function base64Encode(str: string): string {
     if (typeof Buffer !== 'undefined') {
@@ -38,6 +40,24 @@ export function sleep(ms: number, signal?: globalThis.AbortSignal): Promise<void
 }
 
 /** Serializes numeric ID filters for TestRail list endpoints. */
-export function serializeIdList(ids?: number[]): string | undefined {
+export function serializeIdList(ids?: readonly number[]): string | undefined {
     return ids !== undefined && ids.length > 0 ? ids.join(',') : undefined;
+}
+
+/**
+ * Validate and serialize a scalar-or-list numeric filter accepted by TestRail.
+ * Scalars stay numeric, lists use the API's comma-separated representation,
+ * and an empty list omits the query parameter.
+ */
+export function serializeIdFilter(
+    value: number | readonly number[] | undefined,
+    name: string,
+): string | number | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number') {
+        validateId(value, name);
+        return value;
+    }
+    value.forEach((id) => validateId(id, name));
+    return value.length > 0 ? value.join(',') : undefined;
 }

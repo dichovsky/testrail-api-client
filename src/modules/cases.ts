@@ -1,5 +1,6 @@
+import { z } from 'zod';
 import { TestRailClientCore } from '../client-core.js';
-import { TestRailApiError } from '../errors.js';
+import { TestRailApiError, TestRailValidationError } from '../errors.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
@@ -14,10 +15,12 @@ import type {
     CopyCasesToSectionPayload,
     MoveCasesToSectionPayload,
     SoftDeletePreview,
+    CaseTitle,
 } from '../schemas.js';
-import { CaseSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
+import { CaseSchema, CaseTitleSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
 import { listOf, listOfNested, pageOf, pageOfNested, unwrapList, unwrapNestedList } from './list.js';
 import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { serializeIdFilter } from '../utils.js';
 
 export interface GetHistoryForCaseOptions {
     /** Maximum number of history entries to return */
@@ -43,6 +46,24 @@ export class CaseModule {
         return this.client.request<Case>({ method: 'GET', endpoint: `get_case/${caseId}`, schema: CaseSchema });
     }
 
+    /**
+     * Resolve case IDs to their lightweight `{ id, title }` projections.
+     * Requires TestRail 10.5 or later.
+     * @testrail GET get_case_titles
+     */
+    async getCaseTitles(caseIds: readonly number[]): Promise<CaseTitle[]> {
+        if (caseIds.length === 0) {
+            throw new TestRailValidationError('caseIds must contain at least one positive integer');
+        }
+        for (const caseId of caseIds) validateId(caseId, 'caseId');
+        const endpoint = buildEndpoint('get_case_titles', { case_ids: caseIds.join(',') });
+        return this.client.request<CaseTitle[]>({
+            method: 'GET',
+            endpoint,
+            schema: z.array(CaseTitleSchema),
+        });
+    }
+
     /** @testrail GET get_cases/{project_id} */
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
         return unwrapList<Case>('cases', await this.requestCasesPage(projectId, options));
@@ -64,8 +85,13 @@ export class CaseModule {
             'milestoneId',
             'createdAfter',
             'createdBefore',
+            'createdBy',
+            'filter',
             'updatedAfter',
             'updatedBefore',
+            'updatedBy',
+            'labelId',
+            'refs',
         ]);
         return collectAllPages({
             ...snapshotPaginatedRequestOptions(options),
@@ -101,29 +127,36 @@ export class CaseModule {
             milestoneId,
             createdAfter,
             createdBefore,
+            createdBy,
+            filter,
             updatedAfter,
             updatedBefore,
+            updatedBy,
+            labelId,
+            refs,
             limit,
             offset,
         } = options ?? {};
         if (suiteId !== undefined) validateId(suiteId, 'suiteId');
         if (sectionId !== undefined) validateId(sectionId, 'sectionId');
-        if (typeId !== undefined) validateId(typeId, 'typeId');
-        if (priorityId !== undefined) validateId(priorityId, 'priorityId');
-        if (templateId !== undefined) validateId(templateId, 'templateId');
-        if (milestoneId !== undefined) validateId(milestoneId, 'milestoneId');
         validatePaginationParams(limit, offset);
         const endpoint = buildEndpoint(`get_cases/${projectId}`, {
             suite_id: suiteId,
             section_id: sectionId,
-            type_id: typeId,
-            priority_id: priorityId,
-            template_id: templateId,
-            milestone_id: milestoneId,
+            type_id: serializeIdFilter(typeId, 'typeId'),
+            priority_id: serializeIdFilter(priorityId, 'priorityId'),
+            template_id: serializeIdFilter(templateId, 'templateId'),
+            milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
             created_after: createdAfter,
             created_before: createdBefore,
+            created_by: serializeIdFilter(createdBy, 'createdBy'),
+            filter,
             updated_after: updatedAfter,
             updated_before: updatedBefore,
+            updated_by: serializeIdFilter(updatedBy, 'updatedBy'),
+            label_id: serializeIdFilter(labelId, 'labelId'),
+            refs: typeof refs === 'string' ? refs : undefined,
+            'refs[]': Array.isArray(refs) ? refs : undefined,
             limit,
             offset,
         });
