@@ -36,12 +36,19 @@ describe('Project CRUD', () => {
 
     describe('updateProject', () => {
         it('success', async () => {
-            const payload: UpdateProjectPayload = { name: 'Updated' };
+            const payload: UpdateProjectPayload = {
+                name: 'Updated',
+                default_role_id: 3,
+                groups: [{ id: 7, role_id: 0 }],
+                users: [{ user_id: 4, role_id: null }],
+            };
             const mockProject: Project = { id: 1, name: 'Updated', suite_mode: 1, url: 'url' };
             mockFetch.mockResolvedValueOnce(mockOk(mockProject));
 
             const result = await client.projects.updateProject(1, payload);
             expect(result).toEqual(mockProject);
+            const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+            expect(JSON.parse(init.body as string)).toEqual(payload);
         });
 
         it('invalid id', async () => {

@@ -13,8 +13,9 @@
  * when the change is intentional.
  */
 import { describe, expect, it } from 'vitest';
+import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS } from '../src/cli/flags.js';
 import { ACTIONS } from '../src/cli/metadata.js';
-import { buildHelpText } from '../src/cli/help.js';
+import { buildHelpText, renderOptionsBlock } from '../src/cli/help.js';
 
 describe('buildHelpText', () => {
     it('matches the committed snapshot (accidental drift fails the test)', () => {
@@ -46,6 +47,19 @@ describe('buildHelpText', () => {
         const help = buildHelpText();
         expect(help).toContain('install-skill');
         expect(help).toContain('uninstall-skill');
+    });
+
+    it('renders every parser-recognized option from the shared registry', () => {
+        const options = renderOptionsBlock();
+        expect(Object.keys(CLI_OPTION_DOCUMENTATION)).toEqual(Object.keys(CLI_OPTIONS));
+        for (const name of Object.keys(CLI_OPTIONS)) {
+            expect(options, `--${name} missing from --help`).toContain(`--${name}`);
+        }
+        expect(options).toContain('--user-email <email>');
+        expect(options).toContain('--is-started <true|false|1|0>');
+        expect(options).toContain('--with-data <0|1>');
+        expect(options).toContain('--keep-in-cases <true|false|1|0>');
+        expect(options).not.toContain('--case-id');
     });
 
     it('describes the two-gate destructive model (--yes + TESTRAIL_ALLOW_DESTRUCTIVE)', () => {

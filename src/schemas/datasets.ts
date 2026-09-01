@@ -47,20 +47,29 @@ export const DatasetSchema = zObject({
 
 export type Dataset = KnownResponse<typeof DatasetSchema>;
 
+/**
+ * Write payloads identify dataset variables by their variable name and carry
+ * the selected value directly. This intentionally differs from the response
+ * `variables[]` projection above, whose entries include server-assigned IDs.
+ */
+const DatasetVariablesPayloadSchema = z.record(z.string(), z.string());
+
 export const AddDatasetPayloadSchema = zObject({
     name: z.string(),
+    variables: DatasetVariablesPayloadSchema.optional(),
 });
 
 export type AddDatasetPayload = z.infer<typeof AddDatasetPayloadSchema>;
 
 /**
- * `update_dataset` accepts a partial body (rename-only at the moment).
- * Mirrors the `UpdateVariablePayloadSchema` precedent — empty `{}` body
- * is intentionally allowed and forwarded to TestRail, which treats it
- * as a no-op. `custom_*` extras flow through `zObject()`'s passthrough.
+ * `update_dataset` accepts a partial body: callers may rename the dataset,
+ * replace its variable-value map, or do both. Empty `{}` is intentionally
+ * allowed and forwarded to TestRail, which treats it as a no-op. `custom_*`
+ * extras flow through `zObject()`'s passthrough.
  */
 export const UpdateDatasetPayloadSchema = zObject({
     name: z.string().optional(),
+    variables: DatasetVariablesPayloadSchema.optional(),
 });
 
 export type UpdateDatasetPayload = z.infer<typeof UpdateDatasetPayloadSchema>;

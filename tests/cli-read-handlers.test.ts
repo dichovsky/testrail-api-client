@@ -254,7 +254,8 @@ interface CtxOverrides {
     offset?: string;
     statusId?: string;
     defectsFilter?: string;
-    email?: string;
+    userEmail?: string;
+    withData?: string;
 }
 
 function buildCtx(
@@ -272,7 +273,8 @@ function buildCtx(
             ...(overrides.offset !== undefined && { offset: overrides.offset }),
             ...(overrides.statusId !== undefined && { statusId: overrides.statusId }),
             ...(overrides.defectsFilter !== undefined && { defectsFilter: overrides.defectsFilter }),
-            ...(overrides.email !== undefined && { email: overrides.email }),
+            ...(overrides.userEmail !== undefined && { userEmail: overrides.userEmail }),
+            ...(overrides.withData !== undefined && { withData: overrides.withData }),
         },
         pagination: parseCliPagination(overrides),
         bodyInput: {},
@@ -415,6 +417,20 @@ describe('handleTestGet', () => {
         expect(client.tests.getTest).toHaveBeenCalledTimes(1);
         expect(client.tests.getTest).toHaveBeenCalledWith(100);
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 100 }));
+    });
+
+    it('forwards --with-data=1 to the enriched get_test projection', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['100'], withData: '1' });
+        await handleTestGet(ctx);
+        expect(client.tests.getTest).toHaveBeenCalledWith(100, { withData: '1' });
+    });
+
+    it.each(['', 'true', '2'])('rejects invalid --with-data value %j', async (withData) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['100'], withData });
+        await expect(handleTestGet(ctx)).rejects.toThrow(/--with-data must be 0 or 1/);
+        expect(client.tests.getTest).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -1058,52 +1074,51 @@ describe('handleConfigurationList', () => {
 
 // ── handleUserGetByEmail ──────────────────────────────────────────────────
 //
-// `user get-by-email --email <addr>` — zero positional args, reads the
-// lookup email from the shared `--email` flag (also consumed by
-// resolveAuth() for the HTTP Basic credential). Handler enforces only
+// `user get-by-email --user-email <addr>` — zero positional args. The lookup
+// address is separate from the authentication email. Handler enforces only
 // non-empty (post-trim); TestRail's `EMAIL_REGEX` in src/modules/users.ts
 // rejects malformed addresses before any network call, so format
 // validation isn't duplicated at the CLI boundary. Extra positional args
 // are rejected fail-fast with `IdParseError` — mirrors the `status list`
-// pattern so a typo like `user get-by-email foo --email bar@x.com`
+// pattern so a typo like `user get-by-email foo --user-email bar@x.com`
 // surfaces as an error rather than silently ignoring the `foo`.
 
 describe('handleUserGetByEmail', () => {
-    it('calls client.getUserByEmail with the trimmed --email value and emits the result', async () => {
+    it('calls client.getUserByEmail with the trimmed --user-email value and emits the result', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { email: '  alice@example.com  ' });
+        const { ctx, out } = buildCtx(client, { userEmail: '  alice@example.com  ' });
         await handleUserGetByEmail(ctx);
         expect(client.users.getUserByEmail).toHaveBeenCalledTimes(1);
         expect(client.users.getUserByEmail).toHaveBeenCalledWith('alice@example.com');
         expect(out).toHaveBeenCalledWith(expect.objectContaining({ id: 42, email: 'alice@example.com' }));
     });
 
-    it('rejects missing --email flag with IdParseError (no client call)', async () => {
+    it('rejects missing --user-email flag with IdParseError (no client call)', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client);
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
-        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--email/);
+        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--user-email/);
         expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
-    it('rejects empty --email value', async () => {
+    it('rejects empty --user-email value', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { email: '' });
+        const { ctx } = buildCtx(client, { userEmail: '' });
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
-        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--email/);
+        await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/--user-email/);
         expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
-    it('rejects whitespace-only --email value', async () => {
+    it('rejects whitespace-only --user-email value', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { email: '   ' });
+        const { ctx } = buildCtx(client, { userEmail: '   ' });
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
         expect(client.users.getUserByEmail).not.toHaveBeenCalled();
     });
 
     it('rejects extra positional args before any client call', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['5'], email: 'alice@example.com' });
+        const { ctx } = buildCtx(client, { pathParams: ['5'], userEmail: 'alice@example.com' });
         await expect(handleUserGetByEmail(ctx)).rejects.toBeInstanceOf(IdParseError);
         await expect(handleUserGetByEmail(ctx)).rejects.toThrow(/no positional arguments/);
         expect(client.users.getUserByEmail).not.toHaveBeenCalled();
@@ -1115,7 +1130,7 @@ describe('handleUserGetByEmail', () => {
         // contract: even an obviously-invalid string is forwarded to the client
         // method, which is where the rejection happens.
         const client = buildClient();
-        const { ctx } = buildCtx(client, { email: 'not-an-email' });
+        const { ctx } = buildCtx(client, { userEmail: 'not-an-email' });
         await handleUserGetByEmail(ctx);
         expect(client.users.getUserByEmail).toHaveBeenCalledWith('not-an-email');
     });

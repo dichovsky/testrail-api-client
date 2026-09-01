@@ -86,11 +86,13 @@ const adapters: readonly AdapterCase[] = [
         name: 'projects',
         key: 'projects',
         path: 'get_projects',
+        filterFragment: 'is_completed=0',
         item: MOCK_PROJECT,
-        getDefault: (client) => client.projects.getProjects(),
-        getPage: (client) => client.projects.getProjectsPage({ limit: 2, offset: 5 }),
+        getDefault: (client) => client.projects.getProjects({ isCompleted: false }),
+        getPage: (client) => client.projects.getProjectsPage({ isCompleted: false, limit: 2, offset: 5 }),
         getAll: (client) =>
             client.projects.getAllProjects({
+                isCompleted: false,
                 pageSize: 1,
                 startOffset: 3,
                 maxPages: 3,
@@ -124,13 +126,20 @@ const adapters: readonly AdapterCase[] = [
         name: 'milestones',
         key: 'milestones',
         path: 'get_milestones/7',
-        filterFragment: 'is_completed=0',
+        filterFragment: 'is_started=1',
         item: MOCK_MILESTONE,
-        getDefault: (client) => client.milestones.getMilestones(7, { isCompleted: false }),
-        getPage: (client) => client.milestones.getMilestonesPage(7, { isCompleted: false, limit: 2, offset: 5 }),
+        getDefault: (client) => client.milestones.getMilestones(7, { isCompleted: false, isStarted: true }),
+        getPage: (client) =>
+            client.milestones.getMilestonesPage(7, {
+                isCompleted: false,
+                isStarted: true,
+                limit: 2,
+                offset: 5,
+            }),
         getAll: (client) =>
             client.milestones.getAllMilestones(7, {
                 isCompleted: false,
+                isStarted: true,
                 pageSize: 1,
                 startOffset: 3,
                 maxPages: 3,

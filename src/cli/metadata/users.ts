@@ -25,7 +25,7 @@ export const userActions: readonly ActionSpec[] = [
     {
         resource: 'user',
         action: 'list',
-        summary: 'List users (paginated)',
+        summary: 'List users globally or for --project-id (required for non-admins)',
         pathParams: [],
         apiEndpoint: 'GET get_users',
         isWrite: false,
@@ -56,7 +56,7 @@ export const userActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'POST add_user',
         bodySchema: UserAddPayloadSchema,
-        helpExample: `--data '{"name":"...","email":"...","password":"..."}' (TestRail 7.3+; use --data-file or stdin pipe to avoid leaking password in shell history)`,
+        helpExample: `--data '{"name":"...","email":"..."}' (TestRail 7.3+)`,
         isWrite: true,
         handler: handleUserAdd,
     },

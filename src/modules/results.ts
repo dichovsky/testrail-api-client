@@ -1,5 +1,5 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Result, GetResultsOptions } from '../types.js';
+import type { Result, GetResultsForRunOptions, GetResultsOptions } from '../types.js';
 import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload, EditResultPayload } from '../schemas.js';
 import { ResultSchema } from '../schemas.js';
 import { TestRailValidationError } from '../errors.js';
@@ -14,6 +14,9 @@ import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './paginat
 
 export interface GetAllResultsOptions extends Omit<GetResultsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
 
+export interface GetAllResultsForRunOptions
+    extends Omit<GetResultsForRunOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
+
 type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
 };
@@ -24,7 +27,7 @@ export class ResultModule {
     /** @testrail GET get_results/{test_id} */
     async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
         validateId(testId, 'testId');
-        return unwrapList<Result>('results', await this.requestResultsPage(`get_results/${testId}`, options, true));
+        return unwrapList<Result>('results', await this.requestResultsPage(`get_results/${testId}`, options));
     }
 
     /** Fetch one normalized results-for-test page. */
@@ -32,14 +35,14 @@ export class ResultModule {
         validateId(testId, 'testId');
         return decodePage<Result>(
             'results',
-            await this.requestResultsPage(`get_results/${testId}`, options, true, { pageProjection: true }),
+            await this.requestResultsPage(`get_results/${testId}`, options, false, { pageProjection: true }),
         );
     }
 
     /** Fetch every results-for-test page under explicit aggregate safety bounds. */
     async getAllResults(testId: number, options?: GetAllResultsOptions): Promise<Result[]> {
         validateId(testId, 'testId');
-        return this.collectResults(`get_results/${testId}`, options, true);
+        return this.collectResults(`get_results/${testId}`, options, false);
     }
 
     /** @testrail GET get_results_for_case/{run_id}/{case_id} */
@@ -48,7 +51,7 @@ export class ResultModule {
         validateId(caseId, 'caseId');
         return unwrapList<Result>(
             'results',
-            await this.requestResultsPage(`get_results_for_case/${runId}/${caseId}`, options, true),
+            await this.requestResultsPage(`get_results_for_case/${runId}/${caseId}`, options),
         );
     }
 
@@ -58,7 +61,7 @@ export class ResultModule {
         validateId(caseId, 'caseId');
         return decodePage<Result>(
             'results',
-            await this.requestResultsPage(`get_results_for_case/${runId}/${caseId}`, options, true, {
+            await this.requestResultsPage(`get_results_for_case/${runId}/${caseId}`, options, false, {
                 pageProjection: true,
             }),
         );
@@ -68,49 +71,53 @@ export class ResultModule {
     async getAllResultsForCase(runId: number, caseId: number, options?: GetAllResultsOptions): Promise<Result[]> {
         validateId(runId, 'runId');
         validateId(caseId, 'caseId');
-        return this.collectResults(`get_results_for_case/${runId}/${caseId}`, options, true);
+        return this.collectResults(`get_results_for_case/${runId}/${caseId}`, options, false);
     }
 
     /** @testrail GET get_results_for_run/{run_id} */
-    async getResultsForRun(runId: number, options?: GetResultsOptions): Promise<Result[]> {
+    async getResultsForRun(runId: number, options?: GetResultsForRunOptions): Promise<Result[]> {
         validateId(runId, 'runId');
         return unwrapList<Result>(
             'results',
-            await this.requestResultsPage(`get_results_for_run/${runId}`, options, false),
+            await this.requestResultsPage(`get_results_for_run/${runId}`, options, true),
         );
     }
 
     /** Fetch one normalized results-for-run page. */
-    async getResultsForRunPage(runId: number, options?: GetResultsOptions): Promise<Page<Result>> {
+    async getResultsForRunPage(runId: number, options?: GetResultsForRunOptions): Promise<Page<Result>> {
         validateId(runId, 'runId');
         return decodePage<Result>(
             'results',
-            await this.requestResultsPage(`get_results_for_run/${runId}`, options, false, { pageProjection: true }),
+            await this.requestResultsPage(`get_results_for_run/${runId}`, options, true, { pageProjection: true }),
         );
     }
 
     /** Fetch every results-for-run page under explicit aggregate safety bounds. */
-    async getAllResultsForRun(runId: number, options?: GetAllResultsOptions): Promise<Result[]> {
+    async getAllResultsForRun(runId: number, options?: GetAllResultsForRunOptions): Promise<Result[]> {
         validateId(runId, 'runId');
-        return this.collectResults(`get_results_for_run/${runId}`, options, false);
+        return this.collectResults(`get_results_for_run/${runId}`, options, true);
     }
 
     private async collectResults(
         endpointBase: string,
-        options: GetAllResultsOptions | undefined,
-        includeDefectsFilter: boolean,
+        options: GetAllResultsForRunOptions | undefined,
+        includeCreatedFilters: boolean,
     ): Promise<Result[]> {
         const filters = snapshotOptionFields(options, [
-            'createdAfter',
-            'createdBefore',
-            'createdBy',
             'statusId',
             'defectsFilter',
-            'created_after',
-            'created_before',
-            'created_by',
             'status_id',
             'defects_filter',
+            ...(includeCreatedFilters
+                ? ([
+                      'createdAfter',
+                      'createdBefore',
+                      'createdBy',
+                      'created_after',
+                      'created_before',
+                      'created_by',
+                  ] as const)
+                : []),
         ]);
         return collectAllPages({
             ...snapshotPaginatedRequestOptions(options),
@@ -125,7 +132,7 @@ export class ResultModule {
                             ...(limit !== undefined && { limit }),
                             ...(offset !== undefined && { offset }),
                         },
-                        includeDefectsFilter,
+                        includeCreatedFilters,
                         { bypassCache, remainingTimeMs, deadlineAt },
                     ),
                 ),
@@ -134,14 +141,14 @@ export class ResultModule {
 
     private async requestResultsPage(
         endpointBase: string,
-        options: GetResultsOptions | undefined,
-        includeDefectsFilter: boolean,
+        options: GetResultsForRunOptions | undefined,
+        includeCreatedFilters = false,
         transport?: PageTransportOptions,
     ): Promise<unknown> {
         validatePaginationParams(options?.limit, options?.offset);
-        const createdAfter = options?.createdAfter ?? options?.created_after;
-        const createdBefore = options?.createdBefore ?? options?.created_before;
-        const createdBy = options?.createdBy ?? options?.created_by;
+        const createdAfter = includeCreatedFilters ? (options?.createdAfter ?? options?.created_after) : undefined;
+        const createdBefore = includeCreatedFilters ? (options?.createdBefore ?? options?.created_before) : undefined;
+        const createdBy = includeCreatedFilters ? (options?.createdBy ?? options?.created_by) : undefined;
         const statusId = options?.statusId ?? options?.status_id;
         if (createdBy !== undefined) {
             createdBy.forEach((userId) => validateId(userId, 'createdBy'));
@@ -149,7 +156,7 @@ export class ResultModule {
         if (statusId !== undefined) {
             statusId.forEach((id) => validateId(id, 'statusId'));
         }
-        const defectsFilter = includeDefectsFilter ? (options?.defectsFilter ?? options?.defects_filter) : undefined;
+        const defectsFilter = options?.defectsFilter ?? options?.defects_filter;
         const endpoint = buildEndpoint(endpointBase, {
             created_after: createdAfter,
             created_before: createdBefore,

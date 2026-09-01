@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { zObject, type KnownResponse } from './common.js';
 import { LabelEmbeddedSchema } from './metadata.js';
+import { ResultSchema } from './results.js';
+import { AttachmentSchema } from './attachments.js';
 
 // ── Test Schema ───────────────────────────────────────────────────────────────
 
@@ -43,6 +45,21 @@ export const TestSchema = zObject({
 });
 
 export type Test = KnownResponse<typeof TestSchema>;
+
+/** Wire wrapper returned by `get_test/{test_id}&with_data=1`. */
+export const TestWithDataResponseSchema = zObject({
+    test: TestSchema,
+    results: z
+        .array(ResultSchema)
+        .nullish()
+        .transform((items) => items ?? []),
+    attachments: z
+        .array(AttachmentSchema)
+        .nullish()
+        .transform((items) => items ?? []),
+});
+
+export type TestWithDataResponse = z.infer<typeof TestWithDataResponseSchema>;
 
 // ── Test label-write payloads (TestRail Labels API, 2025) ─────────────────────
 // `update_test/{test_id}` and `update_tests` are label-only mutations on a test

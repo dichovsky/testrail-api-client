@@ -43,7 +43,7 @@ export class MilestoneModule {
 
     /** Get every milestone under the configured pagination safety bounds. */
     async getAllMilestones(projectId: number, options?: GetAllMilestonesOptions): Promise<Milestone[]> {
-        const filters = snapshotOptionFields(options, ['isCompleted', 'is_completed']);
+        const filters = snapshotOptionFields(options, ['isCompleted', 'isStarted', 'is_completed', 'is_started']);
         return collectAllPages<Milestone>({
             ...snapshotPaginatedRequestOptions(options),
             requestControls: true,
@@ -72,8 +72,11 @@ export class MilestoneModule {
         validatePaginationParams(options?.limit, options?.offset);
         const isCompleted =
             options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
+        const isStarted =
+            options?.isStarted ?? (options?.is_started !== undefined ? options.is_started === 1 : undefined);
         const endpoint = buildEndpoint(`get_milestones/${projectId}`, {
             is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
+            is_started: isStarted !== undefined ? (isStarted ? 1 : 0) : undefined,
             limit: options?.limit,
             offset: options?.offset,
         });

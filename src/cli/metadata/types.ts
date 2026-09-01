@@ -43,6 +43,14 @@ export interface ActionSpec {
     apiEndpoint: string;
     /** Kept in lockstep with `docs/testrail-endpoints.json` by mapping gate E. */
     pagination?: PaginationSpec;
+    /**
+     * Preserve `--limit` / `--offset` in the default item-array mode when an
+     * endpoint accepts those query controls but does not expose a stable
+     * envelope contract for `--page` / `--all`. This is intentionally
+     * separate from `pagination`, whose shape is enforced against the
+     * endpoint inventory by mapping gate E.
+     */
+    itemsRequestControls?: boolean;
     /** Zod schema for the request body. `undefined` for read actions, for
      *  no-body POSTs like `run close`, and for file-input write actions
      *  (which take `--file <path>` instead of a JSON body). */

@@ -131,9 +131,6 @@ jobs:
             - name: Verify AGENTS.md drift
               run: npm run agents-md:check
 
-            - name: Generate skill documentation
-              run: npx tsx scripts/generate-skill.ts
-
             - name: Verify skill drift
               run: npm run skill:check
 

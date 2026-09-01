@@ -194,13 +194,6 @@ export class CaseModule {
      * array of `AddCasePayload` objects (one per case). Returns the array of
      * newly created cases.
      *
-     * **Server version gate:** TestRail 7.5+ is required — older instances
-     * return 400 / 404 with messages like `"Invalid uri"` because the
-     * endpoint does not exist. When that shape is detected the error is
-     * rethrown as a clearer `TestRailApiError(status, 'TestRail server >= 7.5
-     * required for add_cases bulk endpoint', <original response>)` so callers
-     * can tell "your TestRail is too old" from "your payload is malformed".
-     *
      * @throws {TestRailApiError} When a successful response has an unrecognized
      * shape; the write outcome is indeterminate and must not be retried blindly.
      *
@@ -208,62 +201,32 @@ export class CaseModule {
      */
     async addCases(sectionId: number, payload: AddCasesBulkPayload): Promise<Case[]> {
         validateId(sectionId, 'sectionId');
-        try {
-            // Wire shape (confirmed by live probe 2026-06-21): the request body must be
-            // `{ cases: [...] }` — a bare array is rejected with 400 "Field :cases is a
-            // required field." — and the success response wraps the created cases as
-            // `{ cases: [...] }` (NOT `{ added_cases }`).
-            //
-            // The response goes through `listOf`/`unwrapList` like every other list
-            // read, and here the reason is sharper than tolerance: this is a *write*.
-            // An envelope-only schema meeting a drifted body (the wrapper-vs-bare
-            // drift #248 proved for six read endpoints) parses to the raw body, whose
-            // `.cases` is undefined, so the call resolves `[]` while the cases were
-            // created server-side. A caller that reads "0 created" and retries
-            // duplicates them. Accepting both shapes removes the largest slice of that
-            // risk. Because the write may already have happened, a body matching
-            // neither must fail closed instead of returning a value that invites a
-            // retry; `request()` remains advisory for every other response.
-            const responseSchema = listOf('cases', CaseSchema);
-            const raw = await this.client.request<unknown>({
-                method: 'POST',
-                endpoint: `add_cases/${sectionId}`,
-                schema: responseSchema,
-                body: { kind: 'json', data: { cases: payload } },
-            });
-            const parsed = responseSchema.safeParse(raw);
-            if (!parsed.success) {
-                throw new TestRailApiError(
-                    200,
-                    'add_cases succeeded but returned an unrecognized response; write outcome is indeterminate',
-                    raw,
-                );
-            }
-            return unwrapList<Case>('cases', parsed.data);
-        } catch (e: unknown) {
-            if (e instanceof TestRailApiError && (e.status === 400 || e.status === 404)) {
-                const responseStr = typeof e.response === 'string' ? e.response : JSON.stringify(e.response ?? '');
-                // TestRail < 7.5 returns 404 with "Invalid uri" (the
-                // endpoint simply doesn't exist) or 400 with "No route".
-                // Deliberately exclude "Field .* is not a valid field" — that
-                // error can occur on TestRail >= 7.5 for a genuinely invalid
-                // payload field and must not be misclassified as a version
-                // mismatch. Only match true endpoint-absent indicators.
-                // The reclassified error embeds the version notice in
-                // `statusText` (NOT response) so it lands in `error.message`
-                // — callers commonly inspect `.message`, and the original
-                // server response is preserved verbatim in `response` for
-                // programmatic inspection.
-                if (/Invalid uri|No route/i.test(responseStr)) {
-                    throw new TestRailApiError(
-                        e.status,
-                        'TestRail server >= 7.5 required for add_cases bulk endpoint',
-                        e.response,
-                    );
-                }
-            }
-            throw e;
+        // Wire shape (confirmed by live probe 2026-06-21): the request body must be
+        // `{ cases: [...] }` — a bare array is rejected with 400 "Field :cases is a
+        // required field." — and the success response wraps the created cases as
+        // `{ cases: [...] }` (NOT `{ added_cases }`).
+        //
+        // The response goes through `listOf`/`unwrapList` like every other list
+        // read, and here the reason is sharper than tolerance: this is a *write*.
+        // An envelope-only schema meeting a drifted body could resolve `[]` while
+        // cases were created server-side. Because the write may already have
+        // happened, a body matching neither supported shape must fail closed.
+        const responseSchema = listOf('cases', CaseSchema);
+        const raw = await this.client.request<unknown>({
+            method: 'POST',
+            endpoint: `add_cases/${sectionId}`,
+            schema: responseSchema,
+            body: { kind: 'json', data: { cases: payload } },
+        });
+        const parsed = responseSchema.safeParse(raw);
+        if (!parsed.success) {
+            throw new TestRailApiError(
+                200,
+                'add_cases succeeded but returned an unrecognized response; write outcome is indeterminate',
+                raw,
+            );
         }
+        return unwrapList<Case>('cases', parsed.data);
     }
 
     /** @testrail POST update_case/{case_id} */

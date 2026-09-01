@@ -2,9 +2,8 @@ import { UserAddPayloadSchema, UserUpdatePayloadSchema } from '../../schemas.js'
 import { createWriteHandler } from '../write-handler-factory.js';
 
 /**
- * `user add` — create a new TestRail user (TestRail 7.3+). Requires `name`,
- * `email`, and `password` in the body. Pass it via `--data-file <path>` or a
- * stdin pipe to avoid leaking the password through shell history.
+ * `user add` — create a new TestRail user (TestRail 7.3+). Requires only
+ * `name` and `email`; access-control fields are optional.
  */
 export const handleUserAdd = createWriteHandler({
     action: 'user add',

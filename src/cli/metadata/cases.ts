@@ -58,7 +58,7 @@ export const caseActions: readonly ActionSpec[] = [
     {
         resource: 'case',
         action: 'history',
-        summary: 'List edit history for a test case (paginated; TestRail 7.5+)',
+        summary: 'List edit history for a test case (paginated; TestRail 6.5.4+)',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'GET get_history_for_case/{case_id}',
         pagination: { response: 'nested-envelope', requestControls: true, collectionKey: 'history' },
@@ -88,12 +88,11 @@ export const caseActions: readonly ActionSpec[] = [
     {
         resource: 'case',
         action: 'add-bulk',
-        summary:
-            'Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads',
+        summary: 'Bulk-create cases under a section in one API call; body is a JSON array of case payloads',
         pathParams: [{ name: 'section_id', description: 'Section to create the cases under' }],
         apiEndpoint: 'POST add_cases/{section_id}',
         bodySchema: AddCasesBulkPayloadSchema,
-        helpExample: `--data '[{"title":"..."},{"title":"..."}]'  (TestRail 7.5+; body is a JSON array)`,
+        helpExample: `--data '[{"title":"..."},{"title":"..."}]'  (body is a JSON array)`,
         isWrite: true,
         handler: handleCaseAddBulk,
     },

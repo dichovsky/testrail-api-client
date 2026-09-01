@@ -17,7 +17,7 @@ Read actions:
   case                list
       List cases in a project (optionally filtered by suite; paginated)
   case                history <case_id>
-      List edit history for a test case (paginated; TestRail 7.5+)
+      List edit history for a test case (paginated; TestRail 6.5.4+)
   case                titles <case_ids>
       Resolve a comma-separated case ID list to lightweight id/title objects (TestRail 10.5+)
   run                 get <run_id>
@@ -27,11 +27,11 @@ Read actions:
   run                 watch <run_id>
       Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll)
   test                get <test_id>
-      Fetch a single test (run instance of a case) by ID
+      Fetch a single test by ID (optionally with TestRail data via --with-data)
   test                list <run_id>
       List tests in a run (optionally filtered by status, paginated)
   result              list
-      List results for a run (paginated)
+      List results for a run (paginated; creator/date, status, and defect filters supported)
   result              list-for-test <test_id>
       List results for a single test (paginated; --status-id / --defects-filter supported)
   result              list-for-case <run_id> <case_id>
@@ -43,7 +43,7 @@ Read actions:
   user                get <user_id>
       Fetch a single user by ID
   user                list
-      List users (paginated)
+      List users globally or for --project-id (required for non-admins)
   user                get-by-email
       Look up a single user by email address
   user                get-current
@@ -87,7 +87,7 @@ Read actions:
 
 Metadata actions:
   case-status         list
-      List case-level lifecycle statuses (pagination envelope; TestRail 7.5+)
+      List case-level lifecycle statuses (pagination envelope; TestRail Enterprise 7.3+)
   case-field          list
       List all custom case fields defined on the TestRail instance
   result-field        list
@@ -110,8 +110,8 @@ Metadata actions:
 Write actions (body via --data | --data-file | stdin):
   case                add <section_id> --data '{"title":"..."}'
       Create a new test case under a section
-  case                add-bulk <section_id> --data '[{"title":"..."},{"title":"..."}]'  (TestRail 7.5+; body is a JSON array)
-      Bulk-create cases under a section in one API call (TestRail 7.5+); body is a JSON array of case payloads
+  case                add-bulk <section_id> --data '[{"title":"..."},{"title":"..."}]'  (body is a JSON array)
+      Bulk-create cases under a section in one API call; body is a JSON array of case payloads
   case                update <case_id> --data '{"title":"..."}'
       Update an existing test case (partial fields)
   case                update-bulk <suite_id> --data '{"case_ids":[1,2],"priority_id":3}'
@@ -192,7 +192,7 @@ Write actions (body via --data | --data-file | stdin):
       Update an existing milestone (partial fields, including is_completed/is_started toggles)
   milestone           delete <milestone_id> --yes (no body; --soft NOT supported by TestRail)
       Delete a milestone (requires --yes; --soft NOT supported by TestRail)
-  user                add --data '{"name":"...","email":"...","password":"..."}' (TestRail 7.3+; use --data-file or stdin pipe to avoid leaking password in shell history)
+  user                add --data '{"name":"...","email":"..."}' (TestRail 7.3+)
       Create a new user (no path param, payload-only; TestRail 7.3+)
   user                update <user_id> --data '{"name":"...","is_active":true}'               (TestRail 7.3+; partial update, all fields optional)
       Update an existing user (partial fields; TestRail 7.3+)
@@ -216,10 +216,10 @@ Write actions (body via --data | --data-file | stdin):
       Update an existing user group (partial fields; TestRail 7.5+)
   group               delete <group_id> --yes (no body; --soft NOT supported by TestRail; TestRail 7.5+)
       Delete a user group (requires --yes; --soft NOT supported by TestRail; TestRail 7.5+)
-  dataset             add <project_id> --data '{"name":"..."}'
-      Create a new dataset in a project
-  dataset             update <dataset_id> --data '{"name":"..."}'
-      Update an existing dataset (rename)
+  dataset             add <project_id> --data '{"name":"...","variables":{"browser":"Chrome"}}'
+      Create a new dataset in a project, optionally with variable values
+  dataset             update <dataset_id> --data '{"variables":{"browser":"Firefox"}}'
+      Update an existing dataset name and/or variable values
   dataset             delete <dataset_id> --yes (no body; --soft NOT supported by TestRail)
       Delete a dataset (requires --yes; --soft NOT supported by TestRail)
   label               add <project_id> --data '{"title":"..."}'  (max 20 chars)
@@ -326,79 +326,63 @@ Auth (env var preferred — argv is visible to other processes):
                     warnings. Other non-empty values are rejected.
 
 Options:
-  --api-key-stdin       Read API key from stdin (single line; mutually
-                        exclusive with stdin-piped JSON body). Use the
-                        TESTRAIL_API_KEY env var when possible.
-  --data <json>         Inline JSON body for write actions
-  --data-file <path>    Read JSON body from file
-  --dry-run             Validate payload but don't call the API
-  --format json|table|yaml|csv
-                        Output format (default: json). yaml emits a YAML 1.2
-                        document with 2-space indent and double-quoted strings
-                        where ambiguity demands it; csv emits RFC 4180 with
-                        CRLF line terminators, sorted union of top-level keys
-                        as headers, and nested objects/arrays JSON-stringified
-                        into the cell (no dot-path flattening).
-  --quiet               Suppress output; use exit code 0/1
-  --strict-responses    Fail closed on the first response-schema mismatch.
-                        Overrides advisory mode for this invocation.
-  --timeout <ms>        Request timeout in milliseconds. Overrides the
-                        TESTRAIL_TIMEOUT env var; default 30000, max 300000.
-  --page                Return one normalized page with pagination metadata.
-                        Uses --limit/--offset where the endpoint supports them.
-  --all                 Fetch all pages subject to aggregate safety bounds.
-                        Mutually exclusive with --page and with --limit/--offset.
-  --page-size <n>       --all per-request page size where documented
-                        (default 250; max 250).
-  --start-offset <n>    --all initial offset where documented (default 0).
-  --max-pages <n>       --all request bound (default 100).
-  --max-items <n>       --all item bound (default 25000).
-  --max-duration-ms <n> --all wall-clock bound (default/max 300000).
-  --max-bytes <n>       --all serialized-data bound (default 104857600;
-                        hard maximum 1073741824).
-  --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
-  --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
-  --suite-id <ids>      Suite ID; run list also accepts a comma-separated list
-  --section-id <id>     Section filter (case list / bdd list)
-  --type-id <ids>       Comma-separated case type IDs (case list)
-  --priority-id <ids>   Comma-separated priority IDs (case list)
-  --template-id <ids>   Comma-separated template IDs (case list)
-  --milestone-id <ids>  Comma-separated milestone IDs (case/run/plan list)
-  --created-after <ts>  Created-after Unix timestamp (case/run/plan list)
-  --created-before <ts> Created-before Unix timestamp (case/run/plan list)
-  --created-by <ids>    Comma-separated creator user IDs (case/run/plan list)
-  --updated-after <ts>  Updated-after Unix timestamp (case list)
-  --updated-before <ts> Updated-before Unix timestamp (case list)
-  --updated-by <ids>    Comma-separated updater user IDs (case list)
-  --label-id <ids>      Comma-separated label IDs (case / bdd / test list)
-  --refs <refs>         One reference for run/plan list; case/bdd list accept
-                        comma-separated values via TestRail 10.7 refs[]
-  --filter <text>       Case-title substring filter (case list)
-  --include-plan-runs   Include plan-owned runs in run list
-  --is-completed <bool> Filter run/plan list; accepts true, false, 1, or 0
-  --file <path>         Binary file to upload (attachment add-to-* actions)
-  --filename <name>     Override the upload filename (default: basename of --file)
-  --out <path>          Local path to write the downloaded attachment to (attachment get)
-  --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete, configuration delete, configuration-group delete, label delete, label delete-bulk)
-  --soft                Server-side preview for soft-capable deletes:
-                          case delete, case delete-bulk, run delete,
-                          section delete, suite delete.
-                        TestRail returns counts without deleting; distinct
-                        from --dry-run which makes NO API call.
-                        Rejected (TestRail has no --soft support) on:
-                          milestone delete, project delete,
-                          plan close, plan delete, plan delete-entry,
-                          plan delete-run-from-entry, variable delete,
-                          group delete, dataset delete, shared-step delete,
-                          configuration delete, configuration-group delete,
-                          label delete, label delete-bulk.
-  --interval <seconds>  run watch poll interval (default: 30; min: 5; max: 600)
-  --once                run watch: poll once and exit instead of running until is_completed
-  --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
-  --print-path          install-skill: print bundled SKILL.md path and exit
-  --help                Show this help
-  --version             Print version
+  --base-url <url>                  [All API commands] TestRail base URL; overrides TESTRAIL_BASE_URL.
+  --email <email>                   [All API commands] Authentication email; overrides TESTRAIL_EMAIL. It is not the user lookup filter.
+  --user-email <email>              [user get-by-email] Email address of the user to look up without changing the authentication identity.
+  --api-key-stdin                   [All API commands] Read one API key from piped stdin. It cannot share stdin with a JSON body or --file -; prefer TESTRAIL_API_KEY.
+  --format <json|table|yaml|csv>    [Commands that emit structured output] Select output format; default json. Binary/text --out files are not reformatted.
+  --timeout <ms>                    [All API commands] Request timeout in milliseconds; overrides TESTRAIL_TIMEOUT. Default 30000, maximum 300000.
+  --strict-responses                [All API commands] Fail on the first response-schema mismatch instead of emitting advisory warnings.
+  --quiet                           [All commands] Suppress normal output and advisory warnings; rely on the exit code.
+  --help                            [Top level] Print CLI help and exit.
+  --version                         [Top level] Print the package CLI version and exit.
+  --project-id <id>                 [case, suite, run, plan, milestone, shared-step, user, and bdd lists; case delete-bulk] Select the TestRail project for actions whose endpoint does not carry project_id positionally.
+  --suite-id <ids>                  [case, section, bdd, and run list actions] Filter by suite. run list accepts comma-separated IDs; other consumers require one ID.
+  --section-id <id>                 [case list; bdd list] Filter results to one section.
+  --run-id <id>                     [result list] Select the run whose results should be listed.
+  --type-id <ids>                   [case list] Filter by comma-separated case type IDs.
+  --priority-id <ids>               [case list] Filter by comma-separated priority IDs.
+  --template-id <ids>               [case list] Filter by comma-separated template IDs.
+  --milestone-id <ids>              [case, run, and plan list actions] Filter by comma-separated milestone IDs.
+  --created-after <timestamp>       [case, run, plan, and shared-step lists; result list] Return entities created after this Unix timestamp.
+  --created-before <timestamp>      [case, run, plan, and shared-step lists; result list] Return entities created before this Unix timestamp.
+  --created-by <ids>                [case, run, plan, and shared-step lists; result list] Filter by comma-separated creator user IDs.
+  --updated-after <timestamp>       [case list; shared-step list] Return entities updated after this Unix timestamp.
+  --updated-before <timestamp>      [case list; shared-step list] Return entities updated before this Unix timestamp.
+  --updated-by <ids>                [case list] Filter by comma-separated updater user IDs.
+  --label-id <ids>                  [case, bdd, and test list actions] Filter by comma-separated label IDs.
+  --refs <refs>                     [case, bdd, run, plan, and shared-step list actions] Filter by references. case and bdd lists accept comma-separated TestRail 10.7 refs; run, plan, and shared-step lists accept one reference.
+  --filter <text>                   [case list] Filter by case-title substring.
+  --include-plan-runs               [run list] Include runs owned by test plans.
+  --is-completed <true|false|1|0>   [project, run, plan, and milestone list actions] Filter by completion state.
+  --is-started <true|false|1|0>     [milestone list] Filter milestones by started state.
+  --with-data <0|1>                 [test get] Request the enriched test projection with 1, or the ordinary response with 0.
+  --limit <n>                       [Supported list actions in default or --page mode] Maximum items requested from one response; incompatible with --all.
+  --offset <n>                      [Supported list actions in default or --page mode] Zero-based response offset; incompatible with --all.
+  --page                            [Registered paginated list actions] Return one strict page envelope with items and pagination metadata; incompatible with --all.
+  --all                             [Registered paginated list actions] Follow validated continuations and return one bounded item array; incompatible with --page/--limit/--offset.
+  --page-size <n>                   [--all on request-controlled paginated actions] Per-request page size; default and maximum 250.
+  --start-offset <n>                [--all on request-controlled paginated actions] Initial aggregate offset; default 0.
+  --max-pages <n>                   [--all] Maximum pages fetched; default 100.
+  --max-items <n>                   [--all] Maximum accumulated items; default 25000.
+  --max-duration-ms <ms>            [--all] Aggregate wall-clock deadline; default and maximum 300000.
+  --max-bytes <bytes>               [--all] Maximum serialized aggregate size; default 104857600, hard maximum 1073741824.
+  --status-id <ids>                 [test list; result list/list-for-test/list-for-case] Filter by comma-separated TestRail status IDs.
+  --defects-filter <text>           [result list/list-for-test/list-for-case] Filter results whose defects field contains the supplied substring.
+  --data <json>                     [Body-bearing write actions] Provide an inline JSON body. Exactly one of --data, --data-file, or piped JSON stdin is required.
+  --data-file <path>                [Body-bearing write actions] Read the JSON body from a file; useful for large payloads and secrets.
+  --dry-run                         [Write actions; run watch] Validate and preview locally without an API call. It bypasses destructive confirmation gates.
+  --global                          [install-skill; uninstall-skill] Use the user-level skill directory instead of the current project.
+  --force                           [File-output actions; install-skill] Overwrite an existing output file or installed SKILL.md.
+  --print-path                      [install-skill] Print the bundled SKILL.md path and exit without installing.
+  --file <path|->                   [Attachment uploads; bdd add/update] Read upload content from a file, or from piped stdin with '-'.
+  --filename <name>                 [File-input actions] Override the uploaded filename; defaults to the local basename or stdin.
+  --out <path|->                    [attachment get; bdd get] Write downloaded bytes/text to a file, or stream them to stdout with '-'.
+  --yes                             [Destructive actions] Per-invocation confirmation; real destructive calls also require TESTRAIL_ALLOW_DESTRUCTIVE=1.
+  --soft                            [case delete/delete-bulk; run, section, and suite delete] Request TestRail server-side deletion preview. It still calls the API and requires both destructive gates.
+  --keep-in-cases <true|false|1|0>  [shared-step delete] Choose whether deleted shared-step content remains in referencing cases; TestRail defaults to true.
+  --interval <seconds>              [run watch] Polling interval; default 30, minimum 5, maximum 600.
+  --once                            [run watch] Poll once and exit instead of waiting for completion.
 
 For body-bearing write actions, exactly one body source is required
 (--data | --data-file | stdin). Stdin is auto-detected when input is piped

@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Type-safe TypeScript client and `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/articles/7077819069460-Using-the-API), with a single runtime dependency: Zod. ESM only.
+Type-safe TypeScript client and `testrail` CLI for the [TestRail REST API](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference), with a single runtime dependency: Zod. ESM only.
 
 Compatibility is tracked through
 [TestRail 10.7.0 (Default 1021)](https://support.testrail.com/hc/en-us/articles/52231138481684-TestRail-10-7-0-Default-1021),
@@ -14,6 +14,10 @@ including the cumulative API additions from 10.4–10.7 and the 10.7 repeated
 BDD/case-title/version discovery, result editing, dynamic filters, label
 management, and current run/plan/test filters and scheduling fields. Older
 scalar `refs` queries remain supported.
+
+See the [TestRail 10.7.0 compatibility audit](https://github.com/dichovsky/testrail-api-client/blob/main/docs/TESTRAIL-10.7.0-COMPATIBILITY.md)
+for the primary-source corpus, endpoint counts, corrected mismatches, and
+remaining upstream documentation ambiguities.
 
 ## Install
 

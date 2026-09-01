@@ -796,6 +796,15 @@ describe('CLI', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=5'), expect.anything());
         });
 
+        it('project list forwards --is-completed to get_projects', async () => {
+            const { exitCodes } = await runCli(
+                ['project', 'list', '--is-completed', 'false'],
+                [jsonResponse({ projects: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch.mock.calls.at(-1)?.[0]).toContain('get_projects&is_completed=0');
+        });
+
         it('project get with non-integer id should exit 1', async () => {
             const { exitCodes } = await runCli(['project', 'get', 'abc']);
             expect(exitCodes).toContain(1);
@@ -1399,6 +1408,23 @@ describe('CLI', () => {
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_test/100'), expect.anything());
         });
 
+        it('test get --with-data 1 forwards the flag and flattens the response wrapper', async () => {
+            const result = { id: 9, test_id: 100, status_id: 1 };
+            const attachment = { attachment_id: 12 };
+            const { exitCodes, stdout } = await runCli(
+                ['test', 'get', '100', '--with-data', '1'],
+                [jsonResponse({ test: MOCK_TEST, results: [result], attachments: [attachment] })],
+            );
+
+            expect(exitCodes).toContain(0);
+            expect(mockFetch.mock.calls.at(-1)?.[0]).toContain('get_test/100&with_data=1');
+            expect(JSON.parse(stdout.trim())).toEqual({
+                ...MOCK_TEST,
+                results: [result],
+                attachments: [attachment],
+            });
+        });
+
         it('test get renders in table format', async () => {
             const { stdout, exitCodes } = await runCli(
                 ['test', 'get', '100', '--format', 'table'],
@@ -1824,6 +1850,36 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
+        it('result list forwards every documented run-result filter', async () => {
+            const { exitCodes } = await runCli(
+                [
+                    'result',
+                    'list',
+                    '--run-id',
+                    '11',
+                    '--created-after',
+                    '100',
+                    '--created-before',
+                    '200',
+                    '--created-by',
+                    '7,8',
+                    '--status-id',
+                    '1,5',
+                    '--defects-filter',
+                    'JIRA-99',
+                ],
+                [jsonResponse({ results: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            const url = decodeURIComponent(mockFetch.mock.calls.at(-1)?.[0] as string);
+            expect(url).toContain('get_results_for_run/11');
+            expect(url).toContain('created_after=100');
+            expect(url).toContain('created_before=200');
+            expect(url).toContain('created_by=7,8');
+            expect(url).toContain('status_id=1,5');
+            expect(url).toContain('defects_filter=JIRA-99');
+        });
+
         it('result edit POSTs the payload to edit_result/{result_id}', async () => {
             const { exitCodes, stdout } = await runCli(
                 ['result', 'edit', '17', '--data', '{"comment":"corrected"}'],
@@ -2109,6 +2165,15 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
+        it('milestone list forwards --is-started to get_milestones', async () => {
+            const { exitCodes } = await runCli(
+                ['milestone', 'list', '--project-id', '2', '--is-started', 'false'],
+                [jsonResponse({ milestones: [] })],
+            );
+            expect(exitCodes).toContain(0);
+            expect(mockFetch.mock.calls.at(-1)?.[0]).toContain('get_milestones/2&is_started=0');
+        });
+
         it('milestone unknown action should exit 1', async () => {
             const { exitCodes } = await runCli(['milestone', 'delete', '1']);
             expect(exitCodes).toContain(1);
@@ -2128,12 +2193,20 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
-        it('user list with --limit', async () => {
+        it('user list with --project-id uses the non-admin endpoint', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'list', '--limit', '25'],
+                ['user', 'list', '--project-id', '25'],
                 [jsonResponse({ users: [MOCK_USER] })],
             );
             expect(exitCodes).toContain(0);
+            expect(mockFetch.mock.calls.at(-1)?.[0]).toContain('get_users/25');
+        });
+
+        it('user list rejects undocumented --limit and --offset instead of ignoring them', async () => {
+            const { exitCodes, stderr } = await runCli(['user', 'list', '--limit', '25', '--offset', '10']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--limit and --offset are not supported by user list');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('user unknown action should exit 1', async () => {
@@ -2142,18 +2215,15 @@ describe('CLI', () => {
         });
 
         // ── user get-by-email ─────────────────────────────────────────────
-        // `--email` is consumed twice: by resolveAuth() for the HTTP Basic
-        // credential, and by the handler for the lookup query. resolveAuth()
-        // prefers the `--email` flag over `TESTRAIL_EMAIL`, so when the flag
-        // is set it also becomes the authenticated identity — which is fine
-        // for these tests because the API key still comes from env. The
+        // `--user-email` is deliberately separate from the authentication
+        // `--email`, allowing an administrator to look up another user. The
         // handler enforces non-empty client-side; client-side EMAIL_REGEX
         // (src/modules/users.ts) rejects malformed addresses before any
         // network call.
 
         it('user get-by-email exits 0 and calls get_user_by_email with the email query param', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                ['user', 'get-by-email', '--user-email', 'alice@example.com'],
                 [jsonResponse(MOCK_USER)],
             );
             expect(exitCodes).toContain(0);
@@ -2167,7 +2237,7 @@ describe('CLI', () => {
 
         it('user get-by-email --format json renders JSON', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'alice@example.com', '--format', 'json'],
+                ['user', 'get-by-email', '--user-email', 'alice@example.com', '--format', 'json'],
                 [jsonResponse(MOCK_USER)],
             );
             expect(exitCodes).toContain(0);
@@ -2176,24 +2246,24 @@ describe('CLI', () => {
 
         it('user get-by-email --format table renders a table', async () => {
             const { stdout, exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'alice@example.com', '--format', 'table'],
+                ['user', 'get-by-email', '--user-email', 'alice@example.com', '--format', 'table'],
                 [jsonResponse(MOCK_USER)],
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('Alice');
         });
 
-        it('user get-by-email exits 1 when --email is missing (no API call)', async () => {
+        it('user get-by-email exits 1 when --user-email is missing (no API call)', async () => {
             const { exitCodes, stderr } = await runCli(['user', 'get-by-email']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('--email');
+            expect(stderr).toContain('--user-email');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('user get-by-email rejects an empty --email value (no API call)', async () => {
-            const { exitCodes, stderr } = await runCli(['user', 'get-by-email', '--email', '']);
+        it('user get-by-email rejects an empty --user-email value (no API call)', async () => {
+            const { exitCodes, stderr } = await runCli(['user', 'get-by-email', '--user-email', '']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('--email');
+            expect(stderr).toContain('--user-email');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2202,7 +2272,7 @@ describe('CLI', () => {
                 'user',
                 'get-by-email',
                 'extra',
-                '--email',
+                '--user-email',
                 'alice@example.com',
             ]);
             expect(exitCodes).toContain(1);
@@ -2212,7 +2282,7 @@ describe('CLI', () => {
 
         it('user get-by-email surfaces 404 as exit 1', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'missing@example.com'],
+                ['user', 'get-by-email', '--user-email', 'missing@example.com'],
                 [jsonResponse({ error: 'No user with the supplied email was found.' }, 404)],
             );
             expect(exitCodes).toContain(1);
@@ -2220,7 +2290,7 @@ describe('CLI', () => {
 
         it('user get-by-email surfaces 401 as exit 1', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                ['user', 'get-by-email', '--user-email', 'alice@example.com'],
                 [jsonResponse({ error: 'Authentication failed' }, 401)],
             );
             expect(exitCodes).toContain(1);
@@ -2228,7 +2298,7 @@ describe('CLI', () => {
 
         it('user get-by-email surfaces 403 as exit 1', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                ['user', 'get-by-email', '--user-email', 'alice@example.com'],
                 [jsonResponse({ error: 'Forbidden' }, 403)],
             );
             expect(exitCodes).toContain(1);
@@ -2236,7 +2306,7 @@ describe('CLI', () => {
 
         it('user get-by-email surfaces network error as exit 1', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'get-by-email', '--email', 'alice@example.com'],
+                ['user', 'get-by-email', '--user-email', 'alice@example.com'],
                 [],
                 AUTH_ENV,
                 new Error('ECONNREFUSED'),
@@ -2313,7 +2383,7 @@ describe('CLI', () => {
                 'user',
                 'add',
                 '--data',
-                '{"name":"Bob","email":"bob@example.com","password":"s3cr3t"}',
+                '{"name":"Bob","email":"bob@example.com"}',
                 '--dry-run',
             ]);
             expect(exitCodes).toContain(0);
@@ -2325,7 +2395,7 @@ describe('CLI', () => {
 
         it('user add exits 0 and calls add_user', async () => {
             const { exitCodes } = await runCli(
-                ['user', 'add', '--data', '{"name":"Bob","email":"bob@example.com","password":"s3cr3t"}'],
+                ['user', 'add', '--data', '{"name":"Bob","email":"bob@example.com"}'],
                 [jsonResponse(MOCK_USER)],
             );
             expect(exitCodes).toContain(0);
@@ -2421,6 +2491,40 @@ describe('CLI', () => {
             );
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('Login Steps');
+        });
+
+        it('shared-step list forwards every documented filter', async () => {
+            const { exitCodes } = await runCli(
+                [
+                    'shared-step',
+                    'list',
+                    '--project-id',
+                    '3',
+                    '--created-after',
+                    '100',
+                    '--created-before',
+                    '200',
+                    '--created-by',
+                    '7,8',
+                    '--updated-after',
+                    '110',
+                    '--updated-before',
+                    '210',
+                    '--refs',
+                    'REQ-42',
+                ],
+                [jsonResponse({ shared_steps: [] })],
+            );
+
+            expect(exitCodes).toContain(0);
+            const url = decodeURIComponent(mockFetch.mock.calls.at(-1)?.[0] as string);
+            expect(url).toContain('get_shared_steps/3');
+            expect(url).toContain('created_after=100');
+            expect(url).toContain('created_before=200');
+            expect(url).toContain('created_by=7,8');
+            expect(url).toContain('updated_after=110');
+            expect(url).toContain('updated_before=210');
+            expect(url).toContain('refs=REQ-42');
         });
 
         it('shared-step get rejects non-positive id', async () => {
@@ -2736,6 +2840,19 @@ describe('CLI', () => {
             expect(stdout).toContain('"deleted": true');
         });
 
+        it('shared-step delete --keep-in-cases false sends keep_in_cases=0', async () => {
+            const { exitCodes, stdout } = await runCli(
+                ['shared-step', 'delete', '55', '--yes', '--keep-in-cases', 'false'],
+                [jsonResponse({})],
+            );
+            expect(exitCodes).toContain(0);
+            const [url, init] = mockFetch.mock.calls.at(-1) as [string, RequestInit];
+            expect(url).toContain('delete_shared_step/55');
+            expect(init.method).toBe('POST');
+            expect(JSON.parse(init.body as string)).toEqual({ keep_in_cases: 0 });
+            expect(JSON.parse(stdout.trim())).toEqual({ sharedStepId: 55, keepInCases: false, deleted: true });
+        });
+
         it('shared-step delete --dry-run skips the API call (no --yes needed)', async () => {
             const { exitCodes, stdout } = await runCli(['shared-step', 'delete', '55', '--dry-run']);
             expect(exitCodes).toContain(0);
@@ -2758,8 +2875,12 @@ describe('CLI', () => {
                 [jsonResponse({})],
             );
             expect(exitCodes).toContain(0);
-            const parsed = JSON.parse(stdout.trim()) as { sharedStepId: number; deleted: boolean };
-            expect(parsed).toEqual({ sharedStepId: 55, deleted: true });
+            const parsed = JSON.parse(stdout.trim()) as {
+                sharedStepId: number;
+                deleted: boolean;
+                keepInCases: boolean;
+            };
+            expect(parsed).toEqual({ sharedStepId: 55, deleted: true, keepInCases: true });
         });
 
         it('shared-step delete surfaces 404 from TestRail as exit 1', async () => {
@@ -3966,13 +4087,14 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('rewraps "Invalid uri" 400 as a "TestRail >= 7.5 required" error (version gate)', async () => {
+        it('preserves an API 400 without inventing a server-version requirement', async () => {
             const { stderr, exitCodes } = await runCli(
                 ['case', 'add-bulk', '12', '--data', '[{"title":"A"}]'],
                 [jsonResponse({ error: 'Invalid uri' }, 400)],
             );
             expect(exitCodes).toContain(1);
-            expect(stderr).toMatch(/TestRail server >= 7\.5/);
+            expect(stderr).toMatch(/TestRail API error: 400/);
+            expect(stderr).not.toMatch(/server >= 7\.5/);
         });
     });
 
@@ -5243,16 +5365,11 @@ describe('CLI', () => {
     });
 
     describe('args spread coverage', () => {
-        it('accepts --case-id without failure (covers args.caseId spread branch)', async () => {
-            // The CLI spreads --case-id into HandlerArgs even though no
-            // current handler reads it. Exercising the spread guarantees the
-            // forward-compatibility branch (line 452 in src/cli/index.ts) is
-            // tested. Pair with a benign read action so the test passes.
-            const { exitCodes } = await runCli(
-                ['project', 'get', '1', '--case-id', '99'],
-                [jsonResponse(MOCK_PROJECT)],
-            );
-            expect(exitCodes).toContain(0);
+        it('rejects the removed no-op --case-id flag', async () => {
+            const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--case-id', '99']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain("unknown flag '--case-id'");
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('maps every TestRail 10.7 list-filter flag into the handler argument bundle', async () => {
@@ -5399,10 +5516,12 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
-        it('plan add-entry exits 1 when payload is missing required suite_id', async () => {
-            const { stderr, exitCodes } = await runCli(['plan', 'add-entry', '50', '--data', '{"name":"oops"}']);
-            expect(exitCodes).toContain(1);
-            expect(stderr).toContain('validation failed');
+        it('plan add-entry accepts a single-suite payload without suite_id', async () => {
+            const { exitCodes } = await runCli(
+                ['plan', 'add-entry', '50', '--data', '{"name":"single-suite entry"}'],
+                [jsonResponse(MOCK_PLAN_ENTRY)],
+            );
+            expect(exitCodes).toContain(0);
         });
 
         it('plan add --dry-run does not call the API', async () => {

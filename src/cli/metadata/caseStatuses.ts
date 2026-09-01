@@ -3,13 +3,13 @@ import type { ActionSpec } from './types.js';
 
 /**
  * `case-status` actions:
- *   [0] list — read (TestRail 7.5+)
+ *   [0] list — read (TestRail Enterprise 7.3+)
  */
 export const caseStatusActions: readonly ActionSpec[] = [
     {
         resource: 'case-status',
         action: 'list',
-        summary: 'List case-level lifecycle statuses (pagination envelope; TestRail 7.5+)',
+        summary: 'List case-level lifecycle statuses (pagination envelope; TestRail Enterprise 7.3+)',
         pathParams: [],
         apiEndpoint: 'GET get_case_statuses',
         pagination: { response: 'envelope', requestControls: false, collectionKey: 'case_statuses' },

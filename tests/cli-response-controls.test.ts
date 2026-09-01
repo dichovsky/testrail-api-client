@@ -171,7 +171,7 @@ afterAll(() => {
 describe('CLI response-schema controls', () => {
     it('warns by default with method, command, codes, and paths but no response or request data', async () => {
         const result = await runCli(
-            ['user', 'get-by-email', '--email', EMAIL_QUERY_MARKER],
+            ['user', 'get-by-email', '--user-email', EMAIL_QUERY_MARKER],
             [jsonResponse(DRIFTED_USER)],
         );
 
@@ -200,7 +200,7 @@ describe('CLI response-schema controls', () => {
         ['zero', '0'],
     ] as const)('treats TESTRAIL_STRICT_RESPONSES=%s as advisory', async (_label, strictValue) => {
         const result = await runCli(
-            ['user', 'get-by-email', '--email', EMAIL_QUERY_MARKER],
+            ['user', 'get-by-email', '--user-email', EMAIL_QUERY_MARKER],
             [jsonResponse(DRIFTED_USER)],
             envWithStrict(strictValue),
         );
@@ -212,7 +212,7 @@ describe('CLI response-schema controls', () => {
 
     it('enables strict response validation when TESTRAIL_STRICT_RESPONSES is exactly 1', async () => {
         const result = await runCli(
-            ['user', 'get-by-email', '--email', EMAIL_QUERY_MARKER],
+            ['user', 'get-by-email', '--user-email', EMAIL_QUERY_MARKER],
             [jsonResponse(DRIFTED_USER)],
             envWithStrict('1'),
         );
@@ -226,7 +226,7 @@ describe('CLI response-schema controls', () => {
 
     it('lets --strict-responses opt in even when the environment explicitly selects advisory mode', async () => {
         const result = await runCli(
-            ['user', 'get-by-email', '--email', EMAIL_QUERY_MARKER, '--strict-responses'],
+            ['user', 'get-by-email', '--user-email', EMAIL_QUERY_MARKER, '--strict-responses'],
             [jsonResponse(DRIFTED_USER)],
             envWithStrict('0'),
         );
@@ -278,7 +278,7 @@ describe('CLI response-schema controls', () => {
 
     it('suppresses advisory warnings and normal output under --quiet', async () => {
         const result = await runCli(
-            ['user', 'get-by-email', '--email', EMAIL_QUERY_MARKER, '--quiet'],
+            ['user', 'get-by-email', '--user-email', EMAIL_QUERY_MARKER, '--quiet'],
             [jsonResponse(DRIFTED_USER)],
         );
 
@@ -290,7 +290,7 @@ describe('CLI response-schema controls', () => {
 
     it('keeps strict failure silent under --quiet while preserving exit code 1', async () => {
         const result = await runCli(
-            ['user', 'get-by-email', '--email', EMAIL_QUERY_MARKER, '--strict-responses', '--quiet'],
+            ['user', 'get-by-email', '--user-email', EMAIL_QUERY_MARKER, '--strict-responses', '--quiet'],
             [jsonResponse(DRIFTED_USER)],
         );
 

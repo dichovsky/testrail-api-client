@@ -92,26 +92,24 @@ export type UpdateGroupPayload = z.infer<typeof UpdateGroupPayloadSchema>;
  * consumed by the programmatic client. `.passthrough()` (via `zObject`)
  * preserves any future fields TestRail may add to either endpoint.
  *
- * `UserAddPayloadSchema` enforces `name`, `email`, and `password` as required
- * (all three are mandatory per the TestRail 7.3 API docs).
+ * `UserAddPayloadSchema` enforces only `name` and `email` as required, matching
+ * the documented minimal request.
  * `UserUpdatePayloadSchema` allows partial update (all fields optional) —
  * PATCH semantics; an empty `{}` body is accepted by TestRail and returns
  * the unchanged user.
  *
- * Security note: `password` is accepted via `--data-file <path>` (file on
- * disk) or stdin pipe to avoid leaking credentials through shell history.
- * The CLI layer does not enforce this; callers must use a safe input mechanism.
  */
 export const UserAddPayloadSchema = zObject({
     name: z.string().min(1),
     email: z.string().email(),
-    password: z.string().min(1),
     is_active: z.boolean().optional(),
+    is_admin: z.boolean().optional(),
     role_id: z.number().int().positive().optional(),
     group_ids: z.array(z.number().int().positive()).optional(),
     mfa_required: z.boolean().optional(),
-    language: z.string().optional(),
     email_notifications: z.boolean().optional(),
+    sso_enabled: z.boolean().optional(),
+    assigned_projects: z.array(z.number().int().positive()).optional(),
 });
 
 export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>;
@@ -119,13 +117,14 @@ export type UserAddPayload = z.infer<typeof UserAddPayloadSchema>;
 export const UserUpdatePayloadSchema = zObject({
     name: z.string().min(1).optional(),
     email: z.string().email().optional(),
-    password: z.string().min(1).optional(),
     is_active: z.boolean().optional(),
+    is_admin: z.boolean().optional(),
     role_id: z.number().int().positive().optional(),
     group_ids: z.array(z.number().int().positive()).optional(),
     mfa_required: z.boolean().optional(),
-    language: z.string().optional(),
     email_notifications: z.boolean().optional(),
+    sso_enabled: z.boolean().optional(),
+    assigned_projects: z.array(z.number().int().positive()).optional(),
 });
 
 export type UserUpdatePayload = z.infer<typeof UserUpdatePayloadSchema>;

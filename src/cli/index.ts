@@ -285,7 +285,6 @@ async function main(): Promise<number> {
         ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
         ...(values['section-id'] !== undefined && { sectionId: values['section-id'] as string }),
         ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
-        ...(values['case-id'] !== undefined && { caseId: values['case-id'] as string }),
         ...(values['type-id'] !== undefined && { typeId: values['type-id'] as string }),
         ...(values['priority-id'] !== undefined && { priorityId: values['priority-id'] as string }),
         ...(values['template-id'] !== undefined && { templateId: values['template-id'] as string }),
@@ -301,6 +300,9 @@ async function main(): Promise<number> {
         ...(values['filter'] !== undefined && { filter: values['filter'] as string }),
         ...(values['include-plan-runs'] === true && { includePlanRuns: true }),
         ...(values['is-completed'] !== undefined && { isCompleted: values['is-completed'] as string }),
+        ...(values['is-started'] !== undefined && { isStarted: values['is-started'] as string }),
+        ...(values['with-data'] !== undefined && { withData: values['with-data'] as string }),
+        ...(values['user-email'] !== undefined && { userEmail: values['user-email'] as string }),
         ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
         ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
         ...(values['page'] === true && { page: true }),
@@ -319,18 +321,7 @@ async function main(): Promise<number> {
         ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
         ...(values['out'] !== undefined && { out: values['out'] as string }),
         ...(values['soft'] === true && { soft: true }),
-        // `--email` is consumed twice by design: once by resolveAuth() above
-        // for the HTTP Basic credential (where the flag takes priority over
-        // TESTRAIL_EMAIL), and once here for `user get-by-email`'s query
-        // payload. Note: passing `--email alice@…` will authenticate AS that
-        // email, which is the intended behavior when a script supplies the
-        // matching API key. Callers who need to look up a third party while
-        // authenticating as a different identity should set TESTRAIL_EMAIL
-        // for auth and omit `--email` in favor of a different lookup path
-        // (e.g. `user get <id>`). Read handlers ignore this when irrelevant;
-        // the user get-by-email handler enforces non-empty before issuing
-        // the call.
-        ...(values['email'] !== undefined && { email: values['email'] as string }),
+        ...(values['keep-in-cases'] !== undefined && { keepInCases: values['keep-in-cases'] as string }),
         ...(values['interval'] !== undefined && { interval: values['interval'] as string }),
         ...(values['once'] === true && { once: true }),
     };

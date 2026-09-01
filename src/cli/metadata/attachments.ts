@@ -58,6 +58,7 @@ export const attachmentActions: readonly ActionSpec[] = [
         summary: 'List attachments on a test (run instance of a case)',
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'GET get_attachments_for_test/{test_id}',
+        itemsRequestControls: true,
         isWrite: false,
         handler: handleAttachmentListForTest,
     },

@@ -1244,17 +1244,17 @@ describe('TestRailClient', () => {
                 expect(mockFetch).not.toHaveBeenCalled();
             });
 
-            it('rewraps "Invalid uri" 400 as a "TestRail >= 7.5 required" error', async () => {
+            it('preserves an "Invalid uri" 400 without inventing a version requirement', async () => {
                 mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', JSON.stringify({ error: 'Invalid uri' })));
-                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
             });
 
-            it('rewraps "Invalid uri" 404 as a "TestRail >= 7.5 required" error', async () => {
+            it('preserves an "Invalid uri" 404 without inventing a version requirement', async () => {
                 mockFetch.mockResolvedValueOnce(mockErr(404, 'Not Found', JSON.stringify({ error: 'Invalid uri' })));
-                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
+                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 404/);
             });
 
-            it('passes through 4xx errors that do not match the version-gate fingerprint', async () => {
+            it('passes through payload validation errors from the API', async () => {
                 mockFetch.mockResolvedValueOnce(
                     mockErr(
                         400,
@@ -1318,13 +1318,7 @@ describe('TestRailClient', () => {
                 await expect(client.cases.addCases(12, [{ title: 'C' }])).resolves.toHaveLength(1);
             });
 
-            it('rethrows a non-TestRailApiError unchanged (strict-mode hook throws inside the try)', async () => {
-                // Covers the branch the test above used to reach. addCases's
-                // catch checks `e instanceof TestRailApiError` first and must
-                // rethrow anything else as-is, rather than dressing it up with
-                // the "TestRail >= 7.5 required" version-gate fingerprint. A
-                // strict-mode onSchemaMismatch throwing a ZodError from inside
-                // request() is now the way to get a non-TestRailApiError there.
+            it('rethrows a strict response-mismatch hook error unchanged', async () => {
                 const sentinel = new Error('strict-mode sentinel');
                 const strict = createClient({
                     onSchemaMismatch: () => {
@@ -1342,12 +1336,7 @@ describe('TestRailClient', () => {
                 strict.destroy();
             });
 
-            it('passes through a 400 with no response body (defensive — exercises e.response ?? "" branch)', async () => {
-                // When the server returns a 4xx with an empty body, the
-                // version-gate regex sees an empty string and falls through
-                // to the generic rethrow. Confirms the nullish-coalesce
-                // fallback in the response-stringification branch doesn't
-                // misclassify empty responses as a version-gate match.
+            it('passes through a 400 with no response body', async () => {
                 mockFetch.mockResolvedValueOnce(
                     new Response('', {
                         status: 400,
@@ -1355,50 +1344,6 @@ describe('TestRailClient', () => {
                     }),
                 );
                 await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail API error: 400/);
-            });
-
-            it('matches "No route" in addition to "Invalid uri" for the version gate', async () => {
-                // Documented dual fingerprint. Without a test for `No route`
-                // the alternation branch in the regex is unexercised.
-                mockFetch.mockResolvedValueOnce(mockErr(400, 'Bad Request', 'No route found'));
-                await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(/TestRail server >= 7\.5/);
-            });
-
-            it('handles a TestRailApiError with object-shaped response (non-string typeof branch)', async () => {
-                // Exercises the `typeof e.response === 'string' ? ... : JSON.stringify(...)`
-                // false branch in cases.ts. We stub request() to throw a
-                // TestRailApiError whose `response` is an object, which the
-                // version-gate must JSON.stringify before applying the regex.
-                // The object stringifies to '{"error":"Invalid uri"}' so the
-                // version-gate fingerprint matches.
-                const { TestRailApiError } = await import('../src/client.js');
-                const spy = vi
-                    .spyOn(client, 'request')
-                    .mockRejectedValueOnce(new TestRailApiError(404, 'Not Found', { error: 'Invalid uri' }));
-                try {
-                    await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(
-                        /TestRail server >= 7\.5/,
-                    );
-                } finally {
-                    spy.mockRestore();
-                }
-            });
-
-            it('handles a TestRailApiError with null response (nullish-coalesce fallback branch)', async () => {
-                // Exercises the `e.response ?? ''` true branch (response is null).
-                // The stringified empty fallback should not match the version
-                // gate regex, so the original error propagates verbatim.
-                const { TestRailApiError } = await import('../src/client.js');
-                const spy = vi
-                    .spyOn(client, 'request')
-                    .mockRejectedValueOnce(new TestRailApiError(400, 'Bad Request', null));
-                try {
-                    await expect(client.cases.addCases(12, [{ title: 'C' }])).rejects.toThrow(
-                        /TestRail API error: 400/,
-                    );
-                } finally {
-                    spy.mockRestore();
-                }
             });
         });
 
@@ -3225,6 +3170,50 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockTest);
         });
 
+        it('normalizes the with_data=1 wrapper into an enriched test', async () => {
+            const test = { id: 1, case_id: 2, status_id: 1, run_id: 3, title: 'Test' };
+            const results = [{ id: 4, test_id: 1, status_id: 1 }];
+            const attachments = [{ id: 5, name: 'evidence.txt' }];
+            mockFetch.mockResolvedValueOnce(mockOk({ test, results, attachments }));
+
+            const result = await client.tests.getTest(1, { withData: '1' });
+
+            expect(result).toEqual({ ...test, results, attachments });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_test/1&with_data=1'),
+                expect.anything(),
+            );
+        });
+
+        it('defaults omitted with_data collections to empty arrays', async () => {
+            const test = { id: 1, case_id: 2, status_id: 1, run_id: 3, title: 'Test' };
+            mockFetch.mockResolvedValueOnce(mockOk({ test }));
+
+            await expect(client.tests.getTest(1, { withData: '1' })).resolves.toEqual({
+                ...test,
+                results: [],
+                attachments: [],
+            });
+        });
+
+        it('passes with_data=0 while retaining the ordinary response shape', async () => {
+            const test = { id: 1, case_id: 2, status_id: 1, run_id: 3, title: 'Test' };
+            mockFetch.mockResolvedValueOnce(mockOk(test));
+
+            await expect(client.tests.getTest(1, { withData: '0' })).resolves.toEqual(test);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_test/1&with_data=0'),
+                expect.anything(),
+            );
+        });
+
+        it('rejects invalid withData values before fetching', async () => {
+            await expect(client.tests.getTest(1, { withData: 'yes' as never })).rejects.toThrow(
+                'withData must be "0" or "1"',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('should get all tests for a run', async () => {
             const mockTests: Test[] = [
                 {
@@ -3834,22 +3823,22 @@ describe('TestRailClient', () => {
             await expect(client.results.getResultsForRun(1)).rejects.toThrow(TestRailApiError);
         });
 
-        it('should get results filtered by created_after and created_before', async () => {
+        it('should get results for a run filtered by created_after and created_before', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
 
-            await client.results.getResults(1, { created_after: 1000000, created_before: 2000000 });
+            await client.results.getResultsForRun(1, { created_after: 1000000, created_before: 2000000 });
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_results/1&created_after=1000000&created_before=2000000'),
+                expect.stringContaining('get_results_for_run/1&created_after=1000000&created_before=2000000'),
                 expect.any(Object),
             );
         });
 
-        it('should get results filtered by created_by', async () => {
+        it('should get results for a run filtered by created_by', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
 
-            await client.results.getResults(1, { created_by: [1, 2] });
+            await client.results.getResultsForRun(1, { created_by: [1, 2] });
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_results/1&created_by=1%2C2'),
+                expect.stringContaining('get_results_for_run/1&created_by=1%2C2'),
                 expect.any(Object),
             );
         });
@@ -3904,6 +3893,16 @@ describe('TestRailClient', () => {
             );
         });
 
+        it('should get results for run filtered by defects_filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
+
+            await client.results.getResultsForRun(1, { defectsFilter: 'JIRA-123' });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_results_for_run/1&defects_filter=JIRA-123'),
+                expect.any(Object),
+            );
+        });
+
         it('should get results for run with limit and offset', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
 
@@ -3924,10 +3923,26 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('limit');
         });
 
+        it('does not send run-only creator/date filters to getResults or getResultsForCase', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ results: [] })).mockResolvedValueOnce(mockOk({ results: [] }));
+            const runOptions = { createdAfter: 100, createdBefore: 200, createdBy: [7], statusId: [1] };
+
+            await client.results.getResults(1, runOptions);
+            await client.results.getResultsForCase(2, 3, runOptions);
+
+            for (const [rawUrl] of mockFetch.mock.calls) {
+                const url = String(rawUrl);
+                expect(url).not.toContain('created_after');
+                expect(url).not.toContain('created_before');
+                expect(url).not.toContain('created_by');
+                expect(url).toContain('status_id=1');
+            }
+        });
+
         it('should omit empty array filters for getResults', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
 
-            await client.results.getResults(1, { created_by: [], status_id: [] });
+            await client.results.getResults(1, { status_id: [] });
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('created_by=');
             expect(url).not.toContain('status_id=');
@@ -3936,7 +3951,7 @@ describe('TestRailClient', () => {
         it('should omit empty array filters for getResultsForCase', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
 
-            await client.results.getResultsForCase(1, 2, { created_by: [], status_id: [] });
+            await client.results.getResultsForCase(1, 2, { status_id: [] });
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('created_by=');
             expect(url).not.toContain('status_id=');
@@ -3951,20 +3966,20 @@ describe('TestRailClient', () => {
             expect(url).not.toContain('status_id=');
         });
 
-        it('should accept camelCase createdAfter/createdBefore for getResults and produce same URL as snake_case', async () => {
+        it('should accept camelCase createdAfter/createdBefore for getResultsForRun', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
-            await client.results.getResults(1, { createdAfter: 1000000, createdBefore: 2000000 });
+            await client.results.getResultsForRun(1, { createdAfter: 1000000, createdBefore: 2000000 });
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_results/1&created_after=1000000&created_before=2000000'),
+                expect.stringContaining('get_results_for_run/1&created_after=1000000&created_before=2000000'),
                 expect.any(Object),
             );
         });
 
-        it('should accept camelCase createdBy for getResults and produce same URL as snake_case', async () => {
+        it('should accept camelCase createdBy for getResultsForRun', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
-            await client.results.getResults(1, { createdBy: [1, 2] });
+            await client.results.getResultsForRun(1, { createdBy: [1, 2] });
             expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_results/1&created_by=1%2C2'),
+                expect.stringContaining('get_results_for_run/1&created_by=1%2C2'),
                 expect.any(Object),
             );
         });
@@ -3987,9 +4002,9 @@ describe('TestRailClient', () => {
             );
         });
 
-        it('should preserve deprecated snake_case keys for getResults', async () => {
+        it('should preserve deprecated snake_case keys for getResultsForRun', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
-            await client.results.getResults(1, {
+            await client.results.getResultsForRun(1, {
                 created_after: 1000000,
                 created_before: 2000000,
                 created_by: [1],
@@ -3998,7 +4013,7 @@ describe('TestRailClient', () => {
             });
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining(
-                    'get_results/1&created_after=1000000&created_before=2000000&created_by=1&status_id=1&defects_filter=JIRA-1',
+                    'get_results_for_run/1&created_after=1000000&created_before=2000000&created_by=1&status_id=1&defects_filter=JIRA-1',
                 ),
                 expect.any(Object),
             );
@@ -4022,31 +4037,17 @@ describe('TestRailClient', () => {
             );
         });
 
-        it('should omit empty array filters for getResults with camelCase', async () => {
+        it('should omit empty array filters for getResultsForRun with camelCase', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ results: [] }));
-            await client.results.getResults(1, { createdBy: [], statusId: [] });
+            await client.results.getResultsForRun(1, { createdBy: [], statusId: [] });
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('created_by=');
             expect(url).not.toContain('status_id=');
         });
 
-        it('should throw validation error for invalid createdBy item in getResults', async () => {
-            await expect(client.results.getResults(1, { createdBy: [1, 0] })).rejects.toThrow(
-                'createdBy must be a positive integer',
-            );
-            expect(mockFetch).not.toHaveBeenCalled();
-        });
-
         it('should throw validation error for invalid statusId item in getResults', async () => {
             await expect(client.results.getResults(1, { statusId: [1, -1] })).rejects.toThrow(
                 'statusId must be a positive integer',
-            );
-            expect(mockFetch).not.toHaveBeenCalled();
-        });
-
-        it('should throw validation error for invalid created_by item in getResults', async () => {
-            await expect(client.results.getResults(1, { created_by: [1, 0] })).rejects.toThrow(
-                'createdBy must be a positive integer',
             );
             expect(mockFetch).not.toHaveBeenCalled();
         });
@@ -4058,23 +4059,9 @@ describe('TestRailClient', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('should throw validation error for invalid createdBy item in getResultsForCase', async () => {
-            await expect(client.results.getResultsForCase(1, 2, { createdBy: [0] })).rejects.toThrow(
-                'createdBy must be a positive integer',
-            );
-            expect(mockFetch).not.toHaveBeenCalled();
-        });
-
         it('should throw validation error for invalid statusId item in getResultsForCase', async () => {
             await expect(client.results.getResultsForCase(1, 2, { statusId: [0] })).rejects.toThrow(
                 'statusId must be a positive integer',
-            );
-            expect(mockFetch).not.toHaveBeenCalled();
-        });
-
-        it('should throw validation error for invalid created_by item in getResultsForCase', async () => {
-            await expect(client.results.getResultsForCase(1, 2, { created_by: [0] })).rejects.toThrow(
-                'createdBy must be a positive integer',
             );
             expect(mockFetch).not.toHaveBeenCalled();
         });
@@ -4277,6 +4264,19 @@ describe('TestRailClient', () => {
             );
         });
 
+        it.each([
+            [{ isStarted: true }, 1],
+            [{ is_started: 0 as const }, 0],
+        ])('should serialize the started-state filter %# as %s', async (options, wireValue) => {
+            mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
+
+            await client.milestones.getMilestones(1, options);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining(`get_milestones/1&is_started=${wireValue}`),
+                expect.any(Object),
+            );
+        });
+
         it('should get milestones with limit and offset', async () => {
             mockFetch.mockResolvedValueOnce(mockOk({ milestones: [] }));
 
@@ -4293,6 +4293,7 @@ describe('TestRailClient', () => {
             await client.milestones.getMilestones(1);
             const [[url]] = mockFetch.mock.calls as [[string, unknown]];
             expect(url).not.toContain('is_completed');
+            expect(url).not.toContain('is_started');
             expect(url).not.toContain('limit');
         });
 
@@ -4553,33 +4554,16 @@ describe('TestRailClient', () => {
             expect(result).toEqual([]);
         });
 
-        it('should get users with pagination params', async () => {
-            const mockUsers: User[] = [mockUser];
-            mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
-            const result = await client.users.getUsers(10, 20);
-            expect(result).toEqual(mockUsers);
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.stringContaining('get_users&limit=10&offset=20'),
-                expect.anything(),
-            );
-        });
-
         it('should get users scoped to a project', async () => {
             const mockUsers: User[] = [mockUser];
             mockFetch.mockResolvedValueOnce(mockOk({ users: mockUsers }));
-            const result = await client.users.getUsers(undefined, undefined, 5);
+            const result = await client.users.getUsers(5);
             expect(result).toEqual(mockUsers);
             expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('get_users/5'), expect.anything());
         });
 
         it('should throw for invalid projectId in getUsers', async () => {
-            await expect(client.users.getUsers(undefined, undefined, -1)).rejects.toThrow(
-                'projectId must be a positive integer',
-            );
-        });
-
-        it('should throw validation error for invalid pagination in getUsers', async () => {
-            await expect(client.users.getUsers(0)).rejects.toThrow('limit must be a positive integer');
+            await expect(client.users.getUsers(-1)).rejects.toThrow('projectId must be a positive integer');
         });
 
         it('should get current user', async () => {
@@ -5348,6 +5332,28 @@ describe('TestRailClient', () => {
             await client.projects.getProjects(10, 20);
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('get_projects&limit=10&offset=20'),
+                expect.anything(),
+            );
+        });
+
+        it('should preserve an offset-only legacy getProjects call', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk({ projects: [] }));
+            await client.projects.getProjects(undefined, 20);
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining('get_projects&offset=20'),
+                expect.anything(),
+            );
+            expect(mockFetch.mock.calls[0]?.[0]).not.toContain('limit=');
+        });
+
+        it.each([
+            [true, 1],
+            [false, 0],
+        ])('should pass isCompleted=%s to getProjects as %s', async (isCompleted, wireValue) => {
+            mockFetch.mockResolvedValueOnce(mockOk({ projects: [] }));
+            await client.projects.getProjects({ isCompleted });
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.stringContaining(`get_projects&is_completed=${wireValue}`),
                 expect.anything(),
             );
         });
@@ -6154,6 +6160,41 @@ describe('TestRailClient', () => {
         it('should throw for invalid projectId', async () => {
             await expect(client.sharedSteps.getSharedSteps(0)).rejects.toThrow('projectId must be a positive integer');
         });
+
+        it('sends every documented get_shared_steps filter', async () => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+
+            await client.sharedSteps.getSharedSteps(7, {
+                createdAfter: 100,
+                createdBefore: 200,
+                createdBy: [2, 3],
+                updatedAfter: 300,
+                updatedBefore: 400,
+                refs: 'TR-42',
+                limit: 25,
+                offset: 5,
+            });
+
+            const requested = new URL(mockFetch.mock.calls[0]?.[0] as string);
+            expect(requested.href).toContain('get_shared_steps/7');
+            expect(Object.fromEntries(requested.searchParams)).toMatchObject({
+                created_after: '100',
+                created_before: '200',
+                created_by: '2,3',
+                updated_after: '300',
+                updated_before: '400',
+                refs: 'TR-42',
+                limit: '25',
+                offset: '5',
+            });
+        });
+
+        it('rejects an invalid createdBy filter before fetching', async () => {
+            await expect(client.sharedSteps.getSharedSteps(7, { createdBy: [2, 0] })).rejects.toThrow(
+                'createdBy must be a positive integer',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
     });
 
     describe('addSharedStep', () => {
@@ -6198,6 +6239,17 @@ describe('TestRailClient', () => {
                 expect.stringContaining('delete_shared_step/1'),
                 expect.objectContaining({ method: 'POST' }),
             );
+        });
+
+        it.each([
+            [true, 1],
+            [false, 0],
+        ])('sends keep_in_cases=%s as %s', async (keepInCases, wireValue) => {
+            mockFetch.mockResolvedValueOnce(mockEmpty());
+            await client.sharedSteps.deleteSharedStep(1, { keepInCases });
+
+            const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+            expect(JSON.parse(init.body as string)).toEqual({ keep_in_cases: wireValue });
         });
 
         it('should throw for invalid sharedStepId', async () => {
@@ -6563,12 +6615,15 @@ describe('TestRailClient', () => {
         it('should create a dataset', async () => {
             const dataset = { id: 3, name: 'Performance', project_id: 1 };
             mockFetch.mockResolvedValueOnce(mockOk(dataset));
-            const result = await client.datasets.addDataset(1, { name: 'Performance' });
+            const payload = { name: 'Performance', variables: { browser: 'Chrome', locale: 'en-US' } };
+            const result = await client.datasets.addDataset(1, payload);
             expect(result).toEqual(dataset);
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.stringContaining('add_dataset/1'),
                 expect.objectContaining({ method: 'POST' }),
             );
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            expect(JSON.parse(init.body as string)).toEqual(payload);
         });
 
         it('should throw for invalid projectId', async () => {
@@ -6582,8 +6637,11 @@ describe('TestRailClient', () => {
         it('should update a dataset', async () => {
             const dataset = { id: 1, name: 'Updated Dataset' };
             mockFetch.mockResolvedValueOnce(mockOk(dataset));
-            const result = await client.datasets.updateDataset(1, { name: 'Updated Dataset' });
+            const payload = { name: 'Updated Dataset', variables: { browser: 'Firefox' } };
+            const result = await client.datasets.updateDataset(1, payload);
             expect(result).toEqual(dataset);
+            const init = mockFetch.mock.calls.at(-1)?.[1] as RequestInit;
+            expect(JSON.parse(init.body as string)).toEqual(payload);
         });
 
         it('should throw for invalid datasetId', async () => {

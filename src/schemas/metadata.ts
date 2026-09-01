@@ -77,7 +77,7 @@ export type Priority = KnownResponse<typeof PrioritySchema>;
 
 // ── Case Status Schema ────────────────────────────────────────────────────────
 
-// `get_case_statuses` (TestRail 7.5+) returns *case-level* lifecycle statuses
+// `get_case_statuses` (TestRail Enterprise 7.3+) returns *case-level* lifecycle statuses
 // (draft, approved, etc.), distinct from `get_statuses` which returns result
 // statuses. The primary key is `case_status_id`, not `id`.
 export const CaseStatusSchema = zObject({
@@ -326,11 +326,11 @@ export type TestRailVersion = KnownResponse<typeof TestRailVersionSchema>;
 export const AddCaseFieldConfigPayloadSchema = zObject({
     context: zObject({
         is_global: z.boolean(),
-        project_ids: z.array(z.number()),
+        project_ids: z.union([z.array(z.number().int().positive()), z.literal('')]),
     }),
     options: zObject({
         is_required: z.boolean(),
-        default_value: z.string(),
+        default_value: z.string().optional(),
         items: z.string().optional(),
         format: z.string().optional(),
         rows: z.string().optional(),
@@ -347,7 +347,7 @@ export const AddCaseFieldPayloadSchema = zObject({
     include_all: z.boolean().optional(),
     is_indexed: z.boolean().optional(),
     template_ids: z.array(z.number()).optional(),
-    configs: z.array(AddCaseFieldConfigPayloadSchema),
+    configs: z.array(AddCaseFieldConfigPayloadSchema).min(1),
 });
 
 export type AddCaseFieldPayload = z.infer<typeof AddCaseFieldPayloadSchema>;

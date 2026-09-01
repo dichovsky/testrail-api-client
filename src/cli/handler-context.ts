@@ -14,7 +14,6 @@ export interface HandlerArgs {
     suiteId?: string;
     sectionId?: string;
     runId?: string;
-    caseId?: string;
     typeId?: string;
     priorityId?: string;
     templateId?: string;
@@ -35,6 +34,14 @@ export interface HandlerArgs {
     includePlanRuns?: boolean;
     /** Boolean list filter encoded as `true|false|1|0`. */
     isCompleted?: string;
+    /** Milestone started-state filter encoded as `true|false|1|0`. */
+    isStarted?: string;
+    /** TestRail's string-valued get_test data selector. */
+    withData?: string;
+    /** Lookup target for `user get-by-email`; distinct from the auth email. */
+    userEmail?: string;
+    /** Whether shared-step deletion preserves the referenced step content in cases. */
+    keepInCases?: string;
     limit?: string;
     offset?: string;
     /** Return a normalized pagination envelope instead of the legacy item array. */
@@ -68,13 +75,6 @@ export interface HandlerArgs {
      *  server-side preview (TestRail returns affected counts without
      *  deleting). Distinct from `--dry-run` (client-side, no API call). */
     soft?: boolean;
-    /** Email address for lookup actions (`user get-by-email --email <addr>`).
-     *  Reuses the same `--email` flag that supplies the auth credential — the
-     *  flag is consumed twice by design: once by `resolveAuth()` for the HTTP
-     *  Basic credential, and once here for the query payload. The handler
-     *  requires this to be a non-empty string; format is enforced client-side
-     *  by `EMAIL_REGEX` in `src/modules/users.ts` before any network call. */
-    email?: string;
     /** Polling interval in seconds for `run watch` (`--interval N`). Bounds
      *  (min 5, max 600) are enforced inside the handler so a typo doesn't
      *  silently flood TestRail's rate budget (5s floor keeps headroom under

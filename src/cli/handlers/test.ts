@@ -1,11 +1,15 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId } from '../ids.js';
+import { IdParseError, parseId } from '../ids.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 import { parseOptionalIdList } from '../filters.js';
 
 export async function handleTestGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'test id');
-    ctx.out(await ctx.client.tests.getTest(id));
+    const withData = ctx.args.withData;
+    if (withData !== undefined && withData !== '0' && withData !== '1') {
+        throw new IdParseError(`--with-data must be 0 or 1 (got: ${withData === '' ? '(empty)' : withData})`);
+    }
+    ctx.out(await (withData === undefined ? ctx.client.tests.getTest(id) : ctx.client.tests.getTest(id, { withData })));
 }
 
 export async function handleTestList(ctx: HandlerContext): Promise<void> {

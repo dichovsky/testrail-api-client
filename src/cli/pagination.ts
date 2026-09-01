@@ -187,6 +187,19 @@ export function validateCliPagination(
         return { ok: false, error: `${mode === 'page' ? '--page' : '--all'} is not supported by ${command}.` };
     }
 
+    if (
+        mode === 'items' &&
+        actionSpec !== undefined &&
+        actionSpec.pagination === undefined &&
+        actionSpec.itemsRequestControls !== true &&
+        (args.limit !== undefined || args.offset !== undefined)
+    ) {
+        return {
+            ok: false,
+            error: `--limit and --offset are not supported by ${actionSpec.resource} ${actionSpec.action}.`,
+        };
+    }
+
     if (mode === 'all' && (args.limit !== undefined || args.offset !== undefined)) {
         return {
             ok: false,

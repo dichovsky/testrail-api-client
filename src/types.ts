@@ -531,39 +531,39 @@ export interface GetTestsOptions {
     label_id?: number[];
 }
 
-/**
- * Filter options for `getResults()`, `getResultsForCase()`, and `getResultsForRun()`.
- * All date filters accept Unix timestamps (seconds).
- */
+/** Filter options shared by `getResults()` and `getResultsForCase()`. */
 export interface GetResultsOptions {
+    /** Only return results with these status IDs */
+    statusId?: number[];
+    /** Only return results whose `defects` field contains this string. */
+    defectsFilter?: string;
+    /** Maximum number of results to return */
+    limit?: number;
+    /** Offset for pagination */
+    offset?: number;
+    /** @deprecated use `statusId` */
+    status_id?: number[];
+    /** @deprecated use `defectsFilter` */
+    defects_filter?: string;
+}
+
+/**
+ * Filter options for `getResultsForRun()`.
+ * Date filters accept Unix timestamps (seconds).
+ */
+export interface GetResultsForRunOptions extends GetResultsOptions {
     /** Only return results created after this Unix timestamp */
     createdAfter?: number;
     /** Only return results created before this Unix timestamp */
     createdBefore?: number;
     /** Only return results created by these user IDs */
     createdBy?: number[];
-    /** Only return results with these status IDs */
-    statusId?: number[];
-    /** Only return results whose `defects` field contains this string
-     *  (TestRail's `defects_filter` query param; e.g., a JIRA key like
-     *  `JIRA-123`). Passed through verbatim. Honored by `getResults()` and
-     *  `getResultsForCase()` only; `getResultsForRun()` ignores it for
-     *  backwards compatibility with the existing `result list` CLI shape. */
-    defectsFilter?: string;
-    /** Maximum number of results to return */
-    limit?: number;
-    /** Offset for pagination */
-    offset?: number;
     /** @deprecated use `createdAfter` */
     created_after?: number;
     /** @deprecated use `createdBefore` */
     created_before?: number;
     /** @deprecated use `createdBy` */
     created_by?: number[];
-    /** @deprecated use `statusId` */
-    status_id?: number[];
-    /** @deprecated use `defectsFilter` */
-    defects_filter?: string;
 }
 
 /**
@@ -572,12 +572,16 @@ export interface GetResultsOptions {
 export interface GetMilestonesOptions {
     /** `true` to return only completed milestones, `false` for active */
     isCompleted?: boolean;
+    /** `true` to return only started milestones, `false` for not started */
+    isStarted?: boolean;
     /** Maximum number of milestones to return */
     limit?: number;
     /** Offset for pagination */
     offset?: number;
     /** @deprecated use `isCompleted` */
     is_completed?: 0 | 1;
+    /** @deprecated use `isStarted` */
+    is_started?: 0 | 1;
 }
 
 // ── Roles (TASK-025, requires TestRail 7.3+) ──────────────────────────────────
@@ -612,6 +616,12 @@ export type Role = KnownResponse<typeof RoleSchema>;
  * the field appropriate for the endpoint you called.
  */
 export type Attachment = KnownResponse<typeof AttachmentSchema>;
+
+/** Test enriched by `get_test` with `with_data=1`. */
+export type TestWithData = Test & {
+    results: Result[];
+    attachments: Attachment[];
+};
 
 // ── Shared Steps (TASK-028, requires TestRail 7.0+) ───────────────────────────
 // `SharedStep` + write payloads (`AddSharedStepPayload` / `UpdateSharedStepPayload`)

@@ -65,11 +65,45 @@ export const AddProjectPayloadSchema = zObject({
 
 export type AddProjectPayload = z.infer<typeof AddProjectPayloadSchema>;
 
+// TestRail 7.4 added project-level access updates. Role ID 0 means "Global
+// Role" and null clears a project-specific role assignment, so this is
+// intentionally non-negative and nullable rather than a positive-ID schema.
+const ProjectAccessRoleIdPayloadSchema = z.number().int().nonnegative().nullable();
+
+export const UpdateProjectGroupAssignmentPayloadSchema = zObject({
+    id: z.number().int().positive(),
+    role_id: ProjectAccessRoleIdPayloadSchema,
+});
+
+export type UpdateProjectGroupAssignmentPayload = z.infer<typeof UpdateProjectGroupAssignmentPayloadSchema>;
+
+// TestRail's update_project example emits `user_id`, while the adjacent USERS
+// field table calls the same identifier `id`. Accept both official forms, but
+// model them as an exclusive union so both runtime parsing and the inferred
+// public type require exactly one identifier.
+export const UpdateProjectUserAssignmentPayloadSchema = z.union([
+    zObject({
+        id: z.number().int().positive(),
+        user_id: z.never().optional(),
+        role_id: ProjectAccessRoleIdPayloadSchema,
+    }),
+    zObject({
+        id: z.never().optional(),
+        user_id: z.number().int().positive(),
+        role_id: ProjectAccessRoleIdPayloadSchema,
+    }),
+]);
+
+export type UpdateProjectUserAssignmentPayload = z.infer<typeof UpdateProjectUserAssignmentPayloadSchema>;
+
 export const UpdateProjectPayloadSchema = zObject({
     name: z.string().optional(),
     announcement: z.string().optional(),
     show_announcement: z.boolean().optional(),
     suite_mode: z.number().optional(),
+    default_role_id: z.number().int().nonnegative().optional(),
+    groups: z.array(UpdateProjectGroupAssignmentPayloadSchema).optional(),
+    users: z.array(UpdateProjectUserAssignmentPayloadSchema).optional(),
 });
 
 export type UpdateProjectPayload = z.infer<typeof UpdateProjectPayloadSchema>;

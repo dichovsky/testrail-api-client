@@ -1,5 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
+import { parseOptionalId, parseOptionalIdList, parseOptionalSingleRef } from '../filters.js';
 import { getPaginatedRequestOptions, getPaginationSafetyOptions, outputPaginated } from '../pagination.js';
 
 export async function handleSharedStepGet(ctx: HandlerContext): Promise<void> {
@@ -9,20 +10,35 @@ export async function handleSharedStepGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleSharedStepList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
+    const createdAfter = parseOptionalId(ctx.args.createdAfter, '--created-after');
+    const createdBefore = parseOptionalId(ctx.args.createdBefore, '--created-before');
+    const createdBy = parseOptionalIdList(ctx.args.createdBy, '--created-by');
+    const updatedAfter = parseOptionalId(ctx.args.updatedAfter, '--updated-after');
+    const updatedBefore = parseOptionalId(ctx.args.updatedBefore, '--updated-before');
+    const refs = parseOptionalSingleRef(ctx.args.refs);
     const limit = ctx.pagination.limit;
     const offset = ctx.pagination.offset;
+    const filters = {
+        ...(createdAfter !== undefined && { createdAfter }),
+        ...(createdBefore !== undefined && { createdBefore }),
+        ...(createdBy !== undefined && { createdBy }),
+        ...(updatedAfter !== undefined && { updatedAfter }),
+        ...(updatedBefore !== undefined && { updatedBefore }),
+        ...(refs !== undefined && { refs }),
+    };
     const pageOptions = {
+        ...filters,
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
     };
-    const hasRequestControls = limit !== undefined || offset !== undefined;
     await outputPaginated(ctx, {
-        items: () =>
-            hasRequestControls
-                ? ctx.client.sharedSteps.getSharedSteps(pid, pageOptions)
-                : ctx.client.sharedSteps.getSharedSteps(pid),
+        items: () => ctx.client.sharedSteps.getSharedSteps(pid, pageOptions),
         page: () => ctx.client.sharedSteps.getSharedStepsPage(pid, pageOptions),
-        all: () => ctx.client.sharedSteps.getAllSharedSteps(pid, getPaginatedRequestOptions(ctx.pagination)),
+        all: () =>
+            ctx.client.sharedSteps.getAllSharedSteps(pid, {
+                ...filters,
+                ...getPaginatedRequestOptions(ctx.pagination),
+            }),
     });
 }
 

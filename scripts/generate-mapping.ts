@@ -199,20 +199,22 @@ function main(): void {
         const key = `${cs.method} ${normalizePathForMatch(cs.path)}`;
         if (!callSiteIndex.has(key)) callSiteIndex.set(key, cs);
     }
-    const actionByEndpoint = new Map<string, string>();
+    const actionsByEndpoint = new Map<string, string[]>();
     for (const a of actions) {
         const parsedEp = parseTestrailTag(a.apiEndpoint);
         if (parsedEp === null) continue;
         const key = `${parsedEp.method} ${normalizePathForMatch(parsedEp.path)}`;
-        if (!actionByEndpoint.has(key)) actionByEndpoint.set(key, `${a.resource}:${a.action}`);
+        const cliKey = `${a.resource}:${a.action}`;
+        const existing = actionsByEndpoint.get(key);
+        actionsByEndpoint.set(key, [...(existing ?? []), cliKey]);
     }
 
     // 6. Build rows
     const rows: MappingRow[] = endpoints.map((endpoint) => {
         const key = `${endpoint.method} ${normalizePathForMatch(endpoint.path)}`;
         const match = callSiteIndex.get(key) ?? null;
-        const cliKey = actionByEndpoint.get(key) ?? null;
-        return { endpoint, match, cliKey };
+        const cliKeys = actionsByEndpoint.get(key) ?? [];
+        return { endpoint, match, cliKeys };
     });
 
     // 7. Group + sort
@@ -250,9 +252,14 @@ function main(): void {
         return;
     }
     writeFileSync(OUTPUT_PATH, out);
-    const skillBound = rows.filter((r) => r.cliKey !== null && recipes.has(r.cliKey)).length;
+    const cliBoundEndpoints = rows.filter((row) => row.cliKeys.length > 0).length;
+    const cliActions = rows.reduce((count, row) => count + row.cliKeys.length, 0);
+    const skillRecipeActions = rows.reduce(
+        (count, row) => count + row.cliKeys.filter((cliKey) => recipes.has(cliKey)).length,
+        0,
+    );
     console.log(
-        `Wrote docs/API-MAPPING.md (${grouped.length} resources, ${rows.length} endpoints, ${rows.filter((r) => r.match !== null).length} client-bound, ${rows.filter((r) => r.cliKey !== null).length} CLI-bound, ${skillBound} skill-recipe-bound).`,
+        `Wrote docs/API-MAPPING.md (${grouped.length} resources, ${rows.length} endpoints, ${rows.filter((r) => r.match !== null).length} client-bound endpoints, ${cliBoundEndpoints} CLI-bound endpoints, ${cliActions} CLI actions, ${skillRecipeActions} skill-recipe actions).`,
     );
 }
 

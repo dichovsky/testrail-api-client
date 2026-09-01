@@ -1,8 +1,14 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Test, GetTestsOptions } from '../types.js';
-import { TestSchema, UpdateTestsResponseSchema } from '../schemas.js';
-import type { UpdateTestLabelsPayload, UpdateTestsLabelsPayload, UpdateTestsResponse } from '../schemas.js';
+import type { Test, TestWithData, GetTestsOptions } from '../types.js';
+import { TestSchema, TestWithDataResponseSchema, UpdateTestsResponseSchema } from '../schemas.js';
+import type {
+    TestWithDataResponse,
+    UpdateTestLabelsPayload,
+    UpdateTestsLabelsPayload,
+    UpdateTestsResponse,
+} from '../schemas.js';
 import { serializeIdList } from '../utils.js';
+import { TestRailValidationError } from '../errors.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
@@ -16,15 +22,39 @@ type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'rem
     pageProjection?: boolean;
 };
 
+export interface GetTestOptions {
+    /** `1` includes results and attachments; `0` returns the ordinary test. */
+    withData?: '0' | '1';
+}
+
 export class TestModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_test/{test_id} */
-    async getTest(testId: number): Promise<Test> {
+    async getTest(testId: number, options: { withData: '1' }): Promise<TestWithData>;
+    async getTest(testId: number, options?: GetTestOptions): Promise<Test>;
+    async getTest(testId: number, options?: GetTestOptions): Promise<Test | TestWithData> {
         validateId(testId, 'testId');
+        const withData: unknown = options?.withData;
+        if (withData !== undefined && withData !== '0' && withData !== '1') {
+            throw new TestRailValidationError('withData must be "0" or "1"');
+        }
+        const endpoint = buildEndpoint(`get_test/${testId}`, { with_data: withData });
+        if (withData === '1') {
+            const response = await this.client.request<TestWithDataResponse>({
+                method: 'GET',
+                endpoint,
+                schema: TestWithDataResponseSchema,
+            });
+            return {
+                ...response.test,
+                results: [...response.results],
+                attachments: [...response.attachments],
+            };
+        }
         return this.client.request<Test>({
             method: 'GET',
-            endpoint: `get_test/${testId}`,
+            endpoint,
             schema: TestSchema,
         });
     }

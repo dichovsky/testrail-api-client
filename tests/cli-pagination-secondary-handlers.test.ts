@@ -290,4 +290,40 @@ describe('secondary pagination CLI handlers', () => {
         });
         expect(out).toHaveBeenCalledWith(mode === 'items' ? itemResult : mode === 'page' ? pageResult : allResult);
     });
+
+    it('shared-step list forwards every documented filter through --all', async () => {
+        const harness = buildHarness();
+        const args: HandlerArgs = {
+            ...allFlags,
+            projectId: '7',
+            createdAfter: '100',
+            createdBefore: '200',
+            createdBy: '2,3',
+            updatedAfter: '300',
+            updatedBefore: '400',
+            refs: 'TR-42',
+        };
+        const ctx: HandlerContext = {
+            client: harness.client,
+            args,
+            pagination: parseCliPagination(args),
+            bodyInput: {},
+            dryRun: false,
+            force: false,
+            confirmDestructive: false,
+            out: vi.fn(),
+        };
+
+        await handleSharedStepList(ctx);
+
+        expect(harness.methods.sharedSteps[2]).toHaveBeenCalledWith(7, {
+            createdAfter: 100,
+            createdBefore: 200,
+            createdBy: [2, 3],
+            updatedAfter: 300,
+            updatedBefore: 400,
+            refs: 'TR-42',
+            ...controlledAllOptions,
+        });
+    });
 });

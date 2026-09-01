@@ -1,5 +1,6 @@
 import { ACTIONS } from './metadata.js';
 import type { ActionSpec } from './metadata/types.js';
+import { CLI_OPTION_DOCUMENTATION, type CliOptionDocumentationEntry, type CliOptionName } from './flags.js';
 
 /**
  * Renders the `--help` text from `ACTIONS` at module load.
@@ -17,9 +18,9 @@ import type { ActionSpec } from './metadata/types.js';
  *   - Attachment:          attachment resource (mixed read/write/destructive/file I/O)
  *   - BDD:                 bdd resource (text I/O for get, file input for add)
  *
- * The trailing blocks ("Binary stdio", "Meta", "Auth", "Options",
- * destructive notes) are not per-action and stay hand-written as static
- * constants here.
+ * The trailing blocks ("Binary stdio", "Meta", "Auth", and destructive
+ * notes) stay hand-written. The option inventory is rendered from
+ * `CLI_OPTION_DOCUMENTATION`, the same registry used by the bundled skill.
  */
 
 // ── Resources whose actions are grouped into the "Metadata" section ──────────
@@ -169,10 +170,9 @@ function renderBddSection(): string {
 
 // ── Static trailing blocks (not per-action) ──────────────────────────────────
 //
-// These describe global flags, env vars, and operational semantics that
-// apply across many actions rather than belonging to any one. Kept as
-// hand-written constants because there is no per-spec data to derive
-// from — the wording is reference documentation, not auto-derived listings.
+// These describe env vars and operational semantics that apply across many
+// actions rather than belonging to any one. The complete option inventory is
+// rendered separately from the typed registry in flags.ts.
 
 const BINARY_STDIO_BLOCK = `Binary stdio (Unix-convention '-' sentinel):
   --file -    Read binary upload payload from stdin (must be piped; not a TTY).
@@ -216,80 +216,21 @@ const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other process
                     '1'. '0', empty, or unset keeps privacy-safe advisory
                     warnings. Other non-empty values are rejected.`;
 
-const OPTIONS_BLOCK = `Options:
-  --api-key-stdin       Read API key from stdin (single line; mutually
-                        exclusive with stdin-piped JSON body). Use the
-                        TESTRAIL_API_KEY env var when possible.
-  --data <json>         Inline JSON body for write actions
-  --data-file <path>    Read JSON body from file
-  --dry-run             Validate payload but don't call the API
-  --format json|table|yaml|csv
-                        Output format (default: json). yaml emits a YAML 1.2
-                        document with 2-space indent and double-quoted strings
-                        where ambiguity demands it; csv emits RFC 4180 with
-                        CRLF line terminators, sorted union of top-level keys
-                        as headers, and nested objects/arrays JSON-stringified
-                        into the cell (no dot-path flattening).
-  --quiet               Suppress output; use exit code 0/1
-  --strict-responses    Fail closed on the first response-schema mismatch.
-                        Overrides advisory mode for this invocation.
-  --timeout <ms>        Request timeout in milliseconds. Overrides the
-                        TESTRAIL_TIMEOUT env var; default 30000, max 300000.
-  --page                Return one normalized page with pagination metadata.
-                        Uses --limit/--offset where the endpoint supports them.
-  --all                 Fetch all pages subject to aggregate safety bounds.
-                        Mutually exclusive with --page and with --limit/--offset.
-  --page-size <n>       --all per-request page size where documented
-                        (default 250; max 250).
-  --start-offset <n>    --all initial offset where documented (default 0).
-  --max-pages <n>       --all request bound (default 100).
-  --max-items <n>       --all item bound (default 25000).
-  --max-duration-ms <n> --all wall-clock bound (default/max 300000).
-  --max-bytes <n>       --all serialized-data bound (default 104857600;
-                        hard maximum 1073741824).
-  --status-id <ids>     Comma-separated TestRail status IDs (test list / result list-for-test / result list-for-case; e.g. 1,5)
-  --defects-filter <s>  Substring filter on the result 'defects' field (result list-for-test / list-for-case)
-  --suite-id <ids>      Suite ID; run list also accepts a comma-separated list
-  --section-id <id>     Section filter (case list / bdd list)
-  --type-id <ids>       Comma-separated case type IDs (case list)
-  --priority-id <ids>   Comma-separated priority IDs (case list)
-  --template-id <ids>   Comma-separated template IDs (case list)
-  --milestone-id <ids>  Comma-separated milestone IDs (case/run/plan list)
-  --created-after <ts>  Created-after Unix timestamp (case/run/plan list)
-  --created-before <ts> Created-before Unix timestamp (case/run/plan list)
-  --created-by <ids>    Comma-separated creator user IDs (case/run/plan list)
-  --updated-after <ts>  Updated-after Unix timestamp (case list)
-  --updated-before <ts> Updated-before Unix timestamp (case list)
-  --updated-by <ids>    Comma-separated updater user IDs (case list)
-  --label-id <ids>      Comma-separated label IDs (case / bdd / test list)
-  --refs <refs>         One reference for run/plan list; case/bdd list accept
-                        comma-separated values via TestRail 10.7 refs[]
-  --filter <text>       Case-title substring filter (case list)
-  --include-plan-runs   Include plan-owned runs in run list
-  --is-completed <bool> Filter run/plan list; accepts true, false, 1, or 0
-  --file <path>         Binary file to upload (attachment add-to-* actions)
-  --filename <name>     Override the upload filename (default: basename of --file)
-  --out <path>          Local path to write the downloaded attachment to (attachment get)
-  --force               Overwrite an existing --out file, or an existing SKILL.md (install-skill)
-  --yes                 Required to execute destructive actions (attachment delete, case delete, case delete-bulk, run close, run delete, section delete, suite delete, milestone delete, project delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete, configuration delete, configuration-group delete, label delete, label delete-bulk)
-  --soft                Server-side preview for soft-capable deletes:
-                          case delete, case delete-bulk, run delete,
-                          section delete, suite delete.
-                        TestRail returns counts without deleting; distinct
-                        from --dry-run which makes NO API call.
-                        Rejected (TestRail has no --soft support) on:
-                          milestone delete, project delete,
-                          plan close, plan delete, plan delete-entry,
-                          plan delete-run-from-entry, variable delete,
-                          group delete, dataset delete, shared-step delete,
-                          configuration delete, configuration-group delete,
-                          label delete, label delete-bulk.
-  --interval <seconds>  run watch poll interval (default: 30; min: 5; max: 600)
-  --once                run watch: poll once and exit instead of running until is_completed
-  --global              install-skill: install to ~/.claude/skills/ (default: ./.claude/skills/)
-  --print-path          install-skill: print bundled SKILL.md path and exit
-  --help                Show this help
-  --version             Print version`;
+function optionUsage(name: CliOptionName, documentation: CliOptionDocumentationEntry): string {
+    return `--${name}${documentation.value === undefined ? '' : ` ${documentation.value}`}`;
+}
+
+/** Render the complete live option inventory from the shared typed registry. */
+export function renderOptionsBlock(): string {
+    const entries = Object.entries(CLI_OPTION_DOCUMENTATION) as [CliOptionName, CliOptionDocumentationEntry][];
+    const usages = entries.map(([name, documentation]) => optionUsage(name, documentation));
+    const width = Math.max(...usages.map((usage) => usage.length));
+    const lines = entries.map(([name, documentation], index) => {
+        const usage = usages[index] ?? optionUsage(name, documentation);
+        return `  ${usage.padEnd(width)}  [${documentation.scope}] ${documentation.description}`;
+    });
+    return ['Options:', ...lines].join('\n');
+}
 
 const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required
 (--data | --data-file | stdin). Stdin is auto-detected when input is piped
@@ -349,7 +290,7 @@ export function buildHelpText(): string {
         '',
         AUTH_BLOCK,
         '',
-        OPTIONS_BLOCK,
+        renderOptionsBlock(),
         '',
         SEMANTICS_BLOCK,
     ];

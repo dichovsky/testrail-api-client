@@ -9,7 +9,15 @@
  * and reject a wrong-typed value.
  */
 import { describe, it, expect } from 'vitest';
-import { RunSchema, PlanSchema, CaseSchema, HistoryEntrySchema, ResultSchema, TestSchema } from '../src/schemas.js';
+import {
+    RunSchema,
+    PlanSchema,
+    PlanEntrySchema,
+    CaseSchema,
+    HistoryEntrySchema,
+    ResultSchema,
+    TestSchema,
+} from '../src/schemas.js';
 import type { ZodTypeAny } from 'zod';
 
 /** Asserts a `.nullish()` field exists and tolerates null/undefined. */
@@ -43,6 +51,13 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
             expect(f.safeParse({ mode: '1', filters: { 'cases:priority_id': { values: [2] } } }).success).toBe(true);
             expect(f.safeParse({ any: 'shape' }).success).toBe(true);
             expect(f.safeParse(['server-defined']).success).toBe(true);
+        });
+
+        it('declares dataset_id as a nullish number', () => {
+            const f = RunSchema.shape.dataset_id;
+            expectNullishField(f);
+            expect(f.safeParse(42).success).toBe(true);
+            expect(f.safeParse('42').success).toBe(false);
         });
 
         it('round-trips a realistic run body carrying the new fields', () => {
@@ -83,6 +98,15 @@ describe('R-EXTRA schema enrichment — newly declared response fields', () => {
             expectNullishField(f);
             expect(f.safeParse(1700000000).success).toBe(true);
             expect(f.safeParse('x').success).toBe(false);
+        });
+    });
+
+    describe('PlanEntrySchema', () => {
+        it('declares dataset_id as a nullish number', () => {
+            const f = PlanEntrySchema.shape.dataset_id;
+            expectNullishField(f);
+            expect(f.safeParse(42).success).toBe(true);
+            expect(f.safeParse('42').success).toBe(false);
         });
     });
 

@@ -296,26 +296,40 @@ describe('cell renderers', () => {
     });
 
     it('renders CLI cell with space (not colon) so the docs read like an invocation', () => {
-        expect(renderCliCell('case:get')).toBe('`case get`');
-        expect(renderCliCell(null)).toBe('—');
+        expect(renderCliCell(['case:get'])).toBe('`case get`');
+        expect(renderCliCell([])).toBe('—');
+    });
+
+    it('renders every CLI action when multiple actions share one endpoint', () => {
+        expect(renderCliCell(['run:get', 'run:watch'])).toBe('`run get`<br>`run watch`');
     });
 
     it('renders skill cell as command-table fallback when CLI is bound but no recipe tag exists', () => {
-        expect(renderSkillCell('case:get')).toBe('[command-table](../skill/SKILL.md#command-surface)');
-        expect(renderSkillCell('case:get', new Map())).toBe('[command-table](../skill/SKILL.md#command-surface)');
-        expect(renderSkillCell(null)).toBe('—');
+        expect(renderSkillCell(['case:get'])).toBe('[command-table](../skill/SKILL.md#command-surface)');
+        expect(renderSkillCell(['case:get'], new Map())).toBe('[command-table](../skill/SKILL.md#command-surface)');
+        expect(renderSkillCell([])).toBe('—');
     });
 
     it('renders skill cell as a recipe link when the CLI key has a recipe-for tag', () => {
         const recipes: RecipeMap = new Map([
             ['case:get', { number: 5, title: 'Fetch a case', anchor: '5-fetch-a-case' }],
         ]);
-        expect(renderSkillCell('case:get', recipes)).toBe('[recipe #5](../skill/SKILL.md#5-fetch-a-case)');
+        expect(renderSkillCell(['case:get'], recipes)).toBe('[recipe #5](../skill/SKILL.md#5-fetch-a-case)');
+    });
+
+    it('renders one skill link per CLI action when actions share an endpoint', () => {
+        const recipes: RecipeMap = new Map([
+            ['run:get', { number: 7, title: 'Inspect a run', anchor: '7-inspect-a-run' }],
+            ['run:watch', { number: 31, title: 'Watch a run', anchor: '31-watch-a-run' }],
+        ]);
+        expect(renderSkillCell(['run:get', 'run:watch'], recipes)).toBe(
+            '[recipe #7](../skill/SKILL.md#7-inspect-a-run)<br>[recipe #31](../skill/SKILL.md#31-watch-a-run)',
+        );
     });
 
     it('renders skill cell as em-dash when no CLI binding, regardless of recipes map', () => {
         const recipes: RecipeMap = new Map([['case:get', { number: 1, title: 'x', anchor: 'x' }]]);
-        expect(renderSkillCell(null, recipes)).toBe('—');
+        expect(renderSkillCell([], recipes)).toBe('—');
     });
 });
 
@@ -435,7 +449,7 @@ describe('aggregate renderers', () => {
                         summary: 'Fetch a case.',
                     },
                     match: { moduleFile: '/repo/src/modules/cases.ts', methodName: 'getCase', line: 35 },
-                    cliKey: 'case:get',
+                    cliKeys: ['case:get'],
                 },
                 {
                     endpoint: {
@@ -446,7 +460,7 @@ describe('aggregate renderers', () => {
                         summary: 'Delete a case.',
                     },
                     match: null,
-                    cliKey: null,
+                    cliKeys: [],
                 },
             ],
         },
@@ -454,12 +468,46 @@ describe('aggregate renderers', () => {
 
     it('summary totals: skill column counts only rows with a recipe-for tag (not CLI fallback rows)', () => {
         // Without a recipes map, skill column is 0 (Phase 3: only curated recipes count).
-        expect(renderSummaryTable(grouped)).toContain('| **Total** | **2** | **1** | **1** | **0** |');
+        expect(renderSummaryTable(grouped)).toContain('| **Total** | **2** | **1** | **1** | **1** | **0** |');
         // With a recipe for case:get, skill column rises to 1.
         const recipes: RecipeMap = new Map([['case:get', { number: 1, title: 'Get a case', anchor: '1-get-a-case' }]]);
         const out = renderSummaryTable(grouped, recipes);
-        expect(out).toContain('| [Cases](#cases) | 2 | 1 | 1 | 1 |');
-        expect(out).toContain('| **Total** | **2** | **1** | **1** | **1** |');
+        expect(out).toContain('| [Cases](#cases) | 2 | 1 | 1 | 1 | 1 |');
+        expect(out).toContain('| **Total** | **2** | **1** | **1** | **1** | **1** |');
+    });
+
+    it('distinguishes endpoint coverage from action counts when actions share an endpoint', () => {
+        const runRows: GroupedResource[] = [
+            {
+                resource: 'Runs',
+                rows: [
+                    {
+                        endpoint: {
+                            resource: 'Runs',
+                            operation: 'get_run',
+                            method: 'GET',
+                            path: 'get_run/{run_id}',
+                            summary: 'Fetch a run.',
+                        },
+                        match: { moduleFile: '/repo/src/modules/runs.ts', methodName: 'getRun', line: 23 },
+                        cliKeys: ['run:get', 'run:watch'],
+                    },
+                ],
+            },
+        ];
+        const recipes: RecipeMap = new Map([
+            ['run:get', { number: 7, title: 'Inspect a run', anchor: '7-inspect-a-run' }],
+            ['run:watch', { number: 31, title: 'Watch a run', anchor: '31-watch-a-run' }],
+        ]);
+
+        const summary = renderSummaryTable(runRows, recipes);
+        expect(summary).toContain('| [Runs](#runs) | 1 | 1 | 1 | 2 | 2 |');
+        expect(summary).toContain('| **Total** | **1** | **1** | **1** | **2** | **2** |');
+
+        const section = renderResourceSection('Runs', runRows[0]?.rows ?? [], '/repo/', recipes);
+        expect(section).toContain('`run get`<br>`run watch`');
+        expect(section).toContain('recipe #7');
+        expect(section).toContain('recipe #31');
     });
 
     it('resource section emits stable slug anchor', () => {

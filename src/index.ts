@@ -97,6 +97,8 @@ export {
     UpdatePlanPayloadSchema,
     AddProjectPayloadSchema,
     UpdateProjectPayloadSchema,
+    UpdateProjectGroupAssignmentPayloadSchema,
+    UpdateProjectUserAssignmentPayloadSchema,
     AddSuitePayloadSchema,
     UpdateSuitePayloadSchema,
     AddSectionPayloadSchema,
@@ -156,6 +158,8 @@ export type {
     UpdatePlanPayload,
     AddProjectPayload,
     UpdateProjectPayload,
+    UpdateProjectGroupAssignmentPayload,
+    UpdateProjectUserAssignmentPayload,
     AddSuitePayload,
     UpdateSuitePayload,
     AddSectionPayload,
@@ -196,16 +200,17 @@ export type {
 } from './schemas.js';
 export type { GetAllCasesOptions, GetAllHistoryForCaseOptions, GetHistoryForCaseOptions } from './modules/cases.js';
 export type { GetAllBddsOptions, GetBddsOptions } from './modules/bdd.js';
-export type { GetAllTestsOptions } from './modules/tests.js';
-export type { GetAllResultsOptions } from './modules/results.js';
+export type { GetAllTestsOptions, GetTestOptions } from './modules/tests.js';
+export type { GetAllResultsForRunOptions, GetAllResultsOptions } from './modules/results.js';
 export type { GetAllAttachmentsOptions, GetAttachmentsOptions } from './modules/attachments.js';
 export type { GetAllRunsOptions } from './modules/runs.js';
 export type { GetAllPlansOptions } from './modules/plans.js';
-export type { GetAllProjectsOptions, GetProjectsPageOptions } from './modules/projects.js';
+export type { GetAllProjectsOptions, GetProjectsOptions, GetProjectsPageOptions } from './modules/projects.js';
 export type { GetAllSectionsOptions, GetSectionsOptions } from './modules/sections.js';
 export type { GetAllMilestonesOptions } from './modules/milestones.js';
 export type { GetAllSuitesOptions, GetSuitesOptions } from './modules/suites.js';
 export type {
+    DeleteSharedStepOptions,
     GetAllSharedStepHistoryOptions,
     GetAllSharedStepsOptions,
     GetSharedStepHistoryOptions,
@@ -228,6 +233,7 @@ export type {
     PlanEntry,
     Run,
     Test,
+    TestWithData,
     Result,
     Milestone,
     User,
@@ -236,6 +242,7 @@ export type {
     GetCasesOptions,
     GetPlansOptions,
     GetTestsOptions,
+    GetResultsForRunOptions,
     GetResultsOptions,
     GetMilestonesOptions,
     GetRunsOptions,
