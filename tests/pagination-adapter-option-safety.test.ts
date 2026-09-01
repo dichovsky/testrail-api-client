@@ -338,13 +338,13 @@ const filterAdapters: readonly FilterAdapter[] = [
         },
     },
     {
-        name: 'results',
+        name: 'run results',
         key: 'results',
-        endpoint: 'get_results_for_case/1/1',
+        endpoint: 'get_results_for_run/1',
         start: (client) => {
             const options = { createdBy: [1], statusId: [2], defectsFilter: 'A', ...BOUNDS };
             return {
-                promise: client.results.getAllResultsForCase(1, 1, options),
+                promise: client.results.getAllResultsForRun(1, options),
                 mutate: () => {
                     options.createdBy.push(3);
                     options.statusId.push(4);

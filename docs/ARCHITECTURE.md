@@ -18,10 +18,10 @@ This document describes how the code is organized, why the layers are split the 
 │  ── TestRailClient, errors, Zod schemas, types                  │
 ├─────────────────────────────────────────────────────────────────┤
 │  Facade           src/client.ts            TestRailClient       │
-│  ── extends core; composes 18 domain modules                    │
+│  ── extends core; composes 19 domain modules                    │
 │  ── namespaced modules are the endpoint access path             │
 ├─────────────────────────────────────────────────────────────────┤
-│  Domain modules   src/modules/*.ts         18 namespaces        │
+│  Domain modules   src/modules/*.ts         19 namespaces        │
 │  ── stateless; one per TestRail resource                        │
 │  ── constructor-injected reference to the core                  │
 ├─────────────────────────────────────────────────────────────────┤
@@ -36,7 +36,7 @@ This document describes how the code is organized, why the layers are split the 
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Every endpoint is reached through its domain module: `client.projects.getProject(id)`, `client.runs.addRun(projectId, payload)`, `client.results.addResultForCase(runId, caseId, payload)`. The 18 module fields are the single access path; there is no flat facade. (Removed in v5.0.0 — see CHANGELOG for the migration map.)
+Every endpoint is reached through its domain module: `client.projects.getProject(id)`, `client.runs.addRun(projectId, payload)`, `client.results.addResultForCase(runId, caseId, payload)`. The 19 module fields are the single access path; there is no flat facade. (Removed in v5.0.0 — see CHANGELOG for the migration map.)
 
 ---
 
@@ -121,7 +121,7 @@ Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), an
 
 ## 3. Domain modules — `src/modules/*.ts`
 
-Eighteen stateless namespaces, one per TestRail resource:
+Nineteen stateless namespaces, one per TestRail resource:
 
 | Module              | Domain                                                                      |
 | ------------------- | --------------------------------------------------------------------------- |
@@ -139,6 +139,7 @@ Eighteen stateless namespaces, one per TestRail resource:
 | `configurations.ts` | Configuration groups + configurations                                       |
 | `attachments.ts`    | Upload / list / download / delete (binary I/O)                              |
 | `bdd.ts`            | BDD scenarios (text response — `request(spec)` with `responseKind: 'text'`) |
+| `labels.ts`         | Labels + case/test label assignment                                         |
 | `sharedSteps.ts`    | Shared steps (+ history)                                                    |
 | `variables.ts`      | Project variables                                                           |
 | `datasets.ts`       | Datasets                                                                    |
@@ -292,8 +293,8 @@ package.json:bin
 Consumers:
 
 1. `dispatch.ts` derives both `HANDLERS` and `RESOURCES` from `ACTIONS`.
-2. `src/cli/help.ts` generates the `--help` text from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD); only the trailing static blocks (binary stdio, meta, auth, options) are hand-written.
-3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema section in `skill/SKILL.md`.
+2. `src/cli/help.ts` generates the action catalog from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD). Its option reference comes from the typed `CLI_OPTION_DOCUMENTATION` registry in `src/cli/flags.ts`; only the non-option trailing guidance (binary stdio, meta, auth, and safety semantics) is hand-written.
+3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema sections from `ACTIONS`, and renders the complete CLI option reference from `CLI_OPTION_DOCUMENTATION`.
 4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C), reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D), and checks pagination metadata bidirectionally (gate E).
 5. `getActionSpec(resource, action)` is called by `index.ts` to decide whether to suppress the stdin body thunk for file-input actions.
 
@@ -430,12 +431,12 @@ Subprocess-based CLI tests are deliberate — they verify the real entrypoint, a
 
 ## 9. Generated artifacts
 
-| Artifact              | Generator                                                                        | Drift guard                                |
-| --------------------- | -------------------------------------------------------------------------------- | ------------------------------------------ |
-| `CODEMAP.md`          | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)  | `npm run codemap:check` (pretest + CI)     |
-| `skill/SKILL.md`      | `scripts/generate-skill.ts` (consumes `ACTIONS` from `src/cli/metadata.ts`)      | `npm run skill:check` (git diff exit code) |
-| `docs/API-MAPPING.md` | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D/E) | `npm run mapping:check` (pretest + CI)     |
-| `AGENTS.md`           | `npm run agents-md` (consumes `ACTIONS`)                                         | `npm run agents-md:check` (pretest + CI)   |
+| Artifact                                                 | Generator                                                                                                     | Drift guard                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `CODEMAP.md`                                             | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)                               | `npm run codemap:check` (pretest + CI)                      |
+| `skill/SKILL.md`, `skill/reference/payload-schemas.yaml` | `scripts/generate-skill.ts` (consumes source `ACTIONS` and `CLI_OPTION_DOCUMENTATION` directly through `tsx`) | `npm run skill:check` (in-memory render/content comparison) |
+| `docs/API-MAPPING.md`                                    | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D/E)                              | `npm run mapping:check` (pretest + CI)                      |
+| `AGENTS.md`                                              | `npm run agents-md` (consumes `ACTIONS`)                                                                      | `npm run agents-md:check` (pretest + CI)                    |
 
 All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.
 

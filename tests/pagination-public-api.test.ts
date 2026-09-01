@@ -8,6 +8,10 @@ import {
     MAX_PAGINATION_BYTES,
     MAX_PAGINATION_LIMIT,
     TestRailPaginationError,
+    type GetAllResultsForRunOptions,
+    type GetAllResultsOptions,
+    type GetResultsForRunOptions,
+    type GetResultsOptions,
     type Page,
     type PaginatedRequestOptions,
     type PaginationSafetyOptions,
@@ -41,5 +45,14 @@ describe('pagination public exports', () => {
             { kind: 'envelope'; items: { id: number }[] } | { kind: 'legacy-array'; items: { id: number }[] }
         >();
         expectTypeOf<PaginatedRequestOptions>().toMatchTypeOf<PaginationSafetyOptions>();
+    });
+
+    it('exports endpoint-specific result filter types', () => {
+        expectTypeOf<'createdAfter' extends keyof GetResultsOptions ? true : false>().toEqualTypeOf<false>();
+        expectTypeOf<'createdAfter' extends keyof GetResultsForRunOptions ? true : false>().toEqualTypeOf<true>();
+        expectTypeOf<'defectsFilter' extends keyof GetResultsOptions ? true : false>().toEqualTypeOf<true>();
+        expectTypeOf<'defectsFilter' extends keyof GetResultsForRunOptions ? true : false>().toEqualTypeOf<true>();
+        expectTypeOf<'createdAfter' extends keyof GetAllResultsOptions ? true : false>().toEqualTypeOf<false>();
+        expectTypeOf<'createdAfter' extends keyof GetAllResultsForRunOptions ? true : false>().toEqualTypeOf<true>();
     });
 });

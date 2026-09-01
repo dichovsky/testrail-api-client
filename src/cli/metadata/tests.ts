@@ -18,7 +18,7 @@ export const testActions: readonly ActionSpec[] = [
     {
         resource: 'test',
         action: 'get',
-        summary: 'Fetch a single test (run instance of a case) by ID',
+        summary: 'Fetch a single test by ID (optionally with TestRail data via --with-data)',
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'GET get_test/{test_id}',
         isWrite: false,

@@ -3,12 +3,29 @@ import type { SharedStep, AddSharedStepPayload, UpdateSharedStepPayload, StepHis
 import { SharedStepSchema, StepHistoryEntrySchema } from '../schemas.js';
 import { validateId, validatePaginationParams } from '../validation.js';
 import { buildEndpoint } from '../url.js';
+import { serializeIdFilter } from '../utils.js';
 import { collectAllPages, decodePage } from '../pagination.js';
 import type { Page, PaginatedRequestOptions, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
 import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotPaginatedRequestOptions, snapshotPaginationSafetyOptions } from './pagination-options.js';
+import {
+    snapshotOptionFields,
+    snapshotPaginatedRequestOptions,
+    snapshotPaginationSafetyOptions,
+} from './pagination-options.js';
 
 export interface GetSharedStepsOptions {
+    /** Only return shared steps created after this Unix timestamp */
+    createdAfter?: number;
+    /** Only return shared steps created before this Unix timestamp */
+    createdBefore?: number;
+    /** Only return shared steps created by one or more users */
+    createdBy?: number | readonly number[];
+    /** Only return shared steps updated after this Unix timestamp */
+    updatedAfter?: number;
+    /** Only return shared steps updated before this Unix timestamp */
+    updatedBefore?: number;
+    /** Only return shared steps matching this external reference */
+    refs?: string;
     /** Maximum number of shared steps to return */
     limit?: number;
     /** Pagination offset */
@@ -22,8 +39,17 @@ export interface GetSharedStepHistoryOptions {
     offset?: number;
 }
 
-export type GetAllSharedStepsOptions = PaginatedRequestOptions;
+export type GetAllSharedStepsOptions = Omit<GetSharedStepsOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 export type GetAllSharedStepHistoryOptions = PaginationSafetyOptions;
+
+export interface DeleteSharedStepOptions {
+    /**
+     * Preserve the step contents in cases that reference the shared step.
+     * TestRail defaults this to `true`; set it to `false` to remove those
+     * steps from every referencing case as well.
+     */
+    keepInCases?: boolean;
+}
 
 type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
     pageProjection?: boolean;
@@ -57,6 +83,14 @@ export class SharedStepModule {
 
     /** Get every shared step under the configured pagination safety bounds. */
     async getAllSharedSteps(projectId: number, options?: GetAllSharedStepsOptions): Promise<SharedStep[]> {
+        const filters = snapshotOptionFields(options, [
+            'createdAfter',
+            'createdBefore',
+            'createdBy',
+            'updatedAfter',
+            'updatedBefore',
+            'refs',
+        ]);
         return collectAllPages<SharedStep>({
             ...snapshotPaginatedRequestOptions(options),
             requestControls: true,
@@ -64,6 +98,7 @@ export class SharedStepModule {
                 this.requestSharedSteps(
                     projectId,
                     {
+                        ...filters,
                         limit: request.limit as number,
                         offset: request.offset as number,
                     },
@@ -84,6 +119,12 @@ export class SharedStepModule {
         validateId(projectId, 'projectId');
         validatePaginationParams(options?.limit, options?.offset);
         const endpoint = buildEndpoint(`get_shared_steps/${projectId}`, {
+            created_after: options?.createdAfter,
+            created_before: options?.createdBefore,
+            created_by: serializeIdFilter(options?.createdBy, 'createdBy'),
+            updated_after: options?.updatedAfter,
+            updated_before: options?.updatedBefore,
+            refs: options?.refs,
             limit: options?.limit,
             offset: options?.offset,
         });
@@ -124,11 +165,14 @@ export class SharedStepModule {
     }
 
     /** @testrail POST delete_shared_step/{shared_step_id} */
-    async deleteSharedStep(sharedStepId: number): Promise<void> {
+    async deleteSharedStep(sharedStepId: number, options?: DeleteSharedStepOptions): Promise<void> {
         validateId(sharedStepId, 'sharedStepId');
         await this.client.request<void>({
             method: 'POST',
             endpoint: `delete_shared_step/${sharedStepId}`,
+            ...(options?.keepInCases !== undefined && {
+                body: { kind: 'json' as const, data: { keep_in_cases: options.keepInCases ? 1 : 0 } },
+            }),
         });
     }
 

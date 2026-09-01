@@ -1,17 +1,20 @@
 /**
- * Unit tests for the skill-generator helpers (scripts/skill-renderer.mjs).
+ * Unit tests for the skill-generator helpers (scripts/skill-renderer.ts).
  *
  * Focus is on the sentinel-replacement behavior (the part most likely to
- * drift) and a smoke check on the table renderer. The full integration
- * (script invocation + dist/ import) is exercised in CI by the
- * `skill:check` npm-script which checks both `skill/SKILL.md` and the generated
- * `skill/reference/payload-schemas.yaml` reference
- * after regeneration.
+ * drift), option-registry completeness, and table renderers. Check mode is
+ * also invoked against the committed artifacts without writing them.
  */
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-// Ambient module typing for *.mjs test imports is provided by
-// tests/skill-renderer-mjs.d.ts.
+import { z } from 'zod';
+import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS } from '../src/cli/flags.js';
 import {
+    findStaleSkillArtifacts,
+    renderCliOptionReference,
     renderCommandTable,
     renderPayloadSchemaReference,
     renderPayloadSchemas,
@@ -19,6 +22,9 @@ import {
     replaceSection,
     schemaNameFor,
 } from '../scripts/skill-renderer.js';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(HERE, '..');
 
 interface ActionFixture {
     resource: string;
@@ -56,6 +62,20 @@ const NO_BODY_WRITE_FIXTURE: ActionFixture = {
     summary: 'Close a test run (no body)',
     pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
     isWrite: true,
+};
+
+const BULK_WRITE_FIXTURE: ActionFixture = {
+    resource: 'case',
+    action: 'add-bulk',
+    summary: 'Create multiple test cases under a section',
+    pathParams: [{ name: 'section_id', description: 'Section to create the cases under' }],
+    isWrite: true,
+    bodySchema: z.array(
+        z.object({
+            title: z.string(),
+            priority_id: z.number().optional(),
+        }),
+    ),
 };
 
 describe('renderCommandTable', () => {
@@ -154,6 +174,103 @@ describe('renderCommandTable', () => {
     });
 });
 
+describe('CLI option documentation', () => {
+    it('has exactly one documentation entry for every parser-recognized option', () => {
+        expect(Object.keys(CLI_OPTION_DOCUMENTATION)).toEqual(Object.keys(CLI_OPTIONS));
+    });
+
+    it('tracks the TestRail 10.7 option additions and excludes the removed no-op flag', () => {
+        expect(Object.keys(CLI_OPTION_DOCUMENTATION)).toEqual(
+            expect.arrayContaining(['is-started', 'with-data', 'keep-in-cases', 'user-email']),
+        );
+        expect(CLI_OPTION_DOCUMENTATION).not.toHaveProperty('case-id');
+    });
+
+    it('documents a value placeholder for strings and none for boolean switches', () => {
+        for (const [name, option] of Object.entries(CLI_OPTIONS)) {
+            const documentation = CLI_OPTION_DOCUMENTATION[name as keyof typeof CLI_OPTION_DOCUMENTATION];
+            if (option.type === 'string') {
+                expect(documentation.value, `--${name} needs a value placeholder`).toMatch(/^<.+>$/);
+            } else {
+                expect(documentation.value, `--${name} is boolean and must not show a value`).toBeUndefined();
+            }
+        }
+    });
+
+    it('renders every live option into the agent-facing reference', () => {
+        const out = renderCliOptionReference(CLI_OPTION_DOCUMENTATION);
+        for (const name of Object.keys(CLI_OPTIONS)) {
+            expect(out, `--${name} missing from option reference`).toContain(`\`--${name}`);
+        }
+    });
+
+    it('escapes table separators and flattens newlines in registry text', () => {
+        const out = renderCliOptionReference({
+            format: {
+                value: '<json|yaml>',
+                scope: 'read|write',
+                description: 'line one\nline two',
+            },
+        });
+        expect(out).toContain('`--format <json\\|yaml>`');
+        expect(out).toContain('| read\\|write | line one line two |');
+    });
+
+    it('keeps the committed generated option section in sync', () => {
+        const committed = readFileSync(resolve(REPO_ROOT, 'skill/SKILL.md'), 'utf8');
+        const expected = renderCliOptionReference(CLI_OPTION_DOCUMENTATION);
+        expect(committed).toContain(
+            `<!-- GENERATED:option-reference -->\n${expected}\n<!-- /GENERATED:option-reference -->`,
+        );
+    });
+
+    it('check mode compares both committed artifacts without regenerating first', () => {
+        const output = execFileSync(
+            process.execPath,
+            ['--import', 'tsx', resolve(REPO_ROOT, 'scripts/generate-skill.ts'), '--check'],
+            { cwd: REPO_ROOT, encoding: 'utf8' },
+        );
+        expect(output).toContain('Skill artifacts are up to date.');
+
+        const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf8')) as {
+            scripts?: Record<string, string>;
+        };
+        expect(pkg.scripts?.['skill:check']).toBe('tsx scripts/generate-skill.ts --check');
+    });
+});
+
+describe('skill artifact drift detection', () => {
+    it('reports each stale or missing generated artifact independently', () => {
+        expect(
+            findStaleSkillArtifacts({
+                committedSkill: 'old skill',
+                generatedSkill: 'new skill',
+                generatedPayloadReference: 'new payload',
+            }),
+        ).toEqual(['skill/SKILL.md', 'skill/reference/payload-schemas.yaml']);
+
+        expect(
+            findStaleSkillArtifacts({
+                committedSkill: 'same',
+                generatedSkill: 'same',
+                committedPayloadReference: 'old payload',
+                generatedPayloadReference: 'new payload',
+            }),
+        ).toEqual(['skill/reference/payload-schemas.yaml']);
+    });
+
+    it('returns no paths only when both committed artifacts match', () => {
+        expect(
+            findStaleSkillArtifacts({
+                committedSkill: 'skill',
+                generatedSkill: 'skill',
+                committedPayloadReference: 'payload',
+                generatedPayloadReference: 'payload',
+            }),
+        ).toEqual([]);
+    });
+});
+
 describe('payload schema rendering', () => {
     it('renders a compact yaml index with reference anchors', () => {
         const out = renderPayloadSchemas([WRITE_FIXTURE]);
@@ -173,6 +290,42 @@ describe('payload schema rendering', () => {
         expect(out).toContain('req:');
         expect(out).toContain('- "title:unknown"');
         expect(out).toContain('opt: []');
+    });
+
+    it('renders element fields for a top-level array payload in the compact index', () => {
+        const out = renderPayloadSchemas([BULK_WRITE_FIXTURE]);
+        expect(out).toContain('s: AddCasesBulkPayloadSchema');
+        expect(out).toContain('container: array');
+        expect(out).toContain('item_req: [title]');
+        expect(out).toContain('item_opt: 1');
+        expect(out).not.toContain(', req: [title]');
+        expect(out).not.toContain('schema_shape_unavailable');
+    });
+
+    it('renders element fields for a top-level array payload in the reference map', () => {
+        const out = renderPayloadSchemaReference([BULK_WRITE_FIXTURE]);
+        expect(out).toContain('AddCasesBulkPayloadSchema:');
+        expect(out).toContain('container: array');
+        expect(out).toContain('item_req:');
+        expect(out).toContain('item_opt:');
+        expect(out).toContain('- "title:string"');
+        expect(out).toContain('- "priority_id:number"');
+        expect(out).not.toContain('schema_shape_unavailable');
+    });
+
+    it('preserves record value types for agent-facing payload guidance', () => {
+        const datasetFixture: ActionFixture = {
+            resource: 'dataset',
+            action: 'add',
+            summary: 'Create a dataset',
+            pathParams: [{ name: 'project_id', description: 'project' }],
+            isWrite: true,
+            bodySchema: z.object({
+                name: z.string(),
+                variables: z.record(z.string(), z.string()).optional(),
+            }),
+        };
+        expect(renderPayloadSchemaReference([datasetFixture])).toContain('- "variables:Record<string, string>"');
     });
 
     it('merges duplicate schema names into one reference entry', () => {

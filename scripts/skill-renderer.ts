@@ -16,6 +16,19 @@ interface ActionLike {
     pathParams: readonly { name: string }[];
 }
 
+interface CliOptionDocumentationLike {
+    readonly value?: string;
+    readonly scope: string;
+    readonly description: string;
+}
+
+interface SkillArtifactComparison {
+    readonly committedSkill: string;
+    readonly generatedSkill: string;
+    readonly committedPayloadReference?: string;
+    readonly generatedPayloadReference: string;
+}
+
 /** Maps a (resource, action) pair to its exported schema variable name. */
 const SCHEMA_NAMES: ReadonlyMap<string, string> = new Map([
     ['case:add', 'AddCasePayloadSchema'],
@@ -109,11 +122,38 @@ export function renderCommandTable(actions: readonly ActionLike[]): string {
     return ['| Cmd | Mode | Args | Input |', '| --- | --- | --- | --- |', ...rows].join('\n');
 }
 
+function escapeMarkdownTableCell(value: string): string {
+    return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+}
+
+/** Render every accepted CLI option for agent routing and command assembly. */
+export function renderCliOptionReference(options: Readonly<Record<string, CliOptionDocumentationLike>>): string {
+    const rows = Object.entries(options).map(([name, documentation]) => {
+        const value = documentation.value === undefined ? '' : ` ${documentation.value}`;
+        const usage = escapeMarkdownTableCell(`--${name}${value}`);
+        const scope = escapeMarkdownTableCell(documentation.scope);
+        const description = escapeMarkdownTableCell(documentation.description);
+        return `| \`${usage}\` | ${scope} | ${description} |`;
+    });
+    return ['| Option | Applies to | Agent guidance |', '| --- | --- | --- |', ...rows].join('\n');
+}
+
+/** Return the generated artifact paths whose committed content is stale. */
+export function findStaleSkillArtifacts(comparison: SkillArtifactComparison): readonly string[] {
+    return [
+        ...(comparison.committedSkill === comparison.generatedSkill ? [] : ['skill/SKILL.md']),
+        ...(comparison.committedPayloadReference === comparison.generatedPayloadReference
+            ? []
+            : ['skill/reference/payload-schemas.yaml']),
+    ];
+}
+
 // Zod v4 internal shape — we use `unknown` + narrowing to avoid `any`.
 interface ZodDefLike {
     type?: string;
     innerType?: unknown;
     element?: unknown;
+    valueType?: unknown;
     shape?: Record<string, unknown>;
 }
 
@@ -156,8 +196,10 @@ function describeType(field: unknown): string {
             const inner = isZodNodeLike(f) ? f._zod?.def?.element : undefined;
             return inner !== undefined ? `${describeType(inner)}[]` : 'unknown[]';
         }
-        case 'record':
-            return 'Record<string, unknown>';
+        case 'record': {
+            const value = isZodNodeLike(f) ? f._zod?.def?.valueType : undefined;
+            return `Record<string, ${value === undefined ? 'unknown' : describeType(value)}>`;
+        }
         case 'object':
             return 'object';
         default:
@@ -171,9 +213,22 @@ interface FieldDescriptor {
     optional: boolean;
 }
 
+type PayloadContainer = 'object' | 'array' | 'unknown';
+
+function payloadContainer(schema: unknown): PayloadContainer {
+    if (!isZodNodeLike(schema)) return 'unknown';
+    const schemaType = schema._zod?.def?.type;
+    if (schemaType === 'array') return 'array';
+    if (schemaType === 'object') return 'object';
+    return 'unknown';
+}
+
 function readSchemaFields(schema: unknown): FieldDescriptor[] | null {
     if (!isZodNodeLike(schema)) return null;
-    const shape: Record<string, unknown> | undefined = schema._zod?.def?.shape ?? schema.shape;
+    const schemaType = schema._zod?.def?.type;
+    const shapeSource = schemaType === 'array' ? schema._zod?.def?.element : schema;
+    if (!isZodNodeLike(shapeSource)) return null;
+    const shape: Record<string, unknown> | undefined = shapeSource._zod?.def?.shape ?? shapeSource.shape;
     if (shape === undefined) return null;
 
     return Object.entries(shape).map(([key, field]) => {
@@ -201,10 +256,18 @@ function renderPayloadIndexEntry(spec: ActionLike): string {
         .join(', ');
     const optCount = fields.filter((f) => f.optional).length;
     const reqLabel = req.length > 0 ? `[${req}]` : '[]';
+    if (payloadContainer(spec.bodySchema) === 'array') {
+        return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", container: array, item_req: ${reqLabel}, item_opt: ${optCount}, ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
+    }
     return `- {s: ${schemaName}, a: "${spec.resource} ${spec.action}", req: ${reqLabel}, opt: ${optCount}, ref: "./reference/payload-schemas.yaml#${schemaNameToAnchor(schemaName)}"}`;
 }
 
-function renderReferenceEntry(schemaName: string, actions: string[], fields: FieldDescriptor[] | null): string {
+function renderReferenceEntry(
+    schemaName: string,
+    actions: string[],
+    fields: FieldDescriptor[] | null,
+    container: PayloadContainer,
+): string {
     const actionLine = `[${actions.map((a) => `"${a}"`).join(', ')}]`;
     if (fields === null) {
         return [
@@ -218,9 +281,18 @@ function renderReferenceEntry(schemaName: string, actions: string[], fields: Fie
 
     const req = fields.filter((f) => !f.optional).map((f) => `${f.key}:${f.type}`);
     const opt = fields.filter((f) => f.optional).map((f) => `${f.key}:${f.type}`);
-    const reqLines = req.length > 0 ? ['    req:', ...req.map((v) => `      - "${v}"`)] : ['    req: []'];
-    const optLines = opt.length > 0 ? ['    opt:', ...opt.map((v) => `      - "${v}"`)] : ['    opt: []'];
-    return [`  ${schemaName}:`, `    actions: ${actionLine}`, ...reqLines, ...optLines, ''].join('\n');
+    const reqKey = container === 'array' ? 'item_req' : 'req';
+    const optKey = container === 'array' ? 'item_opt' : 'opt';
+    const reqLines = req.length > 0 ? [`    ${reqKey}:`, ...req.map((v) => `      - "${v}"`)] : [`    ${reqKey}: []`];
+    const optLines = opt.length > 0 ? [`    ${optKey}:`, ...opt.map((v) => `      - "${v}"`)] : [`    ${optKey}: []`];
+    return [
+        `  ${schemaName}:`,
+        `    actions: ${actionLine}`,
+        ...(container === 'array' ? ['    container: array'] : []),
+        ...reqLines,
+        ...optLines,
+        '',
+    ].join('\n');
 }
 
 export function renderPayloadSchemas(actions: readonly ActionLike[]): string {
@@ -235,13 +307,20 @@ export function renderPayloadSchemas(actions: readonly ActionLike[]): string {
 
 export function renderPayloadSchemaReference(actions: readonly ActionLike[]): string {
     const writes = actions.filter((a) => a.isWrite && a.bodySchema !== undefined);
-    const merged = new Map<string, { actions: string[]; fields: FieldDescriptor[] | null }>();
+    const merged = new Map<
+        string,
+        { actions: string[]; fields: FieldDescriptor[] | null; container: PayloadContainer }
+    >();
     for (const spec of writes) {
         const schemaName = schemaNameFor(spec);
         const action = `${spec.resource} ${spec.action}`;
         const existing = merged.get(schemaName);
         if (existing === undefined) {
-            merged.set(schemaName, { actions: [action], fields: readSchemaFields(spec.bodySchema) });
+            merged.set(schemaName, {
+                actions: [action],
+                fields: readSchemaFields(spec.bodySchema),
+                container: payloadContainer(spec.bodySchema),
+            });
             continue;
         }
         existing.actions.push(action);
@@ -252,7 +331,7 @@ export function renderPayloadSchemaReference(actions: readonly ActionLike[]): st
         'schemas:',
     ];
     for (const [schemaName, entry] of merged) {
-        lines.push(renderReferenceEntry(schemaName, entry.actions, entry.fields));
+        lines.push(renderReferenceEntry(schemaName, entry.actions, entry.fields, entry.container));
     }
     return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }

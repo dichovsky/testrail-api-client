@@ -144,7 +144,7 @@
         "operation": "get_history_for_case",
         "method": "GET",
         "path": "get_history_for_case/{case_id}",
-        "summary": "Returns the edit history for a case.",
+        "summary": "Returns the edit history for a case (TestRail 6.5.4+).",
         "pagination": { "response": "nested-envelope", "requestControls": true, "collectionKey": "history" }
     },
     {
@@ -159,7 +159,7 @@
         "operation": "add_cases",
         "method": "POST",
         "path": "add_cases/{section_id}",
-        "summary": "Bulk-creates test cases in a section in one request (TestRail 7.5+)."
+        "summary": "Bulk-creates test cases in a section in one request."
     },
     {
         "resource": "Cases",
@@ -297,14 +297,14 @@
         "operation": "add_dataset",
         "method": "POST",
         "path": "add_dataset/{project_id}",
-        "summary": "Creates a new dataset in a project."
+        "summary": "Creates a new dataset in a project, optionally with a variable-name-to-string-value map."
     },
     {
         "resource": "Datasets",
         "operation": "update_dataset",
         "method": "POST",
         "path": "update_dataset/{dataset_id}",
-        "summary": "Updates an existing dataset."
+        "summary": "Updates a dataset name and/or its variable-name-to-string-value map."
     },
     {
         "resource": "Datasets",
@@ -415,7 +415,7 @@
         "operation": "get_milestones",
         "method": "GET",
         "path": "get_milestones/{project_id}",
-        "summary": "Returns the milestones for a project.",
+        "summary": "Returns project milestones, optionally filtered by completion and started state.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "milestones" }
     },
     {
@@ -423,14 +423,14 @@
         "operation": "add_milestone",
         "method": "POST",
         "path": "add_milestone/{project_id}",
-        "summary": "Creates a new milestone in a project."
+        "summary": "Creates a new milestone in a project; hierarchy fields are available in TestRail 5.3+."
     },
     {
         "resource": "Milestones",
         "operation": "update_milestone",
         "method": "POST",
         "path": "update_milestone/{milestone_id}",
-        "summary": "Updates an existing milestone."
+        "summary": "Updates an existing milestone, including the TestRail 5.3+ is_started field."
     },
     {
         "resource": "Milestones",
@@ -546,7 +546,7 @@
         "operation": "get_projects",
         "method": "GET",
         "path": "get_projects",
-        "summary": "Returns the list of available projects.",
+        "summary": "Returns the available projects, optionally filtered by completion state.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "projects" }
     },
     {
@@ -561,7 +561,7 @@
         "operation": "update_project",
         "method": "POST",
         "path": "update_project/{project_id}",
-        "summary": "Updates an existing project."
+        "summary": "Updates an existing project, including documented default-role, group, and user access assignments."
     },
     {
         "resource": "Projects",
@@ -613,7 +613,7 @@
         "operation": "get_results",
         "method": "GET",
         "path": "get_results/{test_id}",
-        "summary": "Returns a list of test results for a test.",
+        "summary": "Returns results for a test, optionally filtered by status or defects text.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
     },
     {
@@ -621,7 +621,7 @@
         "operation": "get_results_for_case",
         "method": "GET",
         "path": "get_results_for_case/{run_id}/{case_id}",
-        "summary": "Returns a list of test results for a case in a run.",
+        "summary": "Returns results for a case in a run, optionally filtered by status or defects text.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
     },
     {
@@ -629,7 +629,7 @@
         "operation": "get_results_for_run",
         "method": "GET",
         "path": "get_results_for_run/{run_id}",
-        "summary": "Returns a list of test results for a run.",
+        "summary": "Returns run results with optional creator, creation-time, status, and defects filters.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "results" }
     },
     {
@@ -777,7 +777,7 @@
         "operation": "get_shared_steps",
         "method": "GET",
         "path": "get_shared_steps/{project_id}",
-        "summary": "Returns the shared step sets for a project.",
+        "summary": "Returns project shared steps with optional creator, created/updated time, and reference filters.",
         "pagination": { "response": "envelope", "requestControls": true, "collectionKey": "shared_steps" }
     },
     {
@@ -807,7 +807,7 @@
         "operation": "delete_shared_step",
         "method": "POST",
         "path": "delete_shared_step/{shared_step_id}",
-        "summary": "Deletes an existing set of shared steps."
+        "summary": "Deletes an existing set of shared steps, optionally controlling content retention with keep_in_cases."
     },
 
     {
@@ -822,7 +822,7 @@
         "operation": "get_case_statuses",
         "method": "GET",
         "path": "get_case_statuses",
-        "summary": "Returns the list of available case statuses (workflow).",
+        "summary": "Returns the list of available case statuses (TestRail Enterprise 7.3+ workflow).",
         "pagination": { "response": "envelope", "requestControls": false, "collectionKey": "case_statuses" }
     },
 
@@ -876,7 +876,7 @@
         "operation": "get_test",
         "method": "GET",
         "path": "get_test/{test_id}",
-        "summary": "Returns an existing test (instance of a case in a run)."
+        "summary": "Returns an existing test, optionally including results and attachments with with_data=1."
     },
     {
         "resource": "Tests",

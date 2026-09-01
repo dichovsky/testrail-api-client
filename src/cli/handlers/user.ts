@@ -1,5 +1,6 @@
 import type { HandlerContext } from '../handler-context.js';
 import { parseId, IdParseError } from '../ids.js';
+import { parseOptionalId } from '../filters.js';
 
 export async function handleUserGet(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'user id');
@@ -7,17 +8,14 @@ export async function handleUserGet(ctx: HandlerContext): Promise<void> {
 }
 
 export async function handleUserList(ctx: HandlerContext): Promise<void> {
-    const limit = ctx.pagination.limit;
-    const offset = ctx.pagination.offset;
-    ctx.out(await ctx.client.users.getUsers(limit, offset));
+    const projectId = parseOptionalId(ctx.args.projectId, '--project-id');
+    ctx.out(await ctx.client.users.getUsers(projectId));
 }
 
 /**
- * `user get-by-email --email <addr>` — look up a single user by email.
- *
- * The `--email` flag is shared with the auth resolver (which consumes the
- * same value for the HTTP Basic credential); reusing the flag keeps the
- * KNOWN_FLAGS surface minimal. The handler only enforces non-empty here.
+ * `user get-by-email --user-email <addr>` — look up a single user by email.
+ * The lookup flag is deliberately distinct from the authentication `--email`
+ * so an administrator can retrieve another user's record.
  * The client-side `EMAIL_REGEX` check in `src/modules/users.ts` rejects
  * malformed addresses with `TestRailValidationError` before any network
  * call, so format validation isn't duplicated at the CLI boundary. The
@@ -30,12 +28,12 @@ export async function handleUserList(ctx: HandlerContext): Promise<void> {
 export async function handleUserGetByEmail(ctx: HandlerContext): Promise<void> {
     if (ctx.args.pathParams.length > 0) {
         throw new IdParseError(
-            `user get-by-email takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Use --email <addr>. Run --help for usage.`,
+            `user get-by-email takes no positional arguments (got: ${ctx.args.pathParams.length} extra). Use --user-email <addr>. Run --help for usage.`,
         );
     }
-    const email = ctx.args.email;
+    const email = ctx.args.userEmail;
     if (email === undefined || email.trim() === '') {
-        throw new IdParseError('user get-by-email requires --email <addr> (non-empty).');
+        throw new IdParseError('user get-by-email requires --user-email <addr> (non-empty).');
     }
     ctx.out(await ctx.client.users.getUserByEmail(email.trim()));
 }

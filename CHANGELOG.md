@@ -40,6 +40,12 @@ the next major package release (`7.0.0`), not as a `6.x` minor.
   filters, labels, references, and the `include_plan_runs` option where the
   corresponding TestRail endpoint supports them. Test lists now expose the
   documented label-ID filter as well.
+- Added `get_test`'s `with_data=0|1` projection to the SDK and CLI. The
+  enriched response is normalized to one test object with `results` and
+  `attachments` arrays.
+- Generated CLI help and the bundled skill now share one typed option
+  registry, so every accepted CLI flag has an agent-facing scope and behavior
+  description and option drift fails type-checking or generation checks.
 - Aligned run, plan, and plan-entry write payloads with the current request tables,
   including `start_on`, `due_on`, and `refs`. Result edits use flat `custom_*`
   fields as documented and reject empty updates. Dynamic-filter payloads now
@@ -57,6 +63,15 @@ the next major package release (`7.0.0`), not as a `6.x` minor.
   preserve unknown keys for forward compatibility, those legacy keys are no
   longer type-checked locally if supplied through an untyped object; remove
   them instead of relying on client-side validation.
+- `UsersModule.getUsers()` now follows the documented optional project path
+  (`getUsers(projectId?)`) and no longer advertises unsupported pagination.
+  The CLI uses `user list --project-id` and the distinct `--user-email` lookup
+  flag, preventing lookup targets from colliding with authentication email.
+  `user list --limit/--offset` now fails explicitly instead of silently issuing
+  an unbounded request.
+- `UpdatePlanPayload` no longer advertises the undocumented `assignedto_id`
+  field. `AddPlanEntryPayload.suite_id` is now optional because TestRail only
+  requires it for multi-suite and baseline projects.
 - The `bdd add --dry-run` acknowledgement now reports `sectionId` rather than
   the incorrect `caseId`. Update automation that reads this JSON field.
 
@@ -68,6 +83,17 @@ the next major package release (`7.0.0`), not as a `6.x` minor.
 - Corrected the `addBdd` parameter and CLI documentation from `caseId` to
   `sectionId`. TestRail's `add_bdd/{section_id}` endpoint creates a new BDD
   case under a section; the request path itself is unchanged.
+- Corrected result-list filters by endpoint: all three result reads support
+  status/defect filtering, while only `get_results_for_run` accepts creator
+  and creation-date filters. CLI default, page, and aggregate modes now retain
+  the same filters.
+- Added missing documented shared-step filters and `delete_shared_step`'s
+  `keep_in_cases` control, project completion and milestone-started filters,
+  dataset variable maps, project access assignments, and conditional case-field
+  configuration shapes.
+- Removed the obsolete no-op `--case-id` CLI flag and stopped advertising
+  undocumented user password/language fields and the false TestRail 7.5
+  requirement for `add_cases`.
 
 ### Internal
 

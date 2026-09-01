@@ -219,7 +219,7 @@ describe('pagination module adapters', () => {
         expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('retains result filters for getAllResultsForCase', async () => {
+    it('retains documented result filters for getAllResultsForCase', async () => {
         const second = { ...MOCK_RESULT, id: 2 };
         mockFetch
             .mockResolvedValueOnce(
@@ -229,7 +229,6 @@ describe('pagination module adapters', () => {
 
         await expect(
             client.results.getAllResultsForCase(2, 3, {
-                createdBy: [7],
                 statusId: [1],
                 defectsFilter: 'BUG-1',
                 pageSize: 1,
@@ -241,7 +240,6 @@ describe('pagination module adapters', () => {
         ).resolves.toEqual([MOCK_RESULT, second]);
         for (const [url] of mockFetch.mock.calls) {
             const decoded = decodeURIComponent(String(url));
-            expect(decoded).toContain('created_by=7');
             expect(decoded).toContain('status_id=1');
             expect(decoded).toContain('defects_filter=BUG-1');
         }
@@ -253,24 +251,30 @@ describe('pagination module adapters', () => {
         get: () => Promise<unknown[]>;
         page: () => Promise<unknown>;
         all: () => Promise<unknown[]>;
-        supportsDefectsFilter: boolean;
+        supportsCreatedFilters: boolean;
     }[] {
         const pageOptions = {
-            createdAfter: 100,
-            createdBefore: 200,
-            createdBy: [7],
             statusId: [1],
             defectsFilter: 'BUG-1',
             limit: 2,
             offset: 4,
         };
         const allOptions = {
-            createdAfter: 100,
-            createdBefore: 200,
-            createdBy: [7],
             statusId: [1],
             defectsFilter: 'BUG-1',
             ...AGGREGATE_BOUNDS,
+        };
+        const runPageOptions = {
+            ...pageOptions,
+            createdAfter: 100,
+            createdBefore: 200,
+            createdBy: [7],
+        };
+        const runAllOptions = {
+            ...allOptions,
+            createdAfter: 100,
+            createdBefore: 200,
+            createdBy: [7],
         };
         return [
             {
@@ -279,7 +283,7 @@ describe('pagination module adapters', () => {
                 get: () => client.results.getResults(8, pageOptions),
                 page: () => client.results.getResultsPage(8, pageOptions),
                 all: () => client.results.getAllResults(8, allOptions),
-                supportsDefectsFilter: true,
+                supportsCreatedFilters: false,
             },
             {
                 name: 'results for case',
@@ -287,15 +291,15 @@ describe('pagination module adapters', () => {
                 get: () => client.results.getResultsForCase(8, 9, pageOptions),
                 page: () => client.results.getResultsForCasePage(8, 9, pageOptions),
                 all: () => client.results.getAllResultsForCase(8, 9, allOptions),
-                supportsDefectsFilter: true,
+                supportsCreatedFilters: false,
             },
             {
                 name: 'results for run',
                 endpoint: 'get_results_for_run/8',
-                get: () => client.results.getResultsForRun(8, pageOptions),
-                page: () => client.results.getResultsForRunPage(8, pageOptions),
-                all: () => client.results.getAllResultsForRun(8, allOptions),
-                supportsDefectsFilter: false,
+                get: () => client.results.getResultsForRun(8, runPageOptions),
+                page: () => client.results.getResultsForRunPage(8, runPageOptions),
+                all: () => client.results.getAllResultsForRun(8, runAllOptions),
+                supportsCreatedFilters: true,
             },
         ];
     }
@@ -322,11 +326,11 @@ describe('pagination module adapters', () => {
             expect(mockFetch).toHaveBeenCalledTimes(2);
             const url = decodeURIComponent(String(mockFetch.mock.calls[0]?.[0]));
             expect(url).toContain(adapter.endpoint);
-            expect(url).toContain('created_after=100');
-            expect(url).toContain('created_before=200');
-            expect(url).toContain('created_by=7');
+            expect(url.includes('created_after=100')).toBe(adapter.supportsCreatedFilters);
+            expect(url.includes('created_before=200')).toBe(adapter.supportsCreatedFilters);
+            expect(url.includes('created_by=7')).toBe(adapter.supportsCreatedFilters);
             expect(url).toContain('status_id=1');
-            expect(url.includes('defects_filter=BUG-1')).toBe(adapter.supportsDefectsFilter);
+            expect(url).toContain('defects_filter=BUG-1');
         },
     );
 
@@ -356,11 +360,11 @@ describe('pagination module adapters', () => {
             expect(urls).toHaveLength(2);
             for (const url of urls) {
                 expect(url).toContain(adapter.endpoint);
-                expect(url).toContain('created_by=7');
+                expect(url.includes('created_by=7')).toBe(adapter.supportsCreatedFilters);
                 expect(url).toContain('status_id=1');
                 expect(url).toContain('limit=2');
                 expect(url).not.toContain('attacker.invalid');
-                expect(url.includes('defects_filter=BUG-1')).toBe(adapter.supportsDefectsFilter);
+                expect(url).toContain('defects_filter=BUG-1');
             }
             expect(urls[0]).toContain('offset=3');
             expect(urls[1]).toContain('offset=5');

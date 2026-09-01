@@ -323,6 +323,7 @@ interface CtxOverrides {
     dataFlag?: string;
     dryRun?: boolean;
     projectId?: string;
+    keepInCases?: string;
     soft?: boolean;
     confirmDestructive?: boolean;
 }
@@ -337,6 +338,7 @@ function buildCtx(
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),
+            ...(overrides.keepInCases !== undefined && { keepInCases: overrides.keepInCases }),
             ...(overrides.soft === true && { soft: true }),
         },
         pagination: { mode: 'items' },
@@ -1167,12 +1169,17 @@ describe('handlePlanAdd', () => {
         await expect(handlePlanAdd(ctx)).rejects.toThrow(/validation failed/);
     });
 
-    it('rejects entry missing required suite_id', async () => {
-        const { ctx } = buildCtx(buildClient(), {
+    it('accepts a single-suite entry without suite_id', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
             pathParams: ['3'],
-            dataFlag: '{"name":"R","entries":[{"name":"bad"}]}',
+            dataFlag: '{"name":"R","entries":[{"name":"single-suite entry"}]}',
         });
-        await expect(handlePlanAdd(ctx)).rejects.toThrow(/validation failed/);
+        await handlePlanAdd(ctx);
+        expect(client.plans.addPlan).toHaveBeenCalledWith(3, {
+            name: 'R',
+            entries: [{ name: 'single-suite entry' }],
+        });
     });
 
     it('rejects when project_id is not a positive integer', async () => {
@@ -1249,9 +1256,11 @@ describe('handlePlanAddEntry', () => {
         );
     });
 
-    it('rejects body missing required suite_id', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['50'], dataFlag: '{"name":"e"}' });
-        await expect(handlePlanAddEntry(ctx)).rejects.toThrow(/validation failed/);
+    it('accepts a single-suite entry without suite_id', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['50'], dataFlag: '{"name":"e"}' });
+        await handlePlanAddEntry(ctx);
+        expect(client.plans.addPlanEntry).toHaveBeenCalledWith(50, { name: 'e' });
     });
 
     it('rejects missing body', async () => {
@@ -2742,7 +2751,8 @@ describe('handleSharedStepUpdate', () => {
 
 // ── shared-step delete (destructive; no --soft) ──────────────────────────
 // TestRail does NOT support `?soft=1` on `delete_shared_step`. The handler
-// therefore has no `--soft` branch; only --yes and --dry-run gates.
+// therefore has no `--soft` branch; only --yes and --dry-run gates. The
+// documented keep_in_cases body option is independent from soft deletion.
 
 describe('handleSharedStepDelete', () => {
     it('calls client.deleteSharedStep with the parsed shared_step_id when --yes is passed', async () => {
@@ -2750,7 +2760,26 @@ describe('handleSharedStepDelete', () => {
         const { ctx, out } = buildCtx(client, { pathParams: ['55'], confirmDestructive: true });
         await handleSharedStepDelete(ctx);
         expect(client.sharedSteps.deleteSharedStep).toHaveBeenCalledWith(55);
-        expect(out).toHaveBeenCalledWith({ sharedStepId: 55, deleted: true });
+        expect(out).toHaveBeenCalledWith({ sharedStepId: 55, keepInCases: true, deleted: true });
+    });
+
+    it('forwards an explicit --keep-in-cases=false option', async () => {
+        const client = buildClient();
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['55'],
+            keepInCases: 'false',
+            confirmDestructive: true,
+        });
+        await handleSharedStepDelete(ctx);
+        expect(client.sharedSteps.deleteSharedStep).toHaveBeenCalledWith(55, { keepInCases: false });
+        expect(out).toHaveBeenCalledWith({ sharedStepId: 55, keepInCases: false, deleted: true });
+    });
+
+    it('rejects an invalid --keep-in-cases value before the destructive gate', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['55'], keepInCases: 'maybe' });
+        await expect(handleSharedStepDelete(ctx)).rejects.toThrow(/--keep-in-cases/);
+        expect(client.sharedSteps.deleteSharedStep).not.toHaveBeenCalled();
     });
 
     it('rejects without --yes', async () => {
@@ -2770,6 +2799,7 @@ describe('handleSharedStepDelete', () => {
                 dryRun: true,
                 action: 'shared-step delete',
                 sharedStepId: 55,
+                keepInCases: true,
                 destructive: true,
             }),
         );
@@ -2785,6 +2815,7 @@ describe('handleSharedStepDelete', () => {
                 dryRun: true,
                 action: 'shared-step delete',
                 sharedStepId: 55,
+                keepInCases: true,
                 destructive: true,
             }),
         );
@@ -2820,6 +2851,7 @@ describe('handleSharedStepDelete', () => {
                 dryRun: true,
                 action: 'shared-step delete',
                 sharedStepId: 55,
+                keepInCases: true,
                 destructive: true,
             }),
         );
@@ -3342,9 +3374,18 @@ describe('handleGroupDelete', () => {
 describe('handleDatasetAdd', () => {
     it('calls client.addDataset with parsed payload', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['7'], dataFlag: '{"name":"Staging matrix"}' });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['7'],
+            dataFlag: '{"name":"Staging matrix","variables":{"browser":"Chrome","locale":"en-US"}}',
+        });
         await handleDatasetAdd(ctx);
-        expect(client.datasets.addDataset).toHaveBeenCalledWith(7, expect.objectContaining({ name: 'Staging matrix' }));
+        expect(client.datasets.addDataset).toHaveBeenCalledWith(
+            7,
+            expect.objectContaining({
+                name: 'Staging matrix',
+                variables: { browser: 'Chrome', locale: 'en-US' },
+            }),
+        );
         expect(out).toHaveBeenCalledWith({ id: 77, name: 'Staging matrix', project_id: 7 });
     });
 
@@ -3401,11 +3442,14 @@ describe('handleDatasetAdd', () => {
 describe('handleDatasetUpdate', () => {
     it('calls client.updateDataset with parsed payload', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['77'], dataFlag: '{"name":"Production matrix"}' });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['77'],
+            dataFlag: '{"name":"Production matrix","variables":{"browser":"Firefox"}}',
+        });
         await handleDatasetUpdate(ctx);
         expect(client.datasets.updateDataset).toHaveBeenCalledWith(
             77,
-            expect.objectContaining({ name: 'Production matrix' }),
+            expect.objectContaining({ name: 'Production matrix', variables: { browser: 'Firefox' } }),
         );
         expect(out).toHaveBeenCalled();
     });
@@ -3536,14 +3580,14 @@ describe('handleDatasetDelete', () => {
 // ── user add ──────────────────────────────────────────────────────────────
 
 describe('handleUserAdd', () => {
-    const VALID_BODY = '{"name":"Alice","email":"alice@example.com","password":"s3cr3t"}';
+    const VALID_BODY = '{"name":"Alice","email":"alice@example.com"}';
 
     it('calls client.addUser with parsed payload and outputs result', async () => {
         const client = buildClient();
         const { ctx, out } = buildCtx(client, { dataFlag: VALID_BODY });
         await handleUserAdd(ctx);
         expect(client.users.addUser).toHaveBeenCalledWith(
-            expect.objectContaining({ name: 'Alice', email: 'alice@example.com', password: 's3cr3t' }),
+            expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
         );
         expect(out).toHaveBeenCalledWith({ id: 88, name: 'Alice', email: 'alice@example.com', is_active: true });
     });
@@ -3562,26 +3606,33 @@ describe('handleUserAdd', () => {
     });
 
     it('rejects body missing required email field', async () => {
-        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":"Alice","password":"x"}' });
+        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":"Alice"}' });
         await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
     });
 
     it('rejects body with invalid email format', async () => {
         const { ctx } = buildCtx(buildClient(), {
-            dataFlag: '{"name":"Alice","email":"not-an-email","password":"x"}',
+            dataFlag: '{"name":"Alice","email":"not-an-email"}',
         });
         await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
     });
 
-    it('rejects body missing required password field', async () => {
-        const { ctx } = buildCtx(buildClient(), { dataFlag: '{"name":"Alice","email":"alice@example.com"}' });
-        await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
+    it('accepts the documented access-control fields', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            dataFlag:
+                '{"name":"Alice","email":"alice@example.com","is_admin":true,"sso_enabled":true,"assigned_projects":[1,2]}',
+        });
+        await handleUserAdd(ctx);
+        expect(client.users.addUser).toHaveBeenCalledWith(
+            expect.objectContaining({ is_admin: true, sso_enabled: true, assigned_projects: [1, 2] }),
+        );
     });
 
     it('passes through unknown fields via .passthrough()', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, {
-            dataFlag: '{"name":"Alice","email":"alice@example.com","password":"x","custom_field":"val"}',
+            dataFlag: '{"name":"Alice","email":"alice@example.com","custom_field":"val"}',
         });
         await handleUserAdd(ctx);
         expect(client.users.addUser).toHaveBeenCalledWith(expect.objectContaining({ custom_field: 'val' }));

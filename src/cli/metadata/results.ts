@@ -29,7 +29,7 @@ export const resultActions: readonly ActionSpec[] = [
     {
         resource: 'result',
         action: 'list',
-        summary: 'List results for a run (paginated)',
+        summary: 'List results for a run (paginated; creator/date, status, and defect filters supported)',
         pathParams: [],
         apiEndpoint: 'GET get_results_for_run/{run_id}',
         pagination: { response: 'envelope', requestControls: true, collectionKey: 'results' },

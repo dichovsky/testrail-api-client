@@ -205,10 +205,78 @@ Compact table legend:
 | `label delete-bulk` | D | - | DeleteLabelsPayloadSchema |
 <!-- /GENERATED:command-table -->
 
+## CLI option reference
+
+Use the `Applies to` column to avoid passing a valid global flag to an
+action that does not consume it. This table is generated from the same typed
+registry as `testrail --help`, so every parser-recognized option is present.
+
+<!-- GENERATED:option-reference -->
+| Option | Applies to | Agent guidance |
+| --- | --- | --- |
+| `--base-url <url>` | All API commands | TestRail base URL; overrides TESTRAIL_BASE_URL. |
+| `--email <email>` | All API commands | Authentication email; overrides TESTRAIL_EMAIL. It is not the user lookup filter. |
+| `--user-email <email>` | user get-by-email | Email address of the user to look up without changing the authentication identity. |
+| `--api-key-stdin` | All API commands | Read one API key from piped stdin. It cannot share stdin with a JSON body or --file -; prefer TESTRAIL_API_KEY. |
+| `--format <json\|table\|yaml\|csv>` | Commands that emit structured output | Select output format; default json. Binary/text --out files are not reformatted. |
+| `--timeout <ms>` | All API commands | Request timeout in milliseconds; overrides TESTRAIL_TIMEOUT. Default 30000, maximum 300000. |
+| `--strict-responses` | All API commands | Fail on the first response-schema mismatch instead of emitting advisory warnings. |
+| `--quiet` | All commands | Suppress normal output and advisory warnings; rely on the exit code. |
+| `--help` | Top level | Print CLI help and exit. |
+| `--version` | Top level | Print the package CLI version and exit. |
+| `--project-id <id>` | case, suite, run, plan, milestone, shared-step, user, and bdd lists; case delete-bulk | Select the TestRail project for actions whose endpoint does not carry project_id positionally. |
+| `--suite-id <ids>` | case, section, bdd, and run list actions | Filter by suite. run list accepts comma-separated IDs; other consumers require one ID. |
+| `--section-id <id>` | case list; bdd list | Filter results to one section. |
+| `--run-id <id>` | result list | Select the run whose results should be listed. |
+| `--type-id <ids>` | case list | Filter by comma-separated case type IDs. |
+| `--priority-id <ids>` | case list | Filter by comma-separated priority IDs. |
+| `--template-id <ids>` | case list | Filter by comma-separated template IDs. |
+| `--milestone-id <ids>` | case, run, and plan list actions | Filter by comma-separated milestone IDs. |
+| `--created-after <timestamp>` | case, run, plan, and shared-step lists; result list | Return entities created after this Unix timestamp. |
+| `--created-before <timestamp>` | case, run, plan, and shared-step lists; result list | Return entities created before this Unix timestamp. |
+| `--created-by <ids>` | case, run, plan, and shared-step lists; result list | Filter by comma-separated creator user IDs. |
+| `--updated-after <timestamp>` | case list; shared-step list | Return entities updated after this Unix timestamp. |
+| `--updated-before <timestamp>` | case list; shared-step list | Return entities updated before this Unix timestamp. |
+| `--updated-by <ids>` | case list | Filter by comma-separated updater user IDs. |
+| `--label-id <ids>` | case, bdd, and test list actions | Filter by comma-separated label IDs. |
+| `--refs <refs>` | case, bdd, run, plan, and shared-step list actions | Filter by references. case and bdd lists accept comma-separated TestRail 10.7 refs; run, plan, and shared-step lists accept one reference. |
+| `--filter <text>` | case list | Filter by case-title substring. |
+| `--include-plan-runs` | run list | Include runs owned by test plans. |
+| `--is-completed <true\|false\|1\|0>` | project, run, plan, and milestone list actions | Filter by completion state. |
+| `--is-started <true\|false\|1\|0>` | milestone list | Filter milestones by started state. |
+| `--with-data <0\|1>` | test get | Request the enriched test projection with 1, or the ordinary response with 0. |
+| `--limit <n>` | Supported list actions in default or --page mode | Maximum items requested from one response; incompatible with --all. |
+| `--offset <n>` | Supported list actions in default or --page mode | Zero-based response offset; incompatible with --all. |
+| `--page` | Registered paginated list actions | Return one strict page envelope with items and pagination metadata; incompatible with --all. |
+| `--all` | Registered paginated list actions | Follow validated continuations and return one bounded item array; incompatible with --page/--limit/--offset. |
+| `--page-size <n>` | --all on request-controlled paginated actions | Per-request page size; default and maximum 250. |
+| `--start-offset <n>` | --all on request-controlled paginated actions | Initial aggregate offset; default 0. |
+| `--max-pages <n>` | --all | Maximum pages fetched; default 100. |
+| `--max-items <n>` | --all | Maximum accumulated items; default 25000. |
+| `--max-duration-ms <ms>` | --all | Aggregate wall-clock deadline; default and maximum 300000. |
+| `--max-bytes <bytes>` | --all | Maximum serialized aggregate size; default 104857600, hard maximum 1073741824. |
+| `--status-id <ids>` | test list; result list/list-for-test/list-for-case | Filter by comma-separated TestRail status IDs. |
+| `--defects-filter <text>` | result list/list-for-test/list-for-case | Filter results whose defects field contains the supplied substring. |
+| `--data <json>` | Body-bearing write actions | Provide an inline JSON body. Exactly one of --data, --data-file, or piped JSON stdin is required. |
+| `--data-file <path>` | Body-bearing write actions | Read the JSON body from a file; useful for large payloads and secrets. |
+| `--dry-run` | Write actions; run watch | Validate and preview locally without an API call. It bypasses destructive confirmation gates. |
+| `--global` | install-skill; uninstall-skill | Use the user-level skill directory instead of the current project. |
+| `--force` | File-output actions; install-skill | Overwrite an existing output file or installed SKILL.md. |
+| `--print-path` | install-skill | Print the bundled SKILL.md path and exit without installing. |
+| `--file <path\|->` | Attachment uploads; bdd add/update | Read upload content from a file, or from piped stdin with '-'. |
+| `--filename <name>` | File-input actions | Override the uploaded filename; defaults to the local basename or stdin. |
+| `--out <path\|->` | attachment get; bdd get | Write downloaded bytes/text to a file, or stream them to stdout with '-'. |
+| `--yes` | Destructive actions | Per-invocation confirmation; real destructive calls also require TESTRAIL_ALLOW_DESTRUCTIVE=1. |
+| `--soft` | case delete/delete-bulk; run, section, and suite delete | Request TestRail server-side deletion preview. It still calls the API and requires both destructive gates. |
+| `--keep-in-cases <true\|false\|1\|0>` | shared-step delete | Choose whether deleted shared-step content remains in referencing cases; TestRail defaults to true. |
+| `--interval <seconds>` | run watch | Polling interval; default 30, minimum 5, maximum 600. |
+| `--once` | run watch | Poll once and exit instead of waiting for completion. |
+<!-- /GENERATED:option-reference -->
+
 ## Body input for write actions
 
-For body-bearing write actions (all except `run close`), provide the JSON
-payload via **exactly one** of:
+For body-bearing write actions, provide the JSON payload via **exactly one**
+of:
 
 ```bash
 # (a) inline string — best for short payloads, agent-generated
@@ -306,7 +374,7 @@ Router pattern: use the compact index below first; open
 # compact schema index
 schemas:
 - {s: AddCasePayloadSchema, a: "case add", req: [title], opt: 9, ref: "./reference/payload-schemas.yaml#addcasepayloadschema"}
-- {s: AddCasesBulkPayloadSchema, a: "case add-bulk", req: "schema_shape_unavailable", opt: "schema_shape_unavailable", ref: "./reference/payload-schemas.yaml#addcasesbulkpayloadschema"}
+- {s: AddCasesBulkPayloadSchema, a: "case add-bulk", container: array, item_req: [title], item_opt: 9, ref: "./reference/payload-schemas.yaml#addcasesbulkpayloadschema"}
 - {s: UpdateCasePayloadSchema, a: "case update", req: [], opt: 11, ref: "./reference/payload-schemas.yaml#updatecasepayloadschema"}
 - {s: UpdateCasesPayloadSchema, a: "case update-bulk", req: [case_ids], opt: 11, ref: "./reference/payload-schemas.yaml#updatecasespayloadschema"}
 - {s: DeleteCasesPayloadSchema, a: "case delete-bulk", req: [case_ids], opt: 0, ref: "./reference/payload-schemas.yaml#deletecasespayloadschema"}
@@ -322,8 +390,8 @@ schemas:
 - {s: AddResultPayloadSchema, a: "result add-by-test", req: [status_id], opt: 6, ref: "./reference/payload-schemas.yaml#addresultpayloadschema"}
 - {s: EditResultPayloadSchema, a: "result edit", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#editresultpayloadschema"}
 - {s: AddPlanPayloadSchema, a: "plan add", req: [name], opt: 6, ref: "./reference/payload-schemas.yaml#addplanpayloadschema"}
-- {s: UpdatePlanPayloadSchema, a: "plan update", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#updateplanpayloadschema"}
-- {s: AddPlanEntryPayloadSchema, a: "plan add-entry", req: [suite_id], opt: 11, ref: "./reference/payload-schemas.yaml#addplanentrypayloadschema"}
+- {s: UpdatePlanPayloadSchema, a: "plan update", req: [], opt: 6, ref: "./reference/payload-schemas.yaml#updateplanpayloadschema"}
+- {s: AddPlanEntryPayloadSchema, a: "plan add-entry", req: [], opt: 12, ref: "./reference/payload-schemas.yaml#addplanentrypayloadschema"}
 - {s: AddRunToPlanEntryPayloadSchema, a: "plan add-run-to-entry", req: [config_ids], opt: 8, ref: "./reference/payload-schemas.yaml#addruntoplanentrypayloadschema"}
 - {s: UpdatePlanEntryPayloadSchema, a: "plan update-entry", req: [], opt: 9, ref: "./reference/payload-schemas.yaml#updateplanentrypayloadschema"}
 - {s: UpdateRunInPlanEntryPayloadSchema, a: "plan update-run-in-entry", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updateruninplanentrypayloadschema"}
@@ -331,13 +399,13 @@ schemas:
 - {s: UpdateSectionPayloadSchema, a: "section update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesectionpayloadschema"}
 - {s: MoveSectionPayloadSchema, a: "section move", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#movesectionpayloadschema"}
 - {s: AddProjectPayloadSchema, a: "project add", req: [name], opt: 3, ref: "./reference/payload-schemas.yaml#addprojectpayloadschema"}
-- {s: UpdateProjectPayloadSchema, a: "project update", req: [], opt: 4, ref: "./reference/payload-schemas.yaml#updateprojectpayloadschema"}
+- {s: UpdateProjectPayloadSchema, a: "project update", req: [], opt: 7, ref: "./reference/payload-schemas.yaml#updateprojectpayloadschema"}
 - {s: AddSuitePayloadSchema, a: "suite add", req: [name], opt: 1, ref: "./reference/payload-schemas.yaml#addsuitepayloadschema"}
 - {s: UpdateSuitePayloadSchema, a: "suite update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesuitepayloadschema"}
 - {s: AddMilestonePayloadSchema, a: "milestone add", req: [name], opt: 5, ref: "./reference/payload-schemas.yaml#addmilestonepayloadschema"}
 - {s: UpdateMilestonePayloadSchema, a: "milestone update", req: [], opt: 8, ref: "./reference/payload-schemas.yaml#updatemilestonepayloadschema"}
-- {s: UserAddPayloadSchema, a: "user add", req: [name, email, password], opt: 6, ref: "./reference/payload-schemas.yaml#useraddpayloadschema"}
-- {s: UserUpdatePayloadSchema, a: "user update", req: [], opt: 9, ref: "./reference/payload-schemas.yaml#userupdatepayloadschema"}
+- {s: UserAddPayloadSchema, a: "user add", req: [name, email], opt: 8, ref: "./reference/payload-schemas.yaml#useraddpayloadschema"}
+- {s: UserUpdatePayloadSchema, a: "user update", req: [], opt: 10, ref: "./reference/payload-schemas.yaml#userupdatepayloadschema"}
 - {s: AddSharedStepPayloadSchema, a: "shared-step add", req: [title], opt: 1, ref: "./reference/payload-schemas.yaml#addsharedsteppayloadschema"}
 - {s: UpdateSharedStepPayloadSchema, a: "shared-step update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatesharedsteppayloadschema"}
 - {s: AddCaseFieldPayloadSchema, a: "case-field add", req: [type, name, label, configs], opt: 4, ref: "./reference/payload-schemas.yaml#addcasefieldpayloadschema"}
@@ -345,8 +413,8 @@ schemas:
 - {s: UpdateVariablePayloadSchema, a: "variable update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updatevariablepayloadschema"}
 - {s: AddGroupPayloadSchema, a: "group add", req: [name], opt: 1, ref: "./reference/payload-schemas.yaml#addgrouppayloadschema"}
 - {s: UpdateGroupPayloadSchema, a: "group update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updategrouppayloadschema"}
-- {s: AddDatasetPayloadSchema, a: "dataset add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#adddatasetpayloadschema"}
-- {s: UpdateDatasetPayloadSchema, a: "dataset update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updatedatasetpayloadschema"}
+- {s: AddDatasetPayloadSchema, a: "dataset add", req: [name], opt: 1, ref: "./reference/payload-schemas.yaml#adddatasetpayloadschema"}
+- {s: UpdateDatasetPayloadSchema, a: "dataset update", req: [], opt: 2, ref: "./reference/payload-schemas.yaml#updatedatasetpayloadschema"}
 - {s: AddConfigurationGroupPayloadSchema, a: "configuration-group add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addconfigurationgrouppayloadschema"}
 - {s: UpdateConfigurationGroupPayloadSchema, a: "configuration-group update", req: [], opt: 1, ref: "./reference/payload-schemas.yaml#updateconfigurationgrouppayloadschema"}
 - {s: AddConfigurationPayloadSchema, a: "configuration add", req: [name], opt: 0, ref: "./reference/payload-schemas.yaml#addconfigurationpayloadschema"}
@@ -471,10 +539,11 @@ recursively typed milestone children.
 <!-- recipe-for: user:list -->
 
 ```bash
-testrail user list --limit 1 --quiet && echo "auth OK" || echo "auth FAILED"
+testrail user list --project-id 5 --quiet && echo "auth OK" || echo "auth FAILED"
 ```
 
 Exit code 0 = creds resolve and TestRail responds; 1 = anything broken.
+Non-admin users need the project scope; administrators may omit `--project-id`.
 
 ### 2. Fetch a project
 
@@ -530,6 +599,8 @@ testrail run get 42 | jq '{passed: .passed_count, failed: .failed_count}'
 
 ```bash
 testrail result list --run-id 100 --all --page-size 100 --max-items 25000 \
+  --created-after 1735689600 --created-by 7,8 --status-id 1,5 \
+  --defects-filter JIRA-1234 \
   | jq -c '.[]'
 ```
 
@@ -692,9 +763,8 @@ testrail plan get 50
 <!-- recipe-for: plan:list -->
 
 ```bash
-# The CLI exposes no milestone/completion flags; collect then filter client-side.
-testrail plan list --project-id 1 --all --page-size 100 \
-  | jq '.[] | select(.is_completed == false)'
+# Filter on the server; add `--milestone-id 4` when the workflow targets one milestone.
+testrail plan list --project-id 1 --is-completed false --all --page-size 100
 ```
 
 ### 21. Create an empty test plan
@@ -783,7 +853,10 @@ IDs you already have and the granularity you need. Decision tree:
    `list-for-test` when N is the size of the run.
 
     ```bash
-    testrail result list --run-id 100 --all --page-size 100
+    # Whole-run reads support creator/date, status, and defect filters.
+    testrail result list --run-id 100 --all --page-size 100 \
+      --created-after 1735689600 --created-by 7,8 --status-id 1,5 \
+      --defects-filter JIRA-1234
     ```
 
 4. **You're writing, not reading** → `result add` (one), `result
@@ -1160,12 +1233,14 @@ testrail shared-step update "$SHARED_STEP_ID" --data '{
 #    caller-controlled --limit/--offset are rejected in page mode.
 testrail shared-step history "$SHARED_STEP_ID" --page | jq '.items[0]'
 
-# 6. Retire the shared step. `--dry-run` (client-side, no API call)
-#    previews the destructive call without touching the server; pair
-#    with `--yes` for the real delete. There is no `--soft` server-side
-#    preview — TestRail's `delete_shared_step` does not accept `soft=1`.
-testrail shared-step delete "$SHARED_STEP_ID" --yes --dry-run
-testrail shared-step delete "$SHARED_STEP_ID" --yes
+# 6. Retire the shared step. `--keep-in-cases true` preserves its expanded
+#    content in referencing cases while breaking the shared association.
+#    It is TestRail's default, but spelling it out makes agent intent auditable.
+testrail shared-step delete "$SHARED_STEP_ID" --keep-in-cases true --yes --dry-run
+testrail shared-step delete "$SHARED_STEP_ID" --keep-in-cases true --yes
+
+# Use false only when the content should also be removed from referencing cases.
+testrail shared-step delete "$SHARED_STEP_ID" --keep-in-cases false --yes --dry-run
 ```
 
 Notes:
@@ -1176,14 +1251,11 @@ Notes:
   the client side; the GET-LRU in this client keys by endpoint, so
   `case get` for a referencing case must be re-fetched (or cache
   bypassed) after `shared-step update` to see the new content.
-- **Delete does NOT cascade to test cases.** Per TestRail's documented
-  behavior for `delete_shared_step` (and pinned in
-  `src/cli/handlers/shared-step-write.ts`), test cases that referenced
-  the deleted shared step are **not** deleted — those cases lose the reference to the step block.
-  The case row survives; the expanded steps that came from the shared
-  block disappear from `custom_steps_separated` on that case's next
-  read. Existing runs that already executed the case keep their
-  historical step text and results unchanged.
+- **Deletion never deletes the case rows.** The request's `keep_in_cases`
+  field controls the shared content: the default (`--keep-in-cases true`)
+  preserves expanded content in each referencing case while removing the
+  shared association; `false` asks TestRail to remove that content too.
+  Existing runs retain their historical step text and results.
 - **Audit before every mutation.** `shared-step history` is the only
   reliable way to see how many revisions a shared step has accumulated
   and who touched it last. A high revision count on a step
@@ -1205,6 +1277,8 @@ Notes:
 - **`shared-step delete` is destructive, gated by `TESTRAIL_ALLOW_DESTRUCTIVE=1` + `--yes`.** Mirrors
   `milestone delete` / `plan delete`: no `--soft` server-side preview
   upstream, so the only preview mechanism is client-side `--dry-run`.
+  Use `--keep-in-cases true|false` to make the retention choice explicit;
+  omitted means TestRail's default `true`.
   `--dry-run` wins
   over `--yes` so `--yes --dry-run` always short-circuits without
   hitting the API.
@@ -1223,43 +1297,45 @@ TestRail's data-driven testing pairs two project-scoped resources:
 - **Variables** — named placeholders referenced inside case steps using
   `${var_name}` syntax (e.g. `${env}`, `${region}`). Manage with
   `variable add | update | delete` and list with `variable list`.
-- **Datasets** — named collections of variable-value rows bound to a
-  run via a plan entry. Each row drives one execution of every case
-  in the run, substituting `${var_name}` with that row's value.
+- **Datasets** — named maps from variable names to string values. The write
+  payload uses `variables: Record<string, string>`; responses expand that map
+  into entries containing each variable's server ID, name, and value.
 
 Together they let one test case run N times against N environments
 without duplicating the case definition. Workflow:
 
 ```bash
 # 1. Define the variables at project level (one-time setup).
-#    The variable IDs returned here are referenced by the dataset rows.
+#    Dataset payloads use variable names; capture IDs only for later teardown.
 ENV=$(testrail variable add 5 --data '{"name":"env"}')
 REGION=$(testrail variable add 5 --data '{"name":"region"}')
 ENV_ID=$(echo "$ENV" | jq '.id')
 REGION_ID=$(echo "$REGION" | jq '.id')
 
-# 2. Create a dataset shell in the same project. The CLI surface only
-#    exposes `name` on add/update — actual row population (variable_id
-#    + value matrices) happens through the TestRail web UI today;
-#    the public API surface for row CRUD is not yet stable.
-DATASET=$(testrail dataset add 5 --data '{"name":"Staging matrix"}')
+# 2. Create a dataset in the same project and assign values by variable name.
+#    Values must be strings; use "" when an intentionally empty value is needed.
+DATASET=$(testrail dataset add 5 --data '{
+  "name":"Staging EU",
+  "variables":{"env":"staging.example.com","region":"eu-west-1"}
+}')
 DATASET_ID=$(echo "$DATASET" | jq '.id')
 
 # 3. Reference variables in case steps with ${name} placeholders.
 #    Example case step content:
 #      "Navigate to ${env}.example.com and select region ${region}."
-#    The web UI populates the dataset rows; each row becomes one
-#    execution when the run is triggered against this dataset.
+#    Selecting this dataset supplies its string values during execution.
 
-# 4. Inspect the dataset definitions in a project (id + name only).
+# 4. Inspect every dataset definition and its expanded variables.
 testrail dataset list 5 --all
 
-# 5. Fetch a single dataset by ID to confirm the shell exists before
-#    binding it to a plan entry in TestRail's UI.
+# 5. Fetch one dataset by ID to confirm its values before selecting it.
 testrail dataset get "$DATASET_ID"
 
-# 6. Rename the dataset (e.g. after promoting from staging to prod).
-testrail dataset update "$DATASET_ID" --data '{"name":"Production matrix"}'
+# 6. Rename the dataset and replace its variable-value map.
+testrail dataset update "$DATASET_ID" --data '{
+  "name":"Production EU",
+  "variables":{"env":"prod.example.com","region":"eu-west-1"}
+}'
 
 # 7. Tear down — variables and datasets are independently deletable.
 #    Both deletes are destructive (no --soft; env unlock + --yes required).
@@ -1268,39 +1344,36 @@ testrail variable delete "$REGION_ID" --yes
 testrail variable delete "$ENV_ID" --yes
 ```
 
-Example payload — minimal `dataset add` body (the only required field
-is `name`; `custom_*` extras pass through `.passthrough()` unchanged):
+Example payload — `name` is required and `variables` is an optional map whose
+keys are existing project variable names and whose values are strings.
+`custom_*` extras pass through unchanged:
 
 ```jsonc
 {
-    "name": "Staging matrix",
+    "name": "Staging EU",
+    "variables": {
+        "env": "staging.example.com",
+        "region": "eu-west-1"
+    },
     "custom_owner": "qa-team"
 }
 ```
 
 Notes:
 
-- **CLI scope is metadata-only.** `dataset add | update` accept `name`
-  only; the per-row variable values that drive substitution are managed
-  through TestRail's web UI for now (the upstream row-CRUD endpoints
-  are not part of the documented public API surface). Use this CLI to
-  provision dataset shells and rename them; switch to the web UI for
-  the actual data matrix population.
+- **CLI writes include values.** `dataset add | update` accept both `name`
+  and `variables`. Every map value must be a string; numbers, booleans,
+  arrays, and objects fail Zod validation before an API call. On update,
+  supply the complete variable-value map you want TestRail to store.
 - **Variable references use `${name}` syntax inside case steps.** The
   literal `${env}` in a step's `content`, `expected`, or `additional_info`
   field is substituted at run-execution time with the value from the
   current dataset row. Misspelled placeholders render verbatim — there
   is no validation hop between case definition and run execution.
-- **Datasets bind to plan entries, not to runs directly.** Trigger a
-  data-driven run by creating a plan with an entry that references the
-  dataset (the binding lives in the plan entry's `config_ids[]` /
-  dataset selection — see recipe 22 for plan-entry config matrices and
-  recipe 23 for `plan add-entry`).
-- **Per-row execution semantics.** Each dataset row creates one test
-  execution per case in the run, with all `${var_name}` placeholders
-  substituted. Results are recorded per-row, so
-  `result list-for-case <run_id> <case_id> --all` returns the complete
-  set of entries (one per row) rather than only one response page.
+- **Selection is separate from CRUD.** These endpoints create, inspect,
+  update, and delete project dataset definitions. Select datasets when
+  configuring the data-driven run in TestRail; the dataset CRUD payload does
+  not carry a run or plan-entry ID.
 - **Destructive lifecycle.** `dataset delete` follows the locked-in
   destructive pattern: `--yes` required, `--dry-run` wins for
   preview-without-API, and `--soft` is rejected (TestRail's
@@ -1345,13 +1418,13 @@ committing a multi-hundred-case import. The dry-run preview includes a
 `count` field so agents can confirm the array length matches their
 source data.
 
-**Server version gate:** TestRail 7.5+ is required — older instances
-return 400 / 404 with `"Invalid uri"` because the endpoint does not
-exist. The CLI rethrows that as a clearer "TestRail server >= 7.5
-required for add_cases bulk endpoint" message so you can distinguish
-"my TestRail is too old" from "my payload is malformed". On version
-mismatch, fall back to issuing N separate `case add` calls — slower
-(rate-limited), but works on any 6.x+ instance.
+TestRail's 7.0 release notes already describe `add_cases` as an updated
+endpoint, so the client does not impose the former 7.5+ version gate or
+rewrite ordinary server errors as version failures. The CLI accepts an array
+for agent ergonomics; the client wraps it as the live-proven
+`{"cases":[...]}` request and decodes the matching response envelope. An
+unknown successful response fails closed as an indeterminate write outcome —
+do not retry blindly because the cases may already have been created.
 
 ### 31. Watch a run until completion (CI integration)
 
@@ -1424,24 +1497,21 @@ stderr but do not abort the watcher — only an unrecoverable rejection
 <!-- recipe-for: user:add -->
 
 `user add` calls `POST add_user` and returns the created `User` object.
-Three fields are required: `name`, `email`, and `password`. All other
-fields (`is_active`, `role_id`, `group_ids`, `mfa_required`, `language`,
-`email_notifications`) are optional and pass through `.passthrough()` so
-future TestRail fields are preserved without a schema bump.
-
-**Security:** never pass `--data '{"password":"..."}` on the command line —
-the secret appears in shell history and `ps` output. Use `--data-file` or
-stdin pipe instead.
+Only `name` and `email` are required by the TestRail 10.7 contract. Optional
+fields are `is_active`, `is_admin`, `role_id`, `group_ids`, `mfa_required`,
+`email_notifications`, `sso_enabled`, and `assigned_projects`. The schema
+passes unknown future fields through, but it does not advertise `password` or
+`language`, which are absent from the 10.7 request table.
 
 ```bash
-# Recommended: read the payload from a file (password stays off the command line)
-testrail user add --data-file ./new-user.json
-# new-user.json: {"name":"Alice Smith","email":"alice@example.com","password":"s3cr3t","role_id":3}
+# Minimal documented request
+testrail user add --data '{"name":"Alice Smith","email":"alice@example.com"}'
 ```
 
 ```bash
-# Pipe via stdin (also keeps password out of shell history)
-echo '{"name":"Bob","email":"bob@example.com","password":"hunter2"}' | testrail user add --data -
+# Use a file for a larger provisioning policy.
+# It may include role_id, group_ids, assigned_projects, and account flags.
+testrail user add --data-file ./new-user.json
 ```
 
 ```bash
@@ -1454,7 +1524,12 @@ testrail user add --data-file ./new-user.json --dry-run
 // Programmatic equivalent
 import { TestRailClient } from '@dichovsky/testrail-api-client';
 const client = new TestRailClient({ baseUrl, email, apiKey });
-const user = await client.users.addUser({ name: 'Alice Smith', email: 'alice@example.com', password: 's3cr3t', role_id: 3 });
+const user = await client.users.addUser({
+  name: 'Alice Smith',
+  email: 'alice@example.com',
+  role_id: 3,
+  assigned_projects: [5],
+});
 console.log(user.id); // assigned user ID
 ```
 
@@ -1465,8 +1540,8 @@ console.log(user.id); // assigned user ID
 `user update <user_id>` calls `POST update_user/{user_id}` and returns the
 updated `User` object. All fields are optional (PATCH semantics): send only
 the fields you want to change. An empty `{}` body is accepted by TestRail
-and returns the user unchanged. Pass `password` via `--data-file` or stdin
-to avoid shell-history exposure.
+and returns the user unchanged. The documented field set matches `user add`;
+`password` and `language` are not claimed as TestRail 10.7 update fields.
 
 ```bash
 # Deactivate a user
@@ -1479,9 +1554,8 @@ testrail user update 42 --data '{"name":"Alice Smith-Jones","role_id":5}'
 ```
 
 ```bash
-# Change password safely (keeps secret off the command line)
-testrail user update 42 --data-file ./pw-update.json
-# pw-update.json: {"password":"newSecret99"}
+# Update project assignment and SSO policy
+testrail user update 42 --data '{"assigned_projects":[5,8],"sso_enabled":true}'
 ```
 
 ```bash
@@ -1716,19 +1790,17 @@ Notes:
   is scoped to a project. The same `name` in a different project is a
   different ID. Always pair list/mutate calls with the project context
   (`variable list <project_id>`).
-- **Metadata-only on CLI.** The CLI `add/update` operations accept
-  `name` and `custom_*` fields only. Actual variable values are
-  managed through plan entry datasets in the web UI or API (row-level
-  CRUD is not yet part of the documented public API surface).
+- **Variable definitions are name-only.** `variable add/update` manage the
+  project placeholder names. Supply their string values through
+  `dataset add/update --data '{"variables":{"name":"value"}}'`; no
+  undocumented row-CRUD endpoint is required.
 - **Destructive gate.** `variable delete` is irreversible — requires
   `--yes` and does not support `--soft` server-side preview (TestRail's
   `delete_variable` endpoint does not expose a soft mode). Use
   `--dry-run` to validate intent before committing.
-- **Linked to datasets.** Variables are referenced by name inside
-  dataset rows (the binding happens in the web UI or via row-CRUD
-  endpoints on the API). Deleting a variable does not invalidate
-  existing dataset rows — they retain the literal `${var_name}` text
-  and fail to substitute at run time if the variable is missing.
+- **Linked to datasets.** Variables are referenced by name inside each
+  dataset's `variables` map. Audit and update those maps before deleting a
+  variable so case placeholders do not lose their value source.
 
 ### 37. Configuration mutation: update configuration & configuration-group
 
@@ -2003,7 +2075,7 @@ Returns a milestone object with:
 - `description` (string) — Milestone description.
 - `due_on` (number | null) — Unix timestamp of deadline.
 - `is_completed` (boolean) — Whether marked complete.
-- `is_started` (boolean) — Whether marked started (TestRail 7.5+).
+- `is_started` (boolean) — Whether marked started (TestRail 5.3+).
 - `completed_on` (number | null) — Timestamp when completed.
 - `project_id` (number) — Parent project ID.
 
@@ -2037,8 +2109,10 @@ Payload keys:
 - `name` (required) — Milestone name.
 - `description` (optional) — Milestone description.
 - `due_on` (optional) — Unix timestamp deadline.
-- `parent_id` (optional) — Parent milestone ID for hierarchy (TestRail 6.5+).
-- `is_started` (optional) — Mark as started (TestRail 7.5+).
+- `parent_id` (optional) — Parent milestone ID for hierarchy (TestRail 5.3+).
+
+`is_started` is not an add-milestone field. Create the milestone first, then
+set it with `milestone update` when work begins.
 
 **Update milestone metadata:**
 
@@ -2063,7 +2137,7 @@ Payload keys (all optional):
 - `description` — New description.
 - `due_on` — New deadline (Unix timestamp, or `null` to clear).
 - `is_completed` — Mark as complete (`true`) or reopen (`false`).
-- `is_started` — Mark as started (TestRail 7.5+).
+- `is_started` — Mark as started (TestRail 5.3+; update-only).
 
 **Delete a milestone (irreversible):**
 
@@ -2138,16 +2212,18 @@ testrail user get 5
 **Get user by email** (email-based lookup):
 
 `user get-by-email` calls `GET get_user_by_email` and finds a user by their
-email address. Takes no path args; requires `--email <address>` flag:
+email address. Takes no path args; requires `--user-email <address>`. The
+global `--email` flag selects the authentication identity and is not a lookup
+filter:
 
 ```bash
-testrail user get-by-email --email alice@example.com
+testrail user get-by-email --user-email alice@example.com
 # → {"id":5,"name":"Alice Smith","email":"alice@example.com",...}
 ```
 
 ```bash
 # Combine with jq to extract just the user ID
-testrail user get-by-email --email alice@example.com | jq '.id'
+testrail user get-by-email --user-email alice@example.com | jq '.id'
 ```
 
 **When to use each:**
@@ -2155,7 +2231,7 @@ testrail user get-by-email --email alice@example.com | jq '.id'
 - `user get-current` — you want info about your own account (always works,
   bound to auth credentials).
 - `user get <user_id>` — you already know the numeric ID (direct, fast).
-- `user get-by-email <email>` — you have an email address and need to find
+- `user get-by-email --user-email <email>` — you have an email address and need to find
   the user's ID or other metadata (e.g. provisioning workflows that resolve
   email → user_id before assigning to a group).
 
@@ -2301,7 +2377,7 @@ to assign a specific permission level:
 
 ```bash
 # Assign a chosen role (assuming role_id=1) when creating a user
-testrail user add --data '{"name":"Charlie","email":"charlie@example.com","password":"secret","role_id":1}'
+testrail user add --data '{"name":"Charlie","email":"charlie@example.com","role_id":1}'
 ```
 
 **Programmatic equivalent:**
@@ -2341,7 +2417,7 @@ only their IDs and titles:
 testrail case titles 1337,1338,1339
 ```
 
-**Audit edit history (TestRail 7.5+):**
+**Audit edit history (TestRail 6.5.4+):**
 
 History is paginated; use `--limit` and `--offset` to page through large changelogs:
 
@@ -2539,7 +2615,7 @@ Use these IDs in `type_id` when creating or updating cases:
 testrail case add 42 --data '{"title": "Login flow", "type_id": 1}'
 ```
 
-**List all case-level statuses (TestRail 7.5+):**
+**List all case-level statuses (TestRail Enterprise 7.3+):**
 
 Case-level statuses (distinct from result statuses) model the lifecycle of
 a case itself: Draft, Active, Deprecated, etc. This is different from a
@@ -2550,9 +2626,10 @@ common in on-premise with custom lifecycle policies.
 testrail case-status list --all
 ```
 
-If the instance supports case-level statuses, the response is an array with
-`id`, `name`, `color` (hex code for UI rendering), and metadata. If not
-supported (cloud instances < 7.5), the API returns an empty array or 400.
+If the Enterprise instance supports case-level statuses, the response is an
+array with `case_status_id`, `name`, `abbreviation`, `is_default`, and
+`is_approved`. Professional and pre-7.3 instances do not
+provide this workflow endpoint.
 
 Compatibility note: always check the length of the response before assuming
 the feature is available — do not hardcode status IDs.
@@ -3279,8 +3356,8 @@ curl -o report.html "$REPORT_URL"
 The project resource sits at the root of every TestRail hierarchy
 (project → suite → section → case → run → result). Use `project add` to
 spin up a workspace, `project update` to rename or change suite-mode
-settings, and `project delete` to retire it. Both writes accept arbitrary
-`custom_*` fields through `.passthrough()`.
+settings or project access assignments, and `project delete` to retire it.
+Both writes accept arbitrary `custom_*` fields through `.passthrough()`.
 
 ```bash
 # Create a new project (single-suite mode = 1, multi-suite = 3)
@@ -3291,6 +3368,29 @@ testrail project add --data '{"name":"Mobile App QA","announcement":"Pre-release
 # Rename + flip announcement flag
 testrail project update 5 --data '{"name":"Mobile QA (renamed)","show_announcement":false}'
 ```
+
+```bash
+# Update project access. TestRail's docs use both id and user_id for a user;
+# the client accepts exactly one identifier per user assignment.
+testrail project update 5 --data '{
+  "default_role_id": 3,
+  "groups": [
+    {"id": 12, "role_id": 0},
+    {"id": 13, "role_id": 4}
+  ],
+  "users": [
+    {"user_id": 42, "role_id": null},
+    {"id": 43, "role_id": 5}
+  ]
+}'
+```
+
+For nested `groups[]` and `users[]`, a positive `role_id` assigns that
+project role, `0` selects the user's Global Role, and `null` clears an
+existing project-specific role assignment. Group entries require `id`. User
+entries require exactly one of `id` or `user_id`; providing neither or both
+fails validation before the request. `default_role_id` accepts a non-negative
+role ID.
 
 ```bash
 # Dry-run to preview the payload that would be sent
@@ -3322,7 +3422,12 @@ testrail project delete 5 --yes
 ```typescript
 // Programmatic equivalents
 const created = await client.projects.addProject({ name: 'Mobile QA', suite_mode: 1 });
-const renamed = await client.projects.updateProject(created.id, { name: 'Mobile QA v2' });
+const renamed = await client.projects.updateProject(created.id, {
+  name: 'Mobile QA v2',
+  default_role_id: 3,
+  groups: [{ id: 12, role_id: 0 }],
+  users: [{ user_id: 42, role_id: null }],
+});
 await client.projects.deleteProject(renamed.id);
 ```
 
@@ -3341,6 +3446,17 @@ all cases assigned to a run, including their current `status_id`). Without
 # Fetch a single test instance
 testrail test get 1337
 ```
+
+```bash
+# Ask TestRail for the test plus its results and attachments.
+# The CLI normalizes the wire wrapper into one object.
+testrail test get 1337 --with-data 1 \
+  | jq '{id, title, results, attachments}'
+```
+
+`--with-data` accepts only TestRail's literal `0` or `1`. With `1`, the
+response includes `results` and `attachments` arrays on the returned test;
+with `0` or no flag, it is the ordinary `get_test` response.
 
 ```bash
 # List every test in a run
@@ -3373,6 +3489,9 @@ const tests = await client.tests.getAllTests(42, { statusId: [3] }); // 3 = Unte
 for (const t of tests) {
   await client.results.addResult(t.id, { status_id: 1, comment: 'auto-passed' });
 }
+
+const enriched = await client.tests.getTest(1337, { withData: '1' });
+console.log(enriched.results, enriched.attachments);
 ```
 
 ### 58. Assign labels to tests (single and bulk)
@@ -3566,7 +3685,7 @@ await client.cases.updateCases(suite.id, {
     priority_id: 4,
 });
 
-// Edit history (TestRail 7.5+); collect every response page.
+// Edit history (TestRail 6.5.4+); collect every response page.
 const history = await client.cases.getAllHistoryForCase(42, { pageSize: 100 });
 ```
 
@@ -3675,7 +3794,8 @@ await client.plans.closePlan(plan.id);
 const me = await client.users.getCurrentUser(); // TestRail 6.6+
 const byEmail = await client.users.getUserByEmail('alice@example.com');
 const user = await client.users.getUser(7);
-const users = await client.users.getUsers({ limit: 100 });
+const projectUsers = await client.users.getUsers(5); // project_id; required for non-admins
+const allVisibleUsers = await client.users.getUsers(); // administrators may omit project_id
 ```
 
 ### Datasets & variables (data-driven testing)
@@ -3683,10 +3803,16 @@ const users = await client.users.getUsers({ limit: 100 });
 ```typescript
 // Variables live on the project; datasets reference them by name.
 const v = await client.variables.addVariable(1, { name: 'env' });
-const d = await client.datasets.addDataset(1, { name: 'Staging matrix' });
+const d = await client.datasets.addDataset(1, {
+  name: 'Staging EU',
+  variables: { env: 'staging.example.com' },
+});
 
 const datasets = await client.datasets.getDatasets(1);
-await client.datasets.updateDataset(d.id, { name: 'Production matrix' });
+await client.datasets.updateDataset(d.id, {
+  name: 'Production EU',
+  variables: { env: 'prod.example.com' },
+});
 ```
 
 ### Groups (TestRail 7.5+)

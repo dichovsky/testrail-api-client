@@ -19,6 +19,9 @@ export const PlanEntrySchema = zObject({
     // Keep the response deliberately wide instead of reusing the stricter
     // caller-supplied payload schema; request and response shapes may diverge.
     dynamic_filters: z.unknown().nullish(),
+    // Dataset selected for this plan entry. Included in the documented
+    // add_plan_entry response and omitted by older servers/unset entries.
+    dataset_id: z.number().nullish(),
     // SPEC #2.1.6 — TestRail Plans API doc lists `start_on` / `due_on` / `refs` in the
     // `add_plan_entry` request body table (entry-level), and the `get_plan` example
     // shows `refs` in the entry object. `start_on` / `due_on` echo back on responses
@@ -130,7 +133,9 @@ export const UpdateRunInPlanEntryPayloadSchema = zObject({
 export type UpdateRunInPlanEntryPayload = z.infer<typeof UpdateRunInPlanEntryPayloadSchema>;
 
 export const AddPlanEntryPayloadSchema = zObject({
-    suite_id: z.number(),
+    // Required only for projects using multiple-suite or baseline mode. It is
+    // omitted for single-suite projects, whose suite is implicit.
+    suite_id: z.number().optional(),
     name: z.string().optional(),
     description: z.string().optional(),
     assignedto_id: z.number().optional(),
@@ -196,7 +201,6 @@ export const UpdatePlanPayloadSchema = zObject({
     name: z.string().optional(),
     description: z.string().optional(),
     milestone_id: z.number().optional(),
-    assignedto_id: z.number().optional(),
     // SPEC #2.1.6 — TestRail Plans API doc says `update_plan` "supports the same
     // POST fields as `add_plan`" (with the exception of `entries`). That makes
     // `start_on`, `due_on`, and `refs` valid here.

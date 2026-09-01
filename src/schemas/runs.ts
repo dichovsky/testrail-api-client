@@ -60,6 +60,9 @@ export const RunSchema = zObject({
     is_archived: z.boolean().nullish(),
     archived_on: z.number().nullish(),
     dynamic_filters: z.unknown().nullish(),
+    // Dataset selected for this run. Present in TestRail 10.7's documented
+    // get_run/get_runs and nested plan-entry response examples.
+    dataset_id: z.number().nullish(),
 });
 
 export type Run = KnownResponse<typeof RunSchema>;

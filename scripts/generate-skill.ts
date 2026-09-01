@@ -9,24 +9,27 @@
  *   <!-- GENERATED:command-table -->   …rendered table of resource:action
  *   <!-- /GENERATED:command-table -->
  *
+ *   <!-- GENERATED:option-reference --> …every parser-recognized CLI option
+ *   <!-- /GENERATED:option-reference -->
+ *
  *   <!-- GENERATED:payload-schemas --> …per-schema field listing
  *   <!-- /GENERATED:payload-schemas -->
  *
  * Hand-written sections (frontmatter, recipes, prose) are preserved.
  *
- * Prerequisite: `npm run build` (this script imports compiled JS from
- * dist/ so Zod schemas are introspectable as runtime values). The
- * `skill` npm-script chains build + generation.
- *
- * Drift is enforced via the `skill:check` script which verifies both generated
- * outputs (`skill/SKILL.md` and `skill/reference/payload-schemas.yaml`) after
- * regeneration in CI/publish.
+ * `tsx` loads the TypeScript sources directly, so check mode never depends on
+ * a potentially stale dist/ build. `--check` renders everything in memory and
+ * exits non-zero without writing when either committed artifact differs.
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { ACTIONS } from '../src/cli/metadata.js';
+import { CLI_OPTION_DOCUMENTATION } from '../src/cli/flags.js';
 import {
+    findStaleSkillArtifacts,
+    renderCliOptionReference,
     renderCommandTable,
     renderPayloadSchemas,
     renderPayloadSchemaReference,
@@ -36,41 +39,42 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-const distMetadata = path.join(root, 'dist', 'cli', 'metadata.js');
 const skillPath = path.join(root, 'skill', 'SKILL.md');
 const referenceDir = path.join(root, 'skill', 'reference');
 const payloadReferencePath = path.join(referenceDir, 'payload-schemas.yaml');
+const checkMode = process.argv.includes('--check');
 
-if (!existsSync(distMetadata)) {
-    process.stderr.write(
-        `Error: ${distMetadata} not found. Run \`npm run build\` first so the generator can introspect runtime Zod schemas.\n`,
-    );
-    process.exit(1);
-}
-
-const { ACTIONS } = (await import(pathToFileURL(distMetadata).href)) as { ACTIONS: readonly unknown[] };
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string };
 
-let content = readFileSync(skillPath, 'utf-8');
-content = replaceSection(
-    content,
-    'command-table',
-    renderCommandTable(ACTIONS as Parameters<typeof renderCommandTable>[0]),
-);
-content = replaceSection(
-    content,
-    'payload-schemas',
-    renderPayloadSchemas(ACTIONS as Parameters<typeof renderPayloadSchemas>[0]),
-);
+const committedContent = readFileSync(skillPath, 'utf-8');
+let content = committedContent;
+content = replaceSection(content, 'command-table', renderCommandTable(ACTIONS));
+content = replaceSection(content, 'option-reference', renderCliOptionReference(CLI_OPTION_DOCUMENTATION));
+content = replaceSection(content, 'payload-schemas', renderPayloadSchemas(ACTIONS));
 content = replaceFrontmatterVersion(content, pkg.version);
-writeFileSync(skillPath, content, 'utf-8');
-mkdirSync(referenceDir, { recursive: true });
-writeFileSync(
-    payloadReferencePath,
-    renderPayloadSchemaReference(ACTIONS as Parameters<typeof renderPayloadSchemaReference>[0]),
-    'utf-8',
-);
+const payloadReference = renderPayloadSchemaReference(ACTIONS);
 
-process.stdout.write(
-    `skill/SKILL.md regenerated (${content.split('\n').length} lines); wrote skill/reference/payload-schemas.yaml.\n`,
-);
+if (checkMode) {
+    const stale = findStaleSkillArtifacts({
+        committedSkill: committedContent,
+        generatedSkill: content,
+        ...(existsSync(payloadReferencePath) && {
+            committedPayloadReference: readFileSync(payloadReferencePath, 'utf-8'),
+        }),
+        generatedPayloadReference: payloadReference,
+    });
+    if (stale.length > 0) {
+        process.stderr.write(`Skill artifacts are out of date: ${stale.join(', ')}. Run \`npm run skill\`.\n`);
+        process.exitCode = 1;
+    } else {
+        process.stdout.write('Skill artifacts are up to date.\n');
+    }
+} else {
+    writeFileSync(skillPath, content, 'utf-8');
+    mkdirSync(referenceDir, { recursive: true });
+    writeFileSync(payloadReferencePath, payloadReference, 'utf-8');
+
+    process.stdout.write(
+        `skill/SKILL.md regenerated (${content.split('\n').length} lines); wrote skill/reference/payload-schemas.yaml.\n`,
+    );
+}

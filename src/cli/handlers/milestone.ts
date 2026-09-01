@@ -1,4 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
+import { parseOptionalBoolean } from '../filters.js';
 import { parseId } from '../ids.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
@@ -9,15 +10,26 @@ export async function handleMilestoneGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleMilestoneList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
+    const isCompleted = parseOptionalBoolean(ctx.args.isCompleted, '--is-completed');
+    const isStarted = parseOptionalBoolean(ctx.args.isStarted, '--is-started');
     const limit = ctx.pagination.limit;
     const offset = ctx.pagination.offset;
+    const filters = {
+        ...(isCompleted !== undefined && { isCompleted }),
+        ...(isStarted !== undefined && { isStarted }),
+    };
     const pageOptions = {
+        ...filters,
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
     };
     await outputPaginated(ctx, {
         items: () => ctx.client.milestones.getMilestones(pid, pageOptions),
         page: () => ctx.client.milestones.getMilestonesPage(pid, pageOptions),
-        all: () => ctx.client.milestones.getAllMilestones(pid, getPaginatedRequestOptions(ctx.pagination)),
+        all: () =>
+            ctx.client.milestones.getAllMilestones(pid, {
+                ...filters,
+                ...getPaginatedRequestOptions(ctx.pagination),
+            }),
     });
 }

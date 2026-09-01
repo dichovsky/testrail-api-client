@@ -374,23 +374,27 @@ export function renderClientCell(
     return `[\`${match.methodName}\`](${LINK_PREFIX}${rel}#L${match.line})`;
 }
 
-export function renderCliCell(cliKey: string | null): string {
-    if (cliKey === null) return '—';
-    return `\`${cliKey.replace(':', ' ')}\``;
+export function renderCliCell(cliKeys: readonly string[]): string {
+    if (cliKeys.length === 0) return '—';
+    return cliKeys.map((cliKey) => `\`${cliKey.replace(':', ' ')}\``).join('<br>');
 }
 
 /**
- * If the CLI action has a numbered recipe (via `recipe-for:` tag in SKILL.md),
- * link directly to that recipe. Otherwise fall back to the generated command-
- * table anchor. Returns em-dash when the row has no CLI binding at all.
+ * For each CLI action, link its numbered recipe (via `recipe-for:` tag in
+ * SKILL.md), or fall back to the generated command-table anchor. Returns an
+ * em-dash when the endpoint row has no CLI binding at all.
  */
-export function renderSkillCell(cliKey: string | null, recipes?: Map<string, SkillRecipe>): string {
-    if (cliKey === null) return '—';
-    const recipe = recipes !== undefined ? recipes.get(cliKey) : undefined;
-    if (recipe !== undefined) {
-        return `[recipe #${recipe.number}](${LINK_PREFIX}skill/SKILL.md#${recipe.anchor})`;
-    }
-    return `[command-table](${SKILL_COMMAND_TABLE_ANCHOR})`;
+export function renderSkillCell(cliKeys: readonly string[], recipes?: Map<string, SkillRecipe>): string {
+    if (cliKeys.length === 0) return '—';
+    return cliKeys
+        .map((cliKey) => {
+            const recipe = recipes !== undefined ? recipes.get(cliKey) : undefined;
+            if (recipe !== undefined) {
+                return `[recipe #${recipe.number}](${LINK_PREFIX}skill/SKILL.md#${recipe.anchor})`;
+            }
+            return `[command-table](${SKILL_COMMAND_TABLE_ANCHOR})`;
+        })
+        .join('<br>');
 }
 
 // ── Aggregate renderers ───────────────────────────────────────────────────────
@@ -398,7 +402,7 @@ export function renderSkillCell(cliKey: string | null, recipes?: Map<string, Ski
 export interface MappingRow {
     endpoint: Endpoint;
     match: { moduleFile: string; methodName: string; line: number } | null;
-    cliKey: string | null;
+    cliKeys: readonly string[];
 }
 
 export interface GroupedResource {
@@ -413,24 +417,32 @@ function resourceSlug(resource: string): string {
 
 export function renderSummaryTable(grouped: GroupedResource[], recipes?: Map<string, SkillRecipe>): string {
     const lines = [
-        '| Resource | TestRail endpoints | Client methods | CLI commands | Skill exposure |',
-        '| --- | ---: | ---: | ---: | ---: |',
+        '| Resource | TestRail endpoints | Client-bound endpoints | CLI-bound endpoints | CLI actions | Skill recipe actions |',
+        '| --- | ---: | ---: | ---: | ---: | ---: |',
     ];
-    const totals = { ep: 0, client: 0, cli: 0, skill: 0 };
+    const totals = { ep: 0, client: 0, cliEndpoints: 0, cliActions: 0, skillActions: 0 };
     for (const { resource, rows } of grouped) {
         const ep = rows.length;
         const client = rows.filter((r) => r.match !== null).length;
-        const cli = rows.filter((r) => r.cliKey !== null).length;
-        // Skill count: rows whose cliKey has a recipe-for: tag in SKILL.md.
-        const skill = recipes !== undefined ? rows.filter((r) => r.cliKey !== null && recipes.has(r.cliKey)).length : 0;
+        const cliEndpoints = rows.filter((r) => r.cliKeys.length > 0).length;
+        const cliActions = rows.reduce((count, row) => count + row.cliKeys.length, 0);
+        const skillActions =
+            recipes !== undefined
+                ? rows.reduce((count, row) => count + row.cliKeys.filter((cliKey) => recipes.has(cliKey)).length, 0)
+                : 0;
         totals.ep += ep;
         totals.client += client;
-        totals.cli += cli;
-        totals.skill += skill;
+        totals.cliEndpoints += cliEndpoints;
+        totals.cliActions += cliActions;
+        totals.skillActions += skillActions;
         const slug = resourceSlug(resource);
-        lines.push(`| [${resource}](#${slug}) | ${ep} | ${client} | ${cli} | ${skill} |`);
+        lines.push(
+            `| [${resource}](#${slug}) | ${ep} | ${client} | ${cliEndpoints} | ${cliActions} | ${skillActions} |`,
+        );
     }
-    lines.push(`| **Total** | **${totals.ep}** | **${totals.client}** | **${totals.cli}** | **${totals.skill}** |`);
+    lines.push(
+        `| **Total** | **${totals.ep}** | **${totals.client}** | **${totals.cliEndpoints}** | **${totals.cliActions}** | **${totals.skillActions}** |`,
+    );
     return lines.join('\n');
 }
 
@@ -442,10 +454,10 @@ export function renderResourceSection(
 ): string {
     const slug = resourceSlug(resource);
     const header = [`## ${resource}`, '', `<a id="${slug}"></a>`, ''];
-    const table = ['| Endpoint | Client method | CLI command | Skill recipe |', '| --- | --- | --- | --- |'];
+    const table = ['| Endpoint | Client method | CLI action(s) | Skill recipe(s) |', '| --- | --- | --- | --- |'];
     for (const row of rows) {
         table.push(
-            `| ${renderEndpointCell(row.endpoint)} | ${renderClientCell(row.match, rootPrefix)} | ${renderCliCell(row.cliKey)} | ${renderSkillCell(row.cliKey, recipes)} |`,
+            `| ${renderEndpointCell(row.endpoint)} | ${renderClientCell(row.match, rootPrefix)} | ${renderCliCell(row.cliKeys)} | ${renderSkillCell(row.cliKeys, recipes)} |`,
         );
     }
     return [...header, ...table, ''].join('\n');
@@ -461,13 +473,15 @@ export function renderDocument(
         '',
         '# TestRail API Mapping',
         '',
-        'Coverage matrix linking every TestRail API endpoint to its implementation in this package: the client method, the CLI command, and the agent skill recipe. Rows with `—` indicate gaps (endpoint exists in TestRail but not yet surfaced at that layer).',
+        'Coverage matrix linking every TestRail API endpoint to its implementation in this package: the client method, CLI action(s), and agent skill recipe(s). Rows with `—` indicate gaps (endpoint exists in TestRail but not yet surfaced at that layer).',
         '',
         '**Sources of truth.** The endpoint inventory is hand-curated in [`docs/testrail-endpoints.json`](testrail-endpoints.json). Client methods are bound via `@testrail` JSDoc tags on each method in `src/modules/*.ts`. CLI commands are read from the `apiEndpoint` field on each entry in `ACTIONS` in `src/cli/metadata.ts`.',
         '',
+        '**Version target.** The inventory is audited against TestRail 10.7.0; source provenance, cumulative-release additions, resolved mismatches, and known upstream documentation conflicts are recorded in [`docs/TESTRAIL-10.7.0-COMPATIBILITY.md`](TESTRAIL-10.7.0-COMPATIBILITY.md).',
+        '',
         '**Drift gates.** The generator validates six things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); endpoint and `ActionSpec` pagination metadata agree bidirectionally (gate E); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI).',
         '',
-        '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary table\'s "Skill exposure" column counts only the curated-recipe rows; the command-table itself covers every CLI-bound row.',
+        '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary distinguishes endpoint coverage from action counts because more than one CLI action can intentionally use the same TestRail endpoint.',
         '',
         '## Summary',
         '',

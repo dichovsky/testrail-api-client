@@ -163,7 +163,7 @@ const handlers: readonly HandlerCase[] = [
         handler: handleProjectList,
         legacyArgs: { pathParams: [], limit: '10', offset: '20' },
         allArgs: { pathParams: [], all: true, ...aggregateFlags },
-        expectedItemsArgs: [10, 20],
+        expectedItemsArgs: [{ limit: 10, offset: 20 }],
         expectedPageArgs: [{ limit: 10, offset: 20 }],
         expectedAllArgs: [aggregateOptions],
         getOperations: (client) => ({
@@ -254,5 +254,46 @@ describe.each(handlers)('$name pagination modes', (entry) => {
         expect(operations.page).not.toHaveBeenCalled();
         expect(operations.all.mock.calls).toEqual([entry.expectedAllArgs]);
         expect(out).toHaveBeenCalledWith([`${entry.name.split(' ')[0]}s-all`]);
+    });
+});
+
+describe('10.7 list filters', () => {
+    it('preserves project --is-completed through --all', async () => {
+        const client = buildClient();
+        const args: HandlerArgs = {
+            pathParams: [],
+            all: true,
+            isCompleted: 'false',
+            ...aggregateFlags,
+        };
+        const { ctx } = buildContext(client, args);
+
+        await handleProjectList(ctx);
+
+        expect(client.projects.getAllProjects).toHaveBeenCalledWith({
+            isCompleted: false,
+            ...aggregateOptions,
+        });
+    });
+
+    it('preserves both milestone state filters through --all', async () => {
+        const client = buildClient();
+        const args: HandlerArgs = {
+            pathParams: [],
+            projectId: '7',
+            all: true,
+            isCompleted: 'false',
+            isStarted: 'true',
+            ...aggregateFlags,
+        };
+        const { ctx } = buildContext(client, args);
+
+        await handleMilestoneList(ctx);
+
+        expect(client.milestones.getAllMilestones).toHaveBeenCalledWith(7, {
+            isCompleted: false,
+            isStarted: true,
+            ...aggregateOptions,
+        });
     });
 });

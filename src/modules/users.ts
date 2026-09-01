@@ -54,19 +54,15 @@ export class UsersModule {
     }
 
     /** @testrail GET get_users */
-    async getUsers(limit?: number, offset?: number, projectId?: number): Promise<User[]> {
-        validatePaginationParams(limit, offset);
+    async getUsers(projectId?: number): Promise<User[]> {
         if (projectId !== undefined) {
             validateId(projectId, 'projectId');
         }
 
-        const endpoint = buildEndpoint(projectId !== undefined ? `get_users/${projectId}` : 'get_users', {
-            limit,
-            offset,
-        });
+        const endpoint = projectId !== undefined ? `get_users/${projectId}` : 'get_users';
 
         // `get_users` is the one bulk endpoint whose documentation shows a bare
-        // top-level array and lists no `limit`/`offset` parameters, while
+        // top-level array and supports no `limit`/`offset` parameters, while
         // projects/groups/roles/labels all document the envelope. #248 proved
         // this exact wrapper-only assumption wrong for six other methods, so
         // accept both shapes rather than betting on the doc.

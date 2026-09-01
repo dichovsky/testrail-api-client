@@ -66,6 +66,7 @@ import {
     UserUpdatePayloadSchema,
     AttachmentSchema,
 } from '../src/schemas.js';
+import type { UpdateProjectUserAssignmentPayload } from '../src/schemas.js';
 
 describe('AddCasePayloadSchema', () => {
     it('parses a minimal valid payload (title only)', () => {
@@ -289,13 +290,16 @@ describe('AddCaseFieldConfigPayloadSchema', () => {
         ).toThrow();
     });
 
-    it('rejects when options.default_value is missing (required as a string)', () => {
-        expect(() =>
+    it('accepts an omitted default_value for field types that forbid it', () => {
+        expect(
             AddCaseFieldConfigPayloadSchema.parse({
-                context: { is_global: true, project_ids: [] },
+                context: { is_global: true, project_ids: '' },
                 options: { is_required: false },
             }),
-        ).toThrow();
+        ).toEqual({
+            context: { is_global: true, project_ids: '' },
+            options: { is_required: false },
+        });
     });
 
     it('rejects wrong type on context.is_global (no coercion)', () => {
@@ -400,19 +404,15 @@ describe('AddCaseFieldPayloadSchema', () => {
         expect(parsed['future_field']).toBe('preserve me');
     });
 
-    it('parses a payload with an empty configs[] array (schema permits it; server enforces)', () => {
-        // TestRail server requires at least one config in practice, but the
-        // payload schema only validates structural shape. An empty array is
-        // structurally valid; a missing `configs` key is not (rejected
-        // elsewhere). Surfacing the server-side 400 stays the responsibility
-        // of the upstream API per the .passthrough() / fail-open design.
-        const parsed = AddCaseFieldPayloadSchema.parse({
-            type: 'String',
-            name: 'x',
-            label: 'X',
-            configs: [],
-        });
-        expect(parsed.configs).toEqual([]);
+    it('rejects an empty configs[] array', () => {
+        expect(() =>
+            AddCaseFieldPayloadSchema.parse({
+                type: 'String',
+                name: 'x',
+                label: 'X',
+                configs: [],
+            }),
+        ).toThrow();
     });
 
     it('parses a payload with multiple configs[] entries', () => {
@@ -812,7 +812,13 @@ describe('PlanEntryRunPayloadSchema', () => {
 });
 
 describe('AddPlanEntryPayloadSchema', () => {
-    it('parses a minimal valid payload (suite_id only)', () => {
+    it('parses a single-suite payload without suite_id', () => {
+        expect(AddPlanEntryPayloadSchema.parse({ name: 'single-suite entry' })).toEqual({
+            name: 'single-suite entry',
+        });
+    });
+
+    it('parses suite_id for a multi-suite or baseline project', () => {
         const parsed = AddPlanEntryPayloadSchema.parse({ suite_id: 1 });
         expect(parsed.suite_id).toBe(1);
     });
@@ -825,10 +831,6 @@ describe('AddPlanEntryPayloadSchema', () => {
             runs: [{ config_ids: [10] }, { config_ids: [11] }],
         });
         expect(parsed.runs).toHaveLength(2);
-    });
-
-    it('rejects payload missing suite_id', () => {
-        expect(() => AddPlanEntryPayloadSchema.parse({ name: 'oops' })).toThrow();
     });
 
     it('rejects non-number suite_id', () => {
@@ -1006,13 +1008,13 @@ describe('AddPlanPayloadSchema', () => {
         expect(() => AddPlanPayloadSchema.parse({})).toThrow();
     });
 
-    it('rejects payload with entry missing suite_id', () => {
-        expect(() =>
+    it('accepts a single-suite entry without suite_id', () => {
+        expect(
             AddPlanPayloadSchema.parse({
                 name: 'R',
-                entries: [{ name: 'broken' }],
-            }),
-        ).toThrow();
+                entries: [{ name: 'single-suite entry' }],
+            }).entries,
+        ).toEqual([{ name: 'single-suite entry' }]);
     });
 
     it('lets custom_* fields pass through unchanged', () => {
@@ -1052,9 +1054,14 @@ describe('UpdatePlanPayloadSchema', () => {
             name: 'renamed',
             description: 'd',
             milestone_id: 9,
-            assignedto_id: 7,
         });
         expect(parsed.name).toBe('renamed');
+    });
+
+    it('does not advertise add-only entries or the undocumented assignedto_id field', () => {
+        expect(Object.keys(UpdatePlanPayloadSchema.shape)).not.toEqual(
+            expect.arrayContaining(['entries', 'assignedto_id']),
+        );
     });
 
     it('rejects non-string description', () => {
@@ -1118,6 +1125,17 @@ describe('AddProjectPayloadSchema', () => {
 });
 
 describe('UpdateProjectPayloadSchema', () => {
+    it('exposes an exclusive user-assignment identifier type', () => {
+        const byId: UpdateProjectUserAssignmentPayload = { id: 1, role_id: 3 };
+        const byUserId: UpdateProjectUserAssignmentPayload = { user_id: 2, role_id: null };
+        // @ts-expect-error Exactly one official user identifier form is required.
+        const missingIdentifier: UpdateProjectUserAssignmentPayload = { role_id: 3 };
+        // @ts-expect-error The two official identifier forms are mutually exclusive.
+        const ambiguousIdentifier: UpdateProjectUserAssignmentPayload = { id: 1, user_id: 2, role_id: 3 };
+
+        expect([byId, byUserId, missingIdentifier, ambiguousIdentifier]).toHaveLength(4);
+    });
+
     it('parses an empty body (all fields optional)', () => {
         expect(UpdateProjectPayloadSchema.parse({})).toEqual({});
     });
@@ -1128,6 +1146,39 @@ describe('UpdateProjectPayloadSchema', () => {
 
     it('rejects non-boolean show_announcement', () => {
         expect(() => UpdateProjectPayloadSchema.parse({ show_announcement: 'yes' })).toThrow();
+    });
+
+    it('parses project-level role, group, and user access assignments', () => {
+        const parsed = UpdateProjectPayloadSchema.parse({
+            default_role_id: 3,
+            groups: [
+                { id: 7, role_id: 0 },
+                { id: 8, role_id: null },
+            ],
+            users: [
+                { user_id: 4, role_id: null },
+                { id: 5, role_id: 0 },
+            ],
+        });
+
+        expect(parsed).toEqual({
+            default_role_id: 3,
+            groups: [
+                { id: 7, role_id: 0 },
+                { id: 8, role_id: null },
+            ],
+            users: [
+                { user_id: 4, role_id: null },
+                { id: 5, role_id: 0 },
+            ],
+        });
+    });
+
+    it('rejects invalid or ambiguous project access assignments', () => {
+        expect(() => UpdateProjectPayloadSchema.parse({ groups: [{ id: 0, role_id: 3 }] })).toThrow();
+        expect(() => UpdateProjectPayloadSchema.parse({ users: [{ role_id: 3 }] })).toThrow();
+        expect(() => UpdateProjectPayloadSchema.parse({ users: [{ id: 1, user_id: 2, role_id: 3 }] })).toThrow();
+        expect(() => UpdateProjectPayloadSchema.parse({ users: [{ id: 1, role_id: -1 }] })).toThrow();
     });
 
     it('lets custom_* fields pass through', () => {
@@ -1371,6 +1422,18 @@ describe('AddDatasetPayloadSchema', () => {
         expect(() => AddDatasetPayloadSchema.parse({ name: 42 })).toThrow();
     });
 
+    it('parses an optional variable-name to value map', () => {
+        const parsed = AddDatasetPayloadSchema.parse({
+            name: 'Browser matrix',
+            variables: { browser: 'Chrome', locale: 'en-US' },
+        });
+        expect(parsed.variables).toEqual({ browser: 'Chrome', locale: 'en-US' });
+    });
+
+    it('rejects non-string variable values without coercion', () => {
+        expect(() => AddDatasetPayloadSchema.parse({ name: 'matrix', variables: { browser: 42 } })).toThrow();
+    });
+
     it('lets custom_* fields pass through', () => {
         const parsed = AddDatasetPayloadSchema.parse({
             name: 'matrix',
@@ -1391,6 +1454,17 @@ describe('UpdateDatasetPayloadSchema', () => {
 
     it('rejects non-string name (no coercion)', () => {
         expect(() => UpdateDatasetPayloadSchema.parse({ name: 42 })).toThrow();
+    });
+
+    it('parses an optional variable-name to value map', () => {
+        const parsed = UpdateDatasetPayloadSchema.parse({
+            variables: { browser: 'Firefox', locale: 'de-DE' },
+        });
+        expect(parsed.variables).toEqual({ browser: 'Firefox', locale: 'de-DE' });
+    });
+
+    it('rejects non-string variable values without coercion', () => {
+        expect(() => UpdateDatasetPayloadSchema.parse({ variables: { browser: false } })).toThrow();
     });
 
     it('lets custom_* fields pass through', () => {
@@ -1542,66 +1616,63 @@ describe('UpdateConfigurationPayloadSchema', () => {
 });
 
 describe('UserAddPayloadSchema', () => {
-    it('parses a minimal valid payload (name + email + password)', () => {
+    it('parses the documented minimal payload (name + email)', () => {
         const parsed = UserAddPayloadSchema.parse({
             name: 'Alice',
             email: 'alice@example.com',
-            password: 's3cr3t',
         });
         expect(parsed.name).toBe('Alice');
         expect(parsed.email).toBe('alice@example.com');
-        expect(parsed.password).toBe('s3cr3t');
     });
 
     it('parses a fully-populated payload', () => {
         const parsed = UserAddPayloadSchema.parse({
             name: 'Bob',
             email: 'bob@example.com',
-            password: 'hunter2',
             is_active: true,
+            is_admin: true,
             role_id: 3,
             group_ids: [1, 2],
             mfa_required: false,
-            language: 'en',
             email_notifications: true,
+            sso_enabled: true,
+            assigned_projects: [4, 5],
         });
         expect(parsed.role_id).toBe(3);
         expect(parsed.group_ids).toEqual([1, 2]);
+        expect(parsed.assigned_projects).toEqual([4, 5]);
     });
 
     it('rejects missing name', () => {
-        expect(() => UserAddPayloadSchema.parse({ email: 'a@b.com', password: 'x' })).toThrow();
+        expect(() => UserAddPayloadSchema.parse({ email: 'a@b.com' })).toThrow();
     });
 
     it('rejects empty name', () => {
-        expect(() => UserAddPayloadSchema.parse({ name: '', email: 'a@b.com', password: 'x' })).toThrow();
+        expect(() => UserAddPayloadSchema.parse({ name: '', email: 'a@b.com' })).toThrow();
     });
 
     it('rejects missing email', () => {
-        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', password: 'x' })).toThrow();
+        expect(() => UserAddPayloadSchema.parse({ name: 'Alice' })).toThrow();
     });
 
     it('rejects invalid email format', () => {
-        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'not-an-email', password: 'x' })).toThrow();
-    });
-
-    it('rejects missing password', () => {
-        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'a@b.com' })).toThrow();
-    });
-
-    it('rejects empty password', () => {
-        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'a@b.com', password: '' })).toThrow();
+        expect(() => UserAddPayloadSchema.parse({ name: 'Alice', email: 'not-an-email' })).toThrow();
     });
 
     it('rejects non-string name (no coercion)', () => {
-        expect(() => UserAddPayloadSchema.parse({ name: 42, email: 'a@b.com', password: 'x' })).toThrow();
+        expect(() => UserAddPayloadSchema.parse({ name: 42, email: 'a@b.com' })).toThrow();
+    });
+
+    it('rejects invalid assigned project IDs', () => {
+        expect(() =>
+            UserAddPayloadSchema.parse({ name: 'Alice', email: 'a@b.com', assigned_projects: [1, 0] }),
+        ).toThrow();
     });
 
     it('lets custom_* fields pass through', () => {
         const parsed = UserAddPayloadSchema.parse({
             name: 'Alice',
             email: 'alice@example.com',
-            password: 's3cr3t',
             custom_attr: 'value',
         }) as Record<string, unknown>;
         expect(parsed['custom_attr']).toBe('value');
@@ -1631,8 +1702,10 @@ describe('UserUpdatePayloadSchema', () => {
         expect(() => UserUpdatePayloadSchema.parse({ name: '' })).toThrow();
     });
 
-    it('rejects empty password (min 1)', () => {
-        expect(() => UserUpdatePayloadSchema.parse({ password: '' })).toThrow();
+    it('parses Enterprise access-control fields', () => {
+        expect(UserUpdatePayloadSchema.parse({ is_admin: true, sso_enabled: true, assigned_projects: [2, 3] })).toEqual(
+            { is_admin: true, sso_enabled: true, assigned_projects: [2, 3] },
+        );
     });
 
     it('rejects non-boolean is_active (no coercion)', () => {

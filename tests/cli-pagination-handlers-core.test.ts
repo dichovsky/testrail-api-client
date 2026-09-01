@@ -173,12 +173,30 @@ describe('core paginated CLI handlers', () => {
         const getResultsForRunPage = vi.fn().mockResolvedValue(page);
         const { ctx, out } = context(
             { results: { getResultsForRunPage } },
-            { runId: '12', page: true, limit: '2', offset: '2' },
+            {
+                runId: '12',
+                page: true,
+                createdAfter: '100',
+                createdBefore: '200',
+                createdBy: '7,8',
+                statusId: '1,5',
+                defectsFilter: 'BUG-7',
+                limit: '2',
+                offset: '2',
+            },
         );
 
         await handleResultList(ctx);
 
-        expect(getResultsForRunPage).toHaveBeenCalledWith(12, { limit: 2, offset: 2 });
+        expect(getResultsForRunPage).toHaveBeenCalledWith(12, {
+            createdAfter: 100,
+            createdBefore: 200,
+            createdBy: [7, 8],
+            statusId: [1, 5],
+            defectsFilter: 'BUG-7',
+            limit: 2,
+            offset: 2,
+        });
         expect(out).toHaveBeenCalledWith(page);
     });
 
@@ -191,6 +209,18 @@ describe('core paginated CLI handlers', () => {
 
         expect(getResultsForRun).toHaveBeenCalledWith(12, { limit: 2, offset: 4 });
         expect(out).toHaveBeenCalledWith(results);
+    });
+
+    it.each([
+        [{ createdAfter: 'not-a-timestamp' }, /--created-after/],
+        [{ createdBy: '7,bad' }, /--created-by/],
+        [{ statusId: '1,bad' }, /--status-id/],
+    ])('rejects malformed result-for-run filters before a client call', async (args, expected) => {
+        const getResultsForRun = vi.fn();
+        const { ctx } = context({ results: { getResultsForRun } }, { runId: '12', ...args });
+
+        await expect(handleResultList(ctx)).rejects.toThrow(expected);
+        expect(getResultsForRun).not.toHaveBeenCalled();
     });
 
     it('routes result-for-run --all with every aggregate safety control', async () => {
@@ -207,6 +237,11 @@ describe('core paginated CLI handlers', () => {
                 maxItems: '27',
                 maxDurationMs: '1500',
                 maxBytes: '8192',
+                createdAfter: '100',
+                createdBefore: '200',
+                createdBy: '7,8',
+                statusId: '1,5',
+                defectsFilter: 'BUG-7',
             },
         );
 
@@ -219,6 +254,11 @@ describe('core paginated CLI handlers', () => {
             maxItems: 27,
             maxDurationMs: 1500,
             maxBytes: 8192,
+            createdAfter: 100,
+            createdBefore: 200,
+            createdBy: [7, 8],
+            statusId: [1, 5],
+            defectsFilter: 'BUG-7',
         });
         expect(out).toHaveBeenCalledWith(results);
     });

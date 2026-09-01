@@ -20,10 +20,8 @@ export const handleCaseAdd = createWriteHandler({
 });
 
 /**
- * Bulk-create cases under a section in one API call (TestRail 7.5+). The body
- * is a JSON **array** of case payloads. A non-array body is rejected by Zod.
- * Server-version errors (TestRail < 7.5) are rethrown inside the module as a
- * clearer "TestRail 7.5+ required" message.
+ * Bulk-create cases under a section in one API call. The body is a JSON
+ * **array** of case payloads. A non-array body is rejected by Zod.
  */
 export const handleCaseAddBulk = createWriteHandler({
     action: 'case add-bulk',

@@ -153,6 +153,36 @@ describe('secondary pagination module adapters', () => {
         },
     );
 
+    it('shared-step aggregation preserves every list filter across pages', async () => {
+        const [first, second] = controlledAdapters()[0]?.rows ?? [];
+        if (first === undefined || second === undefined) throw new Error('Missing shared-step rows');
+        mockFetch
+            .mockResolvedValueOnce(mockOk(envelope('shared_steps', [first], 0, 1, '?offset=1&limit=1')))
+            .mockResolvedValueOnce(mockOk(envelope('shared_steps', [second], 1, 1, null)));
+
+        await client.sharedSteps.getAllSharedSteps(7, {
+            createdAfter: 100,
+            createdBefore: 200,
+            createdBy: [2, 3],
+            updatedAfter: 300,
+            updatedBefore: 400,
+            refs: 'TR-42',
+            pageSize: 1,
+        });
+
+        for (const index of [0, 1]) {
+            const requested = new URL(requestedUrl(index));
+            expect(Object.fromEntries(requested.searchParams)).toMatchObject({
+                created_after: '100',
+                created_before: '200',
+                created_by: '2,3',
+                updated_after: '300',
+                updated_before: '400',
+                refs: 'TR-42',
+            });
+        }
+    });
+
     it.each(['shared steps', 'labels'])(
         '%s treats a legacy array as one terminal page with default aggregate bounds',
         async (name) => {

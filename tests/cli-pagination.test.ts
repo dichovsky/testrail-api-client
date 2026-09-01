@@ -29,6 +29,13 @@ const unpaginatedAction = (): ActionSpec => ({
     handler: async () => undefined,
 });
 
+const itemsControlsOnlyAction = (): ActionSpec => ({
+    ...unpaginatedAction(),
+    resource: 'attachment',
+    action: 'list-for-test',
+    itemsRequestControls: true,
+});
+
 describe('CLI pagination modes', () => {
     it('selects legacy items, page, and all modes', () => {
         expect(getCliPaginationMode({})).toBe('items');
@@ -78,6 +85,28 @@ describe('CLI pagination modes', () => {
         expect(validateCliPagination(paginatedAction(true), { all: true, limit: '10' })).toEqual({
             ok: false,
             error: '--all cannot be combined with --limit or --offset; use --page-size and --start-offset.',
+        });
+    });
+
+    it('rejects legacy request controls on a known unpaginated action', () => {
+        expect(validateCliPagination(unpaginatedAction(), { limit: '10' })).toEqual({
+            ok: false,
+            error: '--limit and --offset are not supported by case list.',
+        });
+        expect(validateCliPagination(unpaginatedAction(), { offset: '20' })).toEqual({
+            ok: false,
+            error: '--limit and --offset are not supported by case list.',
+        });
+    });
+
+    it('retains items-only request controls without enabling page/all modes', () => {
+        expect(validateCliPagination(itemsControlsOnlyAction(), { limit: '10', offset: '20' })).toEqual({
+            ok: true,
+            parsed: { mode: 'items', limit: 10, offset: 20 },
+        });
+        expect(validateCliPagination(itemsControlsOnlyAction(), { page: true })).toEqual({
+            ok: false,
+            error: '--page is not supported by attachment list-for-test.',
         });
     });
 

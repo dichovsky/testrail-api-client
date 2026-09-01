@@ -1031,8 +1031,8 @@ describe('metadata vs dispatch consistency', () => {
             'label:delete-bulk',
         ]);
         // Flag-driven / zero-arg reads: the endpoint takes no path param.
-        // `user:get-by-email` is driven by the shared `--email` flag (also
-        // consumed by resolveAuth for the credential); `user:get-current`
+        // `user:get-by-email` is driven by the dedicated `--user-email` flag;
+        // `user:get-current`
         // returns the auth-identified user (no input needed beyond the
         // credential itself). Both intentionally declare `pathParams: []`
         // and reject extra positional args fail-fast in the handler.
@@ -1080,6 +1080,7 @@ describe('KNOWN_FLAGS inventory', () => {
         const expected = new Set([
             'base-url',
             'email',
+            'user-email',
             'api-key-stdin',
             'format',
             'timeout',
@@ -1091,7 +1092,6 @@ describe('KNOWN_FLAGS inventory', () => {
             'suite-id',
             'section-id',
             'run-id',
-            'case-id',
             'type-id',
             'priority-id',
             'template-id',
@@ -1107,6 +1107,8 @@ describe('KNOWN_FLAGS inventory', () => {
             'filter',
             'include-plan-runs',
             'is-completed',
+            'is-started',
+            'with-data',
             'limit',
             'offset',
             'page',
@@ -1130,6 +1132,7 @@ describe('KNOWN_FLAGS inventory', () => {
             'out',
             'yes',
             'soft',
+            'keep-in-cases',
             'interval',
             'once',
         ]);

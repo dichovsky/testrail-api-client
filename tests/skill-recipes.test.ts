@@ -261,8 +261,8 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --all --max-items 25000');
         expect(section).toContain('testrail shared-step update "$SHARED_STEP_ID" --data');
         expect(section).toContain('testrail shared-step history "$SHARED_STEP_ID" --page');
-        expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --yes --dry-run');
-        expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --yes');
+        expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --keep-in-cases true --yes --dry-run');
+        expect(section).toContain('testrail shared-step delete "$SHARED_STEP_ID" --keep-in-cases true --yes');
     });
 
     it('pins the case-side shared_step_id reference shape', () => {
@@ -277,15 +277,11 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
         expect(section).toContain('{\\"shared_step_id\\": $SHARED_STEP_ID}');
     });
 
-    it('warns that delete does NOT cascade to referencing test cases', () => {
+    it('documents keep_in_cases retention without implying case deletion', () => {
         const section = extractSection(md, 'Shared step propagation + history audit');
-        // The cascade-semantics clarification (cases lose the reference
-        // but the case row survives) is the critical safety note —
-        // pin both halves so a future rewrite cannot accidentally
-        // imply the cases get deleted.
-        expect(section).toContain('Delete does NOT cascade');
-        expect(section).toContain('**not** deleted');
-        expect(section).toContain('lose the reference');
+        expect(section).toContain('Deletion never deletes the case rows');
+        expect(section).toContain('default (`--keep-in-cases true`)');
+        expect(section).toContain('`false` asks TestRail to remove that content too');
     });
 
     it('warns that delete is destructive with both gates and no --soft preview', () => {
@@ -365,14 +361,17 @@ describe('skill/SKILL.md — Data-driven runs via Variables + Datasets recipe', 
         const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
         // The minimal payload + a custom_* extra documents the
         // .passthrough() contract; dropping the example weakens the skill.
-        expect(section).toContain('"name": "Staging matrix"');
+        expect(section).toContain('"name": "Staging EU"');
+        expect(section).toContain('"variables": {');
+        expect(section).toContain('"env": "staging.example.com"');
         expect(section).toContain('"custom_owner": "qa-team"');
     });
 
-    it('warns that the CLI scope is metadata-only (web UI for row population)', () => {
+    it('documents the typed variable-value map and string-only values', () => {
         const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
-        expect(section).toContain('metadata-only');
-        expect(section).toContain('web UI');
+        expect(section).toContain('`variables: Record<string, string>`');
+        expect(section).toContain('Every map value must be a string');
+        expect(section).toContain('fail Zod validation before an API call');
     });
 
     it('warns that delete is destructive with no --soft preview', () => {
@@ -381,11 +380,9 @@ describe('skill/SKILL.md — Data-driven runs via Variables + Datasets recipe', 
         expect(section).toContain('does not support soft preview');
     });
 
-    it('documents the per-row execution semantics and plan-entry binding', () => {
+    it('separates dataset CRUD from run selection', () => {
         const section = extractSection(md, 'Data-driven runs via Variables + Datasets');
-        // The "dataset binds to plan entries, not to runs" caveat is the
-        // load-bearing integration detail; pin it.
-        expect(section).toContain('plan entries');
-        expect(section).toContain('Per-row execution');
+        expect(section).toContain('Selection is separate from CRUD');
+        expect(section).toMatch(/does\s+not carry a run or plan-entry ID/);
     });
 });
