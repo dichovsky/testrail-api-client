@@ -8,6 +8,7 @@ import { handleCaseHistory, handleCaseList } from '../src/cli/handlers/case.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleTestList } from '../src/cli/handlers/test.js';
 import type { HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 
 function context(client: object, args: Partial<HandlerArgs>): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
     const out = vi.fn();
@@ -15,6 +16,7 @@ function context(client: object, args: Partial<HandlerArgs>): { ctx: HandlerCont
         ctx: {
             client,
             args: { pathParams: [], ...args },
+            pagination: parseCliPagination(args),
             bodyInput: {},
             dryRun: false,
             force: false,

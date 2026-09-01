@@ -20,6 +20,6 @@ export async function handleCaseStatusList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.metadata.getCaseStatuses(),
         page: () => ctx.client.metadata.getCaseStatusesPage(),
-        all: () => ctx.client.metadata.getAllCaseStatuses(getPaginationSafetyOptions(ctx.args)),
+        all: () => ctx.client.metadata.getAllCaseStatuses(getPaginationSafetyOptions(ctx.pagination)),
     });
 }

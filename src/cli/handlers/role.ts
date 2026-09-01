@@ -18,6 +18,6 @@ export async function handleRoleList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.metadata.getRoles(),
         page: () => ctx.client.metadata.getRolesPage(),
-        all: () => ctx.client.metadata.getAllRoles(getPaginationSafetyOptions(ctx.args)),
+        all: () => ctx.client.metadata.getAllRoles(getPaginationSafetyOptions(ctx.pagination)),
     });
 }

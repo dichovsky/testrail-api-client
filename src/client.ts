@@ -24,6 +24,55 @@ export { TestRailApiError, TestRailLicenseError, TestRailPaginationError, TestRa
 /** Strips `readonly` so `withTimeout` can rebind the module fields on a view. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
+type ModuleBindingKey =
+    | 'projects'
+    | 'suites'
+    | 'sections'
+    | 'cases'
+    | 'plans'
+    | 'runs'
+    | 'tests'
+    | 'results'
+    | 'milestones'
+    | 'users'
+    | 'metadata'
+    | 'configurations'
+    | 'attachments'
+    | 'bdd'
+    | 'sharedSteps'
+    | 'variables'
+    | 'datasets'
+    | 'reports'
+    | 'labels';
+
+type ModuleBindings = Pick<TestRailClient, ModuleBindingKey>;
+
+const createModuleBindings = (client: TestRailClientCore): ModuleBindings => ({
+    projects: new ProjectModule(client),
+    suites: new SuiteModule(client),
+    sections: new SectionModule(client),
+    cases: new CaseModule(client),
+    plans: new PlanModule(client),
+    runs: new RunModule(client),
+    tests: new TestModule(client),
+    results: new ResultModule(client),
+    milestones: new MilestoneModule(client),
+    users: new UsersModule(client),
+    metadata: new MetadataModule(client),
+    configurations: new ConfigurationModule(client),
+    attachments: new AttachmentModule(client),
+    bdd: new BddModule(client),
+    sharedSteps: new SharedStepModule(client),
+    variables: new VariableModule(client),
+    datasets: new DatasetModule(client),
+    reports: new ReportModule(client),
+    labels: new LabelModule(client),
+});
+
+function rebindModules(target: Mutable<TestRailClient>, client: TestRailClientCore): void {
+    Object.assign(target, createModuleBindings(client));
+}
+
 /**
  * TestRail API Client
  *
@@ -59,25 +108,26 @@ export class TestRailClient extends TestRailClientCore {
 
     constructor(...args: ConstructorParameters<typeof TestRailClientCore>) {
         super(...args);
-        this.projects = new ProjectModule(this);
-        this.suites = new SuiteModule(this);
-        this.sections = new SectionModule(this);
-        this.cases = new CaseModule(this);
-        this.plans = new PlanModule(this);
-        this.runs = new RunModule(this);
-        this.tests = new TestModule(this);
-        this.results = new ResultModule(this);
-        this.milestones = new MilestoneModule(this);
-        this.users = new UsersModule(this);
-        this.metadata = new MetadataModule(this);
-        this.configurations = new ConfigurationModule(this);
-        this.attachments = new AttachmentModule(this);
-        this.bdd = new BddModule(this);
-        this.sharedSteps = new SharedStepModule(this);
-        this.variables = new VariableModule(this);
-        this.datasets = new DatasetModule(this);
-        this.reports = new ReportModule(this);
-        this.labels = new LabelModule(this);
+        const modules = createModuleBindings(this);
+        this.projects = modules.projects;
+        this.suites = modules.suites;
+        this.sections = modules.sections;
+        this.cases = modules.cases;
+        this.plans = modules.plans;
+        this.runs = modules.runs;
+        this.tests = modules.tests;
+        this.results = modules.results;
+        this.milestones = modules.milestones;
+        this.users = modules.users;
+        this.metadata = modules.metadata;
+        this.configurations = modules.configurations;
+        this.attachments = modules.attachments;
+        this.bdd = modules.bdd;
+        this.sharedSteps = modules.sharedSteps;
+        this.variables = modules.variables;
+        this.datasets = modules.datasets;
+        this.reports = modules.reports;
+        this.labels = modules.labels;
     }
 
     /**
@@ -103,30 +153,13 @@ export class TestRailClient extends TestRailClientCore {
     public withTimeout(timeoutMs: number): TestRailClient {
         const view = this.spawnTimeoutView(timeoutMs);
         // Rebind every domain module to the view so `view.cases.getCase(id)`
-        // routes through the view's timeout-injecting request(). `w` is the same
-        // object, cast to strip `readonly` for the rebind; the module ctors take
-        // the `view` reference itself. Mirrors the constructor's module list;
-        // tests/exports.test.ts guards the two lists in sync.
+        // routes through the view's timeout-injecting request(). `w` is the
+        // same object, cast to strip `readonly` for the rebind; module ctors
+        // take the `view` reference itself.
+        // Mirrors the constructor's module map; tests/exports.test.ts guards the
+        // two paths in sync.
         const w = view as Mutable<TestRailClient>;
-        w.projects = new ProjectModule(view);
-        w.suites = new SuiteModule(view);
-        w.sections = new SectionModule(view);
-        w.cases = new CaseModule(view);
-        w.plans = new PlanModule(view);
-        w.runs = new RunModule(view);
-        w.tests = new TestModule(view);
-        w.results = new ResultModule(view);
-        w.milestones = new MilestoneModule(view);
-        w.users = new UsersModule(view);
-        w.metadata = new MetadataModule(view);
-        w.configurations = new ConfigurationModule(view);
-        w.attachments = new AttachmentModule(view);
-        w.bdd = new BddModule(view);
-        w.sharedSteps = new SharedStepModule(view);
-        w.variables = new VariableModule(view);
-        w.datasets = new DatasetModule(view);
-        w.reports = new ReportModule(view);
-        w.labels = new LabelModule(view);
+        rebindModules(w, view);
         return view;
     }
 }

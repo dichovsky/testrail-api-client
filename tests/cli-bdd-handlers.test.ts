@@ -17,6 +17,7 @@ import { Readable } from 'node:stream';
 import { handleBddAdd, handleBddGet, handleBddList, handleBddUpdate } from '../src/cli/handlers/bdd.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 
 interface MockedClient {
     bdd: {
@@ -79,6 +80,7 @@ function buildCtx(
             ...(overrides.all !== undefined && { all: overrides.all }),
             ...(overrides.pageSize !== undefined && { pageSize: overrides.pageSize }),
         },
+        pagination: parseCliPagination(overrides),
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
         force: overrides.force ?? false,

@@ -1,6 +1,7 @@
 import { MAX_PAGINATION_BYTES, MAX_PAGINATION_LIMIT, MAX_TIMEOUT_MS } from '../constants.js';
 import type { PaginatedRequestOptions, PaginationSafetyOptions } from '../pagination.js';
 import type { HandlerArgs, HandlerContext } from './handler-context.js';
+import { optInt } from './ids.js';
 import type { ActionSpec } from './metadata/types.js';
 
 export type CliPaginationMode = 'items' | 'page' | 'all';
@@ -11,7 +12,20 @@ export interface CliPaginationOperations<T> {
     readonly all: () => Promise<T[]>;
 }
 
-export type CliPaginationValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
+export interface CliPaginationParsed {
+    readonly mode: CliPaginationMode;
+    readonly limit?: number;
+    readonly offset?: number;
+    readonly pageSize?: number;
+    readonly startOffset?: number;
+    readonly maxPages?: number;
+    readonly maxItems?: number;
+    readonly maxDurationMs?: number;
+    readonly maxBytes?: number;
+}
+
+export type CliPaginationValidationResult =
+    { readonly ok: true; readonly parsed: CliPaginationParsed } | { readonly ok: false; readonly error: string };
 
 type PaginationArgs = Pick<
     HandlerArgs,
@@ -27,12 +41,17 @@ type PaginationArgs = Pick<
     | 'maxBytes'
 >;
 
+type ParsedPaginationAggregateProperty =
+    'pageSize' | 'startOffset' | 'maxPages' | 'maxItems' | 'maxDurationMs' | 'maxBytes';
+
+type ParsedPaginationArgs = Omit<CliPaginationParsed, 'mode'>;
+
 type RawPaginationArgs = {
     readonly [Property in keyof PaginationArgs]?: unknown;
 };
 
 interface NumericFlag {
-    readonly property: keyof PaginationArgs;
+    readonly property: ParsedPaginationAggregateProperty;
     readonly flag: string;
     readonly allowZero: boolean;
     readonly maximum?: number;
@@ -78,11 +97,15 @@ function parseCanonicalInteger(raw: unknown, flag: string, allowZero: boolean, m
         throw new Error(`${flag} requires a value.`);
     }
     const pattern = allowZero ? /^(0|[1-9]\d*)$/ : /^[1-9]\d*$/;
-    const value = pattern.test(raw) ? Number(raw) : Number.NaN;
-    const range = allowZero ? 'a non-negative safe integer' : 'a positive safe integer';
-    if (!Number.isSafeInteger(value) || value < (allowZero ? 0 : 1)) {
-        throw new Error(`${flag} must be ${range} (got: ${raw === '' ? '(empty)' : raw})`);
+    if (!pattern.test(raw)) {
+        throw new Error(
+            `${flag} must be ${
+                allowZero ? 'a non-negative safe integer' : 'a positive safe integer'
+            } (got: ${raw === '' ? '(empty)' : raw})`,
+        );
     }
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value)) throw new Error(`${flag} must be a safe integer (got: ${raw})`);
     if (maximum !== undefined && value > maximum) {
         throw new Error(`${flag} must not exceed ${maximum} (got: ${raw})`);
     }
@@ -95,10 +118,42 @@ function parseOptional(args: RawPaginationArgs, definition: NumericFlag): number
     return parseCanonicalInteger(raw, definition.flag, definition.allowZero, definition.maximum);
 }
 
+/** Normalize validated argv pagination values for production dispatch and handler tests. */
+export function parseCliPagination(args: RawPaginationArgs): CliPaginationParsed {
+    const mode = getCliPaginationMode(args);
+    const limit =
+        mode === 'page'
+            ? args.limit === undefined
+                ? undefined
+                : parseCanonicalInteger(args.limit, '--limit', false, MAX_PAGINATION_LIMIT)
+            : mode === 'items' && typeof args.limit === 'string'
+              ? optInt(args.limit)
+              : undefined;
+    const offset =
+        mode === 'page'
+            ? args.offset === undefined
+                ? undefined
+                : parseCanonicalInteger(args.offset, '--offset', true)
+            : mode === 'items' && typeof args.offset === 'string'
+              ? optInt(args.offset)
+              : undefined;
+    const aggregate = NUMERIC_FLAGS.reduce<ParsedPaginationArgs>((parsed, definition) => {
+        const value = parseOptional(args, definition);
+        return value === undefined ? parsed : { ...parsed, [definition.property]: value };
+    }, {});
+    return {
+        ...aggregate,
+        ...(limit !== undefined && { limit }),
+        ...(offset !== undefined && { offset }),
+        mode,
+    };
+}
+
 /**
  * Validates pagination mode and flag compatibility before auth resolution or
- * client construction. Existing no-mode `--limit` / `--offset` behavior is
- * intentionally left to each legacy handler for backward compatibility.
+ * client construction. Legacy no-mode `--limit` / `--offset` values keep the
+ * established lenient `optInt` behavior; explicit page and aggregate controls
+ * use strict canonical-integer validation.
  */
 export function validateCliPagination(
     actionSpec: ActionSpec | undefined,
@@ -151,19 +206,11 @@ export function validateCliPagination(
     }
 
     try {
-        if (mode === 'page') {
-            if (args.limit !== undefined) {
-                parseCanonicalInteger(args.limit, '--limit', false, MAX_PAGINATION_LIMIT);
-            }
-            if (args.offset !== undefined) parseCanonicalInteger(args.offset, '--offset', true);
-        }
-        for (const definition of NUMERIC_FLAGS) parseOptional(args, definition);
+        return { ok: true, parsed: parseCliPagination(args) };
     } catch (error) {
         // Every throw in this block originates in parseCanonicalInteger().
         return { ok: false, error: (error as Error).message };
     }
-
-    return { ok: true };
 }
 
 export function getCliPaginationMode(args: Pick<RawPaginationArgs, 'page' | 'all'>): CliPaginationMode {
@@ -174,36 +221,30 @@ export function getCliPaginationMode(args: Pick<RawPaginationArgs, 'page' | 'all
 
 /** Execute exactly one CLI pagination projection and emit only its final value. */
 export async function outputPaginated<T>(
-    ctx: Pick<HandlerContext, 'args' | 'out'>,
+    ctx: Pick<HandlerContext, 'pagination' | 'out'>,
     operations: CliPaginationOperations<T>,
 ): Promise<void> {
-    const mode = getCliPaginationMode(ctx.args);
+    const mode = ctx.pagination.mode;
     const value =
         mode === 'page' ? await operations.page() : mode === 'all' ? await operations.all() : await operations.items();
     ctx.out(value);
 }
 
 /** Parse the bounded controls common to controlled and envelope-only endpoints. */
-export function getPaginationSafetyOptions(args: PaginationArgs): PaginationSafetyOptions {
-    const maxPages = parseOptional(args, MAX_PAGES_FLAG);
-    const maxItems = parseOptional(args, MAX_ITEMS_FLAG);
-    const maxDurationMs = parseOptional(args, MAX_DURATION_FLAG);
-    const maxBytes = parseOptional(args, MAX_BYTES_FLAG);
+export function getPaginationSafetyOptions(pagination: CliPaginationParsed): PaginationSafetyOptions {
     return {
-        ...(maxPages !== undefined && { maxPages }),
-        ...(maxItems !== undefined && { maxItems }),
-        ...(maxDurationMs !== undefined && { maxDurationMs }),
-        ...(maxBytes !== undefined && { maxBytes }),
+        ...(pagination.maxPages !== undefined && { maxPages: pagination.maxPages }),
+        ...(pagination.maxItems !== undefined && { maxItems: pagination.maxItems }),
+        ...(pagination.maxDurationMs !== undefined && { maxDurationMs: pagination.maxDurationMs }),
+        ...(pagination.maxBytes !== undefined && { maxBytes: pagination.maxBytes }),
     };
 }
 
 /** Parse all-page controls for endpoints that document request limit/offset. */
-export function getPaginatedRequestOptions(args: PaginationArgs): PaginatedRequestOptions {
-    const pageSize = parseOptional(args, PAGE_SIZE_FLAG);
-    const startOffset = parseOptional(args, START_OFFSET_FLAG);
+export function getPaginatedRequestOptions(pagination: CliPaginationParsed): PaginatedRequestOptions {
     return {
-        ...(pageSize !== undefined && { pageSize }),
-        ...(startOffset !== undefined && { startOffset }),
-        ...getPaginationSafetyOptions(args),
+        ...(pagination.pageSize !== undefined && { pageSize: pagination.pageSize }),
+        ...(pagination.startOffset !== undefined && { startOffset: pagination.startOffset }),
+        ...getPaginationSafetyOptions(pagination),
     };
 }

@@ -23,6 +23,7 @@ function makeContext(
     const ctx: HandlerContext = {
         client: client as TestRailClient,
         args: { pathParams: options.pathParams ?? [] },
+        pagination: { mode: 'items' },
         bodyInput: options.dataFlag === undefined ? {} : { dataFlag: options.dataFlag },
         dryRun: options.dryRun ?? false,
         force: false,

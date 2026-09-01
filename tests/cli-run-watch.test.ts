@@ -81,6 +81,7 @@ function buildCtx(
             ...(overrides.interval !== undefined && { interval: overrides.interval }),
             ...(overrides.once === true && { once: true }),
         },
+        pagination: { mode: 'items' },
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
         force: false,
@@ -652,6 +653,7 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
         const ctx = {
             client: { runs: { getRun } } as unknown as TestRailClient,
             args: { pathParams: ['42'] },
+            pagination: { mode: 'items' as const },
             bodyInput: {},
             dryRun: false,
             force: false,

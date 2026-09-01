@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 import { handleBddList } from '../src/cli/handlers/bdd.js';
 import { handleCaseList, handleCaseTitles } from '../src/cli/handlers/case.js';
 import { handlePlanList } from '../src/cli/handlers/plan.js';
@@ -13,6 +14,7 @@ function context(client: object, args: Partial<HandlerArgs>): { ctx: HandlerCont
         ctx: {
             client: client as TestRailClient,
             args: { pathParams: [], ...args },
+            pagination: parseCliPagination(args),
             bodyInput: {},
             dryRun: false,
             force: false,

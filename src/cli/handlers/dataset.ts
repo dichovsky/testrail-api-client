@@ -12,6 +12,6 @@ export async function handleDatasetList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.datasets.getDatasets(projectId),
         page: () => ctx.client.datasets.getDatasetsPage(projectId),
-        all: () => ctx.client.datasets.getAllDatasets(projectId, getPaginationSafetyOptions(ctx.args)),
+        all: () => ctx.client.datasets.getAllDatasets(projectId, getPaginationSafetyOptions(ctx.pagination)),
     });
 }

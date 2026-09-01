@@ -34,6 +34,7 @@ import {
 } from '../src/cli/handlers/attachment-write.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 
 interface MockedClient {
     attachments: {
@@ -106,6 +107,7 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
             ...(overrides.offset !== undefined && { offset: overrides.offset }),
             ...(overrides.soft !== undefined && { soft: overrides.soft }),
         },
+        pagination: parseCliPagination(overrides),
         bodyInput: {},
         dryRun: overrides.dryRun ?? false,
         force: overrides.force ?? false,
