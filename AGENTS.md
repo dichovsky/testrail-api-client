@@ -184,7 +184,7 @@ deletes that support it; `--dry-run` is purely client-side.
 - Hardcode numeric values; use `src/constants.ts`.
 - Call `request()` without ID validation.
 - Pass the API key on argv (`--api-key` was removed in v3.0).
-- Skip `npm run typecheck` before committing.
+- Skip either `npm run typecheck` or `npm run typecheck:ts6` before committing.
 - Hand-edit `CODEMAP.md`, `docs/API-MAPPING.md`, `skill/SKILL.md`
   generated sections, or `AGENTS.md`
   — they are all generated. Re-run the matching `npm run` script
@@ -209,7 +209,8 @@ npm test                       # Run all tests (Vitest)
 npm run test:coverage          # Coverage report
 npm run build                  # Compile to dist/
 npm run lint                   # ESLint
-npm run typecheck              # tsc --noEmit
+npm run typecheck              # Native TypeScript 7 check
+npm run typecheck:ts6          # TypeScript 6 compatibility check
 npm run codemap                # Regenerate CODEMAP.md
 npm run mapping                # Regenerate docs/API-MAPPING.md
 npm run skill                  # Regenerate skill/SKILL.md

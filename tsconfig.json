@@ -33,6 +33,9 @@
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
+        "noUncheckedSideEffectImports": true,
+        "libReplacement": false,
+        "stableTypeOrdering": true,
         "skipLibCheck": true,
         // Emit
         "noEmit": true,

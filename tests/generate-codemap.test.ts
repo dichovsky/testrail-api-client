@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -31,6 +31,7 @@ interface FileSymbol {
     line: number;
     exported: boolean;
     signature: string;
+    members?: { name: string; kind: string; line: number }[];
 }
 
 interface FileEntry {
@@ -59,6 +60,18 @@ function extractJson(markdown: string): Codemap {
 
 function build(rootDir: string): CodemapResult {
     return buildCodemap({ rootDir });
+}
+
+function collectTypeScriptFiles(directory: string): string[] {
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) return collectTypeScriptFiles(path);
+        return entry.isFile() && entry.name.endsWith('.ts') ? [path] : [];
+    });
+}
+
+function repositoryRelative(path: string): string {
+    return relative(REPO_ROOT, path).split('\\').join('/');
 }
 
 describe('buildCodemap — basic', () => {
@@ -156,6 +169,91 @@ describe('buildCodemap — JSDoc extraction', () => {
         const data = extractJson(markdown);
         const withLit = data.publicApi.find((e) => e.name === 'withLiteral');
         expect(withLit?.signature).toContain("'a   b   c'");
+    });
+});
+
+describe('buildCodemap — compiler AST offset contract', () => {
+    it('preserves Unicode text and UTF-16-based source positions', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'codemap-unicode-'));
+        try {
+            writeFileSync(join(dir, 'package.json'), '{"name":"unicode-fixture","version":"0.0.0"}\n');
+            writeFileSync(
+                join(dir, 'codemap.config.json'),
+                JSON.stringify({ sourceDirs: ['src'], entrypoints: ['src/index.ts'], exclude: [] }),
+            );
+            const srcDir = join(dir, 'src');
+            mkdirSync(srcDir, { recursive: true });
+            writeFileSync(
+                join(srcDir, 'index.ts'),
+                [
+                    "const prefix = '😀 café 漢字';",
+                    '',
+                    '/**',
+                    ' * Greets Zoë in Ukrainian: Привіт 🚀.',
+                    ' */',
+                    "export function unicodeGreeting(name: 'Zoë 😀'): 'Привіт 🚀' {",
+                    "    return 'Привіт 🚀';",
+                    '}',
+                    '',
+                    'export class UnicodeBox {',
+                    "    'élément😀'(): string {",
+                    '        return prefix;',
+                    '    }',
+                    '}',
+                    '',
+                ].join('\n'),
+            );
+
+            const data = extractJson(build(dir).markdown);
+            const greeting = data.publicApi.find((entry) => entry.name === 'unicodeGreeting');
+            expect(greeting).toMatchObject({
+                file: 'src/index.ts',
+                line: 6,
+                signature: "export function unicodeGreeting(name: 'Zoë 😀'): 'Привіт 🚀'",
+                jsdoc: 'Greets Zoë in Ukrainian: Привіт 🚀.',
+            });
+
+            const symbols = data.files.find((entry) => entry.path === 'src/index.ts')?.symbols;
+            expect(symbols?.find((symbol) => symbol.name === 'prefix')).toMatchObject({
+                line: 1,
+                signature: "const prefix = '😀 café 漢字'",
+            });
+            expect(symbols?.find((symbol) => symbol.name === 'UnicodeBox')).toMatchObject({
+                line: 10,
+                signature: 'export class UnicodeBox',
+                members: [{ name: 'élément😀', kind: 'method', line: 11 }],
+            });
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
+describe('TypeScript compiler API boundary', () => {
+    it('keeps compiler API consumers in the reviewed TS6-compatible generator set', () => {
+        const compilerApiImport = /(?:from\s+|import\s*\(|require\s*\()\s*['"]typescript['"]/;
+        const nativeApiImport = /['"]@typescript\/(?:native|native-preview)['"]/;
+        const sourceConsumers = collectTypeScriptFiles(join(REPO_ROOT, 'src'))
+            .filter((path) => compilerApiImport.test(readFileSync(path, 'utf8')))
+            .map(repositoryRelative)
+            .sort();
+        const scriptFiles = collectTypeScriptFiles(join(REPO_ROOT, 'scripts'));
+        const scriptConsumers = scriptFiles
+            .filter((path) => compilerApiImport.test(readFileSync(path, 'utf8')))
+            .map(repositoryRelative)
+            .sort();
+        const nativeApiConsumers = [...collectTypeScriptFiles(join(REPO_ROOT, 'src')), ...scriptFiles]
+            .filter((path) => nativeApiImport.test(readFileSync(path, 'utf8')))
+            .map(repositoryRelative)
+            .sort();
+
+        expect(sourceConsumers).toEqual([]);
+        expect(scriptConsumers).toEqual([
+            'scripts/action-metadata-parser.ts',
+            'scripts/generate-codemap.ts',
+            'scripts/generate-mapping.ts',
+        ]);
+        expect(nativeApiConsumers).toEqual([]);
     });
 });
 

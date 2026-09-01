@@ -5,7 +5,8 @@
  * By default this script builds `dist/` and removes source maps before packing.
  * Pass `--prepared` when a release job has already performed those steps. The
  * packed tarball is installed into a private temporary consumer with a local
- * Zod copy, so the smoke test does not depend on registry or TestRail access.
+ * Zod copy, then its declarations are compiled by both TypeScript 7 and 6, so
+ * the smoke test does not depend on registry or TestRail access.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -48,6 +49,37 @@ interface PackageIdentity {
     readonly version: string;
     readonly zodRange: string;
 }
+
+interface CompilerSpec {
+    readonly displayName: string;
+    readonly packagePath: readonly string[];
+    readonly binaryName: string;
+    readonly expectedMajor: number;
+}
+
+interface CompilerLauncher {
+    readonly displayName: string;
+    readonly executablePath: string;
+}
+
+interface CompilerLaunchers {
+    readonly typeScript7: CompilerLauncher;
+    readonly typeScript6: CompilerLauncher;
+}
+
+const TYPESCRIPT_7_COMPILER: CompilerSpec = {
+    displayName: 'TypeScript 7',
+    packagePath: ['node_modules', '@typescript', 'native'],
+    binaryName: 'tsc',
+    expectedMajor: 7,
+};
+
+const TYPESCRIPT_6_COMPILER: CompilerSpec = {
+    displayName: 'TypeScript 6',
+    packagePath: ['node_modules', 'typescript'],
+    binaryName: 'tsc6',
+    expectedMajor: 6,
+};
 
 function fail(message: string): never {
     throw new Error(`Package smoke failed: ${message}`);
@@ -178,12 +210,8 @@ function requirePreparedDist(): void {
     }
 }
 
-function buildPackage(): void {
+function buildPackage(compiler: CompilerLauncher): void {
     const distDirectory = path.join(REPOSITORY_ROOT, 'dist');
-    const typeScriptCli = path.join(REPOSITORY_ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
-    if (!existsSync(typeScriptCli)) {
-        fail('TypeScript compiler is missing; run npm ci before the package smoke.');
-    }
 
     // Reproduce `npm run build` and `npm run clean:maps` with Node filesystem
     // primitives so this verification script works in stock Windows shells too.
@@ -195,10 +223,10 @@ function buildPackage(): void {
         retryDelay: REMOVE_RETRY_DELAY_MS,
     });
     requireSuccess(
-        'TypeScript production build',
+        `${compiler.displayName} production build`,
         run(
             process.execPath,
-            [typeScriptCli, '--project', path.join(REPOSITORY_ROOT, 'tsconfig.prod.json')],
+            [compiler.executablePath, '--project', path.join(REPOSITORY_ROOT, 'tsconfig.prod.json')],
             REPOSITORY_ROOT,
             safeChildEnvironment(),
         ),
@@ -229,6 +257,74 @@ function readJson(filePath: string, label: string): unknown {
     } catch {
         return fail(`${label} is not valid JSON.`);
     }
+}
+
+function parseMajorVersion(version: string, label: string): number {
+    const match = /^(\d+)\./u.exec(version);
+    if (match === null) {
+        return fail(`${label} does not contain a valid major version.`);
+    }
+    return Number(match[1]);
+}
+
+function resolveCompiler(spec: CompilerSpec): CompilerLauncher {
+    const packageDirectory = path.join(REPOSITORY_ROOT, ...spec.packagePath);
+    const manifestPath = path.join(packageDirectory, 'package.json');
+    if (!existsSync(manifestPath)) {
+        return fail(`${spec.displayName} package is missing; run npm ci before the package smoke.`);
+    }
+
+    const manifest = readJson(manifestPath, `${spec.displayName} package.json`);
+    if (!isRecord(manifest) || typeof manifest['version'] !== 'string' || !isRecord(manifest['bin'])) {
+        return fail(`${spec.displayName} package.json does not contain a valid version and bin manifest.`);
+    }
+    const manifestMajor = parseMajorVersion(manifest['version'], `${spec.displayName} package version`);
+    if (manifestMajor !== spec.expectedMajor) {
+        return fail(
+            `${spec.displayName} package resolved major ${String(manifestMajor)}; expected ${String(spec.expectedMajor)}.`,
+        );
+    }
+
+    const binaryPath = manifest['bin'][spec.binaryName];
+    if (typeof binaryPath !== 'string' || binaryPath.length === 0) {
+        return fail(`${spec.displayName} package does not expose the ${spec.binaryName} launcher.`);
+    }
+    const executablePath = path.resolve(packageDirectory, binaryPath);
+    const relativeExecutablePath = path.relative(packageDirectory, executablePath);
+    if (
+        relativeExecutablePath.length === 0 ||
+        relativeExecutablePath === '..' ||
+        relativeExecutablePath.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativeExecutablePath)
+    ) {
+        return fail(`${spec.displayName} package exposes a launcher outside its package directory.`);
+    }
+    if (!existsSync(executablePath)) {
+        return fail(`${spec.displayName} package launcher is missing; run npm ci before the package smoke.`);
+    }
+
+    const versionOutput = requireSuccess(
+        `${spec.displayName} version check`,
+        run(process.execPath, [executablePath, '--version'], REPOSITORY_ROOT, safeChildEnvironment()),
+    ).trim();
+    const versionMatch = /^Version\s+(\d+)(?:\.|$)/u.exec(versionOutput);
+    if (versionMatch === null || Number(versionMatch[1]) !== spec.expectedMajor) {
+        return fail(
+            `${spec.displayName} launcher reported ${versionOutput.length === 0 ? '(empty)' : versionOutput}; expected major ${String(spec.expectedMajor)}.`,
+        );
+    }
+
+    return {
+        displayName: spec.displayName,
+        executablePath,
+    };
+}
+
+function resolveCompilers(): CompilerLaunchers {
+    return {
+        typeScript7: resolveCompiler(TYPESCRIPT_7_COMPILER),
+        typeScript6: resolveCompiler(TYPESCRIPT_6_COMPILER),
+    };
 }
 
 function readPackageIdentity(filePath: string, label: string): PackageIdentity {
@@ -511,7 +607,6 @@ function writeConsumerFixture(consumerDirectory: string, archivePath: string, zo
                     skipLibCheck: false,
                     declaration: true,
                     emitDeclarationOnly: true,
-                    outDir: './types',
                 },
                 include: ['./consumer.ts'],
             },
@@ -618,18 +713,27 @@ function installConsumer(consumerDirectory: string): void {
     );
 }
 
-function compileConsumer(consumerDirectory: string): void {
-    const typeScriptCli = path.join(REPOSITORY_ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
-    if (!existsSync(typeScriptCli)) {
-        fail('TypeScript compiler is missing; run npm ci before the package smoke.');
-    }
-    requireSuccess(
-        'consumer declaration compile',
-        run(process.execPath, [typeScriptCli, '--project', 'tsconfig.json'], consumerDirectory, safeChildEnvironment()),
-    );
-    if (!existsSync(path.join(consumerDirectory, 'types', 'consumer.d.ts'))) {
-        fail('consumer declaration compile did not emit types/consumer.d.ts.');
-    }
+function compileConsumer(consumerDirectory: string, compilers: CompilerLaunchers): void {
+    const compile = (compiler: CompilerLauncher, outputDirectoryName: string): void => {
+        const outputDirectory = path.join(consumerDirectory, 'types', outputDirectoryName);
+        requireSuccess(
+            `${compiler.displayName} consumer declaration compile`,
+            run(
+                process.execPath,
+                [compiler.executablePath, '--project', 'tsconfig.json', '--outDir', outputDirectory],
+                consumerDirectory,
+                safeChildEnvironment(),
+            ),
+        );
+        if (!existsSync(path.join(outputDirectory, 'consumer.d.ts'))) {
+            fail(
+                `${compiler.displayName} consumer declaration compile did not emit types/${outputDirectoryName}/consumer.d.ts.`,
+            );
+        }
+    };
+
+    compile(compilers.typeScript7, 'typescript-7');
+    compile(compilers.typeScript6, 'typescript-6');
 }
 
 function runtimeImportSmoke(consumerDirectory: string): void {
@@ -730,10 +834,11 @@ function main(): void {
     if (args.some((arg) => arg !== '--prepared')) {
         fail(`unknown argument ${args.find((arg) => arg !== '--prepared') ?? '(unknown)'}; expected only --prepared.`);
     }
+    const compilers = resolveCompilers();
     if (args.includes('--prepared')) {
         requirePreparedDist();
     } else {
-        buildPackage();
+        buildPackage(compilers.typeScript7);
     }
 
     const identity = readPackageIdentity(path.join(REPOSITORY_ROOT, 'package.json'), 'source package.json');
@@ -748,7 +853,7 @@ function main(): void {
         writeConsumerFixture(consumerDirectory, archivePath, zodArchivePath);
         installConsumer(consumerDirectory);
         verifyInstalledManifest(consumerDirectory, identity);
-        compileConsumer(consumerDirectory);
+        compileConsumer(consumerDirectory, compilers);
         runtimeImportSmoke(consumerDirectory);
         cliSmoke(consumerDirectory, identity);
     } finally {

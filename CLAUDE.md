@@ -7,8 +7,9 @@
 ```bash
 npm test                                          # Run all tests (Vitest)
 npm run test:coverage                             # Coverage report
-npm run build                                     # tsc → dist/
-npm run lint && npm run typecheck                 # Lint + type-check
+npm run build                                     # Native TypeScript 7 → dist/
+npm run lint && npm run typecheck                 # Lint + TypeScript 7 check
+npm run typecheck:ts6                             # TypeScript 6 compatibility check
 npm run codemap                                   # Regenerate CODEMAP.md
 npx vitest run tests/client-endpoints.test.ts    # Single file
 ```
@@ -235,4 +236,4 @@ Shared test helpers live in `tests/helpers.ts`; use the suite output rather than
 - Mutate objects in-place (return new objects)
 - Hardcode numeric values (use `src/constants.ts`)
 - Call `request()` without ID validation
-- Skip `npm run typecheck` before committing
+- Skip either `npm run typecheck` or `npm run typecheck:ts6` before committing
