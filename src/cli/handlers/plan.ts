@@ -16,8 +16,8 @@ export async function handlePlanList(ctx: HandlerContext): Promise<void> {
     const isCompleted = parseOptionalBoolean(ctx.args.isCompleted, '--is-completed');
     const milestoneId = parseOptionalIdList(ctx.args.milestoneId, '--milestone-id');
     const refs = parseOptionalSingleRef(ctx.args.refs);
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const filters = {
         ...(createdAfter !== undefined && { createdAfter }),
         ...(createdBefore !== undefined && { createdBefore }),
@@ -37,7 +37,7 @@ export async function handlePlanList(ctx: HandlerContext): Promise<void> {
         all: () =>
             ctx.client.plans.getAllPlans(pid, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
             }),
     });
 }

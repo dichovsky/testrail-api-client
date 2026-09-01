@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "6.0.0"
   },
-  "sourceHash": "93a8adf338ff034b36b427ddb37a1900ecea189545ce3366409c67c5d10560e8",
+  "sourceHash": "455df139212c007e9181deb84a70792511686ba801128bcef142c98fb320be1a",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1563,7 +1563,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "TestRailClient",
       "kind": "class",
       "file": "src/client.ts",
-      "line": 38,
+      "line": 105,
       "signature": "export class TestRailClient extends TestRailClientCore",
       "jsdoc": "TestRail API Client"
     },
@@ -2426,35 +2426,36 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli/handler-context.ts",
       "imports": [
-        "../client.js"
+        "../client.js",
+        "./pagination.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "HandlerArgs",
           "kind": "interface",
-          "line": 10,
+          "line": 11,
           "exported": true,
           "signature": "export interface HandlerArgs { pathParams: readonly string[]; projectId?: string; suiteId?: string; sectionId?: string; runId?: string; caseId?: string; typeId?: string; priorityId?: string; templateI…"
         },
         {
           "name": "BodyInput",
           "kind": "interface",
-          "line": 99,
+          "line": 100,
           "exported": true,
           "signature": "export interface BodyInput { dataFlag?: string; dataFileFlag?: string; readStdin?: () => string; }"
         },
         {
           "name": "HandlerContext",
           "kind": "interface",
-          "line": 105,
+          "line": 106,
           "exported": true,
-          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: (data: unknown) => void; err?: (me…"
+          "signature": "export interface HandlerContext { client: TestRailClient; args: HandlerArgs; pagination?: CliPaginationParsed; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDestructive: boolean; out: …"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 129,
+          "line": 131,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
         }
@@ -2542,35 +2543,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleAttachmentListForRun",
           "kind": "function",
-          "line": 35,
+          "line": 39,
           "exported": true,
           "signature": "export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForTest",
           "kind": "function",
-          "line": 45,
+          "line": 53,
           "exported": true,
           "signature": "export async function handleAttachmentListForTest(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlan",
           "kind": "function",
-          "line": 50,
+          "line": 58,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentListForPlanEntry",
           "kind": "function",
-          "line": 64,
+          "line": 76,
           "exported": true,
           "signature": "export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Promise<void>"
         },
         {
           "name": "handleAttachmentGet",
           "kind": "function",
-          "line": 82,
+          "line": 94,
           "exported": true,
           "signature": "export async function handleAttachmentGet(ctx: HandlerContext): Promise<void>"
         }
@@ -3739,7 +3740,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "handleSharedStepHistory",
           "kind": "function",
-          "line": 29,
+          "line": 30,
           "exported": true,
           "signature": "export async function handleSharedStepHistory(ctx: HandlerContext): Promise<void>"
         }
@@ -4998,191 +4999,233 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export interface OutputOptions { quiet: boolean; format: OutputFormat; }"
         },
         {
+          "name": "ProjectedCell",
+          "kind": "type",
+          "line": 11,
+          "exported": false,
+          "signature": "type ProjectedCell = | { readonly trusted: true; readonly source: null | undefined | number | boolean | bigint } | { readonly trusted: false; readonly source: unknown }"
+        },
+        {
+          "name": "ProjectedRow",
+          "kind": "interface",
+          "line": 15,
+          "exported": false,
+          "signature": "interface ProjectedRow { cells: Record<string, ProjectedCell>; isRecord: boolean; scalarValue?: ProjectedCell; }"
+        },
+        {
+          "name": "ProjectedOutput",
+          "kind": "interface",
+          "line": 21,
+          "exported": false,
+          "signature": "interface ProjectedOutput { readonly columns: readonly string[]; readonly rows: readonly ProjectedRow[]; }"
+        },
+        {
           "name": "Output",
           "kind": "interface",
-          "line": 11,
+          "line": 26,
           "exported": true,
           "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; errRaw: (chunk: string) => void; }"
         },
         {
           "name": "valueToString",
           "kind": "function",
-          "line": 21,
+          "line": 36,
           "exported": true,
           "signature": "export function valueToString(v: unknown): string"
         },
         {
           "name": "getField",
           "kind": "function",
-          "line": 43,
+          "line": 58,
           "exported": false,
           "signature": "function getField(row: unknown, key: string): unknown"
         },
         {
+          "name": "projectCell",
+          "kind": "function",
+          "line": 63,
+          "exported": false,
+          "signature": "function projectCell(value: unknown): ProjectedCell"
+        },
+        {
+          "name": "projectRecord",
+          "kind": "function",
+          "line": 73,
+          "exported": false,
+          "signature": "function projectRecord(row: Record<string, unknown>, columns: readonly string[]): ProjectedRow"
+        },
+        {
+          "name": "projectOutput",
+          "kind": "function",
+          "line": 81,
+          "exported": false,
+          "signature": "function projectOutput(data: unknown, arrayRowsAreRecords = false): ProjectedOutput"
+        },
+        {
           "name": "renderTable",
           "kind": "function",
-          "line": 48,
+          "line": 128,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 114,
+          "line": 185,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
           "name": "emitStdoutAck",
           "kind": "function",
-          "line": 136,
+          "line": 207,
           "exported": true,
           "signature": "export function emitStdoutAck( payload: Uint8Array | string, ack: Record<string, unknown>, errRaw?: (chunk: string) => void, ): void"
         },
         {
           "name": "SPECIAL_BARE_STRINGS",
           "kind": "const",
-          "line": 164,
+          "line": 235,
           "exported": false,
           "signature": "const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([ '', '~', 'null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'false', 'False', 'FALSE', 'yes', 'Yes', 'YES', 'no', 'No', 'NO', 'on', 'On', 'ON',…"
         },
         {
           "name": "needsQuoting",
           "kind": "function",
-          "line": 207,
+          "line": 278,
           "exported": false,
           "signature": "function needsQuoting(s: string): boolean"
         },
         {
           "name": "escapeDoubleQuoted",
           "kind": "function",
-          "line": 249,
+          "line": 320,
           "exported": false,
           "signature": "function escapeDoubleQuoted(s: string): string"
         },
         {
           "name": "renderYamlScalar",
           "kind": "function",
-          "line": 292,
+          "line": 363,
           "exported": false,
           "signature": "function renderYamlScalar(v: unknown): string"
         },
         {
           "name": "isPlainObject",
           "kind": "function",
-          "line": 314,
+          "line": 385,
           "exported": false,
           "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
         },
         {
           "name": "renderYamlNode",
           "kind": "function",
-          "line": 323,
+          "line": 394,
           "exported": false,
           "signature": "function renderYamlNode(v: unknown, depth: number): string"
         },
         {
           "name": "renderYaml",
           "kind": "function",
-          "line": 404,
+          "line": 475,
           "exported": true,
           "signature": "export function renderYaml(value: unknown): string"
         },
         {
           "name": "CSV_LINE_TERMINATOR",
           "kind": "const",
-          "line": 436,
+          "line": 507,
           "exported": false,
           "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
         },
         {
           "name": "TAB",
           "kind": "const",
-          "line": 441,
+          "line": 512,
           "exported": false,
           "signature": "const TAB = 0x09"
         },
         {
           "name": "LF",
           "kind": "const",
-          "line": 442,
+          "line": 513,
           "exported": false,
           "signature": "const LF = 0x0a"
         },
         {
           "name": "CR",
           "kind": "const",
-          "line": 443,
+          "line": 514,
           "exported": false,
           "signature": "const CR = 0x0d"
         },
         {
           "name": "CSV_FORMULA_LEAD_CHARS",
           "kind": "const",
-          "line": 448,
+          "line": 519,
           "exported": false,
           "signature": "const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(['=', '+', '-', '@'])"
         },
         {
           "name": "neutralizeCsvFormula",
           "kind": "function",
-          "line": 452,
+          "line": 523,
           "exported": false,
           "signature": "function neutralizeCsvFormula(cell: string): string"
         },
         {
           "name": "csvCellRequiresQuoting",
           "kind": "function",
-          "line": 462,
+          "line": 533,
           "exported": false,
           "signature": "function csvCellRequiresQuoting(cell: string): boolean"
         },
         {
           "name": "csvQuoteCell",
           "kind": "function",
-          "line": 471,
+          "line": 542,
           "exported": false,
           "signature": "function csvQuoteCell(cell: string): string"
         },
         {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 480,
+          "line": 551,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
           "name": "csvDataCell",
           "kind": "function",
-          "line": 487,
+          "line": 558,
           "exported": false,
-          "signature": "function csvDataCell(v: unknown): string"
+          "signature": "function csvDataCell(cell: ProjectedCell | undefined): string"
         },
         {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 491,
+          "line": 562,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
-          "name": "csvCellFromValue",
+          "name": "csvCellFromProjected",
           "kind": "function",
-          "line": 497,
+          "line": 568,
           "exported": false,
-          "signature": "function csvCellFromValue(v: unknown): string"
+          "signature": "function csvCellFromProjected(cell: ProjectedCell | undefined): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 537,
+          "line": 608,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 591,
+          "line": 648,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }
@@ -5213,130 +5256,165 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export interface CliPaginationOperations<T> { readonly items: () => Promise<T[]>; readonly page: () => Promise<unknown>; readonly all: () => Promise<T[]>; }"
         },
         {
-          "name": "CliPaginationValidationResult",
-          "kind": "type",
+          "name": "CliPaginationParsed",
+          "kind": "interface",
           "line": 14,
           "exported": true,
-          "signature": "export type CliPaginationValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string }"
+          "signature": "export interface CliPaginationParsed { readonly mode: CliPaginationMode; readonly limit?: number; readonly offset?: number; readonly pageSize?: number; readonly startOffset?: number; readonly maxPages…"
+        },
+        {
+          "name": "CliPaginationValidationResult",
+          "kind": "type",
+          "line": 26,
+          "exported": true,
+          "signature": "export type CliPaginationValidationResult = { readonly ok: true; readonly parsed: CliPaginationParsed } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "PaginationArgs",
           "kind": "type",
-          "line": 16,
+          "line": 29,
           "exported": false,
           "signature": "type PaginationArgs = Pick< HandlerArgs, | 'page' | 'all' | 'limit' | 'offset' | 'pageSize' | 'startOffset' | 'maxPages' | 'maxItems' | 'maxDurationMs' | 'maxBytes' >"
         },
         {
+          "name": "ParsedPaginationAggregateProperty",
+          "kind": "type",
+          "line": 43,
+          "exported": false,
+          "signature": "type ParsedPaginationAggregateProperty = 'pageSize' | 'startOffset' | 'maxPages' | 'maxItems' | 'maxDurationMs' | 'maxBytes'"
+        },
+        {
+          "name": "ParsedPaginationArgs",
+          "kind": "type",
+          "line": 46,
+          "exported": false,
+          "signature": "type ParsedPaginationArgs = Omit<CliPaginationParsed, 'mode'>"
+        },
+        {
+          "name": "ParsedPaginationArgsMutable",
+          "kind": "type",
+          "line": 47,
+          "exported": false,
+          "signature": "type ParsedPaginationArgsMutable = { -readonly [K in keyof ParsedPaginationArgs]: ParsedPaginationArgs[K] }"
+        },
+        {
           "name": "RawPaginationArgs",
           "kind": "type",
-          "line": 30,
+          "line": 49,
           "exported": false,
           "signature": "type RawPaginationArgs = { readonly [Property in keyof PaginationArgs]?: unknown; }"
         },
         {
+          "name": "PaginationInput",
+          "kind": "type",
+          "line": 53,
+          "exported": false,
+          "signature": "type PaginationInput = RawPaginationArgs | CliPaginationParsed"
+        },
+        {
           "name": "NumericFlag",
           "kind": "interface",
-          "line": 34,
+          "line": 55,
           "exported": false,
-          "signature": "interface NumericFlag { readonly property: keyof PaginationArgs; readonly flag: string; readonly allowZero: boolean; readonly maximum?: number; }"
+          "signature": "interface NumericFlag { readonly property: ParsedPaginationAggregateProperty; readonly flag: string; readonly allowZero: boolean; readonly maximum?: number; }"
         },
         {
           "name": "PAGE_SIZE_FLAG",
           "kind": "const",
-          "line": 41,
+          "line": 62,
           "exported": false,
           "signature": "const PAGE_SIZE_FLAG = { property: 'pageSize', flag: '--page-size', allowZero: false, maximum: MAX_PAGINATION_LIMIT, } satisfies NumericFlag"
         },
         {
           "name": "START_OFFSET_FLAG",
           "kind": "const",
-          "line": 47,
+          "line": 68,
           "exported": false,
           "signature": "const START_OFFSET_FLAG = { property: 'startOffset', flag: '--start-offset', allowZero: true, } satisfies NumericFlag"
         },
         {
           "name": "MAX_PAGES_FLAG",
           "kind": "const",
-          "line": 52,
+          "line": 73,
           "exported": false,
           "signature": "const MAX_PAGES_FLAG = { property: 'maxPages', flag: '--max-pages', allowZero: false } satisfies NumericFlag"
         },
         {
           "name": "MAX_ITEMS_FLAG",
           "kind": "const",
-          "line": 53,
+          "line": 74,
           "exported": false,
           "signature": "const MAX_ITEMS_FLAG = { property: 'maxItems', flag: '--max-items', allowZero: false } satisfies NumericFlag"
         },
         {
           "name": "MAX_DURATION_FLAG",
           "kind": "const",
-          "line": 54,
+          "line": 75,
           "exported": false,
           "signature": "const MAX_DURATION_FLAG = { property: 'maxDurationMs', flag: '--max-duration-ms', allowZero: false, maximum: MAX_TIMEOUT_MS, } satisfies NumericFlag"
         },
         {
           "name": "MAX_BYTES_FLAG",
           "kind": "const",
-          "line": 60,
+          "line": 81,
           "exported": false,
           "signature": "const MAX_BYTES_FLAG = { property: 'maxBytes', flag: '--max-bytes', allowZero: false, maximum: MAX_PAGINATION_BYTES, } satisfies NumericFlag"
         },
         {
           "name": "NUMERIC_FLAGS",
           "kind": "const",
-          "line": 67,
+          "line": 88,
           "exported": false,
           "signature": "const NUMERIC_FLAGS: readonly NumericFlag[] = [ PAGE_SIZE_FLAG, START_OFFSET_FLAG, MAX_PAGES_FLAG, MAX_ITEMS_FLAG, MAX_DURATION_FLAG, MAX_BYTES_FLAG, ]"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 76,
+          "line": 97,
           "exported": false,
           "signature": "function parseCanonicalInteger(raw: unknown, flag: string, allowZero: boolean, maximum?: number): number"
         },
         {
           "name": "parseOptional",
           "kind": "function",
-          "line": 92,
+          "line": 141,
           "exported": false,
-          "signature": "function parseOptional(args: RawPaginationArgs, definition: NumericFlag): number | undefined"
+          "signature": "function parseOptional(args: PaginationInput, definition: NumericFlag): number | undefined"
         },
         {
           "name": "validateCliPagination",
           "kind": "function",
-          "line": 103,
+          "line": 153,
           "exported": true,
           "signature": "export function validateCliPagination( actionSpec: ActionSpec | undefined, args: RawPaginationArgs, ): CliPaginationValidationResult"
         },
         {
           "name": "getCliPaginationMode",
           "kind": "function",
-          "line": 169,
+          "line": 250,
           "exported": true,
           "signature": "export function getCliPaginationMode(args: Pick<RawPaginationArgs, 'page' | 'all'>): CliPaginationMode"
         },
         {
           "name": "outputPaginated",
           "kind": "function",
-          "line": 176,
+          "line": 257,
           "exported": true,
-          "signature": "export async function outputPaginated<T>( ctx: Pick<HandlerContext, 'args' | 'out'>, operations: CliPaginationOperations<T>, ): Promise<void>"
+          "signature": "export async function outputPaginated<T>( ctx: Pick<HandlerContext, 'args' | 'pagination' | 'out'>, operations: CliPaginationOperations<T>, ): Promise<void>"
         },
         {
           "name": "getPaginationSafetyOptions",
           "kind": "function",
-          "line": 187,
+          "line": 268,
           "exported": true,
-          "signature": "export function getPaginationSafetyOptions(args: PaginationArgs): PaginationSafetyOptions"
+          "signature": "export function getPaginationSafetyOptions(args: PaginationInput): PaginationSafetyOptions"
         },
         {
           "name": "getPaginatedRequestOptions",
           "kind": "function",
-          "line": 201,
+          "line": 290,
           "exported": true,
-          "signature": "export function getPaginatedRequestOptions(args: PaginationArgs): PaginatedRequestOptions"
+          "signature": "export function getPaginatedRequestOptions(args: PaginationInput): PaginatedRequestOptions"
         }
       ]
     },
@@ -6113,116 +6191,137 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "type Mutable<T> = { -readonly [K in keyof T]: T[K] }"
         },
         {
+          "name": "ModuleBindings",
+          "kind": "type",
+          "line": 27,
+          "exported": false,
+          "signature": "type ModuleBindings = { projects: ProjectModule; suites: SuiteModule; sections: SectionModule; cases: CaseModule; plans: PlanModule; runs: RunModule; tests: TestModule; results: ResultModule; mileston…"
+        },
+        {
+          "name": "createModuleBindings",
+          "kind": "const",
+          "line": 49,
+          "exported": false,
+          "signature": "const createModuleBindings = (client: TestRailClientCore): ModuleBindings => ({ projects: new ProjectModule(client), suites: new SuiteModule(client), sections: new SectionModule(client), cases: new Ca…"
+        },
+        {
+          "name": "rebindModules",
+          "kind": "function",
+          "line": 71,
+          "exported": false,
+          "signature": "function rebindModules(target: Mutable<TestRailClient>, client: TestRailClientCore): void"
+        },
+        {
           "name": "TestRailClient",
           "kind": "class",
-          "line": 38,
+          "line": 105,
           "exported": true,
           "signature": "export class TestRailClient extends TestRailClientCore",
           "members": [
             {
               "name": "projects",
               "kind": "property",
-              "line": 40
+              "line": 107
             },
             {
               "name": "suites",
               "kind": "property",
-              "line": 41
+              "line": 108
             },
             {
               "name": "sections",
               "kind": "property",
-              "line": 42
+              "line": 109
             },
             {
               "name": "cases",
               "kind": "property",
-              "line": 43
+              "line": 110
             },
             {
               "name": "plans",
               "kind": "property",
-              "line": 44
+              "line": 111
             },
             {
               "name": "runs",
               "kind": "property",
-              "line": 45
+              "line": 112
             },
             {
               "name": "tests",
               "kind": "property",
-              "line": 46
+              "line": 113
             },
             {
               "name": "results",
               "kind": "property",
-              "line": 47
+              "line": 114
             },
             {
               "name": "milestones",
               "kind": "property",
-              "line": 48
+              "line": 115
             },
             {
               "name": "users",
               "kind": "property",
-              "line": 49
+              "line": 116
             },
             {
               "name": "metadata",
               "kind": "property",
-              "line": 50
+              "line": 117
             },
             {
               "name": "configurations",
               "kind": "property",
-              "line": 51
+              "line": 118
             },
             {
               "name": "attachments",
               "kind": "property",
-              "line": 52
+              "line": 119
             },
             {
               "name": "bdd",
               "kind": "property",
-              "line": 53
+              "line": 120
             },
             {
               "name": "sharedSteps",
               "kind": "property",
-              "line": 54
+              "line": 121
             },
             {
               "name": "variables",
               "kind": "property",
-              "line": 55
+              "line": 122
             },
             {
               "name": "datasets",
               "kind": "property",
-              "line": 56
+              "line": 123
             },
             {
               "name": "reports",
               "kind": "property",
-              "line": 57
+              "line": 124
             },
             {
               "name": "labels",
               "kind": "property",
-              "line": 58
+              "line": 125
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 60
+              "line": 127
             },
             {
               "name": "withTimeout",
               "kind": "method",
-              "line": 103
+              "line": 171
             }
           ]
         }

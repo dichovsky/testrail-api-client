@@ -209,6 +209,7 @@ async function main(): Promise<number> {
         err(paginationValidation.error);
         return 1;
     }
+    const pagination = paginationValidation.parsed;
     const envGate = checkDestructiveEnvGate(actionSpec, process.env, dryRun);
     if (!envGate.ok) {
         err(envGate.error);
@@ -447,7 +448,18 @@ async function main(): Promise<number> {
             registerProcessHandlers: true,
             onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
         });
-        await dispatched.handler({ client, args, bodyInput, dryRun, force, confirmDestructive, out, err, errRaw });
+        await dispatched.handler({
+            client,
+            args,
+            pagination,
+            bodyInput,
+            dryRun,
+            force,
+            confirmDestructive,
+            out,
+            err,
+            errRaw,
+        });
         schemaMismatchReporter.flush();
         return 0;
     } catch (e: unknown) {

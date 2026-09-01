@@ -24,8 +24,8 @@ export async function handleCaseList(ctx: HandlerContext): Promise<void> {
     const updatedBy = parseOptionalIdList(ctx.args.updatedBy, '--updated-by');
     const labelId = parseOptionalIdList(ctx.args.labelId, '--label-id');
     const refs = parseOptionalRefs(ctx.args.refs);
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const filters = {
         ...(suiteId !== undefined && { suiteId }),
         ...(sectionId !== undefined && { sectionId }),
@@ -54,7 +54,7 @@ export async function handleCaseList(ctx: HandlerContext): Promise<void> {
         all: () =>
             ctx.client.cases.getAllCases(pid, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
             }),
     });
 }
@@ -69,8 +69,8 @@ export async function handleCaseTitles(ctx: HandlerContext): Promise<void> {
 
 export async function handleCaseHistory(ctx: HandlerContext): Promise<void> {
     const id = parseId(ctx.args.pathParams[0], 'case id');
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const pageOptions = {
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
@@ -78,6 +78,6 @@ export async function handleCaseHistory(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.cases.getHistoryForCase(id, pageOptions),
         page: () => ctx.client.cases.getHistoryForCasePage(id, pageOptions),
-        all: () => ctx.client.cases.getAllHistoryForCase(id, getPaginatedRequestOptions(ctx.args)),
+        all: () => ctx.client.cases.getAllHistoryForCase(id, getPaginatedRequestOptions(ctx.pagination ?? ctx.args)),
     });
 }

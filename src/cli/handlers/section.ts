@@ -10,8 +10,8 @@ export async function handleSectionGet(ctx: HandlerContext): Promise<void> {
 export async function handleSectionList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.pathParams[0], 'project id');
     const suiteId = ctx.args.suiteId === undefined ? undefined : parseId(ctx.args.suiteId, '--suite-id');
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const filters = { ...(suiteId !== undefined && { suiteId }) };
     const pageOptions = {
         ...filters,
@@ -24,7 +24,7 @@ export async function handleSectionList(ctx: HandlerContext): Promise<void> {
         all: () =>
             ctx.client.sections.getAllSections(pid, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
             }),
     });
 }

@@ -8,6 +8,21 @@ export interface OutputOptions {
     format: OutputFormat;
 }
 
+type ProjectedCell =
+    | { readonly trusted: true; readonly source: null | undefined | number | boolean | bigint }
+    | { readonly trusted: false; readonly source: unknown };
+
+interface ProjectedRow {
+    cells: Record<string, ProjectedCell>;
+    isRecord: boolean;
+    scalarValue?: ProjectedCell;
+}
+
+interface ProjectedOutput {
+    readonly columns: readonly string[];
+    readonly rows: readonly ProjectedRow[];
+}
+
 export interface Output {
     out: (data: unknown) => void;
     err: (message: string) => void;
@@ -45,52 +60,108 @@ function getField(row: unknown, key: string): unknown {
     return (row as Record<string, unknown>)[key];
 }
 
-export function renderTable(data: unknown): string {
-    const rows: unknown[] = Array.isArray(data) ? (data as unknown[]) : [data];
-    if (rows.length === 0) return '(empty)';
+function projectCell(value: unknown): ProjectedCell {
+    if (value === null || value === undefined) {
+        return { trusted: true, source: value };
+    }
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+        return { trusted: true, source: value };
+    }
+    return { trusted: false, source: value };
+}
 
-    const first: unknown = rows[0];
-    if (typeof first !== 'object' || first === null) {
-        // CTF #18: route the primitive-array branch through valueToString
-        // so a top-level string / number array carrying control chars
-        // (e.g. `['safe', '\x1b[31mRED\x1b[0m', 42]`) is sanitized the
-        // same way as object cells. Without this the primitive path
-        // would emit raw ESC bytes to stdout under --format table.
-        return rows.map(valueToString).join('\n');
+function projectRecord(row: Record<string, unknown>, columns: readonly string[]): ProjectedRow {
+    const cells: Record<string, ProjectedCell> = {};
+    for (const key of columns) {
+        cells[key] = projectCell(getField(row, key));
+    }
+    return { cells, isRecord: true };
+}
+
+function projectOutput(data: unknown, arrayRowsAreRecords = false): ProjectedOutput {
+    const isRecord = (value: unknown): value is Record<string, unknown> =>
+        typeof value === 'object' && value !== null && (arrayRowsAreRecords || !Array.isArray(value));
+
+    if (Array.isArray(data)) {
+        if (data.length === 0) {
+            return { columns: [], rows: [] };
+        }
+
+        if (data.some(isRecord)) {
+            const columns = Array.from(
+                new Set(
+                    data.flatMap((row) => (isRecord(row) ? Object.keys(row) : [])),
+                ),
+            );
+            return {
+                columns,
+                rows: data.map((row) =>
+                    isRecord(row)
+                        ? projectRecord(row, columns)
+                        : { cells: {}, isRecord: false, scalarValue: projectCell(row) },
+                ),
+            };
+        }
+
+        const projectedRows: ProjectedRow[] = data.map((row) => ({
+            cells: { value: projectCell(row) },
+            isRecord: false,
+            scalarValue: projectCell(row),
+        }));
+        return { columns: ['value'], rows: projectedRows };
     }
 
-    // Column set is the UNION of keys across every object-shaped row, in
-    // first-seen order (row 0's keys first, then any key that only appears
-    // in a later row). Deriving columns from row 0 alone would silently drop
-    // a column — and all of its data — whenever the first row omits a key a
-    // later row carries. That is reachable with real TestRail data: response
-    // schemas use `.nullish()`, so TestRail omits unset fields entirely, and
-    // a parsed list legitimately contains rows with differing key sets (e.g.
-    // a `case list` whose first case has no `milestone_id` but a later one
-    // does). The sibling `renderCsv` already unions keys for the same reason;
-    // this keeps the two renderers consistent.
-    const rawKeys = Array.from(
-        rows.reduce<Set<string>>((acc, r) => {
-            if (typeof r === 'object' && r !== null) {
-                for (const k of Object.keys(r)) acc.add(k);
-            }
-            return acc;
-        }, new Set<string>()),
-    );
-    // CTF #18 defense-in-depth: sanitize column keys too. TestRail field
-    // names today are alphanumeric/snake_case (safe), but the API contract
-    // isn't a security boundary — a future field name carrying a control
-    // byte would otherwise pass straight through `Object.keys()` into the
-    // header row.
+    if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+        const keys = Object.keys(data);
+        return {
+            columns: keys,
+            rows: [projectRecord(data as Record<string, unknown>, keys)],
+        };
+    }
+
+    return {
+        columns: ['value'],
+        rows: [{ cells: { value: projectCell(data) }, isRecord: false, scalarValue: projectCell(data) }],
+    };
+}
+
+export function renderTable(data: unknown): string {
+    const rows: readonly unknown[] = Array.isArray(data) ? data : [data];
+    if (rows.length === 0) return '(empty)';
+
+    // Preserve the established scalar-first contract for primitive and mixed
+    // arrays. A later object remains a scalar JSON value instead of silently
+    // turning the earlier primitive rows into empty object-table cells.
+    const first = rows[0];
+    if (typeof first !== 'object' || first === null) return rows.map(valueToString).join('\n');
+
+    const projected = projectOutput(data, true);
+    if (
+        Array.isArray(data) &&
+        projected.columns.length === 1 &&
+        projected.columns[0] === 'value' &&
+        projected.rows.every((row) => !row.isRecord)
+    ) {
+        return projected.rows.map((row) => valueToString(row.cells['value']?.source)).join('\n');
+    }
+
+    const rawKeys = projected.columns;
     const keys = rawKeys.map(sanitizeForTerminal);
-    const widths = keys.map((k, i) =>
-        Math.max(k.length, ...rows.map((r) => valueToString(getField(r, rawKeys[i] ?? k)).length)),
-    );
+    const widths = keys.map((k, i) => {
+        const column = rawKeys[i] ?? k;
+        const bodyMax = projected.rows.map((r) => valueToString(r.cells[column]?.source).length);
+        return Math.max(k.length, ...bodyMax);
+    });
 
     const line = widths.map((w) => '-'.repeat(w)).join('-+-');
     const header = keys.map((k, i) => k.padEnd(widths[i] ?? k.length)).join(' | ');
-    const body = rows.map((r) =>
-        keys.map((_k, i) => valueToString(getField(r, rawKeys[i] ?? '')).padEnd(widths[i] ?? 0)).join(' | '),
+    const body = projected.rows.map((row) =>
+        keys
+            .map((_k, i) => {
+                const column = rawKeys[i] ?? '';
+                return valueToString(row.cells[column]?.source).padEnd(widths[i] ?? 0);
+            })
+            .join(' | '),
     );
 
     return [header, line, ...body].join('\n');
@@ -481,11 +552,11 @@ function csvEscapeCell(cell: string): string {
     return csvQuoteCell(neutralizeCsvFormula(cell));
 }
 
-// Value cells: csvCellFromValue already neutralizes untrusted string/object
+// Value cells: csvCellFromProjected already neutralizes untrusted string/object
 // content (and leaves trusted typed numbers verbatim), so only RFC-quoting
 // remains. The header/value split keeps trusted numbers from being neutralized.
-function csvDataCell(v: unknown): string {
-    return csvQuoteCell(csvCellFromValue(v));
+function csvDataCell(cell: ProjectedCell | undefined): string {
+    return csvQuoteCell(csvCellFromProjected(cell));
 }
 
 function sanitizeForCsv(cell: string): string {
@@ -494,14 +565,14 @@ function sanitizeForCsv(cell: string): string {
     return stripChars(cell, (code) => isControlChar(code) && code !== TAB && code !== LF && code !== CR);
 }
 
-function csvCellFromValue(v: unknown): string {
+function csvCellFromProjected(cell: ProjectedCell | undefined): string {
+    if (cell === undefined) return '';
+    // Trust classification comes from the shared projector. Typed scalar
+    // values are safe to emit verbatim; text and structured values are not.
+    if (cell.trusted) return cell.source === null || cell.source === undefined ? '' : String(cell.source);
+    const v = cell.source;
     if (v === null || v === undefined) return '';
-    // Untrusted string content: neutralize formula leads after stripping
-    // terminal-control bytes.
     if (typeof v === 'string') return neutralizeCsvFormula(sanitizeForCsv(v));
-    // Trusted typed values: their string form is a numeric/boolean literal,
-    // never a formula, so they are emitted verbatim (no neutralization).
-    if (typeof v === 'number' || typeof v === 'boolean' || typeof v === 'bigint') return String(v);
     if (typeof v === 'object') {
         try {
             return neutralizeCsvFormula(sanitizeForCsv(JSON.stringify(v)));
@@ -535,79 +606,60 @@ function csvCellFromValue(v: unknown): string {
  * Exported for unit-test access without spawning a subprocess.
  */
 export function renderCsv(value: unknown): string {
-    // Array path.
-    if (Array.isArray(value)) {
-        if (value.length === 0) return '';
-        // Determine whether any row is object-shaped. Mixed primitive +
-        // object rows are coerced to the object-shaped path with the
-        // primitive row contributing one column (`value`).
-        const anyObject = value.some((row) => isPlainObject(row));
-        if (!anyObject) {
-            // Primitive-only array → single 'value' column.
-            const lines = [csvEscapeCell('value')];
-            for (const row of value) {
-                lines.push(csvDataCell(row));
-            }
-            return lines.join(CSV_LINE_TERMINATOR);
-        }
-        // Object-shaped (possibly mixed) array → union of keys, sorted.
-        const keySet = new Set<string>();
-        for (const row of value) {
-            if (isPlainObject(row)) {
-                for (const k of Object.keys(row)) keySet.add(k);
-            }
-        }
-        const keys = Array.from(keySet).sort();
-        const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
-        const lines = [header];
-        for (const row of value) {
-            if (isPlainObject(row)) {
-                lines.push(keys.map((k) => csvDataCell(row[k])).join(','));
-            } else {
-                // Primitive in an object-shaped array: every cell empty
-                // except a synthetic last column would mis-align headers,
-                // so emit a single-cell row under the first header. This
-                // is documented behavior — callers wanting strict CSV
-                // should not mix shapes.
-                const cells = keys.map(() => '');
-                cells[0] = csvDataCell(row);
-                lines.push(cells.join(','));
-            }
+    const projected = projectOutput(value);
+    if (projected.columns.length === 0) return '';
+    if (projected.rows.length === 0) return '';
+
+    // Top-level scalar.
+    if (!Array.isArray(value) && !isPlainObject(value)) {
+        return [csvEscapeCell('value'), csvDataCell(projected.rows[0]?.cells['value'])].join(CSV_LINE_TERMINATOR);
+    }
+
+    // Primitive-only array.
+    if (
+        projected.columns.length === 1 &&
+        projected.columns[0] === 'value' &&
+        projected.rows.every((row) => !row.isRecord)
+    ) {
+        const lines = [csvEscapeCell('value')];
+        for (const row of projected.rows) {
+            lines.push(csvDataCell(row.cells['value']));
         }
         return lines.join(CSV_LINE_TERMINATOR);
     }
-    // Single object → 1-row CSV.
-    if (isPlainObject(value)) {
-        const keys = Object.keys(value);
-        if (keys.length === 0) return '';
-        const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
-        const row = keys.map((k) => csvDataCell(value[k])).join(',');
-        return [header, row].join(CSV_LINE_TERMINATOR);
+
+    // Array unions are sorted for stability; a single object's own key order
+    // remains part of the established CSV contract.
+    const keys = Array.isArray(value) ? Array.from(projected.columns).sort() : Array.from(projected.columns);
+    const header = keys.map((key) => csvEscapeCell(sanitizeForCsv(key))).join(',');
+    const lines = [header];
+    for (const row of projected.rows) {
+        if (row.isRecord) {
+            lines.push(keys.map((key) => csvDataCell(row.cells[key])).join(','));
+        } else {
+            const cells = keys.map(() => '');
+            cells[0] = csvDataCell(row.scalarValue);
+            lines.push(cells.join(','));
+        }
     }
-    // Top-level scalar → emit a one-row, one-column CSV under 'value'.
-    return [csvEscapeCell('value'), csvDataCell(value)].join(CSV_LINE_TERMINATOR);
+    return lines.join(CSV_LINE_TERMINATOR);
 }
 
 export function createOutput(opts: OutputOptions): Output {
+    const encoders: Record<OutputFormat, (payload: unknown) => string> = {
+        table: renderTable,
+        yaml: renderYaml,
+        csv: renderCsv,
+        json: safeJsonStringify,
+    };
     const out = (data: unknown): void => {
         if (opts.quiet) return;
-        switch (opts.format) {
-            case 'table':
-                process.stdout.write(`${renderTable(data)}\n`);
-                return;
-            case 'yaml':
-                process.stdout.write(`${renderYaml(data)}\n`);
-                return;
-            case 'csv': {
-                const csvOutput = renderCsv(data);
-                process.stdout.write(csvOutput === '' ? '' : `${csvOutput}${CSV_LINE_TERMINATOR}`);
-                return;
-            }
-            case 'json':
-            default:
-                process.stdout.write(`${safeJsonStringify(data)}\n`);
-                return;
+        const output = encoders[opts.format](data);
+        if (opts.format === 'csv') {
+            process.stdout.write(output === '' ? '' : `${output}${CSV_LINE_TERMINATOR}`);
+            return;
         }
+        process.stdout.write(`${output}\n`);
     };
     const err = (message: string): void => {
         // CTF #16: sanitize before writing to stderr so TestRail-controlled

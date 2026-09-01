@@ -9,8 +9,8 @@ export async function handleSuiteGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleSuiteList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const pageOptions = {
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
@@ -20,6 +20,6 @@ export async function handleSuiteList(ctx: HandlerContext): Promise<void> {
         items: () =>
             hasRequestControls ? ctx.client.suites.getSuites(pid, pageOptions) : ctx.client.suites.getSuites(pid),
         page: () => ctx.client.suites.getSuitesPage(pid, pageOptions),
-        all: () => ctx.client.suites.getAllSuites(pid, getPaginatedRequestOptions(ctx.args)),
+        all: () => ctx.client.suites.getAllSuites(pid, getPaginatedRequestOptions(ctx.pagination ?? ctx.args)),
     });
 }

@@ -9,8 +9,8 @@ export async function handleMilestoneGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleMilestoneList(ctx: HandlerContext): Promise<void> {
     const pid = parseId(ctx.args.projectId, '--project-id');
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const pageOptions = {
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
@@ -18,6 +18,6 @@ export async function handleMilestoneList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.milestones.getMilestones(pid, pageOptions),
         page: () => ctx.client.milestones.getMilestonesPage(pid, pageOptions),
-        all: () => ctx.client.milestones.getAllMilestones(pid, getPaginatedRequestOptions(ctx.args)),
+        all: () => ctx.client.milestones.getAllMilestones(pid, getPaginatedRequestOptions(ctx.pagination ?? ctx.args)),
     });
 }

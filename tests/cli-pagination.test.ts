@@ -4,6 +4,7 @@ import {
     getCliPaginationMode,
     getPaginatedRequestOptions,
     getPaginationSafetyOptions,
+    outputPaginated,
     validateCliPagination,
 } from '../src/cli/pagination.js';
 
@@ -62,7 +63,13 @@ describe('CLI pagination modes', () => {
     });
 
     it('keeps legacy limit/offset compatible but rejects their ambiguous all-page meaning', () => {
-        expect(validateCliPagination(undefined, { limit: '10', offset: '20' })).toEqual({ ok: true });
+        expect(validateCliPagination(undefined, { limit: '10', offset: '20' })).toEqual({
+            ok: true,
+            parsed: { mode: 'items', limit: 10, offset: 20 },
+        });
+        const malformedLegacyLimit = validateCliPagination(undefined, { limit: '10x' });
+        expect(malformedLegacyLimit.ok).toBe(false);
+        if (!malformedLegacyLimit.ok) expect(malformedLegacyLimit.error).toContain('--limit must be');
         expect(validateCliPagination(paginatedAction(true), { all: true, limit: '10' })).toEqual({
             ok: false,
             error: '--all cannot be combined with --limit or --offset; use --page-size and --start-offset.',
@@ -120,7 +127,13 @@ describe('CLI pagination modes', () => {
             ok: false,
             error: 'This endpoint does not document caller-controlled pagination; omit --limit, --offset, --page-size, and --start-offset.',
         });
-        expect(validateCliPagination(paginatedAction(false), { all: true, maxPages: '2' })).toEqual({ ok: true });
+        expect(validateCliPagination(paginatedAction(false), { all: true, maxPages: '2' })).toEqual({
+            ok: true,
+            parsed: {
+                mode: 'all',
+                maxPages: 2,
+            },
+        });
     });
 
     it.each([
@@ -133,6 +146,25 @@ describe('CLI pagination modes', () => {
         const result = validateCliPagination(paginatedAction(true), args);
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.error).toContain(message);
+    });
+
+    it('prefers parsed pagination mode over raw mode flags', async () => {
+        let value: unknown;
+        const ctx = {
+            args: { pathParams: [], page: true },
+            pagination: { mode: 'all' as const },
+            out: (payload: unknown) => {
+                value = payload;
+            },
+        };
+
+        await outputPaginated(ctx, {
+            items: () => Promise.resolve(['items']),
+            page: () => Promise.resolve('page'),
+            all: () => Promise.resolve(['all']),
+        });
+
+        expect(value).toEqual(['all']);
     });
 
     it('parses controlled and shared safety options without inventing defaults', () => {

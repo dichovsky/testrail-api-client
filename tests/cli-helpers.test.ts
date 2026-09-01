@@ -92,6 +92,17 @@ describe('renderTable', () => {
         expect(renderTable([1, 2, 3])).toBe('1\n2\n3');
     });
 
+    it('preserves scalar-first mixed arrays as newline-separated values', () => {
+        expect(renderTable([1, { id: 2 }])).toBe('1\n{"id":2}');
+    });
+
+    it('preserves indexed columns for nested-array rows', () => {
+        const out = renderTable([[1, 2], { id: 3 }]);
+        expect(out).toContain('0 | 1 | id');
+        expect(out).toContain('1 | 2');
+        expect(out).toContain('3');
+    });
+
     it('renders an array of objects with headers and separator row', () => {
         const out = renderTable([
             { id: 1, name: 'a' },

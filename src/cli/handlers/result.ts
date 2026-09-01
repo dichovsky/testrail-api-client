@@ -5,8 +5,8 @@ import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 export async function handleResultList(ctx: HandlerContext): Promise<void> {
     const rid = parseId(ctx.args.runId, '--run-id');
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const pageOptions = {
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
@@ -14,7 +14,7 @@ export async function handleResultList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.results.getResultsForRun(rid, pageOptions),
         page: () => ctx.client.results.getResultsForRunPage(rid, pageOptions),
-        all: () => ctx.client.results.getAllResultsForRun(rid, getPaginatedRequestOptions(ctx.args)),
+        all: () => ctx.client.results.getAllResultsForRun(rid, getPaginatedRequestOptions(ctx.pagination ?? ctx.args)),
     });
 }
 
@@ -29,8 +29,8 @@ export async function handleResultList(ctx: HandlerContext): Promise<void> {
  * limit/offset-only shape unchanged for backwards compatibility.
  */
 function buildResultOptions(ctx: HandlerContext): GetResultsOptions {
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     const statusId = parseIdList(ctx.args.statusId, '--status-id');
     const defectsFilter = ctx.args.defectsFilter;
     return {
@@ -54,7 +54,7 @@ export async function handleResultListForTest(ctx: HandlerContext): Promise<void
         all: () =>
             ctx.client.results.getAllResults(testId, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
             }),
     });
 }
@@ -73,7 +73,7 @@ export async function handleResultListForCase(ctx: HandlerContext): Promise<void
         all: () =>
             ctx.client.results.getAllResultsForCase(runId, caseId, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
             }),
     });
 }

@@ -7,8 +7,8 @@ export async function handleUserGet(ctx: HandlerContext): Promise<void> {
 }
 
 export async function handleUserList(ctx: HandlerContext): Promise<void> {
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     ctx.out(await ctx.client.users.getUsers(limit, offset));
 }
 

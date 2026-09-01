@@ -14,8 +14,8 @@ import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
  * validate their numeric controls strictly before handler dispatch.
  */
 function paginationFromCtx(ctx: HandlerContext): { limit?: number; offset?: number } {
-    const limit = optInt(ctx.args.limit);
-    const offset = optInt(ctx.args.offset);
+    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
+    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
     return {
         ...(limit !== undefined && { limit }),
         ...(offset !== undefined && { offset }),
@@ -28,7 +28,11 @@ export async function handleAttachmentListForCase(ctx: HandlerContext): Promise<
     await outputPaginated(ctx, {
         items: () => ctx.client.attachments.getAttachmentsForCase(caseId, pageOptions),
         page: () => ctx.client.attachments.getAttachmentsForCasePage(caseId, pageOptions),
-        all: () => ctx.client.attachments.getAllAttachmentsForCase(caseId, getPaginatedRequestOptions(ctx.args)),
+        all: () =>
+            ctx.client.attachments.getAllAttachmentsForCase(
+                caseId,
+                getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
+            ),
     });
 }
 
@@ -38,7 +42,11 @@ export async function handleAttachmentListForRun(ctx: HandlerContext): Promise<v
     await outputPaginated(ctx, {
         items: () => ctx.client.attachments.getAttachmentsForRun(runId, pageOptions),
         page: () => ctx.client.attachments.getAttachmentsForRunPage(runId, pageOptions),
-        all: () => ctx.client.attachments.getAllAttachmentsForRun(runId, getPaginatedRequestOptions(ctx.args)),
+        all: () =>
+            ctx.client.attachments.getAllAttachmentsForRun(
+                runId,
+                getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
+            ),
     });
 }
 
@@ -57,7 +65,11 @@ export async function handleAttachmentListForPlan(ctx: HandlerContext): Promise<
                 ? ctx.client.attachments.getAttachmentsForPlan(planId, pageOptions)
                 : ctx.client.attachments.getAttachmentsForPlan(planId),
         page: () => ctx.client.attachments.getAttachmentsForPlanPage(planId, pageOptions),
-        all: () => ctx.client.attachments.getAllAttachmentsForPlan(planId, getPaginatedRequestOptions(ctx.args)),
+        all: () =>
+            ctx.client.attachments.getAllAttachmentsForPlan(
+                planId,
+                getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
+            ),
     });
 }
 
