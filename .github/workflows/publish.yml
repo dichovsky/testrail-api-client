@@ -92,8 +92,11 @@ jobs:
                   RELEASE_TAG: '${{ github.event.release.tag_name }}'
               run: node scripts/release-preflight.ts context
 
-            - name: Type-check
+            - name: Type-check with TypeScript 7
               run: npm run typecheck
+
+            - name: Type-check TypeScript 6 compatibility
+              run: npm run typecheck:ts6
 
             - name: Lint
               run: npm run lint

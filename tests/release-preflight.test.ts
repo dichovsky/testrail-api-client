@@ -306,6 +306,14 @@ describe('publish workflow wiring', () => {
         expect(publishJob).not.toContain('npx ');
     });
 
+    it('runs the TypeScript 7 check before the TypeScript 6 compatibility check', () => {
+        const primaryTypecheck = workflow.indexOf('run: npm run typecheck\n');
+        const compatibilityTypecheck = workflow.indexOf('run: npm run typecheck:ts6');
+
+        expect(primaryTypecheck).toBeGreaterThanOrEqual(0);
+        expect(primaryTypecheck).toBeLessThan(compatibilityTypecheck);
+    });
+
     it('hands only the tested map-stripped dist artifact to the OIDC job', () => {
         expect(workflow).toContain('actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02');
         expect(workflow).toContain('actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093');
@@ -331,6 +339,8 @@ describe('publish workflow wiring', () => {
     });
 
     it.each([
+        'npm run typecheck',
+        'npm run typecheck:ts6',
         'npm run format:check',
         'npm run codemap:check',
         'npm run mapping:check',
@@ -347,17 +357,29 @@ describe('publish workflow wiring', () => {
 describe('CI package smoke wiring', () => {
     const workflow = readFileSync(resolve('.github/workflows/ci.yml'), 'utf8');
 
-    it('covers every supported Node line on Linux plus Node 24 on Windows', () => {
+    it('runs the TypeScript 7 check before the TypeScript 6 compatibility check', () => {
+        const primaryTypecheck = workflow.indexOf('run: npm run typecheck\n');
+        const compatibilityTypecheck = workflow.indexOf('run: npm run typecheck:ts6');
+
+        expect(primaryTypecheck).toBeGreaterThanOrEqual(0);
+        expect(primaryTypecheck).toBeLessThan(compatibilityTypecheck);
+    });
+
+    it('covers every supported Node line on Linux plus Node 24 on Windows and macOS', () => {
         expect(workflow).toContain("node-version: ['20.19.0', '22.13.0', '24']");
         expect(workflow).toContain('package-smoke-windows:');
         expect(workflow).toContain('name: Package smoke (Windows, Node 24)');
         expect(workflow).toContain('runs-on: windows-latest');
+        expect(workflow).toContain('package-smoke-macos:');
+        expect(workflow).toContain('name: Package smoke (macOS, Node 24)');
+        expect(workflow).toContain('runs-on: macos-14');
         expect(workflow).toContain("node-version: '24'");
-        expect(workflow.match(/run: npm run package:smoke/g)).toHaveLength(2);
+        expect(workflow.match(/run: npm run package:smoke/g)).toHaveLength(3);
         expect(workflow).toContain('package-smoke-gate:');
         expect(workflow).toContain('name: package-smoke');
-        expect(workflow).toContain('needs: [package-smoke, package-smoke-windows]');
+        expect(workflow).toContain('needs: [package-smoke, package-smoke-windows, package-smoke-macos]');
         expect(workflow).toContain("LINUX_RESULT: '${{ needs.package-smoke.result }}'");
         expect(workflow).toContain("WINDOWS_RESULT: '${{ needs.package-smoke-windows.result }}'");
+        expect(workflow).toContain("MACOS_RESULT: '${{ needs.package-smoke-macos.result }}'");
     });
 });

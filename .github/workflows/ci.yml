@@ -64,8 +64,11 @@ jobs:
             - name: Build project
               run: npm run build
 
-            - name: Run TypeScript type check
+            - name: Run TypeScript 7 type check
               run: npm run typecheck
+
+            - name: Run TypeScript 6 compatibility check
+              run: npm run typecheck:ts6
 
             - name: Run linting
               run: npm run lint
@@ -125,10 +128,31 @@ jobs:
             - name: Smoke-test packed consumer and CLI
               run: npm run package:smoke
 
+    package-smoke-macos:
+        name: Package smoke (macOS, Node 24)
+        runs-on: macos-14
+        timeout-minutes: 15
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+            - name: Setup Node.js 24
+              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+              with:
+                  node-version: '24'
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Smoke-test packed consumer and CLI
+              run: npm run package:smoke
+
     package-smoke-gate:
         name: package-smoke
         if: always()
-        needs: [package-smoke, package-smoke-windows]
+        needs: [package-smoke, package-smoke-windows, package-smoke-macos]
         runs-on: ubuntu-latest
 
         steps:
@@ -137,9 +161,10 @@ jobs:
               env:
                   LINUX_RESULT: '${{ needs.package-smoke.result }}'
                   WINDOWS_RESULT: '${{ needs.package-smoke-windows.result }}'
+                  MACOS_RESULT: '${{ needs.package-smoke-macos.result }}'
               run: |
                   set -euo pipefail
-                  if [[ "$LINUX_RESULT" != 'success' || "$WINDOWS_RESULT" != 'success' ]]; then
+                  if [[ "$LINUX_RESULT" != 'success' || "$WINDOWS_RESULT" != 'success' || "$MACOS_RESULT" != 'success' ]]; then
                       echo 'One or more package smoke lanes failed or were cancelled.' >&2
                       exit 1
                   fi
@@ -185,7 +210,6 @@ jobs:
             - name: Run security audit (production deps)
               run: npm audit --omit=dev --audit-level=moderate
 
-            # Full-tree audit incl. dev deps, with documented allowlist exceptions
-            # (see audit-ci.jsonc — dev-only, non-exploitable advisories only).
+            # Full-tree audit including dev dependencies; no advisories are allowlisted.
             - name: Run dependency vulnerability check
               run: npm run audit:dependencies

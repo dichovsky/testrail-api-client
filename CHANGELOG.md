@@ -69,6 +69,20 @@ the next major package release (`7.0.0`), not as a `6.x` minor.
   `sectionId`. TestRail's `add_bdd/{section_id}` endpoint creates a new BDD
   case under a section; the request path itself is unchanged.
 
+### Internal
+
+- Migrated the build and primary type-check to native TypeScript 7.0.2. The
+  compiler-API generators and typed ESLint stack use the aliased TypeScript 6
+  compatibility package while the native compiler has no stable Compiler API.
+  Packed-package smoke tests compile the published declarations with both
+  TypeScript 6 and 7, preserving the TypeScript 6+ consumer guarantee.
+- Refreshed every direct dependency to its current release: Zod 4.5.4,
+  `@types/node` 26.4.1, typescript-eslint 8.69.0, ESLint 10.9.1, Vitest and its
+  V8 coverage provider 4.1.11, lockfile-lint 5.0.1, and tsx 4.23.13. The
+  already-current `@eslint/js`, audit-ci, fast-check, and Prettier releases are
+  unchanged. The lockfile refresh also removes the obsolete js-yaml audit
+  exception; the dependency audit now passes without allowlisted advisories.
+
 ## [6.0.0] — 2026-08-11 — advisory validation, safe pagination, and response coverage
 
 Entity-field response validation no longer fails closed. A TestRail response
