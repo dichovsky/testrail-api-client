@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { optInt, parseId } from '../ids.js';
+import { parseId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteText } from '../safe-write.js';
 import { emitStdoutAck } from '../output.js';
@@ -14,8 +14,8 @@ export async function handleBddList(ctx: HandlerContext): Promise<void> {
     const sectionId = parseOptionalId(ctx.args.sectionId, '--section-id');
     const labelId = parseOptionalIdList(ctx.args.labelId, '--label-id');
     const refs = parseOptionalRefs(ctx.args.refs);
-    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
-    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
+    const limit = ctx.pagination.limit;
+    const offset = ctx.pagination.offset;
     const filters = {
         ...(suiteId !== undefined && { suiteId }),
         ...(sectionId !== undefined && { sectionId }),
@@ -33,7 +33,7 @@ export async function handleBddList(ctx: HandlerContext): Promise<void> {
         all: () =>
             ctx.client.bdd.getAllBdds(projectId, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination),
             }),
     });
 }

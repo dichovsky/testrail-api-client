@@ -24,27 +24,28 @@ export { TestRailApiError, TestRailLicenseError, TestRailPaginationError, TestRa
 /** Strips `readonly` so `withTimeout` can rebind the module fields on a view. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
-type ModuleBindings = {
-    projects: ProjectModule;
-    suites: SuiteModule;
-    sections: SectionModule;
-    cases: CaseModule;
-    plans: PlanModule;
-    runs: RunModule;
-    tests: TestModule;
-    results: ResultModule;
-    milestones: MilestoneModule;
-    users: UsersModule;
-    metadata: MetadataModule;
-    configurations: ConfigurationModule;
-    attachments: AttachmentModule;
-    bdd: BddModule;
-    sharedSteps: SharedStepModule;
-    variables: VariableModule;
-    datasets: DatasetModule;
-    reports: ReportModule;
-    labels: LabelModule;
-};
+type ModuleBindingKey =
+    | 'projects'
+    | 'suites'
+    | 'sections'
+    | 'cases'
+    | 'plans'
+    | 'runs'
+    | 'tests'
+    | 'results'
+    | 'milestones'
+    | 'users'
+    | 'metadata'
+    | 'configurations'
+    | 'attachments'
+    | 'bdd'
+    | 'sharedSteps'
+    | 'variables'
+    | 'datasets'
+    | 'reports'
+    | 'labels';
+
+type ModuleBindings = Pick<TestRailClient, ModuleBindingKey>;
 
 const createModuleBindings = (client: TestRailClientCore): ModuleBindings => ({
     projects: new ProjectModule(client),
@@ -69,26 +70,7 @@ const createModuleBindings = (client: TestRailClientCore): ModuleBindings => ({
 });
 
 function rebindModules(target: Mutable<TestRailClient>, client: TestRailClientCore): void {
-    const modules = createModuleBindings(client);
-    target.projects = modules.projects;
-    target.suites = modules.suites;
-    target.sections = modules.sections;
-    target.cases = modules.cases;
-    target.plans = modules.plans;
-    target.runs = modules.runs;
-    target.tests = modules.tests;
-    target.results = modules.results;
-    target.milestones = modules.milestones;
-    target.users = modules.users;
-    target.metadata = modules.metadata;
-    target.configurations = modules.configurations;
-    target.attachments = modules.attachments;
-    target.bdd = modules.bdd;
-    target.sharedSteps = modules.sharedSteps;
-    target.variables = modules.variables;
-    target.datasets = modules.datasets;
-    target.reports = modules.reports;
-    target.labels = modules.labels;
+    Object.assign(target, createModuleBindings(client));
 }
 
 /**

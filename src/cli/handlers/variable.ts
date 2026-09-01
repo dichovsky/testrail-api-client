@@ -7,7 +7,6 @@ export async function handleVariableList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.variables.getVariables(projectId),
         page: () => ctx.client.variables.getVariablesPage(projectId),
-        all: () =>
-            ctx.client.variables.getAllVariables(projectId, getPaginationSafetyOptions(ctx.pagination ?? ctx.args)),
+        all: () => ctx.client.variables.getAllVariables(projectId, getPaginationSafetyOptions(ctx.pagination)),
     });
 }

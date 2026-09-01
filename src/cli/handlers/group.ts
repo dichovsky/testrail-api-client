@@ -29,6 +29,6 @@ export async function handleGroupList(ctx: HandlerContext): Promise<void> {
     await outputPaginated(ctx, {
         items: () => ctx.client.users.getGroups(),
         page: () => ctx.client.users.getGroupsPage(),
-        all: () => ctx.client.users.getAllGroups(getPaginationSafetyOptions(ctx.pagination ?? ctx.args)),
+        all: () => ctx.client.users.getAllGroups(getPaginationSafetyOptions(ctx.pagination)),
     });
 }

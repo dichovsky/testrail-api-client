@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 import { handleCaseStatusList } from '../src/cli/handlers/case-status.js';
 import { handleDatasetList } from '../src/cli/handlers/dataset.js';
 import { handleGroupList } from '../src/cli/handlers/group.js';
@@ -271,6 +272,7 @@ describe('secondary pagination CLI handlers', () => {
         const ctx: HandlerContext = {
             client: harness.client,
             args: adapter.args[mode],
+            pagination: parseCliPagination(adapter.args[mode]),
             bodyInput: {},
             dryRun: false,
             force: false,

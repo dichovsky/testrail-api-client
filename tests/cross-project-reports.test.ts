@@ -65,6 +65,7 @@ function buildContext(
         ctx: {
             client,
             args: { pathParams },
+            pagination: { mode: 'items' },
             bodyInput: {},
             dryRun: false,
             force: false,

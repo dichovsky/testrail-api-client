@@ -12,16 +12,18 @@ type ProjectedCell =
     | { readonly trusted: true; readonly source: null | undefined | number | boolean | bigint }
     | { readonly trusted: false; readonly source: unknown };
 
-interface ProjectedRow {
-    cells: Record<string, ProjectedCell>;
+interface ProjectedRow<Cell> {
+    cells: Record<string, Cell>;
     isRecord: boolean;
-    scalarValue?: ProjectedCell;
+    scalarValue?: Cell;
 }
 
-interface ProjectedOutput {
+interface ProjectedOutput<Cell> {
     readonly columns: readonly string[];
-    readonly rows: readonly ProjectedRow[];
+    readonly rows: readonly ProjectedRow<Cell>[];
 }
+
+type ProjectionShape = 'table' | 'csv';
 
 export interface Output {
     out: (data: unknown) => void;
@@ -70,44 +72,55 @@ function projectCell(value: unknown): ProjectedCell {
     return { trusted: false, source: value };
 }
 
-function projectRecord(row: Record<string, unknown>, columns: readonly string[]): ProjectedRow {
-    const cells: Record<string, ProjectedCell> = {};
+function isProjectionRecord(value: unknown, shape: ProjectionShape): value is Record<string, unknown> {
+    return shape === 'table' ? typeof value === 'object' && value !== null : isPlainObject(value);
+}
+
+function projectRecord<Cell>(
+    row: Record<string, unknown>,
+    columns: readonly string[],
+    project: (value: unknown) => Cell,
+): ProjectedRow<Cell> {
+    const cells: Record<string, Cell> = {};
     for (const key of columns) {
-        cells[key] = projectCell(getField(row, key));
+        cells[key] = project(getField(row, key));
     }
     return { cells, isRecord: true };
 }
 
-function projectOutput(data: unknown, arrayRowsAreRecords = false): ProjectedOutput {
-    const isRecord = (value: unknown): value is Record<string, unknown> =>
-        typeof value === 'object' && value !== null && (arrayRowsAreRecords || !Array.isArray(value));
-
+function projectOutput<Cell>(
+    data: unknown,
+    shape: ProjectionShape,
+    project: (value: unknown) => Cell,
+): ProjectedOutput<Cell> {
+    const isRecord = (value: unknown): value is Record<string, unknown> => isProjectionRecord(value, shape);
     if (Array.isArray(data)) {
         if (data.length === 0) {
             return { columns: [], rows: [] };
         }
 
         if (data.some(isRecord)) {
+            // Keep the UNION of keys in first-seen order. TestRail may omit
+            // nullish fields from early rows and include them in later rows.
             const columns = Array.from(
-                new Set(
-                    data.flatMap((row) => (isRecord(row) ? Object.keys(row) : [])),
-                ),
+                data.reduce<Set<string>>((keys, row) => {
+                    if (isRecord(row)) for (const key of Object.keys(row)) keys.add(key);
+                    return keys;
+                }, new Set<string>()),
             );
             return {
                 columns,
-                rows: data.map((row) =>
-                    isRecord(row)
-                        ? projectRecord(row, columns)
-                        : { cells: {}, isRecord: false, scalarValue: projectCell(row) },
-                ),
+                rows: data.map((row) => {
+                    if (isRecord(row)) return projectRecord(row, columns, project);
+                    return { cells: {}, isRecord: false, scalarValue: project(row) };
+                }),
             };
         }
 
-        const projectedRows: ProjectedRow[] = data.map((row) => ({
-            cells: { value: projectCell(row) },
-            isRecord: false,
-            scalarValue: projectCell(row),
-        }));
+        const projectedRows: ProjectedRow<Cell>[] = data.map((row) => {
+            const scalarValue = project(row);
+            return { cells: { value: scalarValue }, isRecord: false, scalarValue };
+        });
         return { columns: ['value'], rows: projectedRows };
     }
 
@@ -115,13 +128,14 @@ function projectOutput(data: unknown, arrayRowsAreRecords = false): ProjectedOut
         const keys = Object.keys(data);
         return {
             columns: keys,
-            rows: [projectRecord(data as Record<string, unknown>, keys)],
+            rows: [projectRecord(data as Record<string, unknown>, keys, project)],
         };
     }
 
+    const scalarValue = project(data);
     return {
         columns: ['value'],
-        rows: [{ cells: { value: projectCell(data) }, isRecord: false, scalarValue: projectCell(data) }],
+        rows: [{ cells: { value: scalarValue }, isRecord: false, scalarValue }],
     };
 }
 
@@ -129,27 +143,19 @@ export function renderTable(data: unknown): string {
     const rows: readonly unknown[] = Array.isArray(data) ? data : [data];
     if (rows.length === 0) return '(empty)';
 
-    // Preserve the established scalar-first contract for primitive and mixed
-    // arrays. A later object remains a scalar JSON value instead of silently
-    // turning the earlier primitive rows into empty object-table cells.
+    // CTF #18: keep scalar-first arrays on valueToString so TestRail-controlled
+    // strings cannot emit raw ANSI/OSC bytes. A later object remains a scalar
+    // JSON value instead of turning earlier primitive rows into empty cells.
     const first = rows[0];
     if (typeof first !== 'object' || first === null) return rows.map(valueToString).join('\n');
 
-    const projected = projectOutput(data, true);
-    if (
-        Array.isArray(data) &&
-        projected.columns.length === 1 &&
-        projected.columns[0] === 'value' &&
-        projected.rows.every((row) => !row.isRecord)
-    ) {
-        return projected.rows.map((row) => valueToString(row.cells['value']?.source)).join('\n');
-    }
+    const projected = projectOutput(data, 'table', valueToString);
 
     const rawKeys = projected.columns;
     const keys = rawKeys.map(sanitizeForTerminal);
     const widths = keys.map((k, i) => {
         const column = rawKeys[i] ?? k;
-        const bodyMax = projected.rows.map((r) => valueToString(r.cells[column]?.source).length);
+        const bodyMax = projected.rows.map((row) => (row.cells[column] ?? '').length);
         return Math.max(k.length, ...bodyMax);
     });
 
@@ -159,7 +165,7 @@ export function renderTable(data: unknown): string {
         keys
             .map((_k, i) => {
                 const column = rawKeys[i] ?? '';
-                return valueToString(row.cells[column]?.source).padEnd(widths[i] ?? 0);
+                return (row.cells[column] ?? '').padEnd(widths[i] ?? 0);
             })
             .join(' | '),
     );
@@ -606,14 +612,12 @@ function csvCellFromProjected(cell: ProjectedCell | undefined): string {
  * Exported for unit-test access without spawning a subprocess.
  */
 export function renderCsv(value: unknown): string {
-    const projected = projectOutput(value);
-    if (projected.columns.length === 0) return '';
+    const projected = projectOutput(value, 'csv', projectCell);
     if (projected.rows.length === 0) return '';
 
-    // Top-level scalar.
-    if (!Array.isArray(value) && !isPlainObject(value)) {
-        return [csvEscapeCell('value'), csvDataCell(projected.rows[0]?.cells['value'])].join(CSV_LINE_TERMINATOR);
-    }
+    // Preserve the established empty-object contract while allowing keyless
+    // records inside arrays to retain their row count and mixed scalar values.
+    if (!Array.isArray(value) && isPlainObject(value) && projected.columns.length === 0) return '';
 
     // Primitive-only array.
     if (
@@ -645,21 +649,26 @@ export function renderCsv(value: unknown): string {
     return lines.join(CSV_LINE_TERMINATOR);
 }
 
+interface OutputEncoder {
+    readonly render: (payload: unknown) => string;
+    readonly terminator: string;
+    readonly omitEmpty: boolean;
+}
+
+const OUTPUT_ENCODERS: Record<OutputFormat, OutputEncoder> = {
+    table: { render: renderTable, terminator: '\n', omitEmpty: false },
+    yaml: { render: renderYaml, terminator: '\n', omitEmpty: false },
+    csv: { render: renderCsv, terminator: CSV_LINE_TERMINATOR, omitEmpty: true },
+    json: { render: safeJsonStringify, terminator: '\n', omitEmpty: false },
+};
+
 export function createOutput(opts: OutputOptions): Output {
-    const encoders: Record<OutputFormat, (payload: unknown) => string> = {
-        table: renderTable,
-        yaml: renderYaml,
-        csv: renderCsv,
-        json: safeJsonStringify,
-    };
     const out = (data: unknown): void => {
         if (opts.quiet) return;
-        const output = encoders[opts.format](data);
-        if (opts.format === 'csv') {
-            process.stdout.write(output === '' ? '' : `${output}${CSV_LINE_TERMINATOR}`);
-            return;
-        }
-        process.stdout.write(`${output}\n`);
+        const encoder = OUTPUT_ENCODERS[opts.format];
+        const output = encoder.render(data);
+        if (encoder.omitEmpty && output === '') return;
+        process.stdout.write(`${output}${encoder.terminator}`);
     };
     const err = (message: string): void => {
         // CTF #16: sanitize before writing to stderr so TestRail-controlled

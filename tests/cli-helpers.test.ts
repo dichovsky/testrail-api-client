@@ -98,9 +98,7 @@ describe('renderTable', () => {
 
     it('preserves indexed columns for nested-array rows', () => {
         const out = renderTable([[1, 2], { id: 3 }]);
-        expect(out).toContain('0 | 1 | id');
-        expect(out).toContain('1 | 2');
-        expect(out).toContain('3');
+        expect(out).toBe('0 | 1 | id\n--+---+---\n1 | 2 |   \n  |   | 3 ');
     });
 
     it('renders an array of objects with headers and separator row', () => {
@@ -1628,6 +1626,12 @@ describe('renderCsv — array of objects', () => {
         expect(lines[0]).toBe('id,name');
         expect(lines[1]).toBe('1,A');
         expect(lines[2]).toBe('42,');
+    });
+
+    it('preserves keyless record rows and mixed primitive values', () => {
+        expect(renderCsv([{}, 1])).toBe('\r\n\r\n1');
+        expect(renderCsv([{}, 'str', {}])).toBe('\r\n\r\nstr\r\n');
+        expect(renderCsv([{}])).toBe('\r\n');
     });
 });
 

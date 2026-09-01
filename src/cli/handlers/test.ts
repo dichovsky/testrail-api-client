@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId, optInt } from '../ids.js';
+import { parseId } from '../ids.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 import { parseOptionalIdList } from '../filters.js';
 
@@ -10,8 +10,8 @@ export async function handleTestGet(ctx: HandlerContext): Promise<void> {
 
 export async function handleTestList(ctx: HandlerContext): Promise<void> {
     const runId = parseId(ctx.args.pathParams[0], 'run id');
-    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
-    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
+    const limit = ctx.pagination.limit;
+    const offset = ctx.pagination.offset;
     const statusIds = parseOptionalIdList(ctx.args.statusId, '--status-id');
     const labelIds = parseOptionalIdList(ctx.args.labelId, '--label-id');
     const filters = {
@@ -29,7 +29,7 @@ export async function handleTestList(ctx: HandlerContext): Promise<void> {
         all: () =>
             ctx.client.tests.getAllTests(runId, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination),
             }),
     });
 }

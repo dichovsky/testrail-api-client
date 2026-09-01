@@ -339,6 +339,7 @@ function buildCtx(
             ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),
             ...(overrides.soft === true && { soft: true }),
         },
+        pagination: { mode: 'items' },
         bodyInput: overrides.dataFlag !== undefined ? { dataFlag: overrides.dataFlag } : {},
         dryRun: overrides.dryRun ?? false,
         force: false,

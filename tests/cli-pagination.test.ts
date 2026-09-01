@@ -67,9 +67,14 @@ describe('CLI pagination modes', () => {
             ok: true,
             parsed: { mode: 'items', limit: 10, offset: 20 },
         });
-        const malformedLegacyLimit = validateCliPagination(undefined, { limit: '10x' });
-        expect(malformedLegacyLimit.ok).toBe(false);
-        if (!malformedLegacyLimit.ok) expect(malformedLegacyLimit.error).toContain('--limit must be');
+        expect(validateCliPagination(undefined, { limit: '10x', offset: '-1' })).toEqual({
+            ok: true,
+            parsed: { mode: 'items' },
+        });
+        expect(validateCliPagination(undefined, { limit: '0' })).toEqual({
+            ok: true,
+            parsed: { mode: 'items', limit: 0 },
+        });
         expect(validateCliPagination(paginatedAction(true), { all: true, limit: '10' })).toEqual({
             ok: false,
             error: '--all cannot be combined with --limit or --offset; use --page-size and --start-offset.',
@@ -148,10 +153,9 @@ describe('CLI pagination modes', () => {
         if (!result.ok) expect(result.error).toContain(message);
     });
 
-    it('prefers parsed pagination mode over raw mode flags', async () => {
+    it('dispatches from the normalized pagination mode', async () => {
         let value: unknown;
         const ctx = {
-            args: { pathParams: [], page: true },
             pagination: { mode: 'all' as const },
             out: (payload: unknown) => {
                 value = payload;
@@ -169,13 +173,14 @@ describe('CLI pagination modes', () => {
 
     it('parses controlled and shared safety options without inventing defaults', () => {
         const args = {
-            pageSize: '25',
-            startOffset: '0',
-            maxPages: '4',
-            maxItems: '90',
-            maxDurationMs: '1000',
-            maxBytes: '4096',
-        };
+            mode: 'all',
+            pageSize: 25,
+            startOffset: 0,
+            maxPages: 4,
+            maxItems: 90,
+            maxDurationMs: 1000,
+            maxBytes: 4096,
+        } as const;
         expect(getPaginatedRequestOptions(args)).toEqual({
             pageSize: 25,
             startOffset: 0,

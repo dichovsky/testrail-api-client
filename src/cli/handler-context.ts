@@ -106,7 +106,7 @@ export interface BodyInput {
 export interface HandlerContext {
     client: TestRailClient;
     args: HandlerArgs;
-    pagination?: CliPaginationParsed;
+    pagination: CliPaginationParsed;
     bodyInput: BodyInput;
     dryRun: boolean;
     /** True when `--force` is set; permits overwriting an existing `--out` file. */

@@ -1,5 +1,5 @@
 import type { HandlerContext } from '../handler-context.js';
-import { parseId, optInt } from '../ids.js';
+import { parseId } from '../ids.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 import { parseOptionalBoolean, parseOptionalId, parseOptionalIdList, parseOptionalSingleRef } from '../filters.js';
 
@@ -16,8 +16,8 @@ export async function handlePlanList(ctx: HandlerContext): Promise<void> {
     const isCompleted = parseOptionalBoolean(ctx.args.isCompleted, '--is-completed');
     const milestoneId = parseOptionalIdList(ctx.args.milestoneId, '--milestone-id');
     const refs = parseOptionalSingleRef(ctx.args.refs);
-    const limit = ctx.pagination?.limit ?? optInt(ctx.args.limit);
-    const offset = ctx.pagination?.offset ?? optInt(ctx.args.offset);
+    const limit = ctx.pagination.limit;
+    const offset = ctx.pagination.offset;
     const filters = {
         ...(createdAfter !== undefined && { createdAfter }),
         ...(createdBefore !== undefined && { createdBefore }),
@@ -37,7 +37,7 @@ export async function handlePlanList(ctx: HandlerContext): Promise<void> {
         all: () =>
             ctx.client.plans.getAllPlans(pid, {
                 ...filters,
-                ...getPaginatedRequestOptions(ctx.pagination ?? ctx.args),
+                ...getPaginatedRequestOptions(ctx.pagination),
             }),
     });
 }

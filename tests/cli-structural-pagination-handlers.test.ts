@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 import { handleMilestoneList } from '../src/cli/handlers/milestone.js';
 import { handlePlanList } from '../src/cli/handlers/plan.js';
 import { handleProjectList } from '../src/cli/handlers/project.js';
@@ -88,6 +89,7 @@ function buildContext(client: MockClient, args: HandlerArgs): { ctx: HandlerCont
         ctx: {
             client: client as unknown as TestRailClient,
             args,
+            pagination: parseCliPagination(args),
             bodyInput: {},
             dryRun: false,
             force: false,

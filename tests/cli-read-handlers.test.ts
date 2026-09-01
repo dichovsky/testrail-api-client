@@ -38,6 +38,7 @@ import { handleConfigurationList } from '../src/cli/handlers/configuration.js';
 import { IdParseError } from '../src/cli/ids.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
+import { parseCliPagination } from '../src/cli/pagination.js';
 
 interface MockedClient {
     cases: {
@@ -273,6 +274,7 @@ function buildCtx(
             ...(overrides.defectsFilter !== undefined && { defectsFilter: overrides.defectsFilter }),
             ...(overrides.email !== undefined && { email: overrides.email }),
         },
+        pagination: parseCliPagination(overrides),
         bodyInput: {},
         dryRun: false,
         force: false,
