@@ -442,8 +442,22 @@ jobs:
                       echo 'Published npm metadata did not converge to the expected release identity.' >&2
                       exit 1
                   fi
-                  DIFF_OUTPUT="$(npm diff --diff="$GITHUB_WORKSPACE" --diff="$PACKAGE_SPEC" --diff-name-only --ignore-scripts --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/)"
-                  if [[ -n "${DIFF_OUTPUT//[[:space:]]/}" ]]; then
-                      echo 'Published npm package content differs from the verified release.' >&2
+                  DIFF_VERIFIED=false
+                  for ATTEMPT in {1..10}; do
+                      if DIFF_OUTPUT="$(npm diff --diff="$GITHUB_WORKSPACE" --diff="$PACKAGE_SPEC" --diff-name-only --ignore-scripts --prefer-online --cache="$ISOLATED_NPM_DIRECTORY/npm-diff-cache-$ATTEMPT" --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/ 2>/dev/null)"; then
+                          if [[ -n "${DIFF_OUTPUT//[[:space:]]/}" ]]; then
+                              echo 'Published npm package content differs from the verified release.' >&2
+                              exit 1
+                          fi
+                          DIFF_VERIFIED=true
+                          break
+                      fi
+                      if [[ "$ATTEMPT" -lt 10 ]]; then
+                          echo "Published npm package content is not retrievable yet (attempt $ATTEMPT/10); retrying." >&2
+                          sleep 3
+                      fi
+                  done
+                  if [[ "$DIFF_VERIFIED" != 'true' ]]; then
+                      echo 'Published npm package content did not become retrievable for verification.' >&2
                       exit 1
                   fi
