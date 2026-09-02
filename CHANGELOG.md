@@ -15,8 +15,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-This set includes public SDK and CLI output changes and must be published as
-the next major package release (`7.0.0`), not as a `6.x` minor.
+## [7.0.0] — 2026-09-02 — TestRail 10.7 API compatibility and stricter validation
 
 ### Added — TestRail 10.7.0 API compatibility
 
