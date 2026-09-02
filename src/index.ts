@@ -24,6 +24,7 @@ export {
 } from './constants.js';
 export {
     TestRailConfigSchema,
+    PaginationRequestSchema,
     PaginationSchema,
     UserSchema,
     RoleSchema,

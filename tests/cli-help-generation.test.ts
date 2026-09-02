@@ -13,9 +13,9 @@
  * when the change is intentional.
  */
 import { describe, expect, it } from 'vitest';
-import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS } from '../src/cli/flags.js';
+import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS, getCliFlagUsage } from '../src/cli/flags.js';
 import { ACTIONS } from '../src/cli/metadata.js';
-import { buildHelpText, renderOptionsBlock } from '../src/cli/help.js';
+import { actionArgvHint, buildHelpText, renderOptionsBlock } from '../src/cli/help.js';
 
 describe('buildHelpText', () => {
     it('matches the committed snapshot (accidental drift fails the test)', () => {
@@ -40,6 +40,19 @@ describe('buildHelpText', () => {
             expect(help.includes(needle), `${spec.resource} ${spec.action} not present on a help action line`).toBe(
                 true,
             );
+        }
+    });
+
+    it('renders every required ActionSpec flag as an argv hint', () => {
+        for (const spec of ACTIONS) {
+            const hint = actionArgvHint(spec);
+            for (const flag of spec.flags ?? []) {
+                if (flag.required === true) {
+                    expect(hint, `${spec.resource} ${spec.action} missing required ${flag.name} hint`).toContain(
+                        getCliFlagUsage(flag.name),
+                    );
+                }
+            }
         }
     });
 

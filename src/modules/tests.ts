@@ -1,31 +1,50 @@
 import { TestRailClientCore } from '../client-core.js';
-import type { Test, TestWithData, GetTestsOptions } from '../types.js';
-import { TestSchema, TestWithDataResponseSchema, UpdateTestsResponseSchema } from '../schemas.js';
+import { TestRailValidationError } from '../errors.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import type {
     TestWithDataResponse,
     UpdateTestLabelsPayload,
     UpdateTestsLabelsPayload,
     UpdateTestsResponse,
 } from '../schemas.js';
+import { TestSchema, TestWithDataResponseSchema, UpdateTestsResponseSchema } from '../schemas.js';
+import type { GetTestsOptions, Test, TestWithData } from '../types.js';
 import { serializeIdList } from '../utils.js';
-import { TestRailValidationError } from '../errors.js';
-import { validateId, validatePaginationParams } from '../validation.js';
+import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
-
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
 
 export interface GetTestOptions {
     /** `1` includes results and attachments; `0` returns the ordinary test. */
     withData?: '0' | '1';
 }
+
+export const TESTS_PAGINATION = createPaginatedListExecutor<
+    { readonly runId: number },
+    GetTestsOptions,
+    GetAllTestsOptions,
+    Test
+>({
+    operations: ['get_tests'],
+    collectionKey: 'tests',
+    itemSchema: TestSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ runId }, options) => {
+        validateId(runId, 'runId');
+        const statusId = options?.statusId ?? options?.status_id;
+        const labelId = options?.labelId ?? options?.label_id;
+        if (statusId !== undefined) statusId.forEach((id) => validateId(id, 'statusId'));
+        if (labelId !== undefined) labelId.forEach((id) => validateId(id, 'labelId'));
+        return {
+            operation: 'get_tests',
+            pathParameters: [runId],
+            query: { status_id: serializeIdList(statusId), label_id: serializeIdList(labelId) },
+        };
+    },
+});
 
 export class TestModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -52,85 +71,26 @@ export class TestModule {
                 attachments: [...response.attachments],
             };
         }
-        return this.client.request<Test>({
-            method: 'GET',
-            endpoint,
-            schema: TestSchema,
-        });
+        return this.client.request<Test>({ method: 'GET', endpoint, schema: TestSchema });
     }
 
     /** @testrail GET get_tests/{run_id} */
     async getTests(runId: number, options?: GetTestsOptions): Promise<Test[]> {
-        return unwrapList<Test>('tests', await this.requestTestsPage(runId, options));
+        return TESTS_PAGINATION.items(this.client, { runId }, options);
     }
 
     /** Fetch one normalized tests page while preserving TestRail pagination metadata. */
     async getTestsPage(runId: number, options?: GetTestsOptions): Promise<Page<Test>> {
-        return decodePage<Test>('tests', await this.requestTestsPage(runId, options, { pageProjection: true }));
+        return TESTS_PAGINATION.page(this.client, { runId }, options);
     }
 
     /** Fetch every tests page under explicit aggregate safety bounds. */
     async getAllTests(runId: number, options?: GetAllTestsOptions): Promise<Test[]> {
-        const filters = snapshotOptionFields(options, ['statusId', 'status_id', 'labelId', 'label_id']);
-        return collectAllPages({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
-                decodePage<Test>(
-                    'tests',
-                    await this.requestTestsPage(
-                        runId,
-                        {
-                            ...filters,
-                            ...(limit !== undefined && { limit }),
-                            ...(offset !== undefined && { offset }),
-                        },
-                        { bypassCache, remainingTimeMs, deadlineAt },
-                    ),
-                ),
-        });
-    }
-
-    private async requestTestsPage(
-        runId: number,
-        options?: GetTestsOptions,
-        transport?: PageTransportOptions,
-    ): Promise<unknown> {
-        validateId(runId, 'runId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const statusId = options?.statusId ?? options?.status_id;
-        const labelId = options?.labelId ?? options?.label_id;
-        if (statusId !== undefined) {
-            statusId.forEach((id) => validateId(id, 'statusId'));
-        }
-        if (labelId !== undefined) {
-            labelId.forEach((id) => validateId(id, 'labelId'));
-        }
-        const endpoint = buildEndpoint(`get_tests/${runId}`, {
-            status_id: serializeIdList(statusId),
-            label_id: serializeIdList(labelId),
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('tests', TestSchema) : listOf('tests', TestSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
-            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
-            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
-        });
+        return TESTS_PAGINATION.all(this.client, { runId }, options);
     }
 
     /**
      * Update the labels assigned to a single test (TestRail Labels API, 2025).
-     * This endpoint mutates labels only — not arbitrary test fields — and
-     * returns the test in `get_test` format. The method name mirrors the
-     * `update_test` endpoint (per the lib's method=endpoint convention); the
-     * label-only scope is documented here so callers don't expect a general
-     * test update.
      * @testrail POST update_test/{test_id}
      */
     async updateTest(testId: number, payload: UpdateTestLabelsPayload): Promise<Test> {
@@ -144,18 +104,7 @@ export class TestModule {
     }
 
     /**
-     * Bulk-assign the SAME labels to many tests (TestRail Labels API, 2025).
-     * `update_tests` takes no path param — the targets are named in the body via
-     * `test_ids` — so each ID is validated here before the network call. The
-     * endpoint cannot set different labels per test.
-     *
-     * Returns TestRail's acknowledgement — `{ test_ids, labels }` — not the
-     * updated tests. An earlier revision modelled the response as a test list;
-     * that was a guess made while the docs were unreachable, and because the
-     * acknowledgement carries no `tests` key it resolved `[]` on every
-     * successful call, reporting "0 tests updated" for work the server had done.
-     * See {@link UpdateTestsResponseSchema} for the documented shape.
-     *
+     * Bulk-assign the same labels to many tests and return TestRail's acknowledgement.
      * @testrail POST update_tests
      */
     async updateTests(payload: UpdateTestsLabelsPayload): Promise<UpdateTestsResponse> {

@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { ActionSpecFlagName } from '../flags.js';
 import type { Handler } from '../handler-context.js';
 
 /**
@@ -11,6 +12,13 @@ import type { Handler } from '../handler-context.js';
 export interface PathParam {
     name: string;
     description: string;
+}
+
+export interface ActionFlagSpec {
+    /** Catalogued argv spelling. */
+    readonly name: ActionSpecFlagName;
+    /** Reject the action before auth when this flag is absent or empty. */
+    readonly required?: boolean;
 }
 
 /** Pagination contract mirrored from the upstream endpoint inventory. */
@@ -30,10 +38,17 @@ export interface ActionSpec {
     pathParams: readonly PathParam[];
     /** The handler function invoked when this `resource:action` is dispatched.
      *  Binding the handler directly on the spec promotes `ACTIONS` to the
-     *  single source of truth: `dispatch.ts` derives its `HANDLERS` map by
+     *  single source of truth: `dispatch.ts` derives its action map by
      *  iterating `ACTIONS`, so a metadata entry without a handler is a
      *  TypeScript error rather than a runtime drift bug caught by tests. */
     handler: Handler;
+    /**
+     * Action-specific inputs and requiredness. The compiler limits entries to
+     * catalogued action flags. Structural capabilities still admit companion
+     * flags as a group (for example `fileInput` admits optional `--filename`),
+     * while a genuinely required member such as `--file` is declared here.
+     */
+    flags?: readonly ActionFlagSpec[];
     /** TestRail endpoint this CLI action calls, in the form `'METHOD path'`
      *  (e.g., `'POST add_case/{section_id}'`). Must agree with the
      *  `@testrail` JSDoc tag on the linked client method in
@@ -83,6 +98,12 @@ export interface ActionSpec {
     isWrite: boolean;
     /** True for destructive actions that require `--yes` to execute. */
     destructive?: boolean;
+    /**
+     * TestRail's server-side preview behavior for destructive actions.
+     * Defaults to `reject`; only endpoints with a documented server-side
+     * preview opt into `optional`.
+     */
+    softMode?: 'optional' | 'reject';
     /** Opt-out flag for the bidirectional Gate C2 check. When `true`, the
      *  mapping generator skips the "every ACTIONS entry needs ≥1
      *  `<!-- recipe-for: resource:action -->` binding in skill/SKILL.md"

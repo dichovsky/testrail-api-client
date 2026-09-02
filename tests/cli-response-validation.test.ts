@@ -81,6 +81,50 @@ describe('CLI response-validation reporter', () => {
         expect(lines.at(-1)).toBe('Warning: suppressed 1 additional response schema mismatch warning.');
     });
 
+    it('flattens invalid record keys and normalizes unsafe issue codes', () => {
+        const chunks: string[] = [];
+        const reporter = createCliSchemaMismatchReporter({
+            strict: false,
+            quiet: false,
+            resource: 'project',
+            action: 'list',
+            write: (chunk) => chunks.push(chunk),
+        });
+        const invalidKeyError = mismatchError(z.record(z.number(), z.string()), { privateKey: 'value' });
+        const unsafeCodeError = {
+            issues: [{ code: 'private-value!', path: [] }],
+        } as unknown as z.ZodError;
+
+        reporter.onSchemaMismatch({ method: 'GET', endpoint: 'ignored', error: invalidKeyError, data: {} });
+        reporter.onSchemaMismatch({ method: 'GET', endpoint: 'ignored', error: unsafeCodeError, data: {} });
+
+        const output = chunks.join('');
+        expect(output).toContain('code=invalid_key');
+        expect(output).toContain('code=unknown path=$');
+        expect(output).not.toContain('private-value');
+    });
+
+    it('pluralizes a bounded summary when multiple unique warnings are suppressed', () => {
+        const chunks: string[] = [];
+        const reporter = createCliSchemaMismatchReporter({
+            strict: false,
+            quiet: false,
+            resource: 'project',
+            action: 'list',
+            write: (chunk) => chunks.push(chunk),
+        });
+
+        for (let depth = 0; depth < 12; depth += 1) {
+            const error = {
+                issues: [{ code: 'invalid_type', path: Array.from({ length: depth }, () => 'private') }],
+            } as unknown as z.ZodError;
+            reporter.onSchemaMismatch({ method: 'GET', endpoint: 'ignored', error, data: {} });
+        }
+        reporter.flush();
+
+        expect(chunks.at(-1)).toBe('Warning: suppressed 2 additional response schema mismatch warnings.\n');
+    });
+
     it('keeps exact strict-response environment semantics in the pure resolver', () => {
         expect(resolveStrictResponses(false, undefined)).toEqual({ ok: true, strict: false });
         expect(resolveStrictResponses(false, '1')).toEqual({ ok: true, strict: true });

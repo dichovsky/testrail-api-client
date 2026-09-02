@@ -1,7 +1,12 @@
 import { YAML_INDENT_SPACES } from '../constants.js';
 import { isControlChar, sanitizeForTerminal, stripChars } from './sanitize.js';
 
-export type OutputFormat = 'json' | 'table' | 'yaml' | 'csv';
+export const OUTPUT_FORMATS = ['json', 'table', 'yaml', 'csv'] as const;
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
+
+export function isOutputFormat(value: unknown): value is OutputFormat {
+    return typeof value === 'string' && (OUTPUT_FORMATS as readonly string[]).includes(value);
+}
 
 export interface OutputOptions {
     quiet: boolean;

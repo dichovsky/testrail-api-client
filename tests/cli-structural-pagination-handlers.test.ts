@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
 import { handleMilestoneList } from '../src/cli/handlers/milestone.js';
@@ -10,6 +11,7 @@ import { handleSectionList } from '../src/cli/handlers/section.js';
 import { handleSuiteList } from '../src/cli/handlers/suite.js';
 
 type MockFunction = ReturnType<typeof vi.fn>;
+type InvocationFixture = HandlerArgs & RawCliPaginationArgs;
 
 interface MockOperations {
     readonly items: MockFunction;
@@ -83,13 +85,27 @@ function buildClient(): MockClient {
     };
 }
 
-function buildContext(client: MockClient, args: HandlerArgs): { ctx: HandlerContext; out: MockFunction } {
+function buildContext(client: MockClient, fixture: InvocationFixture): { ctx: HandlerContext; out: MockFunction } {
     const out = vi.fn();
+    const { page, all, limit, offset, pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...args } =
+        fixture;
     return {
         ctx: {
             client: client as unknown as TestRailClient,
+            actionSpec: { resource: 'test', action: 'list' },
             args,
-            pagination: parseCliPagination(args),
+            pagination: parseCliPagination({
+                page,
+                all,
+                limit,
+                offset,
+                pageSize,
+                startOffset,
+                maxPages,
+                maxItems,
+                maxDurationMs,
+                maxBytes,
+            }),
             bodyInput: {},
             dryRun: false,
             force: false,
@@ -121,8 +137,8 @@ const aggregateOptions = {
 interface HandlerCase {
     readonly name: string;
     readonly handler: Handler;
-    readonly legacyArgs: HandlerArgs;
-    readonly allArgs: HandlerArgs;
+    readonly legacyArgs: InvocationFixture;
+    readonly allArgs: InvocationFixture;
     readonly expectedItemsArgs: readonly unknown[];
     readonly expectedPageArgs: readonly unknown[];
     readonly expectedAllArgs: readonly unknown[];
@@ -260,7 +276,7 @@ describe.each(handlers)('$name pagination modes', (entry) => {
 describe('10.7 list filters', () => {
     it('preserves project --is-completed through --all', async () => {
         const client = buildClient();
-        const args: HandlerArgs = {
+        const args: InvocationFixture = {
             pathParams: [],
             all: true,
             isCompleted: 'false',
@@ -278,7 +294,7 @@ describe('10.7 list filters', () => {
 
     it('preserves both milestone state filters through --all', async () => {
         const client = buildClient();
-        const args: HandlerArgs = {
+        const args: InvocationFixture = {
             pathParams: [],
             projectId: '7',
             all: true,

@@ -2,13 +2,10 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Case, UploadFileInput } from '../types.js';
 import type { Bdd } from '../schemas.js';
 import { BddSchema, CaseSchema } from '../schemas.js';
-import { validateId, validatePaginationParams } from '../validation.js';
-import { buildEndpoint } from '../url.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { validateId } from '../validation.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import { serializeIdFilter } from '../utils.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 /** Filters and pagination controls accepted by TestRail 10.5+'s `get_bdds`. */
 export interface GetBddsOptions {
@@ -32,9 +29,35 @@ export interface GetBddsOptions {
 
 export interface GetAllBddsOptions extends Omit<GetBddsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+export const BDDS_PAGINATION = createPaginatedListExecutor<
+    { readonly projectId: number },
+    GetBddsOptions,
+    GetAllBddsOptions,
+    Bdd
+>({
+    operations: ['get_bdds'],
+    collectionKey: 'bdd',
+    itemSchema: BddSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ projectId }, options) => {
+        validateId(projectId, 'projectId');
+        const { suiteId, sectionId, labelId, refs } = options ?? {};
+        if (suiteId !== undefined) validateId(suiteId, 'suiteId');
+        if (sectionId !== undefined) validateId(sectionId, 'sectionId');
+        return {
+            operation: 'get_bdds',
+            pathParameters: [projectId],
+            query: {
+                suite_id: suiteId,
+                section_id: sectionId,
+                label_id: serializeIdFilter(labelId, 'labelId'),
+                refs: typeof refs === 'string' ? refs : undefined,
+                'refs[]': refs !== undefined && typeof refs !== 'string' ? refs : undefined,
+            },
+        };
+    },
+});
 
 /**
  * BDDs (Behavior-Driven Development / Gherkin `.feature`) endpoints.
@@ -71,68 +94,17 @@ export class BddModule {
      * @testrail GET get_bdds/{project_id}
      */
     async getBdds(projectId: number, options?: GetBddsOptions): Promise<Bdd[]> {
-        return unwrapList<Bdd>('bdd', await this.requestBddsPage(projectId, options));
+        return BDDS_PAGINATION.items(this.client, { projectId }, options);
     }
 
     /** Fetch one normalized bulk-BDD page while preserving pagination metadata. */
     async getBddsPage(projectId: number, options?: GetBddsOptions): Promise<Page<Bdd>> {
-        return decodePage<Bdd>('bdd', await this.requestBddsPage(projectId, options, { pageProjection: true }));
+        return BDDS_PAGINATION.page(this.client, { projectId }, options);
     }
 
     /** Fetch every bulk-BDD page under explicit aggregate safety bounds. */
     async getAllBdds(projectId: number, options?: GetAllBddsOptions): Promise<Bdd[]> {
-        const filters = snapshotOptionFields(options, ['suiteId', 'sectionId', 'labelId', 'refs']);
-        return collectAllPages({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
-                decodePage<Bdd>(
-                    'bdd',
-                    await this.requestBddsPage(
-                        projectId,
-                        {
-                            ...filters,
-                            ...(limit !== undefined && { limit }),
-                            ...(offset !== undefined && { offset }),
-                        },
-                        { bypassCache, remainingTimeMs, deadlineAt },
-                    ),
-                ),
-        });
-    }
-
-    private async requestBddsPage(
-        projectId: number,
-        options?: GetBddsOptions,
-        transport?: PageTransportOptions,
-    ): Promise<unknown> {
-        validateId(projectId, 'projectId');
-        const { suiteId, sectionId, labelId, refs, limit, offset } = options ?? {};
-        if (suiteId !== undefined) validateId(suiteId, 'suiteId');
-        if (sectionId !== undefined) validateId(sectionId, 'sectionId');
-        validatePaginationParams(limit, offset);
-
-        const refsScalar = typeof refs === 'string' ? refs : undefined;
-        const refsArray = refs !== undefined && typeof refs !== 'string' ? refs : undefined;
-        const endpoint = buildEndpoint(`get_bdds/${projectId}`, {
-            suite_id: suiteId,
-            section_id: sectionId,
-            label_id: serializeIdFilter(labelId, 'labelId'),
-            refs: refsScalar,
-            'refs[]': refsArray,
-            limit,
-            offset,
-        });
-        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('bdd', BddSchema) : listOf('bdd', BddSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
-            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
-            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
-        });
+        return BDDS_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /**

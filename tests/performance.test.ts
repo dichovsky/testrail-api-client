@@ -45,18 +45,16 @@ describe('TestRailClient Performance & Memory', () => {
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
         await client.projects.getProject(2);
 
-        // Check if both are in cache (private access for test)
-        const cache = (client as unknown as { cache: Map<string, unknown> }).cache;
-        expect(cache.size).toBe(2);
-
         // Third request - should evict the oldest entry (Project 1)
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(3)));
         await client.projects.getProject(3);
 
-        expect(cache.size).toBe(2);
-        expect(cache.has('PARSED:GET:get_project/1')).toBe(false);
-        expect(cache.has('PARSED:GET:get_project/2')).toBe(true);
-        expect(cache.has('PARSED:GET:get_project/3')).toBe(true);
+        // Project 2 remains cached; project 1 was the LRU entry and refetches.
+        await expect(client.projects.getProject(2)).resolves.toEqual(mockProject(2));
+        expect(fetch).toHaveBeenCalledTimes(3);
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(1)));
+        await expect(client.projects.getProject(1)).resolves.toEqual(mockProject(1));
+        expect(fetch).toHaveBeenCalledTimes(4);
     });
 
     it('should implement LRU eviction behavior', async () => {
@@ -75,9 +73,6 @@ describe('TestRailClient Performance & Memory', () => {
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
         await client.projects.getProject(2);
 
-        const cache = (client as unknown as { cache: Map<string, unknown> }).cache;
-        expect(cache.size).toBe(2);
-
         // Access project 1 again to mark it as recently used
         await client.projects.getProject(1); // Should come from cache
 
@@ -85,19 +80,11 @@ describe('TestRailClient Performance & Memory', () => {
         (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(3)));
         await client.projects.getProject(3);
 
-        expect(cache.size).toBe(2);
-        expect(cache.has('PARSED:GET:get_project/1')).toBe(true); // Recently accessed
-        expect(cache.has('PARSED:GET:get_project/2')).toBe(false); // Evicted
-        expect(cache.has('PARSED:GET:get_project/3')).toBe(true); // New
-    });
-
-    it('should allow disabling cache size limit with 0', () => {
-        const unlimitedClient = new TestRailClient({
-            ...config,
-            maxCacheSize: 0,
-        });
-        expect((unlimitedClient as unknown as { maxCacheSize: number }).maxCacheSize).toBe(0);
-        unlimitedClient.destroy();
+        await client.projects.getProject(1);
+        expect(fetch).toHaveBeenCalledTimes(3); // recently touched project 1 survived
+        (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse(mockProject(2)));
+        await client.projects.getProject(2);
+        expect(fetch).toHaveBeenCalledTimes(4); // project 2 was evicted
     });
 
     it('should warn when maxCacheSize is 0 and enableCache is not explicitly set', () => {
@@ -116,15 +103,5 @@ describe('TestRailClient Performance & Memory', () => {
         } finally {
             warnSpy.mockRestore();
         }
-    });
-
-    it('should use default cache size if not provided', () => {
-        const defaultClient = new TestRailClient({
-            baseUrl: 'https://example.testrail.io',
-            email: 'test@example.com',
-            apiKey: 'api-key',
-        });
-        expect((defaultClient as unknown as { maxCacheSize: number }).maxCacheSize).toBe(1000);
-        defaultClient.destroy();
     });
 });

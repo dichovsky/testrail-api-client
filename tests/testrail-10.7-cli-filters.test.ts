@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
 import { handleBddList } from '../src/cli/handlers/bdd.js';
@@ -8,13 +9,41 @@ import { handlePlanList } from '../src/cli/handlers/plan.js';
 import { handleRunList } from '../src/cli/handlers/run.js';
 import { handleTestList } from '../src/cli/handlers/test.js';
 
-function context(client: object, args: Partial<HandlerArgs>): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
+type InvocationFixture = Partial<HandlerArgs> & RawCliPaginationArgs;
+
+function context(client: object, fixture: InvocationFixture): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
     const out = vi.fn();
+    const {
+        page,
+        all,
+        limit,
+        offset,
+        pageSize,
+        startOffset,
+        maxPages,
+        maxItems,
+        maxDurationMs,
+        maxBytes,
+        pathParams = [],
+        ...args
+    } = fixture;
     return {
         ctx: {
             client: client as TestRailClient,
-            args: { pathParams: [], ...args },
-            pagination: parseCliPagination(args),
+            actionSpec: { resource: 'test', action: 'list' },
+            args: { pathParams, ...args },
+            pagination: parseCliPagination({
+                page,
+                all,
+                limit,
+                offset,
+                pageSize,
+                startOffset,
+                maxPages,
+                maxItems,
+                maxDurationMs,
+                maxBytes,
+            }),
             bodyInput: {},
             dryRun: false,
             force: false,

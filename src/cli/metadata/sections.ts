@@ -34,6 +34,7 @@ export const sectionActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_sections/{project_id}',
         pagination: { response: 'envelope', requestControls: true, collectionKey: 'sections' },
+        flags: [{ name: 'suite-id' }],
         isWrite: false,
         handler: handleSectionList,
     },
@@ -79,6 +80,7 @@ export const sectionActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_section/{section_id}',
         isWrite: true,
         destructive: true,
+        softMode: 'optional',
         handler: handleSectionDelete,
     },
 ];

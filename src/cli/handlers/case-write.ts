@@ -10,7 +10,7 @@ import {
     CopyCasesToSectionPayloadSchema,
     MoveCasesToSectionPayloadSchema,
 } from '../../schemas.js';
-import { createWriteHandler, createDestructiveHandler } from '../write-handler-factory.js';
+import { createWriteHandler, createDestructiveHandler, resolveSoftFlag } from '../write-handler-factory.js';
 
 export const handleCaseAdd = createWriteHandler({
     action: 'case add',
@@ -67,7 +67,6 @@ export const handleCaseMoveToSection = createWriteHandler({
 export const handleCaseDelete = createDestructiveHandler({
     action: 'case delete',
     pathParams: ['case_id'],
-    softMode: 'optional',
     call: (client, [caseId], _entry, soft) => client.cases.deleteCase(caseId, { soft }),
 });
 
@@ -87,7 +86,7 @@ export async function handleCaseDeleteBulk(ctx: HandlerContext): Promise<void> {
     const body = resolveBody(ctx.bodyInput, DeleteCasesPayloadSchema);
     if (!body.ok) throw new Error(body.error);
 
-    const soft = ctx.args.soft === true;
+    const soft = resolveSoftFlag(ctx);
 
     if (ctx.dryRun) {
         ctx.out({

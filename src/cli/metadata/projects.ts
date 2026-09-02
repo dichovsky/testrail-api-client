@@ -31,6 +31,7 @@ export const projectActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_projects',
         pagination: { response: 'envelope', requestControls: true, collectionKey: 'projects' },
+        flags: [{ name: 'is-completed' }],
         isWrite: false,
         handler: handleProjectList,
     },

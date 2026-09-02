@@ -1,5 +1,13 @@
 import type { PaginatedRequestOptions, PaginationSafetyOptions } from '../pagination.js';
 
+function isUnknownArray(value: unknown): value is readonly unknown[] {
+    return Array.isArray(value);
+}
+
+function snapshotValue(value: unknown): unknown {
+    return isUnknownArray(value) ? [...value] : value;
+}
+
 /**
  * Copy a public option subset once before an aggregate starts. Array-valued
  * filters are cloned so caller mutation cannot change later page requests.
@@ -13,7 +21,7 @@ export function snapshotOptionFields<T extends object, K extends Extract<keyof T
         keys.flatMap((key) => {
             const value = options[key];
             if (value === undefined) return [];
-            return [[key, Array.isArray(value) ? [...value] : value]];
+            return [[key, snapshotValue(value)]];
         }),
     ) as Partial<Pick<T, K>>;
 }

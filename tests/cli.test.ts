@@ -21,7 +21,7 @@ import { join } from 'node:path';
 // Each `runCli` invocation re-imports `src/cli.js` after `vi.resetModules()`,
 // and the CLI opts into process signal handlers (`exit` / `SIGINT` /
 // `SIGTERM`) via `registerProcessHandlers: true`. Node's default
-// `defaultMaxListeners` is 10, so once the suite passes ~10 subprocess-style
+// `defaultMaxListeners` is 10, so once the suite passes ~10 entrypoint-style
 // tests the runtime emits `MaxListenersExceededWarning` for the `exit`
 // event (one listener added per CLI re-import; nothing removes them since
 // the worker stays alive between tests). Disable the cap for this test
@@ -36,7 +36,7 @@ vi.mock('node:dns/promises', () => ({
 }));
 
 // Mock sleep so GET retry backoff (1s + 2s + 4s default) doesn't blow up test
-// runtime for network-error subprocess tests. Keeps all other behavior intact.
+// runtime for network-error entrypoint tests. Keeps all other behavior intact.
 vi.mock('../src/utils.js', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../src/utils.js')>();
     return {
@@ -185,7 +185,7 @@ const AUTH_ENV = {
     TESTRAIL_EMAIL: 'test@example.com',
     TESTRAIL_API_KEY: 'test-api-key',
     // PR4: destructive-ops env gate. Set for the default test env so every
-    // pre-existing destructive subprocess test (`--yes` happy path) keeps
+    // pre-existing destructive entrypoint test (`--yes` happy path) keeps
     // passing. Tests that exercise the gate itself override this via the
     // 3rd argument to `runCli()` (omit the key or set a wrong value).
     TESTRAIL_ALLOW_DESTRUCTIVE: '1',
@@ -243,7 +243,7 @@ interface CliResult {
  * fetchResponses are queued in order; excess fetch calls return 404.
  *
  * Pass `fetchRejection` to make *every* fetch call reject with the given
- * error — used for network-error subprocess tests (the GET retry pipeline
+ * error — used for network-error entrypoint tests (the GET retry pipeline
  * burns ≤ DEFAULT_MAX_RETRIES + 1 attempts before surfacing the failure,
  * and any queued resolved responses would be skipped over by the
  * `mockRejectedValue` persistent default anyway).
@@ -824,7 +824,7 @@ describe('CLI', () => {
         // ── --format yaml / csv (end-to-end in-process CLI run) ──────────
         //
         // Both formats are exercised through unit tests on the renderers
-        // directly (tests/cli-helpers.test.ts); these subprocess tests pin
+        // directly (tests/cli-helpers.test.ts); these entrypoint tests pin
         // the end-to-end wiring: createOutput dispatches on the validated
         // format string, stdout receives exactly one trailing newline, and
         // the unknown-format path exits 1 with a clear error.
@@ -1388,12 +1388,52 @@ describe('CLI', () => {
             expect(url).toContain('get_run/42');
         });
 
+        it('run watch --dry-run remains action-applicable and performs no fetch', async () => {
+            const { exitCodes, stdout } = await runCli(['run', 'watch', '42', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('"action": "run watch"');
+            expect(stdout).toContain('"dryRun": true');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects a missing string flag value before auth or fetch', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'watch', '42', '--interval'], [], {});
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--interval requires a value');
+            expect(stderr).not.toContain('Missing authentication');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects inline values on safety booleans instead of hard-running the action', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'close', '42', '--yes', '--dry-run=true'], [], {
+                TESTRAIL_ALLOW_DESTRUCTIVE: '1',
+            });
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--dry-run does not take a value');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('run close with --dry-run skips the API call even with --yes; preview marks destructive', async () => {
             const { exitCodes, stdout } = await runCli(['run', 'close', '42', '--yes', '--dry-run']);
             expect(exitCodes).toContain(0);
             expect(mockFetch).not.toHaveBeenCalled();
             expect(stdout).toContain('dryRun');
             expect(stdout).toContain('destructive');
+        });
+
+        it('run close rejects real --soft before auth, env gate, or fetch', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'close', '42', '--soft', '--yes'], [], {});
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('run close does not support --soft');
+            expect(stderr).not.toContain('Missing authentication');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('run close keeps dry-run precedence when --soft is supplied', async () => {
+            const { exitCodes, stdout } = await runCli(['run', 'close', '42', '--soft', '--yes', '--dry-run']);
+            expect(exitCodes).toContain(0);
+            expect(stdout).toContain('dryRun');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
     });
 
@@ -1567,14 +1607,14 @@ describe('CLI', () => {
             expect(stderr).toMatch(/fetch failed|Network error|TestRail API error/);
         });
 
-        it('test list rejects --status-id 0 at the subprocess level', async () => {
+        it('test list rejects --status-id 0 at the entrypoint level', async () => {
             const { exitCodes, stderr } = await runCli(['test', 'list', '5', '--status-id', '0']);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/--status-id/);
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('test list rejects empty --status-id "" at the subprocess level', async () => {
+        it('test list rejects empty --status-id "" at the entrypoint level', async () => {
             const { exitCodes, stderr } = await runCli(['test', 'list', '5', '--status-id', '']);
             expect(exitCodes).toContain(1);
             expect(stderr).toMatch(/--status-id/);
@@ -2205,7 +2245,7 @@ describe('CLI', () => {
         it('user list rejects undocumented --limit and --offset instead of ignoring them', async () => {
             const { exitCodes, stderr } = await runCli(['user', 'list', '--limit', '25', '--offset', '10']);
             expect(exitCodes).toContain(1);
-            expect(stderr).toContain('--limit and --offset are not supported by user list');
+            expect(stderr).toContain('--limit is not supported by user list');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
@@ -2572,15 +2612,23 @@ describe('CLI', () => {
             expect(stdout).toContain('Shared Steps 1');
         });
 
-        it('shared-step history passes --limit and --offset to the API', async () => {
+        it('shared-step history preserves legacy --limit and --offset in items mode', async () => {
             const { exitCodes } = await runCli(
                 ['shared-step', 'history', '42', '--limit', '5', '--offset', '15'],
                 [jsonResponse({ step_history: [] })],
             );
             expect(exitCodes).toContain(0);
-            const url = mockFetch.mock.calls.at(-1)?.[0] as string;
+            const url = String(mockFetch.mock.calls[0]?.[0]);
+            expect(url).toContain('get_shared_step_history/42');
             expect(url).toContain('limit=5');
             expect(url).toContain('offset=15');
+        });
+
+        it('shared-step history rejects request controls in response-driven page mode', async () => {
+            const { exitCodes, stderr } = await runCli(['shared-step', 'history', '42', '--page', '--limit', '5']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('does not document caller-controlled pagination');
+            expect(mockFetch).not.toHaveBeenCalled();
         });
 
         it('shared-step history rejects non-positive id', async () => {
@@ -3821,8 +3869,8 @@ describe('CLI', () => {
             [['project', 'list', '--all', '--limit', '2'], /--all cannot be combined with --limit or --offset/],
             [['role', 'list', '--all', '--page-size', '2'], /does not document caller-controlled pagination/],
             [['project', 'list', '--all', '--max-pages', '01'], /--max-pages must be a positive safe integer/],
-            [['project', 'list', '--all=true', '--limit', '1'], /--all does not accept a value/],
-            [['project', 'list', '--page=true'], /--page does not accept a value/],
+            [['project', 'list', '--all=true', '--limit', '1'], /--all does not take a value/],
+            [['project', 'list', '--page=true'], /--page does not take a value/],
             [['project', 'list', '--all', '--max-pages'], /--max-pages requires a value/],
         ] as const)('rejects incompatible pagination argv before fetching: %j', async (argv, message) => {
             const { exitCodes, stderr, stdout } = await runCli([...argv]);
@@ -4005,7 +4053,7 @@ describe('CLI', () => {
         });
     });
 
-    // ── Write actions (subprocess happy-paths) ────────────────────────────────
+    // ── Write actions (entrypoint happy paths) ────────────────────────────────
 
     describe('case add', () => {
         it('POSTs the payload and returns the created case', async () => {
@@ -5340,13 +5388,25 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
             expect(stdout).toContain('SKILL.md');
         });
+
+        it('rejects action flags before the meta command can mutate disk', async () => {
+            const { stderr, exitCodes } = await runCli(['install-skill', '--yes']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--yes is not supported by install-skill');
+        });
+
+        it('rejects inline boolean values before a meta command can mutate disk', async () => {
+            const { stderr, exitCodes } = await runCli(['install-skill', '--print-path=true']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--print-path does not take a value');
+        });
     });
 
     describe('uninstall-skill', () => {
         it('is wired into the CLI surface (HELP text mentions the command)', async () => {
             // Full-behaviour coverage lives in tests/uninstall-skill.test.ts
             // (where we can sandbox the filesystem via cwdOverride / homeOverride).
-            // This subprocess smoke-test just confirms the dispatch path is wired
+            // This entrypoint smoke test just confirms the dispatch path is wired
             // up — `--help` doesn't touch any filesystem path.
             const { stdout, exitCodes } = await runCli(['--help']);
             expect(exitCodes).toContain(0);
@@ -5362,14 +5422,51 @@ describe('CLI', () => {
             // the dispatch path runs rather than the resource:action path.
             expect(exitCodes).toContain(1);
         });
+
+        it('rejects install-only flags before uninstall can mutate disk', async () => {
+            const { stderr, exitCodes } = await runCli(['uninstall-skill', '--force']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--force is not supported by uninstall-skill');
+        });
+
+        it('rejects inline boolean values before choosing an uninstall target', async () => {
+            const { stderr, exitCodes } = await runCli(['uninstall-skill', '--global=true']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--global does not take a value');
+        });
     });
 
-    describe('args spread coverage', () => {
+    describe('action-owned flag projection', () => {
         it('rejects the removed no-op --case-id flag', async () => {
             const { exitCodes, stderr } = await runCli(['project', 'get', '1', '--case-id', '99']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain("unknown flag '--case-id'");
             expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects a real filter on the wrong action instead of silently dropping it', async () => {
+            const { exitCodes, stderr } = await runCli(['run', 'get', '5', '--project-id', '9'], [], {});
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--project-id is not supported by run get');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects missing required flags before authentication', async () => {
+            for (const [argv, expected] of [
+                [['case', 'list'], 'case list requires --project-id <id>'],
+                [['result', 'list'], 'result list requires --run-id <id>'],
+                [['user', 'get-by-email'], 'user get-by-email requires --user-email <email>'],
+                [['attachment', 'get', '1'], 'attachment get requires --out <path|->'],
+                [['bdd', 'add', '1'], 'bdd add requires --file <path|->'],
+            ] as const) {
+                // runCli rewrites process argv/env and must stay sequential.
+                // eslint-disable-next-line no-await-in-loop
+                const { exitCodes, stderr } = await runCli([...argv], [], {});
+                expect(exitCodes).toContain(1);
+                expect(stderr).toContain(expected);
+                expect(stderr).not.toContain('Missing authentication');
+                expect(mockFetch).not.toHaveBeenCalled();
+            }
         });
 
         it('maps every TestRail 10.7 list-filter flag into the handler argument bundle', async () => {
@@ -5409,9 +5506,6 @@ describe('CLI', () => {
                     'REQ-1,REQ-2',
                     '--filter',
                     'login',
-                    '--include-plan-runs',
-                    '--is-completed',
-                    'false',
                 ],
                 [jsonResponse({ cases: [MOCK_CASE] })],
             );
@@ -5953,7 +6047,7 @@ describe('CLI', () => {
             expect(stderr.length).toBeGreaterThan(0);
         });
 
-        // ── Whitespace-only entry_id (subprocess) ─────────────────────────
+        // ── Whitespace-only entry_id (entrypoint) ─────────────────────────
 
         it('plan update-entry exits 1 when entry_id is whitespace-only', async () => {
             const { stderr, exitCodes } = await runCli(['plan', 'update-entry', '50', '   ', '--data', '{"name":"x"}']);
@@ -6211,11 +6305,11 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        // ── ID boundary subprocess tests (mirror plan delete-entry coverage) ─
+        // ── ID boundary entrypoint tests (mirror plan delete-entry coverage) ─
         // `plan delete-entry` already exercises non-positive-integer plan_id at
-        // the subprocess level (line 1638 above). These extend that coverage to
+        // the entrypoint level (line 1638 above). These extend that coverage to
         // the other three destructive ops so the parseId boundary is enforced
-        // by the actual CLI binary, not just the unit handlers.
+        // by the actual CLI entrypoint, not just the unit handlers.
         // NOTE: '-1' is omitted from the it.each set because parseArgs
         // (strict: false) interprets `--1` / `-1` as a flag, not a
         // positional — so the negative-int branch is exercised at the
@@ -6812,13 +6906,13 @@ describe('CLI', () => {
         });
     });
 
-    // ── Destructive single-entity deletes (subprocess smoke) ──────────────────
+    // ── Destructive single-entity deletes (entrypoint smoke) ──────────────────
     //
-    // One subprocess case per action verifies the locked-in --yes gate and
+    // One in-process CLI reimport per action verifies the locked-in --yes gate
     // that the URL ends up at the expected endpoint. Soft-mode + dry-run
-    // semantics are covered exhaustively by tests/cli-write-handlers.test.ts
-    // — these subprocess cases lock the wiring between argv → dispatch →
-    // handler → client (the layer the handler tests can't reach).
+    // semantics are covered exhaustively by tests/cli-write-handlers.test.ts;
+    // these entrypoint cases lock the wiring between argv → dispatch →
+    // handler → client (the layer the handler tests cannot reach).
 
     describe('case delete (destructive)', () => {
         it('rejects without --yes', async () => {

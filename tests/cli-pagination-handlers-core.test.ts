@@ -7,16 +7,45 @@ import {
 import { handleCaseHistory, handleCaseList } from '../src/cli/handlers/case.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleTestList } from '../src/cli/handlers/test.js';
+import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
 
-function context(client: object, args: Partial<HandlerArgs>): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
+type InvocationFixture = Partial<HandlerArgs> & RawCliPaginationArgs;
+
+function context(client: object, fixture: InvocationFixture): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
     const out = vi.fn();
+    const {
+        page,
+        all,
+        limit,
+        offset,
+        pageSize,
+        startOffset,
+        maxPages,
+        maxItems,
+        maxDurationMs,
+        maxBytes,
+        pathParams = [],
+        ...args
+    } = fixture;
+    const paginationArgs: RawCliPaginationArgs = {
+        page,
+        all,
+        limit,
+        offset,
+        pageSize,
+        startOffset,
+        maxPages,
+        maxItems,
+        maxDurationMs,
+        maxBytes,
+    };
     return {
         ctx: {
             client,
-            args: { pathParams: [], ...args },
-            pagination: parseCliPagination(args),
+            args: { pathParams, ...args },
+            pagination: parseCliPagination(paginationArgs),
             bodyInput: {},
             dryRun: false,
             force: false,

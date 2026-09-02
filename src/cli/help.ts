@@ -1,6 +1,11 @@
 import { ACTIONS } from './metadata.js';
 import type { ActionSpec } from './metadata/types.js';
-import { CLI_OPTION_DOCUMENTATION, type CliOptionDocumentationEntry, type CliOptionName } from './flags.js';
+import {
+    CLI_OPTION_DOCUMENTATION,
+    getCliFlagUsage,
+    type CliOptionDocumentationEntry,
+    type CliOptionName,
+} from './flags.js';
 
 /**
  * Renders the `--help` text from `ACTIONS` at module load.
@@ -75,6 +80,13 @@ function pathParamsText(spec: ActionSpec): string {
  */
 export function actionArgvHint(spec: ActionSpec): string {
     const parts: string[] = [];
+    for (const flag of spec.flags ?? []) {
+        // File I/O has a richer structural hint below that includes the
+        // optional companion flag while still containing the required usage.
+        if (flag.required === true && flag.name !== 'file' && flag.name !== 'out') {
+            parts.push(getCliFlagUsage(flag.name));
+        }
+    }
     if (spec.bodySchema !== undefined) {
         // Every body-bearing ActionSpec ships an explicit `helpExample`; the
         // fallback covers a future action added without one.
@@ -85,6 +97,9 @@ export function actionArgvHint(spec: ActionSpec): string {
     }
     if (spec.fileOutput === true) {
         parts.push('--out <path|-> [--force]');
+    }
+    if (spec.destructive === true && spec.softMode === 'optional') {
+        parts.push('[--soft]');
     }
     if (spec.destructive === true) {
         parts.push('--yes');
@@ -225,41 +240,47 @@ export function renderOptionsBlock(): string {
     const entries = Object.entries(CLI_OPTION_DOCUMENTATION) as [CliOptionName, CliOptionDocumentationEntry][];
     const usages = entries.map(([name, documentation]) => optionUsage(name, documentation));
     const width = Math.max(...usages.map((usage) => usage.length));
-    const lines = entries.map(([name, documentation], index) => {
-        const usage = usages[index] ?? optionUsage(name, documentation);
+    const lines = entries.map(([name, documentation]) => {
+        const usage = optionUsage(name, documentation);
         return `  ${usage.padEnd(width)}  [${documentation.scope}] ${documentation.description}`;
     });
     return ['Options:', ...lines].join('\n');
 }
 
+function actionNames(predicate: (spec: ActionSpec) => boolean): string {
+    return ACTIONS.filter(predicate)
+        .map((spec) => `${spec.resource} ${spec.action}`)
+        .join(', ');
+}
+
+const DESTRUCTIVE_ACTIONS = actionNames((spec) => spec.destructive === true);
+const SOFT_OPTIONAL_ACTIONS = actionNames((spec) => spec.destructive === true && spec.softMode === 'optional');
+const SOFT_REJECTED_ACTIONS = actionNames(
+    (spec) => spec.destructive === true && (spec.softMode ?? 'reject') === 'reject',
+);
+const NO_BODY_WRITES = actionNames((spec) => spec.isWrite && spec.bodySchema === undefined && spec.fileInput !== true);
+
 const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required
 (--data | --data-file | stdin). Stdin is auto-detected when input is piped
 (process.stdin.isTTY !== true) and neither --data nor --data-file is supplied.
 The following write actions take NO body
-(any --data / --data-file / stdin is ignored): run close, attachment delete,
-case delete, run delete, suite delete, section delete, milestone delete,
-project delete, plan close, plan delete, plan delete-entry,
-plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete,
-configuration delete, configuration-group delete, label delete — they accept only positional id(s) (one for most
+(explicit --data / --data-file is rejected): ${NO_BODY_WRITES} — they accept only positional id(s) (one for most
 actions; plan delete-entry and attachment add-to-plan-entry take two:
 <plan_id> <entry_id>) and the optional --soft flag on the soft-capable
 deletes. Attachment upload actions take a binary file via --file <path>
 and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete, case delete, case delete-bulk, run close,
-run delete, section delete, suite delete, milestone delete, project delete,
-plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
-variable delete, group delete, dataset delete, shared-step delete,
-configuration delete, configuration-group delete, label delete, label delete-bulk)
+Destructive actions (${DESTRUCTIVE_ACTIONS})
 require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
 alone is insufficient — this two-gate model is intentional (env var is
 process-wide audit-friendly; --yes is per-invocation explicit). Pass
 --dry-run to preview without making the API call; --yes is optional in
 dry-run mode (dry-run wins; the env var is NOT required for preview).
 'run close' and 'plan close' are irreversible — TestRail offers no reopen
-for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+for either. For soft-capable deletes (${SOFT_OPTIONAL_ACTIONS}),
 pass --soft for a server-side preview that returns affected-entity counts
 without deleting; this still hits the API and remains gated by --yes
-AND TESTRAIL_ALLOW_DESTRUCTIVE=1.`;
+AND TESTRAIL_ALLOW_DESTRUCTIVE=1. All other destructive actions reject
+--soft (${SOFT_REJECTED_ACTIONS}).`;
 
 const HEADER = 'testrail <resource> <action> [args] [options]';
 

@@ -22,6 +22,7 @@ function makeContext(
     const out = vi.fn();
     const ctx: HandlerContext = {
         client: client as TestRailClient,
+        actionSpec: { resource: 'test', action: 'test' },
         args: { pathParams: options.pathParams ?? [] },
         pagination: { mode: 'items' },
         bodyInput: options.dataFlag === undefined ? {} : { dataFlag: options.dataFlag },

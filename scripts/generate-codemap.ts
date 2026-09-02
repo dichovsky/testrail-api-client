@@ -24,7 +24,8 @@
  * truncated to maxSignatureLength chars; whitespace-normalized via the TS
  * scanner so string literals are preserved.
  *
- * Sanity bound (not enforced): target ≤ 150 KB for this repo.
+ * The structural test enforces a coarse 425 KB ceiling against runaway output;
+ * ordinary growth is expected because internal symbols are indexed on purpose.
  */
 
 import { createHash } from 'node:crypto';

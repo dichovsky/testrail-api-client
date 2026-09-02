@@ -64,6 +64,7 @@ function buildContext(
     return {
         ctx: {
             client,
+            actionSpec: { resource: 'report', action: 'get' },
             args: { pathParams },
             pagination: { mode: 'items' },
             bodyInput: {},

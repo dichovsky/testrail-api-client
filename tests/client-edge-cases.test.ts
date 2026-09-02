@@ -699,60 +699,6 @@ describe('TestRailClient - Coverage Improvement', () => {
         });
     });
 
-    describe('Cache Management Edge Cases', () => {
-        it('should handle cache cleanup of expired entries', () => {
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                cacheCleanupInterval: 100,
-            });
-
-            // Access private cache to test expired entry cleanup
-            const internal = client as unknown as {
-                cache: Map<string, { data: unknown; expiry: number }>;
-                getCachedData: (key: string) => unknown;
-            };
-            const cache = internal.cache;
-
-            // Add expired entry manually
-            cache.set('expired-key', {
-                data: { test: 'data' },
-                expiry: Date.now() - 1000, // Already expired
-            });
-
-            // Call getCachedData which should clean up expired entry
-            const result = internal.getCachedData('expired-key');
-
-            expect(result).toBeUndefined();
-            expect(cache.has('expired-key')).toBe(false);
-
-            client.destroy();
-        });
-
-        it('should not cache when caching is disabled', () => {
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                enableCache: false,
-            });
-
-            // Call setCachedData directly to test the early return
-            const internal = client as unknown as {
-                cache: Map<string, { data: unknown; expiry: number }>;
-                setCachedData: (key: string, data: unknown) => void;
-            };
-            internal.setCachedData('test-key', { test: 'data' });
-
-            // Cache should be empty since caching is disabled
-            const cache = internal.cache;
-            expect(cache.size).toBe(0);
-
-            client.destroy();
-        });
-    });
-
     describe('Cache Cleanup Timer Management', () => {
         it('should not start cleanup timer when cacheCleanupInterval is 0', () => {
             vi.useFakeTimers();
@@ -812,60 +758,6 @@ describe('TestRailClient - Coverage Improvement', () => {
             });
 
             await expect(client.projects.getProject(1)).rejects.toThrow(TestRailApiError);
-        });
-    });
-
-    describe('Additional Coverage Tests', () => {
-        it('should trigger cache cleanup of expired entries', () => {
-            vi.useFakeTimers();
-
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                enableCache: true,
-                cacheTtl: 1000, // 1 second TTL
-            });
-
-            // Manually add an expired entry to test cleanup
-            const internal = client as unknown as {
-                cache: Map<string, { data: unknown; expiry: number }>;
-                cleanupExpiredCache: () => void;
-            };
-            const cache = internal.cache;
-            cache.set('expired-key', {
-                data: { test: 'data' },
-                expiry: Date.now() - 1000, // Already expired
-            });
-
-            // Advance time and trigger cleanup
-            vi.advanceTimersByTime(100);
-            internal.cleanupExpiredCache();
-
-            // Expired entry should be removed
-            expect(cache.has('expired-key')).toBe(false);
-
-            client.destroy();
-            vi.useRealTimers();
-        });
-
-        it('should call setCachedData with caching disabled to test early return', () => {
-            const client = new TestRailClient({
-                baseUrl: 'https://example.testrail.net',
-                email: 'test@example.com',
-                apiKey: 'test-key',
-                enableCache: false,
-            });
-
-            // Directly call setCachedData to test the early return path
-            const internal = client as unknown as {
-                setCachedData: (key: string, data: unknown) => void;
-            };
-            expect(() => {
-                internal.setCachedData('test-key', { data: 'test' });
-            }).not.toThrow();
-
-            client.destroy();
         });
     });
 

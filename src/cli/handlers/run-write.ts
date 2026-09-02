@@ -17,13 +17,12 @@ export const handleRunUpdate = createWriteHandler({
 
 /**
  * Destructive: closes a run. Irreversible (TestRail has no `open_run`
- * endpoint). Takes no body. Returns the closed run. `--soft` is not applicable
- * and is silently ignored (close is not a delete).
+ * endpoint). Takes no body and returns the closed run. `--soft` is rejected:
+ * the endpoint has no server-side preview and closing is irreversible.
  */
 export const handleRunClose = createDestructiveHandler({
     action: 'run close',
     pathParams: ['run_id'],
-    softMode: 'ignore',
     kind: 'close',
     call: (client, [runId]) => client.runs.closeRun(runId),
 });
@@ -35,6 +34,5 @@ export const handleRunClose = createDestructiveHandler({
 export const handleRunDelete = createDestructiveHandler({
     action: 'run delete',
     pathParams: ['run_id'],
-    softMode: 'optional',
     call: (client, [runId], _entry, soft) => client.runs.deleteRun(runId, { soft }),
 });

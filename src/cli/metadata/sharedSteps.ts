@@ -29,6 +29,15 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_shared_steps/{project_id}',
         pagination: { response: 'envelope', requestControls: true, collectionKey: 'shared_steps' },
+        flags: [
+            { name: 'project-id', required: true },
+            { name: 'created-after' },
+            { name: 'created-before' },
+            { name: 'created-by' },
+            { name: 'updated-after' },
+            { name: 'updated-before' },
+            { name: 'refs' },
+        ],
         isWrite: false,
         handler: handleSharedStepList,
     },
@@ -39,6 +48,9 @@ export const sharedStepActions: readonly ActionSpec[] = [
         pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
         apiEndpoint: 'GET get_shared_step_history/{shared_step_id}',
         pagination: { response: 'envelope', requestControls: false, collectionKey: 'step_history' },
+        // Legacy items mode accepted these controls before page/all projections
+        // were added. Page/all remain response-driven and never send them.
+        flags: [{ name: 'limit' }, { name: 'offset' }],
         isWrite: false,
         handler: handleSharedStepHistory,
     },
@@ -73,6 +85,7 @@ export const sharedStepActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_shared_step/{shared_step_id}',
         isWrite: true,
         destructive: true,
+        flags: [{ name: 'keep-in-cases' }],
         helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.0+)',
         handler: handleSharedStepDelete,
     },

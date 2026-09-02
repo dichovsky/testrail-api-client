@@ -36,6 +36,5 @@ export const handleSectionMove = createWriteHandler({
 export const handleSectionDelete = createDestructiveHandler({
     action: 'section delete',
     pathParams: ['section_id'],
-    softMode: 'optional',
     call: (client, [sectionId], _entry, soft) => client.sections.deleteSection(sectionId, { soft }),
 });

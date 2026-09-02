@@ -11,7 +11,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS } from '../src/cli/flags.js';
+import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS, type ActionSpecFlagName } from '../src/cli/flags.js';
 import {
     findStaleSkillArtifacts,
     renderCliOptionReference,
@@ -37,6 +37,7 @@ interface ActionFixture {
     fileOutput?: boolean;
     outputKind?: 'binary' | 'text';
     destructive?: boolean;
+    flags?: { name: ActionSpecFlagName; required?: boolean }[];
 }
 
 const READ_FIXTURE: ActionFixture = {
@@ -104,6 +105,35 @@ describe('renderCommandTable', () => {
         const listFixture: ActionFixture = { ...READ_FIXTURE, action: 'list', pathParams: [] };
         const out = renderCommandTable([listFixture]);
         expect(out).toContain('| `project list` | R | - | - |');
+    });
+
+    it('renders required action flags from the ActionSpec in the args column', () => {
+        const listFixture: ActionFixture = {
+            ...READ_FIXTURE,
+            resource: 'case',
+            action: 'list',
+            pathParams: [],
+            flags: [{ name: 'project-id', required: true }, { name: 'run-id' }],
+        };
+        const out = renderCommandTable([listFixture]);
+        expect(out).toContain('| `case list` | R | `--project-id <id>` | - |');
+        expect(out).not.toContain('--run-id');
+    });
+
+    it('escapes pipes in required flag usages inside the command table', () => {
+        const fixture: ActionFixture = {
+            resource: 'attachment',
+            action: 'add-to-case',
+            summary: 'Upload',
+            pathParams: [{ name: 'case_id', description: 'id' }],
+            isWrite: true,
+            fileInput: true,
+            flags: [{ name: 'file', required: true }],
+        };
+
+        expect(renderCommandTable([fixture])).toContain(
+            '| `attachment add-to-case` | W | `<case_id>` `--file <path\\|->` | file |',
+        );
     });
 
     it('renders a file-input action as file input', () => {

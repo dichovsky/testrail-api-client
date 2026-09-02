@@ -28,6 +28,7 @@ export const suiteActions: readonly ActionSpec[] = [
         pathParams: [],
         apiEndpoint: 'GET get_suites/{project_id}',
         pagination: { response: 'envelope', requestControls: true, collectionKey: 'suites' },
+        flags: [{ name: 'project-id', required: true }],
         isWrite: false,
         handler: handleSuiteList,
     },
@@ -62,6 +63,7 @@ export const suiteActions: readonly ActionSpec[] = [
         apiEndpoint: 'POST delete_suite/{suite_id}',
         isWrite: true,
         destructive: true,
+        softMode: 'optional',
         handler: handleSuiteDelete,
     },
 ];

@@ -1,6 +1,7 @@
 import { MAX_PAGINATION_BYTES, MAX_PAGINATION_LIMIT, MAX_TIMEOUT_MS } from '../constants.js';
 import type { PaginatedRequestOptions, PaginationSafetyOptions } from '../pagination.js';
-import type { HandlerArgs, HandlerContext } from './handler-context.js';
+import type { RawCliPaginationArgs } from './flags.js';
+import type { HandlerContext } from './handler-context.js';
 import { optInt } from './ids.js';
 import type { ActionSpec } from './metadata/types.js';
 
@@ -27,28 +28,10 @@ export interface CliPaginationParsed {
 export type CliPaginationValidationResult =
     { readonly ok: true; readonly parsed: CliPaginationParsed } | { readonly ok: false; readonly error: string };
 
-type PaginationArgs = Pick<
-    HandlerArgs,
-    | 'page'
-    | 'all'
-    | 'limit'
-    | 'offset'
-    | 'pageSize'
-    | 'startOffset'
-    | 'maxPages'
-    | 'maxItems'
-    | 'maxDurationMs'
-    | 'maxBytes'
->;
-
 type ParsedPaginationAggregateProperty =
     'pageSize' | 'startOffset' | 'maxPages' | 'maxItems' | 'maxDurationMs' | 'maxBytes';
 
 type ParsedPaginationArgs = Omit<CliPaginationParsed, 'mode'>;
-
-type RawPaginationArgs = {
-    readonly [Property in keyof PaginationArgs]?: unknown;
-};
 
 interface NumericFlag {
     readonly property: ParsedPaginationAggregateProperty;
@@ -112,14 +95,14 @@ function parseCanonicalInteger(raw: unknown, flag: string, allowZero: boolean, m
     return value;
 }
 
-function parseOptional(args: RawPaginationArgs, definition: NumericFlag): number | undefined {
+function parseOptional(args: RawCliPaginationArgs, definition: NumericFlag): number | undefined {
     const raw = args[definition.property];
     if (raw === undefined) return undefined;
     return parseCanonicalInteger(raw, definition.flag, definition.allowZero, definition.maximum);
 }
 
 /** Normalize validated argv pagination values for production dispatch and handler tests. */
-export function parseCliPagination(args: RawPaginationArgs): CliPaginationParsed {
+export function parseCliPagination(args: RawCliPaginationArgs): CliPaginationParsed {
     const mode = getCliPaginationMode(args);
     const limit =
         mode === 'page'
@@ -157,7 +140,7 @@ export function parseCliPagination(args: RawPaginationArgs): CliPaginationParsed
  */
 export function validateCliPagination(
     actionSpec: ActionSpec | undefined,
-    args: RawPaginationArgs,
+    args: RawCliPaginationArgs,
 ): CliPaginationValidationResult {
     for (const [property, flag] of [
         ['page', '--page'],
@@ -207,9 +190,15 @@ export function validateCliPagination(
         };
     }
 
+    const itemsModeLimitDeclared = actionSpec?.flags?.some(({ name }) => name === 'limit') === true;
+    const itemsModeOffsetDeclared = actionSpec?.flags?.some(({ name }) => name === 'offset') === true;
+
     if (
         actionSpec?.pagination?.requestControls === false &&
-        ((mode === 'page' && (args.limit !== undefined || args.offset !== undefined)) ||
+        ((mode === 'items' &&
+            ((args.limit !== undefined && !itemsModeLimitDeclared) ||
+                (args.offset !== undefined && !itemsModeOffsetDeclared))) ||
+            (mode === 'page' && (args.limit !== undefined || args.offset !== undefined)) ||
             (mode === 'all' && (args.pageSize !== undefined || args.startOffset !== undefined)))
     ) {
         return {
@@ -226,7 +215,7 @@ export function validateCliPagination(
     }
 }
 
-export function getCliPaginationMode(args: Pick<RawPaginationArgs, 'page' | 'all'>): CliPaginationMode {
+export function getCliPaginationMode(args: Pick<RawCliPaginationArgs, 'page' | 'all'>): CliPaginationMode {
     if (args.page === true) return 'page';
     if (args.all === true) return 'all';
     return 'items';

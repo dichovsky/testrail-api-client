@@ -3,23 +3,32 @@ import { UserSchema, GroupSchema } from '../schemas.js';
 import type { AddGroupPayload, Group, UpdateGroupPayload, UserAddPayload, UserUpdatePayload } from '../schemas.js';
 import { TestRailClientCore } from '../client-core.js';
 import type { User } from '../types.js';
-import { validateId, validatePaginationParams } from '../validation.js';
+import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import type { Page, PaginationRequest, PaginationSafetyOptions } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotPaginationSafetyOptions } from './pagination-options.js';
+import type { Page, PaginationSafetyOptions } from '../pagination.js';
+import { listOf, unwrapList } from './list.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export type GetAllGroupsOptions = PaginationSafetyOptions;
-
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
 
 interface GroupPaginationControls {
     limit?: number;
     offset?: number;
 }
+
+export const GROUPS_PAGINATION = createPaginatedListExecutor<
+    undefined,
+    GroupPaginationControls,
+    GetAllGroupsOptions,
+    Group
+>({
+    operations: ['get_groups'],
+    collectionKey: 'groups',
+    itemSchema: GroupSchema,
+    response: 'envelope',
+    requestControls: false,
+    prepare: () => ({ operation: 'get_groups' }),
+});
 
 // Lightweight sanity guard for the get_user_by_email lookup input: exactly one
 // '@' with non-empty, whitespace-free local and domain parts. Deliberately does
@@ -117,53 +126,17 @@ export class UsersModule {
 
     /** @testrail GET get_groups */
     async getGroups(): Promise<Group[]> {
-        return unwrapList<Group>('groups', await this.requestGroups());
+        return GROUPS_PAGINATION.items(this.client, undefined);
     }
 
     /** Get one response page without sending undocumented request controls. */
     async getGroupsPage(): Promise<Page<Group>> {
-        return decodePage<Group>('groups', await this.requestGroups(undefined, { pageProjection: true }));
+        return GROUPS_PAGINATION.page(this.client, undefined);
     }
 
     /** Get every group under the configured pagination safety bounds. */
     async getAllGroups(options?: GetAllGroupsOptions): Promise<Group[]> {
-        return collectAllPages<Group>({
-            ...snapshotPaginationSafetyOptions(options),
-            requestControls: false,
-            fetchPage: (request) =>
-                this.requestGroups(
-                    {
-                        ...(request.limit === undefined ? {} : { limit: request.limit }),
-                        ...(request.offset === undefined ? {} : { offset: request.offset }),
-                    },
-                    {
-                        bypassCache: request.bypassCache,
-                        remainingTimeMs: request.remainingTimeMs,
-                        deadlineAt: request.deadlineAt,
-                    },
-                ).then((raw) => decodePage<Group>('groups', raw)),
-        });
-    }
-
-    private async requestGroups(
-        pagination?: GroupPaginationControls,
-        controls?: PaginationFetchControls,
-    ): Promise<unknown> {
-        validatePaginationParams(pagination?.limit, pagination?.offset);
-        const endpoint = buildEndpoint('get_groups', {
-            limit: pagination?.limit,
-            offset: pagination?.offset,
-        });
-        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('groups', GroupSchema) : listOf('groups', GroupSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
-            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
-            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
-        });
+        return GROUPS_PAGINATION.all(this.client, undefined, options);
     }
 
     /** @testrail POST add_group */

@@ -837,11 +837,11 @@ describe('checkPathParamCount', () => {
 describe('metadata vs dispatch consistency', () => {
     /**
      * The single source of truth for "what does this CLI support" used to be
-     * split between two places: `HANDLERS` in dispatch.ts (runtime routing)
+     * split between two places: a handler map in dispatch.ts (runtime routing)
      * and `ACTIONS` in metadata.ts (documentation + skill-generator input).
      *
      * PR-C collapsed them: each `ActionSpec` now carries its own `handler`
-     * reference, and `HANDLERS` is derived from `ACTIONS` via
+     * reference, and `ACTION_SPECS` is derived from `ACTIONS` via
      * `Object.fromEntries`. Drift in the bidirectional metadata↔dispatch
      * correspondence is now a TypeScript error (a missing `handler:` field
      * fails to compile), not a runtime drift caught by a test.
@@ -970,11 +970,10 @@ describe('metadata vs dispatch consistency', () => {
     });
 
     /**
-     * The CLI in src/cli/index.ts gates stdin suppression on
-     * `ActionSpec.fileInput === true` (PR #59 review feedback): suppressing
-     * stdin purely on `--file` presence would also kill piped JSON bodies
-     * for unrelated write actions that happened to have `--file` typo'd in.
-     * Lock the discriminator's expected shape so the gate stays correct:
+     * The CLI gates stdin ownership on `ActionSpec.fileInput === true` and
+     * rejects `--file` on unrelated actions before auth. Lock the
+     * discriminator's expected shape so both the invocation contract and
+     * the binary-stdin gate stay correct:
      * only attachment uploads and the BDD uploads carry `fileInput: true`;
      * nothing else. `bdd:add` and `bdd:update` are included because they share the same
      * multipart pipeline and the same stdin-suppression rationale.

@@ -3,21 +3,18 @@ import { parseArgs } from 'node:util';
 import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
+import { resolveActionInvocation, validateMetaCommandFlags } from './action-invocation.js';
 import { resolveAuth } from './auth.js';
-import { createOutput, type OutputFormat } from './output.js';
+import { createOutput, isOutputFormat, OUTPUT_FORMATS, type OutputFormat } from './output.js';
 import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispatch.js';
-import { getActionSpec } from './metadata.js';
 import { buildHelpText } from './help.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
-import { CLI_OPTIONS, KNOWN_FLAGS } from './flags.js';
+import { CLI_OPTIONS, KNOWN_FLAGS, validateSuppliedFlagTypes } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
-import { STDIN_SENTINEL } from './file-input.js';
-import { STDOUT_SENTINEL } from './file-output.js';
 import { parseId } from './ids.js';
-import type { BodyInput, HandlerArgs } from './handler-context.js';
-import { validateCliPagination } from './pagination.js';
+import type { BodyInput } from './handler-context.js';
 import {
     createCliSchemaMismatchReporter,
     resolveStrictResponses,
@@ -50,15 +47,18 @@ const HELP = buildHelpText();
 async function main(): Promise<number> {
     let values: Record<string, unknown>;
     let positionals: string[];
+    let suppliedFlags: string[];
     try {
         const parsed = parseArgs({
             args: process.argv.slice(2),
             options: CLI_OPTIONS,
             allowPositionals: true,
             strict: false,
+            tokens: true,
         });
         values = parsed.values;
         positionals = parsed.positionals;
+        suppliedFlags = parsed.tokens.filter((token) => token.kind === 'option').map((token) => token.name);
     } catch (e: unknown) {
         // Pre-parse failure: `values` is unavailable, so honor --quiet via
         // a raw-argv lookup. parseArgs is highly tolerant under strict:false
@@ -84,26 +84,22 @@ async function main(): Promise<number> {
     // xml`) reaches this gate as a free-form string and must be rejected
     // explicitly — otherwise the renderer would silently fall through to
     // the JSON path, masking the user's typo.
-    const VALID_FORMATS: ReadonlySet<OutputFormat> = new Set(['json', 'table', 'yaml', 'csv']);
-    const format: OutputFormat =
-        typeof formatRaw === 'string' && VALID_FORMATS.has(formatRaw as OutputFormat)
-            ? (formatRaw as OutputFormat)
-            : 'json';
+    const format: OutputFormat = isOutputFormat(formatRaw) ? formatRaw : 'json';
     const { out, err, errRaw } = createOutput({ quiet, format });
 
     // Reject unknown --format values with a clear, quiet-aware error. The
     // assignment above defaults invalid values to 'json' so createOutput
     // always gets a valid format (defense-in-depth); the error path below
     // surfaces the typo before any handler runs.
-    if (typeof formatRaw === 'string' && !VALID_FORMATS.has(formatRaw as OutputFormat)) {
-        err(`unknown --format '${formatRaw}'. Valid values: json, table, yaml, csv.`);
+    if (typeof formatRaw === 'string' && !isOutputFormat(formatRaw)) {
+        err(`unknown --format '${formatRaw}'. Valid values: ${OUTPUT_FORMATS.join(', ')}.`);
         return 1;
     }
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
     // typos like `--dryrun` that parseArgs({strict: false}) would silently
     // accept, bypassing the gate the user intended. See CTF audit #10.
-    for (const key of Object.keys(values)) {
+    for (const key of suppliedFlags) {
         if (!KNOWN_FLAGS.has(key)) {
             // CTF #16: err() sanitizes the user-controlled flag name before
             // reflecting it. An argv like `--\x1b]0;evil\x07` would
@@ -111,6 +107,12 @@ async function main(): Promise<number> {
             err(`unknown flag '--${key}'. Run --help for the full list.`);
             return 1;
         }
+    }
+
+    const flagTypes = validateSuppliedFlagTypes(values, suppliedFlags);
+    if (!flagTypes.ok) {
+        err(flagTypes.error);
+        return 1;
     }
 
     if (values['version'] === true) {
@@ -127,6 +129,11 @@ async function main(): Promise<number> {
     // user's filesystem). It deliberately sits outside the normal
     // resource:action dispatch since there is no API call involved.
     if (positionals[0] === 'install-skill') {
+        const metaFlags = validateMetaCommandFlags('install-skill', suppliedFlags);
+        if (!metaFlags.ok) {
+            err(metaFlags.error);
+            return 1;
+        }
         return runInstallSkill(
             {
                 global: values['global'] === true,
@@ -143,6 +150,11 @@ async function main(): Promise<number> {
     // Only removes the skill file (and its empty parent dir); does NOT
     // touch .continue / AGENTS.md (separate lifecycle).
     if (positionals[0] === 'uninstall-skill') {
+        const metaFlags = validateMetaCommandFlags('uninstall-skill', suppliedFlags);
+        if (!metaFlags.ok) {
+            err(metaFlags.error);
+            return 1;
+        }
         return runUninstallSkill({
             global: values['global'] === true,
             quiet,
@@ -166,15 +178,27 @@ async function main(): Promise<number> {
         return 1;
     }
 
-    // Validate response-mode configuration before auth resolution or any
-    // network work. Exact tokens prevent CI typos such as `true` from silently
-    // selecting advisory mode. The explicit flag is additive, but does not
-    // conceal an invalid environment value.
-    const strictResponsesFlag = values['strict-responses'];
-    if (strictResponsesFlag !== undefined && typeof strictResponsesFlag !== 'boolean') {
-        err('--strict-responses does not take a value; pass the flag without `=`.');
+    const actionSpec = dispatched.spec;
+
+    const dryRun = values['dry-run'] === true;
+    const invocationResult = resolveActionInvocation({
+        spec: actionSpec,
+        values,
+        suppliedFlags,
+        pathParams,
+        dryRun,
+    });
+    if (!invocationResult.ok) {
+        err(invocationResult.error);
         return 1;
     }
+    const invocation = invocationResult.invocation;
+
+    // Validate response-mode configuration before auth resolution or any
+    // network work. Primitive argv shape was already checked centrally above;
+    // the explicit flag is additive, but does not conceal an invalid
+    // environment value.
+    const strictResponsesFlag = values['strict-responses'];
     const strictResponses = resolveStrictResponses(strictResponsesFlag === true, process.env[STRICT_RESPONSES_ENV_VAR]);
     if (!strictResponses.ok) {
         err(strictResponses.error);
@@ -189,27 +213,7 @@ async function main(): Promise<number> {
     // definition (no API call leaves the process). The gate runs IN ADDITION
     // TO the per-handler `--yes` check — both must be satisfied. See SEC
     // notes in CHANGELOG.md for the breaking-change rationale.
-    const dryRun = values['dry-run'] === true;
-    const actionSpec = getActionSpec(resource, action);
-    const paginationValidation = validateCliPagination(actionSpec, {
-        ...(values['page'] !== undefined && { page: values['page'] }),
-        ...(values['all'] !== undefined && { all: values['all'] }),
-        ...(values['limit'] !== undefined && { limit: values['limit'] }),
-        ...(values['offset'] !== undefined && { offset: values['offset'] }),
-        ...(values['page-size'] !== undefined && { pageSize: values['page-size'] }),
-        ...(values['start-offset'] !== undefined && { startOffset: values['start-offset'] }),
-        ...(values['max-pages'] !== undefined && { maxPages: values['max-pages'] }),
-        ...(values['max-items'] !== undefined && { maxItems: values['max-items'] }),
-        ...(values['max-duration-ms'] !== undefined && {
-            maxDurationMs: values['max-duration-ms'],
-        }),
-        ...(values['max-bytes'] !== undefined && { maxBytes: values['max-bytes'] }),
-    });
-    if (!paginationValidation.ok) {
-        err(paginationValidation.error);
-        return 1;
-    }
-    const pagination = paginationValidation.parsed;
+    const pagination = invocation.pagination;
     const envGate = checkDestructiveEnvGate(actionSpec, process.env, dryRun);
     if (!envGate.ok) {
         err(envGate.error);
@@ -279,109 +283,11 @@ async function main(): Promise<number> {
         return 1;
     }
 
-    const args: HandlerArgs = {
-        pathParams,
-        ...(values['project-id'] !== undefined && { projectId: values['project-id'] as string }),
-        ...(values['suite-id'] !== undefined && { suiteId: values['suite-id'] as string }),
-        ...(values['section-id'] !== undefined && { sectionId: values['section-id'] as string }),
-        ...(values['run-id'] !== undefined && { runId: values['run-id'] as string }),
-        ...(values['type-id'] !== undefined && { typeId: values['type-id'] as string }),
-        ...(values['priority-id'] !== undefined && { priorityId: values['priority-id'] as string }),
-        ...(values['template-id'] !== undefined && { templateId: values['template-id'] as string }),
-        ...(values['milestone-id'] !== undefined && { milestoneId: values['milestone-id'] as string }),
-        ...(values['created-after'] !== undefined && { createdAfter: values['created-after'] as string }),
-        ...(values['created-before'] !== undefined && { createdBefore: values['created-before'] as string }),
-        ...(values['created-by'] !== undefined && { createdBy: values['created-by'] as string }),
-        ...(values['updated-after'] !== undefined && { updatedAfter: values['updated-after'] as string }),
-        ...(values['updated-before'] !== undefined && { updatedBefore: values['updated-before'] as string }),
-        ...(values['updated-by'] !== undefined && { updatedBy: values['updated-by'] as string }),
-        ...(values['label-id'] !== undefined && { labelId: values['label-id'] as string }),
-        ...(values['refs'] !== undefined && { refs: values['refs'] as string }),
-        ...(values['filter'] !== undefined && { filter: values['filter'] as string }),
-        ...(values['include-plan-runs'] === true && { includePlanRuns: true }),
-        ...(values['is-completed'] !== undefined && { isCompleted: values['is-completed'] as string }),
-        ...(values['is-started'] !== undefined && { isStarted: values['is-started'] as string }),
-        ...(values['with-data'] !== undefined && { withData: values['with-data'] as string }),
-        ...(values['user-email'] !== undefined && { userEmail: values['user-email'] as string }),
-        ...(values['limit'] !== undefined && { limit: values['limit'] as string }),
-        ...(values['offset'] !== undefined && { offset: values['offset'] as string }),
-        ...(values['page'] === true && { page: true }),
-        ...(values['all'] === true && { all: true }),
-        ...(values['page-size'] !== undefined && { pageSize: values['page-size'] as string }),
-        ...(values['start-offset'] !== undefined && { startOffset: values['start-offset'] as string }),
-        ...(values['max-pages'] !== undefined && { maxPages: values['max-pages'] as string }),
-        ...(values['max-items'] !== undefined && { maxItems: values['max-items'] as string }),
-        ...(values['max-duration-ms'] !== undefined && {
-            maxDurationMs: values['max-duration-ms'] as string,
-        }),
-        ...(values['max-bytes'] !== undefined && { maxBytes: values['max-bytes'] as string }),
-        ...(values['status-id'] !== undefined && { statusId: values['status-id'] as string }),
-        ...(values['defects-filter'] !== undefined && { defectsFilter: values['defects-filter'] as string }),
-        ...(values['file'] !== undefined && { file: values['file'] as string }),
-        ...(values['filename'] !== undefined && { filename: values['filename'] as string }),
-        ...(values['out'] !== undefined && { out: values['out'] as string }),
-        ...(values['soft'] === true && { soft: true }),
-        ...(values['keep-in-cases'] !== undefined && { keepInCases: values['keep-in-cases'] as string }),
-        ...(values['interval'] !== undefined && { interval: values['interval'] as string }),
-        ...(values['once'] === true && { once: true }),
-    };
+    const args = invocation.args;
 
-    // Suppress stdin only when the dispatched action's ActionSpec marks it
-    // as a file-input action (`fileInput: true`). Gating purely on `--file`
-    // presence would also kill stdin for unrelated actions where `--file`
-    // is a typo/no-op (e.g. `echo '{...}' | testrail result add ... --file
-    // x`), surfacing as a misleading "Body required" error instead of the
-    // ignored flag.
-    const isFileInputAction = actionSpec?.fileInput === true;
-    const isFileOutputAction = actionSpec?.fileOutput === true;
-
-    // PR3a: `--file -` (binary stdin upload) and `--out -` (binary stdout
-    // download) mutual-exclusion + safety gates. Enforced here, before
-    // dispatch, so handlers receive a guaranteed-consistent ctx:
-    //   1. `--file -` requires a file-input action — for non-upload actions
-    //      the dash would be parsed as a filesystem path and stat would
-    //      fail with a confusing 'ENOENT' error.
-    //   2. `--file -` cannot coexist with `--data` / `--data-file` — a
-    //      single handler cannot consume both a JSON body and a binary
-    //      stdin payload; the conflicting flags would silently pick one
-    //      (today: stdin) and surprise the caller.
-    //   3. `--file -` is incompatible with `--api-key-stdin` — both want to
-    //      own fd 0. Catch the conflict here rather than letting the upload
-    //      reader read a credential.
-    //   4. `--out -` requires a file-output action — for read/write actions
-    //      that don't download binary content the flag is silently ignored,
-    //      which would leave the user confused about where their output went.
-    //      (SEC M1 / security-review note)
-    //   5. `--out -` with `--format table` is rejected — table is a
-    //      text-format hint that has no meaning for raw binary output.
-    const fileFlagIsStdin = values['file'] === STDIN_SENTINEL;
-    const outFlagIsStdout = values['out'] === STDOUT_SENTINEL;
-
-    if (fileFlagIsStdin) {
-        if (!isFileInputAction) {
-            err("--file '-' is only valid for attachment upload actions, 'bdd add', and 'bdd update'.");
-            return 1;
-        }
-        if (values['data'] !== undefined || values['data-file'] !== undefined) {
-            err("--file '-' cannot be combined with --data or --data-file (stdin has one source).");
-            return 1;
-        }
-        if (apiKeyStdin) {
-            err("--file '-' cannot be combined with --api-key-stdin (stdin has one consumer).");
-            return 1;
-        }
-    }
-
-    if (outFlagIsStdout) {
-        if (!isFileOutputAction) {
-            err("--out '-' is only valid for actions that download binary content (attachment get, bdd get).");
-            return 1;
-        }
-        if (formatRaw === 'table') {
-            err("--out '-' streams raw binary; --format table is meaningless and was rejected.");
-            return 1;
-        }
-    }
+    // File-input capability owns stdin. The action-invocation seam has already
+    // rejected unrelated file flags and every stdio ownership conflict.
+    const isFileInputAction = actionSpec.fileInput === true;
 
     const bodyInput: BodyInput = {
         ...(values['data'] !== undefined && { dataFlag: values['data'] as string }),
@@ -439,8 +345,9 @@ async function main(): Promise<number> {
             registerProcessHandlers: true,
             onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
         });
-        await dispatched.handler({
+        await invocation.spec.handler({
             client,
+            actionSpec: invocation.spec,
             args,
             pagination,
             bodyInput,
