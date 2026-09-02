@@ -330,10 +330,17 @@ describe('publish workflow wiring', () => {
         const recheck = publishJob.indexOf('EXACT_OUTPUT=');
         const publish = publishJob.indexOf('npm publish "$GITHUB_WORKSPACE"');
         const verification = publishJob.indexOf('VERIFIED=false');
+        const diffVerification = publishJob.indexOf('DIFF_VERIFIED=false');
 
         expect(recheck).toBeGreaterThanOrEqual(0);
         expect(recheck).toBeLessThan(publish);
         expect(publish).toBeLessThan(verification);
+        expect(verification).toBeLessThan(diffVerification);
+        expect(publishJob.match(/for ATTEMPT in \{1\.\.10\}; do/g)).toHaveLength(2);
+        expect(publishJob).toContain('if DIFF_OUTPUT=');
+        expect(publishJob).toContain('--prefer-online');
+        expect(publishJob).toContain('--cache="$ISOLATED_NPM_DIRECTORY/npm-diff-cache-$ATTEMPT"');
+        expect(publishJob).toContain('if [[ "$DIFF_VERIFIED" != \'true\' ]]');
         expect(publishJob).toContain('dist-tags.latest dist.attestations');
         expect(publishJob).toContain('https://slsa.dev/provenance/v1');
     });
