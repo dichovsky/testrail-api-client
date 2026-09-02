@@ -1,116 +1,221 @@
 /**
- * Single source of truth for the CLI's parseArgs options table and the
- * post-parse strict-validation set. Extracted from index.ts so unit tests
- * can lock the invariant (KNOWN_FLAGS === Object.keys(CLI_OPTIONS))
- * without triggering the module-level main() that index.ts runs on import.
+ * Primitive CLI flag catalog.
  *
- * Adding a flag requires editing exactly this file:
- *   1. Add the entry to CLI_OPTIONS.
- *   2. KNOWN_FLAGS is derived from Object.keys(CLI_OPTIONS); no second edit.
- *   3. Add the matching pull-out in src/cli/index.ts (the HandlerArgs /
- *      auth wiring) and document it in CLI_OPTION_DOCUMENTATION below.
- *
- * The post-parse validation pass (CTF audit finding #10) rejects any flag
- * not in KNOWN_FLAGS. parseArgs runs with `strict: false` for defensive
- * future-Node tolerance; the strict gate replaces that with a controlled
- * rejection that catches typos like `--dryrun` (missing hyphen) which
- * would otherwise silently bypass the gate the user intended (e.g.,
- * dry-run-vs-execute on a destructive action).
+ * This module owns syntax only: argv spelling, primitive parse type, defaults,
+ * and the projection key used by the next seam. Action applicability belongs
+ * to ActionSpec and is resolved after resource/action dispatch.
  */
-export const CLI_OPTIONS = {
-    'base-url': { type: 'string' as const },
-    email: { type: 'string' as const },
-    'user-email': { type: 'string' as const },
-    // CTF #11: --api-key (string) removed in v3.0 — exposed credentials
-    // via /proc/<pid>/cmdline, shell history, CI step logs, container
-    // audit trails, and crash dumps. Use TESTRAIL_API_KEY env var or
-    // pipe the key on stdin with --api-key-stdin.
-    'api-key-stdin': { type: 'boolean' as const, default: false },
-    format: { type: 'string' as const, default: 'json' },
-    // Request timeout in milliseconds, mapped straight to `config.timeout`
-    // (SDK unit). Overrides the TESTRAIL_TIMEOUT env var, which overrides the
-    // 30s default. A present-but-invalid value is rejected (parseId → exit 1);
-    // out-of-range is rejected by the client constructor's validateTimeout.
-    timeout: { type: 'string' as const },
-    'strict-responses': { type: 'boolean' as const, default: false },
-    quiet: { type: 'boolean' as const, default: false },
-    help: { type: 'boolean' as const, default: false },
-    version: { type: 'boolean' as const, default: false },
-    'project-id': { type: 'string' as const },
-    'suite-id': { type: 'string' as const },
-    'section-id': { type: 'string' as const },
-    'run-id': { type: 'string' as const },
-    'type-id': { type: 'string' as const },
-    'priority-id': { type: 'string' as const },
-    'template-id': { type: 'string' as const },
-    'milestone-id': { type: 'string' as const },
-    'created-after': { type: 'string' as const },
-    'created-before': { type: 'string' as const },
-    'created-by': { type: 'string' as const },
-    'updated-after': { type: 'string' as const },
-    'updated-before': { type: 'string' as const },
-    'updated-by': { type: 'string' as const },
-    'label-id': { type: 'string' as const },
-    refs: { type: 'string' as const },
-    filter: { type: 'string' as const },
-    'include-plan-runs': { type: 'boolean' as const, default: false },
-    'is-completed': { type: 'string' as const },
-    'is-started': { type: 'string' as const },
-    'with-data': { type: 'string' as const },
-    limit: { type: 'string' as const },
-    offset: { type: 'string' as const },
-    page: { type: 'boolean' as const, default: false },
-    all: { type: 'boolean' as const, default: false },
-    'page-size': { type: 'string' as const },
-    'start-offset': { type: 'string' as const },
-    'max-pages': { type: 'string' as const },
-    'max-items': { type: 'string' as const },
-    'max-duration-ms': { type: 'string' as const },
-    'max-bytes': { type: 'string' as const },
-    'status-id': { type: 'string' as const },
-    'defects-filter': { type: 'string' as const },
-    data: { type: 'string' as const },
-    'data-file': { type: 'string' as const },
-    'dry-run': { type: 'boolean' as const, default: false },
-    global: { type: 'boolean' as const, default: false },
-    force: { type: 'boolean' as const, default: false },
-    'print-path': { type: 'boolean' as const, default: false },
-    file: { type: 'string' as const },
-    filename: { type: 'string' as const },
-    out: { type: 'string' as const },
-    yes: { type: 'boolean' as const, default: false },
-    soft: { type: 'boolean' as const, default: false },
-    'keep-in-cases': { type: 'string' as const },
-    // `run watch` polling controls. `--interval <seconds>` (default 30, min 5,
-    // max 600) sets the recursive-setTimeout delay between `get_run/{run_id}`
-    // polls; the floor protects the TestRail default rate budget
-    // (100 req/60s = ~0.6s/req — a 5s minimum interval still leaves headroom
-    // for other concurrent client traffic). `--once` polls a single time and
-    // exits without scheduling the next iteration; useful for one-shot status
-    // checks in CI scripts that want the watcher's diff/render output without
-    // a long-running process.
-    interval: { type: 'string' as const },
-    once: { type: 'boolean' as const, default: false },
+
+export type ActionCapability =
+    'body' | 'destructive' | 'file-input' | 'file-output' | 'pagination' | 'pagination-request' | 'write';
+
+interface CliFlagBase {
+    readonly scope: 'global' | 'action' | 'meta' | 'action-meta';
+    readonly capability?: ActionCapability;
+    readonly handlerKey?: string;
+    readonly paginationKey?: string;
+    readonly valueName?: string;
+}
+
+type CliFlagDefinition = CliFlagBase &
+    ({ readonly type: 'string'; readonly default?: string } | { readonly type: 'boolean'; readonly default?: boolean });
+
+function defineFlagCatalog<const Catalog extends Readonly<Record<string, CliFlagDefinition>>>(
+    catalog: Catalog,
+): Catalog {
+    return catalog;
+}
+
+/**
+ * `scope: global` means the flag is accepted by every API action. `meta`
+ * flags are consumed by install/uninstall commands before ActionSpec
+ * resolution. Action-scoped flags are either explicitly named by an action or
+ * admitted through a capability derived from its ActionSpec.
+ */
+export const FLAG_CATALOG = defineFlagCatalog({
+    'base-url': { type: 'string', scope: 'global' },
+    email: { type: 'string', scope: 'global', valueName: 'email' },
+    'user-email': { type: 'string', scope: 'action', handlerKey: 'userEmail', valueName: 'email' },
+    // --api-key was removed in v3.0 because argv is observable. Keep the
+    // boolean stdin selector, while the credential itself never enters argv.
+    'api-key-stdin': { type: 'boolean', default: false, scope: 'global' },
+    format: { type: 'string', default: 'json', scope: 'global' },
+    timeout: { type: 'string', scope: 'global' },
+    'strict-responses': { type: 'boolean', default: false, scope: 'global' },
+    quiet: { type: 'boolean', default: false, scope: 'global' },
+    help: { type: 'boolean', default: false, scope: 'global' },
+    version: { type: 'boolean', default: false, scope: 'global' },
+
+    'project-id': { type: 'string', scope: 'action', handlerKey: 'projectId', valueName: 'id' },
+    'suite-id': { type: 'string', scope: 'action', handlerKey: 'suiteId' },
+    'section-id': { type: 'string', scope: 'action', handlerKey: 'sectionId' },
+    'run-id': { type: 'string', scope: 'action', handlerKey: 'runId', valueName: 'id' },
+    'type-id': { type: 'string', scope: 'action', handlerKey: 'typeId' },
+    'priority-id': { type: 'string', scope: 'action', handlerKey: 'priorityId' },
+    'template-id': { type: 'string', scope: 'action', handlerKey: 'templateId' },
+    'milestone-id': { type: 'string', scope: 'action', handlerKey: 'milestoneId' },
+    'created-after': { type: 'string', scope: 'action', handlerKey: 'createdAfter' },
+    'created-before': { type: 'string', scope: 'action', handlerKey: 'createdBefore' },
+    'created-by': { type: 'string', scope: 'action', handlerKey: 'createdBy' },
+    'updated-after': { type: 'string', scope: 'action', handlerKey: 'updatedAfter' },
+    'updated-before': { type: 'string', scope: 'action', handlerKey: 'updatedBefore' },
+    'updated-by': { type: 'string', scope: 'action', handlerKey: 'updatedBy' },
+    'label-id': { type: 'string', scope: 'action', handlerKey: 'labelId' },
+    refs: { type: 'string', scope: 'action', handlerKey: 'refs' },
+    filter: { type: 'string', scope: 'action', handlerKey: 'filter' },
+    'include-plan-runs': { type: 'boolean', default: false, scope: 'action', handlerKey: 'includePlanRuns' },
+    'is-completed': { type: 'string', scope: 'action', handlerKey: 'isCompleted' },
+    'is-started': { type: 'string', scope: 'action', handlerKey: 'isStarted' },
+    'with-data': { type: 'string', scope: 'action', handlerKey: 'withData' },
+
+    limit: {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination-request',
+        paginationKey: 'limit',
+    },
+    offset: {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination-request',
+        paginationKey: 'offset',
+    },
+    page: { type: 'boolean', default: false, scope: 'action', capability: 'pagination', paginationKey: 'page' },
+    all: { type: 'boolean', default: false, scope: 'action', capability: 'pagination', paginationKey: 'all' },
+    'page-size': {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination-request',
+        paginationKey: 'pageSize',
+    },
+    'start-offset': {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination-request',
+        paginationKey: 'startOffset',
+    },
+    'max-pages': {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination',
+        paginationKey: 'maxPages',
+    },
+    'max-items': {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination',
+        paginationKey: 'maxItems',
+    },
+    'max-duration-ms': {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination',
+        paginationKey: 'maxDurationMs',
+    },
+    'max-bytes': {
+        type: 'string',
+        scope: 'action',
+        capability: 'pagination',
+        paginationKey: 'maxBytes',
+    },
+
+    'status-id': { type: 'string', scope: 'action', handlerKey: 'statusId' },
+    'defects-filter': { type: 'string', scope: 'action', handlerKey: 'defectsFilter' },
+    data: { type: 'string', scope: 'action', capability: 'body' },
+    'data-file': { type: 'string', scope: 'action', capability: 'body' },
+    'dry-run': { type: 'boolean', default: false, scope: 'action', capability: 'write' },
+    file: {
+        type: 'string',
+        scope: 'action',
+        capability: 'file-input',
+        handlerKey: 'file',
+        valueName: 'path|-',
+    },
+    filename: { type: 'string', scope: 'action', capability: 'file-input', handlerKey: 'filename' },
+    out: {
+        type: 'string',
+        scope: 'action',
+        capability: 'file-output',
+        handlerKey: 'out',
+        valueName: 'path|-',
+    },
+    force: { type: 'boolean', default: false, scope: 'action-meta', capability: 'file-output' },
+    yes: { type: 'boolean', default: false, scope: 'action', capability: 'destructive' },
+    soft: {
+        type: 'boolean',
+        default: false,
+        scope: 'action',
+        capability: 'destructive',
+        handlerKey: 'soft',
+    },
+    'keep-in-cases': { type: 'string', scope: 'action', handlerKey: 'keepInCases' },
+    interval: { type: 'string', scope: 'action', handlerKey: 'interval' },
+    once: { type: 'boolean', default: false, scope: 'action', handlerKey: 'once' },
+
+    global: { type: 'boolean', default: false, scope: 'meta' },
+    'print-path': { type: 'boolean', default: false, scope: 'meta' },
+});
+
+export type CliFlagName = keyof typeof FLAG_CATALOG;
+
+export type ActionFlagName = {
+    [Name in CliFlagName]: (typeof FLAG_CATALOG)[Name]['scope'] extends 'action' | 'action-meta' ? Name : never;
+}[CliFlagName];
+
+export type ActionSpecFlagName = ActionFlagName;
+
+type HandlerFlagArgs = {
+    [
+        Name in CliFlagName as (typeof FLAG_CATALOG)[Name] extends {
+            readonly handlerKey: infer Key extends string;
+        }
+            ? Key
+            : never
+    ]?: (typeof FLAG_CATALOG)[Name]['type'] extends 'boolean' ? boolean : string;
 };
 
-export type CliOptionName = keyof typeof CLI_OPTIONS;
+export type CliHandlerArgs = HandlerFlagArgs & { readonly pathParams: readonly string[] };
+
+export type RawCliPaginationArgs = {
+    readonly [
+        Name in CliFlagName as (typeof FLAG_CATALOG)[Name] extends {
+            readonly paginationKey: infer Key extends string;
+        }
+            ? Key
+            : never
+    ]?: unknown;
+};
+
+interface CliParseOption {
+    readonly type: 'string' | 'boolean';
+    readonly default?: string | boolean;
+}
+
+function buildCliOptions(): Readonly<Record<CliFlagName, CliParseOption>> {
+    return Object.fromEntries(
+        Object.entries(FLAG_CATALOG).map(([name, definition]) => [
+            name,
+            {
+                type: definition.type,
+                ...('default' in definition && { default: definition.default }),
+            },
+        ]),
+    ) as Readonly<Record<CliFlagName, CliParseOption>>;
+}
+
+export const CLI_OPTIONS = buildCliOptions();
+
+export type CliOptionName = CliFlagName;
 
 export interface CliOptionDocumentationEntry {
-    /** Placeholder shown after the flag, omitted for boolean switches. */
     readonly value?: string;
-    /** Commands for which the option has an effect. */
     readonly scope: string;
-    /** Agent-facing behavior, constraints, and defaults. */
     readonly description: string;
 }
 
 /**
- * Canonical documentation for every accepted CLI option.
- *
- * The `Record<CliOptionName, ...>` constraint makes option documentation a
- * compile-time invariant: adding or removing a key in `CLI_OPTIONS` requires
- * the same change here. Both `testrail --help` and the generated bundled skill
- * render this registry, so their option inventories cannot drift apart.
+ * Human-facing option guidance. The keyed record makes documentation
+ * completeness a compile-time invariant with the executable flag catalog.
  */
 export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionDocumentationEntry>> = {
     'base-url': {
@@ -151,14 +256,8 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         scope: 'All commands',
         description: 'Suppress normal output and advisory warnings; rely on the exit code.',
     },
-    help: {
-        scope: 'Top level',
-        description: 'Print CLI help and exit.',
-    },
-    version: {
-        scope: 'Top level',
-        description: 'Print the package CLI version and exit.',
-    },
+    help: { scope: 'Top level', description: 'Print CLI help and exit.' },
+    version: { scope: 'Top level', description: 'Print the package CLI version and exit.' },
     'project-id': {
         value: '<id>',
         scope: 'case, suite, run, plan, milestone, shared-step, user, and bdd lists; case delete-bulk',
@@ -169,31 +268,11 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         scope: 'case, section, bdd, and run list actions',
         description: 'Filter by suite. run list accepts comma-separated IDs; other consumers require one ID.',
     },
-    'section-id': {
-        value: '<id>',
-        scope: 'case list; bdd list',
-        description: 'Filter results to one section.',
-    },
-    'run-id': {
-        value: '<id>',
-        scope: 'result list',
-        description: 'Select the run whose results should be listed.',
-    },
-    'type-id': {
-        value: '<ids>',
-        scope: 'case list',
-        description: 'Filter by comma-separated case type IDs.',
-    },
-    'priority-id': {
-        value: '<ids>',
-        scope: 'case list',
-        description: 'Filter by comma-separated priority IDs.',
-    },
-    'template-id': {
-        value: '<ids>',
-        scope: 'case list',
-        description: 'Filter by comma-separated template IDs.',
-    },
+    'section-id': { value: '<id>', scope: 'case list; bdd list', description: 'Filter results to one section.' },
+    'run-id': { value: '<id>', scope: 'result list', description: 'Select the run whose results should be listed.' },
+    'type-id': { value: '<ids>', scope: 'case list', description: 'Filter by comma-separated case type IDs.' },
+    'priority-id': { value: '<ids>', scope: 'case list', description: 'Filter by comma-separated priority IDs.' },
+    'template-id': { value: '<ids>', scope: 'case list', description: 'Filter by comma-separated template IDs.' },
     'milestone-id': {
         value: '<ids>',
         scope: 'case, run, and plan list actions',
@@ -224,11 +303,7 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         scope: 'case list; shared-step list',
         description: 'Return entities updated before this Unix timestamp.',
     },
-    'updated-by': {
-        value: '<ids>',
-        scope: 'case list',
-        description: 'Filter by comma-separated updater user IDs.',
-    },
+    'updated-by': { value: '<ids>', scope: 'case list', description: 'Filter by comma-separated updater user IDs.' },
     'label-id': {
         value: '<ids>',
         scope: 'case, bdd, and test list actions',
@@ -240,15 +315,8 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         description:
             'Filter by references. case and bdd lists accept comma-separated TestRail 10.7 refs; run, plan, and shared-step lists accept one reference.',
     },
-    filter: {
-        value: '<text>',
-        scope: 'case list',
-        description: 'Filter by case-title substring.',
-    },
-    'include-plan-runs': {
-        scope: 'run list',
-        description: 'Include runs owned by test plans.',
-    },
+    filter: { value: '<text>', scope: 'case list', description: 'Filter by case-title substring.' },
+    'include-plan-runs': { scope: 'run list', description: 'Include runs owned by test plans.' },
     'is-completed': {
         value: '<true|false|1|0>',
         scope: 'project, run, plan, and milestone list actions',
@@ -293,16 +361,8 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         scope: '--all on request-controlled paginated actions',
         description: 'Initial aggregate offset; default 0.',
     },
-    'max-pages': {
-        value: '<n>',
-        scope: '--all',
-        description: 'Maximum pages fetched; default 100.',
-    },
-    'max-items': {
-        value: '<n>',
-        scope: '--all',
-        description: 'Maximum accumulated items; default 25000.',
-    },
+    'max-pages': { value: '<n>', scope: '--all', description: 'Maximum pages fetched; default 100.' },
+    'max-items': { value: '<n>', scope: '--all', description: 'Maximum accumulated items; default 25000.' },
     'max-duration-ms': {
         value: '<ms>',
         scope: '--all',
@@ -335,20 +395,8 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         description: 'Read the JSON body from a file; useful for large payloads and secrets.',
     },
     'dry-run': {
-        scope: 'Write actions; run watch',
+        scope: 'Write and file-output actions; run watch',
         description: 'Validate and preview locally without an API call. It bypasses destructive confirmation gates.',
-    },
-    global: {
-        scope: 'install-skill; uninstall-skill',
-        description: 'Use the user-level skill directory instead of the current project.',
-    },
-    force: {
-        scope: 'File-output actions; install-skill',
-        description: 'Overwrite an existing output file or installed SKILL.md.',
-    },
-    'print-path': {
-        scope: 'install-skill',
-        description: 'Print the bundled SKILL.md path and exit without installing.',
     },
     file: {
         value: '<path|->',
@@ -364,6 +412,10 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         value: '<path|->',
         scope: 'attachment get; bdd get',
         description: "Write downloaded bytes/text to a file, or stream them to stdout with '-'.",
+    },
+    force: {
+        scope: 'File-output actions; install-skill',
+        description: 'Overwrite an existing output file or installed SKILL.md.',
     },
     yes: {
         scope: 'Destructive actions',
@@ -385,10 +437,90 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         scope: 'run watch',
         description: 'Polling interval; default 30, minimum 5, maximum 600.',
     },
-    once: {
-        scope: 'run watch',
-        description: 'Poll once and exit instead of waiting for completion.',
+    once: { scope: 'run watch', description: 'Poll once and exit instead of waiting for completion.' },
+    global: {
+        scope: 'install-skill; uninstall-skill',
+        description: 'Use the user-level skill directory instead of the current project.',
+    },
+    'print-path': {
+        scope: 'install-skill',
+        description: 'Print the bundled SKILL.md path and exit without installing.',
     },
 };
 
-export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(CLI_OPTIONS));
+export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(FLAG_CATALOG));
+
+export function isCliFlagName(value: string): value is CliFlagName {
+    return KNOWN_FLAGS.has(value);
+}
+
+export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
+
+/** Reject parseArgs' permissive missing/inline-value representations. */
+export function validateSuppliedFlagTypes(
+    values: Readonly<Record<string, unknown>>,
+    suppliedFlags: readonly string[],
+): CliFlagTypeValidationResult {
+    for (const supplied of suppliedFlags) {
+        if (!isCliFlagName(supplied)) continue;
+        const definition: CliFlagDefinition = FLAG_CATALOG[supplied];
+        const value = values[supplied];
+        if (definition.type === 'string' && typeof value !== 'string') {
+            return { ok: false, error: `--${supplied} requires a value.` };
+        }
+        if (definition.type === 'boolean' && typeof value !== 'boolean') {
+            return {
+                ok: false,
+                error: `--${supplied} does not take a value; pass the flag without \`=\`.`,
+            };
+        }
+    }
+    return { ok: true };
+}
+
+export function getCliFlagUsage(name: CliFlagName): string {
+    const definition: CliFlagDefinition = FLAG_CATALOG[name];
+    if (definition.type === 'boolean') return `--${name}`;
+    return `--${name} <${definition.valueName ?? 'value'}>`;
+}
+
+export function getGlobalActionFlags(): readonly CliFlagName[] {
+    return (Object.keys(FLAG_CATALOG) as CliFlagName[]).filter((name) => FLAG_CATALOG[name].scope === 'global');
+}
+
+export function getCapabilityFlags(capability: ActionCapability): readonly CliFlagName[] {
+    return (Object.keys(FLAG_CATALOG) as CliFlagName[]).filter((name) => {
+        const definition: CliFlagDefinition = FLAG_CATALOG[name];
+        return definition.capability === capability;
+    });
+}
+
+/** Project only handler-owned values. Pagination has its own typed seam. */
+export function projectHandlerArgs(
+    values: Readonly<Record<string, unknown>>,
+    pathParams: readonly string[],
+): CliHandlerArgs {
+    const projected: Record<string, unknown> = { pathParams };
+    for (const name of Object.keys(FLAG_CATALOG) as CliFlagName[]) {
+        const definition: CliFlagDefinition = FLAG_CATALOG[name];
+        if (definition.handlerKey === undefined) continue;
+        const value = values[name];
+        if (definition.type === 'string' && typeof value === 'string') {
+            projected[definition.handlerKey] = value;
+        } else if (definition.type === 'boolean' && value === true) {
+            projected[definition.handlerKey] = true;
+        }
+    }
+    return projected as CliHandlerArgs;
+}
+
+export function projectPaginationArgs(values: Readonly<Record<string, unknown>>): RawCliPaginationArgs {
+    const projected: Record<string, unknown> = {};
+    for (const name of Object.keys(FLAG_CATALOG) as CliFlagName[]) {
+        const definition: CliFlagDefinition = FLAG_CATALOG[name];
+        if (definition.paginationKey !== undefined && values[name] !== undefined) {
+            projected[definition.paginationKey] = values[name];
+        }
+    }
+    return projected;
+}

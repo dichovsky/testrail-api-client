@@ -2,7 +2,7 @@ import { AddSharedStepPayloadSchema, UpdateSharedStepPayloadSchema } from '../..
 import type { HandlerContext } from '../handler-context.js';
 import { parseOptionalBoolean } from '../filters.js';
 import { parseId } from '../ids.js';
-import { createWriteHandler } from '../write-handler-factory.js';
+import { createWriteHandler, resolveSoftFlag } from '../write-handler-factory.js';
 
 export const handleSharedStepAdd = createWriteHandler({
     action: 'shared-step add',
@@ -27,6 +27,7 @@ export const handleSharedStepUpdate = createWriteHandler({
 export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void> {
     const sharedStepId = parseId(ctx.args.pathParams[0], 'shared_step_id');
     const keepInCases = parseOptionalBoolean(ctx.args.keepInCases, '--keep-in-cases');
+    resolveSoftFlag(ctx);
 
     if (ctx.dryRun) {
         ctx.out({
@@ -39,9 +40,6 @@ export async function handleSharedStepDelete(ctx: HandlerContext): Promise<void>
         return;
     }
 
-    if (ctx.args.soft === true) {
-        throw new Error('shared-step delete does not support --soft.');
-    }
     if (!ctx.confirmDestructive) {
         throw new Error('Destructive action; pass --yes to confirm.');
     }

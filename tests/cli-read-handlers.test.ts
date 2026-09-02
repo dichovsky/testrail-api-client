@@ -265,6 +265,7 @@ function buildCtx(
     const out = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
+        actionSpec: { resource: 'test', action: 'get' },
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),

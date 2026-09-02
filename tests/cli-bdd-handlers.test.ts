@@ -67,6 +67,7 @@ function buildCtx(
     const errRaw = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
+        actionSpec: { resource: 'bdd', action: 'list' },
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.file !== undefined && { file: overrides.file }),

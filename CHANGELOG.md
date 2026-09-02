@@ -53,6 +53,18 @@ the next major package release (`7.0.0`), not as a `6.x` minor.
 
 ### Changed — BREAKING
 
+- The CLI now rejects known but action-irrelevant flags before authentication
+  instead of silently ignoring them. This includes rejecting real
+  `run close --soft` invocations because TestRail cannot preview a close;
+  `--dry-run --soft` remains a no-network client-side preview.
+- `TestRailConfigSchema` now covers every `TestRailConfig` field and aligns its
+  numeric bounds and function-valued hooks with client construction. Client
+  construction now also rejects invalid values for previously unchecked
+  optional cache, boolean, DNS-lookup, and process-handler settings instead of
+  allowing them to fail or behave unpredictably later. Zero-valued documented
+  sentinels remain accepted. The legacy `PaginationSchema` remains permissive;
+  use `PaginationRequestSchema` for strict request controls.
+
 - `UpdateLabelPayload` and `label update` now require the owning
   `project_id`, matching TestRail's `update_label` request contract. Migrate
   `{ "title": "New" }` payloads to

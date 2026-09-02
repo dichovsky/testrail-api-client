@@ -11,8 +11,14 @@ export const HTTP_OK_STATUS = 200;
 // TestRailConfig defaults
 export const DEFAULT_TIMEOUT_MS = 30000;
 export const DEFAULT_MAX_RETRIES = 3;
+/** Maximum retry attempts accepted by `TestRailConfig.maxRetries`. */
+export const MAX_RETRIES = 10;
 export const DEFAULT_CACHE_TTL_MS = 300000; // 5 minutes
 export const DEFAULT_CACHE_CLEANUP_INTERVAL_MS = 60000; // 1 minute
+/** Maximum delay Node.js timers accept without overflowing to a 1 ms delay. */
+export const MAX_NODE_TIMER_DELAY_MS = 2_147_483_647;
+/** Established constructor-compatible email syntax for TestRail credentials. */
+export const TESTRAIL_CONFIG_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const DEFAULT_MAX_CACHE_SIZE = 1000;
 export const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100;
 export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000; // 1 minute

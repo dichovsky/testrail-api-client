@@ -2,12 +2,9 @@ import { TestRailClientCore } from '../client-core.js';
 import { LabelSchema, LabelWriteResponseSchema } from '../schemas.js';
 import type { AddLabelPayload, DeleteLabelsPayload, Label, UpdateLabelPayload } from '../schemas.js';
 import { TestRailValidationError } from '../errors.js';
-import { validateId, validatePaginationParams } from '../validation.js';
-import { buildEndpoint } from '../url.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { validateId } from '../validation.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export interface GetLabelsOptions {
     /** Maximum number of labels to return */
@@ -18,9 +15,22 @@ export interface GetLabelsOptions {
 
 export type GetAllLabelsOptions = PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+export const LABELS_PAGINATION = createPaginatedListExecutor<
+    { readonly projectId: number },
+    GetLabelsOptions,
+    GetAllLabelsOptions,
+    Label
+>({
+    operations: ['get_labels'],
+    collectionKey: 'labels',
+    itemSchema: LabelSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ projectId }) => {
+        validateId(projectId, 'projectId');
+        return { operation: 'get_labels', pathParameters: [projectId] };
+    },
+});
 
 /**
  * Stand-alone TestRail Labels API (TestRail 10.5+). Label *reads* embedded in
@@ -42,60 +52,17 @@ export class LabelModule {
 
     /** @testrail GET get_labels/{project_id} */
     async getLabels(projectId: number, options?: GetLabelsOptions): Promise<Label[]> {
-        return unwrapList<Label>('labels', await this.requestLabels(projectId, options));
+        return LABELS_PAGINATION.items(this.client, { projectId }, options);
     }
 
     /** Get one response page, preserving TestRail's pagination metadata when present. */
     async getLabelsPage(projectId: number, options?: GetLabelsOptions): Promise<Page<Label>> {
-        return decodePage<Label>('labels', await this.requestLabels(projectId, options, { pageProjection: true }));
+        return LABELS_PAGINATION.page(this.client, { projectId }, options);
     }
 
     /** Get every label under the configured pagination safety bounds. */
     async getAllLabels(projectId: number, options?: GetAllLabelsOptions): Promise<Label[]> {
-        return collectAllPages<Label>({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: (request) =>
-                this.requestLabels(
-                    projectId,
-                    {
-                        limit: request.limit as number,
-                        offset: request.offset as number,
-                    },
-                    {
-                        bypassCache: request.bypassCache,
-                        remainingTimeMs: request.remainingTimeMs,
-                        deadlineAt: request.deadlineAt,
-                    },
-                ).then((raw) => decodePage<Label>('labels', raw)),
-        });
-    }
-
-    private async requestLabels(
-        projectId: number,
-        options?: GetLabelsOptions,
-        controls?: PaginationFetchControls,
-    ): Promise<unknown> {
-        validateId(projectId, 'projectId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = buildEndpoint(`get_labels/${projectId}`, {
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        // `get_labels` documents the `{ offset, limit, size, _links, labels: [...] }`
-        // pagination wrapper, but the docs are not a reliable guide to which shape a
-        // given server sends — see the `listOf` docblock in `./list.js` for the full
-        // rationale. Accept both; `unwrapList` normalizes.
-        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('labels', LabelSchema) : listOf('labels', LabelSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
-            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
-            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
-        });
+        return LABELS_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /** @testrail POST add_label/{project_id} */

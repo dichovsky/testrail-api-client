@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
 import { handleCaseStatusList } from '../src/cli/handlers/case-status.js';
@@ -12,18 +13,19 @@ import { handleVariableList } from '../src/cli/handlers/variable.js';
 
 type MockMethod = ReturnType<typeof vi.fn>;
 type Mode = 'items' | 'page' | 'all';
+type InvocationFixture = HandlerArgs & RawCliPaginationArgs;
 
 const itemResult = [{ projection: 'items' }];
 const pageResult = { kind: 'envelope', items: [{ projection: 'page' }] };
 const allResult = [{ projection: 'all' }];
 
-const controlledFlags: HandlerArgs = {
+const controlledFlags: InvocationFixture = {
     pathParams: [],
     limit: '11',
     offset: '4',
 };
 
-const allFlags: HandlerArgs = {
+const allFlags: InvocationFixture = {
     pathParams: [],
     all: true,
     pageSize: '20',
@@ -34,7 +36,7 @@ const allFlags: HandlerArgs = {
     maxBytes: '4096',
 };
 
-const safetyFlags: HandlerArgs = {
+const safetyFlags: InvocationFixture = {
     pathParams: [],
     all: true,
     maxPages: '3',
@@ -139,8 +141,31 @@ interface HandlerAdapter {
     readonly name: string;
     readonly handler: Handler;
     readonly methods: readonly [MockMethod, MockMethod, MockMethod];
-    readonly args: Readonly<Record<Mode, HandlerArgs>>;
+    readonly args: Readonly<Record<Mode, InvocationFixture>>;
     readonly expectedArgs: Readonly<Record<Mode, readonly unknown[]>>;
+}
+
+function splitFixture(fixture: InvocationFixture): {
+    readonly args: HandlerArgs;
+    readonly paginationArgs: RawCliPaginationArgs;
+} {
+    const { page, all, limit, offset, pageSize, startOffset, maxPages, maxItems, maxDurationMs, maxBytes, ...args } =
+        fixture;
+    return {
+        args,
+        paginationArgs: {
+            page,
+            all,
+            limit,
+            offset,
+            pageSize,
+            startOffset,
+            maxPages,
+            maxItems,
+            maxDurationMs,
+            maxBytes,
+        },
+    };
 }
 
 function adapters(harness: Harness): readonly HandlerAdapter[] {
@@ -269,10 +294,12 @@ describe('secondary pagination CLI handlers', () => {
         const adapter = adapters(harness).find((candidate) => candidate.name === name);
         if (adapter === undefined) throw new Error(`Missing handler adapter for ${name}`);
         const out = vi.fn();
+        const invocation = splitFixture(adapter.args[mode]);
         const ctx: HandlerContext = {
             client: harness.client,
-            args: adapter.args[mode],
-            pagination: parseCliPagination(adapter.args[mode]),
+            actionSpec: { resource: 'test', action: 'list' },
+            args: invocation.args,
+            pagination: parseCliPagination(invocation.paginationArgs),
             bodyInput: {},
             dryRun: false,
             force: false,
@@ -293,7 +320,7 @@ describe('secondary pagination CLI handlers', () => {
 
     it('shared-step list forwards every documented filter through --all', async () => {
         const harness = buildHarness();
-        const args: HandlerArgs = {
+        const invocation = splitFixture({
             ...allFlags,
             projectId: '7',
             createdAfter: '100',
@@ -302,11 +329,12 @@ describe('secondary pagination CLI handlers', () => {
             updatedAfter: '300',
             updatedBefore: '400',
             refs: 'TR-42',
-        };
+        });
         const ctx: HandlerContext = {
             client: harness.client,
-            args,
-            pagination: parseCliPagination(args),
+            actionSpec: { resource: 'shared-step', action: 'list' },
+            args: invocation.args,
+            pagination: parseCliPagination(invocation.paginationArgs),
             bodyInput: {},
             dryRun: false,
             force: false,

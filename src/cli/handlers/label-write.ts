@@ -2,7 +2,7 @@ import { AddLabelPayloadSchema, DeleteLabelsPayloadSchema, UpdateLabelPayloadSch
 import type { HandlerContext } from '../handler-context.js';
 import { resolveBody } from '../body.js';
 import { IdParseError } from '../ids.js';
-import { createDestructiveHandler, createWriteHandler } from '../write-handler-factory.js';
+import { createDestructiveHandler, createWriteHandler, resolveSoftFlag } from '../write-handler-factory.js';
 
 /** `label add <project_id>` — create a project-scoped label. */
 export const handleLabelAdd = createWriteHandler({
@@ -44,6 +44,7 @@ export async function handleLabelDeleteBulk(ctx: HandlerContext): Promise<void> 
     }
     const body = resolveBody(ctx.bodyInput, DeleteLabelsPayloadSchema);
     if (!body.ok) throw new Error(body.error);
+    resolveSoftFlag(ctx);
 
     if (ctx.dryRun) {
         ctx.out({
@@ -56,9 +57,6 @@ export async function handleLabelDeleteBulk(ctx: HandlerContext): Promise<void> 
         return;
     }
 
-    if (ctx.args.soft === true) {
-        throw new Error('label delete-bulk does not support --soft.');
-    }
     if (!ctx.confirmDestructive) {
         throw new Error('Destructive action; pass --yes to confirm.');
     }

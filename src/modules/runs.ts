@@ -3,18 +3,54 @@ import { serializeIdFilter } from '../utils.js';
 import type { Run, GetRunsOptions, SoftDeleteOptions } from '../types.js';
 import type { AddRunPayload, UpdateRunPayload, SoftDeletePreview } from '../schemas.js';
 import { RunSchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { validateId, validatePaginationParams } from '../validation.js';
+import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export type GetAllRunsOptions = Omit<GetRunsOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+export const RUNS_PAGINATION = createPaginatedListExecutor<
+    { readonly projectId: number },
+    GetRunsOptions,
+    GetAllRunsOptions,
+    Run
+>({
+    operations: ['get_runs'],
+    collectionKey: 'runs',
+    itemSchema: RunSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ projectId }, options) => {
+        validateId(projectId, 'projectId');
+        const {
+            createdAfter,
+            createdBefore,
+            createdBy,
+            includePlanRuns,
+            isCompleted,
+            milestoneId,
+            refs,
+            refsFilter,
+            suiteId,
+        } = options ?? {};
+        return {
+            operation: 'get_runs',
+            pathParameters: [projectId],
+            query: {
+                created_after: createdAfter,
+                created_before: createdBefore,
+                created_by: serializeIdFilter(createdBy, 'createdBy'),
+                include_plan_runs: includePlanRuns !== undefined ? (includePlanRuns ? 1 : 0) : undefined,
+                is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
+                milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
+                refs: refs ?? refsFilter,
+                refs_filter: refs === undefined ? refsFilter : undefined,
+                suite_id: serializeIdFilter(suiteId, 'suiteId'),
+            },
+        };
+    },
+});
 
 export class RunModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -27,95 +63,17 @@ export class RunModule {
 
     /** @testrail GET get_runs/{project_id} */
     async getRuns(projectId: number, options?: GetRunsOptions): Promise<Run[]> {
-        return unwrapList<Run>('runs', await this.requestRuns(projectId, options));
+        return RUNS_PAGINATION.items(this.client, { projectId }, options);
     }
 
     /** Get one response page, preserving TestRail's pagination metadata when present. */
     async getRunsPage(projectId: number, options?: GetRunsOptions): Promise<Page<Run>> {
-        return decodePage<Run>('runs', await this.requestRuns(projectId, options, { pageProjection: true }));
+        return RUNS_PAGINATION.page(this.client, { projectId }, options);
     }
 
     /** Get every run under the configured pagination safety bounds. */
     async getAllRuns(projectId: number, options?: GetAllRunsOptions): Promise<Run[]> {
-        const filters = snapshotOptionFields(options, [
-            'createdAfter',
-            'createdBefore',
-            'createdBy',
-            'includePlanRuns',
-            'isCompleted',
-            'milestoneId',
-            'refs',
-            'refsFilter',
-            'suiteId',
-        ]);
-        return collectAllPages<Run>({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async (request) => {
-                const pageOptions: GetRunsOptions = {
-                    ...filters,
-                    // Controlled collectors always resolve both values before
-                    // invoking this adapter; only envelope-driven collectors
-                    // can receive `undefined` request controls.
-                    limit: request.limit as number,
-                    offset: request.offset as number,
-                };
-                const raw = await this.requestRuns(projectId, pageOptions, {
-                    bypassCache: request.bypassCache,
-                    remainingTimeMs: request.remainingTimeMs,
-                    deadlineAt: request.deadlineAt,
-                });
-                return decodePage<Run>('runs', raw);
-            },
-        });
-    }
-
-    private async requestRuns(
-        projectId: number,
-        options?: GetRunsOptions,
-        controls?: PaginationFetchControls,
-    ): Promise<unknown> {
-        validateId(projectId, 'projectId');
-        const {
-            createdAfter,
-            createdBefore,
-            createdBy,
-            includePlanRuns,
-            isCompleted,
-            milestoneId,
-            refs,
-            refsFilter,
-            suiteId,
-            limit,
-            offset,
-        } = options ?? {};
-        validatePaginationParams(limit, offset);
-        const endpoint = buildEndpoint(`get_runs/${projectId}`, {
-            created_after: createdAfter,
-            created_before: createdBefore,
-            created_by: serializeIdFilter(createdBy, 'createdBy'),
-            include_plan_runs: includePlanRuns !== undefined ? (includePlanRuns ? 1 : 0) : undefined,
-            is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-            milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
-            // The current API uses `refs`; pre-10.4 servers use `refs_filter`.
-            // When the deprecated alias is supplied, send both spellings so
-            // the same public option remains effective across server versions.
-            refs: refs ?? refsFilter,
-            refs_filter: refs === undefined ? refsFilter : undefined,
-            suite_id: serializeIdFilter(suiteId, 'suiteId'),
-            limit,
-            offset,
-        });
-        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('runs', RunSchema) : listOf('runs', RunSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
-            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
-            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
-        });
+        return RUNS_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /** @testrail POST add_run/{project_id} */

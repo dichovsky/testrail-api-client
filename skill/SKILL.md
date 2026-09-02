@@ -72,27 +72,27 @@ Compact table legend:
 | `project get` | R | `<project_id>` | - |
 | `project list` | R | - | - |
 | `suite get` | R | `<suite_id>` | - |
-| `suite list` | R | - | - |
+| `suite list` | R | `--project-id <id>` | - |
 | `case get` | R | `<case_id>` | - |
-| `case list` | R | - | - |
+| `case list` | R | `--project-id <id>` | - |
 | `case history` | R | `<case_id>` | - |
 | `case titles` | R | `<case_ids>` | - |
 | `run get` | R | `<run_id>` | - |
-| `run list` | R | - | - |
+| `run list` | R | `--project-id <id>` | - |
 | `run watch` | R | `<run_id>` | - |
 | `test get` | R | `<test_id>` | - |
 | `test list` | R | `<run_id>` | - |
-| `result list` | R | - | - |
+| `result list` | R | `--run-id <id>` | - |
 | `result list-for-test` | R | `<test_id>` | - |
 | `result list-for-case` | R | `<run_id>` `<case_id>` | - |
 | `milestone get` | R | `<milestone_id>` | - |
-| `milestone list` | R | - | - |
+| `milestone list` | R | `--project-id <id>` | - |
 | `user get` | R | `<user_id>` | - |
 | `user list` | R | - | - |
-| `user get-by-email` | R | - | - |
+| `user get-by-email` | R | `--user-email <email>` | - |
 | `user get-current` | R | - | - |
 | `plan get` | R | `<plan_id>` | - |
-| `plan list` | R | - | - |
+| `plan list` | R | `--project-id <id>` | - |
 | `section get` | R | `<section_id>` | - |
 | `section list` | R | `<project_id>` | - |
 | `case add` | W | `<section_id>` | AddCasePayloadSchema |
@@ -100,7 +100,7 @@ Compact table legend:
 | `case update` | W | `<case_id>` | UpdateCasePayloadSchema |
 | `case update-bulk` | W | `<suite_id>` | UpdateCasesPayloadSchema |
 | `case delete` | D | `<case_id>` | none+yes |
-| `case delete-bulk` | D | `<suite_id>` | DeleteCasesPayloadSchema |
+| `case delete-bulk` | D | `<suite_id>` `--project-id <id>` | DeleteCasesPayloadSchema |
 | `case copy-to-section` | W | `<section_id>` | CopyCasesToSectionPayloadSchema |
 | `case move-to-section` | W | `<section_id>` | MoveCasesToSectionPayloadSchema |
 | `run add` | W | `<project_id>` | AddRunPayloadSchema |
@@ -140,7 +140,7 @@ Compact table legend:
 | `user add` | W | - | UserAddPayloadSchema |
 | `user update` | W | `<user_id>` | UserUpdatePayloadSchema |
 | `shared-step get` | R | `<shared_step_id>` | - |
-| `shared-step list` | R | - | - |
+| `shared-step list` | R | `--project-id <id>` | - |
 | `shared-step history` | R | `<shared_step_id>` | - |
 | `report list` | R | `<project_id>` | - |
 | `report run` | R | `<report_template_id>` | - |
@@ -165,17 +165,17 @@ Compact table legend:
 | `attachment list-for-test` | R | `<test_id>` | - |
 | `attachment list-for-plan` | R | `<plan_id>` | - |
 | `attachment list-for-plan-entry` | R | `<plan_id>` `<entry_id>` | - |
-| `attachment get` | R | `<attachment_id>` | out:binary |
-| `attachment add-to-case` | W | `<case_id>` | file |
-| `attachment add-to-result` | W | `<result_id>` | file |
-| `attachment add-to-run` | W | `<run_id>` | file |
-| `attachment add-to-plan` | W | `<plan_id>` | file |
-| `attachment add-to-plan-entry` | W | `<plan_id>` `<entry_id>` | file |
+| `attachment get` | R | `<attachment_id>` `--out <path\|->` | out:binary |
+| `attachment add-to-case` | W | `<case_id>` `--file <path\|->` | file |
+| `attachment add-to-result` | W | `<result_id>` `--file <path\|->` | file |
+| `attachment add-to-run` | W | `<run_id>` `--file <path\|->` | file |
+| `attachment add-to-plan` | W | `<plan_id>` `--file <path\|->` | file |
+| `attachment add-to-plan-entry` | W | `<plan_id>` `<entry_id>` `--file <path\|->` | file |
 | `attachment delete` | D | `<attachment_id>` | none+yes |
-| `bdd get` | R | `<case_id>` | out:text |
-| `bdd list` | R | - | - |
-| `bdd add` | W | `<section_id>` | file |
-| `bdd update` | W | `<case_id>` | file |
+| `bdd get` | R | `<case_id>` `--out <path\|->` | out:text |
+| `bdd list` | R | `--project-id <id>` | - |
+| `bdd add` | W | `<section_id>` `--file <path\|->` | file |
+| `bdd update` | W | `<case_id>` `--file <path\|->` | file |
 | `variable list` | R | `<project_id>` | - |
 | `variable add` | W | `<project_id>` | AddVariablePayloadSchema |
 | `variable update` | W | `<variable_id>` | UpdateVariablePayloadSchema |
@@ -259,18 +259,18 @@ registry as `testrail --help`, so every parser-recognized option is present.
 | `--defects-filter <text>` | result list/list-for-test/list-for-case | Filter results whose defects field contains the supplied substring. |
 | `--data <json>` | Body-bearing write actions | Provide an inline JSON body. Exactly one of --data, --data-file, or piped JSON stdin is required. |
 | `--data-file <path>` | Body-bearing write actions | Read the JSON body from a file; useful for large payloads and secrets. |
-| `--dry-run` | Write actions; run watch | Validate and preview locally without an API call. It bypasses destructive confirmation gates. |
-| `--global` | install-skill; uninstall-skill | Use the user-level skill directory instead of the current project. |
-| `--force` | File-output actions; install-skill | Overwrite an existing output file or installed SKILL.md. |
-| `--print-path` | install-skill | Print the bundled SKILL.md path and exit without installing. |
+| `--dry-run` | Write and file-output actions; run watch | Validate and preview locally without an API call. It bypasses destructive confirmation gates. |
 | `--file <path\|->` | Attachment uploads; bdd add/update | Read upload content from a file, or from piped stdin with '-'. |
 | `--filename <name>` | File-input actions | Override the uploaded filename; defaults to the local basename or stdin. |
 | `--out <path\|->` | attachment get; bdd get | Write downloaded bytes/text to a file, or stream them to stdout with '-'. |
+| `--force` | File-output actions; install-skill | Overwrite an existing output file or installed SKILL.md. |
 | `--yes` | Destructive actions | Per-invocation confirmation; real destructive calls also require TESTRAIL_ALLOW_DESTRUCTIVE=1. |
 | `--soft` | case delete/delete-bulk; run, section, and suite delete | Request TestRail server-side deletion preview. It still calls the API and requires both destructive gates. |
 | `--keep-in-cases <true\|false\|1\|0>` | shared-step delete | Choose whether deleted shared-step content remains in referencing cases; TestRail defaults to true. |
 | `--interval <seconds>` | run watch | Polling interval; default 30, minimum 5, maximum 600. |
 | `--once` | run watch | Poll once and exit instead of waiting for completion. |
+| `--global` | install-skill; uninstall-skill | Use the user-level skill directory instead of the current project. |
+| `--print-path` | install-skill | Print the bundled SKILL.md path and exit without installing. |
 <!-- /GENERATED:option-reference -->
 
 ## Body input for write actions

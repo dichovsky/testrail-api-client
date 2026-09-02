@@ -98,6 +98,7 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
     const errRaw = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
+        actionSpec: { resource: 'attachment', action: 'delete' },
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.file !== undefined && { file: overrides.file }),

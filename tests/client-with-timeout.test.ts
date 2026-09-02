@@ -161,16 +161,11 @@ describe('TestRailClient.withTimeout', () => {
             await expect(view.projects.getProject(1)).rejects.toThrow('after destroy');
         });
 
-        it('view.clearCache() advances the root cache generation and clears the shared cache', async () => {
-            const gen = (o: TestRailClient): number => (o as unknown as { cacheGeneration: number }).cacheGeneration;
+        it('view.clearCache() clears the shared root cache', async () => {
             await client.projects.getProject(1); // populate cache (fetch #1)
-            const before = gen(client);
 
             client.withTimeout(1000).clearCache();
 
-            // The generation advanced on the ROOT (not shadow-written on the view),
-            // so an in-flight GET's stale completion cannot repopulate the cache.
-            expect(gen(client)).toBe(before + 1);
             await client.projects.getProject(1); // cache was cleared → refetch (fetch #2)
             expect(mockFetch).toHaveBeenCalledTimes(2);
         });

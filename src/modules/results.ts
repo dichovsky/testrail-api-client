@@ -1,181 +1,134 @@
+import { z } from 'zod';
 import { TestRailClientCore } from '../client-core.js';
-import type { Result, GetResultsForRunOptions, GetResultsOptions } from '../types.js';
+import { TestRailValidationError } from '../errors.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import type { AddResultPayload, AddResultsForCasesPayload, AddResultsPayload, EditResultPayload } from '../schemas.js';
 import { ResultSchema } from '../schemas.js';
-import { TestRailValidationError } from '../errors.js';
+import type { GetResultsForRunOptions, GetResultsOptions, Result } from '../types.js';
 import { serializeIdList } from '../utils.js';
-import { z } from 'zod';
-import { validateId, validatePaginationParams } from '../validation.js';
-import { buildEndpoint } from '../url.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { validateId } from '../validation.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export interface GetAllResultsOptions extends Omit<GetResultsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
 
 export interface GetAllResultsForRunOptions
     extends Omit<GetResultsForRunOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+interface ResultsPaginationArgs {
+    readonly operation: 'get_results';
+    readonly testId: number;
+}
+
+interface ResultsForCasePaginationArgs {
+    readonly operation: 'get_results_for_case';
+    readonly runId: number;
+    readonly caseId: number;
+}
+
+interface ResultsForRunPaginationArgs {
+    readonly operation: 'get_results_for_run';
+    readonly runId: number;
+}
+
+type ResultPaginationArgs = ResultsPaginationArgs | ResultsForCasePaginationArgs | ResultsForRunPaginationArgs;
+
+export const RESULTS_PAGINATION = createPaginatedListExecutor<
+    ResultPaginationArgs,
+    GetResultsForRunOptions,
+    GetAllResultsForRunOptions,
+    Result
+>({
+    operations: ['get_results', 'get_results_for_case', 'get_results_for_run'],
+    collectionKey: 'results',
+    itemSchema: ResultSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: (args, options) => {
+        let pathParameters: readonly number[];
+        switch (args.operation) {
+            case 'get_results':
+                validateId(args.testId, 'testId');
+                pathParameters = [args.testId];
+                break;
+            case 'get_results_for_case':
+                validateId(args.runId, 'runId');
+                validateId(args.caseId, 'caseId');
+                pathParameters = [args.runId, args.caseId];
+                break;
+            case 'get_results_for_run':
+                validateId(args.runId, 'runId');
+                pathParameters = [args.runId];
+                break;
+        }
+
+        const includeCreatedFilters = args.operation === 'get_results_for_run';
+        const createdAfter = includeCreatedFilters ? (options?.createdAfter ?? options?.created_after) : undefined;
+        const createdBefore = includeCreatedFilters ? (options?.createdBefore ?? options?.created_before) : undefined;
+        const createdBy = includeCreatedFilters ? (options?.createdBy ?? options?.created_by) : undefined;
+        const statusId = options?.statusId ?? options?.status_id;
+        if (createdBy !== undefined) createdBy.forEach((userId) => validateId(userId, 'createdBy'));
+        if (statusId !== undefined) statusId.forEach((id) => validateId(id, 'statusId'));
+
+        return {
+            operation: args.operation,
+            pathParameters,
+            query: {
+                created_after: createdAfter,
+                created_before: createdBefore,
+                created_by: serializeIdList(createdBy),
+                status_id: serializeIdList(statusId),
+                defects_filter: options?.defectsFilter ?? options?.defects_filter,
+            },
+        };
+    },
+});
 
 export class ResultModule {
     constructor(private readonly client: TestRailClientCore) {}
 
     /** @testrail GET get_results/{test_id} */
     async getResults(testId: number, options?: GetResultsOptions): Promise<Result[]> {
-        validateId(testId, 'testId');
-        return unwrapList<Result>('results', await this.requestResultsPage(`get_results/${testId}`, options));
+        return RESULTS_PAGINATION.items(this.client, { operation: 'get_results', testId }, options);
     }
 
     /** Fetch one normalized results-for-test page. */
     async getResultsPage(testId: number, options?: GetResultsOptions): Promise<Page<Result>> {
-        validateId(testId, 'testId');
-        return decodePage<Result>(
-            'results',
-            await this.requestResultsPage(`get_results/${testId}`, options, false, { pageProjection: true }),
-        );
+        return RESULTS_PAGINATION.page(this.client, { operation: 'get_results', testId }, options);
     }
 
     /** Fetch every results-for-test page under explicit aggregate safety bounds. */
     async getAllResults(testId: number, options?: GetAllResultsOptions): Promise<Result[]> {
-        validateId(testId, 'testId');
-        return this.collectResults(`get_results/${testId}`, options, false);
+        return RESULTS_PAGINATION.all(this.client, { operation: 'get_results', testId }, options);
     }
 
     /** @testrail GET get_results_for_case/{run_id}/{case_id} */
     async getResultsForCase(runId: number, caseId: number, options?: GetResultsOptions): Promise<Result[]> {
-        validateId(runId, 'runId');
-        validateId(caseId, 'caseId');
-        return unwrapList<Result>(
-            'results',
-            await this.requestResultsPage(`get_results_for_case/${runId}/${caseId}`, options),
-        );
+        return RESULTS_PAGINATION.items(this.client, { operation: 'get_results_for_case', runId, caseId }, options);
     }
 
     /** Fetch one normalized results-for-case page. */
     async getResultsForCasePage(runId: number, caseId: number, options?: GetResultsOptions): Promise<Page<Result>> {
-        validateId(runId, 'runId');
-        validateId(caseId, 'caseId');
-        return decodePage<Result>(
-            'results',
-            await this.requestResultsPage(`get_results_for_case/${runId}/${caseId}`, options, false, {
-                pageProjection: true,
-            }),
-        );
+        return RESULTS_PAGINATION.page(this.client, { operation: 'get_results_for_case', runId, caseId }, options);
     }
 
     /** Fetch every results-for-case page under explicit aggregate safety bounds. */
     async getAllResultsForCase(runId: number, caseId: number, options?: GetAllResultsOptions): Promise<Result[]> {
-        validateId(runId, 'runId');
-        validateId(caseId, 'caseId');
-        return this.collectResults(`get_results_for_case/${runId}/${caseId}`, options, false);
+        return RESULTS_PAGINATION.all(this.client, { operation: 'get_results_for_case', runId, caseId }, options);
     }
 
     /** @testrail GET get_results_for_run/{run_id} */
     async getResultsForRun(runId: number, options?: GetResultsForRunOptions): Promise<Result[]> {
-        validateId(runId, 'runId');
-        return unwrapList<Result>(
-            'results',
-            await this.requestResultsPage(`get_results_for_run/${runId}`, options, true),
-        );
+        return RESULTS_PAGINATION.items(this.client, { operation: 'get_results_for_run', runId }, options);
     }
 
     /** Fetch one normalized results-for-run page. */
     async getResultsForRunPage(runId: number, options?: GetResultsForRunOptions): Promise<Page<Result>> {
-        validateId(runId, 'runId');
-        return decodePage<Result>(
-            'results',
-            await this.requestResultsPage(`get_results_for_run/${runId}`, options, true, { pageProjection: true }),
-        );
+        return RESULTS_PAGINATION.page(this.client, { operation: 'get_results_for_run', runId }, options);
     }
 
     /** Fetch every results-for-run page under explicit aggregate safety bounds. */
     async getAllResultsForRun(runId: number, options?: GetAllResultsForRunOptions): Promise<Result[]> {
-        validateId(runId, 'runId');
-        return this.collectResults(`get_results_for_run/${runId}`, options, true);
-    }
-
-    private async collectResults(
-        endpointBase: string,
-        options: GetAllResultsForRunOptions | undefined,
-        includeCreatedFilters: boolean,
-    ): Promise<Result[]> {
-        const filters = snapshotOptionFields(options, [
-            'statusId',
-            'defectsFilter',
-            'status_id',
-            'defects_filter',
-            ...(includeCreatedFilters
-                ? ([
-                      'createdAfter',
-                      'createdBefore',
-                      'createdBy',
-                      'created_after',
-                      'created_before',
-                      'created_by',
-                  ] as const)
-                : []),
-        ]);
-        return collectAllPages({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
-                decodePage<Result>(
-                    'results',
-                    await this.requestResultsPage(
-                        endpointBase,
-                        {
-                            ...filters,
-                            ...(limit !== undefined && { limit }),
-                            ...(offset !== undefined && { offset }),
-                        },
-                        includeCreatedFilters,
-                        { bypassCache, remainingTimeMs, deadlineAt },
-                    ),
-                ),
-        });
-    }
-
-    private async requestResultsPage(
-        endpointBase: string,
-        options: GetResultsForRunOptions | undefined,
-        includeCreatedFilters = false,
-        transport?: PageTransportOptions,
-    ): Promise<unknown> {
-        validatePaginationParams(options?.limit, options?.offset);
-        const createdAfter = includeCreatedFilters ? (options?.createdAfter ?? options?.created_after) : undefined;
-        const createdBefore = includeCreatedFilters ? (options?.createdBefore ?? options?.created_before) : undefined;
-        const createdBy = includeCreatedFilters ? (options?.createdBy ?? options?.created_by) : undefined;
-        const statusId = options?.statusId ?? options?.status_id;
-        if (createdBy !== undefined) {
-            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
-        }
-        if (statusId !== undefined) {
-            statusId.forEach((id) => validateId(id, 'statusId'));
-        }
-        const defectsFilter = options?.defectsFilter ?? options?.defects_filter;
-        const endpoint = buildEndpoint(endpointBase, {
-            created_after: createdAfter,
-            created_before: createdBefore,
-            created_by: serializeIdList(createdBy),
-            status_id: serializeIdList(statusId),
-            defects_filter: defectsFilter,
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('results', ResultSchema) : listOf('results', ResultSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
-            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
-            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
-        });
+        return RESULTS_PAGINATION.all(this.client, { operation: 'get_results_for_run', runId }, options);
     }
 
     /** @testrail POST add_result/{test_id} */
@@ -224,8 +177,7 @@ export class ResultModule {
     }
 
     /**
-     * Partially update an existing result (TestRail 10.4+). Only supplied
-     * standard or `custom_*` fields are changed by TestRail.
+     * Partially update an existing result (TestRail 10.4+).
      * @testrail POST edit_result/{result_id}
      */
     async editResult(resultId: number, payload: EditResultPayload): Promise<Result> {

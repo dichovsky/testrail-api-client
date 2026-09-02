@@ -4,6 +4,8 @@
  * script's top-level filesystem side effects.
  */
 
+import { getCliFlagUsage, type ActionSpecFlagName } from '../src/cli/flags.js';
+
 interface ActionLike {
     resource: string;
     action: string;
@@ -14,6 +16,7 @@ interface ActionLike {
     outputKind?: 'binary' | 'text';
     destructive?: boolean;
     pathParams: readonly { name: string }[];
+    flags?: readonly { name: ActionSpecFlagName; required?: boolean }[];
 }
 
 interface CliOptionDocumentationLike {
@@ -87,12 +90,17 @@ export function schemaNameFor(spec: { resource: string; action: string }): strin
 }
 
 function renderPathArgs(spec: ActionLike): string {
-    if (spec.pathParams.length === 0) return '-';
+    const requiredFlags = (spec.flags ?? [])
+        .filter(({ required }) => required === true)
+        .map(({ name }) => `\`${escapeMarkdownTableCell(getCliFlagUsage(name))}\``);
     // Wrap each `<arg>` in a backtick code span so Markdown renderers
     // don't interpret the angle brackets as an HTML tag (which would
     // make the arg invisible or trigger HTML sanitization). The code
-    // span keeps the placeholder visible AND verbatim.
-    return spec.pathParams.map((p) => `\`<${p.name}>\``).join(' ');
+    // span keeps the placeholder visible AND verbatim. Required flag inputs
+    // come from the same ActionSpec declarations used by pre-auth validation
+    // and CLI help, so the generated skill cannot omit an action prerequisite.
+    const args = [...spec.pathParams.map((p) => `\`<${p.name}>\``), ...requiredFlags];
+    return args.length === 0 ? '-' : args.join(' ');
 }
 
 function inputLabel(spec: ActionLike): string {

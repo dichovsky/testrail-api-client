@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
 import type { PaginatedRequestOptions, PaginationSafetyOptions } from '../src/pagination.js';
-import { snapshotPaginatedRequestOptions, snapshotPaginationSafetyOptions } from '../src/modules/pagination-options.js';
+import {
+    snapshotOptionFields,
+    snapshotPaginatedRequestOptions,
+    snapshotPaginationSafetyOptions,
+} from '../src/modules/pagination-options.js';
 import { createClient, mockOk } from './helpers.js';
 
 const mockFetch = vi.fn();
@@ -68,6 +72,22 @@ const poisonedSafetyOptions: WiderSafetyOptions = {
     fetchPage: () => Promise.reject(new Error('injected fetchPage must not run')),
 };
 
+type WiderDirectControls = {
+    readonly limit: -1;
+    readonly offset: -1;
+    readonly unknownControl: unknown;
+};
+
+function withIgnoredDirectControls<Options extends object>(options: Options): Options & WiderDirectControls {
+    const wider = { ...options, limit: -1 as const, offset: -1 as const };
+    return Object.defineProperty(wider, 'unknownControl', {
+        enumerable: true,
+        get: () => {
+            throw new Error('unknown aggregate option getter must not be read');
+        },
+    }) as Options & WiderDirectControls;
+}
+
 interface ControlledAdapter {
     readonly name: string;
     readonly endpoint: string;
@@ -90,6 +110,7 @@ const controlledAdapters: readonly ControlledAdapter[] = [
         endpoint: 'get_attachments_for_plan/1',
         all: (client, options) => client.attachments.getAllAttachmentsForPlan(1, options),
     },
+    { name: 'BDD entries', endpoint: 'get_bdds/1', all: (client, options) => client.bdd.getAllBdds(1, options) },
     { name: 'cases', endpoint: 'get_cases/1', all: (client, options) => client.cases.getAllCases(1, options) },
     {
         name: 'case history',
@@ -188,6 +209,14 @@ describe('aggregate adapter option isolation', () => {
         });
     });
 
+    it('clones array-valued endpoint filters when taking an aggregate snapshot', () => {
+        const source = { statusIds: [1, 2] };
+        const snapshot = snapshotOptionFields(source, ['statusIds']);
+
+        source.statusIds.push(3);
+        expect(snapshot).toEqual({ statusIds: [1, 2] });
+    });
+
     it.each(controlledAdapters)(
         '$name rejects injected request-control mode and uses public controls',
         async (adapter) => {
@@ -217,6 +246,34 @@ describe('aggregate adapter option isolation', () => {
             expect(url).not.toContain('offset=');
         },
     );
+
+    it.each(controlledAdapters)(
+        '$name ignores wider direct limit/offset and does not enumerate unknown fields',
+        async (adapter) => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+            const options = withIgnoredDirectControls(poisonedControlledOptions);
+
+            await expect(adapter.all(client, options)).resolves.toEqual([]);
+
+            const [url] = requestedUrls();
+            expect(url).toContain('limit=7');
+            expect(url).toContain('offset=4');
+        },
+    );
+
+    it.each(responseDrivenAdapters)(
+        '$name ignores wider direct limit/offset and does not enumerate unknown fields',
+        async (adapter) => {
+            mockFetch.mockResolvedValueOnce(mockOk([]));
+            const options = withIgnoredDirectControls(poisonedSafetyOptions);
+
+            await expect(adapter.all(client, options)).resolves.toEqual([]);
+
+            const [url] = requestedUrls();
+            expect(url).not.toContain('limit=');
+            expect(url).not.toContain('offset=');
+        },
+    );
 });
 
 interface FilterSnapshot {
@@ -234,6 +291,24 @@ interface FilterAdapter {
 }
 
 const filterAdapters: readonly FilterAdapter[] = [
+    {
+        name: 'BDD entries',
+        key: 'bdd',
+        endpoint: 'get_bdds/1',
+        start: (client) => {
+            const options = { suiteId: 1, labelId: [7], refs: ['ENG-101'], ...BOUNDS };
+            return {
+                promise: client.bdd.getAllBdds(1, options),
+                mutate: () => {
+                    options.suiteId = 2;
+                    options.labelId.push(8);
+                    options.refs.push('ENG-102');
+                },
+                expected: ['suite_id=1', 'label_id=7', 'refs[]=ENG-101'],
+                rejected: ['suite_id=2', 'label_id=7,8', 'refs[]=ENG-102'],
+            };
+        },
+    },
     {
         name: 'cases',
         key: 'cases',

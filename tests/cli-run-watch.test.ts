@@ -76,6 +76,7 @@ function buildCtx(
     const out = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
+        actionSpec: { resource: 'run', action: 'watch' },
         args: {
             pathParams: overrides.pathParams ?? ['42'],
             ...(overrides.interval !== undefined && { interval: overrides.interval }),
@@ -652,6 +653,7 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
         const out = vi.fn();
         const ctx = {
             client: { runs: { getRun } } as unknown as TestRailClient,
+            actionSpec: { resource: 'run', action: 'watch' },
             args: { pathParams: ['42'] },
             pagination: { mode: 'items' as const },
             bodyInput: {},

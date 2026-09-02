@@ -12,18 +12,47 @@ import {
     type UpdateRunInPlanEntryPayload,
 } from '../schemas.js';
 import { serializeIdList } from '../utils.js';
-import { validateId, validateEntryId, validatePaginationParams } from '../validation.js';
-import { buildEndpoint } from '../url.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { validateId, validateEntryId } from '../validation.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export type GetAllPlansOptions = Omit<GetPlansOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+export const PLANS_PAGINATION = createPaginatedListExecutor<
+    { readonly projectId: number },
+    GetPlansOptions,
+    GetAllPlansOptions,
+    Plan
+>({
+    operations: ['get_plans'],
+    collectionKey: 'plans',
+    itemSchema: PlanSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ projectId }, options) => {
+        validateId(projectId, 'projectId');
+        const createdAfter = options?.createdAfter ?? options?.created_after;
+        const createdBefore = options?.createdBefore ?? options?.created_before;
+        const createdBy = options?.createdBy ?? options?.created_by;
+        const milestoneId = options?.milestoneId ?? options?.milestone_id;
+        if (createdBy !== undefined) createdBy.forEach((userId) => validateId(userId, 'createdBy'));
+        if (milestoneId !== undefined) milestoneId.forEach((id) => validateId(id, 'milestoneId'));
+        const isCompleted =
+            options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
+        return {
+            operation: 'get_plans',
+            pathParameters: [projectId],
+            query: {
+                created_after: createdAfter,
+                created_before: createdBefore,
+                created_by: serializeIdList(createdBy),
+                is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
+                milestone_id: serializeIdList(milestoneId),
+                refs: options?.refs,
+            },
+        };
+    },
+});
 
 export class PlanModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -36,87 +65,17 @@ export class PlanModule {
 
     /** @testrail GET get_plans/{project_id} */
     async getPlans(projectId: number, options?: GetPlansOptions): Promise<Plan[]> {
-        return unwrapList<Plan>('plans', await this.requestPlans(projectId, options));
+        return PLANS_PAGINATION.items(this.client, { projectId }, options);
     }
 
     /** Get one response page, preserving TestRail's pagination metadata when present. */
     async getPlansPage(projectId: number, options?: GetPlansOptions): Promise<Page<Plan>> {
-        return decodePage<Plan>('plans', await this.requestPlans(projectId, options, { pageProjection: true }));
+        return PLANS_PAGINATION.page(this.client, { projectId }, options);
     }
 
     /** Get every plan under the configured pagination safety bounds. */
     async getAllPlans(projectId: number, options?: GetAllPlansOptions): Promise<Plan[]> {
-        const filters = snapshotOptionFields(options, [
-            'createdAfter',
-            'createdBefore',
-            'createdBy',
-            'isCompleted',
-            'milestoneId',
-            'refs',
-            'created_after',
-            'created_before',
-            'created_by',
-            'is_completed',
-            'milestone_id',
-        ]);
-        return collectAllPages<Plan>({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async (request) => {
-                const pageOptions: GetPlansOptions = {
-                    ...filters,
-                    limit: request.limit as number,
-                    offset: request.offset as number,
-                };
-                const raw = await this.requestPlans(projectId, pageOptions, {
-                    bypassCache: request.bypassCache,
-                    remainingTimeMs: request.remainingTimeMs,
-                    deadlineAt: request.deadlineAt,
-                });
-                return decodePage<Plan>('plans', raw);
-            },
-        });
-    }
-
-    private async requestPlans(
-        projectId: number,
-        options?: GetPlansOptions,
-        controls?: PaginationFetchControls,
-    ): Promise<unknown> {
-        validateId(projectId, 'projectId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const createdAfter = options?.createdAfter ?? options?.created_after;
-        const createdBefore = options?.createdBefore ?? options?.created_before;
-        const createdBy = options?.createdBy ?? options?.created_by;
-        const milestoneId = options?.milestoneId ?? options?.milestone_id;
-        if (createdBy !== undefined) {
-            createdBy.forEach((userId) => validateId(userId, 'createdBy'));
-        }
-        if (milestoneId !== undefined) {
-            milestoneId.forEach((id) => validateId(id, 'milestoneId'));
-        }
-        const isCompleted =
-            options?.isCompleted ?? (options?.is_completed !== undefined ? options.is_completed === 1 : undefined);
-        const endpoint = buildEndpoint(`get_plans/${projectId}`, {
-            created_after: createdAfter,
-            created_before: createdBefore,
-            created_by: serializeIdList(createdBy),
-            is_completed: isCompleted !== undefined ? (isCompleted ? 1 : 0) : undefined,
-            milestone_id: serializeIdList(milestoneId),
-            refs: options?.refs,
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('plans', PlanSchema) : listOf('plans', PlanSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
-            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
-            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
-        });
+        return PLANS_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /** @testrail POST add_plan/{project_id} */

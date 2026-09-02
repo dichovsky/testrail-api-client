@@ -3,10 +3,10 @@ import { ACTIONS } from './metadata.js';
 import type { ActionSpec } from './metadata/types.js';
 
 /**
- * Single source of truth: every supported resource:action mapped to its handler.
+ * Single source of truth: every supported resource:action maps to its spec.
  *
  * PR-C promoted `ACTIONS` to the registry. Each `ActionSpec` carries its own
- * `handler` reference, so the dispatch map is derived from the metadata array
+ * `handler` reference, so the action map is derived from the metadata array
  * at module load. Adding an action is a one-line change to the relevant
  * `src/cli/metadata/{resource}.ts` entry — no parallel registry to keep in sync
  * and no test required to enforce correspondence (the TypeScript compiler does).
@@ -14,8 +14,8 @@ import type { ActionSpec } from './metadata/types.js';
  * Insertion order matches `ACTIONS`, which preserves the canonical display
  * order used by error messages (`get` before `list`, etc.).
  */
-const HANDLERS: Record<string, Handler> = Object.fromEntries(
-    ACTIONS.map((a) => [`${a.resource}:${a.action}`, a.handler]),
+const ACTION_SPECS: Record<string, ActionSpec> = Object.fromEntries(
+    ACTIONS.map((spec) => [`${spec.resource}:${spec.action}`, spec]),
 );
 
 const RESOURCES: Record<string, readonly string[]> = (() => {
@@ -26,15 +26,14 @@ const RESOURCES: Record<string, readonly string[]> = (() => {
     return grouped;
 })();
 
-export type DispatchResult = { ok: true; handler: Handler } | { ok: false; error: string };
+export type DispatchResult = { ok: true; spec: ActionSpec; handler: Handler } | { ok: false; error: string };
 
 /**
- * Returns every registered `resource:action` key. Used by the
- * metadata↔dispatch consistency tests to catch handlers added without a
- * matching metadata entry — the inverse of the metadata-first check.
+ * Returns every registered `resource:action` key. Used by the registry smoke
+ * tests to catch duplicate keys collapsing in the derived lookup map.
  */
 export function getRegisteredActions(): readonly string[] {
-    return Object.keys(HANDLERS);
+    return Object.keys(ACTION_SPECS);
 }
 
 /**
@@ -147,13 +146,13 @@ export function checkPathParamCount(spec: ActionSpec | undefined, pathParams: re
 }
 
 export function dispatch(resource: string, action: string): DispatchResult {
-    // Look the handler up directly first. HANDLERS keys are `${resource}:${action}`
+    // Look the action up directly first. Registry keys are `${resource}:${action}`
     // — the colon means a key can never collide with an Object.prototype member
     // (`toString`, `__proto__`, …), so no `hasOwn` guard is needed here, and a
     // hit is the common success path.
-    const handler = HANDLERS[`${resource}:${action}`];
-    if (handler !== undefined) {
-        return { ok: true, handler };
+    const spec = ACTION_SPECS[`${resource}:${action}`];
+    if (spec !== undefined) {
+        return { ok: true, spec, handler: spec.handler };
     }
 
     // Miss: disambiguate the error. An unknown resource lists the valid

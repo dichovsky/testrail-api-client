@@ -2,7 +2,7 @@
  * Direct unit tests for the CLI write-handler factories in
  * src/cli/write-handler-factory.ts. The handlers built on these factories are
  * also tested through tests/cli-write-handlers.test.ts; these tests target the
- * factory branches in isolation (every softMode/kind combination, the
+ * factory branches in isolation (every ActionSpec softMode/kind combination, the
  * previewExtras / formatOutput / allowEmptyBody / entryParam options, and the
  * error/gate paths) so the shared infrastructure is covered on its own terms.
  */
@@ -20,12 +20,19 @@ interface CtxOverrides {
     dryRun?: boolean;
     confirmDestructive?: boolean;
     soft?: boolean;
+    action?: string;
+    softMode?: 'optional' | 'reject';
 }
 
 function makeCtx(overrides: CtxOverrides = {}): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
     const out = vi.fn();
     const ctx = {
         client: {} as TestRailClient,
+        actionSpec: {
+            resource: 'thing',
+            action: overrides.action ?? 'delete',
+            ...(overrides.softMode !== undefined && { softMode: overrides.softMode }),
+        },
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.soft !== undefined && { soft: overrides.soft }),
@@ -219,10 +226,14 @@ describe('createDestructiveHandler', () => {
         const handler = createDestructiveHandler({
             action: 'thing delete',
             pathParams: ['thing_id'],
-            softMode: 'optional',
             call,
         });
-        const { ctx, out } = makeCtx({ pathParams: ['8'], soft: true, confirmDestructive: true });
+        const { ctx, out } = makeCtx({
+            pathParams: ['8'],
+            soft: true,
+            softMode: 'optional',
+            confirmDestructive: true,
+        });
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [8], '', true);
         expect(out).toHaveBeenCalledWith({ thingId: 8, soft: true, deleted: false, preview: { affected_cases: 3 } });
@@ -233,10 +244,9 @@ describe('createDestructiveHandler', () => {
         const handler = createDestructiveHandler({
             action: 'thing delete',
             pathParams: ['thing_id'],
-            softMode: 'optional',
             call,
         });
-        const { ctx, out } = makeCtx({ pathParams: ['8'], confirmDestructive: true });
+        const { ctx, out } = makeCtx({ pathParams: ['8'], softMode: 'optional', confirmDestructive: true });
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [8], '', false);
         expect(out).toHaveBeenCalledWith({ thingId: 8, soft: false, deleted: true });
@@ -246,10 +256,9 @@ describe('createDestructiveHandler', () => {
         const handler = createDestructiveHandler({
             action: 'thing delete',
             pathParams: ['thing_id'],
-            softMode: 'optional',
             call: vi.fn(),
         });
-        const { ctx, out } = makeCtx({ pathParams: ['8'], soft: true, dryRun: true });
+        const { ctx, out } = makeCtx({ pathParams: ['8'], soft: true, softMode: 'optional', dryRun: true });
         await handler(ctx);
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
@@ -260,16 +269,15 @@ describe('createDestructiveHandler', () => {
         });
     });
 
-    it('kind close (softMode ignore): emits the returned entity, ignores --soft', async () => {
+    it('kind close: emits the returned entity when --soft is absent', async () => {
         const call = vi.fn().mockResolvedValue({ id: 8, is_completed: true });
         const handler = createDestructiveHandler({
             action: 'thing close',
             pathParams: ['thing_id'],
-            softMode: 'ignore',
             kind: 'close',
             call,
         });
-        const { ctx, out } = makeCtx({ pathParams: ['8'], soft: true, confirmDestructive: true });
+        const { ctx, out } = makeCtx({ pathParams: ['8'], action: 'close', confirmDestructive: true });
         await handler(ctx);
         expect(call).toHaveBeenCalledWith(ctx.client, [8], '', false);
         expect(out).toHaveBeenCalledWith({ id: 8, is_completed: true });

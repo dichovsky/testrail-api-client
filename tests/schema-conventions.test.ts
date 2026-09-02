@@ -86,10 +86,10 @@ function extractAllSchemaBlocks(source: string): { name: string; body: string }[
 
 /**
  * Schemas that live in `src/schemas/` but describe caller-supplied *input*
- * rather than a TestRail response. Both are legitimately strict: they guard a
+ * rather than a TestRail response. They are legitimately strict: they guard a
  * trust boundary, so `.optional()` and format validators are correct on them.
  */
-const NON_RESPONSE_SCHEMAS = new Set(['TestRailConfigSchema', 'PaginationSchema']);
+const NON_RESPONSE_SCHEMAS = new Set(['TestRailConfigSchema', 'PaginationRequestSchema', 'PaginationSchema']);
 
 /** Every schema that models a TestRail **response** body. */
 function isResponseSchema(name: string): boolean {

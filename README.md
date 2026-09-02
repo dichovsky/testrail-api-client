@@ -92,11 +92,11 @@ Prefer `TESTRAIL_API_KEY`. If an environment variable is not an option, pipe the
 
 | Capability         | What it does                                                                         | Documented in                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Response caching   | GET-only in-process LRU cache with TTL; any write invalidates it                     | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-lru-cache)                             |
+| Response caching   | GET-only in-process LRU cache with TTL; any write invalidates it                     | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-request-cache)                         |
 | Bounded pagination | Preserve page metadata or collect every page with explicit safety limits             | [Pagination](#pagination)                                                                                                                             |
 | Rate limiting      | Sliding-window limiter (default 100 req/60s); rejects over-limit before fetch        | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
 | Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, writes only 429 | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
-| SSRF guard         | Per-request DNS pin, private-host blocking, manual-redirect rejection                | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
+| SSRF guard         | DNS validation per upstream fetch, private-host blocking, manual-redirect rejection  | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
 | Response-body caps | Byte ceiling + wall-clock deadline on every body read                                | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
 | Streaming uploads  | Attachment uploads stream from disk, so large files don't buffer in heap             | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
 | CLI                | `testrail` binary: read / write / destructive actions, four output formats           | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
@@ -139,7 +139,7 @@ const client = new TestRailClient({
 | `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10 |
 | `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                      |
 | `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                   |
-| `cacheCleanupInterval`    | `number`            | `60000`            | Cache cleanup interval (0 to disable)                |
+| `cacheCleanupInterval`    | `number`            | `60000`            | Integer 0–2,147,483,647 ms; 0 disables cleanup       |
 | `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in cache                   |
 | `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window           |
 | `allowInsecure`           | `boolean`           | `false`            | Permit cleartext HTTP (credentials sent in Base64)   |
@@ -170,13 +170,19 @@ const all = await client.runs.getAllRuns(5, { pageSize: 100, maxItems: 10_000 })
 ```
 
 An envelope's `_links.next` decides whether another request is required. The
-client extracts only a validated `offset` and optional `limit`, then rebuilds
-the known TestRail endpoint with the original filters; it never follows the
-link's host or path. A legacy bare-array response is necessarily one terminal
-page. All-page reads bypass GET cache reads, writes, and request coalescing so
-one aggregate cannot combine pages captured at different times. A page read
-uses normal GET caching in a separate validated namespace, so a permissive
-legacy one-response wrapper cannot poison the stricter `Page<T>` projection.
+client extracts only a validated `offset` and optional `limit`. Each descriptor
+declares its allowed operation names; its adapter supplies one selected
+operation, validated numeric path parameters, and normalized filters. The
+shared executor rejects undeclared operations and rebuilds the known TestRail
+endpoint itself, so it never follows the continuation's host or path. A legacy
+bare-array response is necessarily one terminal page. All-page reads bypass GET
+cache reads, writes, and request coalescing so one aggregate cannot combine
+pages captured at different times. They also do not enumerate wider runtime
+option objects: only declared filters and public aggregate controls are read,
+while injected `limit`/`offset`, internal collector fields, and unrelated
+properties are ignored. A page read uses normal GET caching in a separate
+validated namespace, so a permissive legacy one-response wrapper cannot poison
+the stricter `Page<T>` projection.
 
 Aggregation is fail-closed and never returns partial results. Defaults are a
 page size of 250, start offset 0, 100 pages, 25,000 items, five minutes, and

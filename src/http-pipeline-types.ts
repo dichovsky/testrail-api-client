@@ -31,19 +31,6 @@ export type BodyShape =
     | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: () => void }> };
 
 /**
- * Cache participation for a pipeline invocation.
- *
- * - `key === undefined` disables both read and write.
- * - `skipRead === true` bypasses the cache-read and coalesce check but still
- *   allows a cache-write on success. Used on retry to avoid a deadlock where
- *   the retry looks up `pendingRequests` and finds the still-pending parent.
- */
-export interface CachePolicy {
-    readonly key: string | undefined;
-    readonly skipRead: boolean;
-}
-
-/**
  * Full spec for one pipeline execution. The public `request<T>(spec)` method
  * builds this and delegates to `executePipeline()`.
  */
@@ -72,7 +59,6 @@ export interface PipelineSpec<TParsed> {
      */
     readonly sendJsonContentType: boolean;
     readonly retryPolicy: RetryPolicy;
-    readonly cache: CachePolicy;
     /** Parses the successful Response body into the caller's return type. */
     parseSuccess(response: Response): Promise<TParsed>;
     /**

@@ -326,6 +326,8 @@ interface CtxOverrides {
     keepInCases?: string;
     soft?: boolean;
     confirmDestructive?: boolean;
+    action?: string;
+    softMode?: 'optional' | 'reject';
 }
 
 function buildCtx(
@@ -333,8 +335,15 @@ function buildCtx(
     overrides: CtxOverrides = {},
 ): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
     const out = vi.fn();
+    const [resource = 'test', ...actionParts] = overrides.action?.split(' ') ?? [];
+    const action = actionParts.length > 0 ? actionParts.join(' ') : 'write';
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
+        actionSpec: {
+            resource,
+            action,
+            ...(overrides.softMode !== undefined && { softMode: overrides.softMode }),
+        },
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),
@@ -545,6 +554,8 @@ describe('handleCaseDeleteBulk', () => {
             projectId: '9',
             confirmDestructive: true,
             soft: true,
+            action: 'case delete-bulk',
+            softMode: 'optional',
             dataFlag: '{"case_ids":[1]}',
         });
         await handleCaseDeleteBulk(ctx);
@@ -614,6 +625,8 @@ describe('handleCaseDeleteBulk', () => {
             confirmDestructive: true,
             soft: true,
             dryRun: true,
+            action: 'case delete-bulk',
+            softMode: 'optional',
             dataFlag: '{"case_ids":[1]}',
         });
         await handleCaseDeleteBulk(ctx);
@@ -1637,7 +1650,12 @@ describe('handlePlanClose', () => {
 
     it('rejects --soft (TestRail does not support soft on close_plan)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['50'], soft: true, confirmDestructive: true });
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50'],
+            soft: true,
+            confirmDestructive: true,
+            action: 'plan close',
+        });
         await expect(handlePlanClose(ctx)).rejects.toThrow(/plan close does not support --soft/);
         expect(client.plans.closePlan).not.toHaveBeenCalled();
     });
@@ -1696,7 +1714,12 @@ describe('handlePlanDelete', () => {
 
     it('rejects --soft (TestRail does not support soft on delete_plan)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['50'], soft: true, confirmDestructive: true });
+        const { ctx } = buildCtx(client, {
+            pathParams: ['50'],
+            soft: true,
+            confirmDestructive: true,
+            action: 'plan delete',
+        });
         await expect(handlePlanDelete(ctx)).rejects.toThrow(/plan delete does not support --soft/);
         expect(client.plans.deletePlan).not.toHaveBeenCalled();
     });
@@ -1806,6 +1829,7 @@ describe('handlePlanDeleteEntry', () => {
             pathParams: ['50', 'e3c55bbb-1f02-4d4f-b38b-5a0eac3d7b56'],
             soft: true,
             confirmDestructive: true,
+            action: 'plan delete-entry',
         });
         await expect(handlePlanDeleteEntry(ctx)).rejects.toThrow(/plan delete-entry does not support --soft/);
         expect(client.plans.deletePlanEntry).not.toHaveBeenCalled();
@@ -1818,7 +1842,10 @@ describe('handlePlanDeleteEntry', () => {
 describe('handlePlanDeleteRunFromEntry', () => {
     it('calls client.deleteRunFromPlanEntry with the parsed run_id when --yes is passed', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['42'],
+            confirmDestructive: true,
+        });
         await handlePlanDeleteRunFromEntry(ctx);
         expect(client.plans.deleteRunFromPlanEntry).toHaveBeenCalledWith(42);
         expect(out).toHaveBeenCalledWith({ runId: 42, deleted: true });
@@ -1869,7 +1896,12 @@ describe('handlePlanDeleteRunFromEntry', () => {
 
     it('rejects --soft (TestRail does not support soft on delete_run_from_plan_entry)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['42'], soft: true, confirmDestructive: true });
+        const { ctx } = buildCtx(client, {
+            pathParams: ['42'],
+            soft: true,
+            confirmDestructive: true,
+            action: 'plan delete-run-from-entry',
+        });
         await expect(handlePlanDeleteRunFromEntry(ctx)).rejects.toThrow(
             /plan delete-run-from-entry does not support --soft/,
         );
@@ -2199,7 +2231,12 @@ describe('handleMilestoneUpdate', () => {
 describe('handleCaseDelete', () => {
     it('hard-delete: calls client.deleteCase({soft:false}) with --yes', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['42'],
+            confirmDestructive: true,
+            action: 'case delete',
+            softMode: 'optional',
+        });
         await handleCaseDelete(ctx);
         expect(client.cases.deleteCase).toHaveBeenCalledWith(42, { soft: false });
         expect(out).toHaveBeenCalledWith({ caseId: 42, soft: false, deleted: true });
@@ -2214,7 +2251,13 @@ describe('handleCaseDelete', () => {
 
     it('dry-run wins over --yes (no API call, preview emits destructive:true)', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true, dryRun: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['42'],
+            confirmDestructive: true,
+            dryRun: true,
+            action: 'case delete',
+            softMode: 'optional',
+        });
         await handleCaseDelete(ctx);
         expect(client.cases.deleteCase).not.toHaveBeenCalled();
         expect(out).toHaveBeenCalledWith(
@@ -2231,7 +2274,13 @@ describe('handleCaseDelete', () => {
     it('soft preview: calls deleteCase({soft:true}) and emits preview block', async () => {
         const client = buildClient();
         client.cases.deleteCase.mockResolvedValueOnce({ affected_tests: 5 });
-        const { ctx, out } = buildCtx(client, { pathParams: ['42'], confirmDestructive: true, soft: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['42'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'case delete',
+            softMode: 'optional',
+        });
         await handleCaseDelete(ctx);
         expect(client.cases.deleteCase).toHaveBeenCalledWith(42, { soft: true });
         expect(out).toHaveBeenCalledWith({ caseId: 42, soft: true, deleted: false, preview: { affected_tests: 5 } });
@@ -2244,6 +2293,8 @@ describe('handleCaseDelete', () => {
             confirmDestructive: true,
             dryRun: true,
             soft: true,
+            action: 'case delete',
+            softMode: 'optional',
         });
         await handleCaseDelete(ctx);
         expect(client.cases.deleteCase).not.toHaveBeenCalled();
@@ -2261,7 +2312,12 @@ describe('handleCaseDelete', () => {
 describe('handleRunDelete', () => {
     it('hard-delete: calls client.deleteRun({soft:false}) with --yes', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['17'], confirmDestructive: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['17'],
+            confirmDestructive: true,
+            action: 'run delete',
+            softMode: 'optional',
+        });
         await handleRunDelete(ctx);
         expect(client.runs.deleteRun).toHaveBeenCalledWith(17, { soft: false });
         expect(out).toHaveBeenCalledWith({ runId: 17, soft: false, deleted: true });
@@ -2287,7 +2343,13 @@ describe('handleRunDelete', () => {
     it('soft preview', async () => {
         const client = buildClient();
         client.runs.deleteRun.mockResolvedValueOnce({ affected_tests: 12 });
-        const { ctx, out } = buildCtx(client, { pathParams: ['17'], confirmDestructive: true, soft: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['17'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'run delete',
+            softMode: 'optional',
+        });
         await handleRunDelete(ctx);
         expect(client.runs.deleteRun).toHaveBeenCalledWith(17, { soft: true });
         expect(out).toHaveBeenCalledWith({ runId: 17, soft: true, deleted: false, preview: { affected_tests: 12 } });
@@ -2302,7 +2364,12 @@ describe('handleRunDelete', () => {
 describe('handleSuiteDelete', () => {
     it('hard-delete: calls client.deleteSuite({soft:false}) with --yes', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['5'], confirmDestructive: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            confirmDestructive: true,
+            action: 'suite delete',
+            softMode: 'optional',
+        });
         await handleSuiteDelete(ctx);
         expect(client.suites.deleteSuite).toHaveBeenCalledWith(5, { soft: false });
         expect(out).toHaveBeenCalledWith({ suiteId: 5, soft: false, deleted: true });
@@ -2326,7 +2393,13 @@ describe('handleSuiteDelete', () => {
     it('soft preview', async () => {
         const client = buildClient();
         client.suites.deleteSuite.mockResolvedValueOnce({ affected_sections: 8, affected_cases: 99 });
-        const { ctx, out } = buildCtx(client, { pathParams: ['5'], confirmDestructive: true, soft: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['5'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'suite delete',
+            softMode: 'optional',
+        });
         await handleSuiteDelete(ctx);
         expect(client.suites.deleteSuite).toHaveBeenCalledWith(5, { soft: true });
         expect(out).toHaveBeenCalledWith({
@@ -2346,7 +2419,12 @@ describe('handleSuiteDelete', () => {
 describe('handleSectionDelete', () => {
     it('hard-delete: calls client.deleteSection({soft:false}) with --yes', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['9'], confirmDestructive: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['9'],
+            confirmDestructive: true,
+            action: 'section delete',
+            softMode: 'optional',
+        });
         await handleSectionDelete(ctx);
         expect(client.sections.deleteSection).toHaveBeenCalledWith(9, { soft: false });
         expect(out).toHaveBeenCalledWith({ sectionId: 9, soft: false, deleted: true });
@@ -2370,7 +2448,13 @@ describe('handleSectionDelete', () => {
     it('soft preview', async () => {
         const client = buildClient();
         client.sections.deleteSection.mockResolvedValueOnce({ affected_cases: 3 });
-        const { ctx, out } = buildCtx(client, { pathParams: ['9'], confirmDestructive: true, soft: true });
+        const { ctx, out } = buildCtx(client, {
+            pathParams: ['9'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'section delete',
+            softMode: 'optional',
+        });
         await handleSectionDelete(ctx);
         expect(client.sections.deleteSection).toHaveBeenCalledWith(9, { soft: true });
         expect(out).toHaveBeenCalledWith({
@@ -2412,7 +2496,12 @@ describe('handleMilestoneDelete', () => {
     });
 
     it('rejects --soft (TestRail does not support soft on delete_milestone)', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['3'], confirmDestructive: true, soft: true });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['3'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'milestone delete',
+        });
         await expect(handleMilestoneDelete(ctx)).rejects.toThrow(/milestone delete does not support --soft/);
     });
 
@@ -2462,7 +2551,12 @@ describe('handleProjectDelete', () => {
     });
 
     it('rejects --soft (TestRail does not support soft on delete_project)', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['1'], confirmDestructive: true, soft: true });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['1'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'project delete',
+        });
         await expect(handleProjectDelete(ctx)).rejects.toThrow(/project delete does not support --soft/);
     });
 
@@ -2660,7 +2754,12 @@ describe('handleVariableDelete', () => {
     });
 
     it('rejects --soft (TestRail does not support soft on delete_variable)', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['55'], confirmDestructive: true, soft: true });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['55'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'variable delete',
+        });
         await expect(handleVariableDelete(ctx)).rejects.toThrow(/variable delete does not support --soft/);
     });
 
@@ -2831,7 +2930,12 @@ describe('handleSharedStepDelete', () => {
 
     it('rejects --soft (TestRail does not support soft on delete_shared_step)', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['55'], soft: true, confirmDestructive: true });
+        const { ctx } = buildCtx(client, {
+            pathParams: ['55'],
+            soft: true,
+            confirmDestructive: true,
+            action: 'shared-step delete',
+        });
         await expect(handleSharedStepDelete(ctx)).rejects.toThrow(/shared-step delete does not support --soft/);
         expect(client.sharedSteps.deleteSharedStep).not.toHaveBeenCalled();
     });
@@ -2997,6 +3101,7 @@ describe('handleConfigurationGroupDelete', () => {
             pathParams: ['55'],
             confirmDestructive: true,
             soft: true,
+            action: 'configuration-group delete',
         });
         await expect(handleConfigurationGroupDelete(ctx)).rejects.toThrow(
             /configuration-group delete does not support --soft/,
@@ -3163,6 +3268,7 @@ describe('handleConfigurationDelete', () => {
             pathParams: ['66'],
             confirmDestructive: true,
             soft: true,
+            action: 'configuration delete',
         });
         await expect(handleConfigurationDelete(ctx)).rejects.toThrow(/configuration delete does not support --soft/);
     });
@@ -3344,7 +3450,12 @@ describe('handleGroupDelete', () => {
     });
 
     it('rejects --soft (TestRail does not support soft on delete_group)', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], confirmDestructive: true, soft: true });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['77'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'group delete',
+        });
         await expect(handleGroupDelete(ctx)).rejects.toThrow(/group delete does not support --soft/);
     });
 
@@ -3542,7 +3653,12 @@ describe('handleDatasetDelete', () => {
     });
 
     it('rejects --soft (TestRail does not support soft on delete_dataset)', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['77'], confirmDestructive: true, soft: true });
+        const { ctx } = buildCtx(buildClient(), {
+            pathParams: ['77'],
+            confirmDestructive: true,
+            soft: true,
+            action: 'dataset delete',
+        });
         await expect(handleDatasetDelete(ctx)).rejects.toThrow(/dataset delete does not support --soft/);
     });
 

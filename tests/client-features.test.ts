@@ -376,43 +376,6 @@ describe('TestRailClient - Enhanced Features', () => {
             });
         });
 
-        it('re-setting an existing key at capacity does not evict an innocent entry (LRU guard)', () => {
-            // Defensive guard in setCachedData: re-setting an already-present
-            // key while the cache is at capacity must not evict the oldest
-            // (different) entry. Map.set on an existing key updates in place
-            // without growing size, so without the pre-delete the eviction
-            // branch would fire and drop an innocent entry, leaving the cache
-            // below capacity. This path is currently unreachable via the public
-            // API, so drive the private method directly (mirrors how the
-            // rate-limiter test seeds internal state).
-            const capped = new TestRailClient({
-                baseUrl: 'https://example.testrail.io',
-                email: 'test@example.com',
-                apiKey: 'api-key',
-                enableCache: true,
-                maxCacheSize: 2,
-            });
-            const internal = capped as unknown as {
-                setCachedData<T>(key: string, data: T): void;
-                getCachedData<T>(key: string): T | undefined;
-                cache: Map<string, unknown>;
-            };
-
-            internal.setCachedData('GET:a', { v: 'a' });
-            internal.setCachedData('GET:b', { v: 'b' });
-            expect(internal.cache.size).toBe(2);
-
-            // Re-set the newest key while at capacity. The oldest key ('a')
-            // must survive; size stays at 2.
-            internal.setCachedData('GET:b', { v: 'b2' });
-
-            expect(internal.cache.size).toBe(2);
-            expect(internal.getCachedData('GET:a')).toEqual({ v: 'a' });
-            expect(internal.getCachedData('GET:b')).toEqual({ v: 'b2' });
-
-            capped.destroy();
-        });
-
         it('should cache GET requests', async () => {
             const mockProject = { id: 1, name: 'Test Project', suite_mode: 1, url: 'test' };
 
@@ -722,8 +685,8 @@ describe('TestRailClient - Enhanced Features', () => {
                     text: async () => JSON.stringify(validProject),
                 });
 
-                // First call: the hook throws before setCachedData, so nothing
-                // should be cached.
+                // First call: the hook throws before the load result can be
+                // published, so nothing should be cached.
                 await expect(strict.projects.getProject(1)).rejects.toThrow();
 
                 // Second call: cache MUST be empty, so this re-fetches and
@@ -894,8 +857,6 @@ describe('TestRailClient - Enhanced Features', () => {
             it('still caches GET responses when callers invoke request() directly without a schema', async () => {
                 // Back-compat: external callers that use the lower-level
                 // request<T>() (no schema) still rely on its built-in GET cache.
-                // requestParsed() bypasses request()'s internal cache write by
-                // passing skipCache=true, so we exercise the legacy path here.
                 const raw = { id: 42, custom_payload: 'anything' };
 
                 mockFetch.mockResolvedValue({
@@ -2560,7 +2521,8 @@ describe('TestRailClient - Enhanced Features', () => {
                 email: 'test@example.com',
                 apiKey: 'api-key',
             });
-            const spy = vi.spyOn(c as unknown as { clearCache: () => void }, 'clearCache').mockImplementation(() => {
+            const cache = (c as unknown as { requestCache: { dispose(): void } }).requestCache;
+            const spy = vi.spyOn(cache, 'dispose').mockImplementation(() => {
                 throw new Error('boom');
             });
             expect(() => c.destroy()).toThrow('boom');
@@ -2582,7 +2544,8 @@ describe('TestRailClient - Enhanced Features', () => {
                 email: 'test@example.com',
                 apiKey: 'api-key',
             });
-            vi.spyOn(bad as unknown as { clearCache: () => void }, 'clearCache').mockImplementation(() => {
+            const cache = (bad as unknown as { requestCache: { dispose(): void } }).requestCache;
+            vi.spyOn(cache, 'dispose').mockImplementation(() => {
                 throw new Error('boom');
             });
             const goodSpy = vi.spyOn(good, 'destroy');
@@ -2648,20 +2611,16 @@ describe('TestRailClient - Enhanced Features', () => {
 
         it('deduplicates concurrent identical RAW GETs via the pipeline coalescer (executePipeline)', async () => {
             // The first coalescing test above uses getProject() — the *validated*
-            // (`PARSED:GET:`) namespace, whose dedup lives in request() (client-core
-            // line 830-831). This test exercises the *raw* (`GET:`) namespace whose
-            // dedup lives inside executePipeline (line 1115-1116): two concurrent
-            // schema-less GETs to the same endpoint must share one in-flight fetch.
+            // (`PARSED:GET:`) namespace. This test exercises the raw (`GET:`)
+            // namespace: both are resolved through the same RequestCache seam.
             const wt = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
                 email: 'test@example.com',
                 apiKey: 'api-key',
                 enableCache: true,
                 cacheTtl: 60_000,
-                // Skip the per-request DNS await so the synchronous path from
-                // executePipeline entry to pendingRequests.set is deterministic:
-                // the first call registers its in-flight promise before the
-                // second call's coalescing read at line 1115 runs.
+                // Skip per-request DNS so the controlled transport starts
+                // synchronously before the second caller checks shared work.
                 allowPrivateHosts: true,
             });
             try {
@@ -2674,9 +2633,7 @@ describe('TestRailClient - Enhanced Features', () => {
                 mockFetch.mockReturnValueOnce(delayedGet);
 
                 const p1 = wt.request<{ id: number; name: string }>({ method: 'GET', endpoint: 'get_project/1' });
-                // Yield enough microtasks for the first call to clear its DNS
-                // await and register itself in pendingRequests before the second
-                // call reads the map.
+                // Yield so the first transport has reached its controlled fetch.
                 await Promise.resolve();
                 await Promise.resolve();
                 const p2 = wt.request<{ id: number; name: string }>({ method: 'GET', endpoint: 'get_project/1' });
@@ -2726,10 +2683,10 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
 
-        it('clearCache() from a POST clears pendingRequests so late joiners re-fetch', async () => {
+        it('clearCache() from a POST detaches stale shared work so late joiners re-fetch', async () => {
             // Scenario: GET starts → POST fires + completes (clearCache) → new GET arrives
-            // while the original GET is still in flight.  Without pendingRequests.clear()
-            // in clearCache() the new GET would coalesce onto the stale in-flight promise.
+            // while the original GET is still in flight. The new GET must not
+            // join the stale in-flight promise.
             let resolveGet!: (v: Response) => void;
             const delayedGet = new Promise<Response>((res) => {
                 resolveGet = res;
@@ -2753,14 +2710,14 @@ describe('TestRailClient - Enhanced Features', () => {
 
                 const firstGet = wt.request<{ id: number }>({ method: 'GET', endpoint: 'get_project/1' });
 
-                // POST fires and resolves → clearCache() is called → pendingRequests cleared.
+                // POST fires and resolves → clearCache() invalidates shared work.
                 await wt.request<Record<string, never>>({
                     method: 'POST',
                     endpoint: 'update_project/1',
                     body: { kind: 'json', data: {} },
                 });
 
-                // Now resolve the first GET *after* the POST cleared pendingRequests.
+                // Now resolve the first GET after the POST invalidated it.
                 resolveGet(mockOk({ id: 1, name: 'Stale', suite_mode: 1, url: 'u', is_completed: false }));
                 await firstGet;
 
@@ -2933,7 +2890,7 @@ describe('TestRailClient - Enhanced Features', () => {
             }
         });
 
-        it('retries do not deadlock when the key is still in pendingRequests', async () => {
+        it('retries stay inside the transport loader and cannot join their own shared request', async () => {
             const wt = new TestRailClient({
                 baseUrl: 'https://example.testrail.io',
                 email: 'test@example.com',
@@ -2947,10 +2904,8 @@ describe('TestRailClient - Enhanced Features', () => {
                     .mockResolvedValueOnce(mockErr(503, 'Service Unavailable'))
                     .mockResolvedValueOnce(mockOk({ id: 1, name: 'OK', suite_mode: 1, url: 'u', is_completed: false }));
 
-                // A GET with maxRetries=1 will retry on 503 while the key is still in
-                // pendingRequests.  If the retry re-uses skipCache=false it would pick up
-                // its own promise → deadlock.  With the fix it passes skipCache=true and
-                // resolves cleanly.
+                // A GET with maxRetries=1 retries inside executePipeline; it does
+                // not cross the RequestCache seam again and cannot join itself.
                 const result = await wt.projects.getProject(1);
                 expect(result.name).toBe('OK');
                 expect(mockFetch).toHaveBeenCalledTimes(2);

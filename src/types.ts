@@ -119,8 +119,8 @@ export interface TestRailConfig {
     /** Cache TTL in milliseconds (default: 300000ms = 5 minutes) */
     cacheTtl?: number;
     /**
-     * Cache cleanup interval in milliseconds (default: 60000ms = 1 minute).
-     * Set to 0 to disable periodic cleanup.
+     * Cache cleanup interval in milliseconds. Must be an integer from 0
+     * through 2,147,483,647; 0 disables periodic cleanup. Default: 60,000.
      */
     cacheCleanupInterval?: number;
     /**
@@ -151,8 +151,9 @@ export interface TestRailConfig {
      */
     maxJsonResponseBytes?: number;
     /**
-     * Maximum bytes accepted from a binary response body (`requestBinary`,
-     * used for attachment downloads). Default: 100 MiB. Hard ceiling: 1 GiB.
+     * Maximum bytes accepted from a binary response body
+     * (`request({ responseKind: 'binary' })`, used for attachment downloads).
+     * Default: 100 MiB. Hard ceiling: 1 GiB.
      *
      * Larger attachments need an explicit override and still risk OOM since
      * the whole buffer is materialised in memory.
@@ -202,7 +203,9 @@ export interface TestRailConfig {
      * still runs against the returned addresses — this option does **not**
      * bypass the security validation, only replaces the resolution mechanism.
      *
-     * When omitted (default), Node's system resolver is used.
+     * When omitted (default), Node's system resolver is used. Resolution runs
+     * before each distinct upstream fetch attempt, including retries; cache
+     * hits and callers joining an in-flight request do not invoke it again.
      *
      * @example
      * // Map a corporate hostname to a known public IP for CI validation

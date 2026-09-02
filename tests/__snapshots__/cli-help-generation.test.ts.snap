@@ -10,11 +10,11 @@ Read actions:
       List all projects (paginated)
   suite               get <suite_id>
       Fetch a single suite by ID
-  suite               list
+  suite               list --project-id <id>
       List suites in a project (paginated)
   case                get <case_id>
       Fetch a single test case by ID
-  case                list
+  case                list --project-id <id>
       List cases in a project (optionally filtered by suite; paginated)
   case                history <case_id>
       List edit history for a test case (paginated; TestRail 6.5.4+)
@@ -22,7 +22,7 @@ Read actions:
       Resolve a comma-separated case ID list to lightweight id/title objects (TestRail 10.5+)
   run                 get <run_id>
       Fetch a single run by ID
-  run                 list
+  run                 list --project-id <id>
       List runs in a project (paginated)
   run                 watch <run_id>
       Poll get_run/{run_id} on an interval and emit diffs until is_completed=true (--interval N [5-600s, default 30]; --once for single poll)
@@ -30,7 +30,7 @@ Read actions:
       Fetch a single test by ID (optionally with TestRail data via --with-data)
   test                list <run_id>
       List tests in a run (optionally filtered by status, paginated)
-  result              list
+  result              list --run-id <id>
       List results for a run (paginated; creator/date, status, and defect filters supported)
   result              list-for-test <test_id>
       List results for a single test (paginated; --status-id / --defects-filter supported)
@@ -38,19 +38,19 @@ Read actions:
       List results for a case within a run (paginated; --status-id / --defects-filter supported)
   milestone           get <milestone_id>
       Fetch a single milestone by ID
-  milestone           list
+  milestone           list --project-id <id>
       List milestones in a project (paginated)
   user                get <user_id>
       Fetch a single user by ID
   user                list
       List users globally or for --project-id (required for non-admins)
-  user                get-by-email
+  user                get-by-email --user-email <email>
       Look up a single user by email address
   user                get-current
       Fetch the user identified by the auth credential (TestRail 6.6+; no positional args)
   plan                get <plan_id>
       Fetch a single test plan by ID
-  plan                list
+  plan                list --project-id <id>
       List plans in a project (paginated)
   section             get <section_id>
       Fetch a single section by ID
@@ -58,7 +58,7 @@ Read actions:
       List sections in a project (optionally filtered by suite; paginated)
   shared-step         get <shared_step_id>
       Fetch a single shared step by ID
-  shared-step         list
+  shared-step         list --project-id <id>
       List shared steps in a project (paginated)
   shared-step         history <shared_step_id>
       List revision history for a shared step (pagination envelope)
@@ -116,9 +116,9 @@ Write actions (body via --data | --data-file | stdin):
       Update an existing test case (partial fields)
   case                update-bulk <suite_id> --data '{"case_ids":[1,2],"priority_id":3}'
       Bulk-update many cases in a suite with the same field values
-  case                delete <case_id> --yes
+  case                delete <case_id> [--soft] --yes
       Delete a single test case (requires --yes; --soft for server-side preview that returns affected counts without deleting)
-  case                delete-bulk <suite_id> --project-id <id> [--soft] --data '{"case_ids":[1,2]}' --yes
+  case                delete-bulk <suite_id> --project-id <id> --data '{"case_ids":[1,2]}' [--soft] --yes
       Bulk-delete cases in a suite (requires --project-id and --yes; --soft for server-side preview without deletion)
   case                copy-to-section <section_id> --data '{"case_ids":[1,2]}'
       Copy cases into a target section (returns the new case copies)
@@ -130,7 +130,7 @@ Write actions (body via --data | --data-file | stdin):
       Update an existing test run (all fields optional)
   run                 close <run_id> --yes (no body; irreversible)
       Close a test run permanently — irreversible (no body; requires --yes)
-  run                 delete <run_id> --yes
+  run                 delete <run_id> [--soft] --yes
       Delete a test run and all associated results (requires --yes; --soft for server-side preview without deletion)
   test                update-labels <test_id> --data '{"labels":[1,"regression"]}'
       Set the labels on a single test (label-only; IDs or titles)
@@ -172,7 +172,7 @@ Write actions (body via --data | --data-file | stdin):
       Update an existing section (partial fields)
   section             move <section_id> --data '{"parent_id":null,"after_id":42}'
       Move a section to a new parent and/or position (TestRail 6.5.2+)
-  section             delete <section_id> --yes
+  section             delete <section_id> [--soft] --yes
       Delete a section (recursively removes subsections and cases; requires --yes; --soft for server-side preview)
   project             add --data '{"name":"...","suite_mode":1}'
       Create a new project (no path params, payload-only)
@@ -184,7 +184,7 @@ Write actions (body via --data | --data-file | stdin):
       Create a new test suite in a project
   suite               update <suite_id> --data '{"name":"..."}'
       Update an existing test suite (partial fields)
-  suite               delete <suite_id> --yes
+  suite               delete <suite_id> [--soft] --yes
       Delete a suite and everything inside it (sections, cases, runs, plans; requires --yes; --soft for server-side preview)
   milestone           add <project_id> --data '{"name":"..."}'
       Create a new milestone in a project
@@ -276,7 +276,7 @@ Attachment actions (binary file I/O):
 BDD actions (Gherkin .feature text I/O):
   bdd                 get <case_id> --out <path|-> [--force]
       Download a case's BDD (Gherkin .feature) content to --out <path>
-  bdd                 list
+  bdd                 list --project-id <id>
       List BDD entries in a project (suite/section/label/refs filters; paginated)
   bdd                 add <section_id> --file <path|-> [--filename <name>]
       Upload a .feature file to create a BDD case under a section
@@ -371,45 +371,38 @@ Options:
   --defects-filter <text>           [result list/list-for-test/list-for-case] Filter results whose defects field contains the supplied substring.
   --data <json>                     [Body-bearing write actions] Provide an inline JSON body. Exactly one of --data, --data-file, or piped JSON stdin is required.
   --data-file <path>                [Body-bearing write actions] Read the JSON body from a file; useful for large payloads and secrets.
-  --dry-run                         [Write actions; run watch] Validate and preview locally without an API call. It bypasses destructive confirmation gates.
-  --global                          [install-skill; uninstall-skill] Use the user-level skill directory instead of the current project.
-  --force                           [File-output actions; install-skill] Overwrite an existing output file or installed SKILL.md.
-  --print-path                      [install-skill] Print the bundled SKILL.md path and exit without installing.
+  --dry-run                         [Write and file-output actions; run watch] Validate and preview locally without an API call. It bypasses destructive confirmation gates.
   --file <path|->                   [Attachment uploads; bdd add/update] Read upload content from a file, or from piped stdin with '-'.
   --filename <name>                 [File-input actions] Override the uploaded filename; defaults to the local basename or stdin.
   --out <path|->                    [attachment get; bdd get] Write downloaded bytes/text to a file, or stream them to stdout with '-'.
+  --force                           [File-output actions; install-skill] Overwrite an existing output file or installed SKILL.md.
   --yes                             [Destructive actions] Per-invocation confirmation; real destructive calls also require TESTRAIL_ALLOW_DESTRUCTIVE=1.
   --soft                            [case delete/delete-bulk; run, section, and suite delete] Request TestRail server-side deletion preview. It still calls the API and requires both destructive gates.
   --keep-in-cases <true|false|1|0>  [shared-step delete] Choose whether deleted shared-step content remains in referencing cases; TestRail defaults to true.
   --interval <seconds>              [run watch] Polling interval; default 30, minimum 5, maximum 600.
   --once                            [run watch] Poll once and exit instead of waiting for completion.
+  --global                          [install-skill; uninstall-skill] Use the user-level skill directory instead of the current project.
+  --print-path                      [install-skill] Print the bundled SKILL.md path and exit without installing.
 
 For body-bearing write actions, exactly one body source is required
 (--data | --data-file | stdin). Stdin is auto-detected when input is piped
 (process.stdin.isTTY !== true) and neither --data nor --data-file is supplied.
 The following write actions take NO body
-(any --data / --data-file / stdin is ignored): run close, attachment delete,
-case delete, run delete, suite delete, section delete, milestone delete,
-project delete, plan close, plan delete, plan delete-entry,
-plan delete-run-from-entry, variable delete, group delete, dataset delete, shared-step delete,
-configuration delete, configuration-group delete, label delete — they accept only positional id(s) (one for most
+(explicit --data / --data-file is rejected): case delete, run close, run delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, section delete, project delete, suite delete, milestone delete, shared-step delete, attachment delete, variable delete, group delete, dataset delete, configuration-group delete, configuration delete, label delete — they accept only positional id(s) (one for most
 actions; plan delete-entry and attachment add-to-plan-entry take two:
 <plan_id> <entry_id>) and the optional --soft flag on the soft-capable
 deletes. Attachment upload actions take a binary file via --file <path>
 and do not accept --data/--data-file/stdin.
-Destructive actions (attachment delete, case delete, case delete-bulk, run close,
-run delete, section delete, suite delete, milestone delete, project delete,
-plan close, plan delete, plan delete-entry, plan delete-run-from-entry,
-variable delete, group delete, dataset delete, shared-step delete,
-configuration delete, configuration-group delete, label delete, label delete-bulk)
+Destructive actions (case delete, case delete-bulk, run close, run delete, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, section delete, project delete, suite delete, milestone delete, shared-step delete, attachment delete, variable delete, group delete, dataset delete, configuration-group delete, configuration delete, label delete, label delete-bulk)
 require BOTH --yes AND the TESTRAIL_ALLOW_DESTRUCTIVE=1 env var. Either gate
 alone is insufficient — this two-gate model is intentional (env var is
 process-wide audit-friendly; --yes is per-invocation explicit). Pass
 --dry-run to preview without making the API call; --yes is optional in
 dry-run mode (dry-run wins; the env var is NOT required for preview).
 'run close' and 'plan close' are irreversible — TestRail offers no reopen
-for either. For soft-capable deletes (case/run/section/suite + case delete-bulk),
+for either. For soft-capable deletes (case delete, case delete-bulk, run delete, section delete, suite delete),
 pass --soft for a server-side preview that returns affected-entity counts
 without deleting; this still hits the API and remains gated by --yes
-AND TESTRAIL_ALLOW_DESTRUCTIVE=1."
+AND TESTRAIL_ALLOW_DESTRUCTIVE=1. All other destructive actions reject
+--soft (run close, plan close, plan delete, plan delete-entry, plan delete-run-from-entry, project delete, milestone delete, shared-step delete, attachment delete, variable delete, group delete, dataset delete, configuration-group delete, configuration delete, label delete, label delete-bulk)."
 `;

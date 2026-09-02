@@ -2,12 +2,10 @@ import { TestRailClientCore } from '../client-core.js';
 import type { Section, SoftDeleteOptions } from '../types.js';
 import type { AddSectionPayload, MoveSectionPayload, SoftDeletePreview, UpdateSectionPayload } from '../schemas.js';
 import { SectionSchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { validateId, validatePaginationParams } from '../validation.js';
+import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
-import { collectAllPages, decodePage } from '../pagination.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { listOf, pageOf, unwrapList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 
 export interface GetSectionsOptions {
     suiteId?: number;
@@ -17,9 +15,28 @@ export interface GetSectionsOptions {
 
 export type GetAllSectionsOptions = Omit<GetSectionsOptions, 'limit' | 'offset'> & PaginatedRequestOptions;
 
-type PaginationFetchControls = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+export const SECTIONS_PAGINATION = createPaginatedListExecutor<
+    { readonly projectId: number },
+    GetSectionsOptions,
+    GetAllSectionsOptions,
+    Section
+>({
+    operations: ['get_sections'],
+    collectionKey: 'sections',
+    itemSchema: SectionSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ projectId }, options) => {
+        validateId(projectId, 'projectId');
+        const { suiteId } = options ?? {};
+        if (suiteId !== undefined) validateId(suiteId, 'suiteId');
+        return {
+            operation: 'get_sections',
+            pathParameters: [projectId],
+            query: { suite_id: suiteId },
+        };
+    },
+});
 
 export class SectionModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -36,65 +53,17 @@ export class SectionModule {
 
     /** @testrail GET get_sections/{project_id} */
     async getSections(projectId: number, options?: GetSectionsOptions): Promise<Section[]> {
-        return unwrapList<Section>('sections', await this.requestSections(projectId, options));
+        return SECTIONS_PAGINATION.items(this.client, { projectId }, options);
     }
 
     /** Get one response page, preserving TestRail's pagination metadata when present. */
     async getSectionsPage(projectId: number, options?: GetSectionsOptions): Promise<Page<Section>> {
-        return decodePage<Section>(
-            'sections',
-            await this.requestSections(projectId, options, { pageProjection: true }),
-        );
+        return SECTIONS_PAGINATION.page(this.client, { projectId }, options);
     }
 
     /** Get every section under the configured pagination safety bounds. */
     async getAllSections(projectId: number, options?: GetAllSectionsOptions): Promise<Section[]> {
-        const filters = snapshotOptionFields(options, ['suiteId']);
-        return collectAllPages<Section>({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async (request) => {
-                const pageOptions: GetSectionsOptions = {
-                    ...filters,
-                    limit: request.limit as number,
-                    offset: request.offset as number,
-                };
-                const raw = await this.requestSections(projectId, pageOptions, {
-                    bypassCache: request.bypassCache,
-                    remainingTimeMs: request.remainingTimeMs,
-                    deadlineAt: request.deadlineAt,
-                });
-                return decodePage<Section>('sections', raw);
-            },
-        });
-    }
-
-    private async requestSections(
-        projectId: number,
-        options?: GetSectionsOptions,
-        controls?: PaginationFetchControls,
-    ): Promise<unknown> {
-        validateId(projectId, 'projectId');
-        const { suiteId, limit, offset } = options ?? {};
-        if (suiteId !== undefined) {
-            validateId(suiteId, 'suiteId');
-        }
-        validatePaginationParams(limit, offset);
-        const endpoint = buildEndpoint(`get_sections/${projectId}`, { suite_id: suiteId, limit, offset });
-        // Same 6.7+ envelope gate as `cases.getCases()` — `limit`/`offset` on
-        // get_sections require TestRail 6.7 or later, and older servers return a
-        // bare array. Accept both.
-        // SPEC #1.5 — `{ sections: null }` is a valid empty wrapper.
-        const pageProjection = controls?.pageProjection === true || controls?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('sections', SectionSchema) : listOf('sections', SectionSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(controls?.bypassCache !== undefined && { bypassCache: controls.bypassCache }),
-            ...(controls?.remainingTimeMs !== undefined && { remainingTimeMs: controls.remainingTimeMs }),
-            ...(controls?.deadlineAt !== undefined && { deadlineAt: controls.deadlineAt }),
-        });
+        return SECTIONS_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /** @testrail POST add_section/{project_id} */

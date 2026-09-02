@@ -1,11 +1,10 @@
 import { z } from 'zod';
 import { TestRailClientCore } from '../client-core.js';
 import { TestRailApiError, TestRailValidationError } from '../errors.js';
-import { validateId, validatePaginationParams } from '../validation.js';
+import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
 import type { Case, GetCasesOptions, HistoryEntry, SoftDeleteOptions } from '../types.js';
-import type { Page, PaginatedRequestOptions, PaginationRequest } from '../pagination.js';
-import { collectAllPages, decodeNestedPage, decodePage } from '../pagination.js';
+import type { Page, PaginatedRequestOptions } from '../pagination.js';
 import type {
     AddCasePayload,
     AddCasesBulkPayload,
@@ -18,8 +17,8 @@ import type {
     CaseTitle,
 } from '../schemas.js';
 import { CaseSchema, CaseTitleSchema, HistoryEntrySchema, SoftDeletePreviewSchema } from '../schemas.js';
-import { listOf, listOfNested, pageOf, pageOfNested, unwrapList, unwrapNestedList } from './list.js';
-import { snapshotOptionFields, snapshotPaginatedRequestOptions } from './pagination-options.js';
+import { listOf, unwrapList } from './list.js';
+import { createPaginatedListExecutor } from './paginated-list.js';
 import { serializeIdFilter } from '../utils.js';
 
 export interface GetHistoryForCaseOptions {
@@ -33,9 +32,79 @@ export interface GetAllCasesOptions extends Omit<GetCasesOptions, 'limit' | 'off
 
 export type GetAllHistoryForCaseOptions = PaginatedRequestOptions;
 
-type PageTransportOptions = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
-    pageProjection?: boolean;
-};
+export const CASES_PAGINATION = createPaginatedListExecutor<
+    { readonly projectId: number },
+    GetCasesOptions,
+    GetAllCasesOptions,
+    Case
+>({
+    operations: ['get_cases'],
+    collectionKey: 'cases',
+    itemSchema: CaseSchema,
+    response: 'envelope',
+    requestControls: true,
+    prepare: ({ projectId }, options) => {
+        validateId(projectId, 'projectId');
+        const {
+            suiteId,
+            sectionId,
+            typeId,
+            priorityId,
+            templateId,
+            milestoneId,
+            createdAfter,
+            createdBefore,
+            createdBy,
+            filter,
+            updatedAfter,
+            updatedBefore,
+            updatedBy,
+            labelId,
+            refs,
+        } = options ?? {};
+        if (suiteId !== undefined) validateId(suiteId, 'suiteId');
+        if (sectionId !== undefined) validateId(sectionId, 'sectionId');
+        return {
+            operation: 'get_cases',
+            pathParameters: [projectId],
+            query: {
+                suite_id: suiteId,
+                section_id: sectionId,
+                type_id: serializeIdFilter(typeId, 'typeId'),
+                priority_id: serializeIdFilter(priorityId, 'priorityId'),
+                template_id: serializeIdFilter(templateId, 'templateId'),
+                milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
+                created_after: createdAfter,
+                created_before: createdBefore,
+                created_by: serializeIdFilter(createdBy, 'createdBy'),
+                filter,
+                updated_after: updatedAfter,
+                updated_before: updatedBefore,
+                updated_by: serializeIdFilter(updatedBy, 'updatedBy'),
+                label_id: serializeIdFilter(labelId, 'labelId'),
+                refs: typeof refs === 'string' ? refs : undefined,
+                'refs[]': Array.isArray(refs) ? refs : undefined,
+            },
+        };
+    },
+});
+
+export const CASE_HISTORY_PAGINATION = createPaginatedListExecutor<
+    { readonly caseId: number },
+    GetHistoryForCaseOptions,
+    GetAllHistoryForCaseOptions,
+    HistoryEntry
+>({
+    operations: ['get_history_for_case'],
+    collectionKey: 'history',
+    itemSchema: HistoryEntrySchema,
+    response: 'nested-envelope',
+    requestControls: true,
+    prepare: ({ caseId }) => {
+        validateId(caseId, 'caseId');
+        return { operation: 'get_history_for_case', pathParameters: [caseId] };
+    },
+});
 
 export class CaseModule {
     constructor(private readonly client: TestRailClientCore) {}
@@ -66,116 +135,17 @@ export class CaseModule {
 
     /** @testrail GET get_cases/{project_id} */
     async getCases(projectId: number, options?: GetCasesOptions): Promise<Case[]> {
-        return unwrapList<Case>('cases', await this.requestCasesPage(projectId, options));
+        return CASES_PAGINATION.items(this.client, { projectId }, options);
     }
 
     /** Fetch one normalized cases page while preserving TestRail pagination metadata. */
     async getCasesPage(projectId: number, options?: GetCasesOptions): Promise<Page<Case>> {
-        return decodePage<Case>('cases', await this.requestCasesPage(projectId, options, { pageProjection: true }));
+        return CASES_PAGINATION.page(this.client, { projectId }, options);
     }
 
     /** Fetch every cases page under explicit aggregate safety bounds. */
     async getAllCases(projectId: number, options?: GetAllCasesOptions): Promise<Case[]> {
-        const filters = snapshotOptionFields(options, [
-            'suiteId',
-            'sectionId',
-            'typeId',
-            'priorityId',
-            'templateId',
-            'milestoneId',
-            'createdAfter',
-            'createdBefore',
-            'createdBy',
-            'filter',
-            'updatedAfter',
-            'updatedBefore',
-            'updatedBy',
-            'labelId',
-            'refs',
-        ]);
-        return collectAllPages({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
-                decodePage<Case>(
-                    'cases',
-                    await this.requestCasesPage(
-                        projectId,
-                        {
-                            ...filters,
-                            ...(limit !== undefined && { limit }),
-                            ...(offset !== undefined && { offset }),
-                        },
-                        { bypassCache, remainingTimeMs, deadlineAt },
-                    ),
-                ),
-        });
-    }
-
-    private async requestCasesPage(
-        projectId: number,
-        options?: GetCasesOptions,
-        transport?: PageTransportOptions,
-    ): Promise<unknown> {
-        validateId(projectId, 'projectId');
-        const {
-            suiteId,
-            sectionId,
-            typeId,
-            priorityId,
-            templateId,
-            milestoneId,
-            createdAfter,
-            createdBefore,
-            createdBy,
-            filter,
-            updatedAfter,
-            updatedBefore,
-            updatedBy,
-            labelId,
-            refs,
-            limit,
-            offset,
-        } = options ?? {};
-        if (suiteId !== undefined) validateId(suiteId, 'suiteId');
-        if (sectionId !== undefined) validateId(sectionId, 'sectionId');
-        validatePaginationParams(limit, offset);
-        const endpoint = buildEndpoint(`get_cases/${projectId}`, {
-            suite_id: suiteId,
-            section_id: sectionId,
-            type_id: serializeIdFilter(typeId, 'typeId'),
-            priority_id: serializeIdFilter(priorityId, 'priorityId'),
-            template_id: serializeIdFilter(templateId, 'templateId'),
-            milestone_id: serializeIdFilter(milestoneId, 'milestoneId'),
-            created_after: createdAfter,
-            created_before: createdBefore,
-            created_by: serializeIdFilter(createdBy, 'createdBy'),
-            filter,
-            updated_after: updatedAfter,
-            updated_before: updatedBefore,
-            updated_by: serializeIdFilter(updatedBy, 'updatedBy'),
-            label_id: serializeIdFilter(labelId, 'labelId'),
-            refs: typeof refs === 'string' ? refs : undefined,
-            'refs[]': Array.isArray(refs) ? refs : undefined,
-            limit,
-            offset,
-        });
-        // Bimodal across server versions: the `{ offset, limit, size, _links,
-        // cases: [...] }` envelope requires TestRail 6.7+ (the version gate on
-        // `limit`/`offset` in the get_cases docs); older servers return a bare
-        // array. This package declares no minimum server version, so accept
-        // both — same defence as `suites.getSuites()`.
-        // SPEC #1.5 — `{ cases: null }` is a valid empty wrapper, hence `.nullable()`.
-        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection ? pageOf('cases', CaseSchema) : listOf('cases', CaseSchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
-            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
-            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
-        });
+        return CASES_PAGINATION.all(this.client, { projectId }, options);
     }
 
     /** @testrail POST add_case/{section_id} */
@@ -398,68 +368,16 @@ export class CaseModule {
 
     /** @testrail GET get_history_for_case/{case_id} */
     async getHistoryForCase(caseId: number, options?: GetHistoryForCaseOptions): Promise<HistoryEntry[]> {
-        return unwrapNestedList<HistoryEntry>('history', await this.requestHistoryForCasePage(caseId, options));
+        return CASE_HISTORY_PAGINATION.items(this.client, { caseId }, options);
     }
 
     /** Fetch one normalized case-history page, including its nested envelope variant. */
     async getHistoryForCasePage(caseId: number, options?: GetHistoryForCaseOptions): Promise<Page<HistoryEntry>> {
-        return decodeNestedPage<HistoryEntry>(
-            'history',
-            await this.requestHistoryForCasePage(caseId, options, { pageProjection: true }),
-        );
+        return CASE_HISTORY_PAGINATION.page(this.client, { caseId }, options);
     }
 
     /** Fetch all case-history pages under explicit aggregate safety bounds. */
     async getAllHistoryForCase(caseId: number, options?: GetAllHistoryForCaseOptions): Promise<HistoryEntry[]> {
-        return collectAllPages({
-            ...snapshotPaginatedRequestOptions(options),
-            requestControls: true,
-            fetchPage: async ({ offset, limit, bypassCache, remainingTimeMs, deadlineAt }) =>
-                decodeNestedPage<HistoryEntry>(
-                    'history',
-                    await this.requestHistoryForCasePage(
-                        caseId,
-                        {
-                            ...(limit !== undefined && { limit }),
-                            ...(offset !== undefined && { offset }),
-                        },
-                        { bypassCache, remainingTimeMs, deadlineAt },
-                    ),
-                ),
-        });
-    }
-
-    private async requestHistoryForCasePage(
-        caseId: number,
-        options?: GetHistoryForCaseOptions,
-        transport?: PageTransportOptions,
-    ): Promise<unknown> {
-        validateId(caseId, 'caseId');
-        validatePaginationParams(options?.limit, options?.offset);
-        const endpoint = buildEndpoint(`get_history_for_case/${caseId}`, {
-            limit: options?.limit,
-            offset: options?.offset,
-        });
-        // Three shapes, all attested: the twin endpoint `get_shared_step_history`
-        // documents a `{ step_history }` wrapper yet returns a bare array on live
-        // Cloud (fixed in #248), while this endpoint's own documented example
-        // nests the pagination object inside an outer array —
-        // `[{ offset, limit, size, _links, history: [...] }]`. `listOf` alone
-        // rejected that third form, so the raw outer array came back and
-        // `unwrapList` handed the caller the envelope itself as `result[0]`,
-        // typed `HistoryEntry` but with no `id`/`user_id`. SPEC #1.5 —
-        // `{ history: null }` is a valid empty wrapper.
-        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
-        return this.client.request<unknown>({
-            method: 'GET',
-            endpoint,
-            schema: pageProjection
-                ? pageOfNested('history', HistoryEntrySchema)
-                : listOfNested('history', HistoryEntrySchema),
-            ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
-            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
-            ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
-        });
+        return CASE_HISTORY_PAGINATION.all(this.client, { caseId }, options);
     }
 }

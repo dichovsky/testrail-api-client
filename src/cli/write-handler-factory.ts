@@ -16,9 +16,9 @@ import { resolveBody } from './body.js';
  *                                  move/copy/bulk). Emits the API result (or a
  *                                  `formatOutput` envelope for void endpoints).
  *   - `createDestructiveHandler` — delete/close actions. Handles the `--yes`
- *                                  gate, the `--soft` reject/ignore/optional
- *                                  modes, and the `{deleted:true}` vs returned-
- *                                  entity output split.
+ *                                  gate, ActionSpec-owned `--soft`
+ *                                  reject/optional behavior, and the
+ *                                  `{deleted:true}` vs returned-entity split.
  *
  * Genuinely irregular handlers stay hand-written: `case delete-bulk` (body +
  * `--project-id` + soft), attachment uploads (`setupUpload` streaming), and
@@ -136,15 +136,6 @@ export interface DestructiveHandlerSpec {
     /** Optional trailing UUID path param (only `plan delete-entry` uses this). */
     entryParam?: string;
     /**
-     * How the action treats `--soft`:
-     *   - `'reject'` (default) — throw if `--soft` is passed (TestRail endpoint
-     *     has no `soft=1` support).
-     *   - `'ignore'` — don't inspect `--soft` (e.g. `run close`).
-     *   - `'optional'` — `--soft` triggers TestRail's server-side preview
-     *     (`soft=1`); output reports the preview instead of deleting.
-     */
-    softMode?: 'reject' | 'ignore' | 'optional';
-    /**
      * `'delete'` (default) emits `{ ...ids, deleted }` (plus `soft`/`preview`
      * for soft-optional actions). `'close'` emits the entity the API returns.
      */
@@ -154,14 +145,25 @@ export interface DestructiveHandlerSpec {
     call: (client: TestRailClient, nums: NumIds, entry: string, soft: boolean) => Promise<unknown>;
 }
 
+/** Resolve `--soft` exclusively from the dispatched ActionSpec. Dry-run keeps
+ * its established precedence over unsupported-soft rejection. */
+export function resolveSoftFlag(ctx: HandlerContext): boolean {
+    const requested = ctx.args.soft === true;
+    const supported = ctx.actionSpec.softMode === 'optional';
+    if (requested && !supported && !ctx.dryRun) {
+        throw new Error(`${ctx.actionSpec.resource} ${ctx.actionSpec.action} does not support --soft.`);
+    }
+    return requested && supported;
+}
+
 export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler {
     const pathParams = spec.pathParams ?? [];
-    const softMode = spec.softMode ?? 'reject';
     const kind = spec.kind ?? 'delete';
     return async (ctx: HandlerContext): Promise<void> => {
+        const softMode = ctx.actionSpec.softMode ?? 'reject';
         const { nums, entry, idBag } = parsePathArgs(ctx, pathParams, spec.entryParam);
         const ids = nums as unknown as NumIds;
-        const soft = softMode === 'optional' && ctx.args.soft === true;
+        const soft = resolveSoftFlag(ctx);
 
         if (ctx.dryRun) {
             ctx.out({
@@ -172,10 +174,6 @@ export function createDestructiveHandler(spec: DestructiveHandlerSpec): Handler 
                 destructive: true,
             });
             return;
-        }
-
-        if (softMode === 'reject' && ctx.args.soft === true) {
-            throw new Error(`${spec.action} does not support --soft.`);
         }
 
         if (!ctx.confirmDestructive) {

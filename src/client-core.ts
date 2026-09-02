@@ -1,4 +1,4 @@
-import type { TestRailConfig, CacheEntry, SchemaMismatch, UploadFileInput, UploadFilePathInput } from './types.js';
+import type { TestRailConfig, SchemaMismatch, UploadFileInput, UploadFilePathInput } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailLicenseError, TestRailValidationError, isLicenseRestriction } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
@@ -7,6 +7,8 @@ import { openAsBlob, closeSync } from 'node:fs';
 import { type ZodType } from 'zod';
 import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
 import { getRetryPolicy } from './retry-policy.js';
+import { RequestCache, type CacheLoadResult } from './request-cache.js';
+import { isPrivateHostLiteral, validateTestRailConfig } from './config-validation.js';
 
 /**
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
@@ -32,7 +34,6 @@ const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
     BASE_RETRY_DELAY_MS,
     MAX_RETRY_DELAY_MS,
-    MAX_TIMEOUT_MS,
     DEFAULT_TIMEOUT_MS,
     DEFAULT_MAX_RETRIES,
     DEFAULT_CACHE_TTL_MS,
@@ -42,7 +43,6 @@ import {
     DEFAULT_RATE_LIMIT_WINDOW_MS,
     DEFAULT_MAX_JSON_RESPONSE_BYTES,
     DEFAULT_MAX_BINARY_RESPONSE_BYTES,
-    MAX_RESPONSE_BYTES_LIMIT,
 } from './constants.js';
 import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
 import { validateTimeout } from './validation.js';
@@ -52,26 +52,11 @@ import { validateTimeout } from './validation.js';
 // probe for internal services when baseUrl is attacker-controlled.
 // Protection combines syntactic checks (regex on hostname string) with DNS resolution:
 // validatePublicHost() resolves the hostname and checks resulting IPs. Resolution
-// runs fresh before EVERY request (no caching of the construction-time result) so a
+// runs fresh before EVERY distinct upstream fetch (not for cache hits or joined
+// callers, and with no caching of the construction-time result) so a
 // DNS-rebinding attacker can't lock in a public answer once and then flip to a
 // private target. DNS lookup errors are fail-closed — callers needing to operate
 // without DNS validation must set allowPrivateHosts: true.
-const PRIVATE_HOST_PATTERNS: RegExp[] = [
-    /^localhost\.?$/i, // matches "localhost" with or without trailing dot
-    /^127\./,
-    /^10\./,
-    /^172\.(1[6-9]|2\d|3[01])\./,
-    /^192\.168\./,
-    /^169\.254\./,
-    /^::1$/,
-    /^fe80:/i, // IPv6 link-local (fe80::/10)
-    /^f[cd][0-9a-f]{2}:/i, // IPv6 unique-local (fc00::/7 covers fc** and fd**)
-    /^fe[c-f][0-9a-f]:/i, // IPv6 site-local (fec0::/10, deprecated but still routable privately)
-    /^2002:/i, // 6to4 (2002::/16); embeds IPv4 — can reach private space
-    /^64:ff9b::/i, // NAT64 well-known prefix (64:ff9b::/96); maps IPv4 private ranges
-    /^0\./,
-];
-
 function isPrivateOrLoopbackIPv4(ip: string): boolean {
     const octetParts = ip.split('.');
     if (octetParts.length !== 4 || octetParts.some((part) => !/^\d+$/.test(part))) {
@@ -137,7 +122,7 @@ type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: numb
 
 async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void> {
     const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
-    const isPrivatePattern = PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare));
+    const isPrivatePattern = isPrivateHostLiteral(bare);
     if (isPrivatePattern) {
         throw new TestRailValidationError(
             `baseUrl resolves to a private/loopback host ("${hostname}"). ` +
@@ -261,14 +246,7 @@ export class TestRailClientCore {
     private auth: string;
     private readonly timeout: number;
     private readonly maxRetries: number;
-    private readonly enableCache: boolean;
-    private readonly cacheTtl: number;
-    private readonly cacheCleanupInterval: number;
-    private readonly maxCacheSize: number;
-    private readonly cache = new Map<string, CacheEntry<unknown>>();
-    private readonly pendingRequests = new Map<string, Promise<unknown>>();
-    private cacheGeneration = 0;
-    private cacheCleanupTimer: ReturnType<typeof setInterval> | undefined;
+    private readonly requestCache: RequestCache;
     private readonly rateLimiter: { maxRequests: number; windowMs: number; requests: number[] };
     private isDestroyed = false;
     private readonly hostname: string;
@@ -290,7 +268,7 @@ export class TestRailClientCore {
      * The state-owning client. On a normally constructed client this is `this`;
      * on a {@link TestRailClient.withTimeout} view it resolves (via the
      * prototype chain) to the real client so every request runs against the
-     * shared cache, rate limiter, and credential rather than the view.
+     * shared request cache, rate limiter, and credential rather than the view.
      */
     protected readonly root: TestRailClientCore;
     private readonly fetchOverride: typeof globalThis.fetch | undefined;
@@ -298,17 +276,16 @@ export class TestRailClientCore {
     private readonly onSchemaMismatch: ((mismatch: SchemaMismatch) => void) | undefined;
 
     constructor(config: TestRailConfig) {
-        this.validateConfig(config);
+        validateTestRailConfig(config);
         this.baseUrl = config.baseUrl.replace(/\/$/, '');
-        // URL already validated by validateConfig — this parse cannot throw.
+        // URL already validated by validateTestRailConfig — this parse cannot throw.
         this.hostname = new URL(config.baseUrl).hostname;
         this.allowPrivateHosts = config.allowPrivateHosts === true;
         this.auth = base64Encode(`${config.email}:${config.apiKey}`);
         this.timeout = config.timeout ?? DEFAULT_TIMEOUT_MS;
         this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
-        this.enableCache = config.enableCache ?? true;
-        this.cacheTtl = config.cacheTtl ?? DEFAULT_CACHE_TTL_MS;
-        this.cacheCleanupInterval = config.cacheCleanupInterval ?? DEFAULT_CACHE_CLEANUP_INTERVAL_MS;
+        const enableCache = config.enableCache ?? true;
+        const cacheCleanupInterval = config.cacheCleanupInterval ?? DEFAULT_CACHE_CLEANUP_INTERVAL_MS;
         // maxCacheSize=0 means unbounded and risks memory exhaustion.
         // Warn at construction time so callers are aware of the risk.
         if (config.maxCacheSize === 0 && (config.enableCache ?? true)) {
@@ -317,7 +294,6 @@ export class TestRailClientCore {
                     'This can cause unbounded memory growth. Consider setting a positive limit.',
             );
         }
-        this.maxCacheSize = config.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE;
         this.rateLimiter = {
             maxRequests: config.rateLimiter?.maxRequests ?? DEFAULT_RATE_LIMIT_MAX_REQUESTS,
             windowMs: config.rateLimiter?.windowMs ?? DEFAULT_RATE_LIMIT_WINDOW_MS,
@@ -342,11 +318,12 @@ export class TestRailClientCore {
             );
         }
 
-        // DNS host validation runs fresh before every request (see awaitDnsValidation).
+        // DNS host validation runs fresh before every distinct upstream fetch
+        // (see awaitDnsValidation).
         // Resolving once at construction would let a DNS-rebinding attacker pin a
         // public IP for the validation lookup and then flip to a private target
         // before fetch performs its own (independent) lookup. The sync regex check
-        // in validateConfig already blocks obvious private host literals.
+        // in validateTestRailConfig already blocks obvious private host literals.
 
         // Register this instance for automatic cleanup
         activeClients.add(this);
@@ -360,184 +337,12 @@ export class TestRailClientCore {
         if (config.registerProcessHandlers === true) {
             registerProcessHandlers();
         }
-
-        // Start periodic cache cleanup if enabled
-        if (this.enableCache && this.cacheCleanupInterval > 0) {
-            this.startCacheCleanup();
-        }
-    }
-
-    private validateConfig(config: TestRailConfig): void {
-        if (!config.baseUrl || typeof config.baseUrl !== 'string') {
-            throw new TestRailValidationError('baseUrl is required and must be a string');
-        }
-
-        if (!config.email || typeof config.email !== 'string') {
-            throw new TestRailValidationError('email is required and must be a string');
-        }
-
-        if (!config.apiKey || typeof config.apiKey !== 'string') {
-            throw new TestRailValidationError('apiKey is required and must be a string');
-        }
-
-        // Validate URL format
-        try {
-            const url = new URL(config.baseUrl);
-            if (!['http:', 'https:'].includes(url.protocol)) {
-                throw new TestRailValidationError('baseUrl must use http or https protocol');
-            }
-
-            // Block HTTP unless explicitly opted in — Basic auth credentials are base64
-            // only; any network observer can decode them from a cleartext HTTP request.
-            if (url.protocol === 'http:' && config.allowInsecure !== true) {
-                throw new TestRailValidationError(
-                    'baseUrl must use HTTPS. HTTP sends credentials in cleartext. ' +
-                        'Set allowInsecure: true only in isolated development environments.',
-                );
-            }
-
-            if (url.username !== '' || url.password !== '') {
-                throw new TestRailValidationError(
-                    'baseUrl must not contain embedded credentials (userinfo). ' +
-                        'Use the email and apiKey config fields instead.',
-                );
-            }
-
-            // Syntactic SSRF protection: reject obvious private hostnames synchronously.
-            // The async DNS check in validatePublicHost adds defence-in-depth for rebinding.
-            if (config.allowPrivateHosts !== true) {
-                const bare =
-                    url.hostname.startsWith('[') && url.hostname.endsWith(']')
-                        ? url.hostname.slice(1, -1)
-                        : url.hostname;
-                if (PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare))) {
-                    throw new TestRailValidationError(
-                        `baseUrl resolves to a private/loopback host ("${url.hostname}"). ` +
-                            'Set allowPrivateHosts: true to allow on-premise deployments.',
-                    );
-                }
-            }
-        } catch (err) {
-            if (err instanceof TestRailValidationError) {
-                throw err;
-            }
-            throw new TestRailValidationError('baseUrl must be a valid URL');
-        }
-
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(config.email)) {
-            throw new TestRailValidationError('email must be a valid email address');
-        }
-
-        // Validate timeout if provided. Delegated to the shared `validateTimeout`
-        // (validation.ts) so `config.timeout` and `client.withTimeout(ms)` reject
-        // identically. `Number.isFinite` there rejects NaN/±Infinity, which
-        // range-only comparisons silently pass (typeof NaN === 'number' and every
-        // comparison with NaN is false) — a NaN timeout aborts every request after
-        // ~1 ms and throws a misleading "after NaNms" 408 (#237).
-        if (config.timeout !== undefined) {
-            validateTimeout(config.timeout);
-        }
-
-        // Validate maxRetries if provided. `Number.isInteger` rejects NaN and
-        // fractional values: maxRetries: NaN makes `retryCount < NaN` always false
-        // (all retries silently disabled), and maxRetries: 1.5 would ceil to 2
-        // retries rather than floor (#237).
-        if (config.maxRetries !== undefined) {
-            if (
-                typeof config.maxRetries !== 'number' ||
-                !Number.isInteger(config.maxRetries) ||
-                config.maxRetries < 0 ||
-                config.maxRetries > 10
-            ) {
-                throw new TestRailValidationError('maxRetries must be an integer between 0 and 10');
-            }
-        }
-
-        // Validate maxCacheSize if provided
-        if (config.maxCacheSize !== undefined) {
-            if (
-                typeof config.maxCacheSize !== 'number' ||
-                !Number.isInteger(config.maxCacheSize) ||
-                config.maxCacheSize < 0
-            ) {
-                throw new TestRailValidationError('maxCacheSize must be a non-negative integer');
-            }
-        }
-
-        // Validate response-body caps (SEC #12). Must be positive integers
-        // within MAX_RESPONSE_BYTES_LIMIT so a caller cannot disable the
-        // guard by passing Number.MAX_SAFE_INTEGER or a negative value that
-        // would silently wrap around to "never trip".
-        if (config.maxJsonResponseBytes !== undefined) {
-            if (
-                typeof config.maxJsonResponseBytes !== 'number' ||
-                !Number.isInteger(config.maxJsonResponseBytes) ||
-                config.maxJsonResponseBytes <= 0 ||
-                config.maxJsonResponseBytes > MAX_RESPONSE_BYTES_LIMIT
-            ) {
-                throw new TestRailValidationError(
-                    `maxJsonResponseBytes must be a positive integer not exceeding ${MAX_RESPONSE_BYTES_LIMIT} bytes`,
-                );
-            }
-        }
-        if (config.maxBinaryResponseBytes !== undefined) {
-            if (
-                typeof config.maxBinaryResponseBytes !== 'number' ||
-                !Number.isInteger(config.maxBinaryResponseBytes) ||
-                config.maxBinaryResponseBytes <= 0 ||
-                config.maxBinaryResponseBytes > MAX_RESPONSE_BYTES_LIMIT
-            ) {
-                throw new TestRailValidationError(
-                    `maxBinaryResponseBytes must be a positive integer not exceeding ${MAX_RESPONSE_BYTES_LIMIT} bytes`,
-                );
-            }
-        }
-        // Validate body deadline (SEC #21). `0` is allowed (= no deadline);
-        // negative or fractional values are rejected.
-        if (config.bodyTimeout !== undefined) {
-            if (
-                typeof config.bodyTimeout !== 'number' ||
-                !Number.isInteger(config.bodyTimeout) ||
-                config.bodyTimeout < 0 ||
-                config.bodyTimeout > MAX_TIMEOUT_MS
-            ) {
-                throw new TestRailValidationError('bodyTimeout must be a non-negative integer not exceeding 5 minutes');
-            }
-        }
-
-        // Validate rateLimiter config values.
-        // Zero or negative maxRequests silently disables or inverts limiting.
-        // Zero or negative windowMs makes the window always empty, disabling limiting.
-        if (config.rateLimiter !== undefined) {
-            if (config.rateLimiter === null || typeof config.rateLimiter !== 'object') {
-                throw new TestRailValidationError('rateLimiter must be an object with maxRequests and windowMs');
-            }
-            if (
-                typeof config.rateLimiter.maxRequests !== 'number' ||
-                !Number.isInteger(config.rateLimiter.maxRequests) ||
-                config.rateLimiter.maxRequests < 1
-            ) {
-                throw new TestRailValidationError('rateLimiter.maxRequests must be a positive integer');
-            }
-            if (
-                typeof config.rateLimiter.windowMs !== 'number' ||
-                !Number.isInteger(config.rateLimiter.windowMs) ||
-                config.rateLimiter.windowMs < 1
-            ) {
-                throw new TestRailValidationError('rateLimiter.windowMs must be a positive integer');
-            }
-        }
-        if (config.fetch !== undefined && typeof config.fetch !== 'function') {
-            throw new TestRailValidationError('fetch must be a function compatible with the Fetch API');
-        }
-        // Without this check a non-function hook constructs cleanly and only
-        // fails on the first schema mismatch — potentially after a successful
-        // write, with a bare TypeError from inside the client.
-        if (config.onSchemaMismatch !== undefined && typeof config.onSchemaMismatch !== 'function') {
-            throw new TestRailValidationError('onSchemaMismatch must be a function');
-        }
+        this.requestCache = new RequestCache({
+            enableStorage: enableCache,
+            ttlMs: config.cacheTtl ?? DEFAULT_CACHE_TTL_MS,
+            cleanupIntervalMs: cacheCleanupInterval,
+            maxEntries: config.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE,
+        });
     }
 
     private getRetryDelay(retryCount: number): number {
@@ -630,8 +435,8 @@ export class TestRailClientCore {
      *
      * Accounting unit: the window records **one slot per distinct upstream
      * request**, not per caller. Concurrent callers that share the same cache
-     * key and receive an in-flight promise via the `pendingRequests` early
-     * return in {@link executePipeline} (and `request`) are coalesced into that
+     * key and receive an in-flight promise through {@link RequestCache} are
+     * coalesced into that
      * single upstream request and are intentionally NOT recorded separately —
      * they issue no new network call, so charging them a slot would over-count
      * the actual load placed on TestRail. This is pre-existing behavior, by
@@ -672,76 +477,21 @@ export class TestRailClientCore {
         this.rateLimiter.requests.push(now);
     }
 
-    private getCachedData<T>(cacheKey: string): T | undefined {
-        if (!this.enableCache) {
-            return undefined;
-        }
-
-        const entry = this.cache.get(cacheKey) as CacheEntry<T> | undefined;
-        if (entry !== undefined && entry.expiry > Date.now()) {
-            // Move to end to mark as recently used (LRU behavior)
-            this.cache.delete(cacheKey);
-            this.cache.set(cacheKey, entry);
-            return globalThis.structuredClone<T>(entry.data);
-        }
-
-        // Clean expired entry
-        if (entry !== undefined) {
-            this.cache.delete(cacheKey);
-        }
-
-        return undefined;
-    }
-
-    private setCachedData<T>(cacheKey: string, data: T): void {
-        if (!this.enableCache) {
-            return;
-        }
-
-        // Re-setting an already-present key must not trip eviction: Map.set on
-        // an existing key updates in place without growing size, so evicting the
-        // oldest entry first would drop an innocent entry and leave the cache
-        // below capacity. Delete the key first so the set below is a clean insert.
-        //
-        // The re-set is genuinely reachable, not theoretical: a `skipRead: true`
-        // retry re-runs the success path and re-sets the same cacheKey, and a
-        // concurrent (non-coalesced) request can populate that key between the
-        // initial attempt and the retry's write. This guard defends that race —
-        // it's a real defensive correctness fix, not an unreachable branch.
-        if (this.cache.has(cacheKey)) {
-            this.cache.delete(cacheKey);
-        }
-
-        // Enforce cache size limit if not zero
-        if (this.maxCacheSize > 0 && this.cache.size >= this.maxCacheSize) {
-            // Map preserves insertion order; first key is the oldest (LRU eviction)
-            // Cache is non-empty here (size >= maxCacheSize > 0), so next().value is always defined
-            const oldestKey = this.cache.keys().next().value as string;
-            this.cache.delete(oldestKey);
-        }
-
-        this.cache.set(cacheKey, {
-            data: globalThis.structuredClone(data),
-            expiry: Date.now() + this.cacheTtl,
-        });
-    }
-
     /**
      * Builds a lightweight view of this client that applies `ms` as the request
      * timeout to every call, without constructing a second client. The view is
-     * prototype-linked to the state-owning client (`root`): all reads (cache,
-     * rate-limiter window, credential, cleanup timer) resolve to `root` through
+     * prototype-linked to the state-owning client (`root`): all reads (request
+     * cache, rate-limiter window, credential) resolve to `root` through
      * the prototype chain, and the view is deliberately NOT registered in
      * `activeClients` — it has no independent lifecycle.
      *
      * Every public method that *reassigns* primitive instance state must be
      * delegated to `root`, because a bare `this.field = …` on the view would
-     * create a shadow own-property instead of mutating `root` (object fields
-     * like the cache Map are safe — they mutate in place). Those methods are
+     * create a shadow own-property instead of mutating `root`. Those methods are
      * `request` (injects the timeout), `clearCache`, and `destroy`; each is
      * routed to `root` so, e.g., `view.destroy()` zeroes the shared credential
-     * and disables both the view and `root`, and `view.clearCache()` advances
-     * `root`'s cache generation. Reads need no override.
+     * and disables both the view and `root`, while `view.clearCache()`
+     * invalidates the root-owned request cache. Reads need no override.
      *
      * The body-read deadline tracks the new timeout when `root.bodyTimeout` was
      * left implicit (mirrors the constructor's `bodyTimeout ?? timeout`); an
@@ -773,50 +523,7 @@ export class TestRailClientCore {
      * Clears the entire cache.
      */
     public clearCache(): void {
-        this.cache.clear();
-        // A GET that started before this invalidation may still finish later.
-        // Advance the generation so that stale completion cannot repopulate
-        // the cache after a write.
-        this.cacheGeneration += 1;
-        // Clear in-flight coalesced GET promises (SEC #23): a POST has just
-        // mutated state, so any pending GET for the same resource must re-fetch
-        // rather than serving the pre-mutation snapshot to late joiners.
-        this.pendingRequests.clear();
-    }
-
-    private startCacheCleanup(): void {
-        this.cacheCleanupTimer = setInterval(() => {
-            this.cleanupExpiredCache();
-        }, this.cacheCleanupInterval);
-
-        // When cache cleanup is enabled (enableCache is true and cacheCleanupInterval > 0),
-        // ensure this timer doesn't prevent process exit in Node.js; the unref check keeps
-        // compatibility with non-Node.js environments where unref may not exist.
-        this.cacheCleanupTimer.unref?.();
-    }
-
-    private stopCacheCleanup(): void {
-        if (this.cacheCleanupTimer !== undefined) {
-            clearInterval(this.cacheCleanupTimer);
-            this.cacheCleanupTimer = undefined;
-        }
-    }
-
-    private cleanupExpiredCache(): void {
-        const now = Date.now();
-
-        // Collect keys of expired entries first to avoid mutating the Map
-        // while iterating over its live iterator.
-        const keysToDelete: string[] = [];
-        for (const [key, entry] of this.cache.entries()) {
-            if (entry.expiry <= now) {
-                keysToDelete.push(key);
-            }
-        }
-
-        for (const key of keysToDelete) {
-            this.cache.delete(key);
-        }
+        this.requestCache.invalidate();
     }
 
     /**
@@ -836,13 +543,11 @@ export class TestRailClientCore {
 
         this.isDestroyed = true;
         try {
-            this.stopCacheCleanup();
-            this.clearCache();
-            this.pendingRequests.clear();
+            this.requestCache.dispose();
         } finally {
             // Zero the credential and remove from registry unconditionally so a
-            // throw inside stopCacheCleanup/clearCache leaves no stale entry and
-            // no recoverable credential in the heap.
+            // cleanup failure leaves no stale entry and no recoverable
+            // credential in the heap.
             this.auth = '';
             activeClients.delete(this);
         }
@@ -860,7 +565,7 @@ export class TestRailClientCore {
      *     the `PARSED:GET:{endpoint}` namespace so a raw response and a
      *     validated response for the same endpoint never collide.
      *   - Writes (non-GET) clear the entire cache before parsing.
-     *   - DNS revalidation runs fresh on every call.
+     *   - DNS revalidation runs before every distinct upstream fetch.
      *   - Identical in-flight GETs are coalesced (SEC #23).
      *   - Retry contract: 429 retries for all methods; 5xx + network errors
      *     retry only on GET; `'binaryGet'` retries 5xx/network always;
@@ -938,94 +643,49 @@ export class TestRailClientCore {
             cacheKey = schema !== undefined ? `${variant}PARSED:GET:${endpoint}` : `${variant}GET:${endpoint}`;
         }
 
-        // When a schema is supplied we replicate the historical `requestParsed`
-        // flow: parse the body unvalidated, run Zod, then write to the cache.
-        // Without a schema, the pipeline writes the parsed body directly.
-        //
-        // Since 6.0.0 a schema mismatch is returned to the caller rather than
-        // thrown, but it is NOT cached: pinning a body the schema rejected would
-        // hold it for the full TTL (5 min by default) with no further hook
-        // notifications, so a transient proxy blip — or the `{}` that
-        // `executeJson` synthesizes for an empty 200 — would keep answering for
-        // minutes where 5.x threw and self-healed on the next call. Skipping the
-        // write keeps availability (the raw body is still returned) while making
-        // each subsequent call re-fetch and re-report. A consumer that opts back
-        // into fail-closed behavior by throwing from `onSchemaMismatch` also
-        // skips the write, since the throw escapes before `setCachedData`.
-        const writeValidatedAfterPipeline = schema !== undefined && method === 'GET' && responseKind === 'json';
-        const cacheGeneration = this.cacheGeneration;
-
-        // Custom check for in-flight coalescing for the validated case. The
-        // pipeline's own coalescing uses `cacheKey` against `pendingRequests`;
-        // for the validated path we register the *validated* Promise so two
-        // concurrent getProject(1) calls share Zod work rather than re-parsing
-        // the same body twice. Mirror of the prior requestParsed behavior.
-        if (writeValidatedAfterPipeline && cacheKey !== undefined) {
-            if (this.isDestroyed) {
-                throw new Error('Cannot use TestRailClient after destroy() has been called');
-            }
-            const cached = this.getCachedData<T>(cacheKey);
-            if (cached !== undefined) return this.withDeadline(Promise.resolve(cached), timeouts.deadlineAt);
-            const existing = this.pendingRequests.get(cacheKey) as Promise<T> | undefined;
-            if (existing !== undefined) return this.withDeadline(existing, timeouts.deadlineAt);
+        if (this.isDestroyed) {
+            throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        const validatedPromise: Promise<T> = (async () => {
+        // The cache module owns read/coalesce/load/publish as one protocol. The
+        // loader reports schema-match disposition so advisory mismatches remain
+        // available to the caller without being pinned for the cache TTL.
+        const load = async (): Promise<CacheLoadResult<T>> => {
             if (responseKind === 'binary') {
-                return this.executeBinary<T>(endpoint, retry, timeouts);
+                return { value: await this.executeBinary<T>(endpoint, retry, timeouts), cacheable: false };
             }
             if (responseKind === 'text') {
-                return this.executeText<T>(method, endpoint, body, retry, timeouts);
+                return { value: await this.executeText<T>(method, endpoint, body, retry, timeouts), cacheable: false };
             }
-            // JSON
-            if (writeValidatedAfterPipeline && schema !== undefined) {
-                // Validated GET: run the pipeline with NO cache (it would
-                // otherwise write the raw body); validate; cache the result.
-                const raw = await this.executeJson<unknown>(method, endpoint, body, retry, undefined, timeouts);
-                const { value, matched } = this.parseAdvisory<T>(schema, raw, { method, endpoint });
-                if (matched && cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
-                    this.setCachedData(cacheKey, value);
-                }
-                return value;
-            }
-            // Validated POST (non-cached) or raw JSON path.
-            const result = await this.executeJson<T>(method, endpoint, body, retry, cacheKey, timeouts);
+
+            const raw = await this.executeJson<unknown>(method, endpoint, body, retry, timeouts);
             if (schema !== undefined) {
-                return this.parse<T>(schema, result, { method, endpoint });
+                const { value, matched } = this.parseAdvisory<T>(schema, raw, { method, endpoint });
+                return { value, cacheable: cacheKey !== undefined && matched };
             }
-            return result;
-        })();
+            return { value: raw as T, cacheable: cacheKey !== undefined };
+        };
 
-        // A bounded initiator is not published for unbounded callers to join:
-        // its transport will abort at its own deadline. Bounded callers may
-        // still join an ordinary request in the early-return branch above,
-        // where withDeadline applies only to that waiter.
-        if (writeValidatedAfterPipeline && cacheKey !== undefined && timeouts.deadlineAt === undefined) {
-            this.pendingRequests.set(cacheKey, validatedPromise);
-            validatedPromise
-                .finally(() => {
-                    if (this.pendingRequests.get(cacheKey) === validatedPromise) {
-                        this.pendingRequests.delete(cacheKey);
-                    }
-                })
-                .catch(() => {});
-        }
-
-        return validatedPromise;
+        return this.requestCache.resolve({
+            key: cacheKey,
+            // Bounded initiators are not shared with later unbounded callers;
+            // bounded waiters may still join an ordinary shared request.
+            shareInFlight: timeouts.deadlineAt === undefined,
+            wait: (promise) => this.withDeadline(promise, timeouts.deadlineAt),
+            load,
+        });
     }
 
     /**
      * JSON pipeline (`responseKind: 'json'`). Builds the JSON `PipelineSpec`
-     * and delegates to {@link executePipeline}. The caller controls cache key
-     * directly because the validated-GET path needs to skip the pipeline's
-     * built-in cache write.
+     * and delegates to {@link executePipeline}. Caching is deliberately outside
+     * the transport pipeline and owned by {@link RequestCache}.
      */
     private async executeJson<T>(
         method: string,
         endpoint: string,
         body: RequestSpec<unknown>['body'],
         retry: 'full' | 'binaryGet' | 'none',
-        cacheKey: string | undefined,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
         const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
@@ -1038,7 +698,6 @@ export class TestRailClientCore {
             bodyTimeout: timeouts.bodyTimeout,
             ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
             retryPolicy: getRetryPolicy(retry),
-            cache: { key: cacheKey, skipRead: false },
             parseSuccess: async (response: Response) => {
                 const responseText = await readBodyAsText(response, {
                     ...jsonLimits,
@@ -1099,7 +758,6 @@ export class TestRailClientCore {
             bodyTimeout: timeouts.bodyTimeout,
             ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
             retryPolicy: getRetryPolicy(retry),
-            cache: { key: undefined, skipRead: false },
             parseSuccess: async (response: Response) =>
                 (await readBodyAsText(response, {
                     ...jsonLimits,
@@ -1128,7 +786,6 @@ export class TestRailClientCore {
             bodyTimeout: timeouts.bodyTimeout,
             ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
             retryPolicy: getRetryPolicy(retry),
-            cache: { key: undefined, skipRead: false },
             parseSuccess: async (response: Response) => {
                 const bytes = await readBodyWithLimits(response, {
                     maxBytes: this.maxBinaryResponseBytes,
@@ -1313,42 +970,15 @@ export class TestRailClientCore {
 
     /**
      * Shared HTTP pipeline: DNS validation, rate limiting, fetch, redirect guard,
-     * error-body read, retry (via spec.retryPolicy), success parse, cache write.
-     *
-     * Cache semantics (spec.cache):
-     *   key === undefined  — no cache participation at all.
-     *   key set, skipRead false  — read + coalesce + write on success.
-     *   key set, skipRead true   — skip read/coalesce; still write on success.
-     *     Used on retry to avoid a deadlock where the retry looks up pendingRequests
-     *     and finds the still-pending parent promise.
+     * error-body read, retry (via spec.retryPolicy), and success parsing.
+     * Request caching and coalescing live entirely in {@link RequestCache}.
      */
-    private async executePipeline<TParsed>(
-        spec: PipelineSpec<TParsed>,
-        retryCount = 0,
-        cacheGeneration = this.cacheGeneration,
-    ): Promise<TParsed> {
+    private async executePipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
         await this.withDeadline(this.awaitDnsValidation(), spec.deadlineAt);
-
-        const { key: cacheKey, skipRead } = spec.cache;
-
-        if (cacheKey !== undefined && !skipRead) {
-            const cached = this.getCachedData<TParsed>(cacheKey);
-            if (cached !== undefined) return this.withDeadline(Promise.resolve(cached), spec.deadlineAt);
-
-            // Coalesce concurrent identical requests (SEC #23): return the
-            // in-flight promise instead of starting a new upstream request.
-            // Callers served here share the already-admitted upstream request
-            // and are intentionally NOT charged a separate rate-limit slot —
-            // checkRateLimit below is skipped on this path. The window records
-            // one slot per distinct upstream request, not per coalesced caller
-            // (see checkRateLimit's accounting-unit note).
-            const existing = this.pendingRequests.get(cacheKey) as Promise<TParsed> | undefined;
-            if (existing !== undefined) return this.withDeadline(existing, spec.deadlineAt);
-        }
 
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
@@ -1368,8 +998,6 @@ export class TestRailClientCore {
         const effectiveTimeout = Math.min(spec.timeout, deadlineRemaining);
         const requestDeadlineAt = Date.now() + effectiveTimeout;
         const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
-
-        const retrySpec: PipelineSpec<TParsed> = { ...spec, cache: { key: cacheKey, skipRead: true } };
 
         const fetchPromise: Promise<TParsed> = (async () => {
             let formdataCleanup: (() => void) | undefined;
@@ -1454,7 +1082,7 @@ export class TestRailClientCore {
                         const retryAfterMs = this.parseRetryAfterMs(response);
                         const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
                         await this.waitForRetryDelay(delay, spec.deadlineAt);
-                        return this.executePipeline<TParsed>(retrySpec, retryCount + 1, cacheGeneration);
+                        return this.executePipeline<TParsed>(spec, retryCount + 1);
                     }
 
                     // The raw server body may contain stack traces, internal paths,
@@ -1472,11 +1100,7 @@ export class TestRailClientCore {
                     throw new TestRailApiError(status, response.statusText, errorText);
                 }
 
-                const result = await spec.parseSuccess(response);
-                if (cacheKey !== undefined && cacheGeneration === this.cacheGeneration) {
-                    this.setCachedData(cacheKey, result);
-                }
-                return result;
+                return spec.parseSuccess(response);
             } catch (error) {
                 clearTimeout(timeoutId);
 
@@ -1492,7 +1116,7 @@ export class TestRailClientCore {
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
                     await this.waitForRetryDelay(this.getRetryDelay(retryCount), spec.deadlineAt);
-                    return this.executePipeline<TParsed>(retrySpec, retryCount + 1, cacheGeneration);
+                    return this.executePipeline<TParsed>(spec, retryCount + 1);
                 }
 
                 throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
@@ -1501,34 +1125,15 @@ export class TestRailClientCore {
             }
         })();
 
-        // Register the in-flight promise so concurrent callers with the same
-        // cache key (and skipRead=false) share this single fetch (SEC #23).
-        // Remove on settle so rejections don't permanently block a cache key.
-        // Do not publish a deadline-bearing initiator: an ordinary caller that
-        // joined it would otherwise inherit the initiator's abort deadline.
-        // Deadline-bearing waiters can still join an ordinary promise above
-        // and race it without cancelling the shared upstream request.
-        if (cacheKey !== undefined && !skipRead && spec.deadlineAt === undefined) {
-            this.pendingRequests.set(cacheKey, fetchPromise);
-            // Suppress the rejection on the cleanup chain; callers own the
-            // returned promise and are responsible for catching it.
-            fetchPromise
-                .finally(() => {
-                    if (this.pendingRequests.get(cacheKey) === fetchPromise) {
-                        this.pendingRequests.delete(cacheKey);
-                    }
-                })
-                .catch(() => {});
-        }
-
         return fetchPromise;
     }
 
     /**
      * Re-validates the baseUrl hostname against the public-IP allowlist before
-     * each request. Performing the lookup per-request (rather than caching the
-     * construction-time result) eliminates the window in which a DNS-rebinding
-     * authority could serve a public IP to validation and a private IP to fetch.
+     * each distinct upstream fetch. Performing the lookup immediately before
+     * upstream work (rather than caching the construction-time result) eliminates
+     * the window in which a DNS-rebinding authority could serve a public IP to
+     * validation and a private IP to fetch.
      * Lookup errors are fail-closed; callers needing to operate without DNS
      * must set allowPrivateHosts: true.
      */

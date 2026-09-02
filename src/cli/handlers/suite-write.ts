@@ -22,6 +22,5 @@ export const handleSuiteUpdate = createWriteHandler({
 export const handleSuiteDelete = createDestructiveHandler({
     action: 'suite delete',
     pathParams: ['suite_id'],
-    softMode: 'optional',
     call: (client, [suiteId], _entry, soft) => client.suites.deleteSuite(suiteId, { soft }),
 });
