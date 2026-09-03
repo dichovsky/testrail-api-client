@@ -23,9 +23,8 @@ const ConstructionConfigSchema = TestRailConfigSchema.strip().extend({
 // spelling (`::ffff:127.0.0.1`, `::ffff:7f00:1`, fully expanded). The WHATWG
 // URL parser rewrites bracketed literals to the hex form, which a dotted-only
 // regex silently let through. Other IPv4-embedding forms (deprecated
-// IPv4-compatible `::a.b.c.d`, obsolete SIIT IPv4-translated `::ffff:0:a.b.c.d`,
-// the RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48`) are not special-routed
-// by default kernels and are deliberately not listed.
+// IPv4-compatible `::a.b.c.d`, obsolete SIIT IPv4-translated `::ffff:0:a.b.c.d`)
+// are not special-routed by default kernels and are deliberately not listed.
 function buildPrivateAddressBlockList(): BlockList {
     const list = new BlockList();
     list.addSubnet('0.0.0.0', 8); // "this" network
@@ -38,6 +37,7 @@ function buildPrivateAddressBlockList(): BlockList {
     list.addAddress('::', 'ipv6'); // unspecified
     list.addAddress('::1', 'ipv6'); // loopback
     list.addSubnet('64:ff9b::', 96, 'ipv6'); // NAT64 well-known prefix
+    list.addSubnet('64:ff9b:1::', 48, 'ipv6'); // RFC 8215 local-use NAT64; router maps to private IPv4
     list.addSubnet('2002::', 16, 'ipv6'); // 6to4
     list.addSubnet('fc00::', 7, 'ipv6'); // unique local
     list.addSubnet('fe80::', 10, 'ipv6'); // link-local

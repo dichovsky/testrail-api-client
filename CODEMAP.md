@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "09e91e19e2e5b2a6401fc84e65d9a3548c72d76915896eea42e28e3821410b1a",
+  "sourceHash": "858faaf0559316c6127525d93a5d3e0cb142323b886753b67d3071cb821c3295",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6691,7 +6691,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "buildPrivateAddressBlockList",
           "kind": "function",
-          "line": 29,
+          "line": 28,
           "exported": false,
           "signature": "function buildPrivateAddressBlockList(): BlockList"
         },

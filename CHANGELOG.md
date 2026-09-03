@@ -29,6 +29,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   allowed.
 - Carrier-grade NAT `100.64.0.0/10` (RFC 6598) is now treated as private
   alongside the RFC 1918 ranges.
+- The RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48` is blocked explicitly
+  next to the well-known `64:ff9b::/96`. A router on such a network translates
+  `64:ff9b:1::a00:1` to private `10.0.0.1`, so the whole /48 is treated as
+  private on both the literal and the DNS-resolved path.
 
 ### Changed
 

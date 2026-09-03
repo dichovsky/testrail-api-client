@@ -497,3 +497,38 @@ describe('SSRF defense — hostnames that resemble private IPs defer to DNS', ()
         expect(mockFetch).not.toHaveBeenCalled();
     });
 });
+
+describe('SSRF defense — RFC 8215 local-use NAT64 prefix 64:ff9b:1::/48', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([]);
+    });
+
+    // Operators may deploy NAT64 on 64:ff9b:1::/96 (or any /96 inside the
+    // /48); the router translates 64:ff9b:1::a00:1 to private 10.0.0.1, so the
+    // whole /48 is treated like the well-known 64:ff9b::/96 prefix.
+    it.each([
+        ['https://[64:ff9b:1::a00:1]', 'maps to 10.0.0.1'],
+        ['https://[64:ff9b:1::7f00:1]', 'maps to 127.0.0.1'],
+        ['https://[64:ff9b:1:ffff:ffff:ffff:ffff:ffff]', 'last address in the /48'],
+    ])('rejects %s at construction (%s)', (baseUrl) => {
+        expect(() => new TestRailClient({ baseUrl, email: 'test@example.com', apiKey: 'key' })).toThrow(
+            /private\/loopback host/,
+        );
+    });
+
+    it.each([['64:ff9b:1::a00:1'], ['64:ff9b:1::a9fe:a9fe'], ['64:ff9b:1:ffff::1']])(
+        'rejects DNS answer %s before any fetch',
+        async (address) => {
+            mockDnsLookup.mockResolvedValueOnce([{ address, family: 6 }] as never);
+            const client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'key',
+            });
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+        },
+    );
+});
