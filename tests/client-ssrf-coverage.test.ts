@@ -475,3 +475,25 @@ describe('SSRF defense — carrier-grade NAT 100.64.0.0/10 (RFC 6598)', () => {
         await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 });
+
+describe('SSRF defense — hostnames that resemble private IPs defer to DNS', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([]);
+    });
+
+    it('constructs for 127.0.0.1.nip.io and rejects on the first request once DNS answers 127.0.0.1', async () => {
+        // A hostname is not an IP literal, so construction no longer rejects it
+        // on a prefix match; the per-fetch DNS layer classifies the resolved
+        // address and still fails closed before any fetch.
+        const client = new TestRailClient({
+            baseUrl: 'https://127.0.0.1.nip.io',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        mockDnsLookup.mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }] as never);
+        await expect(client.projects.getProject(1)).rejects.toThrow(/private\/loopback host/);
+        expect(mockFetch).not.toHaveBeenCalled();
+    });
+});

@@ -22,7 +22,9 @@ const ConstructionConfigSchema = TestRailConfigSchema.strip().extend({
 // `BlockList.check()` matches IPv4 rules against IPv4-mapped IPv6 in every
 // spelling (`::ffff:127.0.0.1`, `::ffff:7f00:1`, fully expanded). The WHATWG
 // URL parser rewrites bracketed literals to the hex form, which a dotted-only
-// regex silently let through.
+// regex silently let through. Other IPv4-embedding forms (IPv4-compatible
+// `::a.b.c.d`, RFC 8215 `::ffff:0:a.b.c.d`, operator-chosen NAT64 prefixes)
+// are not special-routed by default kernels and are deliberately not listed.
 function buildPrivateAddressBlockList(): BlockList {
     const list = new BlockList();
     list.addSubnet('0.0.0.0', 8); // "this" network

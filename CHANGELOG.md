@@ -30,6 +30,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Carrier-grade NAT `100.64.0.0/10` (RFC 6598) is now treated as private
   alongside the RFC 1918 ranges.
 
+### Changed
+
+- Construction-time private-host rejection now applies to IP literals and
+  `localhost` only. Hostnames that merely start with a private-looking prefix
+  (for example `127.0.0.1.nip.io` or `10.example.test`) were previously
+  rejected synchronously by a prefix regex; they now construct and are
+  classified by the per-request DNS check, which still rejects them before any
+  fetch when they resolve to a private address.
+
 ## [7.0.0] — 2026-09-02 — TestRail 10.7 API compatibility and stricter validation
 
 ### Added — TestRail 10.7.0 API compatibility

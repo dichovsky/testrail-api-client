@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "1e582771264a93ac3ec9da79ec629970afa33e63556d04bcfb01857db63bb45a",
+  "sourceHash": "8367af415eafced19d487e8cc82e4de90c206e934353c58876e40ccd31bc06dc",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6691,70 +6691,70 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "buildPrivateAddressBlockList",
           "kind": "function",
-          "line": 26,
+          "line": 28,
           "exported": false,
           "signature": "function buildPrivateAddressBlockList(): BlockList"
         },
         {
           "name": "PRIVATE_ADDRESSES",
           "kind": "const",
-          "line": 45,
+          "line": 47,
           "exported": false,
           "signature": "const PRIVATE_ADDRESSES = buildPrivateAddressBlockList()"
         },
         {
           "name": "LOCALHOST_PATTERN",
           "kind": "const",
-          "line": 46,
+          "line": 48,
           "exported": false,
           "signature": "const LOCALHOST_PATTERN = /^localhost\\.?$/i"
         },
         {
           "name": "isPrivateOrLoopbackIP",
           "kind": "function",
-          "line": 54,
+          "line": 56,
           "exported": true,
           "signature": "export function isPrivateOrLoopbackIP(ip: string): boolean"
         },
         {
           "name": "isPrivateHostLiteral",
           "kind": "function",
-          "line": 62,
+          "line": 64,
           "exported": true,
           "signature": "export function isPrivateHostLiteral(hostname: string): boolean"
         },
         {
           "name": "requiredString",
           "kind": "function",
-          "line": 67,
+          "line": 69,
           "exported": false,
           "signature": "function requiredString(config: Readonly<Record<string, unknown>>, key: 'baseUrl' | 'email' | 'apiKey'): string"
         },
         {
           "name": "isRecord",
           "kind": "function",
-          "line": 75,
+          "line": 77,
           "exported": false,
           "signature": "function isRecord(value: unknown): value is Readonly<Record<string, unknown>>"
         },
         {
           "name": "validateBaseUrl",
           "kind": "function",
-          "line": 79,
+          "line": 81,
           "exported": false,
           "signature": "function validateBaseUrl(baseUrl: string, config: Readonly<Record<string, unknown>>): void"
         },
         {
           "name": "issueMessage",
           "kind": "function",
-          "line": 111,
+          "line": 113,
           "exported": false,
           "signature": "function issueMessage(path: readonly PropertyKey[]): string"
         },
         {
           "name": "validateTestRailConfig",
           "kind": "function",
-          "line": 169,
+          "line": 171,
           "exported": true,
           "signature": "export function validateTestRailConfig(config: unknown): asserts config is TestRailConfig"
         }
