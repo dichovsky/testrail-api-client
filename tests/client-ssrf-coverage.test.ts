@@ -1,19 +1,13 @@
 /**
- * Unit tests targeting the IP-validation branches in client-core.ts that the
- * regex `PRIVATE_HOST_PATTERNS` check would otherwise short-circuit.
- *
- * The `isPrivateOrLoopbackIPv4` and `isPrivateOrLoopbackIP` helpers are only
- * reached by:
- *   1. IP literals in the baseUrl that escape PRIVATE_HOST_PATTERNS but appear
- *      as IPs to `isIP()` — `[::1]`, `[::]` (URL normalizes other forms).
+ * Unit tests for the SSRF address classifier (`isPrivateOrLoopbackIP` in
+ * config-validation.ts, backed by one `net.BlockList`) as reached from
+ * client-core.ts:
+ *   1. IP literals in the baseUrl — checked synchronously at construction via
+ *      `isPrivateHostLiteral`, and again before each upstream fetch.
  *   2. Hostnames that DNS resolves to a private address (mocked here so the
- *      tests stay fast and offline). This is the primary defense surface.
- *
- * Note: PRIVATE_HOST_PATTERNS runs synchronously inside `validateConfig` at
- * construction time. `isPrivateOrLoopbackIP` runs asynchronously inside
- * `validatePublicHost` before each request. The IP-literal tests must
- * therefore exercise an actual request to dispatch through the async
- * validator.
+ *      tests stay fast and offline). This is the primary defense surface and
+ *      runs asynchronously inside `validatePublicHost` before each request, so
+ *      those tests must exercise an actual request.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient, TestRailValidationError } from '../src/client.js';
@@ -37,7 +31,7 @@ vi.mock('node:dns/promises', () => ({
     lookup: mockDnsLookup,
 }));
 
-describe('SSRF defense — DNS-resolved private IPv4 (isPrivateOrLoopbackIPv4 branches)', () => {
+describe('SSRF defense — DNS-resolved private IPv4', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         mockDnsLookup.mockReset();
@@ -120,7 +114,7 @@ describe('SSRF defense — DNS-resolved private IPv4 (isPrivateOrLoopbackIPv4 br
     });
 });
 
-describe('SSRF defense — DNS-resolved IPv6 (isPrivateOrLoopbackIP branches)', () => {
+describe('SSRF defense — DNS-resolved IPv6', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         mockDnsLookup.mockReset();
@@ -172,8 +166,7 @@ describe('SSRF defense — DNS-resolved IPv6 (isPrivateOrLoopbackIP branches)', 
 
     it('rejects IPv4-mapped IPv6 ::ffff:127.0.0.1 via DNS lookup', async () => {
         // When DNS lookups return the mapped-IPv4 textual form, the
-        // mappedIPv4 regex inside isPrivateOrLoopbackIP must dispatch to
-        // isPrivateOrLoopbackIPv4 on '127.0.0.1'.
+        // classifier must apply the IPv4 rules to '127.0.0.1'.
         await expectRejectedOnLookup('::ffff:127.0.0.1', 6);
     });
 
@@ -247,7 +240,7 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
     });
 
     it('handles malformed IPv4 from DNS gracefully (non-4-part, non-numeric octet)', async () => {
-        // isPrivateOrLoopbackIPv4 returns false for malformed input; if all
+        // isPrivateOrLoopbackIP returns false for malformed input; if all
         // lookups are malformed, the validator should allow the request
         // through. Defensive against a non-conformant DNS resolver.
         mockDnsLookup.mockResolvedValueOnce([
@@ -270,9 +263,9 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
     });
 
     it('handles an out-of-range IPv4 octet from DNS (e.g. "1.2.3.999")', async () => {
-        // Exercises the `octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)`
-        // false-return branch. Followed by a valid public address so the
-        // request can proceed.
+        // An out-of-range octet is not an IP, so the classifier treats it as
+        // non-private. Followed by a valid public address so the request can
+        // proceed.
         mockDnsLookup.mockResolvedValueOnce([
             { address: '1.2.3.999', family: 4 },
             { address: '203.0.113.20', family: 4 },
@@ -291,15 +284,12 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 
-    it('treats a lookup whose family is neither 4 nor 6 as non-private (ipFamily !== 6 fall-through)', async () => {
-        // Exercises the false arm of `if (ipFamily === 6)` in
-        // isPrivateOrLoopbackIP: a non-conformant resolver returns a record
-        // whose family is 0 and whose address is not a parseable IP, so
-        // `family ?? isIP(...)` yields 0 — neither the IPv4 (=== 4) nor the
-        // IPv6 (=== 6) branch is taken and the helper falls through to
-        // `return false`. The validator must then treat the entry as
-        // non-private and proceed to the valid public follow-up rather than
-        // crashing on the malformed record.
+    it('treats a lookup whose address is not a parseable IP as non-private', async () => {
+        // A non-conformant resolver returns a record whose family is 0 and
+        // whose address is not a parseable IP; isIP() yields 0 and the
+        // classifier returns false. The validator must then treat the entry
+        // as non-private and proceed to the valid public follow-up rather
+        // than crashing on the malformed record.
         mockDnsLookup.mockResolvedValueOnce([
             { address: 'weird-non-ip-host', family: 0 },
             { address: '203.0.113.30', family: 4 }, // valid public follow-up
@@ -336,14 +326,13 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
 
     it('accepts a public IPv6 URL literal at request time (exercises validatePublicHost IP-literal pass-through)', async () => {
         // URL = http://[2001:db8::1]/ passes both URL-format and
-        // PRIVATE_HOST_PATTERNS at construction. At request time,
+        // isPrivateHostLiteral at construction. At request time,
         // validatePublicHost dispatches through the IP-literal branch:
         //   bracket-strip → bare = '2001:db8::1'
-        //   isIP(bare) === 6 (IP literal, no DNS)
-        //   isPrivateOrLoopbackIP returns false (documentation prefix)
-        //   → fetch proceeds.
+        //   isPrivateHostLiteral(bare) false (documentation prefix)
+        //   isIP(bare) === 6 → no DNS, fetch proceeds.
         // Without this test the IP-literal happy path in validatePublicHost
-        // (lines 124, 134, 135) is unverified.
+        // is unverified.
         mockFetch.mockResolvedValueOnce({
             ok: true,
             status: 200,
@@ -360,11 +349,10 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('accepts a public IPv4 URL literal at request time (exercises ipFamily === 4 branch)', async () => {
+    it('accepts a public IPv4 URL literal at request time', async () => {
         // URL = http://203.0.113.5/ — public TEST-NET-3 address; URL.hostname
-        // does NOT have brackets (IPv4 literal). Exercises the
-        // ipFamily === 4 branch in isPrivateOrLoopbackIP, taken via the
-        // IP-literal short-circuit at line 134.
+        // does NOT have brackets (IPv4 literal). Exercises the IPv4 arm of
+        // the classifier via the IP-literal short-circuit.
         mockFetch.mockResolvedValueOnce({
             ok: true,
             status: 200,
@@ -392,5 +380,98 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
             apiKey: 'key',
         });
         await expect(client.projects.getProject(1)).rejects.toThrow(/Unknown error|DNS validation failed/);
+    });
+});
+
+describe('SSRF defense — IPv4-mapped IPv6 literals in hex form', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([]);
+    });
+
+    // WHATWG URL serializes `[::ffff:127.0.0.1]` as `[::ffff:7f00:1]`, so a
+    // mapped literal never reaches the classifier in dotted form. Node's
+    // fetch connects `::ffff:7f00:1` straight to the IPv4 loopback.
+    it.each([
+        ['https://[::ffff:127.0.0.1]', 'loopback, dotted input'],
+        ['https://[::ffff:7f00:1]', 'loopback, hex input'],
+        ['https://[::ffff:169.254.169.254]', 'AWS IMDS link-local'],
+        ['https://[0:0:0:0:0:ffff:a9fe:a9fe]', 'AWS IMDS, fully expanded'],
+        ['https://[::ffff:10.0.0.1]', 'RFC 1918 10/8'],
+        ['https://[::ffff:c0a8:101]', 'RFC 1918 192.168/16, hex input'],
+    ])('rejects %s at construction (%s)', (baseUrl) => {
+        expect(() => new TestRailClient({ baseUrl, email: 'test@example.com', apiKey: 'key' })).toThrow(
+            /private\/loopback host/,
+        );
+    });
+
+    it('rejects a DNS answer in hex mapped form (::ffff:7f00:1)', async () => {
+        mockDnsLookup.mockResolvedValueOnce([{ address: '::ffff:7f00:1', family: 6 }] as never);
+        const client = new TestRailClient({
+            baseUrl: 'https://public-host.example',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+        expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('still accepts a public IPv4-mapped address (::ffff:808:808 is 8.8.8.8)', async () => {
+        mockDnsLookup.mockResolvedValueOnce([{ address: '::ffff:808:808', family: 6 }] as never);
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+        });
+        const client = new TestRailClient({
+            baseUrl: 'https://public-host.example',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('SSRF defense — carrier-grade NAT 100.64.0.0/10 (RFC 6598)', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([]);
+    });
+
+    it('rejects a 100.64.0.0/10 literal at construction', () => {
+        expect(
+            () => new TestRailClient({ baseUrl: 'https://100.64.0.1', email: 'test@example.com', apiKey: 'key' }),
+        ).toThrow(/private\/loopback host/);
+    });
+
+    it.each([['100.64.0.0'], ['100.100.1.1'], ['100.127.255.255']])('rejects DNS answer %s', async (address) => {
+        mockDnsLookup.mockResolvedValueOnce([{ address, family: 4 }] as never);
+        const client = new TestRailClient({
+            baseUrl: 'https://public-host.example',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+        expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it.each([['100.63.255.255'], ['100.128.0.0']])('accepts DNS answer %s just outside the range', async (address) => {
+        mockDnsLookup.mockResolvedValueOnce([{ address, family: 4 }] as never);
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
+        });
+        const client = new TestRailClient({
+            baseUrl: 'https://public-host.example',
+            email: 'test@example.com',
+            apiKey: 'key',
+        });
+        await expect(client.projects.getProject(1)).resolves.toBeDefined();
     });
 });

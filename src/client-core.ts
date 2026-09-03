@@ -8,7 +8,7 @@ import { type ZodType } from 'zod';
 import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
 import { getRetryPolicy } from './retry-policy.js';
 import { RequestCache, type CacheLoadResult } from './request-cache.js';
-import { isPrivateHostLiteral, validateTestRailConfig } from './config-validation.js';
+import { isPrivateHostLiteral, isPrivateOrLoopbackIP, validateTestRailConfig } from './config-validation.js';
 
 /**
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
@@ -47,76 +47,16 @@ import {
 import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
 import { validateTimeout } from './validation.js';
 
-// Reject loopback, link-local, and private-range hosts to prevent SSRF.
-// All requests carry a full Authorization header, making the client a credentialed
-// probe for internal services when baseUrl is attacker-controlled.
-// Protection combines syntactic checks (regex on hostname string) with DNS resolution:
-// validatePublicHost() resolves the hostname and checks resulting IPs. Resolution
-// runs fresh before EVERY distinct upstream fetch (not for cache hits or joined
-// callers, and with no caching of the construction-time result) so a
-// DNS-rebinding attacker can't lock in a public answer once and then flip to a
-// private target. DNS lookup errors are fail-closed — callers needing to operate
-// without DNS validation must set allowPrivateHosts: true.
-function isPrivateOrLoopbackIPv4(ip: string): boolean {
-    const octetParts = ip.split('.');
-    if (octetParts.length !== 4 || octetParts.some((part) => !/^\d+$/.test(part))) {
-        return false;
-    }
-
-    const octets = octetParts.map((part) => Number.parseInt(part, 10));
-    if (octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
-        return false;
-    }
-    const [o0, o1] = octets as [number, number, ...number[]];
-
-    return (
-        o0 === 0 ||
-        o0 === 10 ||
-        o0 === 127 ||
-        (o0 === 169 && o1 === 254) ||
-        (o0 === 172 && o1 >= 16 && o1 <= 31) ||
-        (o0 === 192 && o1 === 168)
-    );
-}
-
-function isPrivateOrLoopbackIP(ip: string, family?: number): boolean {
-    const [normalized] = ip.toLowerCase().split('%') as [string, ...string[]];
-    // Handle IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1).
-    const mappedIPv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    const mappedAddress = mappedIPv4?.[1];
-    if (mappedAddress !== undefined) {
-        return isPrivateOrLoopbackIPv4(mappedAddress);
-    }
-
-    const ipFamily = family ?? isIP(normalized);
-    if (ipFamily === 4) {
-        return isPrivateOrLoopbackIPv4(normalized);
-    }
-    if (ipFamily === 6) {
-        if (normalized === '::' || normalized === '::1') {
-            return true;
-        }
-
-        const parts = normalized.split(':') as [string, ...string[]];
-        const [firstHextet] = parts;
-        return (
-            firstHextet.startsWith('fc') ||
-            firstHextet.startsWith('fd') ||
-            firstHextet.startsWith('fe8') ||
-            firstHextet.startsWith('fe9') ||
-            firstHextet.startsWith('fea') ||
-            firstHextet.startsWith('feb') ||
-            firstHextet.startsWith('fec') || // site-local fec0::/10
-            firstHextet.startsWith('fed') ||
-            firstHextet.startsWith('fee') ||
-            firstHextet.startsWith('fef') ||
-            firstHextet === '2002' || // 6to4 2002::/16
-            (firstHextet === '64' && parts[1] === 'ff9b') // NAT64 64:ff9b::/96
-        );
-    }
-
-    return false;
-}
+// SSRF guard. All requests carry a full Authorization header, making the client
+// a credentialed probe for internal services when baseUrl is attacker-controlled.
+// Address classification lives in config-validation (one BlockList shared with
+// the construction-time literal check). validatePublicHost() resolves the
+// hostname and checks resulting IPs; resolution runs fresh before EVERY
+// distinct upstream fetch (not for cache hits or joined callers, and with no
+// caching of the construction-time result) so a DNS-rebinding attacker can't
+// lock in a public answer once and then flip to a private target. DNS lookup
+// errors are fail-closed — callers needing to operate without DNS validation
+// must set allowPrivateHosts: true.
 
 type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>;
 
@@ -130,14 +70,8 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
         );
     }
 
-    // IP literals don't need DNS resolution — validate the address directly.
+    // IP literals were classified by isPrivateHostLiteral above; no DNS needed.
     if (isIP(bare) !== 0) {
-        if (isPrivateOrLoopbackIP(bare)) {
-            throw new TestRailValidationError(
-                `baseUrl resolves to a private/loopback host ("${hostname}"). ` +
-                    'Set allowPrivateHosts: true to allow on-premise deployments.',
-            );
-        }
         return;
     }
 
@@ -171,7 +105,7 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
     }
 
     for (const lookup of lookups) {
-        if (isPrivateOrLoopbackIP(lookup.address, lookup.family)) {
+        if (isPrivateOrLoopbackIP(lookup.address)) {
             throw new TestRailValidationError(
                 `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
                     'Set allowPrivateHosts: true to allow on-premise deployments.',
@@ -322,8 +256,8 @@ export class TestRailClientCore {
         // (see awaitDnsValidation).
         // Resolving once at construction would let a DNS-rebinding attacker pin a
         // public IP for the validation lookup and then flip to a private target
-        // before fetch performs its own (independent) lookup. The sync regex check
-        // in validateTestRailConfig already blocks obvious private host literals.
+        // before fetch performs its own (independent) lookup. The sync literal check
+        // in validateTestRailConfig already blocks private host literals.
 
         // Register this instance for automatic cleanup
         activeClients.add(this);

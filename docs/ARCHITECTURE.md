@@ -112,8 +112,8 @@ Backoff: `min(BASE_RETRY_DELAY_MS × 2^n, MAX_RETRY_DELAY_MS)` — currently `mi
 
 ### 2.5 SSRF guard — two layers
 
-1. **Synchronous** in `validateTestRailConfig`: regex against the private-host patterns — loopback, RFC1918, link-local, IPv6 ULA/link-local, `0.0.0.0/8`.
-2. **Per-upstream-fetch DNS validation** via `awaitDnsValidation` → `validatePublicHost`: fresh `dns.lookup({ all: true })` before each actual fetch attempt, including retries; each address checked with `isPrivateOrLoopbackIP` (handles IPv4-mapped IPv6 `::ffff:…`). Cache hits and in-flight joiners do not repeat the lookup. Resolution errors are fail-closed.
+1. **Synchronous** in `validateTestRailConfig`: `isPrivateHostLiteral` rejects `localhost` and any IP literal that the shared `net.BlockList` classifies as private — loopback, RFC 1918, RFC 6598 CGNAT (`100.64.0.0/10`), link-local, `0.0.0.0/8`, IPv6 unspecified/loopback/ULA/link-local/site-local, 6to4, and NAT64.
+2. **Per-upstream-fetch DNS validation** via `awaitDnsValidation` → `validatePublicHost`: fresh `dns.lookup({ all: true })` before each actual fetch attempt, including retries; each address checked with the same `isPrivateOrLoopbackIP`. `BlockList.check()` applies the IPv4 rules to IPv4-mapped IPv6 in every spelling (`::ffff:127.0.0.1`, `::ffff:7f00:1`, fully expanded) — the WHATWG URL parser rewrites bracketed literals to the hex form, so a dotted-only check is not enough. Cache hits and in-flight joiners do not repeat the lookup. Resolution errors are fail-closed.
 
 Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), and redirect blocking (§2.2 step 8) closes the loophole where a `Location` header pointing at a private/metadata IP would bypass both DNS and config validation.
 

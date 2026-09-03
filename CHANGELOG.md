@@ -15,6 +15,21 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Security
+
+- **SSRF guard: IPv4-mapped IPv6 literals no longer bypass private-host blocking.**
+  A `baseUrl` such as `https://[::ffff:127.0.0.1]` or
+  `https://[::ffff:169.254.169.254]` passed both the construction-time literal
+  check and the per-request address check because the WHATWG URL parser
+  rewrites the host to the hex form (`[::ffff:7f00:1]`), which only the dotted
+  spelling was recognized for, and Node's `fetch` connects that address straight
+  to the IPv4 target. Both layers now classify addresses through one
+  `net.BlockList`, which applies the IPv4 rules to mapped addresses in every
+  spelling. Public mapped addresses (for example `::ffff:8.8.8.8`) remain
+  allowed.
+- Carrier-grade NAT `100.64.0.0/10` (RFC 6598) is now treated as private
+  alongside the RFC 1918 ranges.
+
 ## [7.0.0] — 2026-09-02 — TestRail 10.7 API compatibility and stricter validation
 
 ### Added — TestRail 10.7.0 API compatibility
