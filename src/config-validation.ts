@@ -4,6 +4,7 @@ import {
     MAX_RETRIES,
     TESTRAIL_CONFIG_EMAIL_PATTERN,
 } from './constants.js';
+import { BlockList, isIP } from 'node:net';
 import { TestRailValidationError } from './errors.js';
 import { TestRailConfigSchema } from './schemas/common.js';
 import type { TestRailConfig } from './types.js';
@@ -16,29 +17,54 @@ const ConstructionConfigSchema = TestRailConfigSchema.strip().extend({
     rateLimiter: TestRailConfigSchema.shape.rateLimiter.unwrap().strip().optional(),
 });
 
-// Reject loopback, link-local, and private-range host literals synchronously.
-// Per-upstream-fetch DNS validation remains in client-core so rebinding cannot
-// bypass this construction-time check.
-const PRIVATE_HOST_PATTERNS: readonly RegExp[] = [
-    /^localhost\.?$/i,
-    /^127\./,
-    /^10\./,
-    /^172\.(1[6-9]|2\d|3[01])\./,
-    /^192\.168\./,
-    /^169\.254\./,
-    /^::1$/,
-    /^fe80:/i,
-    /^f[cd][0-9a-f]{2}:/i,
-    /^fe[c-f][0-9a-f]:/i,
-    /^2002:/i,
-    /^64:ff9b::/i,
-    /^0\./,
-];
+// One address classifier for both SSRF layers: the synchronous literal check at
+// construction and the per-upstream-fetch DNS check in client-core.
+// `BlockList.check()` matches IPv4 rules against IPv4-mapped IPv6 in every
+// spelling (`::ffff:127.0.0.1`, `::ffff:7f00:1`, fully expanded). The WHATWG
+// URL parser rewrites bracketed literals to the hex form, which a dotted-only
+// regex silently let through. Other IPv4-embedding forms (deprecated
+// IPv4-compatible `::a.b.c.d`, obsolete SIIT IPv4-translated `::ffff:0:a.b.c.d`)
+// are not special-routed by default kernels and are deliberately not listed.
+function buildPrivateAddressBlockList(): BlockList {
+    const list = new BlockList();
+    list.addSubnet('0.0.0.0', 8); // "this" network
+    list.addSubnet('10.0.0.0', 8); // RFC 1918
+    list.addSubnet('100.64.0.0', 10); // RFC 6598 carrier-grade NAT
+    list.addSubnet('127.0.0.0', 8); // loopback
+    list.addSubnet('169.254.0.0', 16); // link-local, cloud metadata
+    list.addSubnet('172.16.0.0', 12); // RFC 1918
+    list.addSubnet('192.168.0.0', 16); // RFC 1918
+    list.addAddress('::', 'ipv6'); // unspecified
+    list.addAddress('::1', 'ipv6'); // loopback
+    list.addSubnet('64:ff9b::', 96, 'ipv6'); // NAT64 well-known prefix
+    list.addSubnet('64:ff9b:1::', 48, 'ipv6'); // RFC 8215 local-use NAT64; router maps to private IPv4
+    list.addSubnet('2002::', 16, 'ipv6'); // 6to4
+    list.addSubnet('fc00::', 7, 'ipv6'); // unique local
+    list.addSubnet('fe80::', 10, 'ipv6'); // link-local
+    list.addSubnet('fec0::', 10, 'ipv6'); // site-local (deprecated)
+    return list;
+}
+
+const PRIVATE_ADDRESSES = buildPrivateAddressBlockList();
+const LOCALHOST_PATTERN = /^localhost\.?$/i;
+
+/**
+ * True when `ip` (optionally zone-suffixed, e.g. `fe80::1%eth0`) is a
+ * loopback, private, link-local, CGNAT, or IPv6 transition-range address.
+ * Non-IP input is never private; hostnames are classified after DNS
+ * resolution instead.
+ */
+export function isPrivateOrLoopbackIP(ip: string): boolean {
+    const [bare = ''] = ip.split('%');
+    const family = isIP(bare);
+    if (family === 0) return false;
+    return PRIVATE_ADDRESSES.check(bare, family === 4 ? 'ipv4' : 'ipv6');
+}
 
 /** Shared literal-host check used at construction and before each upstream fetch. */
 export function isPrivateHostLiteral(hostname: string): boolean {
     const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
-    return PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(bare));
+    return LOCALHOST_PATTERN.test(bare) || isPrivateOrLoopbackIP(bare);
 }
 
 function requiredString(config: Readonly<Record<string, unknown>>, key: 'baseUrl' | 'email' | 'apiKey'): string {

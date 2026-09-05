@@ -15,6 +15,34 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Security
+
+- **SSRF guard: IPv4-mapped IPv6 literals no longer bypass private-host blocking.**
+  A `baseUrl` such as `https://[::ffff:127.0.0.1]` or
+  `https://[::ffff:169.254.169.254]` passed both the construction-time literal
+  check and the per-request address check because the WHATWG URL parser
+  rewrites the host to the hex form (`[::ffff:7f00:1]`), which only the dotted
+  spelling was recognized for, and Node's `fetch` connects that address straight
+  to the IPv4 target. Both layers now classify addresses through one
+  `net.BlockList`, which applies the IPv4 rules to mapped addresses in every
+  spelling. Public mapped addresses (for example `::ffff:8.8.8.8`) remain
+  allowed.
+- Carrier-grade NAT `100.64.0.0/10` (RFC 6598) is now treated as private
+  alongside the RFC 1918 ranges.
+- The RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48` is blocked explicitly
+  next to the well-known `64:ff9b::/96`. A router on such a network translates
+  `64:ff9b:1::a00:1` to private `10.0.0.1`, so the whole /48 is treated as
+  private on both the literal and the DNS-resolved path.
+
+### Changed
+
+- Construction-time private-host rejection now applies to IP literals and
+  `localhost` only. Hostnames that merely start with a private-looking prefix
+  (for example `127.0.0.1.nip.io` or `10.example.test`) were previously
+  rejected synchronously by a prefix regex; they now construct and are
+  classified by the per-request DNS check, which still rejects them before any
+  fetch when they resolve to a private address.
+
 ## [7.0.0] — 2026-09-02 — TestRail 10.7 API compatibility and stricter validation
 
 ### Added — TestRail 10.7.0 API compatibility
