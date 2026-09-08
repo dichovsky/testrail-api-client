@@ -1404,6 +1404,26 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
+        it('rejects a string flag that swallowed the following safety flag instead of running for real', async () => {
+            // parseArgs binds the next token as the value, so `--interval
+            // --dry-run` yields `interval: '--dry-run'` with `dry-run` false.
+            const watch = await runCli(['run', 'watch', '42', '--interval', '--dry-run']);
+            expect(watch.exitCodes).toContain(1);
+            expect(watch.stderr).toContain(
+                '--interval requires a value, but the next argument was the flag --dry-run.',
+            );
+
+            // A free-text filter accepts the swallowed spelling downstream, so
+            // without this guard the read runs for real with `--strict-responses`
+            // silently disabled and the flag text sent upstream as a filter.
+            const list = await runCli(['case', 'list', '--project-id', '1', '--filter', '--strict-responses']);
+            expect(list.exitCodes).toContain(1);
+            expect(list.stderr).toContain(
+                '--filter requires a value, but the next argument was the flag --strict-responses.',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
         it('rejects inline values on safety booleans instead of hard-running the action', async () => {
             const { exitCodes, stderr } = await runCli(['run', 'close', '42', '--yes', '--dry-run=true'], [], {
                 TESTRAIL_ALLOW_DESTRUCTIVE: '1',

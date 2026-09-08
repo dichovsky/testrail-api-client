@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "858faaf0559316c6127525d93a5d3e0cb142323b886753b67d3071cb821c3295",
+  "sourceHash": "a5663fd848f6d079e93bf9869eba7708852ae35e0964f51b876ecaa79be1d7a2",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2704,44 +2704,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string }"
         },
         {
+          "name": "isSwallowedFlag",
+          "kind": "function",
+          "line": 467,
+          "exported": false,
+          "signature": "function isSwallowedFlag(value: string): boolean"
+        },
+        {
           "name": "validateSuppliedFlagTypes",
           "kind": "function",
-          "line": 460,
+          "line": 482,
           "exported": true,
           "signature": "export function validateSuppliedFlagTypes( values: Readonly<Record<string, unknown>>, suppliedFlags: readonly string[], ): CliFlagTypeValidationResult"
         },
         {
           "name": "getCliFlagUsage",
           "kind": "function",
-          "line": 481,
+          "line": 511,
           "exported": true,
           "signature": "export function getCliFlagUsage(name: CliFlagName): string"
         },
         {
           "name": "getGlobalActionFlags",
           "kind": "function",
-          "line": 487,
+          "line": 517,
           "exported": true,
           "signature": "export function getGlobalActionFlags(): readonly CliFlagName[]"
         },
         {
           "name": "getCapabilityFlags",
           "kind": "function",
-          "line": 491,
+          "line": 521,
           "exported": true,
           "signature": "export function getCapabilityFlags(capability: ActionCapability): readonly CliFlagName[]"
         },
         {
           "name": "projectHandlerArgs",
           "kind": "function",
-          "line": 499,
+          "line": 529,
           "exported": true,
           "signature": "export function projectHandlerArgs( values: Readonly<Record<string, unknown>>, pathParams: readonly string[], ): CliHandlerArgs"
         },
         {
           "name": "projectPaginationArgs",
           "kind": "function",
-          "line": 517,
+          "line": 547,
           "exported": true,
           "signature": "export function projectPaginationArgs(values: Readonly<Record<string, unknown>>): RawCliPaginationArgs"
         }

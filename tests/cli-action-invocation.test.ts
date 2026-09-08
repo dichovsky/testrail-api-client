@@ -155,6 +155,44 @@ describe('action invocation contract', () => {
         ).toEqual({ ok: false, error: '--dry-run does not take a value; pass the flag without `=`.' });
     });
 
+    it('rejects a string flag that consumed the following flag as its value', () => {
+        // `parseArgs({ strict: false })` hands a string flag whatever token
+        // follows, including another flag: `--filename --dry-run` yields
+        // `filename: '--dry-run'` and no `dry-run` token at all. Left
+        // unchecked, the safety flag is silently dropped and the action runs
+        // for real. Only the trailing-token spelling (`--filename` last) was
+        // previously rejected.
+        expect(validateSuppliedFlagTypes({ file: 'report.bin', filename: '--dry-run' }, ['file', 'filename'])).toEqual({
+            ok: false,
+            error: '--filename requires a value, but the next argument was the flag --dry-run.',
+        });
+
+        expect(validateSuppliedFlagTypes({ filter: '--strict-responses' }, ['filter'])).toEqual({
+            ok: false,
+            error: '--filter requires a value, but the next argument was the flag --strict-responses.',
+        });
+
+        expect(
+            resolveActionInvocation({
+                spec: spec('run', 'watch'),
+                values: { interval: '--dry-run' },
+                suppliedFlags: ['interval'],
+                pathParams: ['42'],
+                dryRun: false,
+            }),
+        ).toEqual({ ok: false, error: '--interval requires a value, but the next argument was the flag --dry-run.' });
+    });
+
+    it('accepts string values that merely resemble flags but name no known flag', () => {
+        // Only an exact known-flag spelling is treated as a swallow, so real
+        // values keep working: a negative number, the stdout/stdin sentinel,
+        // and free text that starts with dashes.
+        expect(validateSuppliedFlagTypes({ limit: '-5' }, ['limit'])).toEqual({ ok: true });
+        expect(validateSuppliedFlagTypes({ out: '-' }, ['out'])).toEqual({ ok: true });
+        expect(validateSuppliedFlagTypes({ filter: '--not-a-flag' }, ['filter'])).toEqual({ ok: true });
+        expect(validateSuppliedFlagTypes({ filter: '--dry-run please' }, ['filter'])).toEqual({ ok: true });
+    });
+
     it('ignores unknown spellings at layers that run behind the top-level unknown-flag gate', () => {
         expect(validateSuppliedFlagTypes({}, ['future-flag'])).toEqual({ ok: true });
         expect(validateMetaCommandFlags('install-skill', ['future-flag'])).toEqual({ ok: true });

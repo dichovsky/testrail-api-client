@@ -456,7 +456,29 @@ export function isCliFlagName(value: string): value is CliFlagName {
 
 export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
 
-/** Reject parseArgs' permissive missing/inline-value representations. */
+/**
+ * True when a string flag's value spells a catalogued flag exactly, which means
+ * `parseArgs` consumed that flag as the value instead of registering it.
+ *
+ * Matching only exact spellings keeps legitimate dash-leading values working:
+ * a negative number (`-5`), the `-` stdin/stdout sentinel, and free text such
+ * as `--not-a-flag` or `--dry-run please` are all unaffected.
+ */
+function isSwallowedFlag(value: string): boolean {
+    return value.startsWith('--') && KNOWN_FLAGS.has(value.slice(2));
+}
+
+/**
+ * Reject parseArgs' permissive missing/inline-value representations.
+ *
+ * `parseArgs({ strict: false })` binds whatever token follows a string flag as
+ * that flag's value, including another flag: `--filename --dry-run` yields
+ * `filename: '--dry-run'` and emits no `dry-run` token at all. An omitted value
+ * is only self-evident when the flag is argv's last token (value `true`), so a
+ * swallowed flag would otherwise pass silently and its own effect — a
+ * `--dry-run` preview, `--strict-responses` fail-closed mode, `--all`
+ * aggregation, `--force` — would be dropped while the action ran for real.
+ */
 export function validateSuppliedFlagTypes(
     values: Readonly<Record<string, unknown>>,
     suppliedFlags: readonly string[],
@@ -465,8 +487,16 @@ export function validateSuppliedFlagTypes(
         if (!isCliFlagName(supplied)) continue;
         const definition: CliFlagDefinition = FLAG_CATALOG[supplied];
         const value = values[supplied];
-        if (definition.type === 'string' && typeof value !== 'string') {
-            return { ok: false, error: `--${supplied} requires a value.` };
+        if (definition.type === 'string') {
+            if (typeof value !== 'string') {
+                return { ok: false, error: `--${supplied} requires a value.` };
+            }
+            if (isSwallowedFlag(value)) {
+                return {
+                    ok: false,
+                    error: `--${supplied} requires a value, but the next argument was the flag ${value}.`,
+                };
+            }
         }
         if (definition.type === 'boolean' && typeof value !== 'boolean') {
             return {
