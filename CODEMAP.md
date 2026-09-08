@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "05e6169f83838bbcee5ca87977fef7e43dcd1946e18747b128e487250f392f9f",
+  "sourceHash": "33fc1e0e7618173bfd8ae447841bc71bf49079088c14679d07cd27e72c6a75dd",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2323,6 +2323,138 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/cli/diagnostics.ts",
+      "imports": [
+        "../constants.js",
+        "../errors.js",
+        "../types.js",
+        "node:fs",
+        "node:path"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "REDACTED",
+          "kind": "const",
+          "line": 28,
+          "exported": false,
+          "signature": "const REDACTED = '[REDACTED]'"
+        },
+        {
+          "name": "VALIDATION_KEYS",
+          "kind": "const",
+          "line": 29,
+          "exported": false,
+          "signature": "const VALIDATION_KEYS: ReadonlySet<string> = new Set([ 'error', 'errors', 'message', 'messages', 'detail', 'details', 'validationerrors', ])"
+        },
+        {
+          "name": "SENSITIVE_KEY",
+          "kind": "const",
+          "line": 38,
+          "exported": false,
+          "signature": "const SENSITIVE_KEY = /password|passwd|pwd|secret|token|auth|cookie|credential|apikey|accesskey|privatekey|session|request|header|stack|trace|body|payload/iu"
+        },
+        {
+          "name": "DiagnosticServerState",
+          "kind": "type",
+          "line": 41,
+          "exported": false,
+          "signature": "type DiagnosticServerState = 'available' | 'unavailable' | 'non_json' | 'oversized' | 'redaction_unavailable'"
+        },
+        {
+          "name": "DiagnosticServerDetail",
+          "kind": "interface",
+          "line": 43,
+          "exported": false,
+          "signature": "interface DiagnosticServerDetail { readonly state: DiagnosticServerState; readonly messages: readonly string[]; readonly truncated: boolean; }"
+        },
+        {
+          "name": "CliDiagnosticRecord",
+          "kind": "interface",
+          "line": 50,
+          "exported": true,
+          "signature": "export interface CliDiagnosticRecord { readonly version: 1; readonly kind: 'api_error' | 'cli_error'; readonly status: number | null; readonly operationOutcome: 'failed_or_indeterminate'; readonly ser…"
+        },
+        {
+          "name": "omittedDetail",
+          "kind": "function",
+          "line": 58,
+          "exported": false,
+          "signature": "function omittedDetail(state: DiagnosticServerState): DiagnosticServerDetail"
+        },
+        {
+          "name": "normalizedKey",
+          "kind": "function",
+          "line": 62,
+          "exported": false,
+          "signature": "function normalizedKey(key: string): string"
+        },
+        {
+          "name": "credentialVariants",
+          "kind": "function",
+          "line": 68,
+          "exported": false,
+          "signature": "function credentialVariants(auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>): readonly string[] | undefined"
+        },
+        {
+          "name": "decodeMessage",
+          "kind": "function",
+          "line": 97,
+          "exported": false,
+          "signature": "function decodeMessage(message: string): string"
+        },
+        {
+          "name": "redactMessage",
+          "kind": "function",
+          "line": 132,
+          "exported": false,
+          "signature": "function redactMessage(message: string, secrets: readonly string[]): string"
+        },
+        {
+          "name": "extractDetail",
+          "kind": "function",
+          "line": 158,
+          "exported": false,
+          "signature": "function extractDetail(response: unknown, secrets: readonly string[] | undefined): DiagnosticServerDetail"
+        },
+        {
+          "name": "createDiagnosticRecord",
+          "kind": "function",
+          "line": 215,
+          "exported": true,
+          "signature": "export function createDiagnosticRecord( error: unknown, auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>, ): CliDiagnosticRecord"
+        },
+        {
+          "name": "CliDiagnosticDestination",
+          "kind": "interface",
+          "line": 237,
+          "exported": true,
+          "signature": "export interface CliDiagnosticDestination { readonly write: (record: CliDiagnosticRecord) => boolean; readonly finish: () => boolean; }"
+        },
+        {
+          "name": "sameFile",
+          "kind": "function",
+          "line": 244,
+          "exported": false,
+          "signature": "function sameFile(left: Stats, right: Stats): boolean"
+        },
+        {
+          "name": "canonicalDestination",
+          "kind": "function",
+          "line": 248,
+          "exported": false,
+          "signature": "function canonicalDestination(path: string): string"
+        },
+        {
+          "name": "prepareDiagnosticDestination",
+          "kind": "function",
+          "line": 254,
+          "exported": true,
+          "signature": "export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination"
+        }
+      ]
+    },
+    {
       "path": "src/cli/dispatch.ts",
       "imports": [
         "./handler-context.js",
@@ -2603,175 +2735,175 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "CliFlagName",
           "kind": "type",
-          "line": 161,
+          "line": 162,
           "exported": true,
           "signature": "export type CliFlagName = keyof typeof FLAG_CATALOG"
         },
         {
           "name": "ActionFlagName",
           "kind": "type",
-          "line": 163,
+          "line": 164,
           "exported": true,
           "signature": "export type ActionFlagName = { [Name in CliFlagName]: (typeof FLAG_CATALOG)[Name]['scope'] extends 'action' | 'action-meta' ? Name : never; }[CliFlagName]"
         },
         {
           "name": "ActionSpecFlagName",
           "kind": "type",
-          "line": 167,
+          "line": 168,
           "exported": true,
           "signature": "export type ActionSpecFlagName = ActionFlagName"
         },
         {
           "name": "HandlerFlagArgs",
           "kind": "type",
-          "line": 169,
+          "line": 170,
           "exported": false,
           "signature": "type HandlerFlagArgs = { [ Name in CliFlagName as (typeof FLAG_CATALOG)[Name] extends { readonly handlerKey: infer Key extends string; } ? Key : never ]?: (typeof FLAG_CATALOG)[Name]['type'] extends '…"
         },
         {
           "name": "CliHandlerArgs",
           "kind": "type",
-          "line": 179,
+          "line": 180,
           "exported": true,
           "signature": "export type CliHandlerArgs = HandlerFlagArgs & { readonly pathParams: readonly string[] }"
         },
         {
           "name": "RawCliPaginationArgs",
           "kind": "type",
-          "line": 181,
+          "line": 182,
           "exported": true,
           "signature": "export type RawCliPaginationArgs = { readonly [ Name in CliFlagName as (typeof FLAG_CATALOG)[Name] extends { readonly paginationKey: infer Key extends string; } ? Key : never ]?: unknown; }"
         },
         {
           "name": "CliParseOption",
           "kind": "interface",
-          "line": 191,
+          "line": 192,
           "exported": false,
           "signature": "interface CliParseOption { readonly type: 'string' | 'boolean'; readonly default?: string | boolean; }"
         },
         {
           "name": "buildCliOptions",
           "kind": "function",
-          "line": 196,
+          "line": 197,
           "exported": false,
           "signature": "function buildCliOptions(): Readonly<Record<CliFlagName, CliParseOption>>"
         },
         {
           "name": "CLI_OPTIONS",
           "kind": "const",
-          "line": 208,
+          "line": 209,
           "exported": true,
           "signature": "export const CLI_OPTIONS = buildCliOptions()"
         },
         {
           "name": "CliOptionName",
           "kind": "type",
-          "line": 210,
+          "line": 211,
           "exported": true,
           "signature": "export type CliOptionName = CliFlagName"
         },
         {
           "name": "CliOptionDocumentationEntry",
           "kind": "interface",
-          "line": 212,
+          "line": 213,
           "exported": true,
           "signature": "export interface CliOptionDocumentationEntry { readonly value?: string; readonly scope: string; readonly description: string; }"
         },
         {
           "name": "CLI_OPTION_DOCUMENTATION",
           "kind": "const",
-          "line": 222,
+          "line": 223,
           "exported": true,
           "signature": "export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionDocumentationEntry>> = { 'base-url': { value: '<url>', scope: 'All API commands', description: 'TestRail base URL; overri…"
         },
         {
           "name": "KNOWN_FLAGS",
           "kind": "const",
-          "line": 453,
+          "line": 460,
           "exported": true,
           "signature": "export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(FLAG_CATALOG))"
         },
         {
           "name": "isCliFlagName",
           "kind": "function",
-          "line": 455,
+          "line": 462,
           "exported": true,
           "signature": "export function isCliFlagName(value: string): value is CliFlagName"
         },
         {
           "name": "CliFlagTypeValidationResult",
           "kind": "type",
-          "line": 459,
+          "line": 466,
           "exported": true,
           "signature": "export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "SuppliedFlagOccurrence",
           "kind": "interface",
-          "line": 469,
+          "line": 476,
           "exported": true,
           "signature": "export interface SuppliedFlagOccurrence { readonly name: string; readonly value?: string | undefined; readonly inlineValue?: boolean | undefined; }"
         },
         {
           "name": "ParsedCliArgv",
           "kind": "interface",
-          "line": 477,
+          "line": 484,
           "exported": true,
           "signature": "export interface ParsedCliArgv { readonly values: Record<string, unknown>; readonly positionals: string[]; readonly suppliedFlags: string[]; readonly flagOccurrences: SuppliedFlagOccurrence[]; }"
         },
         {
           "name": "parseCliArgv",
           "kind": "function",
-          "line": 491,
+          "line": 498,
           "exported": true,
           "signature": "export function parseCliArgv(args: readonly string[]): ParsedCliArgv"
         },
         {
           "name": "looksLikeFlag",
           "kind": "function",
-          "line": 522,
+          "line": 529,
           "exported": false,
           "signature": "function looksLikeFlag(value: string): boolean"
         },
         {
           "name": "validateSuppliedFlagTypes",
           "kind": "function",
-          "line": 548,
+          "line": 555,
           "exported": true,
           "signature": "export function validateSuppliedFlagTypes(occurrences: readonly SuppliedFlagOccurrence[]): CliFlagTypeValidationResult"
         },
         {
           "name": "getCliFlagUsage",
           "kind": "function",
-          "line": 576,
+          "line": 583,
           "exported": true,
           "signature": "export function getCliFlagUsage(name: CliFlagName): string"
         },
         {
           "name": "getGlobalActionFlags",
           "kind": "function",
-          "line": 582,
+          "line": 589,
           "exported": true,
           "signature": "export function getGlobalActionFlags(): readonly CliFlagName[]"
         },
         {
           "name": "getCapabilityFlags",
           "kind": "function",
-          "line": 586,
+          "line": 593,
           "exported": true,
           "signature": "export function getCapabilityFlags(capability: ActionCapability): readonly CliFlagName[]"
         },
         {
           "name": "projectHandlerArgs",
           "kind": "function",
-          "line": 594,
+          "line": 601,
           "exported": true,
           "signature": "export function projectHandlerArgs( values: Readonly<Record<string, unknown>>, pathParams: readonly string[], ): CliHandlerArgs"
         },
         {
           "name": "projectPaginationArgs",
           "kind": "function",
-          "line": 612,
+          "line": 619,
           "exported": true,
           "signature": "export function projectPaginationArgs(values: Readonly<Record<string, unknown>>): RawCliPaginationArgs"
         }
@@ -4675,6 +4807,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "../constants.js",
         "./action-invocation.js",
         "./auth.js",
+        "./diagnostics.js",
         "./dispatch.js",
         "./flags.js",
         "./handler-context.js",
@@ -4693,28 +4826,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 25,
+          "line": 26,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 26,
+          "line": 27,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 34,
+          "line": 35,
           "exported": false,
           "signature": "const HELP = buildHelpText()"
         },
         {
           "name": "main",
           "kind": "function",
-          "line": 46,
+          "line": 47,
           "exported": false,
           "signature": "async function main(): Promise<number>"
         }
@@ -6984,23 +7117,86 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export const MAX_CLI_SCHEMA_MISMATCH_WARNINGS = 10"
         },
         {
+          "name": "MAX_CLI_DIAGNOSTIC_INPUT_BYTES",
+          "kind": "const",
+          "line": 97,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_INPUT_BYTES = 64 * 1024"
+        },
+        {
+          "name": "MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES",
+          "kind": "const",
+          "line": 98,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES = 16 * 1024"
+        },
+        {
+          "name": "MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS",
+          "kind": "const",
+          "line": 99,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS = 4096"
+        },
+        {
+          "name": "MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS",
+          "kind": "const",
+          "line": 100,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS = 2048"
+        },
+        {
+          "name": "MAX_CLI_DIAGNOSTIC_NODES",
+          "kind": "const",
+          "line": 101,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_NODES = 128"
+        },
+        {
+          "name": "MAX_CLI_DIAGNOSTIC_DEPTH",
+          "kind": "const",
+          "line": 102,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_DEPTH = 6"
+        },
+        {
+          "name": "MAX_CLI_DIAGNOSTIC_DECODE_PASSES",
+          "kind": "const",
+          "line": 103,
+          "exported": true,
+          "signature": "export const MAX_CLI_DIAGNOSTIC_DECODE_PASSES = 3"
+        },
+        {
+          "name": "CLI_DIAGNOSTIC_FILE_MODE",
+          "kind": "const",
+          "line": 104,
+          "exported": true,
+          "signature": "export const CLI_DIAGNOSTIC_FILE_MODE = 0o600"
+        },
+        {
+          "name": "CLI_DIAGNOSTIC_PERMISSION_MASK",
+          "kind": "const",
+          "line": 105,
+          "exported": true,
+          "signature": "export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777"
+        },
+        {
           "name": "MAX_STDIN_UPLOAD_BYTES",
           "kind": "const",
-          "line": 110,
+          "line": 121,
           "exported": true,
           "signature": "export const MAX_STDIN_UPLOAD_BYTES = 100 * 1024 * 1024"
         },
         {
           "name": "STDIN_READ_TIMEOUT_MS",
           "kind": "const",
-          "line": 124,
+          "line": 135,
           "exported": true,
           "signature": "export const STDIN_READ_TIMEOUT_MS = 30000"
         },
         {
           "name": "YAML_INDENT_SPACES",
           "kind": "const",
-          "line": 132,
+          "line": 143,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
         }

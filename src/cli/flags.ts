@@ -44,6 +44,7 @@ export const FLAG_CATALOG = defineFlagCatalog({
     format: { type: 'string', default: 'json', scope: 'global' },
     timeout: { type: 'string', scope: 'global' },
     'strict-responses': { type: 'boolean', default: false, scope: 'global' },
+    'diagnostic-file': { type: 'string', scope: 'global', valueName: 'path' },
     quiet: { type: 'boolean', default: false, scope: 'global' },
     help: { type: 'boolean', default: false, scope: 'global' },
     version: { type: 'boolean', default: false, scope: 'global' },
@@ -253,6 +254,12 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
     'strict-responses': {
         scope: 'All API commands',
         description: 'Fail on the first response-schema mismatch instead of emitting advisory warnings.',
+    },
+    'diagnostic-file': {
+        value: '<path>',
+        scope: 'All API commands',
+        description:
+            'Save bounded, redacted error JSON to a new private file. Existing paths are rejected before dispatch; success leaves no file.',
     },
     quiet: {
         scope: 'All commands',

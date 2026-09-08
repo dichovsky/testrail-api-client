@@ -334,6 +334,35 @@ ID, or an invalid parameter. Calling any method after `destroy()` throws a plain
 
 For list filters that carry numeric IDs, validation also happens before any request is sent. Arrays such as `createdBy`, `statusId`, and `milestoneId` must contain positive integers; invalid values fail locally with `TestRailValidationError` instead of reaching the API.
 
+For CLI error details, opt into a private diagnostic file on the original invocation:
+
+```bash
+testrail case-field add --data-file field.json --diagnostic-file ./field-error.json
+```
+
+`--diagnostic-file` reserves a new regular file before dispatch and rejects existing
+paths, including symlinks, and destinations shared with `--out`. Its directory must
+already exist. The file has mode `0600`. The flag currently rejects Windows before
+dispatch because the client cannot establish an equivalent private ACL there.
+Success removes the reservation. Failures after reservation produce a
+version-1 JSON record with `kind`, HTTP `status` when available, an explicit
+`operationOutcome: "failed_or_indeterminate"`, and `server` containing `state`,
+`messages`, and `truncated`. Early argument/auth failures have no diagnostic artifact.
+
+Only recognized structured validation details are included. Known credentials and
+common encoded variants are redacted; sensitive nested keys are omitted. Raw bodies,
+headers, request payloads, and stacks are excluded. Input processing is capped at
+64 KiB and the record at 16 KiB; malformed/non-JSON or oversized bodies yield a safe
+omission state. Diagnostic failures preserve the command's exit status and report
+that the file could not be saved or cleaned up. `--quiet` also suppresses these
+warnings. Default output and request/retry behavior are unchanged. Never replay a
+write just to obtain diagnostics.
+
+After successful custom-field creation, inventory visibility can lag. See the
+[GET-only readiness guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CASE-FIELD-READINESS.md) for bounded, cancellable
+polling that retains the creation result and verifies scope/options before dependent
+case writes.
+
 ## Links
 
 - [CHANGELOG.md](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) — release notes and migration guidance

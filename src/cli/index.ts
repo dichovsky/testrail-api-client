@@ -4,6 +4,7 @@ import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveActionInvocation, validateMetaCommandFlags } from './action-invocation.js';
 import { resolveAuth } from './auth.js';
+import { createDiagnosticRecord, prepareDiagnosticDestination, type CliDiagnosticDestination } from './diagnostics.js';
 import { createOutput, isOutputFormat, OUTPUT_FORMATS, type OutputFormat } from './output.js';
 import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispatch.js';
 import { buildHelpText } from './help.js';
@@ -313,6 +314,8 @@ async function main(): Promise<number> {
     });
 
     let client: TestRailClient | undefined;
+    let diagnostic: CliDiagnosticDestination | undefined;
+    let succeeded = false;
     try {
         // Resolve the request timeout (milliseconds). `--timeout` beats
         // TESTRAIL_TIMEOUT beats the 30s default; an empty value is treated as
@@ -332,6 +335,10 @@ async function main(): Promise<number> {
         // isn't reported as a bad `--timeout`.
         const timeoutSource = usingTimeoutFlag ? '--timeout' : 'TESTRAIL_TIMEOUT';
         const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, timeoutSource) } : {};
+        const diagnosticPath = values['diagnostic-file'];
+        if (typeof diagnosticPath === 'string') {
+            diagnostic = prepareDiagnosticDestination(diagnosticPath, values['out'] as string | undefined);
+        }
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
@@ -354,15 +361,36 @@ async function main(): Promise<number> {
             err,
             errRaw,
         });
+        succeeded = true;
         schemaMismatchReporter.flush();
         return 0;
     } catch (e: unknown) {
         schemaMismatchReporter.flush();
         // err() already sanitizes; passing the raw message is safe.
         err(e instanceof Error ? e.message : String(e));
+        if (diagnostic !== undefined) {
+            let saved = false;
+            try {
+                saved = diagnostic.write(createDiagnosticRecord(e, auth.config));
+            } catch {
+                // Diagnostic processing must never replace the operation's error.
+            }
+            if (!saved) {
+                errRaw(
+                    'Warning: Could not save the diagnostic file. The command failed or its outcome is indeterminate; no request was repeated for diagnostics.\n',
+                );
+            }
+        }
         return 1;
     } finally {
         client?.destroy();
+        if (diagnostic !== undefined && !diagnostic.finish()) {
+            errRaw(
+                succeeded
+                    ? 'Warning: Command succeeded, but diagnostic file cleanup failed; the API operation is unchanged.\n'
+                    : 'Warning: Diagnostic file cleanup failed; the command remains failed or indeterminate.\n',
+            );
+        }
     }
 }
 

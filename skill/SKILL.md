@@ -221,6 +221,7 @@ registry as `testrail --help`, so every parser-recognized option is present.
 | `--format <json\|table\|yaml\|csv>` | Commands that emit structured output | Select output format; default json. Binary/text --out files are not reformatted. |
 | `--timeout <ms>` | All API commands | Request timeout in milliseconds; overrides TESTRAIL_TIMEOUT. Default 30000, maximum 300000. |
 | `--strict-responses` | All API commands | Fail on the first response-schema mismatch instead of emitting advisory warnings. |
+| `--diagnostic-file <path>` | All API commands | Save bounded, redacted error JSON to a new private file. Existing paths are rejected before dispatch; success leaves no file. |
 | `--quiet` | All commands | Suppress normal output and advisory warnings; rely on the exit code. |
 | `--help` | Top level | Print CLI help and exit. |
 | `--version` | Top level | Print the package CLI version and exit. |
@@ -2483,8 +2484,9 @@ testrail case update-bulk 12 --data '{
 }'
 ```
 
-Bulk updates can include custom fields (pass them as top-level keys in the
-payload, using the field ID as the key — e.g., `"custom_rfc": "RFC-5678"`).
+Bulk updates can include custom fields as top-level keys in the payload.
+Use the exact returned `system_name` — e.g., `"custom_rfc": "RFC-5678"`
+for a field whose metadata reports `system_name: "custom_rfc"` (see Recipe 45).
 
 **CI/scripting pattern — list all cases in a suite, then bulk-promote by priority:**
 
@@ -2507,78 +2509,151 @@ testrail case update-bulk 12 --data "$(jq -n --argjson ids "$CASE_IDS" '{
 <!-- recipe-for: case-field:list -->
 <!-- recipe-for: case-field:add -->
 
-Custom case fields are instance-level metadata: once defined, they appear
-on every case in every project and persist across suite/section mutations.
-Use `case-field list` to discover fields and their type/config; use `case-field add`
-(admin-only) to define new fields.
+Custom case fields are instance-level definitions with project and template
+scope. Discover existing definitions before creating a field (admin-only);
+creation does not make it applicable to every case.
 
 **List all custom case fields on the instance:**
 
 ```bash
-testrail case-field list | jq '.[] | {id, label, type_id, configs}'
+testrail case-field list | jq '.[] | {id, name, system_name, label, type_id, include_all, template_ids, configs}'
 ```
 
-Each entry has:
-- `id` — numeric field ID (use this when writing payloads)
-- `label` — display name
-- `type_id` — field type (see below)
-- `configs` — if a dropdown/checkbox field, the list of valid option IDs
-- `is_global` — whether the field is instance-wide (true) or project-scoped (false)
+Keep the three identifiers separate:
 
-Common type IDs:
+- `id` identifies the field definition; `name` is its unprefixed name.
+- `system_name` is the exact case-payload property name. Reuse it unchanged.
+- Option IDs identify choices within `configs[].options.items`; they are
+  unrelated to the numeric field ID. `label` is display text.
 
-| type_id | Meaning      | Payload shape              |
-|---------|--------------|----------------------------|
-| 1       | String       | `"custom_myfield": "value"`|
-| 2       | Integer      | `"custom_myfield": 42`     |
-| 3       | Text (multi) | `"custom_myfield": "text"` |
-| 4       | URL          | `"custom_myfield": "http..."`|
-| 5       | Checkbox     | `"custom_myfield": true`   |
-| 6       | Dropdown     | `"custom_myfield": "opt_id"` or array `[id1, id2]` for multi-select|
-| 7       | User         | `"custom_myfield": user_id` (or null)|
-| 8       | Date         | `"custom_myfield": "2025-05-20"` (RFC 3339 or YYYY-MM-DD)|
+Project applicability lives in each `configs[].context`: `is_global: true`
+or a matching `project_ids` entry. Read `options` from that configuration.
+Template applicability is separate: `include_all` or matching `template_ids`.
+Check both scopes before writing cases. See the
+[official field contract](https://support.testrail.com/hc/en-us/articles/7077281158164-Case-Fields).
 
-**Create a new custom case field (admin-only):**
+Common response `type_id` values and case-payload values:
+
+| type_id | Meaning | Value under the returned `system_name` |
+|---------|---------|-----------------------------------------|
+| 1 | String | `"RFC-5678"` |
+| 2 | Integer | `42` |
+| 3 | Text | `"Detailed text"` |
+| 4 | URL | `"https://example.com/spec"` |
+| 5 | Checkbox | `true` |
+| 6 | Dropdown | One integer option ID, e.g. `2` |
+| 7 | User | Integer user ID |
+| 8 | Date | String in the API user's configured date format |
+| 11* | Multi-select | Array of integer option IDs, e.g. `[1, 2]` |
+
+The [case-value contract](https://support.testrail.com/hc/en-us/articles/7077292642580-Cases#add_case)
+distinguishes Dropdown from Multi-select. *The field documentation lists
+Multi-select as `11`, but its creation-response example reports `12`, also
+listed there for BDD Scenarios. Verify returned metadata against the target
+server's field configuration/version; do not infer a value shape from that
+conflicting example. Creation uses the string `type` (e.g. `"Dropdown"` or
+`"Multiselect"`), rather than the response property `type_id`.
+
+**Preview complete creation payloads (admin-only when submitted):**
+
+Replace sample project/template IDs with IDs from your instance. `include_all`
+controls templates; `context.is_global` controls projects. `--dry-run` validates
+local structure without an API request; server acceptance is a separate check.
+After reviewing the preview, remove `--dry-run` to submit once.
 
 ```bash
-# Add a string field named "RFC Reference".
-testrail case-field add --data '{
-    "type_id": 1,
+# String field for all projects and templates.
+testrail case-field add --dry-run --data '{
+    "type": "String",
+    "name": "rfc_reference",
     "label": "RFC Reference",
-    "description": "Link to design RFC in internal wiki"
+    "description": "Design reference",
+    "include_all": true,
+    "configs": [{
+        "context": {"is_global": true, "project_ids": []},
+        "options": {"is_required": false, "default_value": ""}
+    }]
 }'
-```
 
-On success, TestRail returns the new field object with an assigned `id`.
-You can then use `"custom_<id>": "value"` in case payloads going forward.
-
-Note: `response.configs` is returned as a JSON-encoded string — use
-`JSON.parse(result.configs)` to access the structured config objects
-(this differs from the array shape returned by `get_case_fields`).
-
-Common field creation options:
-
-```bash
-# A dropdown field with options (e.g., environment tier).
-testrail case-field add --data '{
-    "type_id": 6,
+# Dropdown for project 1 and template 1; option IDs are 1, 2, 3.
+testrail case-field add --dry-run --data '{
+    "type": "Dropdown",
+    "name": "environment_tier",
     "label": "Environment Tier",
-    "configs": [
-        {"id": "opt_1", "name": "dev"},
-        {"id": "opt_2", "name": "staging"},
-        {"id": "opt_3", "name": "prod"}
-    ]
+    "include_all": false,
+    "template_ids": [1],
+    "configs": [{
+        "context": {"is_global": false, "project_ids": [1]},
+        "options": {"is_required": false, "items": "1, dev\n2, staging\n3, prod"}
+    }]
 }'
 
-# A date field.
-testrail case-field add --data '{
-    "type_id": 8,
-    "label": "Target Release Date"
+# Date for project 1 and template 1; Date has no default_value option.
+testrail case-field add --dry-run --data '{
+    "type": "Date",
+    "name": "target_release_date",
+    "label": "Target Release Date",
+    "include_all": false,
+    "template_ids": [1],
+    "configs": [{
+        "context": {"is_global": false, "project_ids": [1]},
+        "options": {"is_required": false}
+    }]
 }'
 ```
 
-Note: field IDs are instance-global; once created, they exist across all
-projects. Always `case-field list` first to avoid duplicate definitions.
+Retain the successful POST result (`id`, `system_name`, and `configs`). Creation
+returns `configs` as a JSON-encoded string; parse it with `JSON.parse(result.configs)`
+when needed. Discovery returns structured configs. If discovery lags, use the
+[bounded readiness example](https://github.com/dichovsky/testrail-api-client/blob/main/docs/CASE-FIELD-READINESS.md)
+to poll with GET only; never repeat a successful creation POST to wait for it.
+
+**Use returned names when writing case values:**
+
+TestRail 9 introduced `custom_case_` for new case fields; older fields retain
+`custom_`. Always read `system_name` instead of constructing either prefix or
+using `custom_<numeric field id>`. This example assumes section 42 belongs to
+project 1 and the discovered field has been checked for template 1, with
+option `2` still representing staging in that project's configuration.
+
+```javascript
+// Reuse an authenticated client; call client.destroy() when finished.
+const fields = await client.metadata.getCaseFields();
+const matches = fields.filter((candidate) => candidate.name === 'environment_tier');
+if (matches.length !== 1) throw new Error('Expected one Environment Tier field');
+const field = matches[0];
+if (!field || typeof field.system_name !== 'string' || !field.system_name.startsWith('custom_')) {
+    throw new Error('Missing or unexpected case-field system_name');
+}
+await client.cases.addCase(42, {
+    title: 'Staging smoke test',
+    template_id: 1,
+    [field.system_name]: 2,
+});
+```
+
+**Dropdown and Multi-select option text compatibility:**
+
+`options.items` is newline-separated `ID, label` text, not a JSON option array.
+In the [reported TestRail 10.7.1.1003 incident](https://github.com/dichovsky/testrail-api-client/issues/268),
+embedded commas in Dropdown labels caused HTTP 400; replacing only those
+commas with semicolons succeeded. This is version-specific observed behavior,
+not a verified restriction for every server or field type. The official docs
+do not establish comma escaping, so do not assume CSV quoting or backslashes
+will work.
+
+The schema and CLI preserve the submitted string, including extra commas,
+Unicode, and malformed lines. A successful dry-run does not validate option
+semantics, permissions, or server readiness. If you choose label substitutions,
+keep a reversible mapping such as `{"Alpha, Beta": "Alpha; Beta"}`, avoid
+collisions with existing labels, and verify returned option IDs and labels in
+the applicable project config. Never silently rewrite punctuation or renumber
+options. Live compatibility experiments should be opt-in and use disposable
+metadata outside ordinary CI.
+
+For server validation details, add `--diagnostic-file ./case-field-error.json`
+to the original submission. It writes a bounded, redacted error record to a
+new private file on failure. Never replay a write just to collect diagnostics.
 
 ### 46. Case metadata lookups: types and statuses
 

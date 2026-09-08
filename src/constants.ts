@@ -93,6 +93,17 @@ export const MAX_STDIN_BYTES = 1024 * 1024;
 /** Maximum number of unique advisory response-schema warnings per CLI run. */
 export const MAX_CLI_SCHEMA_MISMATCH_WARNINGS = 10;
 
+/** Hard processing and output bounds for opt-in CLI diagnostic records. */
+export const MAX_CLI_DIAGNOSTIC_INPUT_BYTES = 64 * 1024;
+export const MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES = 16 * 1024;
+export const MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS = 4096;
+export const MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS = 2048;
+export const MAX_CLI_DIAGNOSTIC_NODES = 128;
+export const MAX_CLI_DIAGNOSTIC_DEPTH = 6;
+export const MAX_CLI_DIAGNOSTIC_DECODE_PASSES = 3;
+export const CLI_DIAGNOSTIC_FILE_MODE = 0o600;
+export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777;
+
 /**
  * CLI binary stdin upload cap (PR3a — `--file -` sentinel). The text-body
  * `MAX_STDIN_BYTES` is too small for binary attachment uploads (screenshots,
