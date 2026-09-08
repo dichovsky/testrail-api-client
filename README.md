@@ -359,7 +359,9 @@ Only recognized structured validation details are included. Known credentials an
 common encoded variants are redacted; sensitive nested keys are omitted. Raw bodies,
 headers, request payloads, and stacks are excluded. Input processing is capped at
 64 KiB and the record at 16 KiB; malformed/non-JSON or oversized bodies yield a safe
-omission state. Diagnostic failures preserve the command's exit status and report
+omission state. When extracted messages exceed the record limit, the first complete
+redacted messages are retained with `truncated: true`. Safe validation text preserves
+the server's original escaping. Diagnostic failures preserve the command's exit status and report
 that the file could not be saved or cleaned up. `--quiet` also suppresses these
 warnings. Default output and request/retry behavior are unchanged. Never replay a
 write just to obtain diagnostics.

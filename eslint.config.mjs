@@ -37,6 +37,7 @@ export default [
                 Response: 'readonly',
                 RequestInit: 'readonly',
                 AbortController: 'readonly',
+                AbortSignal: 'readonly',
                 URL: 'readonly',
                 Buffer: 'readonly',
                 btoa: 'readonly',

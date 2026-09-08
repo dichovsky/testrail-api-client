@@ -81,6 +81,89 @@ describe('bounded CLI error diagnostics', () => {
         });
     });
 
+    it('preserves author validation prose while omitting explicit auth keys and raw-body containers', () => {
+        const diagnostic = record({
+            error: 'author: unknown user for field owner',
+            errors: {
+                author: 'Unknown author',
+                authentication: 'private authentication',
+                authorization: 'private authorization',
+                oauth: 'private oauth',
+                x_auth: 'private x-auth',
+                proxy_authorization: 'private proxy authorization',
+                'WWW-Authenticate': 'Digest realm="private.internal", nonce="private-nonce"',
+                authorization_data: 'private authorization data',
+                body: 'private raw body',
+                request: { message: 'private raw request' },
+                stack: 'private raw stack',
+            },
+            messages: [
+                'authentication=private-auth',
+                'oauth: private-oauth',
+                'x-auth=private-x-auth',
+                'WWW-Authenticate: Digest realm="private.internal", nonce="private-nonce"',
+                'authorization_data=private-data',
+            ],
+        });
+        expect(diagnostic.server.messages).toEqual([
+            'author: unknown user for field owner',
+            'Unknown author',
+            '[REDACTED]',
+            '[REDACTED]',
+            '[REDACTED]',
+            '[REDACTED]',
+            '[REDACTED]',
+        ]);
+        expect(JSON.stringify(diagnostic)).not.toContain('private');
+    });
+
+    it('preserves safe escaped validation labels exactly as sent', () => {
+        const messages = [
+            "Invalid option 'Alpha &amp; Beta' at index 2",
+            'Invalid URL https://example.invalid/options?q=a%2Cb',
+            'Use the literal \\u002C separator',
+            'Expected &#44; or &#x2c; in this option',
+        ];
+        expect(record({ errors: messages }).server.messages).toEqual(messages);
+    });
+
+    it('fails closed on encoded credentials, sensitive assignments, and unresolved encoding layers', () => {
+        const deeplyEncoded = Array.from({ length: MAX_CLI_DIAGNOSTIC_DECODE_PASSES + 1 }).reduce<string>(
+            (value) => encodeURIComponent(value),
+            auth.apiKey,
+        );
+        expect(
+            record({
+                errors: [
+                    `Invalid label &quot;${encodeURIComponent(auth.apiKey)}&quot;`,
+                    'Notice: password%3Dhidden%20credential',
+                    'Rejected Bearer%20hidden-token',
+                    'Rejected https%3A%2F%2Fhidden-user%3Ahidden-pass%40example.invalid',
+                    `Invalid option ${deeplyEncoded}`,
+                ],
+            }).server.messages,
+        ).toEqual(['[REDACTED]', '[REDACTED]', '[REDACTED]', '[REDACTED]', '[OMITTED]']);
+    });
+
+    it('redacts literal credentials completed into escape sequences by surrounding validation text', () => {
+        for (const [apiKey, message] of [
+            ['abc%2', 'Invalid label abc%2F'],
+            ['abc%2', 'Invalid label abc&#37;2F'],
+            ['abc%2', 'Invalid label abc&amp;#37;2F'],
+            ['secret&am', 'Invalid label secret&amp;'],
+            ['secret&am', 'Invalid label secret&#38;amp;'],
+            ['part\\u002', 'Invalid label part\\u002c'],
+            ['part\\u002', 'Invalid label part&#92;u002c'],
+        ] as const) {
+            const diagnostic = createDiagnosticRecord(
+                new TestRailApiError(400, 'Bad Request', JSON.stringify({ error: message })),
+                { ...auth, apiKey },
+            );
+            expect(diagnostic.server.messages).toEqual(['[REDACTED]']);
+            expect(JSON.stringify(diagnostic)).not.toContain(apiKey);
+        }
+    });
+
     it('redacts effective credentials and common encoded variants, including Basic auth', () => {
         const variants = [auth.apiKey, auth.email, auth.baseUrl, `${auth.email}:${auth.apiKey}`].flatMap((secret) => [
             secret,
@@ -187,7 +270,12 @@ describe('bounded CLI error diagnostics', () => {
 
     it('bounds processing time for adversarial hyphenated, stack-like, and newline-only messages', () => {
         const started = performance.now();
-        for (const message of ['a-'.repeat(30_000), 'prefix at no-frame '.repeat(3_000), '\n'.repeat(30_000)]) {
+        for (const message of [
+            'a-'.repeat(30_000),
+            'prefix at no-frame '.repeat(3_000),
+            '\n'.repeat(30_000),
+            `at ${'a'.repeat(60_000)}`,
+        ]) {
             const diagnostic = record({ error: message });
             expect(diagnostic.server.state).toBe('available');
             expect(diagnostic.server.truncated).toBe(true);
@@ -197,6 +285,37 @@ describe('bounded CLI error diagnostics', () => {
         // The old backtracking regex took seconds for this bounded input.
         // Allow ample CI headroom while keeping that regression observable.
         expect(duration).toBeLessThan(750);
+    });
+
+    it('distinguishes validation prose from frames with locations or native markers', () => {
+        const messages = [
+            'at least one option is required for this field',
+            'Invalid value at field (title)',
+            'Invalid options:\n at least one label is required',
+        ];
+        expect(
+            record({
+                errors: [
+                    ...messages,
+                    'at handler (file:///private/file.ts:12:3)',
+                    'at async handler (node:internal/process/task_queues:105:5)',
+                    'Error: failed at fn (/private/file.js:42:7)',
+                    'Request failed at doThing (/private/file.js:42:7)',
+                    'at handler (native)',
+                    'at handler (<anonymous>)',
+                    'at Promise.all (index 0)',
+                ],
+            }).server.messages,
+        ).toEqual([
+            ...messages,
+            '[OMITTED]',
+            '[OMITTED]',
+            '[OMITTED]',
+            '[OMITTED]',
+            '[OMITTED]',
+            '[OMITTED]',
+            '[OMITTED]',
+        ]);
     });
 
     it('redacts secret assignments, bearer credentials, URL userinfo, and stack-like messages', () => {
@@ -234,14 +353,39 @@ describe('bounded CLI error diagnostics', () => {
         }
     });
 
-    it('omits oversized UTF-8 bodies and final records instead of slicing through secret values', () => {
+    it('omits oversized UTF-8 input bodies without copying their raw data', () => {
         expect(record({ error: 'x'.repeat(MAX_CLI_DIAGNOSTIC_INPUT_BYTES) }).server.state).toBe('oversized');
         expect(record({ error: '🙂'.repeat(MAX_CLI_DIAGNOSTIC_INPUT_BYTES / 3) }).server.state).toBe('oversized');
+    });
+
+    it('retains the first complete redacted messages that fit the serialized output limit', () => {
+        const messages = Array.from(
+            { length: 16 },
+            (_, index) => `${index}: ${'x'.repeat(MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS - 32)} ${auth.apiKey}`,
+        );
         const large = record({
-            errors: Array.from({ length: 16 }, () => 'x'.repeat(MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS)),
+            errors: messages,
         });
-        expect(large.server.state).toBe('oversized');
+        expect(large.server.state).toBe('available');
+        expect(large.server.truncated).toBe(true);
+        expect(large.server.messages.length).toBe(7);
+        expect(large.server.messages).toEqual(
+            messages.slice(0, 7).map((message) => message.replace(auth.apiKey, '[REDACTED]')),
+        );
         expect(Buffer.byteLength(JSON.stringify(large))).toBeLessThanOrEqual(MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES);
+        expect(JSON.stringify(large)).not.toContain(auth.apiKey);
+    });
+
+    it('accounts for UTF-8 bytes and JSON escapes when trimming complete messages', () => {
+        for (const message of ['🙂'.repeat(1024), '\u0000'.repeat(MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS)]) {
+            const large = record({ errors: Array.from({ length: 4 }, () => message) });
+            expect(large.server.state).toBe('available');
+            expect(large.server.truncated).toBe(true);
+            expect(large.server.messages).toEqual(
+                Array.from({ length: message.includes('\u0000') ? 1 : 3 }, () => message),
+            );
+            expect(Buffer.byteLength(JSON.stringify(large))).toBeLessThanOrEqual(MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES);
+        }
     });
 
     it('bounds depth, node count and message length, redacting before truncation', () => {

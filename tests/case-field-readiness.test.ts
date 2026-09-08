@@ -1,4 +1,3 @@
-/* global AbortSignal */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitForCaseField, type ReadinessOptions } from '../examples/case-field-readiness.js';
 import { TestRailClient } from '../src/client.js';

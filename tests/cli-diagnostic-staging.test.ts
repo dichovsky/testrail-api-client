@@ -150,6 +150,56 @@ describe.skipIf(nativePlatform === 'win32')('Darwin initially private diagnostic
         expect(readdirSync(directory)).toEqual(['error.json']);
     });
 
+    it('normalizes owner-only permissions from a strict umask before publishing the private inode', () => {
+        const realOpen = vi.mocked(openSync).getMockImplementation();
+        if (realOpen === undefined) throw new Error('Missing open implementation');
+        let initialMode: number | undefined;
+        vi.mocked(openSync).mockImplementation((file, flags, mode) => {
+            const fd = realOpen(file, flags, mode);
+            if (file === 'record') {
+                initialMode = fstatSync(fd).mode & 0o777;
+                expect(existsSync(destination)).toBe(false);
+            }
+            return fd;
+        });
+        const previousUmask = process.umask(0o277);
+        try {
+            const reservation = prepareDiagnosticDestination(destination);
+            expect(initialMode).toBe(0o400);
+            expect(process.cwd()).toBe(originalCwd);
+            expect(statSync(destination).mode & 0o777).toBe(0o600);
+            expect(statSync(destination).nlink).toBe(1);
+            const record = createDiagnosticRecord(
+                new TestRailApiError(400, 'Error', '{"error":"Missing option"}'),
+                auth,
+            );
+            expect(reservation.write(record)).toBe(true);
+            expect(reservation.finish()).toBe(true);
+            expect(JSON.parse(readFileSync(destination, 'utf8'))).toEqual(record);
+            expect(readdirSync(directory)).toEqual(['error.json']);
+        } finally {
+            process.umask(previousUmask);
+        }
+    });
+
+    it('refuses publication if normalizing strict-umask permissions fails', () => {
+        const realChmod = vi.mocked(fchmodSync).getMockImplementation();
+        if (realChmod === undefined) throw new Error('Missing chmod implementation');
+        vi.mocked(fchmodSync).mockImplementation((fd, mode) => {
+            if (mode === 0o600) return;
+            realChmod(fd, mode);
+        });
+        const previousUmask = process.umask(0o277);
+        try {
+            expect(() => prepareDiagnosticDestination(destination)).toThrow(/no API request was sent/);
+            expect(process.cwd()).toBe(originalCwd);
+            expect(linkSync).not.toHaveBeenCalled();
+            expect(readdirSync(directory)).toEqual([]);
+        } finally {
+            process.umask(previousUmask);
+        }
+    });
+
     it('detects staging-directory replacement before relative creation', () => {
         vi.mocked(execFileSync).mockImplementationOnce(() => {
             const stage = stagePath();

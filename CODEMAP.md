@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "e01c88e2eddabc04358d7aa17a9069f9b575f3cbbb935cba085f85273e731833",
+  "sourceHash": "3230fc9cf48d83af97ddc177657811ee27ae14d1c779aa2aeece6f3c62838218",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2391,79 +2391,86 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "function normalizedKey(key: string): string"
         },
         {
+          "name": "isSensitiveKey",
+          "kind": "function",
+          "line": 75,
+          "exported": false,
+          "signature": "function isSensitiveKey(key: string): boolean"
+        },
+        {
           "name": "credentialVariants",
           "kind": "function",
-          "line": 76,
+          "line": 83,
           "exported": false,
           "signature": "function credentialVariants(auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>): readonly string[] | undefined"
         },
         {
           "name": "decodeMessage",
           "kind": "function",
-          "line": 105,
+          "line": 114,
           "exported": false,
-          "signature": "function decodeMessage(message: string): string"
+          "signature": "function decodeMessage(message: string, inspect?: (value: string) => void): string"
         },
         {
           "name": "redactMessage",
           "kind": "function",
-          "line": 140,
+          "line": 161,
           "exported": false,
           "signature": "function redactMessage(message: string, secrets: readonly string[]): string"
         },
         {
           "name": "extractDetail",
           "kind": "function",
-          "line": 167,
+          "line": 207,
           "exported": false,
           "signature": "function extractDetail(response: unknown, secrets: readonly string[] | undefined): DiagnosticServerDetail"
         },
         {
           "name": "createDiagnosticRecord",
           "kind": "function",
-          "line": 224,
+          "line": 264,
           "exported": true,
           "signature": "export function createDiagnosticRecord( error: unknown, auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>, ): CliDiagnosticRecord"
         },
         {
           "name": "CliDiagnosticDestination",
           "kind": "interface",
-          "line": 246,
+          "line": 298,
           "exported": true,
           "signature": "export interface CliDiagnosticDestination { readonly write: (record: CliDiagnosticRecord) => boolean; readonly finish: () => boolean; }"
         },
         {
           "name": "sameFile",
           "kind": "function",
-          "line": 253,
+          "line": 305,
           "exported": false,
           "signature": "function sameFile(left: Stats, right: Stats): boolean"
         },
         {
           "name": "canonicalDestination",
           "kind": "function",
-          "line": 257,
+          "line": 309,
           "exported": false,
           "signature": "function canonicalDestination(path: string): string"
         },
         {
           "name": "clearDiagnosticAcl",
           "kind": "function",
-          "line": 263,
+          "line": 315,
           "exported": false,
           "signature": "function clearDiagnosticAcl(fd: number): void"
         },
         {
           "name": "createDarwinDiagnosticFile",
           "kind": "function",
-          "line": 278,
+          "line": 330,
           "exported": false,
           "signature": "function createDarwinDiagnosticFile(destination: string): number"
         },
         {
           "name": "prepareDiagnosticDestination",
           "kind": "function",
-          "line": 384,
+          "line": 442,
           "exported": true,
           "signature": "export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination"
         }

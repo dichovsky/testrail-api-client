@@ -337,7 +337,11 @@ async function main(): Promise<number> {
         const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, timeoutSource) } : {};
         const diagnosticPath = values['diagnostic-file'];
         if (typeof diagnosticPath === 'string') {
-            diagnostic = prepareDiagnosticDestination(diagnosticPath, values['out'] as string | undefined);
+            const outputPath = values['out'];
+            diagnostic = prepareDiagnosticDestination(
+                diagnosticPath,
+                typeof outputPath === 'string' ? outputPath : undefined,
+            );
         }
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the

@@ -68,8 +68,15 @@ function omittedDetail(state: DiagnosticServerState): DiagnosticServerDetail {
 }
 
 function normalizedKey(key: string): string {
-    const decoded = decodeMessage(key);
+    const decoded = /[%\\&]/u.test(key) ? decodeMessage(key) : key;
     return decoded.includes('[OMITTED]') ? 'credential' : decoded.replace(/[^a-z]/giu, '').toLowerCase();
+}
+
+function isSensitiveKey(key: string): boolean {
+    const normalized = normalizedKey(key);
+    // A validation field named "author" is ordinary prose. Keep conservative
+    // matching for all other auth containers, including prefixed challenge keys.
+    return normalized !== 'author' && SENSITIVE_KEY.test(normalized);
 }
 
 /** Generate finite common wire encodings, longest first so partial matches cannot expose a suffix. */
@@ -93,7 +100,9 @@ function credentialVariants(auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'bas
                 JSON.stringify(secret).slice(1, -1),
             ];
         });
-        return [...new Set(variants)].filter((value) => value !== '').sort((left, right) => right.length - left.length);
+        return [...new Set([...variants, ...variants.map((value) => decodeMessage(value))])]
+            .filter((value) => value !== '')
+            .sort((left, right) => right.length - left.length);
     } catch {
         // Malformed surrogate credentials cannot be URI-encoded safely; omit
         // details instead of letting diagnostic work change the API outcome.
@@ -102,35 +111,47 @@ function credentialVariants(auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'bas
 }
 
 /** Decode bounded common escaping layers before matching credentials or sensitive assignments. */
-function decodeMessage(message: string): string {
+function decodeMessage(message: string, inspect?: (value: string) => void): string {
     let decoded = message;
+    inspect?.(decoded);
+    const update = (next: string): void => {
+        if (next !== decoded) inspect?.(next);
+        decoded = next;
+    };
     for (let pass = 0; pass < MAX_CLI_DIAGNOSTIC_DECODE_PASSES; pass += 1) {
-        const next = decoded
-            .replace(/(?:%[a-f\d]{2})+/giu, (part) => {
+        const previous = decoded;
+        update(
+            decoded.replace(/(?:%[a-f\d]{2})+/giu, (part) => {
                 try {
                     return decodeURIComponent(part);
                 } catch {
                     return '[OMITTED]';
                 }
-            })
-            .replace(/\\u([a-f\d]{4})/giu, (_match: string, hex: string) =>
+            }),
+        );
+        update(
+            decoded.replace(/\\u([a-f\d]{4})/giu, (_match: string, hex: string) =>
                 String.fromCharCode(Number.parseInt(hex, 16)),
-            )
-            .replace(/&#(?:x[a-f\d]{1,6}|\d{1,7});/giu, (entity) => {
+            ),
+        );
+        update(
+            decoded.replace(/&#(?:x[a-f\d]{1,6}|\d{1,7});/giu, (entity) => {
                 const codePoint = Number(entity.replace(/^&#x/iu, '0x').replace(/^&#/u, '').slice(0, -1));
                 try {
                     return String.fromCodePoint(codePoint);
                 } catch {
                     return '[OMITTED]';
                 }
-            })
-            .replace(
+            }),
+        );
+        update(
+            decoded.replace(
                 /&(?:quot|apos|amp|lt|gt);/gu,
                 (entity) =>
                     ({ '&quot;': '"', '&apos;': "'", '&amp;': '&', '&lt;': '<', '&gt;': '>' })[entity] ?? '[OMITTED]',
-            );
-        if (next === decoded) return decoded;
-        decoded = next;
+            ),
+        );
+        if (decoded === previous) return decoded;
     }
     // Deeper encoding is deliberately not copied: its contents cannot be
     // checked within the bounded decoder, and could conceal a known secret.
@@ -138,11 +159,27 @@ function decodeMessage(message: string): string {
 }
 
 function redactMessage(message: string, secrets: readonly string[]): string {
-    let redacted = decodeMessage(message);
+    // A credential can end partway through an escape completed by surrounding
+    // text. Inspect each changed decoding stage before a later stage consumes
+    // that spelling, as well as the original and fully decoded values.
+    let containsCredential = false;
+    const decoded = decodeMessage(message, (value) => {
+        containsCredential ||= secrets.some((secret) => value.includes(secret));
+    });
+    if (decoded.includes('[OMITTED]')) return '[OMITTED]';
     // Stack-looking values are not validation explanations, even when placed
-    // under a normally useful `error` or `message` field. Restrict indentation
-    // to horizontal whitespace so each multiline anchor scans only its line.
-    if (/^[ \t]*at[ \t]+|\bat\s+[^\s(]+\s*\(|traceback|stack trace/imu.test(redacted)) return '[OMITTED]';
+    // under a normally useful field. Require a frame location, not ordinary
+    // validation prose beginning with "at" or mentioning a field in parentheses.
+    // Each maximal line is scanned once; token boundaries prevent retrying a
+    // location match at every character in a long filename-like value.
+    if (/traceback|stack trace/iu.test(decoded)) return '[OMITTED]';
+    for (const frame of decoded.matchAll(/\bat[ \t]+[^\r\n]*/giu)) {
+        if (
+            /(?:^|[ \t(])[^\s()]+:\d+(?::\d+)?\)?[ \t]*$/u.test(frame[0]) ||
+            /\((?:native|<anonymous>|index \d+)\)[ \t]*$/u.test(frame[0])
+        )
+            return '[OMITTED]';
+    }
     // Omit the whole message when it contains a sensitive assignment. Parsing
     // a quoted value with a regex can stop at an escaped quote and leak its
     // suffix; request bodies embedded as strings have the same ambiguity.
@@ -150,18 +187,21 @@ function redactMessage(message: string, secrets: readonly string[]): string {
     // boundary, a hyphen-capable key and the suffix in one regex repeatedly
     // rescans long hyphenated strings when no assignment delimiter exists.
     const assignmentSuffix = /(?:\\*["'])?\s*[:=]/uy;
-    for (const token of redacted.matchAll(/[\w-]+/gu)) {
-        if (!SENSITIVE_KEY.test(normalizedKey(token[0]))) continue;
+    for (const token of decoded.matchAll(/[\w-]+/gu)) {
+        if (!isSensitiveKey(token[0])) continue;
         assignmentSuffix.lastIndex = token.index + token[0].length;
-        if (assignmentSuffix.test(redacted)) return REDACTED;
+        if (assignmentSuffix.test(decoded)) return REDACTED;
     }
-    for (const secret of secrets) {
-        const decodedSecret = decodeMessage(secret);
-        redacted = redacted.split(decodedSecret).join(REDACTED);
-    }
-    return redacted
+    if (decoded !== message && containsCredential) return REDACTED;
+    let redacted = decoded;
+    for (const secret of secrets) redacted = redacted.split(secret).join(REDACTED);
+    redacted = redacted
         .replace(/\b(?:Basic|Bearer)\s+[^\s"'<>]+/giu, REDACTED)
         .replace(/(https?:\/\/)[^\s/@]+:[^\s/@]+@/giu, `$1${REDACTED}@`);
+    // Decoding is an inspection step. Preserve escaped labels and punctuation
+    // exactly when safe. If a decoded value needs redaction, omit the complete
+    // encoded message rather than risk exposing an unmapped original suffix.
+    return redacted === decoded ? message : decoded === message ? redacted : REDACTED;
 }
 
 function extractDetail(response: unknown, secrets: readonly string[] | undefined): DiagnosticServerDetail {
@@ -207,7 +247,7 @@ function extractDetail(response: unknown, secrets: readonly string[] | undefined
             }
         } else if (value !== null && typeof value === 'object') {
             for (const [key, child] of Object.entries(value)) {
-                if (!SENSITIVE_KEY.test(normalizedKey(key))) visit(child, depth + 1);
+                if (!isSensitiveKey(key)) visit(child, depth + 1);
                 if (nodes > MAX_CLI_DIAGNOSTIC_NODES) break;
             }
         }
@@ -238,9 +278,21 @@ export function createDiagnosticRecord(
                 ? extractDetail(error.response, credentialVariants(auth))
                 : omittedDetail('unavailable'),
     };
-    return Buffer.byteLength(JSON.stringify(record)) <= MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES
-        ? record
-        : { ...record, server: omittedDetail('oversized') };
+    if (Buffer.byteLength(JSON.stringify(record)) <= MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES) return record;
+    let bytes = Buffer.byteLength(
+        JSON.stringify({ ...record, server: { ...record.server, messages: [], truncated: true } }),
+    );
+    let retained = 0;
+    for (const message of record.server.messages) {
+        const additionalBytes = Buffer.byteLength(JSON.stringify(message)) + (retained === 0 ? 0 : 1);
+        if (bytes + additionalBytes > MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES) break;
+        bytes += additionalBytes;
+        retained += 1;
+    }
+    return {
+        ...record,
+        server: { ...record.server, messages: record.server.messages.slice(0, retained), truncated: true },
+    };
 }
 
 export interface CliDiagnosticDestination {
@@ -315,9 +367,15 @@ function createDarwinDiagnosticFile(destination: string): number {
         if (
             !identity.isFile() ||
             identity.nlink !== 1 ||
-            (identity.mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE
+            (identity.mode & CLI_DIAGNOSTIC_PERMISSION_MASK & ~CLI_DIAGNOSTIC_FILE_MODE) !== 0
         )
             throw new Error('Unsafe staged file');
+        // A strict umask may remove owner permissions (for example 0277
+        // creates 0400). Restore only the intended private mode while the
+        // inode remains inside the secured directory, before publication.
+        fchmodSync(fd, CLI_DIAGNOSTIC_FILE_MODE);
+        if ((fstatSync(fd).mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE)
+            throw new Error('Unsafe staged permissions');
         // A hard link preserves this initially-private inode and cannot
         // overwrite an existing destination or follow its symbolic link.
         linkSync(innerName, destination);
@@ -395,8 +453,16 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
     try {
         if (path === '' || path === '-' || path.includes('\0')) throw new Error('Invalid path');
         destination = canonicalDestination(path);
-        if (otherOutput !== undefined && otherOutput !== '-' && canonicalDestination(otherOutput) === destination) {
-            throw new Error('Conflicting output');
+        if (otherOutput !== undefined && otherOutput !== '-') {
+            let otherDestination: string | undefined;
+            try {
+                otherDestination = canonicalDestination(otherOutput);
+            } catch (error) {
+                // The download handler permits not-yet-created output
+                // directories. Diagnostics must not narrow that contract.
+                if ((error as { readonly code?: string }).code !== 'ENOENT') throw error;
+            }
+            if (otherDestination === destination) throw new Error('Conflicting output');
         }
         // O_EXCL also refuses dangling symlinks and special files. Resolve the
         // parent once and use the held fd, never reopening after the request.
@@ -411,15 +477,16 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
         identity = fstatSync(fd);
         if (!identity.isFile() || identity.nlink !== 1) throw new Error('Unsafe file');
         if (otherOutput !== undefined && otherOutput !== '-') {
+            let otherIdentity: Stats | undefined;
             try {
                 // Case-insensitive and Unicode-normalizing filesystems can
                 // alias different spellings. Check the reserved inode, too,
                 // before a --force download could overwrite our reservation.
-                if (sameFile(lstatSync(canonicalDestination(otherOutput)), identity))
-                    throw new Error('Conflicting output');
+                otherIdentity = lstatSync(canonicalDestination(otherOutput));
             } catch (error) {
                 if ((error as { readonly code?: string }).code !== 'ENOENT') throw error;
             }
+            if (otherIdentity !== undefined && sameFile(otherIdentity, identity)) throw new Error('Conflicting output');
         }
         fchmodSync(fd, CLI_DIAGNOSTIC_FILE_MODE);
         clearDiagnosticAcl(fd);
@@ -478,6 +545,21 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
         },
         finish: () => {
             let complete = true;
+            if (written) {
+                try {
+                    // A descriptor write can finish after the published path
+                    // changes. Verify it still names our private, sole-link
+                    // inode before declaring the diagnostic complete.
+                    const current = fstatSync(reservedFd);
+                    complete =
+                        sameFile(lstatSync(reservedPath), reservedIdentity) &&
+                        current.isFile() &&
+                        current.nlink === 1 &&
+                        (current.mode & CLI_DIAGNOSTIC_PERMISSION_MASK) === CLI_DIAGNOSTIC_FILE_MODE;
+                } catch {
+                    complete = false;
+                }
+            }
             try {
                 closeSync(reservedFd);
             } catch {

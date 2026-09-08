@@ -1,4 +1,3 @@
-/* global AbortSignal */
 // Repository example. When copying into an application, import the SDK from
 // '@dichovsky/testrail-api-client' and use the application's timer limit.
 import { TestRailClient, CaseFieldSchema } from '../src/index.js';
