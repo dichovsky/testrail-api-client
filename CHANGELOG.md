@@ -34,6 +34,26 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `64:ff9b:1::a00:1` to private `10.0.0.1`, so the whole /48 is treated as
   private on both the literal and the DNS-resolved path.
 
+### Fixed
+
+- **CLI: a string flag no longer silently swallows the following flag.**
+  `parseArgs` binds whatever token follows a string flag as that flag's value,
+  including another flag, so `testrail attachment add-to-case 1 --file r.bin
+--filename --dry-run` parsed to `filename: '--dry-run'` with `--dry-run`
+  never registered: the upload ran for real instead of previewing. The same
+  omission silently disabled `--strict-responses` (schema drift stopped failing
+  closed), reduced `--all` to a single page presented as complete, and dropped
+  `--force`. Only the trailing-token spelling (`--filename` as the last
+  argument) was rejected before. Such an invocation now exits 1 with
+  `--filename requires a value, but the next argument was the flag --dry-run.`
+  Validation reads per-occurrence argv tokens, so a repeated flag whose swallow
+  hid on an earlier occurrence (`--filter --dry-run --filter abc`) is caught
+  too. Values that merely resemble a flag are unaffected — `-5`, the `-`
+  stdin/stdout sentinel, and free text such as `--not-a-flag` — and the inline
+  `--filter=--all` form remains the way to pass a literal value that spells a
+  flag. One consequence worth noting: `testrail --base-url --help` now exits 1
+  instead of printing help, because the `--help` was consumed as a value.
+
 ### Changed
 
 - Construction-time private-host rejection now applies to IP literals and

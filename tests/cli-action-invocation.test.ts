@@ -4,8 +4,34 @@ import {
     resolveActionInvocation,
     validateMetaCommandFlags,
 } from '../src/cli/action-invocation.js';
-import { getCliFlagUsage, validateSuppliedFlagTypes } from '../src/cli/flags.js';
+import { parseArgs } from 'node:util';
+import { CLI_OPTIONS, getCliFlagUsage, validateSuppliedFlagTypes } from '../src/cli/flags.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
+
+/**
+ * Parse argv exactly as `main()` does, so the flag-shape assertions run against
+ * what Node's parser really produces rather than a hand-built approximation.
+ */
+function parseCliArgv(argv: string[]) {
+    const parsed = parseArgs({
+        args: argv,
+        options: CLI_OPTIONS,
+        allowPositionals: true,
+        strict: false,
+        tokens: true,
+    });
+    const optionTokens = parsed.tokens.filter((token) => token.kind === 'option');
+    return {
+        values: parsed.values,
+        suppliedFlags: optionTokens.map((token) => token.name),
+        flagOccurrences: optionTokens.map(({ name, value, inlineValue }) => ({ name, value, inlineValue })),
+    };
+}
+
+function validateArgv(argv: string[]) {
+    const { values, suppliedFlags, flagOccurrences } = parseCliArgv(argv);
+    return validateSuppliedFlagTypes(values, suppliedFlags, flagOccurrences);
+}
 
 function spec(resource: string, action: string) {
     const found = getActionSpec(resource, action);
@@ -162,35 +188,52 @@ describe('action invocation contract', () => {
         // unchecked, the safety flag is silently dropped and the action runs
         // for real. Only the trailing-token spelling (`--filename` last) was
         // previously rejected.
-        expect(validateSuppliedFlagTypes({ file: 'report.bin', filename: '--dry-run' }, ['file', 'filename'])).toEqual({
+        expect(validateArgv(['--file', 'report.bin', '--filename', '--dry-run'])).toEqual({
             ok: false,
             error: '--filename requires a value, but the next argument was the flag --dry-run.',
         });
 
-        expect(validateSuppliedFlagTypes({ filter: '--strict-responses' }, ['filter'])).toEqual({
+        expect(validateArgv(['--filter', '--strict-responses'])).toEqual({
             ok: false,
             error: '--filter requires a value, but the next argument was the flag --strict-responses.',
         });
 
+        // A repeated flag merges last-wins, so `values.filter` holds the
+        // legitimate `abc` while the swallow hid on the first occurrence.
+        // Reading per-occurrence tokens is what catches this.
+        expect(validateArgv(['--filter', '--dry-run', '--filter', 'abc'])).toEqual({
+            ok: false,
+            error: '--filter requires a value, but the next argument was the flag --dry-run.',
+        });
+
+        const argv = parseCliArgv(['--interval', '--dry-run']);
         expect(
             resolveActionInvocation({
                 spec: spec('run', 'watch'),
-                values: { interval: '--dry-run' },
-                suppliedFlags: ['interval'],
+                values: argv.values,
+                suppliedFlags: argv.suppliedFlags,
+                flagOccurrences: argv.flagOccurrences,
                 pathParams: ['42'],
                 dryRun: false,
             }),
         ).toEqual({ ok: false, error: '--interval requires a value, but the next argument was the flag --dry-run.' });
     });
 
-    it('accepts string values that merely resemble flags but name no known flag', () => {
-        // Only an exact known-flag spelling is treated as a swallow, so real
-        // values keep working: a negative number, the stdout/stdin sentinel,
-        // and free text that starts with dashes.
-        expect(validateSuppliedFlagTypes({ limit: '-5' }, ['limit'])).toEqual({ ok: true });
-        expect(validateSuppliedFlagTypes({ out: '-' }, ['out'])).toEqual({ ok: true });
-        expect(validateSuppliedFlagTypes({ filter: '--not-a-flag' }, ['filter'])).toEqual({ ok: true });
-        expect(validateSuppliedFlagTypes({ filter: '--dry-run please' }, ['filter'])).toEqual({ ok: true });
+    it('accepts values that resemble a flag but consumed no following token', () => {
+        // Only an exact known-flag spelling consumed as a following token
+        // counts. Real values keep working: a negative number, the stdout/stdin
+        // sentinel, free text starting with dashes, and — the escape hatch —
+        // the inline `--flag=value` form, which swallows nothing.
+        expect(validateArgv(['--limit', '-5'])).toEqual({ ok: true });
+        expect(validateArgv(['--out', '-'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter', '--not-a-flag'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter', '--dry-run please'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter=--all'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter=--dry-run', '--all'])).toEqual({ ok: true });
+    });
+
+    it('still rejects a string flag left without any value at the end of argv', () => {
+        expect(validateArgv(['--filter'])).toEqual({ ok: false, error: '--filter requires a value.' });
     });
 
     it('ignores unknown spellings at layers that run behind the top-level unknown-flag gate', () => {

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "a5663fd848f6d079e93bf9869eba7708852ae35e0964f51b876ecaa79be1d7a2",
+  "sourceHash": "79686549ab6a9f0189726c0cfe0d5673268790ee5d14b108702918664b759243",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2189,58 +2189,58 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ActionInvocation",
           "kind": "interface",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export interface ActionInvocation { readonly spec: ActionSpec; readonly args: CliHandlerArgs; readonly pagination: CliPaginationParsed; }"
         },
         {
           "name": "ActionInvocationResult",
           "kind": "type",
-          "line": 21,
+          "line": 22,
           "exported": true,
           "signature": "export type ActionInvocationResult = { readonly ok: true; readonly invocation: ActionInvocation } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "MetaCommandName",
           "kind": "type",
-          "line": 24,
+          "line": 25,
           "exported": true,
           "signature": "export type MetaCommandName = 'install-skill' | 'uninstall-skill'"
         },
         {
           "name": "META_COMMAND_FLAGS",
           "kind": "const",
-          "line": 26,
+          "line": 27,
           "exported": false,
           "signature": "const META_COMMAND_FLAGS = { 'install-skill': ['global', 'force', 'print-path', 'quiet'], 'uninstall-skill': ['global', 'quiet'], } as const satisfies Readonly<Record<MetaCommandName, readonly CliFlag…"
         },
         {
           "name": "getAllowedActionFlags",
           "kind": "function",
-          "line": 36,
+          "line": 37,
           "exported": true,
           "signature": "export function getAllowedActionFlags(spec: ActionSpec): ReadonlySet<CliFlagName>"
         },
         {
           "name": "validateMetaCommandFlags",
           "kind": "function",
-          "line": 59,
+          "line": 60,
           "exported": true,
           "signature": "export function validateMetaCommandFlags( command: MetaCommandName, suppliedFlags: readonly string[], ): { readonly ok: true } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "hasRequiredFlagValue",
           "kind": "function",
-          "line": 73,
+          "line": 74,
           "exported": false,
           "signature": "function hasRequiredFlagValue(values: Readonly<Record<string, unknown>>, name: CliFlagName): boolean"
         },
         {
           "name": "resolveActionInvocation",
           "kind": "function",
-          "line": 82,
+          "line": 83,
           "exported": true,
-          "signature": "export function resolveActionInvocation(options: { readonly spec: ActionSpec; readonly values: Readonly<Record<string, unknown>>; readonly suppliedFlags: readonly string[]; readonly pathParams: readon…"
+          "signature": "export function resolveActionInvocation(options: { readonly spec: ActionSpec; readonly values: Readonly<Record<string, unknown>>; readonly suppliedFlags: readonly string[]; readonly flagOccurrences?: …"
         }
       ]
     },
@@ -2704,51 +2704,58 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string }"
         },
         {
+          "name": "SuppliedFlagOccurrence",
+          "kind": "interface",
+          "line": 467,
+          "exported": true,
+          "signature": "export interface SuppliedFlagOccurrence { readonly name: string; readonly value?: string | undefined; readonly inlineValue?: boolean | undefined; }"
+        },
+        {
           "name": "isSwallowedFlag",
           "kind": "function",
-          "line": 467,
+          "line": 484,
           "exported": false,
           "signature": "function isSwallowedFlag(value: string): boolean"
         },
         {
           "name": "validateSuppliedFlagTypes",
           "kind": "function",
-          "line": 482,
+          "line": 507,
           "exported": true,
-          "signature": "export function validateSuppliedFlagTypes( values: Readonly<Record<string, unknown>>, suppliedFlags: readonly string[], ): CliFlagTypeValidationResult"
+          "signature": "export function validateSuppliedFlagTypes( values: Readonly<Record<string, unknown>>, suppliedFlags: readonly string[], occurrences: readonly SuppliedFlagOccurrence[] = [], ): CliFlagTypeValidationRes…"
         },
         {
           "name": "getCliFlagUsage",
           "kind": "function",
-          "line": 511,
+          "line": 539,
           "exported": true,
           "signature": "export function getCliFlagUsage(name: CliFlagName): string"
         },
         {
           "name": "getGlobalActionFlags",
           "kind": "function",
-          "line": 517,
+          "line": 545,
           "exported": true,
           "signature": "export function getGlobalActionFlags(): readonly CliFlagName[]"
         },
         {
           "name": "getCapabilityFlags",
           "kind": "function",
-          "line": 521,
+          "line": 549,
           "exported": true,
           "signature": "export function getCapabilityFlags(capability: ActionCapability): readonly CliFlagName[]"
         },
         {
           "name": "projectHandlerArgs",
           "kind": "function",
-          "line": 529,
+          "line": 557,
           "exported": true,
           "signature": "export function projectHandlerArgs( values: Readonly<Record<string, unknown>>, pathParams: readonly string[], ): CliHandlerArgs"
         },
         {
           "name": "projectPaginationArgs",
           "kind": "function",
-          "line": 547,
+          "line": 575,
           "exported": true,
           "signature": "export function projectPaginationArgs(values: Readonly<Record<string, unknown>>): RawCliPaginationArgs"
         }

@@ -457,12 +457,29 @@ export function isCliFlagName(value: string): value is CliFlagName {
 export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
 
 /**
+ * One `parseArgs` option token: a single occurrence of a flag on argv.
+ *
+ * Structurally compatible with Node's option token, declared locally so this
+ * module does not depend on `node:util`'s type. The merged `values` record
+ * cannot stand in for this: it is last-wins, so a repeated flag hides every
+ * occurrence but the final one.
+ */
+export interface SuppliedFlagOccurrence {
+    readonly name: string;
+    readonly value?: string | undefined;
+    /** `true` for the `--flag=value` form, where no following token was consumed. */
+    readonly inlineValue?: boolean | undefined;
+}
+
+/**
  * True when a string flag's value spells a catalogued flag exactly, which means
  * `parseArgs` consumed that flag as the value instead of registering it.
  *
  * Matching only exact spellings keeps legitimate dash-leading values working:
  * a negative number (`-5`), the `-` stdin/stdout sentinel, and free text such
- * as `--not-a-flag` or `--dry-run please` are all unaffected.
+ * as `--not-a-flag` or `--dry-run please` are all unaffected. A swallowed
+ * *unknown* spelling (`--filter --dryrun`) is indistinguishable from free text
+ * and stays accepted, so it still bypasses the unknown-flag gate as before.
  */
 function isSwallowedFlag(value: string): boolean {
     return value.startsWith('--') && KNOWN_FLAGS.has(value.slice(2));
@@ -478,30 +495,41 @@ function isSwallowedFlag(value: string): boolean {
  * swallowed flag would otherwise pass silently and its own effect — a
  * `--dry-run` preview, `--strict-responses` fail-closed mode, `--all`
  * aggregation, `--force` — would be dropped while the action ran for real.
+ *
+ * The swallow check reads `occurrences` rather than `values` because the merged
+ * record is last-wins: in `--filter --dry-run --filter abc` the swallow happens
+ * on the first occurrence while `values.filter` holds the legitimate `abc`.
+ * `--filter=--all` is left alone — an inline value consumes no following token,
+ * so it is a deliberate literal and remains the escape hatch for a value that
+ * spells a flag. Callers with no argv context omit `occurrences` and get only
+ * the missing-value and inline-boolean checks.
  */
 export function validateSuppliedFlagTypes(
     values: Readonly<Record<string, unknown>>,
     suppliedFlags: readonly string[],
+    occurrences: readonly SuppliedFlagOccurrence[] = [],
 ): CliFlagTypeValidationResult {
     for (const supplied of suppliedFlags) {
         if (!isCliFlagName(supplied)) continue;
         const definition: CliFlagDefinition = FLAG_CATALOG[supplied];
         const value = values[supplied];
-        if (definition.type === 'string') {
-            if (typeof value !== 'string') {
-                return { ok: false, error: `--${supplied} requires a value.` };
-            }
-            if (isSwallowedFlag(value)) {
-                return {
-                    ok: false,
-                    error: `--${supplied} requires a value, but the next argument was the flag ${value}.`,
-                };
-            }
+        if (definition.type === 'string' && typeof value !== 'string') {
+            return { ok: false, error: `--${supplied} requires a value.` };
         }
         if (definition.type === 'boolean' && typeof value !== 'boolean') {
             return {
                 ok: false,
                 error: `--${supplied} does not take a value; pass the flag without \`=\`.`,
+            };
+        }
+    }
+    for (const { name, value, inlineValue } of occurrences) {
+        if (!isCliFlagName(name)) continue;
+        if (FLAG_CATALOG[name].type !== 'string' || inlineValue === true) continue;
+        if (value !== undefined && isSwallowedFlag(value)) {
+            return {
+                ok: false,
+                error: `--${name} requires a value, but the next argument was the flag ${value}.`,
             };
         }
     }

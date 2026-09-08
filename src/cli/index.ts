@@ -10,7 +10,7 @@ import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispat
 import { buildHelpText } from './help.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
-import { CLI_OPTIONS, KNOWN_FLAGS, validateSuppliedFlagTypes } from './flags.js';
+import { CLI_OPTIONS, KNOWN_FLAGS, validateSuppliedFlagTypes, type SuppliedFlagOccurrence } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
 import { parseId } from './ids.js';
@@ -48,6 +48,7 @@ async function main(): Promise<number> {
     let values: Record<string, unknown>;
     let positionals: string[];
     let suppliedFlags: string[];
+    let flagOccurrences: SuppliedFlagOccurrence[];
     try {
         const parsed = parseArgs({
             args: process.argv.slice(2),
@@ -58,7 +59,12 @@ async function main(): Promise<number> {
         });
         values = parsed.values;
         positionals = parsed.positionals;
-        suppliedFlags = parsed.tokens.filter((token) => token.kind === 'option').map((token) => token.name);
+        const optionTokens = parsed.tokens.filter((token) => token.kind === 'option');
+        suppliedFlags = optionTokens.map((token) => token.name);
+        // Per-occurrence values are kept alongside the merged `values` record so
+        // the swallowed-flag check can see a repeated flag's earlier tokens and
+        // can tell `--flag value` from the deliberate `--flag=value` form.
+        flagOccurrences = optionTokens.map(({ name, value, inlineValue }) => ({ name, value, inlineValue }));
     } catch (e: unknown) {
         // Pre-parse failure: `values` is unavailable, so honor --quiet via
         // a raw-argv lookup. parseArgs is highly tolerant under strict:false
@@ -109,7 +115,7 @@ async function main(): Promise<number> {
         }
     }
 
-    const flagTypes = validateSuppliedFlagTypes(values, suppliedFlags);
+    const flagTypes = validateSuppliedFlagTypes(values, suppliedFlags, flagOccurrences);
     if (!flagTypes.ok) {
         err(flagTypes.error);
         return 1;
@@ -185,6 +191,7 @@ async function main(): Promise<number> {
         spec: actionSpec,
         values,
         suppliedFlags,
+        flagOccurrences,
         pathParams,
         dryRun,
     });

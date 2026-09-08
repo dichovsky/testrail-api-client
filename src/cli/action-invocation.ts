@@ -8,6 +8,7 @@ import {
     validateSuppliedFlagTypes,
     type CliFlagName,
     type CliHandlerArgs,
+    type SuppliedFlagOccurrence,
 } from './flags.js';
 import type { ActionSpec } from './metadata/types.js';
 import { validateCliPagination, type CliPaginationParsed } from './pagination.js';
@@ -83,10 +84,12 @@ export function resolveActionInvocation(options: {
     readonly spec: ActionSpec;
     readonly values: Readonly<Record<string, unknown>>;
     readonly suppliedFlags: readonly string[];
+    /** Per-occurrence argv tokens; omitted by callers with no argv context. */
+    readonly flagOccurrences?: readonly SuppliedFlagOccurrence[];
     readonly pathParams: readonly string[];
     readonly dryRun: boolean;
 }): ActionInvocationResult {
-    const flagTypes = validateSuppliedFlagTypes(options.values, options.suppliedFlags);
+    const flagTypes = validateSuppliedFlagTypes(options.values, options.suppliedFlags, options.flagOccurrences);
     if (!flagTypes.ok) return flagTypes;
 
     const fileIsStdin = options.values['file'] === '-';
