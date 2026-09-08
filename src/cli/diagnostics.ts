@@ -4,14 +4,22 @@ import {
     fchmodSync,
     fstatSync,
     lstatSync,
+    linkSync,
+    mkdtempSync,
     openSync,
+    readdirSync,
     realpathSync,
+    rmdirSync,
+    statSync,
     unlinkSync,
     writeFileSync,
     type Stats,
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import {
+    CLI_DIAGNOSTIC_ACL_TIMEOUT_MS,
+    CLI_DIAGNOSTIC_DIRECTORY_MODE,
     CLI_DIAGNOSTIC_FILE_MODE,
     CLI_DIAGNOSTIC_PERMISSION_MASK,
     MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS,
@@ -132,8 +140,9 @@ function decodeMessage(message: string): string {
 function redactMessage(message: string, secrets: readonly string[]): string {
     let redacted = decodeMessage(message);
     // Stack-looking values are not validation explanations, even when placed
-    // under a normally useful `error` or `message` field.
-    if (/^\s*at\s+|\bat\s+[^\s(]+\s*\(|traceback|stack trace/imu.test(redacted)) return '[OMITTED]';
+    // under a normally useful `error` or `message` field. Restrict indentation
+    // to horizontal whitespace so each multiline anchor scans only its line.
+    if (/^[ \t]*at[ \t]+|\bat\s+[^\s(]+\s*\(|traceback|stack trace/imu.test(redacted)) return '[OMITTED]';
     // Omit the whole message when it contains a sensitive assignment. Parsing
     // a quoted value with a regex can stop at an escaped quote and leak its
     // suffix; request bodies embedded as strings have the same ambiguity.
@@ -250,6 +259,127 @@ function canonicalDestination(path: string): string {
     return join(realpathSync(dirname(absolute)), basename(absolute));
 }
 
+/** Darwin allow ACLs can grant read access despite mode 0600; clear only the held reservation's ACL. */
+function clearDiagnosticAcl(fd: number): void {
+    if (process.platform !== 'darwin') return;
+    // Map the already-open inode to the child's fixed fd3. Passing the user's
+    // path would let a replacement redirect chmod to another file. Native
+    // chmod -N succeeds only after removing the ACL; any failure is fatal to
+    // preflight (or to the diagnostic write after the API operation).
+    execFileSync('/bin/chmod', ['-N', '/dev/fd/3'], {
+        stdio: ['ignore', 'ignore', 'ignore', fd],
+        env: {},
+        timeout: CLI_DIAGNOSTIC_ACL_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
+    });
+}
+
+/** Create the Darwin inode only after its parent is private, then publish it by an exclusive hard link. */
+function createDarwinDiagnosticFile(destination: string): number {
+    const originalCwd = process.cwd();
+    const originalIdentity = statSync('.');
+    const innerName = 'record';
+    let stage: string | undefined;
+    let directoryFd: number | undefined;
+    let directoryIdentity: Stats | undefined;
+    let fd: number | undefined;
+    let identity: Stats | undefined;
+    let entered = false;
+    let anchored = false;
+    let complete = false;
+    let cleanupFailed = false;
+    try {
+        stage = mkdtempSync(join(dirname(destination), '.testrail-diagnostic-'));
+        directoryFd = openSync(stage, fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW);
+        directoryIdentity = fstatSync(directoryFd);
+        if (!directoryIdentity.isDirectory() || directoryIdentity.uid !== process.getuid?.())
+            throw new Error('Unsafe staging directory');
+        fchmodSync(directoryFd, CLI_DIAGNOSTIC_DIRECTORY_MODE);
+        clearDiagnosticAcl(directoryFd);
+        if ((fstatSync(directoryFd).mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_DIRECTORY_MODE)
+            throw new Error('Unsafe staging permissions');
+        // Darwin's /dev/fd directory entries do not support relative lookup.
+        // Anchor the synchronous creation to the kernel cwd instead, checking
+        // that chdir entered the secured held inode before creating any file.
+        process.chdir(stage);
+        entered = true;
+        if (!sameFile(statSync('.'), directoryIdentity)) throw new Error('Replaced staging directory');
+        anchored = true;
+        if (readdirSync('.').length !== 0) throw new Error('Nonempty staging directory');
+        fd = openSync(
+            innerName,
+            fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+            CLI_DIAGNOSTIC_FILE_MODE,
+        );
+        identity = fstatSync(fd);
+        if (
+            !identity.isFile() ||
+            identity.nlink !== 1 ||
+            (identity.mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE
+        )
+            throw new Error('Unsafe staged file');
+        // A hard link preserves this initially-private inode and cannot
+        // overwrite an existing destination or follow its symbolic link.
+        linkSync(innerName, destination);
+        if (!sameFile(lstatSync(destination), identity)) throw new Error('Replaced diagnostic destination');
+        unlinkSync(innerName);
+        complete = true;
+    } finally {
+        if (anchored && identity !== undefined) {
+            try {
+                if (sameFile(lstatSync(innerName), identity)) unlinkSync(innerName);
+            } catch (error) {
+                if ((error as { readonly code?: string }).code !== 'ENOENT') cleanupFailed = true;
+            }
+        }
+        // Restore and verify before any return, throw, or API dispatch. A
+        // restoration failure fails preflight; it can never run a handler in
+        // the staging directory or silently change relative input resolution.
+        if (entered) {
+            try {
+                process.chdir(originalCwd);
+                if (!sameFile(statSync('.'), originalIdentity)) cleanupFailed = true;
+            } catch {
+                cleanupFailed = true;
+            }
+        }
+        if (stage !== undefined && directoryIdentity !== undefined) {
+            try {
+                if (sameFile(lstatSync(stage), directoryIdentity)) rmdirSync(stage);
+                else cleanupFailed = true;
+            } catch {
+                cleanupFailed = true;
+            }
+        }
+        if (directoryFd !== undefined) {
+            try {
+                closeSync(directoryFd);
+            } catch {
+                cleanupFailed = true;
+            }
+        }
+        if (!complete || cleanupFailed) {
+            if (identity !== undefined) {
+                try {
+                    if (sameFile(lstatSync(destination), identity)) unlinkSync(destination);
+                } catch {
+                    /* Preserve foreign replacements and the original preflight error. */
+                }
+            }
+            if (fd !== undefined) {
+                try {
+                    closeSync(fd);
+                } catch {
+                    /* No diagnostic data was written. */
+                }
+            }
+        }
+    }
+    if (cleanupFailed) throw new Error('Cannot safely clean diagnostic staging');
+    if (fd === undefined) throw new Error('Missing staged diagnostic file');
+    return fd;
+}
+
 /** Reserve a new private regular file before dispatch; retain its descriptor throughout the request. */
 export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination {
     // Node's file mode cannot establish a private Windows ACL. Fail before
@@ -270,11 +400,14 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
         }
         // O_EXCL also refuses dangling symlinks and special files. Resolve the
         // parent once and use the held fd, never reopening after the request.
-        fd = openSync(
-            destination,
-            fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
-            CLI_DIAGNOSTIC_FILE_MODE,
-        );
+        fd =
+            process.platform === 'darwin'
+                ? createDarwinDiagnosticFile(destination)
+                : openSync(
+                      destination,
+                      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
+                      CLI_DIAGNOSTIC_FILE_MODE,
+                  );
         identity = fstatSync(fd);
         if (!identity.isFile() || identity.nlink !== 1) throw new Error('Unsafe file');
         if (otherOutput !== undefined && otherOutput !== '-') {
@@ -289,8 +422,11 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
             }
         }
         fchmodSync(fd, CLI_DIAGNOSTIC_FILE_MODE);
-        if ((fstatSync(fd).mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE)
+        clearDiagnosticAcl(fd);
+        const secured = fstatSync(fd);
+        if ((secured.mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE || secured.nlink !== 1)
             throw new Error('Unsafe permissions');
+        if (!sameFile(lstatSync(destination), identity)) throw new Error('Replaced destination');
     } catch {
         if (fd !== undefined) {
             try {
@@ -321,6 +457,16 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
                 if (!sameFile(lstatSync(reservedPath), reservedIdentity) || !current.isFile() || current.nlink !== 1)
                     return false;
                 if ((current.mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE) return false;
+                clearDiagnosticAcl(reservedFd);
+                // Recheck after the native ACL command, including links and
+                // modes changed while that child process was running.
+                const secured = fstatSync(reservedFd);
+                if (
+                    !sameFile(lstatSync(reservedPath), reservedIdentity) ||
+                    secured.nlink !== 1 ||
+                    (secured.mode & CLI_DIAGNOSTIC_PERMISSION_MASK) !== CLI_DIAGNOSTIC_FILE_MODE
+                )
+                    return false;
                 const serialized = JSON.stringify(record);
                 if (Buffer.byteLength(serialized) > MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES) return false;
                 writeFileSync(reservedFd, serialized, 'utf8');

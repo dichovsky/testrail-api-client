@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import {
     chmodSync,
     closeSync,
@@ -23,6 +24,7 @@ import { join } from 'node:path';
 import { createDiagnosticRecord, prepareDiagnosticDestination } from '../src/cli/diagnostics.js';
 import { TestRailApiError } from '../src/errors.js';
 import {
+    CLI_DIAGNOSTIC_ACL_TIMEOUT_MS,
     MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS,
     MAX_CLI_DIAGNOSTIC_DECODE_PASSES,
     MAX_CLI_DIAGNOSTIC_INPUT_BYTES,
@@ -43,6 +45,11 @@ vi.mock('node:fs', async (importOriginal) => {
         unlinkSync: vi.fn(actual.unlinkSync),
         writeFileSync: vi.fn(actual.writeFileSync),
     };
+});
+
+vi.mock('node:child_process', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('node:child_process')>();
+    return { ...actual, execFileSync: vi.fn(actual.execFileSync) };
 });
 
 function record(body: unknown) {
@@ -178,9 +185,9 @@ describe('bounded CLI error diagnostics', () => {
         expect(record({ errors: { '%ff': 'untrusted key value' } }).server.messages).toEqual([]);
     });
 
-    it('bounds processing time for a large adversarial hyphenated message without an assignment', () => {
+    it('bounds processing time for adversarial hyphenated, stack-like, and newline-only messages', () => {
         const started = performance.now();
-        for (const message of ['a-'.repeat(30_000), 'prefix at no-frame '.repeat(3_000)]) {
+        for (const message of ['a-'.repeat(30_000), 'prefix at no-frame '.repeat(3_000), '\n'.repeat(30_000)]) {
             const diagnostic = record({ error: message });
             expect(diagnostic.server.state).toBe('available');
             expect(diagnostic.server.truncated).toBe(true);
@@ -275,11 +282,15 @@ describe.skipIf(process.platform === 'win32')('private exclusive diagnostic dest
     let directory: string;
     let path: string;
     beforeEach(() => {
+        // Exercise ordinary POSIX reservations independently of Darwin's
+        // staging phase; ACL-specific cases explicitly select Darwin below.
+        vi.stubGlobal('process', { ...process, platform: 'linux' });
         directory = mkdtempSync(join(tmpdir(), 'testrail-diagnostic-'));
         path = join(directory, 'error.json');
     });
     afterEach(() => {
-        vi.clearAllMocks();
+        vi.unstubAllGlobals();
+        vi.resetAllMocks();
         rmSync(directory, { recursive: true, force: true });
     });
 
@@ -333,6 +344,167 @@ describe.skipIf(process.platform === 'win32')('private exclusive diagnostic dest
         );
         expect(existsSync(path)).toBe(false);
     });
+
+    it('rejects an aliased download inode regardless of platform path spelling', () => {
+        vi.mocked(lstatSync).mockImplementationOnce(() => statSync(path));
+        expect(() => prepareDiagnosticDestination(path, join(directory, 'alias.json'))).toThrow(
+            '--diagnostic-file requires',
+        );
+        expect(existsSync(path)).toBe(false);
+    });
+
+    it('bounds and isolates Darwin ACL removal through the held descriptor before dispatch and writing', () => {
+        vi.stubGlobal('process', { ...process, platform: 'darwin' });
+        vi.mocked(execFileSync)
+            .mockReturnValueOnce(Buffer.alloc(0))
+            .mockReturnValueOnce(Buffer.alloc(0))
+            .mockReturnValueOnce(Buffer.alloc(0));
+        try {
+            const destination = prepareDiagnosticDestination(path);
+            expect(vi.mocked(execFileSync)).toHaveBeenCalledWith('/bin/chmod', ['-N', '/dev/fd/3'], {
+                stdio: ['ignore', 'ignore', 'ignore', expect.any(Number)],
+                env: {},
+                timeout: CLI_DIAGNOSTIC_ACL_TIMEOUT_MS,
+                killSignal: 'SIGKILL',
+            });
+            expect(destination.write(record({ error: 'Missing option' }))).toBe(true);
+            expect(vi.mocked(execFileSync)).toHaveBeenCalledTimes(3);
+            expect(destination.finish()).toBe(true);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('fails preflight safely if Darwin ACL removal fails or times out', () => {
+        vi.stubGlobal('process', { ...process, platform: 'darwin' });
+        vi.mocked(execFileSync).mockImplementationOnce(() => {
+            throw new Error('private path in child process timeout');
+        });
+        try {
+            expect(() => prepareDiagnosticDestination(path)).toThrow('--diagnostic-file requires');
+            expect(existsSync(path)).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('preserves the operation result and removes the reservation when Darwin ACL removal fails before writing', () => {
+        vi.stubGlobal('process', { ...process, platform: 'darwin' });
+        vi.mocked(execFileSync)
+            .mockReturnValueOnce(Buffer.alloc(0))
+            .mockReturnValueOnce(Buffer.alloc(0))
+            .mockImplementationOnce(() => {
+                throw new Error('private ACL failure');
+            });
+        try {
+            const destination = prepareDiagnosticDestination(path);
+            expect(destination.write(record({ error: 'Missing option' }))).toBe(false);
+            expect(destination.finish()).toBe(true);
+            expect(existsSync(path)).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('rejects a reservation replaced while Darwin ACL removal runs without touching the replacement', () => {
+        vi.stubGlobal('process', { ...process, platform: 'darwin' });
+        vi.mocked(execFileSync)
+            .mockReturnValueOnce(Buffer.alloc(0))
+            .mockImplementationOnce(() => {
+                renameSync(path, join(directory, 'original'));
+                writeFileSync(path, 'replacement');
+                return Buffer.alloc(0);
+            });
+        try {
+            expect(() => prepareDiagnosticDestination(path)).toThrow('--diagnostic-file requires');
+            expect(readFileSync(path, 'utf8')).toBe('replacement');
+            expect(readFileSync(join(directory, 'original'), 'utf8')).toBe('');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('rejects a reservation hard-linked during permission preflight', () => {
+        vi.mocked(fchmodSync).mockImplementationOnce(() => linkSync(path, join(directory, 'linked')));
+        expect(() => prepareDiagnosticDestination(path)).toThrow('--diagnostic-file requires');
+        expect(existsSync(path)).toBe(false);
+        expect(readFileSync(join(directory, 'linked'), 'utf8')).toBe('');
+    });
+
+    it.each(['replacement', 'hardlink', 'permissions'])(
+        'rechecks %s after Darwin ACL removal before writing',
+        (change) => {
+            vi.stubGlobal('process', { ...process, platform: 'darwin' });
+            vi.mocked(execFileSync)
+                .mockReturnValueOnce(Buffer.alloc(0))
+                .mockReturnValueOnce(Buffer.alloc(0))
+                .mockImplementationOnce(() => {
+                    if (change === 'replacement') {
+                        renameSync(path, join(directory, 'original'));
+                        writeFileSync(path, 'replacement');
+                    } else if (change === 'hardlink') {
+                        linkSync(path, join(directory, 'linked'));
+                    } else {
+                        chmodSync(path, 0o644);
+                    }
+                    return Buffer.alloc(0);
+                });
+            try {
+                const destination = prepareDiagnosticDestination(path);
+                expect(destination.write(record({ error: 'Private diagnostic detail' }))).toBe(false);
+                expect(destination.finish()).toBe(change !== 'replacement');
+                if (change === 'replacement') expect(readFileSync(path, 'utf8')).toBe('replacement');
+                else expect(existsSync(path)).toBe(false);
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        },
+    );
+
+    it.runIf(process.platform === 'darwin')(
+        'removes inherited Darwin read ACLs while preserving the parent directory ACL',
+        () => {
+            vi.stubGlobal('process', { ...process, platform: 'darwin' });
+            execFileSync('/bin/chmod', [
+                '+a',
+                'everyone allow read,readattr,readextattr,readsecurity,file_inherit,directory_inherit',
+                directory,
+            ]);
+            const aclEntries = (target: string): string[] =>
+                execFileSync('/bin/ls', ['-lde', target], { encoding: 'utf8' })
+                    .split('\n')
+                    .filter((line) => /^\s*\d+:/u.test(line));
+            const parentAcl = aclEntries(directory);
+            const control = join(directory, 'inherited-control');
+            writeFileSync(control, '', { mode: 0o600 });
+            expect(aclEntries(control).join('\n')).toContain('group:everyone inherited allow read');
+            const destination = prepareDiagnosticDestination(path);
+            expect(statSync(path).mode & 0o777).toBe(0o600);
+            expect(aclEntries(path)).toEqual([]);
+            expect(aclEntries(directory)).toEqual(parentAcl);
+            expect(destination.write(record({ error: 'Missing option' }))).toBe(true);
+            expect(destination.finish()).toBe(true);
+            expect(aclEntries(path)).toEqual([]);
+            expect(aclEntries(directory)).toEqual(parentAcl);
+            expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ status: 400 });
+        },
+    );
+
+    it.runIf(process.platform === 'darwin')(
+        'removes a Darwin read ACL added after preflight before writing details',
+        () => {
+            vi.stubGlobal('process', { ...process, platform: 'darwin' });
+            const destination = prepareDiagnosticDestination(path);
+            execFileSync('/bin/chmod', ['+a', 'everyone allow read,readattr,readextattr,readsecurity', path]);
+            expect(statSync(path).mode & 0o777).toBe(0o600);
+            expect(execFileSync('/bin/ls', ['-lde', path], { encoding: 'utf8' })).toContain(
+                'group:everyone allow read',
+            );
+            expect(destination.write(record({ error: 'Missing option' }))).toBe(true);
+            expect(destination.finish()).toBe(true);
+            expect(execFileSync('/bin/ls', ['-lde', path], { encoding: 'utf8' })).not.toMatch(/^\s*\d+:/mu);
+        },
+    );
 
     it('permits distinct new or existing downloads and stdout output', () => {
         const other = join(directory, 'download');

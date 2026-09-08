@@ -344,6 +344,12 @@ testrail case-field add --data-file field.json --diagnostic-file ./field-error.j
 paths, including symlinks, and destinations shared with `--out`. Its directory must
 already exist. The file has mode `0600`. The flag currently rejects Windows before
 dispatch because the client cannot establish an equivalent private ACL there.
+On macOS, the client clears inherited ACLs on a private staging directory before
+creating the file, then reserves the requested destination with an exclusive link
+to that private file. Bounded calls to the system `chmod` secure the staging
+directory and remove ACLs added to the file before writing diagnostics. The
+destination directory's ACL is preserved. If securing the file fails, the client
+rejects the destination or omits the diagnostic record.
 Success removes the reservation. Failures after reservation produce a
 version-1 JSON record with `kind`, HTTP `status` when available, an explicit
 `operationOutcome: "failed_or_indeterminate"`, and `server` containing `state`,
