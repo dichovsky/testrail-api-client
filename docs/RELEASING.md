@@ -89,7 +89,9 @@ If other changes land before the merge, reassess the release contents and gates.
 
 - Require the complete `Publish` run to succeed. It checks npm version,
   `gitHead`, `latest`, SLSA provenance, and equality of every packed file with
-  the tested build. Metadata and tarball lookups retry briefly for propagation.
+  the tested build. After npm accepts publication, metadata verification polls
+  for up to five minutes, bounding each lookup by the remaining deadline.
+  Tarball lookups retry briefly for propagation; a content mismatch fails immediately.
 - Independently read the exact version from the official npm registry and
   confirm `latest`, `gitHead`, and `dist.attestations` agree with the release.
 - Install that exact registry version into an isolated temporary consumer with
@@ -102,7 +104,9 @@ If other changes land before the merge, reassess the release contents and gates.
   release handoff.
 
 If publication or post-publication verification fails, inspect the exact npm
-version before retrying. npm versions are immutable: never republish different
+version before retrying. npm may accept an upload while the exact version still
+returns 404 during processing; wait for the registry to expose it rather than
+publishing again. npm versions are immutable: never republish different
 contents under the same version. Rerun the entire workflow, including `verify`,
 after publication succeeds but verification fails. Retrying only `publish`
 reuses its earlier unpublished decision and fails the version-absence check.

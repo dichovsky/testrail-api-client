@@ -415,8 +415,14 @@ jobs:
                       --globalconfig="$GLOBAL_CONFIG"
 
                   VERIFIED=false
-                  for ATTEMPT in {1..10}; do
-                      if METADATA="$(npm view "$PACKAGE_SPEC" version gitHead dist-tags.latest dist.attestations --json --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/ 2>/dev/null)" &&
+                  # npm can accept the upload while processing keeps metadata
+                  # unavailable for several minutes. Bound both polling and
+                  # each lookup without ever repeating the publish operation.
+                  METADATA_DEADLINE=$((SECONDS + 300))
+                  while (( SECONDS < METADATA_DEADLINE )); do
+                      METADATA_REMAINING=$((METADATA_DEADLINE - SECONDS))
+                      if (( METADATA_REMAINING <= 0 )); then break; fi
+                      if METADATA="$(timeout --signal=KILL "${METADATA_REMAINING}s" npm view "$PACKAGE_SPEC" version gitHead dist-tags.latest dist.attestations --json --prefer-online --fetch-retries=0 --fetch-timeout=10000 --userconfig="$USER_CONFIG" --globalconfig="$GLOBAL_CONFIG" --registry=https://registry.npmjs.org/ 2>/dev/null)" &&
                           printf '%s' "$METADATA" |
                               EXPECTED_VERSION="$EXPECTED_VERSION" EXPECTED_SHA="$GITHUB_SHA" node --input-type=module --eval '
                                   import fs from "node:fs";
@@ -436,10 +442,18 @@ jobs:
                           VERIFIED=true
                           break
                       fi
-                      if [[ "$ATTEMPT" -lt 10 ]]; then sleep 3; fi
+                      METADATA_REMAINING=$((METADATA_DEADLINE - SECONDS))
+                      if (( METADATA_REMAINING > 0 )); then
+                          METADATA_DELAY=10
+                          if (( METADATA_REMAINING < METADATA_DELAY )); then
+                              METADATA_DELAY=$METADATA_REMAINING
+                          fi
+                          echo "npm accepted the publication; waiting for verified registry metadata (${METADATA_REMAINING}s remaining)." >&2
+                          sleep "$METADATA_DELAY"
+                      fi
                   done
                   if [[ "$VERIFIED" != 'true' ]]; then
-                      echo 'Published npm metadata did not converge to the expected release identity.' >&2
+                      echo 'npm accepted the publication, but metadata did not converge within 300 seconds. Wait for registry processing, then rerun the entire workflow, including verify; do not publish again.' >&2
                       exit 1
                   fi
                   DIFF_VERIFIED=false
