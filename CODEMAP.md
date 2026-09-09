@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "db654774989e369d2b3f54957eb59987a9af2975cf970da2ca2a903f1be0db8c",
+  "sourceHash": "e042ad9468c5c484cabecbb8358a85b9237f72ffca0af69c02fe48cf20e1c6f8",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2456,21 +2456,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "clearDiagnosticAcl",
           "kind": "function",
-          "line": 319,
+          "line": 321,
           "exported": false,
           "signature": "function clearDiagnosticAcl(fd: number): void"
         },
         {
           "name": "createDarwinDiagnosticFile",
           "kind": "function",
-          "line": 334,
+          "line": 336,
           "exported": false,
           "signature": "function createDarwinDiagnosticFile(destination: string): number"
         },
         {
           "name": "prepareDiagnosticDestination",
           "kind": "function",
-          "line": 446,
+          "line": 448,
           "exported": true,
           "signature": "export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination"
         }

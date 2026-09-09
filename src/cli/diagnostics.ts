@@ -15,7 +15,7 @@ import {
     writeFileSync,
     type Stats,
 } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
     CLI_DIAGNOSTIC_ACL_TIMEOUT_MS,
@@ -311,8 +311,10 @@ function sameFile(left: Stats, right: Stats): boolean {
 }
 
 function canonicalDestination(path: string): string {
-    const absolute = resolve(path);
-    return join(realpathSync(dirname(absolute)), basename(absolute));
+    // Let the filesystem traverse symlinks before interpreting later `..`
+    // components. Both path.resolve() and the JavaScript realpathSync()
+    // normalize them lexically and can identify a different output file.
+    return join(realpathSync.native(dirname(path)), basename(path));
 }
 
 /** Darwin allow ACLs can grant read access despite mode 0600; clear only the held reservation's ACL. */
@@ -486,7 +488,7 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
                 // Case-insensitive and Unicode-normalizing filesystems can
                 // alias different spellings. Check the reserved inode, too,
                 // before a --force download could overwrite our reservation.
-                otherIdentity = lstatSync(canonicalDestination(otherOutput));
+                otherIdentity = lstatSync(otherOutput);
             } catch (error) {
                 if ((error as { readonly code?: string }).code !== 'ENOENT') throw error;
             }

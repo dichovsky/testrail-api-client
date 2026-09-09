@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    readdirSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+} from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -131,6 +140,19 @@ describe('diagnostic CLI invocation boundaries', () => {
             status: null,
             operationOutcome: 'not_dispatched',
         });
+    });
+
+    it.skipIf(nativePlatform === 'win32')('rejects a symlink/.. download alias before fetching', async () => {
+        mkdirSync(join(directory, 'real', 'nested'), { recursive: true });
+        symlinkSync(join(directory, 'real', 'nested'), join(directory, 'link'));
+        diagnosticPath = join(directory, 'real', 'error.json');
+        const outputPath = `${directory}/link/../error.json`;
+        const result = await runCli(['bdd', 'get', '7', '--out', outputPath, '--force']);
+        expect(result.code).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.stderr).toContain('distinct from --out; no API request was sent');
+        expect(fetch).not.toHaveBeenCalled();
+        expect(existsSync(diagnosticPath)).toBe(false);
     });
 
     it.skipIf(nativePlatform === 'win32')('keeps post-request non-API errors indeterminate', async () => {

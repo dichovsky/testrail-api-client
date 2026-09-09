@@ -26,7 +26,7 @@ vi.mock('node:fs', async (importOriginal) => {
         closeSync: vi.fn(actual.closeSync),
         fstatSync: vi.fn(actual.fstatSync),
         lstatSync: vi.fn(actual.lstatSync),
-        realpathSync: vi.fn(actual.realpathSync),
+        realpathSync: Object.assign(vi.fn(actual.realpathSync), { native: vi.fn(actual.realpathSync.native) }),
         writeFileSync: vi.fn(actual.writeFileSync),
     };
 });
@@ -124,9 +124,9 @@ describe.skipIf(process.platform === 'win32')('diagnostic publication finalizati
     });
 
     it('propagates optional-output lookup failures other than missing paths before reserving a diagnostic', () => {
-        const realRealpath = vi.mocked(realpathSync).getMockImplementation();
+        const realRealpath = vi.mocked(realpathSync.native).getMockImplementation();
         if (realRealpath === undefined) throw new Error('Missing realpath implementation');
-        vi.mocked(realpathSync)
+        vi.mocked(realpathSync.native)
             .mockImplementationOnce(realRealpath)
             .mockImplementationOnce(() => {
                 throw Object.assign(new Error('private lookup failure'), { code: 'EACCES' });

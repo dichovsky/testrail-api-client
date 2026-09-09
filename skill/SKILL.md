@@ -2544,15 +2544,14 @@ Common response `type_id` values and case-payload values:
 | 6 | Dropdown | One integer option ID, e.g. `2` |
 | 7 | User | Integer user ID |
 | 8 | Date | String in the API user's configured date format |
-| 11* | Multi-select | Array of integer option IDs, e.g. `[1, 2]` |
+| 12 | Multi-select | Array of integer option IDs, e.g. `[1, 2]` |
 
 The [case-value contract](https://support.testrail.com/hc/en-us/articles/7077292642580-Cases#add_case)
-distinguishes Dropdown from Multi-select. *The field documentation lists
-Multi-select as `11`, but its creation-response example reports `12`, also
-listed there for BDD Scenarios. Verify returned metadata against the target
-server's field configuration/version; do not infer a value shape from that
-conflicting example. Creation uses the string `type` (e.g. `"Dropdown"` or
-`"Multiselect"`), rather than the response property `type_id`.
+distinguishes Dropdown from Multi-select. The field documentation maps
+Multi-select to `12` and BDD Scenarios to `13`. Verify returned metadata
+against the target server's field configuration/version before choosing a
+case-payload value shape. Creation uses the string `type` (e.g. `"Dropdown"`
+or `"Multiselect"`), rather than the response property `type_id`.
 
 **Preview complete creation payloads (admin-only when submitted):**
 
