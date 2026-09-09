@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -336,7 +338,9 @@ describe('publish workflow wiring', () => {
         expect(recheck).toBeLessThan(publish);
         expect(publish).toBeLessThan(verification);
         expect(verification).toBeLessThan(diffVerification);
-        expect(publishJob.match(/for ATTEMPT in \{1\.\.10\}; do/g)).toHaveLength(2);
+        expect(publishJob.match(/for ATTEMPT in \{1\.\.10\}; do/g)).toHaveLength(1);
+        expect(publishJob).toContain('timeout --signal=KILL "${METADATA_REMAINING}s" npm view');
+        expect(publishJob).toContain('--fetch-retries=0 --fetch-timeout=10000');
         expect(publishJob).toContain('if DIFF_OUTPUT=');
         expect(publishJob).toContain('--prefer-online');
         expect(publishJob).toContain('--cache="$ISOLATED_NPM_DIRECTORY/npm-diff-cache-$ATTEMPT"');
@@ -358,6 +362,104 @@ describe('publish workflow wiring', () => {
         'npm run audit:dependencies',
     ])('includes the release gate: %s', (command) => {
         expect(workflow).toContain(command);
+    });
+});
+
+describe('post-publication metadata propagation', () => {
+    const workflow = readFileSync(resolve('.github/workflows/publish.yml'), 'utf8');
+    const verification = workflow.slice(workflow.indexOf('VERIFIED=false'), workflow.indexOf('DIFF_VERIFIED=false'));
+    const metadata = {
+        version: VERSION,
+        gitHead: RELEASE_SHA,
+        'dist-tags.latest': VERSION,
+        'dist.attestations': { provenance: { predicateType: SLSA_PROVENANCE_PREDICATE } },
+    };
+
+    function runVerification(unavailableAttempts: number, response: typeof metadata) {
+        const directory = mkdtempSync(join(tmpdir(), 'testrail-publication-wait-'));
+        try {
+            // Run the workflow's real shell and JSON identity checks. Only npm,
+            // timeout and sleep are substituted: sleep advances Bash's writable
+            // elapsed-time clock so the five-minute deadline needs no real wait.
+            const result = spawnSync(
+                'bash',
+                [
+                    '-c',
+                    `set -euo pipefail
+printf '0' > attempts
+timeout() {
+    [[ "$1" == '--signal=KILL' ]]
+    printf '%s\\n' "$2" >> timeouts
+    shift 2
+    "$@"
+}
+npm() {
+    [[ "$1" == 'view' ]] || return 99
+    local calls
+    calls="$(cat attempts)"
+    calls=$((calls + 1))
+    printf '%s' "$calls" > attempts
+    if (( calls <= MOCK_UNAVAILABLE_ATTEMPTS )); then return 1; fi
+    printf '%s' "$MOCK_METADATA"
+}
+sleep() { SECONDS=$((SECONDS + $1)); }
+${verification}`,
+                ],
+                {
+                    cwd: directory,
+                    env: {
+                        PATH: process.env['PATH'],
+                        EXPECTED_VERSION: VERSION,
+                        GITHUB_SHA: RELEASE_SHA,
+                        PACKAGE_SPEC: `${EXPECTED_PACKAGE_NAME}@${VERSION}`,
+                        USER_CONFIG: '/dev/null',
+                        GLOBAL_CONFIG: '/dev/null',
+                        MOCK_UNAVAILABLE_ATTEMPTS: String(unavailableAttempts),
+                        MOCK_METADATA: JSON.stringify(response),
+                    },
+                    encoding: 'utf8',
+                    timeout: 10_000,
+                },
+            );
+            if (result.error !== undefined) throw result.error;
+            return {
+                status: result.status,
+                stderr: result.stderr,
+                attempts: Number(readFileSync(join(directory, 'attempts'), 'utf8')),
+                timeouts: readFileSync(join(directory, 'timeouts'), 'utf8')
+                    .trim()
+                    .split('\n')
+                    .map((duration) => Number(duration.slice(0, -1))),
+            };
+        } finally {
+            rmSync(directory, { recursive: true, force: true });
+        }
+    }
+
+    it('accepts matching metadata after more than ten unavailable registry reads', () => {
+        const result = runVerification(11, metadata);
+        expect(result.status).toBe(0);
+        expect(result.attempts).toBe(12);
+        expect(result.stderr).toContain('npm accepted the publication');
+        expect(result.timeouts.every((seconds) => seconds > 0 && seconds <= 300)).toBe(true);
+    });
+
+    it.each([
+        ['unavailable metadata', 100, metadata],
+        ['mismatched identity', 0, { ...metadata, gitHead: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }],
+    ])('stops at the deadline for %s without accepting the release', (_label, unavailableAttempts, response) => {
+        const result = runVerification(unavailableAttempts, response);
+        expect(result.status).toBe(1);
+        expect(result.attempts).toBeGreaterThan(10);
+        expect(result.attempts).toBeLessThanOrEqual(30);
+        expect(
+            result.timeouts.every(
+                (seconds, index) =>
+                    seconds > 0 && seconds <= 300 && (index === 0 || seconds < (result.timeouts[index - 1] ?? 0)),
+            ),
+        ).toBe(true);
+        expect(result.stderr).toContain('metadata did not converge within 300 seconds');
+        expect(result.stderr).toContain('rerun the entire workflow, including verify; do not publish again');
     });
 });
 

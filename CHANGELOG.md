@@ -29,6 +29,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Late fetch responses and unread error/redirect bodies receive observed
   cancellation. Multipart cleanup observes actual stream reads and cancellation
   while retaining native FormData encoding.
+- Publication verification now allows up to five minutes for npm's accepted
+  upload to become visible in registry metadata, with bounded online lookups
+  and no repeated publish. This avoids reporting a failed release after npm
+  accepts a package but needs more than the previous 27-second polling window
+  to process it. Identity checks and immediate package-content mismatch failures
+  remain unchanged.
 
 ## [7.1.0] — 2026-09-10 — CLI diagnostics and safer workflows
 
