@@ -340,24 +340,36 @@ For CLI error details, opt into a private diagnostic file on the original invoca
 testrail case-field add --data-file field.json --diagnostic-file ./field-error.json
 ```
 
-`--diagnostic-file` reserves a new regular file before dispatch and rejects existing
+For real invocations, `--diagnostic-file` reserves a new regular file before dispatch and rejects existing
 paths, including symlinks, and destinations shared with `--out`. Its directory must
 already exist. The file has mode `0600`. The flag currently rejects Windows before
-dispatch because the client cannot establish an equivalent private ACL there.
+stdin or authentication work because the client cannot establish an equivalent private ACL there.
+`--dry-run` ignores the diagnostic destination on every platform: previews create no
+diagnostic file and do not validate or modify an existing destination.
 On macOS, the client clears inherited ACLs on a private staging directory before
 creating the file, then reserves the requested destination with an exclusive link
 to that private file. Bounded calls to the system `chmod` secure the staging
 directory and remove ACLs added to the file before writing diagnostics. The
 destination directory's ACL is preserved. If securing the file fails, the client
 rejects the destination or omits the diagnostic record.
-Success removes the reservation. Failures after reservation produce a
+Normal completion removes an unused reservation; process exit also attempts cleanup,
+including exits caused by SIGINT/SIGTERM. A permission or I/O failure can leave an empty
+reservation; the command's exit status still describes the operation, and `--quiet`
+suppresses cleanup warnings. File existence alone does not establish API failure.
+Failures after reservation produce a
 version-1 JSON record with `kind`, HTTP `status` when available, an explicit
-`operationOutcome: "failed_or_indeterminate"`, and `server` containing `state`,
+`operationOutcome`, and `server` containing `state`,
 `messages`, and `truncated`. Early argument/auth failures have no diagnostic artifact.
+`operationOutcome` is `"not_dispatched"` for a known failure before invoking the
+command handler, such as invalid client configuration. Once the handler starts it
+is conservatively `"failed_or_indeterminate"`; the error's class alone cannot prove
+whether an API write happened.
 
 Only recognized structured validation details are included. Known credentials and
 common encoded variants are redacted; sensitive nested keys are omitted. Raw bodies,
-headers, request payloads, and stacks are excluded. Input processing is capped at
+headers, request payloads, and stacks are excluded. `messages` contains nonblank redacted
+string values in encounter order, without object keys or field-to-message mappings.
+Input processing is capped at
 64 KiB and the record at 16 KiB; malformed/non-JSON or oversized bodies yield a safe
 omission state. When extracted messages exceed the record limit, the first complete
 redacted messages are retained with `truncated: true`. Safe validation text preserves

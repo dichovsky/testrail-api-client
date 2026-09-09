@@ -211,6 +211,19 @@ describe('GET-only case-field readiness example', () => {
         expect(fetch).toHaveBeenCalledTimes(1);
     });
 
+    it.each([{ baseUrl: 'not-a-url' }, { email: 'not-an-email' }, { timeout: 0 }])(
+        'identifies invalid reader configuration without losing the successful creation: %j',
+        async (invalidConfig) => {
+            vi.useFakeTimers();
+            const fetch = vi.fn<typeof globalThis.fetch>();
+            const result = await waitForCaseField({ ...BASE_CONFIG, ...invalidConfig, fetch }, created, options);
+            expect(result).toEqual({ state: 'pending', reason: 'invalid_config', created, attempts: 0 });
+            expect(result.created).toBe(created);
+            expect(fetch).not.toHaveBeenCalled();
+            expect(vi.getTimerCount()).toBe(0);
+        },
+    );
+
     it('retains creation when caller verification throws', async () => {
         const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(mockOk([field]));
         expect(

@@ -1,6 +1,6 @@
 // Repository example. When copying into an application, import the SDK from
 // '@dichovsky/testrail-api-client' and use the application's timer limit.
-import { TestRailClient, CaseFieldSchema } from '../src/index.js';
+import { TestRailClient, TestRailValidationError, CaseFieldSchema } from '../src/index.js';
 import type { AddCaseFieldResponse, CaseField, TestRailConfig } from '../src/index.js';
 import { MAX_NODE_TIMER_DELAY_MS } from '../src/constants.js';
 
@@ -45,6 +45,7 @@ export type ReadinessResult = {
               | 'attempt_limit'
               | 'invalid_identity'
               | 'invalid_inventory'
+              | 'invalid_config'
               | 'read_failed'
               | 'verification_failed';
       }
@@ -165,7 +166,10 @@ export async function waitForCaseField(
         // Also bound a slow custom DNS/fetch implementation that ignores abort.
         // Once it settles, poll sees the signal and performs no further work.
         return await Promise.race([poll(), stopped]);
-    } catch {
+    } catch (error) {
+        // Configuration rejection happens before any GET. Preserve creation,
+        // but tell the caller to fix the reader configuration before retrying.
+        if (reader === undefined && error instanceof TestRailValidationError) return pending('invalid_config');
         return pending('read_failed');
     } finally {
         clearTimeout(timer);

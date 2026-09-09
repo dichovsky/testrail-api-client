@@ -81,6 +81,27 @@ describe('bounded CLI error diagnostics', () => {
         });
     });
 
+    it('reports no available detail when validation strings are empty or whitespace', () => {
+        expect(record({ error: { a: '', b: ' \t\n' } }).server).toEqual({
+            state: 'unavailable',
+            messages: [],
+            truncated: false,
+        });
+        expect(record({ errors: ['', 'Name is required', '\n', 'Unknown type', ' '] }).server).toEqual({
+            state: 'available',
+            messages: ['Name is required', 'Unknown type'],
+            truncated: false,
+        });
+    });
+
+    it('requires explicit pre-handler provenance before reporting that no request was dispatched', () => {
+        const error = new Error('private configuration or post-write output error');
+        expect(createDiagnosticRecord(error, auth, false).operationOutcome).toBe('not_dispatched');
+        expect(createDiagnosticRecord(error, auth, true).operationOutcome).toBe('failed_or_indeterminate');
+        expect(createDiagnosticRecord(error, auth).operationOutcome).toBe('failed_or_indeterminate');
+        expect(JSON.stringify(createDiagnosticRecord(error, auth, false))).not.toContain('private');
+    });
+
     it('preserves author validation prose while omitting explicit auth keys and raw-body containers', () => {
         const diagnostic = record({
             error: 'author: unknown user for field owner',
@@ -270,17 +291,17 @@ describe('bounded CLI error diagnostics', () => {
 
     it('bounds processing time for adversarial hyphenated, stack-like, and newline-only messages', () => {
         const started = performance.now();
-        for (const message of [
-            'a-'.repeat(30_000),
-            'prefix at no-frame '.repeat(3_000),
-            '\n'.repeat(30_000),
-            `at ${'a'.repeat(60_000)}`,
-        ]) {
+        for (const message of ['a-'.repeat(30_000), 'prefix at no-frame '.repeat(3_000), `at ${'a'.repeat(60_000)}`]) {
             const diagnostic = record({ error: message });
             expect(diagnostic.server.state).toBe('available');
             expect(diagnostic.server.truncated).toBe(true);
             expect(diagnostic.server.messages[0]).toBe(message.slice(0, MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS));
         }
+        expect(record({ error: '\n'.repeat(30_000) }).server).toEqual({
+            state: 'unavailable',
+            messages: [],
+            truncated: false,
+        });
         const duration = performance.now() - started;
         // The old backtracking regex took seconds for this bounded input.
         // Allow ample CI headroom while keeping that regression observable.

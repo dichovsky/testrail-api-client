@@ -59,7 +59,7 @@ export interface CliDiagnosticRecord {
     readonly version: 1;
     readonly kind: 'api_error' | 'cli_error';
     readonly status: number | null;
-    readonly operationOutcome: 'failed_or_indeterminate';
+    readonly operationOutcome: 'not_dispatched' | 'failed_or_indeterminate';
     readonly server: DiagnosticServerDetail;
 }
 
@@ -235,6 +235,7 @@ function extractDetail(response: unknown, secrets: readonly string[] | undefined
             return;
         }
         if (typeof value === 'string') {
+            if (value.trim() === '') return;
             // Redact the complete bounded value before shortening it, so a
             // credential that crosses the truncation boundary cannot leak.
             const safe = redactMessage(value, secrets);
@@ -252,7 +253,7 @@ function extractDetail(response: unknown, secrets: readonly string[] | undefined
             }
         }
     };
-    // Only known validation containers qualify. Nested field names are never
+    // Only known validation containers qualify. Nested object keys are never
     // emitted; sensitive containers are omitted with all their descendants.
     for (const [key, value] of Object.entries(parsed)) {
         if (VALIDATION_KEYS.has(normalizedKey(key))) visit(value, 0);
@@ -264,13 +265,16 @@ function extractDetail(response: unknown, secrets: readonly string[] | undefined
 export function createDiagnosticRecord(
     error: unknown,
     auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>,
+    handlerStarted = true,
 ): CliDiagnosticRecord {
     const apiError = error instanceof TestRailApiError;
     const record: CliDiagnosticRecord = {
         version: 1,
         kind: apiError ? 'api_error' : 'cli_error',
         status: apiError && Number.isSafeInteger(error.status) ? error.status : null,
-        operationOutcome: 'failed_or_indeterminate',
+        // Error type does not establish dispatch provenance: an ordinary
+        // exception can occur after a successful write (for example in output).
+        operationOutcome: handlerStarted ? 'failed_or_indeterminate' : 'not_dispatched',
         // Successful-response mismatch and transport errors must not copy
         // successful entity data or the underlying network exception message.
         server:

@@ -81,7 +81,7 @@ async function runCli(extra: readonly string[] = []): Promise<{ stdout: string; 
 }
 
 describe.skipIf(process.platform === 'win32')('diagnostic staging preserves CLI working-directory semantics', () => {
-    it('resolves relative payloads after private staging and leaves no success artifact', async () => {
+    it('resolves relative preview payloads without a diagnostic artifact', async () => {
         const result = await runCli(['--dry-run']);
         expect(result.code).toBe(0);
         expect(result.stderr).toBe('');

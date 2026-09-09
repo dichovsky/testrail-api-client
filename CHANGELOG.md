@@ -27,6 +27,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- CLI diagnostic reservations are cleaned up during normal process exit,
+  including SIGINT/SIGTERM, and `--dry-run` ignores diagnostic destinations.
+  Empty validation strings no longer count as available detail; known failures
+  before handler invocation report `not_dispatched`.
 - Case-field skill recipes now use schema-valid creation payloads, nested
   configuration scope, returned `system_name` properties, and the correct
   Dropdown/Multiselect value shapes. The recipes document the reported

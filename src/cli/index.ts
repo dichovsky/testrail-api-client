@@ -191,6 +191,16 @@ async function main(): Promise<number> {
     }
     const invocation = invocationResult.invocation;
 
+    // The platform restriction is static: reject it before consuming stdin
+    // or resolving credentials. Dry-run never reserves a diagnostic file.
+    const diagnosticPath = values['diagnostic-file'];
+    if (!dryRun && typeof diagnosticPath === 'string' && process.platform === 'win32') {
+        err(
+            '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.',
+        );
+        return 1;
+    }
+
     // Validate response-mode configuration before auth resolution or any
     // network work. Primitive argv shape was already checked centrally above;
     // the explicit flag is additive, but does not conceal an invalid
@@ -316,6 +326,23 @@ async function main(): Promise<number> {
     let client: TestRailClient | undefined;
     let diagnostic: CliDiagnosticDestination | undefined;
     let succeeded = false;
+    let handlerStarted = false;
+    const finishDiagnostic = (): void => {
+        // SIGINT/SIGTERM terminate synchronously through the client's process
+        // handlers, so the async finally block alone cannot release a reserved
+        // file. Remove our CLI-only exit listener and clear the reservation
+        // before finishing so the exit and normal paths cannot close it twice.
+        process.removeListener('exit', finishDiagnostic);
+        const destination = diagnostic;
+        diagnostic = undefined;
+        if (destination !== undefined && !destination.finish()) {
+            errRaw(
+                succeeded
+                    ? 'Warning: Command succeeded, but diagnostic file cleanup failed; the API operation is unchanged.\n'
+                    : 'Warning: Diagnostic file cleanup failed; the command remains failed or indeterminate.\n',
+            );
+        }
+    };
     try {
         // Resolve the request timeout (milliseconds). `--timeout` beats
         // TESTRAIL_TIMEOUT beats the 30s default; an empty value is treated as
@@ -335,13 +362,13 @@ async function main(): Promise<number> {
         // isn't reported as a bad `--timeout`.
         const timeoutSource = usingTimeoutFlag ? '--timeout' : 'TESTRAIL_TIMEOUT';
         const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, timeoutSource) } : {};
-        const diagnosticPath = values['diagnostic-file'];
-        if (typeof diagnosticPath === 'string') {
+        if (!dryRun && typeof diagnosticPath === 'string') {
             const outputPath = values['out'];
             diagnostic = prepareDiagnosticDestination(
                 diagnosticPath,
                 typeof outputPath === 'string' ? outputPath : undefined,
             );
+            process.on('exit', finishDiagnostic);
         }
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
@@ -352,6 +379,7 @@ async function main(): Promise<number> {
             registerProcessHandlers: true,
             onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
         });
+        handlerStarted = true;
         await invocation.spec.handler({
             client,
             actionSpec: invocation.spec,
@@ -375,7 +403,7 @@ async function main(): Promise<number> {
         if (diagnostic !== undefined) {
             let saved = false;
             try {
-                saved = diagnostic.write(createDiagnosticRecord(e, auth.config));
+                saved = diagnostic.write(createDiagnosticRecord(e, auth.config, handlerStarted));
             } catch {
                 // Diagnostic processing must never replace the operation's error.
             }
@@ -388,13 +416,7 @@ async function main(): Promise<number> {
         return 1;
     } finally {
         client?.destroy();
-        if (diagnostic !== undefined && !diagnostic.finish()) {
-            errRaw(
-                succeeded
-                    ? 'Warning: Command succeeded, but diagnostic file cleanup failed; the API operation is unchanged.\n'
-                    : 'Warning: Diagnostic file cleanup failed; the command remains failed or indeterminate.\n',
-            );
-        }
+        finishDiagnostic();
     }
 }
 

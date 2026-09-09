@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "3230fc9cf48d83af97ddc177657811ee27ae14d1c779aa2aeece6f3c62838218",
+  "sourceHash": "db654774989e369d2b3f54957eb59987a9af2975cf970da2ca2a903f1be0db8c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2374,7 +2374,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 58,
           "exported": true,
-          "signature": "export interface CliDiagnosticRecord { readonly version: 1; readonly kind: 'api_error' | 'cli_error'; readonly status: number | null; readonly operationOutcome: 'failed_or_indeterminate'; readonly ser…"
+          "signature": "export interface CliDiagnosticRecord { readonly version: 1; readonly kind: 'api_error' | 'cli_error'; readonly status: number | null; readonly operationOutcome: 'not_dispatched' | 'failed_or_indetermi…"
         },
         {
           "name": "omittedDetail",
@@ -2428,49 +2428,49 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "createDiagnosticRecord",
           "kind": "function",
-          "line": 264,
+          "line": 265,
           "exported": true,
-          "signature": "export function createDiagnosticRecord( error: unknown, auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>, ): CliDiagnosticRecord"
+          "signature": "export function createDiagnosticRecord( error: unknown, auth: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>, handlerStarted = true, ): CliDiagnosticRecord"
         },
         {
           "name": "CliDiagnosticDestination",
           "kind": "interface",
-          "line": 298,
+          "line": 302,
           "exported": true,
           "signature": "export interface CliDiagnosticDestination { readonly write: (record: CliDiagnosticRecord) => boolean; readonly finish: () => boolean; }"
         },
         {
           "name": "sameFile",
           "kind": "function",
-          "line": 305,
+          "line": 309,
           "exported": false,
           "signature": "function sameFile(left: Stats, right: Stats): boolean"
         },
         {
           "name": "canonicalDestination",
           "kind": "function",
-          "line": 309,
+          "line": 313,
           "exported": false,
           "signature": "function canonicalDestination(path: string): string"
         },
         {
           "name": "clearDiagnosticAcl",
           "kind": "function",
-          "line": 315,
+          "line": 319,
           "exported": false,
           "signature": "function clearDiagnosticAcl(fd: number): void"
         },
         {
           "name": "createDarwinDiagnosticFile",
           "kind": "function",
-          "line": 330,
+          "line": 334,
           "exported": false,
           "signature": "function createDarwinDiagnosticFile(destination: string): number"
         },
         {
           "name": "prepareDiagnosticDestination",
           "kind": "function",
-          "line": 442,
+          "line": 446,
           "exported": true,
           "signature": "export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination"
         }

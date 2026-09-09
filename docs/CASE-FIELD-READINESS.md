@@ -27,6 +27,12 @@ The example provides three states, each preserving the original creation result:
 | `ready`    | Exactly one field matched both returned identifiers and passed the caller's configuration verification. Dependent case writes may proceed using its returned `system_name`.                                                               |
 | `conflict` | An identifier collides or the returned configuration differs. Stop dependent writes and reconcile the existing field; do not create a replacement automatically.                                                                          |
 
+`pending` with reason `invalid_config` means the dedicated reader rejected its
+configuration before any GET (`attempts: 0`), for example an invalid `baseUrl`,
+email, or request timeout. Correct the reader configuration before resuming
+GET-only polling; waiting cannot fix this condition. The successful POST result
+remains available as `created`, and creation must not be repeated.
+
 Supply a deadline, positive backoff bounds, an attempt limit, an optional abort
 signal, and a synchronous verification callback. Verify the intended type,
 project and template scope, and field-specific options including option IDs.
