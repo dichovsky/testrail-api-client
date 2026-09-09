@@ -11,6 +11,10 @@ npm run build                                     # Native TypeScript 7 → dist
 npm run lint && npm run typecheck                 # Lint + TypeScript 7 check
 npm run typecheck:ts6                             # TypeScript 6 compatibility check
 npm run codemap                                   # Regenerate CODEMAP.md
+npm run mapping                                   # Regenerate docs/API-MAPPING.md
+npm run skill                                     # Regenerate skill docs and payload reference
+npm run agents-md                                 # Regenerate AGENTS.md
+npm run package:smoke                             # Verify the packed package and executable
 npx vitest run tests/client-endpoints.test.ts    # Single file
 ```
 
@@ -42,7 +46,7 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `scripts/generate-codemap.ts`                                               | Regenerates CODEMAP.md via TS Compiler API; `--check` flag verifies committed file is up to date                                               |
 | `docs/API-MAPPING.md`                                                       | Generated coverage matrix: TestRail endpoint ↔ client method ↔ CLI command ↔ skill recipe (auto-gen, deterministic, prettier-ignored)          |
 | `docs/testrail-endpoints.json`                                              | Hand-curated upstream TestRail endpoint inventory (133 endpoints × 28 resources); Zod-validated by the mapping generator                       |
-| `scripts/generate-mapping.ts`                                               | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2/D; `--check` flag for CI drift detection               |
+| `scripts/generate-mapping.ts`                                               | Regenerates `docs/API-MAPPING.md` via TS Compiler API + JSDoc walk; runs gates A/B/C/C2/D/E; `--check` flag for CI drift detection             |
 | `scripts/mapping-renderer.ts`                                               | Pure helpers for the mapping generator: Zod schema, path normalization, `@testrail` tag parser, recipe parser, cell/section/document renderers |
 
 ## API Symbol Index
@@ -67,6 +71,8 @@ See **[docs/API-MAPPING.md](docs/API-MAPPING.md)** for the per-resource table of
 **Class hierarchy:** `TestRailClientCore` (client-core.ts) → `TestRailClient` (client.ts). Infrastructure lives in core; endpoint methods live in the domain modules. `client.ts` is module composition only (19 `public readonly` fields, no flat wrappers) — the namespaced surface (`client.projects.getProject(id)`) is the single access path (flat facade removed in v5.0.0, ARCH #7). `tests/exports.test.ts` guards the count and constructor/timeout-view parity.
 
 **Configuration validation:** `TestRailConfigSchema` in `src/schemas/common.ts` is the complete structural/numeric runtime contract and is compile-time checked against every `TestRailConfig` key. `validateTestRailConfig()` adds URL protocol, credential, and private-host semantics while preserving the constructor's `TestRailValidationError` messages. Schema and constructor validation share `TESTRAIL_CONFIG_EMAIL_PATTERN`. `maxCacheSize: 0`, `cacheCleanupInterval: 0`, `maxRetries: 0`, and `bodyTimeout: 0` are intentional sentinels; `cacheCleanupInterval` is restricted to integer `0..MAX_NODE_TIMER_DELAY_MS` (`2_147_483_647`) so Node cannot overflow the cleanup timer to a 1 ms loop. `PaginationRequestSchema` owns strict one-request `limit`/`offset` validation; the deprecated `PaginationSchema` retains its historical permissive runtime behavior for compatibility.
+
+**Private-host classification:** `src/config-validation.ts` owns one `net.BlockList` shared by constructor IP-literal checks and per-fetch DNS validation. IPv4 rules also cover IPv4-mapped IPv6 spellings; CGNAT `100.64.0.0/10` and the NAT64 prefixes `64:ff9b::/96` and `64:ff9b:1::/48` are blocked. Constructor checks reject private IP literals and `localhost`; ordinary hostnames, including private-looking prefixes, are classified after DNS resolution before fetch. The explicit `allowPrivateHosts` configuration controls the existing opt-out.
 
 **Layer-coverage invariant (SDK ⇒ CLI ⇒ skill):** every `@testrail`-tagged SDK method ⇒ ≥1 CLI command ⇒ ≥1 skill recipe — absolute and exception-free. See [API Coverage Matrix](#api-coverage-matrix) for the binding mechanisms and which gates enforce each half.
 
@@ -98,11 +104,13 @@ value forms (`--strict-responses=true`) are rejected. `--quiet` suppresses
 warnings. Strict aggregate handlers emit no partial array; streaming watch
 events already emitted for earlier polls remain visible.
 
+**CLI error diagnostics:** `--diagnostic-file <new-path>` reserves a private file before the command handler runs, rejects existing paths, and saves a bounded, redacted `version: 1` JSON error record on failure. Records expose HTTP status, `operationOutcome` (`not_dispatched` or `failed_or_indeterminate`), and allowlisted messages from JSON error responses; they omit raw bodies, headers, stacks, and known credentials. Success removes the reservation. `--quiet` still permits explicitly requested diagnostic files; `--dry-run` skips diagnostic paths entirely. Windows rejects the diagnostic-file flag because this implementation cannot establish private-file permissions there. A post-dispatch error never establishes that a write did not happen, so diagnostics must be requested on the original invocation rather than collected by replaying a write.
+
 **Rate limiter:** Sliding window on `rateLimiter.requests[]`. Throws `TestRailApiError` on limit exceeded. Default: 100 req/60s.
 
 **Retry:** `min(1000 × 2^n, 10000)` ms backoff. **GET** retries on: 5xx, 429, network errors. **POST/PUT/DELETE** retries only on 429 (rate-limited writes are rejected before execution); 5xx and network errors surface immediately to prevent duplicate writes. No retry on: 4xx, AbortError (timeout). Multipart uploads (`retry: 'none'`) never retry. **`Retry-After`** (RFC 7231 §7.1.3) is honored on every retryable response — 429 for all methods, and 5xx on GET (including binary downloads via `retry: 'binaryGet'`). The header accepts delta-seconds or HTTP-date, is capped at `MAX_RETRY_DELAY_MS`, and falls back to exponential backoff when absent, zero, in the past, or unparseable so a buggy server cannot induce a hot retry loop.
 
-**Redirects (3xx):** The unified `executePipeline()` fetch sets `redirect: 'manual'` for every response shape and pipes the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed config validation + DNS pinning.
+**Redirects (3xx):** The unified `executePipeline()` fetch sets `redirect: 'manual'` for every response shape and pipes the response through `assertNotRedirect()`. A 3xx surfaces as `TestRailApiError` with the blocked `Location` embedded in `response`, never retries, and never poisons the GET cache. Closes the SSRF guard hole where a `Location` header pointing at a private/metadata IP would have bypassed config validation + DNS host validation.
 
 **Response-body limits (SEC #12 + SEC #21):** Every fetch site reads the body through `readBodyWithLimits()` (`src/body-reader.ts`). Two caps apply: a **byte ceiling** (`maxJsonResponseBytes`, default 10 MiB — also used for text bodies and error payloads; `maxBinaryResponseBytes`, default 100 MiB — the `responseKind: 'binary'` success path only) and a **wall-clock deadline** (`bodyTimeout`, default = `timeout`). Exceeding either surfaces as `TestRailApiError(0, 'Response body too large' | 'Body read timeout', …)` with no retry. The header `timeout` is cleared after fetch returns; the body deadline is independent so a server that sends headers fast then dribbles bytes can no longer hold a socket open indefinitely. Config validator caps both byte limits at `MAX_RESPONSE_BYTES_LIMIT` (1 GiB) so a caller cannot disable the guard with `Number.MAX_SAFE_INTEGER`. A non-streaming fallback exists for Response-like objects without `body.getReader()` (test mocks); it deadline-races the read and enforces the byte cap after completion. An uncancellable fallback may continue reading in the background after the caller receives the timeout, but it cannot extend the caller-visible wait.
 
@@ -212,7 +220,7 @@ Shared test helpers live in `tests/helpers.ts`; use the suite output rather than
 5. Add response schema and inferred type re-exports to `src/index.ts` if they're public
 6. Add a test case to the matching `tests/client-*.test.ts` file
 7. **Surface the new method on the CLI and in the skill (layer-coverage invariant — mandatory).** Add the CLI command (see _Add CLI write action_ for writes, or add a read `ActionSpec` + handler for reads) and a numbered recipe in `skill/SKILL.md` tagged `<!-- recipe-for: resource:action -->`. The endpoint is not complete until both exist
-8. Run `npm run codemap` (and `npm run skill` if you touched a CLI action) to regenerate the generated docs, then `npm run mapping:check` to confirm `docs/API-MAPPING.md` has no new `—` rows
+8. Run `npm run codemap`, `npm run skill`, `npm run mapping`, and `npm run agents-md` to regenerate all artifacts, then `npm run mapping:check` to verify endpoint, CLI, recipe, and pagination coverage
 
 **Add CLI write action:**
 
@@ -220,7 +228,7 @@ Shared test helpers live in `tests/helpers.ts`; use the suite output rather than
 2. Build the handler with `createWriteHandler({ action, pathParams, bodySchema, call })` or `createDestructiveHandler({ action, pathParams, kind, call })` from `src/cli/write-handler-factory.ts`; declare `softMode: 'optional'` on the matching `ActionSpec` only when the endpoint supports server-side preview. The factory reads that resolved metadata and handles path-param parsing, body resolution, dry-run preview, and the `--yes`/`--soft` gates. Export it from `src/cli/handlers/{resource}-write.ts`
 3. Add an `ActionSpec` entry to the matching `src/cli/metadata/{resource}.ts`, including its `handler:` field — `dispatch.ts` derives `HANDLERS` from `ACTIONS`, and `src/cli/help.ts` derives `--help` from it (no separate dispatch/HELP edits)
 4. Add unit tests to `tests/cli-write-handlers.test.ts` (happy + dry-run + body reject + path-param reject) and an in-process CLI reimport case to `tests/cli.test.ts`
-5. Run `npm run codemap` and `npm run skill` to regenerate CODEMAP.md and skill/SKILL.md
+5. Run `npm run codemap`, `npm run skill`, `npm run mapping`, and `npm run agents-md` to regenerate all artifacts
 
 **Add CLI attachment-style action (binary file I/O):**
 
@@ -229,7 +237,7 @@ Shared test helpers live in `tests/helpers.ts`; use the suite output rather than
 3. Add handler to `src/cli/handlers/attachment.ts` (read) or `attachment-write.ts` (write). Upload handlers use the shared `setupUpload()` helper for dry-run preview + filesystem descriptor streaming; `attachment delete` stays hand-written because attachment IDs may be integers or UUIDs
 4. Add an `ActionSpec` entry (with its `handler:` field) to `src/cli/metadata/attachments.ts` — dispatch + `--help` derive from `ACTIONS` automatically
 5. Add unit tests to `tests/cli-attachment-handlers.test.ts` (happy + dry-run + missing-flag + path-param reject; delete actions add `--yes` gate + dry-run-wins coverage) and an in-process CLI reimport case to `tests/cli.test.ts`
-6. Run `npm run codemap` and `npm run skill` to regenerate CODEMAP.md and skill/SKILL.md
+6. Run `npm run codemap`, `npm run skill`, `npm run mapping`, and `npm run agents-md` to regenerate all artifacts
 
 **Destructive-ops convention:** all destructive CLI actions require both `TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes`. `--dry-run` bypasses both gates (preview-without-API). Set `destructive: true` in metadata so the dispatcher enforces the env unlock and the skill generator surfaces the gate in the command table.
 

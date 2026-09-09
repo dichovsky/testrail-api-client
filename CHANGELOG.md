@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -14,6 +14,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > were realigned with what npm actually shipped.
 
 ## [Unreleased]
+
+## [7.1.0] — 2026-09-10 — CLI diagnostics and safer workflows
 
 ### Added
 
@@ -24,19 +26,6 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - A tested case-field readiness example polls uncached inventories with
   bounded attempts, deadlines, cancellation, and explicit field verification
   before dependent writes, while retaining the successful creation result.
-
-### Fixed
-
-- CLI diagnostic reservations are cleaned up during normal process exit,
-  including SIGINT/SIGTERM, and `--dry-run` ignores diagnostic destinations.
-  Empty validation strings no longer count as available detail; known failures
-  before handler invocation report `not_dispatched`.
-- Diagnostic paths follow filesystem symlink/`..` traversal, and conflicting
-  download paths are rejected before dispatch so cleanup cannot delete a download.
-- Case-field skill recipes now use schema-valid creation payloads, nested
-  configuration scope, returned `system_name` properties, and the correct
-  Dropdown/Multiselect value shapes. The recipes document the reported
-  comma-label limitation without rewriting caller payloads.
 
 ### Security
 
@@ -59,6 +48,16 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- CLI diagnostic reservations are cleaned up during normal process exit,
+  including SIGINT/SIGTERM, and `--dry-run` ignores diagnostic destinations.
+  Empty validation strings no longer count as available detail; known failures
+  before handler invocation report `not_dispatched`.
+- Diagnostic paths follow filesystem symlink/`..` traversal, and conflicting
+  download paths are rejected before dispatch so cleanup cannot delete a download.
+- Case-field skill recipes now use schema-valid creation payloads, nested
+  configuration scope, returned `system_name` properties, and the correct
+  Dropdown/Multiselect value shapes. The recipes document the reported
+  comma-label limitation without rewriting caller payloads.
 - **CLI: a string flag no longer silently swallows the following flag.**
   `parseArgs` binds whatever token follows a string flag as that flag's value,
   including another flag, so `testrail attachment add-to-case 1 --file r.bin
@@ -93,6 +92,15 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   rejected synchronously by a prefix regex; they now construct and are
   classified by the per-request DNS check, which still rejects them before any
   fetch when they resolve to a private address.
+
+### Internal
+
+- The publish workflow retries package-content verification while a newly
+  published npm tarball propagates, using a fresh cache on each attempt.
+  A retrieved package whose contents differ still fails immediately.
+- Refreshed the bundled skill, generated API documentation, and architecture
+  guidance, including accurate retry behavior, exit codes, and CLI flag syntax.
+  Added a release guide covering validation, publication, and post-release checks.
 
 ## [7.0.0] — 2026-09-02 — TestRail 10.7 API compatibility and stricter validation
 

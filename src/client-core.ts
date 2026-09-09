@@ -333,7 +333,7 @@ export class TestRailClientCore {
     /**
      * BACKLOG #4: Surfaces 3xx redirect responses as `TestRailApiError`.
      *
-     * The SSRF guard (`validateBaseUrl` + DNS pin in `awaitDnsValidation`)
+     * The SSRF guard (configuration checks + per-fetch DNS host validation)
      * validates only the *initial* request host. If the upstream answers with
      * a 3xx pointing at a private/metadata IP and the runtime auto-follows,
      * the network request reaches the protected host before we ever inspect
