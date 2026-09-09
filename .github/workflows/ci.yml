@@ -99,19 +99,26 @@ jobs:
             - name: Smoke-test packed consumer and CLI
               run: npm run package:smoke
 
+            - name: Verify report execution and operation settlement
+              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
+
     package-smoke-windows:
-        name: Package smoke (Windows, Node 24)
+        name: Package smoke (Windows, Node ${{ matrix.node-version }})
         runs-on: windows-latest
         timeout-minutes: 15
+        strategy:
+            fail-fast: false
+            matrix:
+                node-version: ['22.13.0', '24']
 
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-            - name: Setup Node.js 24
+            - name: Setup Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
               with:
-                  node-version: '24'
+                  node-version: ${{ matrix.node-version }}
                   cache: 'npm'
 
             - name: Install dependencies
@@ -119,20 +126,27 @@ jobs:
 
             - name: Smoke-test packed consumer and CLI
               run: npm run package:smoke
+
+            - name: Verify report execution and operation settlement
+              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
 
     package-smoke-macos:
-        name: Package smoke (macOS, Node 24)
+        name: Package smoke (macOS, Node ${{ matrix.node-version }})
         runs-on: macos-14
         timeout-minutes: 15
+        strategy:
+            fail-fast: false
+            matrix:
+                node-version: ['22.13.0', '24']
 
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-            - name: Setup Node.js 24
+            - name: Setup Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
               with:
-                  node-version: '24'
+                  node-version: ${{ matrix.node-version }}
                   cache: 'npm'
 
             - name: Install dependencies
@@ -140,6 +154,9 @@ jobs:
 
             - name: Smoke-test packed consumer and CLI
               run: npm run package:smoke
+
+            - name: Verify report execution and operation settlement
+              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
 
     package-smoke-gate:
         name: package-smoke

@@ -9,6 +9,8 @@ import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
 import { getRetryPolicy } from './retry-policy.js';
 import { RequestCache, type CacheLoadResult } from './request-cache.js';
 import { isPrivateHostLiteral, isPrivateOrLoopbackIP, validateTestRailConfig } from './config-validation.js';
+import { startOperation, observeOperation, bindOperation, type OperationHandle } from './operation-tracking.js';
+import { ownUploadStreams } from './upload-lifetime.js';
 
 /**
  * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
@@ -461,6 +463,20 @@ export class TestRailClientCore {
     }
 
     /**
+     * Run a callback with observable driver resource ownership. `result`
+     * retains normal return values, errors, and deadlines. `settled` resolves
+     * only after the callback and all started or joined DNS, fetch, body-read,
+     * cancellation, upload-stream, retry, and coalesced work have finished.
+     * A requested abort alone does not settle an operation. Late failures are
+     * observed, and nested operations are included in their parent's lifetime.
+     * This does not cancel requests or change destroy()'s behavior. A transport
+     * or cancellation that never finishes keeps `settled` pending.
+     */
+    public trackOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T> {
+        return startOperation(callback);
+    }
+
+    /**
      * Releases all resources held by this client instance.
      * Stops the cache cleanup timer, clears the cache, and removes this instance
      * from the active-clients registry. Safe to call multiple times (idempotent).
@@ -828,11 +844,11 @@ export class TestRailClientCore {
                         // return: on POSIX after `openAsBlob` succeeds (the early-close
                         // block above), on non-POSIX before `openAsBlob`, and in the
                         // `catch (buildErr)` arm before it rethrows (so this object is
-                        // never returned in that case). There is therefore no fd left to
-                        // close here — cleanup is an intentional no-op. The descriptor is
-                        // still tracked so the `catch` arm can close it if build throws.
+                        // never returned in that case). Cleanup instead owns the
+                        // File streams that fetch starts while encoding FormData;
+                        // their actual reads and cancellation remain observable.
                         body: formData,
-                        cleanup: () => undefined,
+                        cleanup: ownUploadStreams(formData),
                     };
                 } catch (buildErr) {
                     // If build throws before returning cleanup, close the fd here
@@ -872,6 +888,7 @@ export class TestRailClientCore {
 
     /** Bounds DNS, fetch, and retry-delay awaits by the same aggregate deadline. */
     private withDeadline<T>(promise: Promise<T>, deadlineAt?: number, onTimeout?: () => void): Promise<T> {
+        void observeOperation(promise);
         if (deadlineAt === undefined) return promise;
         const remaining = this.remainingDeadlineMs(deadlineAt);
         if (remaining <= 0) {
@@ -885,10 +902,13 @@ export class TestRailClientCore {
 
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const deadline = new Promise<never>((_resolve, reject) => {
-            timeoutId = setTimeout(() => {
-                reject(new TestRailApiError(408, 'Aggregate request deadline exceeded'));
-                onTimeout?.();
-            }, remaining);
+            timeoutId = setTimeout(
+                bindOperation(() => {
+                    reject(new TestRailApiError(408, 'Aggregate request deadline exceeded'));
+                    onTimeout?.();
+                }),
+                remaining,
+            );
         });
         return Promise.race([promise, deadline]).finally(() => {
             if (timeoutId !== undefined) clearTimeout(timeoutId);
@@ -897,7 +917,7 @@ export class TestRailClientCore {
 
     /** Waits between retries without leaving the losing delay timer alive. */
     private waitForRetryDelay(delayMs: number, deadlineAt?: number): Promise<void> {
-        if (deadlineAt === undefined) return sleep(delayMs);
+        if (deadlineAt === undefined) return observeOperation(sleep(delayMs));
         const controller = new AbortController();
         return this.withDeadline(sleep(delayMs, controller.signal), deadlineAt, () => controller.abort());
     }
@@ -935,6 +955,8 @@ export class TestRailClientCore {
 
         const fetchPromise: Promise<TParsed> = (async () => {
             let formdataCleanup: (() => void) | undefined;
+            let receivedResponse: Response | undefined;
+            let parsingResponse = false;
             try {
                 const options: RequestInit = {
                     method: spec.method,
@@ -973,7 +995,15 @@ export class TestRailClientCore {
                 this.checkRateLimit(retryCount === 0, admissionTime);
 
                 const response: Response = await this.withDeadline(
-                    (this.fetchOverride ?? globalThis.fetch)(url, options),
+                    (this.fetchOverride ?? globalThis.fetch)(url, options).then((received) => {
+                        receivedResponse = received;
+                        // A custom fetch may ignore abort and return headers
+                        // after its result deadline. Own the late body cleanup.
+                        if (spec.deadlineAt !== undefined && this.remainingDeadlineMs(spec.deadlineAt) <= 0) {
+                            this.cancelUnusedBody(received);
+                        }
+                        return received;
+                    }),
                     spec.deadlineAt,
                     () => controller.abort(),
                 );
@@ -1034,9 +1064,14 @@ export class TestRailClientCore {
                     throw new TestRailApiError(status, response.statusText, errorText);
                 }
 
-                return spec.parseSuccess(response);
+                parsingResponse = true;
+                return await spec.parseSuccess(response);
             } catch (error) {
                 clearTimeout(timeoutId);
+
+                // Success-body parsing historically returned its promise
+                // directly; its failures must not become network retries.
+                if (parsingResponse) throw error;
 
                 if (error instanceof TestRailApiError) throw error;
 
@@ -1056,10 +1091,29 @@ export class TestRailClientCore {
                 throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
             } finally {
                 formdataCleanup?.();
+                if (receivedResponse !== undefined) this.cancelUnusedBody(receivedResponse);
             }
         })();
 
         return fetchPromise;
+    }
+
+    /** Observe cancellation of an unread response, including late headers and redirects. */
+    private cancelUnusedBody(response: Response): void {
+        const body = response.body;
+        if (
+            body === null ||
+            body === undefined ||
+            body.locked ||
+            response.bodyUsed ||
+            typeof body.cancel !== 'function'
+        )
+            return;
+        try {
+            void observeOperation(body.cancel()).catch(() => undefined);
+        } catch {
+            // Non-conforming response cleanup must not replace the result error.
+        }
     }
 
     /**

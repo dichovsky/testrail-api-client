@@ -228,9 +228,9 @@ Coverage matrix linking every TestRail API endpoint to its implementation in thi
 
 | Endpoint | Client method | CLI action(s) | Skill recipe(s) |
 | --- | --- | --- | --- |
-| [`GET get_cross_project_reports`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCrossProjectReports`](../src/modules/reports.ts#L34) | `report list-cross-project` | [recipe #55](../skill/SKILL.md#55-reports--list-templates-and-trigger-generation) |
+| [`GET get_cross_project_reports`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getCrossProjectReports`](../src/modules/reports.ts#L36) | `report list-cross-project` | [recipe #55](../skill/SKILL.md#55-reports--list-templates-and-trigger-generation) |
 | [`GET get_reports/{project_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`getReports`](../src/modules/reports.ts#L10) | `report list` | [recipe #55](../skill/SKILL.md#55-reports--list-templates-and-trigger-generation) |
-| [`GET run_cross_project_report/{report_template_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`runCrossProjectReport`](../src/modules/reports.ts#L46) | `report run-cross-project` | [recipe #55](../skill/SKILL.md#55-reports--list-templates-and-trigger-generation) |
+| [`GET run_cross_project_report/{report_template_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`runCrossProjectReport`](../src/modules/reports.ts#L48) | `report run-cross-project` | [recipe #55](../skill/SKILL.md#55-reports--list-templates-and-trigger-generation) |
 | [`GET run_report/{report_template_id}`](https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference) | [`runReport`](../src/modules/reports.ts#L20) | `report run` | [recipe #55](../skill/SKILL.md#55-reports--list-templates-and-trigger-generation) |
 
 ## Result Fields

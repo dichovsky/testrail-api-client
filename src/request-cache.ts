@@ -1,4 +1,5 @@
 import type { CacheEntry } from './types.js';
+import { startOperation, observeOperation, type OperationHandle } from './operation-tracking.js';
 
 export interface RequestCacheOptions {
     readonly enableStorage: boolean;
@@ -35,7 +36,7 @@ export interface CacheResolution<T> {
  */
 export class RequestCache {
     private readonly entries = new Map<string, CacheEntry<unknown>>();
-    private readonly pending = new Map<string, Promise<unknown>>();
+    private readonly pending = new Map<string, OperationHandle<unknown>>();
     private generation = 0;
     private cleanupTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -53,7 +54,7 @@ export class RequestCache {
     public resolve<T>(resolution: CacheResolution<T>): Promise<T> {
         const { key } = resolution;
         if (key === undefined) {
-            return resolution.load().then(({ value }) => value);
+            return startOperation(resolution.load).result.then(({ value }) => value);
         }
 
         const cached = this.read<T>(key);
@@ -61,23 +62,15 @@ export class RequestCache {
             return resolution.wait(Promise.resolve(cached));
         }
 
-        const existing = this.pending.get(key) as Promise<T> | undefined;
+        const existing = this.pending.get(key) as OperationHandle<T> | undefined;
         if (existing !== undefined) {
-            return resolution.wait(existing);
+            void observeOperation(existing.settled);
+            return resolution.wait(existing.result);
         }
 
         const startedAtGeneration = this.generation;
-        let upstream: Promise<CacheLoadResult<T>>;
-        try {
-            // Invoke synchronously so the caller can begin transport setup and
-            // expose its controlled promise before resolve() returns. Convert a
-            // synchronous loader throw into the promised error contract.
-            upstream = resolution.load();
-        } catch (error) {
-            const rejection = error instanceof Error ? error : new Error(String(error));
-            upstream = Promise.reject(rejection);
-        }
-        const loaded = upstream.then(({ value, cacheable }) => {
+        const upstream = startOperation(resolution.load);
+        const loaded = upstream.result.then(({ value, cacheable }) => {
             if (cacheable && startedAtGeneration === this.generation) {
                 this.write(key, value);
             }
@@ -85,10 +78,11 @@ export class RequestCache {
         });
 
         if (resolution.shareInFlight) {
-            this.pending.set(key, loaded);
+            const shared = { result: loaded, settled: upstream.settled };
+            this.pending.set(key, shared);
             loaded
                 .finally(() => {
-                    if (this.pending.get(key) === loaded) {
+                    if (this.pending.get(key) === shared) {
                         this.pending.delete(key);
                     }
                 })

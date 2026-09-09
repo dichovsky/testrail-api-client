@@ -30,6 +30,7 @@ describe('TestRailClient - Enhanced Features', () => {
 
     beforeEach(() => {
         vi.resetAllMocks();
+        vi.mocked(sleep).mockResolvedValue(undefined);
         mockDnsLookup.mockReset();
         mockDnsLookup.mockResolvedValue([{ address: '203.0.113.10', family: 4 }]);
     });
