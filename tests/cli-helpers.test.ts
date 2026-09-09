@@ -1084,6 +1084,7 @@ describe('KNOWN_FLAGS inventory', () => {
             'format',
             'timeout',
             'strict-responses',
+            'diagnostic-file',
             'quiet',
             'help',
             'version',

@@ -351,12 +351,12 @@ describe('CODEMAP.md structural invariants', () => {
         expect(Array.isArray(data.files)).toBe(true);
     });
 
-    it('size is under the 425 KB sanity bound', () => {
+    it('size is under the 440 KB sanity bound', () => {
         // Guards against runaway generation (duplicated entries, an unbounded
         // loop), not against ordinary growth. The bound includes modest
-        // headroom for the internal pagination, cache, and CLI interfaces that
+        // headroom for the internal pagination, cache, and CLI diagnostic interfaces that
         // are deliberately indexed alongside the public API.
         const md = readFileSync(join(REPO_ROOT, 'CODEMAP.md'), 'utf8');
-        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(425_000);
+        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(440_000);
     });
 });

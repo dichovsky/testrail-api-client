@@ -15,6 +15,29 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in CLI `--diagnostic-file <path>` writes bounded, redacted error details
+  to a new private file without changing request retries, default output, or
+  exit codes. Windows rejects the flag before dispatch because equivalent
+  private ACLs are not yet supported.
+- A tested case-field readiness example polls uncached inventories with
+  bounded attempts, deadlines, cancellation, and explicit field verification
+  before dependent writes, while retaining the successful creation result.
+
+### Fixed
+
+- CLI diagnostic reservations are cleaned up during normal process exit,
+  including SIGINT/SIGTERM, and `--dry-run` ignores diagnostic destinations.
+  Empty validation strings no longer count as available detail; known failures
+  before handler invocation report `not_dispatched`.
+- Diagnostic paths follow filesystem symlink/`..` traversal, and conflicting
+  download paths are rejected before dispatch so cleanup cannot delete a download.
+- Case-field skill recipes now use schema-valid creation payloads, nested
+  configuration scope, returned `system_name` properties, and the correct
+  Dropdown/Multiselect value shapes. The recipes document the reported
+  comma-label limitation without rewriting caller payloads.
+
 ### Security
 
 - **SSRF guard: IPv4-mapped IPv6 literals no longer bypass private-host blocking.**

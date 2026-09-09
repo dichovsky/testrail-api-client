@@ -14,7 +14,16 @@
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import {
+    mkdtempSync,
+    writeFileSync,
+    readFileSync,
+    existsSync,
+    rmSync,
+    renameSync,
+    statSync,
+    symlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -327,6 +336,169 @@ describe('CLI', () => {
 
     afterEach(() => {
         (process.stdin as { isTTY?: boolean | undefined }).isTTY = _savedIsTTY;
+    });
+
+    describe.skipIf(process.platform === 'win32')('--diagnostic-file', () => {
+        let directory: string;
+        let diagnosticPath: string;
+        beforeEach(() => {
+            directory = mkdtempSync(join(tmpdir(), 'testrail-cli-diagnostic-'));
+            diagnosticPath = join(directory, 'error.json');
+        });
+        afterEach(() => {
+            rmSync(directory, { recursive: true, force: true });
+        });
+
+        it('preserves the default failure output and writes redacted validation detail only on opt-in', async () => {
+            const body = { error: 'Invalid or incomplete options. Check all required fields.' };
+            const baseline = await runCli(['case-field', 'list'], [jsonResponse(body, 400)]);
+            expect(existsSync(diagnosticPath)).toBe(false);
+            const actual = await runCli(
+                ['case-field', 'list', '--diagnostic-file', diagnosticPath],
+                [jsonResponse(body, 400)],
+            );
+            expect(actual).toEqual(baseline);
+            expect(actual.stderr).not.toContain(body.error);
+            const diagnostic = JSON.parse(readFileSync(diagnosticPath, 'utf8'));
+            expect(diagnostic).toMatchObject({
+                version: 1,
+                status: 400,
+                operationOutcome: 'failed_or_indeterminate',
+                server: { messages: [body.error] },
+            });
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            if (process.platform !== 'win32') expect(statSync(diagnosticPath).mode & 0o777).toBe(0o600);
+        });
+
+        it('preserves quiet mode and never adds a 401 retry', async () => {
+            const result = await runCli(
+                ['case-field', 'list', '--quiet', '--diagnostic-file', diagnosticPath],
+                [jsonResponse({ error: `Denied: ${AUTH_ENV.TESTRAIL_API_KEY}` }, 401)],
+            );
+            expect(result).toEqual({ stdout: '', stderr: '', exitCodes: [1] });
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            const contents = readFileSync(diagnosticPath, 'utf8');
+            expect(contents).toContain('[REDACTED]');
+            expect(contents).not.toContain(AUTH_ENV.TESTRAIL_API_KEY);
+        });
+
+        it('preserves write serialization and invocation count when TestRail rejects a payload', async () => {
+            const payload = { title: 'Private request title', custom_sensitive: 'private request value' };
+            const result = await runCli(
+                ['case', 'add', '7', '--data', JSON.stringify(payload), '--diagnostic-file', diagnosticPath],
+                [jsonResponse({ error: 'Required field missing' }, 400)],
+            );
+            expect(result.exitCodes).toEqual([1]);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+            expect(init.method).toBe('POST');
+            expect(init.redirect).toBe('manual');
+            expect(JSON.parse(init.body as string)).toEqual(payload);
+            expect(readFileSync(diagnosticPath, 'utf8')).not.toMatch(
+                /Private request title|private request value|custom_sensitive/,
+            );
+        });
+
+        it('leaves no error artifact on success or a successful local preview', async () => {
+            const successful = await runCli(
+                ['case-field', 'list', '--diagnostic-file', diagnosticPath],
+                [jsonResponse([])],
+            );
+            expect(successful.exitCodes).toEqual([0]);
+            expect(successful.stderr).toBe('');
+            expect(existsSync(diagnosticPath)).toBe(false);
+            const preview = await runCli([
+                'case',
+                'add',
+                '7',
+                '--data',
+                '{"title":"Preview"}',
+                '--dry-run',
+                '--diagnostic-file',
+                diagnosticPath,
+            ]);
+            expect(preview.exitCodes).toEqual([0]);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(existsSync(diagnosticPath)).toBe(false);
+        });
+
+        it('rejects existing and unsafe output destinations before any request', async () => {
+            writeFileSync(diagnosticPath, 'existing');
+            symlinkSync(join(directory, 'missing'), join(directory, 'link'));
+            for (const path of [
+                diagnosticPath,
+                directory,
+                join(directory, 'link'),
+                join(directory, 'missing', 'error.json'),
+                '-',
+            ]) {
+                const result = await runCli(['case-field', 'list', '--diagnostic-file', path]);
+                expect(result.exitCodes).toEqual([1]);
+                expect(result.stderr).toContain('no API request was sent');
+                expect(mockFetch).not.toHaveBeenCalled();
+            }
+            expect(readFileSync(diagnosticPath, 'utf8')).toBe('existing');
+        });
+
+        it('rejects a diagnostic destination shared with a download, even with --force', async () => {
+            const result = await runCli([
+                'attachment',
+                'get',
+                '17',
+                '--out',
+                diagnosticPath,
+                '--force',
+                '--diagnostic-file',
+                diagnosticPath,
+            ]);
+            expect(result.exitCodes).toEqual([1]);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(existsSync(diagnosticPath)).toBe(false);
+        });
+
+        it('rejects case-insensitive download aliases before --force can overwrite the reservation', async ({
+            skip,
+        }) => {
+            writeFileSync(join(directory, 'probe'), '');
+            if (!existsSync(join(directory, 'PROBE'))) skip();
+            const result = await runCli([
+                'attachment',
+                'get',
+                '17',
+                '--out',
+                join(directory, 'ERROR.JSON'),
+                '--force',
+                '--diagnostic-file',
+                diagnosticPath,
+            ]);
+            expect(result.exitCodes).toEqual([1]);
+            expect(mockFetch).not.toHaveBeenCalled();
+            expect(existsSync(diagnosticPath)).toBe(false);
+        });
+
+        it('keeps the API failure and never retries when the diagnostic file cannot be written', async () => {
+            const response = jsonResponse({ error: 'Required field missing' }, 400);
+            const body = response.body;
+            let replaced = false;
+            Object.defineProperty(response, 'body', {
+                get: () => {
+                    if (!replaced) {
+                        renameSync(diagnosticPath, join(directory, 'reserved'));
+                        writeFileSync(diagnosticPath, 'replacement');
+                        replaced = true;
+                    }
+                    return body;
+                },
+            });
+            const result = await runCli(['case-field', 'list', '--diagnostic-file', diagnosticPath], [response]);
+            expect(result.exitCodes).toEqual([1]);
+            expect(result.stderr).toContain('Error: TestRail API error: 400 Error');
+            expect(result.stderr).toContain('Could not save the diagnostic file');
+            expect(result.stderr).toContain('no request was repeated');
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(readFileSync(diagnosticPath, 'utf8')).toBe('replacement');
+            expect(readFileSync(join(directory, 'reserved'), 'utf8')).toBe('');
+        });
     });
 
     // ── Meta flags ───────────────────────────────────────────────────────────
