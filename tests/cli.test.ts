@@ -1404,12 +1404,15 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('rejects a swallowed --dry-run instead of polling for real', async () => {
+        it("rejects a swallowed --dry-run instead of taking '--dry-run' as the interval", async () => {
             // parseArgs binds the next token as the value, so `--interval
             // --dry-run` yields `interval: '--dry-run'` with `dry-run` false.
+            // This one happened to stop at the handler's own interval parser
+            // before any request; the gate reports the real cause instead.
             const { exitCodes, stderr } = await runCli(['run', 'watch', '42', '--interval', '--dry-run']);
             expect(exitCodes).toContain(1);
             expect(stderr).toContain('--interval requires a value, but the next argument was the flag --dry-run.');
+            expect(stderr).toContain('pass it inline: --interval=<value>.');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 

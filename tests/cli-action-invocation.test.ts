@@ -157,7 +157,9 @@ describe('action invocation contract', () => {
         // for real. Only the trailing-token spelling was rejected before.
         expect(validateArgv(['--file', 'report.bin', '--filename', '--dry-run'])).toEqual({
             ok: false,
-            error: '--filename requires a value, but the next argument was the flag --dry-run.',
+            error:
+                '--filename requires a value, but the next argument was the flag --dry-run. ' +
+                'If that is the value, pass it inline: --filename=<value>.',
         });
 
         // A repeated flag merges last-wins, so `values.filter` would hold the
@@ -165,7 +167,9 @@ describe('action invocation contract', () => {
         // Reading per-occurrence tokens is what catches this.
         expect(validateArgv(['--filter', '--dry-run', '--filter', 'abc'])).toEqual({
             ok: false,
-            error: '--filter requires a value, but the next argument was the flag --dry-run.',
+            error:
+                '--filter requires a value, but the next argument was the flag --dry-run. ' +
+                'If that is the value, pass it inline: --filter=<value>.',
         });
 
         // The detection is structural, so it does not depend on how the
@@ -174,15 +178,21 @@ describe('action invocation contract', () => {
         // it has been consumed as a value) are caught the same way.
         expect(validateArgv(['--filename', '--dry-run=true'])).toEqual({
             ok: false,
-            error: '--filename requires a value, but the next argument was the flag --dry-run=true.',
+            error:
+                '--filename requires a value, but the next argument was the flag --dry-run=true. ' +
+                'If that is the value, pass it inline: --filename=<value>.',
         });
         expect(validateArgv(['--filter', '--strict-responses=1'])).toEqual({
             ok: false,
-            error: '--filter requires a value, but the next argument was the flag --strict-responses=1.',
+            error:
+                '--filter requires a value, but the next argument was the flag --strict-responses=1. ' +
+                'If that is the value, pass it inline: --filter=<value>.',
         });
         expect(validateArgv(['--filter', '--dryrun'])).toEqual({
             ok: false,
-            error: '--filter requires a value, but the next argument was the flag --dryrun.',
+            error:
+                '--filter requires a value, but the next argument was the flag --dryrun. ' +
+                'If that is the value, pass it inline: --filter=<value>.',
         });
     });
 

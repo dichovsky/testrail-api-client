@@ -53,10 +53,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   per-occurrence argv tokens, so a repeated flag whose swallow hid on an earlier
   occurrence (`--filter --dry-run --filter abc`) is caught too. Values that are
   not flags are unaffected: `-5`, the `-` stdin/stdout sentinel, a bare `--`,
-  and any path or JSON body. The inline `--filter=--all` form consumes no token
-  and remains the way to pass a literal value that reads as a flag. One
-  consequence worth noting: `testrail --base-url --help` now exits 1 instead of
-  printing help, because the `--help` was consumed as a value.
+  and any path or JSON body. **Compatibility:** any space-separated value that
+  begins with `--` is now rejected for every string flag, so an invocation that
+  previously passed such a value must pass it inline instead
+  (`--filter=<value>`); the rejection message says so. In practice this affects
+  the free-text filters (`--filter`, `--defects-filter`, `--refs`), since ids,
+  timestamps, URLs, paths, and JSON bodies cannot begin with `--`. One further
+  consequence: `testrail --base-url --help` now exits 1 instead of printing
+  help, because the `--help` was consumed as a value.
 
 ### Changed
 

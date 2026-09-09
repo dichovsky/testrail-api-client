@@ -564,7 +564,9 @@ export function validateSuppliedFlagTypes(occurrences: readonly SuppliedFlagOccu
         if (inlineValue !== true && looksLikeFlag(value)) {
             return {
                 ok: false,
-                error: `--${name} requires a value, but the next argument was the flag ${value}.`,
+                error:
+                    `--${name} requires a value, but the next argument was the flag ${value}. ` +
+                    `If that is the value, pass it inline: --${name}=<value>.`,
             };
         }
     }

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.0.0"
   },
-  "sourceHash": "c3d641d0c602de82497937ad22a952f7175e2280ea874116112e39a750cb3f64",
+  "sourceHash": "05e6169f83838bbcee5ca87977fef7e43dcd1946e18747b128e487250f392f9f",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2743,35 +2743,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "getCliFlagUsage",
           "kind": "function",
-          "line": 574,
+          "line": 576,
           "exported": true,
           "signature": "export function getCliFlagUsage(name: CliFlagName): string"
         },
         {
           "name": "getGlobalActionFlags",
           "kind": "function",
-          "line": 580,
+          "line": 582,
           "exported": true,
           "signature": "export function getGlobalActionFlags(): readonly CliFlagName[]"
         },
         {
           "name": "getCapabilityFlags",
           "kind": "function",
-          "line": 584,
+          "line": 586,
           "exported": true,
           "signature": "export function getCapabilityFlags(capability: ActionCapability): readonly CliFlagName[]"
         },
         {
           "name": "projectHandlerArgs",
           "kind": "function",
-          "line": 592,
+          "line": 594,
           "exported": true,
           "signature": "export function projectHandlerArgs( values: Readonly<Record<string, unknown>>, pathParams: readonly string[], ): CliHandlerArgs"
         },
         {
           "name": "projectPaginationArgs",
           "kind": "function",
-          "line": 610,
+          "line": 612,
           "exported": true,
           "signature": "export function projectPaginationArgs(values: Readonly<Record<string, unknown>>): RawCliPaginationArgs"
         }
