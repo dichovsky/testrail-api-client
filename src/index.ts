@@ -1,4 +1,5 @@
 export { TestRailClient } from './client.js';
+export type { OperationHandle } from './operation-tracking.js';
 export {
     TestRailApiError,
     TestRailLicenseError,

@@ -23,6 +23,8 @@ export class ReportModule {
             method: 'GET',
             endpoint: `run_report/${reportTemplateId}`,
             schema: ReportResultSchema,
+            retry: 'none',
+            bypassCache: true,
         });
     }
 
@@ -49,6 +51,8 @@ export class ReportModule {
             method: 'GET',
             endpoint: `run_cross_project_report/${reportTemplateId}`,
             schema: ReportResultSchema,
+            retry: 'none',
+            bypassCache: true,
         });
     }
 }

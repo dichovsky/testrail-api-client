@@ -1,4 +1,5 @@
 import { TestRailApiError } from './errors.js';
+import { bindOperation, observeOperation } from './operation-tracking.js';
 
 /**
  * Caps applied to a streaming response-body read.
@@ -19,7 +20,7 @@ export interface BodyLimits {
 
 function cancelReaderBestEffort(reader: globalThis.ReadableStreamDefaultReader<Uint8Array>, reason: Error): void {
     try {
-        void reader.cancel(reason).catch(() => undefined);
+        void observeOperation(reader.cancel(reason)).catch(() => undefined);
     } catch {
         // A non-conforming stream may throw synchronously. Cancellation is a
         // cleanup attempt and must never replace or delay the caller-visible
@@ -96,17 +97,20 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
 
     if (deadlineMs > 0) {
         deadline = new Promise<never>((_resolve, reject) => {
-            timeoutId = setTimeout(() => {
-                if (!timedOut) {
-                    timedOut = true;
-                    // Cancellation is resource cleanup only. Reject
-                    // independently so a non-conforming reader whose read()
-                    // and cancel() both remain pending cannot defeat the
-                    // wall-clock bound.
-                    cancelReaderBestEffort(reader, new Error(`body read exceeded ${deadlineMs}ms`));
-                }
-                reject(bodyTimeoutError(deadlineMs));
-            }, deadlineMs);
+            timeoutId = setTimeout(
+                bindOperation(() => {
+                    if (!timedOut) {
+                        timedOut = true;
+                        // Cancellation is resource cleanup only. Reject
+                        // independently so a non-conforming reader whose read()
+                        // and cancel() both remain pending cannot defeat the
+                        // wall-clock bound.
+                        cancelReaderBestEffort(reader, new Error(`body read exceeded ${deadlineMs}ms`));
+                    }
+                    reject(bodyTimeoutError(deadlineMs));
+                }),
+                deadlineMs,
+            );
             // Deliberately keep this timer referenced. It is the only handle
             // capable of settling the caller-visible Promise when both read()
             // and cancel() never settle; unref() would let a standalone Node
@@ -127,7 +131,7 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     // iterator's pending `next()`), so a slowloris-on-body server would hang
     // the read forever under `for await`.
     const drain = async (): Promise<void> => {
-        const { done, value } = await reader.read();
+        const { done, value } = await observeOperation(reader.read());
         // A chain of already-resolved read() promises can monopolise the
         // microtask queue long enough to starve the timeout callback. Compare
         // the absolute deadline after every read so such a stream cannot
@@ -171,7 +175,7 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     };
 
     try {
-        const draining = drain();
+        const draining = observeOperation(drain());
         await (deadline === undefined ? draining : Promise.race([draining, deadline]));
         // Recheck immediately before accepting terminal success. This also
         // covers time spent assembling the final chunk after its read settled.
@@ -227,6 +231,7 @@ async function awaitFallbackBody<T>(
     deadlineAt: number | undefined,
     deadlineMs: number,
 ): Promise<T> {
+    void observeOperation(promise);
     if (deadlineAt === undefined) return promise;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {

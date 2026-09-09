@@ -627,6 +627,7 @@ function writeConsumerFixture(consumerDirectory: string, archivePath: string, zo
     TestRailPaginationError,
     type GetAllProjectsOptions,
     type GetProjectsPageOptions,
+    type OperationHandle,
     type Page,
     type PaginatedRequestOptions,
     type PaginationSafetyOptions,
@@ -657,6 +658,10 @@ export function getOnePage(client: TestRailClient): Promise<Page<Project>> {
 
 export function getEveryProject(client: TestRailClient): Promise<Project[]> {
     return client.projects.getAllProjects(getAllOptions);
+}
+
+export function trackedProjects(client: TestRailClient): OperationHandle<Project[]> {
+    return client.trackOperation(() => client.projects.getAllProjects(getAllOptions));
 }
 
 export const legacyPage: Page<Project> = {
@@ -738,6 +743,7 @@ function compileConsumer(consumerDirectory: string, compilers: CompilerLaunchers
 
 function runtimeImportSmoke(consumerDirectory: string): void {
     const probe = `
+import assert from 'node:assert/strict';
 import {
     DEFAULT_MAX_ITEMS,
     DEFAULT_MAX_PAGES,
@@ -747,6 +753,7 @@ import {
     MAX_PAGINATION_BYTES,
     MAX_PAGINATION_LIMIT,
     TestRailPaginationError,
+    TestRailClient,
 } from '${PACKAGE_NAME}';
 
 const constants = [
@@ -769,6 +776,40 @@ const cliExportUrl = import.meta.resolve('${PACKAGE_NAME}/cli');
 if (!cliExportUrl.startsWith('file:') || !cliExportUrl.endsWith('/dist/cli.js')) {
     throw new Error('CLI package subpath export is invalid');
 }
+
+const config = {
+    baseUrl: 'https://example.test', email: 'consumer@example.test', apiKey: 'fixture',
+    registerProcessHandlers: false,
+};
+let reportFetches = 0;
+const reports = new TestRailClient({
+    ...config, allowPrivateHosts: true,
+    fetch: async () => { reportFetches += 1; return new Response('{"report_url":"report"}'); },
+});
+try {
+    await reports.reports.runReport(1);
+    await reports.reports.runReport(1);
+    await Promise.all([reports.reports.runCrossProjectReport(1), reports.reports.runCrossProjectReport(1)]);
+    assert.equal(reportFetches, 4, 'report executions must not cache or coalesce');
+} finally { reports.destroy(); }
+
+let resolveDns;
+const dns = new Promise((resolve) => { resolveDns = resolve; });
+let fetches = 0;
+const tracked = new TestRailClient({
+    ...config, dnsLookup: () => dns,
+    fetch: async () => { fetches += 1; return new Response('[]'); },
+});
+try {
+    const handle = tracked.trackOperation(() => tracked.projects.getAllProjects({ maxDurationMs: 20 }));
+    let settled = false;
+    void handle.settled.then(() => { settled = true; });
+    await assert.rejects(handle.result, { reason: 'max_duration' });
+    assert.equal(settled, false, 'a result deadline does not settle pending DNS');
+    resolveDns([{ address: '93.184.216.34', family: 4 }]);
+    await handle.settled;
+    assert.equal(fetches, 0, 'late DNS must not start a request after the deadline');
+} finally { tracked.destroy(); }
 `;
     requireSuccess(
         'consumer runtime import',

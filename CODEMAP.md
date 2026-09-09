@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.1.0"
   },
-  "sourceHash": "8d94702607fbee314535ddec3efdafab11f6004bcc8c6a788241b7d085ad06a4",
+  "sourceHash": "4a8dd3ff767bdd0cd338d2b7bd5b9ea47d3d35d513be7741fe1f3dfe87bbc01e",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1215,6 +1215,15 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "signature": "export const MoveSectionPayloadSchema = zObject({ parent_id: z.number().nullable().optional(), after_id: z.number().nullable().optional(), })"
     },
     {
+      "name": "OperationHandle",
+      "kind": "interface",
+      "file": "src/operation-tracking.ts",
+      "line": 4,
+      "signature": "export interface OperationHandle<T> { readonly result: Promise<T>; readonly settled: Promise<void>; }",
+      "jsdoc": "The visible result and the independently observable resource lifetime of an operation.",
+      "typeOnly": true
+    },
+    {
       "name": "Page",
       "kind": "type",
       "file": "src/pagination.ts",
@@ -2107,63 +2116,64 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/body-reader.ts",
       "imports": [
-        "./errors.js"
+        "./errors.js",
+        "./operation-tracking.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "BodyLimits",
           "kind": "interface",
-          "line": 6,
+          "line": 7,
           "exported": true,
           "signature": "export interface BodyLimits { maxBytes: number; deadlineMs: number; }"
         },
         {
           "name": "cancelReaderBestEffort",
           "kind": "function",
-          "line": 20,
+          "line": 21,
           "exported": false,
           "signature": "function cancelReaderBestEffort(reader: globalThis.ReadableStreamDefaultReader<Uint8Array>, reason: Error): void"
         },
         {
           "name": "bodyTimeoutError",
           "kind": "function",
-          "line": 31,
+          "line": 32,
           "exported": false,
           "signature": "function bodyTimeoutError(deadlineMs: number): TestRailApiError"
         },
         {
           "name": "readBodyWithLimits",
           "kind": "function",
-          "line": 57,
+          "line": 58,
           "exported": true,
           "signature": "export async function readBodyWithLimits(response: Response, limits: BodyLimits): Promise<Uint8Array>"
         },
         {
           "name": "readBodyAsText",
           "kind": "function",
-          "line": 206,
+          "line": 210,
           "exported": true,
           "signature": "export async function readBodyAsText(response: Response, limits: BodyLimits): Promise<string>"
         },
         {
           "name": "failIfFallbackDeadlineReached",
           "kind": "function",
-          "line": 219,
+          "line": 223,
           "exported": false,
           "signature": "function failIfFallbackDeadlineReached(deadlineAt: number | undefined, deadlineMs: number): void"
         },
         {
           "name": "awaitFallbackBody",
           "kind": "function",
-          "line": 225,
+          "line": 229,
           "exported": false,
           "signature": "async function awaitFallbackBody<T>( promise: Promise<T>, deadlineAt: number | undefined, deadlineMs: number, ): Promise<T>"
         },
         {
           "name": "readBodyViaFallback",
           "kind": "function",
-          "line": 250,
+          "line": 255,
           "exported": false,
           "signature": "async function readBodyViaFallback(response: Response, maxBytes: number, deadlineMs: number): Promise<Uint8Array>"
         }
@@ -6383,9 +6393,11 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./constants.js",
         "./errors.js",
         "./http-pipeline-types.js",
+        "./operation-tracking.js",
         "./request-cache.js",
         "./retry-policy.js",
         "./types.js",
+        "./upload-lifetime.js",
         "./utils.js",
         "./validation.js",
         "node:fs",
@@ -6397,279 +6409,289 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 23,
+          "line": 25,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 33,
+          "line": 35,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 61,
+          "line": 63,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 63,
+          "line": 65,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 117,
+          "line": 119,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 118,
+          "line": 120,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 121,
+          "line": 123,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 131,
+          "line": 133,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 155,
+          "line": 157,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly deadlineAt?: number; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 168,
+          "line": 170,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 176,
+          "line": 178,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 177
+              "line": 179
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 180
+              "line": 182
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 181
+              "line": 183
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 182
+              "line": 184
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 183
+              "line": 185
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 184
+              "line": 186
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 185
+              "line": 187
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 186
+              "line": 188
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 187
+              "line": 189
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 188
+              "line": 190
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 189
+              "line": 191
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 194
+              "line": 196
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 200
+              "line": 202
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 207
+              "line": 209
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 208
+              "line": 210
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 209
+              "line": 211
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 210
+              "line": 212
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 212
+              "line": 214
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 282
+              "line": 284
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 307
+              "line": 309
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 349
+              "line": 351
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 392
+              "line": 394
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 440
+              "line": 442
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 459
+              "line": 461
+            },
+            {
+              "name": "trackOperation",
+              "kind": "method",
+              "line": 475
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 473
+              "line": 489
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 519
+              "line": 535
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 618
+              "line": 634
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 658
+              "line": 674
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 678
+              "line": 694
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 709
+              "line": 725
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 743
+              "line": 759
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 761
+              "line": 777
             },
             {
               "name": "remainingDeadlineMs",
               "kind": "method",
-              "line": 855
+              "line": 871
             },
             {
               "name": "clipBodyTimeout",
               "kind": "method",
-              "line": 864
+              "line": 880
             },
             {
               "name": "withDeadline",
               "kind": "method",
-              "line": 874
+              "line": 890
             },
             {
               "name": "waitForRetryDelay",
               "kind": "method",
-              "line": 899
+              "line": 919
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 910
+              "line": 930
+            },
+            {
+              "name": "cancelUnusedBody",
+              "kind": "method",
+              "line": 1102
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1074
+              "line": 1128
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1110
+              "line": 1164
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1122
+              "line": 1176
             }
           ]
         }
@@ -7395,6 +7417,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./modules/tests.js",
         "./modules/users.js",
         "./modules/variables.js",
+        "./operation-tracking.js",
         "./pagination.js",
         "./schemas.js",
         "./types.js"
@@ -8797,12 +8820,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getCrossProjectReports",
               "kind": "method",
-              "line": 34
+              "line": 36
             },
             {
               "name": "runCrossProjectReport",
               "kind": "method",
-              "line": 46
+              "line": 48
             }
           ]
         }
@@ -9684,6 +9707,89 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/operation-tracking.ts",
+      "imports": [
+        "node:async_hooks"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "OperationHandle",
+          "kind": "interface",
+          "line": 4,
+          "exported": true,
+          "signature": "export interface OperationHandle<T> { readonly result: Promise<T>; readonly settled: Promise<void>; }"
+        },
+        {
+          "name": "OperationScope",
+          "kind": "class",
+          "line": 12,
+          "exported": false,
+          "signature": "class OperationScope",
+          "members": [
+            {
+              "name": "pending",
+              "kind": "property",
+              "line": 13
+            },
+            {
+              "name": "finish",
+              "kind": "property",
+              "line": 14
+            },
+            {
+              "name": "settled",
+              "kind": "property",
+              "line": 15
+            },
+            {
+              "name": "constructor",
+              "kind": "constructor",
+              "line": 17
+            },
+            {
+              "name": "observe",
+              "kind": "method",
+              "line": 25
+            },
+            {
+              "name": "release",
+              "kind": "method",
+              "line": 35
+            }
+          ]
+        },
+        {
+          "name": "operations",
+          "kind": "const",
+          "line": 41,
+          "exported": false,
+          "signature": "const operations = new AsyncLocalStorage<OperationScope | undefined>()"
+        },
+        {
+          "name": "observeOperation",
+          "kind": "function",
+          "line": 44,
+          "exported": true,
+          "signature": "export function observeOperation<T>(promise: Promise<T>): Promise<T>"
+        },
+        {
+          "name": "bindOperation",
+          "kind": "function",
+          "line": 50,
+          "exported": true,
+          "signature": "export function bindOperation<Args extends unknown[], Result>( callback: (...args: Args) => Result, ): (...args: Args) => Result"
+        },
+        {
+          "name": "startOperation",
+          "kind": "function",
+          "line": 58,
+          "exported": true,
+          "signature": "export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T>"
+        }
+      ]
+    },
+    {
       "path": "src/pagination.ts",
       "imports": [
         "./constants.js",
@@ -9906,6 +10012,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/request-cache.ts",
       "imports": [
+        "./operation-tracking.js",
         "./types.js"
       ],
       "reExports": [],
@@ -9913,85 +10020,85 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "RequestCacheOptions",
           "kind": "interface",
-          "line": 3,
+          "line": 4,
           "exported": true,
           "signature": "export interface RequestCacheOptions { readonly enableStorage: boolean; readonly ttlMs: number; readonly cleanupIntervalMs: number; readonly maxEntries: number; }"
         },
         {
           "name": "CacheLoadResult",
           "kind": "interface",
-          "line": 10,
+          "line": 11,
           "exported": true,
           "signature": "export interface CacheLoadResult<T> { readonly value: T; readonly cacheable: boolean; }"
         },
         {
           "name": "CacheResolution",
           "kind": "interface",
-          "line": 15,
+          "line": 16,
           "exported": true,
           "signature": "export interface CacheResolution<T> { readonly key: string | undefined; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly load: () => Promise<CacheLoadResul…"
         },
         {
           "name": "RequestCache",
           "kind": "class",
-          "line": 36,
+          "line": 37,
           "exported": true,
           "signature": "export class RequestCache",
           "members": [
             {
               "name": "entries",
               "kind": "property",
-              "line": 37
+              "line": 38
             },
             {
               "name": "pending",
               "kind": "property",
-              "line": 38
+              "line": 39
             },
             {
               "name": "generation",
               "kind": "property",
-              "line": 39
+              "line": 40
             },
             {
               "name": "cleanupTimer",
               "kind": "property",
-              "line": 40
+              "line": 41
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 42
+              "line": 43
             },
             {
               "name": "resolve",
               "kind": "method",
-              "line": 53
+              "line": 54
             },
             {
               "name": "invalidate",
               "kind": "method",
-              "line": 106
+              "line": 100
             },
             {
               "name": "dispose",
               "kind": "method",
-              "line": 113
+              "line": 107
             },
             {
               "name": "read",
               "kind": "method",
-              "line": 121
+              "line": 115
             },
             {
               "name": "write",
               "kind": "method",
-              "line": 141
+              "line": 135
             },
             {
               "name": "removeExpiredEntries",
               "kind": "method",
-              "line": 160
+              "line": 154
             }
           ]
         }
@@ -12145,6 +12252,22 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 671,
           "exported": true,
           "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>"
+        }
+      ]
+    },
+    {
+      "path": "src/upload-lifetime.ts",
+      "imports": [
+        "./operation-tracking.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "ownUploadStreams",
+          "kind": "function",
+          "line": 8,
+          "exported": true,
+          "signature": "export function ownUploadStreams(formData: globalThis.FormData): () => void"
         }
       ]
     },
