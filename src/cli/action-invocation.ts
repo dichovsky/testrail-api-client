@@ -5,10 +5,8 @@ import {
     isCliFlagName,
     projectHandlerArgs,
     projectPaginationArgs,
-    validateSuppliedFlagTypes,
     type CliFlagName,
     type CliHandlerArgs,
-    type SuppliedFlagOccurrence,
 } from './flags.js';
 import type { ActionSpec } from './metadata/types.js';
 import { validateCliPagination, type CliPaginationParsed } from './pagination.js';
@@ -84,14 +82,13 @@ export function resolveActionInvocation(options: {
     readonly spec: ActionSpec;
     readonly values: Readonly<Record<string, unknown>>;
     readonly suppliedFlags: readonly string[];
-    /** Per-occurrence argv tokens; omitted by callers with no argv context. */
-    readonly flagOccurrences?: readonly SuppliedFlagOccurrence[];
     readonly pathParams: readonly string[];
     readonly dryRun: boolean;
 }): ActionInvocationResult {
-    const flagTypes = validateSuppliedFlagTypes(options.values, options.suppliedFlags, options.flagOccurrences);
-    if (!flagTypes.ok) return flagTypes;
-
+    // Primitive argv shape (missing values, inline booleans, a flag consumed as
+    // another flag's value) is validated once in `main()`, before dispatch and
+    // therefore before this runs. Re-checking here would need the per-occurrence
+    // tokens threaded through purely to repeat a decision already made.
     const fileIsStdin = options.values['file'] === '-';
     const outIsStdout = options.values['out'] === '-';
 

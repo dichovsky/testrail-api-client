@@ -1404,23 +1404,55 @@ describe('CLI', () => {
             expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('rejects a string flag that swallowed the following safety flag instead of running for real', async () => {
+        it('rejects a swallowed --dry-run instead of polling for real', async () => {
             // parseArgs binds the next token as the value, so `--interval
             // --dry-run` yields `interval: '--dry-run'` with `dry-run` false.
-            const watch = await runCli(['run', 'watch', '42', '--interval', '--dry-run']);
-            expect(watch.exitCodes).toContain(1);
-            expect(watch.stderr).toContain(
-                '--interval requires a value, but the next argument was the flag --dry-run.',
-            );
+            const { exitCodes, stderr } = await runCli(['run', 'watch', '42', '--interval', '--dry-run']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--interval requires a value, but the next argument was the flag --dry-run.');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
 
+        it('rejects a swallowed --strict-responses instead of reading for real', async () => {
             // A free-text filter accepts the swallowed spelling downstream, so
             // without this guard the read runs for real with `--strict-responses`
             // silently disabled and the flag text sent upstream as a filter.
-            const list = await runCli(['case', 'list', '--project-id', '1', '--filter', '--strict-responses']);
-            expect(list.exitCodes).toContain(1);
-            expect(list.stderr).toContain(
+            const { exitCodes, stderr } = await runCli([
+                'case',
+                'list',
+                '--project-id',
+                '1',
+                '--filter',
+                '--strict-responses',
+            ]);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain(
                 '--filter requires a value, but the next argument was the flag --strict-responses.',
             );
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects a swallowed flag regardless of how it was spelled', async () => {
+            // Structural detection, so an inline value on the consumed token
+            // and an unknown spelling are caught the same way.
+            const inline = await runCli(['case', 'list', '--project-id', '1', '--filter', '--strict-responses=1']);
+            expect(inline.exitCodes).toContain(1);
+            expect(inline.stderr).toContain('the next argument was the flag --strict-responses=1.');
+            expect(mockFetch).not.toHaveBeenCalled();
+
+            const typo = await runCli(['case', 'list', '--project-id', '1', '--filter', '--dryrun']);
+            expect(typo.exitCodes).toContain(1);
+            expect(typo.stderr).toContain('the next argument was the flag --dryrun.');
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('rejects a swallowed --help rather than printing help', async () => {
+            // `--base-url --help` consumes the --help, so the user's request
+            // never registered. Erroring names the real problem; printing help
+            // would silently accept a base-url of '--help'.
+            const { exitCodes, stderr } = await runCli(['--base-url', '--help']);
+            expect(exitCodes).toContain(1);
+            expect(stderr).toContain('--base-url requires a value, but the next argument was the flag --help.');
             expect(mockFetch).not.toHaveBeenCalled();
         });
 

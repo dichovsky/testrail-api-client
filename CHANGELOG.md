@@ -46,13 +46,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `--force`. Only the trailing-token spelling (`--filename` as the last
   argument) was rejected before. Such an invocation now exits 1 with
   `--filename requires a value, but the next argument was the flag --dry-run.`
-  Validation reads per-occurrence argv tokens, so a repeated flag whose swallow
-  hid on an earlier occurrence (`--filter --dry-run --filter abc`) is caught
-  too. Values that merely resemble a flag are unaffected — `-5`, the `-`
-  stdin/stdout sentinel, and free text such as `--not-a-flag` — and the inline
-  `--filter=--all` form remains the way to pass a literal value that spells a
-  flag. One consequence worth noting: `testrail --base-url --help` now exits 1
-  instead of printing help, because the `--help` was consumed as a value.
+  Detection is structural — a consumed token leading with `--` plus at least one
+  more character — so it does not depend on how the swallowed flag was spelled:
+  the inline-valued `--filename --dry-run=true` and the typo `--filter --dryrun`
+  are rejected alongside the plain form. Validation is driven entirely by
+  per-occurrence argv tokens, so a repeated flag whose swallow hid on an earlier
+  occurrence (`--filter --dry-run --filter abc`) is caught too. Values that are
+  not flags are unaffected: `-5`, the `-` stdin/stdout sentinel, a bare `--`,
+  and any path or JSON body. The inline `--filter=--all` form consumes no token
+  and remains the way to pass a literal value that reads as a flag. One
+  consequence worth noting: `testrail --base-url --help` now exits 1 instead of
+  printing help, because the `--help` was consumed as a value.
 
 ### Changed
 

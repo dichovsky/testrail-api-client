@@ -6,6 +6,8 @@
  * to ActionSpec and is resolved after resource/action dispatch.
  */
 
+import { parseArgs } from 'node:util';
+
 export type ActionCapability =
     'body' | 'destructive' | 'file-input' | 'file-output' | 'pagination' | 'pagination-request' | 'write';
 
@@ -459,10 +461,10 @@ export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok:
 /**
  * One `parseArgs` option token: a single occurrence of a flag on argv.
  *
- * Structurally compatible with Node's option token, declared locally so this
- * module does not depend on `node:util`'s type. The merged `values` record
- * cannot stand in for this: it is last-wins, so a repeated flag hides every
- * occurrence but the final one.
+ * Structurally compatible with Node's option token, declared locally so callers
+ * do not depend on `node:util`'s type. The merged `values` record cannot stand
+ * in for this: it is last-wins, so a repeated flag hides every occurrence but
+ * the final one, and it drops the `inlineValue` distinction entirely.
  */
 export interface SuppliedFlagOccurrence {
     readonly name: string;
@@ -471,18 +473,54 @@ export interface SuppliedFlagOccurrence {
     readonly inlineValue?: boolean | undefined;
 }
 
+/** Argv projected into the shapes the CLI's pre-dispatch gates consume. */
+export interface ParsedCliArgv {
+    readonly values: Record<string, unknown>;
+    readonly positionals: string[];
+    readonly suppliedFlags: string[];
+    readonly flagOccurrences: SuppliedFlagOccurrence[];
+}
+
 /**
- * True when a string flag's value spells a catalogued flag exactly, which means
- * `parseArgs` consumed that flag as the value instead of registering it.
+ * Parse argv into every projection the CLI gates need.
  *
- * Matching only exact spellings keeps legitimate dash-leading values working:
- * a negative number (`-5`), the `-` stdin/stdout sentinel, and free text such
- * as `--not-a-flag` or `--dry-run please` are all unaffected. A swallowed
- * *unknown* spelling (`--filter --dryrun`) is indistinguishable from free text
- * and stays accepted, so it still bypasses the unknown-flag gate as before.
+ * The single owner of this projection: `main()` and the flag-shape tests both
+ * call it, so a test can never assert against a stale copy of the shape while
+ * production drifts to another.
  */
-function isSwallowedFlag(value: string): boolean {
-    return value.startsWith('--') && KNOWN_FLAGS.has(value.slice(2));
+export function parseCliArgv(args: readonly string[]): ParsedCliArgv {
+    const parsed = parseArgs({
+        args: [...args],
+        options: CLI_OPTIONS,
+        allowPositionals: true,
+        strict: false,
+        tokens: true,
+    });
+    const optionTokens = parsed.tokens.filter((token) => token.kind === 'option');
+    return {
+        values: parsed.values,
+        positionals: parsed.positionals,
+        suppliedFlags: optionTokens.map((token) => token.name),
+        flagOccurrences: optionTokens.map(({ name, value, inlineValue }) => ({ name, value, inlineValue })),
+    };
+}
+
+/**
+ * True when a consumed token was written as a flag rather than as a value.
+ *
+ * Structural on purpose. Matching against {@link KNOWN_FLAGS} would make
+ * correctness depend on the swallowed token's spelling, so every new spelling
+ * would need its own patch: `--dry-run` matches, `--dry-run=true` does not (the
+ * whole token is not a catalog key), and the typo `--dryrun` never matches at
+ * all — yet all three are argv elements the user wrote as flags, and all three
+ * silently drop their effect when consumed as a value. A leading `--` plus at
+ * least one more character covers the set uniformly.
+ *
+ * Values that are not flags stay valid: a negative number (`-5`), the `-`
+ * stdin/stdout sentinel, and the bare `--` terminator all fail this test.
+ */
+function looksLikeFlag(value: string): boolean {
+    return value.startsWith('--') && value.length > 2;
 }
 
 /**
@@ -491,42 +529,39 @@ function isSwallowedFlag(value: string): boolean {
  * `parseArgs({ strict: false })` binds whatever token follows a string flag as
  * that flag's value, including another flag: `--filename --dry-run` yields
  * `filename: '--dry-run'` and emits no `dry-run` token at all. An omitted value
- * is only self-evident when the flag is argv's last token (value `true`), so a
- * swallowed flag would otherwise pass silently and its own effect — a
- * `--dry-run` preview, `--strict-responses` fail-closed mode, `--all`
- * aggregation, `--force` — would be dropped while the action ran for real.
+ * is only self-evident when the flag is argv's last token, so a swallowed flag
+ * would otherwise pass silently and its own effect — a `--dry-run` preview,
+ * `--strict-responses` fail-closed mode, `--all` aggregation, `--force` — would
+ * be dropped while the action ran for real.
  *
- * The swallow check reads `occurrences` rather than `values` because the merged
- * record is last-wins: in `--filter --dry-run --filter abc` the swallow happens
- * on the first occurrence while `values.filter` holds the legitimate `abc`.
- * `--filter=--all` is left alone — an inline value consumes no following token,
- * so it is a deliberate literal and remains the escape hatch for a value that
- * spells a flag. Callers with no argv context omit `occurrences` and get only
- * the missing-value and inline-boolean checks.
+ * Driven entirely by per-occurrence tokens. The merged `values` record is
+ * deliberately not consulted: it is last-wins, so in
+ * `--filter --dry-run --filter abc` it holds the legitimate `abc` and hides the
+ * swallow on the first occurrence. A token carries everything the checks need —
+ * a string flag with no `value` was left without one, and a boolean flag with a
+ * `value` was given one through `=`.
+ *
+ * `--filter=--all` stays valid: an inline value consumes no following token, so
+ * it is a deliberate literal and the escape hatch for a value that reads as a
+ * flag.
  */
-export function validateSuppliedFlagTypes(
-    values: Readonly<Record<string, unknown>>,
-    suppliedFlags: readonly string[],
-    occurrences: readonly SuppliedFlagOccurrence[] = [],
-): CliFlagTypeValidationResult {
-    for (const supplied of suppliedFlags) {
-        if (!isCliFlagName(supplied)) continue;
-        const definition: CliFlagDefinition = FLAG_CATALOG[supplied];
-        const value = values[supplied];
-        if (definition.type === 'string' && typeof value !== 'string') {
-            return { ok: false, error: `--${supplied} requires a value.` };
-        }
-        if (definition.type === 'boolean' && typeof value !== 'boolean') {
-            return {
-                ok: false,
-                error: `--${supplied} does not take a value; pass the flag without \`=\`.`,
-            };
-        }
-    }
+export function validateSuppliedFlagTypes(occurrences: readonly SuppliedFlagOccurrence[]): CliFlagTypeValidationResult {
     for (const { name, value, inlineValue } of occurrences) {
         if (!isCliFlagName(name)) continue;
-        if (FLAG_CATALOG[name].type !== 'string' || inlineValue === true) continue;
-        if (value !== undefined && isSwallowedFlag(value)) {
+        const definition: CliFlagDefinition = FLAG_CATALOG[name];
+        if (definition.type === 'boolean') {
+            if (value !== undefined) {
+                return {
+                    ok: false,
+                    error: `--${name} does not take a value; pass the flag without \`=\`.`,
+                };
+            }
+            continue;
+        }
+        if (value === undefined) {
+            return { ok: false, error: `--${name} requires a value.` };
+        }
+        if (inlineValue !== true && looksLikeFlag(value)) {
             return {
                 ok: false,
                 error: `--${name} requires a value, but the next argument was the flag ${value}.`,
