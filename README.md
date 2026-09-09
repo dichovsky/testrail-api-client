@@ -88,6 +88,12 @@ Prefer `TESTRAIL_API_KEY`. If an environment variable is not an option, pipe the
 
 `--dry-run` previews any write or delete client-side with no API call. Output format is selectable with `--format <json|table|yaml|csv>`. See [`skill/SKILL.md`](skill/SKILL.md) for the complete command surface and recipes.
 
+String options require their own value: `--filename --dry-run` is rejected before
+the command runs, including when a later occurrence supplies a valid filename.
+For a literal value beginning with `--`, use the inline form, such as
+`--filter=--all`. Boolean options take no value: pass `--dry-run`, not
+`--dry-run=true`.
+
 ## Features
 
 | Capability         | What it does                                                                         | Documented in                                                                                                                                         |
@@ -153,6 +159,14 @@ const client = new TestRailClient({
 | `onSchemaMismatch`        | `function`          | none (silent)      | Notified when a response does not match its schema   |
 
 Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
+
+By default, the host guard rejects private, loopback, link-local, and CGNAT
+addresses, including IPv4-mapped IPv6 spellings, plus IPv6 transition ranges
+such as 6to4 and the well-known and local-use NAT64 prefixes. Literal URLs and
+DNS answers use the same address classifier. On-premise SDK deployments that
+need these addresses must explicitly set `allowPrivateHosts: true`; this also
+disables DNS host validation. See the [host guard details](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)
+for the exact ranges.
 
 ## Pagination
 
@@ -340,7 +354,7 @@ For CLI error details, opt into a private diagnostic file on the original invoca
 testrail case-field add --data-file field.json --diagnostic-file ./field-error.json
 ```
 
-For real invocations, `--diagnostic-file` reserves a new regular file before dispatch and rejects existing
+For real invocations, `--diagnostic-file` reserves a new regular file before the command handler runs and rejects existing
 paths, including symlinks, and destinations shared with `--out`. Its directory must
 already exist. The file has mode `0600`. The flag currently rejects Windows before
 stdin or authentication work because the client cannot establish an equivalent private ACL there.
@@ -386,6 +400,7 @@ case writes.
 ## Links
 
 - [CHANGELOG.md](https://github.com/dichovsky/testrail-api-client/blob/main/CHANGELOG.md) — release notes and migration guidance
+- [docs/RELEASING.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/RELEASING.md) — maintainer release and post-release checklist
 - [docs/API-MAPPING.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md) — endpoint ↔ client method ↔ CLI command ↔ skill recipe matrix
 - [CODEMAP.md](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) — every symbol with exact `file:line` links
 - [docs/ARCHITECTURE.md](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md) — how the layers are organized and why

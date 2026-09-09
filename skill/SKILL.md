@@ -1,7 +1,7 @@
 ---
 name: testrail-cli
 description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, plans, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities, or when TESTRAIL_BASE_URL / TESTRAIL_EMAIL / TESTRAIL_API_KEY are set in the environment.
-version: 7.0.0
+version: 7.1.0
 license: MIT
 homepage: https://github.com/dichovsky/testrail-api-client
 ---
@@ -28,14 +28,19 @@ not a TestRail user manual. For the browser UI, see TestRail's own docs.
 ## Install / verify
 
 The CLI ships with the npm package `@dichovsky/testrail-api-client` and
-exposes the `testrail` binary. Verify it is available:
+exposes the `testrail` binary. Install it locally and verify the binary:
 
 ```bash
+npm install @dichovsky/testrail-api-client
 npx testrail --version
 ```
 
-If you installed the package locally, `npx testrail` runs the local copy
-without a global install.
+`npx testrail` runs that local copy without a global install. For a one-off
+invocation without a local installation, name the scoped package explicitly:
+
+```bash
+npm exec --package=@dichovsky/testrail-api-client -- testrail --version
+```
 
 ## Authentication
 
@@ -207,9 +212,18 @@ Compact table legend:
 
 ## CLI option reference
 
-Use the `Applies to` column to avoid passing a valid global flag to an
+Use the `Applies to` column to avoid passing a recognized option to an
 action that does not consume it. This table is generated from the same typed
 registry as `testrail --help`, so every parser-recognized option is present.
+
+Flags are checked before authentication, stdin reads, or API calls. Every
+string flag needs a value; a following argument beginning with `--` and at
+least one more character is rejected, including misspelled flags and earlier
+occurrences of repeated options. For example, `--filename --dry-run` fails
+instead of uploading a file with the preview flag consumed as its name.
+Pass a literal value beginning with `--` inline, such as `--filter=--all`.
+Shell quoting alone (`--filter '--all'`) does not change this rule. Boolean
+flags take no value: use `--strict-responses`, not `--strict-responses=true`.
 
 <!-- GENERATED:option-reference -->
 | Option | Applies to | Agent guidance |
@@ -487,7 +501,7 @@ failures are `TestRailPaginationError` with reasons `max_pages`,
 `max_items`, `max_duration`, `max_bytes`, `invalid_page`,
 `invalid_continuation`, or `non_progress`.
 
-The registry covers cases/history; projects, suites, sections, plans,
+The registry covers cases/history and project BDDs; projects, suites, sections, plans,
 runs, tests, milestones; all three result lists; labels; shared
 steps/history; case/run/plan attachments; datasets, variables, roles,
 groups, and case statuses. Shared-step history, datasets, variables,
@@ -534,6 +548,10 @@ deprecated. Stable fields include `Test.refs_data`/`case_title`,
 recursively typed milestone children.
 
 ## Recipes
+
+Recipes that execute destructive commands assume `TESTRAIL_ALLOW_DESTRUCTIVE=1`
+is set for the approved workflow. Every such call also requires `--yes`;
+`--dry-run` needs neither gate.
 
 ### 1. Smoke-test auth & connectivity
 
@@ -3694,8 +3712,9 @@ try {
 }
 ```
 
-Each snippet below is self-contained and uses only published types — copy,
-paste, and adjust the IDs. All methods return `Promise<T>`; all errors
+The examples below share the configured `client` above and may refer to
+entities created in preceding examples; adjust the IDs for your instance.
+Endpoint methods return `Promise<T>`; all errors
 inherit from `Error` (`TestRailApiError` for HTTP/network/protocol failures,
 `TestRailPaginationError` for safe pagination failure, and
 `TestRailValidationError` for other validation failures).
@@ -3827,10 +3846,9 @@ const buf = readFileSync('./screenshot.png');
 const ack = await client.attachments.addAttachmentToCase(42, buf, 'screenshot.png');
 console.log(ack.attachment_id);
 
-// Download — returns a Buffer; the caller writes to disk.
+// Download — returns an ArrayBuffer; the caller writes to disk.
 const blob = await client.attachments.getAttachment(ack.attachment_id);
-// blob is Uint8Array | ArrayBuffer | Buffer depending on Node version;
-// see CODEMAP.md for the exact return type on your Node target.
+// Use Buffer.from(blob) when a Node file API expects a byte buffer.
 
 // Case/run/plan lists expose page/all projections; test/plan-entry do not.
 const list = await client.attachments.getAllAttachmentsForCase(42, { pageSize: 100 });
@@ -4004,14 +4022,15 @@ the call shape safely before committing. The same pattern applies to
 | Exit | Meaning                                                                            |
 | ---- | ---------------------------------------------------------------------------------- |
 | `0`  | Success                                                                            |
-| `1`  | Any failure: bad auth, invalid args, validation, 4xx/5xx HTTP, rate limit, timeout |
+| `1`  | Failure: bad auth, invalid args, validation, 4xx/5xx HTTP, rate limit, timeout |
+| `2`  | Destructive action blocked by a missing or invalid `TESTRAIL_ALLOW_DESTRUCTIVE` unlock |
 
 Errors are written to stderr in the form `Error: <message>`. Common
 causes:
 
 - `Missing auth.` → env vars / flags not set.
 - `<param> must be a positive integer` → bad path arg (e.g. `project get abc`).
-- `Unknown resource '<x>'. Use: project, suite, case, run, result, milestone, user, attachment`
+- `Unknown resource '<x>'. Use: …` → use a resource from `testrail --help`.
 - `Unknown action '<a>' for <r>. Use: get, list, …`
 - `Body required.` → write action invoked with no `--data` / `--data-file` / stdin.
 - `Invalid JSON: …` → malformed body.
@@ -4022,8 +4041,28 @@ causes:
 - `Refusing to overwrite '<path>'; pass --force to overwrite.` → `--out` target exists.
 - `Destructive action; pass --yes to confirm.` → `attachment delete`, `case delete-bulk`, or `run close` without `--yes`.
 - `unknown flag '--<name>'. Run --help for the full list.` → typo'd flag (e.g. `--dryrun` for `--dry-run`); strict gate added v3.0 to prevent silent bypass of `--dry-run` / `--soft` gates.
+- `--filename requires a value, but the next argument was the flag --dry-run.` → supply the missing filename; use `--filename=--dry-run` only when that is the intended literal name.
 - `--api-key-stdin requires the API key to be piped on stdin (…).` → `--api-key-stdin` passed without piped stdin.
 - `Input exceeds maximum 1048576 bytes. …` → stdin body or `--api-key-stdin` payload exceeded the 1 MiB cap.
+
+### Save error diagnostics
+
+Add `--diagnostic-file <new-path>` to the original API command when you need
+bounded, redacted server validation details in a JSON file:
+
+```bash
+testrail case-field list --diagnostic-file ./testrail-error.json
+```
+
+The CLI reserves a private file before the command handler runs and rejects
+existing paths. Failure records include the HTTP status, whether handler execution started, and
+allowlisted messages from JSON error responses. Raw request/response bodies,
+headers, stacks, and known credentials are excluded. Success removes the
+reserved file. `--quiet` still permits explicitly requested diagnostics.
+`--dry-run` skips diagnostic paths entirely. The flag is unavailable on Windows
+because this implementation cannot establish private-file permissions there.
+Never replay a write just to collect a diagnostic file: a failure after
+dispatch can have an indeterminate outcome.
 
 ## Limits & gotchas
 
@@ -4036,9 +4075,12 @@ causes:
   the TTL. Programmatic `getAll*()` walks bypass cache reads/writes and
   pending-request coalescing; `get*Page()` uses normal caching in a separate
   strict-schema namespace from legacy one-response list reads.
-- **Retry:** 5xx responses, 429s, and network errors are retried with
-  exponential backoff (max 3 attempts). 4xx and timeout errors are not
-  retried.
+- **Retry:** GET requests retry 5xx responses, 429s, and network errors.
+  JSON writes retry only 429; write 5xx/network errors surface immediately
+  to avoid duplicate writes. Multipart uploads never retry. The default is
+  three retries after the initial attempt, with exponential backoff and
+  `Retry-After` support. Other 4xx, timeouts, redirects, and body-limit
+  failures are not retried.
 - **No coercion on write payloads:** `"5"` is **not** silently converted
   to `5`. This is intentional — catches agent template-substitution
   bugs at the CLI boundary rather than the API call site.
@@ -4066,14 +4108,11 @@ causes:
 
 ## Falling back to the programmatic SDK
 
-Only fall back to the programmatic SDK (`import { TestRailClient } from
-'@dichovsky/testrail-api-client'`) when the CLI itself rejected the
-call **before any network request was made**. That covers three cases:
-an unrecognized flag, a payload-validation rejection produced by the
-CLI's stricter parsing (e.g. the no-coercion rule above rejects
-`"5"` where a number is required), or an operation the CLI doesn't
-surface at all — see "When NOT to use this skill" below for that
-last case.
+Correct CLI syntax or payload errors before switching interfaces. Both the
+CLI and SDK validate write payloads with the same schemas; neither coerces
+`"5"` to `5`. Every documented SDK endpoint has a CLI action in the command
+table. Use the programmatic API section when writing TypeScript/JavaScript
+or when you need client configuration and lifecycle control.
 
 Never fall back when the failure came back from TestRail itself: any
 4xx/5xx HTTP status, an auth failure, or a rate limit. The SDK calls
@@ -4086,10 +4125,13 @@ cycle re-proving a failure you've already seen, not fixing it.
 # and the CLI does not coerce "3" to 3.
 testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "priority_id": "3"}'
 # Error: Payload validation failed: …
+
+# Correct the value and validate the intended write locally.
+testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "priority_id": 3}' --dry-run
 ```
 
 ```typescript
-// Fix by calling the SDK directly with the correctly typed field.
+// The same corrected numeric field also works through the SDK.
 import { TestRailClient } from '@dichovsky/testrail-api-client';
 
 const client = new TestRailClient({
@@ -4098,27 +4140,30 @@ const client = new TestRailClient({
     apiKey: process.env.TESTRAIL_API_KEY!,
 });
 
-const created = await client.cases.addCase(12, {
-    title: 'Login page accepts SSO redirect',
-    priority_id: 3,
-});
+try {
+    const created = await client.cases.addCase(12, {
+        title: 'Login page accepts SSO redirect',
+        priority_id: 3,
+    });
+    console.log(created.id);
+} finally {
+    client.destroy();
+}
 ```
 
 ## When NOT to use this skill
 
-- **Writing TypeScript/JavaScript code that imports the package.**
-  This skill documents the CLI surface only. For programmatic use,
-  read `README.md` and `CODEMAP.md` in the package — the programmatic
-  API exposes 100+ methods, a superset of the CLI surface.
 - **Structural CRUD beyond what the command table lists.** Treat the command
-  table as the authoritative CLI surface. Use the TestRail web UI or the
-  programmatic API for operations absent from that table; case-status CRUD,
-  for example, remains read-only via the CLI.
+  table as the authoritative endpoint surface. Operations absent from it
+  also lack documented SDK endpoint methods; use TestRail's supported UI
+  workflow where available. Case statuses, for example, are read-only in
+  both the CLI and SDK.
 - **Browser/UI workflows.** This is a non-interactive CLI.
 
 The CLI **does** support attachment upload/download/delete and BDD
-(Gherkin .feature) upload/download — see the command table above and
-the file-I/O recipes below.
+(Gherkin .feature) upload/download — see the command table and file-I/O
+recipes above. For code that imports the package, use the programmatic API
+section, `README.md`, and `CODEMAP.md`.
 
 ## See also
 

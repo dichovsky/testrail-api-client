@@ -294,24 +294,37 @@ package.json:bin
   → dist/cli.js  (shebang + import)
     → src/cli.ts                  one-line re-export
       → src/cli/index.ts:main()
-        → parseArgs (Node util, strict:false + allowPositionals)
+        → parseCliArgv (Node parseArgs, strict:false + per-occurrence tokens)
         → KNOWN_FLAGS gate         rejects --typoed-flag
+        → validateSuppliedFlagTypes rejects missing values, swallowed flags,
+          and boolean flags with values
         → --version | --help short-circuits
         → install-skill | uninstall-skill validates its own allowed flags,
           then short-circuits before API dispatch
         → dispatch(resource, action) returns its ActionSpec
         → resolveActionInvocation rejects known-but-irrelevant or missing
           required flags and projects catalogued handler/pagination inputs
-        → pagination + destructive env gates + path-param count check
+        → diagnostic platform + strict-response + destructive env gates
+          + path-param count check (pagination was resolved with invocation)
         → readBoundedStdin (if --api-key-stdin)
         → resolveAuth (flags override env)
         → build BodyInput (BodyInput.readStdin is a thunk)
+        → parse timeout + reserve --diagnostic-file (unless --dry-run)
         → new TestRailClient(config)
         → await handler(ctx)
-        → client.destroy() in finally
+        → on failure, write the reserved diagnostic record when requested
+        → client.destroy() + finish diagnostic reservation in finally
 ```
 
 `src/cli.ts` exists purely so the `./cli` subpath export resolves while the actual code lives one directory deeper.
+
+Primitive flag validation examines every supplied token before help, meta-command,
+or API dispatch. A string option cannot consume a following `--`-prefixed flag:
+`--filename --dry-run` and `--filter --dry-run --filter abc` both fail, even
+though the last-wins parsed values hide the first `--filter` occurrence. An
+intentional flag-like literal uses `--filter=--all`; negative values, `-`, and a
+bare `--` are not rejected by this primitive check. Action applicability and
+value-specific validation still run at their own boundaries.
 
 ### 6.2 Dispatch — `src/cli/dispatch.ts`
 
@@ -379,11 +392,12 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `auth.ts`                | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                    |
 | `output.ts`              | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
-| `flags.ts`               | Primitive flag catalog; derives parse options, known spellings, capability groups, and typed handler/pagination projections.                                                             |
+| `flags.ts`               | Primitive flag catalog, per-occurrence argv parsing/validation, known spellings, capability groups, and typed handler/pagination projections.                                            |
 | `action-invocation.ts`   | Compiles accepted/required flags from metadata capabilities, preserves precise stdio/pagination diagnostics, and rejects invalid action/meta invocations before auth or mutation.        |
 | `ids.ts`                 | `parseId` / `optInt` with consistent error shapes.                                                                                                                                       |
 | `pagination.ts`          | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                |
 | `response-validation.ts` | Resolves strict-response flag/env policy and builds the bounded privacy-safe advisory mismatch reporter.                                                                                 |
+| `diagnostics.ts`         | Reserves private diagnostic files, redacts bounded structured server messages, tracks operation outcome, and finalizes or removes reservations.                                          |
 | `body.ts`                | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                           |
 | `stdin.ts`               | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                          |
 | `file-input.ts`          | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                    |
@@ -416,6 +430,27 @@ mode, while other environment values fail before auth/network work. Boolean flag
 value forms are rejected. `--quiet` suppresses advisory warnings. A strict
 bounded aggregate emits no partial array; a streaming watch can retain completed
 events emitted before a later mismatch.
+
+`--diagnostic-file <path>` opts into a private JSON error record. After early
+argument/auth validation and before client construction, `main()` reserves a
+new regular file with mode `0600`; existing paths, symlinks, and aliases of
+`--out` are rejected. macOS uses private staging and bounded ACL removal;
+Windows rejects the option before stdin/auth work. `--dry-run` skips all
+diagnostic destination work. The held descriptor and inode checks protect the
+reservation through writing and finalization. An unused reservation is removed
+on normal completion or process exit, including SIGINT/SIGTERM; cleanup failure
+can leave an empty file and does not change the operation's exit status.
+
+The version-1 record contains error kind, status, operation outcome, and bounded
+server validation messages. `operationOutcome` is `not_dispatched` until the
+handler starts and conservatively `failed_or_indeterminate` afterward.
+Extraction accepts recognized structured validation details, redacts known
+credentials and common encoded variants, and omits sensitive keys, raw bodies,
+headers, payloads, and stacks. Processing is capped at 64 KiB and records at
+16 KiB. Diagnostic write/cleanup failures preserve the operation's result;
+`--quiet` suppresses their warnings. Diagnostics never repeat a request. See
+the [README error guidance](../README.md#error-handling) for the record fields
+and omission/truncation behavior.
 
 ### 6.6 `--dry-run`, `--yes`, `--soft`, `TESTRAIL_ALLOW_DESTRUCTIVE` semantics
 
@@ -462,7 +497,11 @@ Vitest + V8 coverage. Highlights (see the test suite and [CODEMAP.md](../CODEMAP
 | `client-features.test.ts`         | Request-cache integration, rate limiter, retry, lifecycle                                                             |
 | `request-cache.test.ts`           | Cache cloning, TTL/LRU, coalescing, invalidation generations, deadline sharing, disposal                              |
 | `client-edge-cases.test.ts`       | Signal handlers, error paths, redirect blocking, SSRF guard                                                           |
+| `client-ssrf-coverage.test.ts`    | Shared host classification for literal/DNS IPv4, IPv6, mapped addresses, CGNAT, and transition ranges                 |
 | `cli.test.ts`                     | In-process CLI reimports — dispatch, auth, rendering, exit codes                                                      |
+| `cli-action-invocation.test.ts`   | Flag applicability, required values, and per-occurrence rejection of swallowed flags                                  |
+| `cli-diagnostic*.test.ts`         | Diagnostic redaction/bounds, private file lifecycle, path races, ACLs, and process-signal cleanup                     |
+| `case-field-readiness.test.ts`    | GET-only readiness example: identity/configuration checks, cancellation, deadlines, and retained creation results     |
 | `scripts/package-smoke.ts`        | Packed executable subprocess smoke tests, run as platform-specific CI jobs                                            |
 | `cli-helpers.test.ts`             | Pure helpers: `parseId`, `optInt`, `resolveAuth`, `renderTable`, `safeJsonStringify`, `sanitizeForTerminal`, dispatch |
 | `cli-write-handlers.test.ts`      | Write-handler unit shape: happy / dry-run / body-reject / path-param-reject                                           |
@@ -498,14 +537,14 @@ Each of these closes a real failure mode and exists because the obvious alternat
 2. **Separate `GET:` and `PARSED:GET:` cache namespaces.** Prevents validated and unvalidated values for the same endpoint from cross-contaminating callers.
 3. **Cache invalidation precedes body read on writes.** A 204-style empty response still wipes stale GET entries.
 4. **Per-upstream-fetch DNS validation.** Stops DNS rebinding from converting a public-looking baseUrl into a metadata-service request mid-session without pretending cache hits or coalesced callers perform network work.
-5. **`redirect: 'manual'` on the pipeline fetch.** The single `executePipeline` fetch handles every request shape; a 3xx `Location` to a private IP would otherwise bypass `validateBaseUrl` and DNS pinning.
+5. **`redirect: 'manual'` on the pipeline fetch.** The single `executePipeline` fetch handles every request shape; a 3xx `Location` to a private IP would otherwise bypass configuration and DNS host validation.
 6. **GET-only retry of 5xx and network errors.** Prevents duplicate writes on `ECONNRESET`-after-send. Rate-limited writes (429) are still retried because they are rejected pre-flight.
 7. **`Retry-After` capped to `MAX_RETRY_DELAY_MS`.** A malicious server cannot freeze the client.
 8. **Raw error bodies in the structured field only, never in `message`.** Bodies may contain stack traces or secrets; `.message` flows to loggers.
 9. **Text and binary responses bypass the JSON cache.** A shared key with a JSON GET to the same path would collide; `responseKind: 'text' | 'binary'` never reads or writes the cache.
 10. **Dry-run checked before `--yes` and before any disk read.** No surprise side effects from a flag intended to preview.
 11. **`safe-write` re-`lstat` under `--force`.** Closes the network-round-trip TOCTOU window on attachment downloads.
-12. **`KNOWN_FLAGS` gate.** `parseArgs` with `strict: false` accepts anything; the gate catches typos like `--dryrun` that would otherwise silently skip the dry-run branch.
+12. **Known flags plus per-occurrence type validation.** The gates reject typos such as `--dryrun` and string options that swallowed a following flag, including repeated options whose last value looks valid. Both prevent silently skipping the intended dry-run branch.
 13. **Continuation host/path is discarded.** Only canonical offset/limit controls survive; the shared executor rebuilds a descriptor-declared operation with validated path parameters and filters.
 14. **All-page reads bypass the GET cache.** Aggregates must not combine independently cached pages into a false snapshot or populate the cache with a partial walk.
 
