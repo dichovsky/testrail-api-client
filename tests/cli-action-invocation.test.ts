@@ -4,8 +4,16 @@ import {
     resolveActionInvocation,
     validateMetaCommandFlags,
 } from '../src/cli/action-invocation.js';
-import { getCliFlagUsage, validateSuppliedFlagTypes } from '../src/cli/flags.js';
+import { getCliFlagUsage, parseCliArgv, validateSuppliedFlagTypes } from '../src/cli/flags.js';
 import { ACTIONS, getActionSpec } from '../src/cli/metadata.js';
+
+/**
+ * Validate argv through the same projection `main()` uses, so these assertions
+ * cannot pass against a shape production no longer produces.
+ */
+function validateArgv(argv: string[]) {
+    return validateSuppliedFlagTypes(parseCliArgv(argv).flagOccurrences);
+}
 
 function spec(resource: string, action: string) {
     const found = getActionSpec(resource, action);
@@ -133,30 +141,79 @@ describe('action invocation contract', () => {
         expect(watch.has('dry-run')).toBe(true);
     });
 
-    it('rejects missing string values and inline boolean values before projection', () => {
-        expect(
-            resolveActionInvocation({
-                spec: spec('run', 'watch'),
-                values: { interval: true },
-                suppliedFlags: ['interval'],
-                pathParams: ['42'],
-                dryRun: false,
-            }),
-        ).toEqual({ ok: false, error: '--interval requires a value.' });
+    it('rejects missing string values and inline boolean values', () => {
+        expect(validateArgv(['--interval'])).toEqual({ ok: false, error: '--interval requires a value.' });
+        expect(validateArgv(['--dry-run=true', '--yes'])).toEqual({
+            ok: false,
+            error: '--dry-run does not take a value; pass the flag without `=`.',
+        });
+    });
 
-        expect(
-            resolveActionInvocation({
-                spec: spec('run', 'close'),
-                values: { 'dry-run': 'true', yes: true },
-                suppliedFlags: ['dry-run', 'yes'],
-                pathParams: ['42'],
-                dryRun: false,
-            }),
-        ).toEqual({ ok: false, error: '--dry-run does not take a value; pass the flag without `=`.' });
+    it('rejects a string flag that consumed the following flag as its value', () => {
+        // `parseArgs({ strict: false })` hands a string flag whatever token
+        // follows, including another flag: `--filename --dry-run` yields
+        // `filename: '--dry-run'` and no `dry-run` token at all. Left
+        // unchecked, the safety flag is silently dropped and the action runs
+        // for real. Only the trailing-token spelling was rejected before.
+        expect(validateArgv(['--file', 'report.bin', '--filename', '--dry-run'])).toEqual({
+            ok: false,
+            error:
+                '--filename requires a value, but the next argument was the flag --dry-run. ' +
+                'If that is the value, pass it inline: --filename=<value>.',
+        });
+
+        // A repeated flag merges last-wins, so `values.filter` would hold the
+        // legitimate `abc` while the swallow hid on the first occurrence.
+        // Reading per-occurrence tokens is what catches this.
+        expect(validateArgv(['--filter', '--dry-run', '--filter', 'abc'])).toEqual({
+            ok: false,
+            error:
+                '--filter requires a value, but the next argument was the flag --dry-run. ' +
+                'If that is the value, pass it inline: --filter=<value>.',
+        });
+
+        // The detection is structural, so it does not depend on how the
+        // swallowed flag was spelled: an inline value on the consumed token and
+        // an unknown spelling (which never reaches the unknown-flag gate once
+        // it has been consumed as a value) are caught the same way.
+        expect(validateArgv(['--filename', '--dry-run=true'])).toEqual({
+            ok: false,
+            error:
+                '--filename requires a value, but the next argument was the flag --dry-run=true. ' +
+                'If that is the value, pass it inline: --filename=<value>.',
+        });
+        expect(validateArgv(['--filter', '--strict-responses=1'])).toEqual({
+            ok: false,
+            error:
+                '--filter requires a value, but the next argument was the flag --strict-responses=1. ' +
+                'If that is the value, pass it inline: --filter=<value>.',
+        });
+        expect(validateArgv(['--filter', '--dryrun'])).toEqual({
+            ok: false,
+            error:
+                '--filter requires a value, but the next argument was the flag --dryrun. ' +
+                'If that is the value, pass it inline: --filter=<value>.',
+        });
+    });
+
+    it('accepts values that are not flags, and the inline escape hatch', () => {
+        // A value only reads as a flag when it leads with `--` and carries more
+        // than that, so ordinary values keep working.
+        expect(validateArgv(['--limit', '-5'])).toEqual({ ok: true });
+        expect(validateArgv(['--out', '-'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter', '--'])).toEqual({ ok: true });
+        expect(validateArgv(['--data', '{"title":"x"}'])).toEqual({ ok: true });
+        expect(validateArgv(['--out', './--force'])).toEqual({ ok: true });
+
+        // The inline form consumes no following token, so it stays the way to
+        // pass a literal value that reads as a flag.
+        expect(validateArgv(['--filter=--all'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter=--dry-run please'])).toEqual({ ok: true });
+        expect(validateArgv(['--filter=--all', '--dry-run'])).toEqual({ ok: true });
     });
 
     it('ignores unknown spellings at layers that run behind the top-level unknown-flag gate', () => {
-        expect(validateSuppliedFlagTypes({}, ['future-flag'])).toEqual({ ok: true });
+        expect(validateArgv(['--future-flag'])).toEqual({ ok: true });
         expect(validateMetaCommandFlags('install-skill', ['future-flag'])).toEqual({ ok: true });
 
         const result = resolveActionInvocation({

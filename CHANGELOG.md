@@ -34,6 +34,34 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `64:ff9b:1::a00:1` to private `10.0.0.1`, so the whole /48 is treated as
   private on both the literal and the DNS-resolved path.
 
+### Fixed
+
+- **CLI: a string flag no longer silently swallows the following flag.**
+  `parseArgs` binds whatever token follows a string flag as that flag's value,
+  including another flag, so `testrail attachment add-to-case 1 --file r.bin
+--filename --dry-run` parsed to `filename: '--dry-run'` with `--dry-run`
+  never registered: the upload ran for real instead of previewing. The same
+  omission silently disabled `--strict-responses` (schema drift stopped failing
+  closed), reduced `--all` to a single page presented as complete, and dropped
+  `--force`. Only the trailing-token spelling (`--filename` as the last
+  argument) was rejected before. Such an invocation now exits 1 with
+  `--filename requires a value, but the next argument was the flag --dry-run.`
+  Detection is structural — a consumed token leading with `--` plus at least one
+  more character — so it does not depend on how the swallowed flag was spelled:
+  the inline-valued `--filename --dry-run=true` and the typo `--filter --dryrun`
+  are rejected alongside the plain form. Validation is driven entirely by
+  per-occurrence argv tokens, so a repeated flag whose swallow hid on an earlier
+  occurrence (`--filter --dry-run --filter abc`) is caught too. Values that are
+  not flags are unaffected: `-5`, the `-` stdin/stdout sentinel, a bare `--`,
+  and any path or JSON body. **Compatibility:** any space-separated value that
+  begins with `--` is now rejected for every string flag, so an invocation that
+  previously passed such a value must pass it inline instead
+  (`--filter=<value>`); the rejection message says so. In practice this affects
+  the free-text filters (`--filter`, `--defects-filter`, `--refs`), since ids,
+  timestamps, URLs, paths, and JSON bodies cannot begin with `--`. One further
+  consequence: `testrail --base-url --help` now exits 1 instead of printing
+  help, because the `--help` was consumed as a value.
+
 ### Changed
 
 - Construction-time private-host rejection now applies to IP literals and

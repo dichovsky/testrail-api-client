@@ -5,7 +5,6 @@ import {
     isCliFlagName,
     projectHandlerArgs,
     projectPaginationArgs,
-    validateSuppliedFlagTypes,
     type CliFlagName,
     type CliHandlerArgs,
 } from './flags.js';
@@ -86,9 +85,10 @@ export function resolveActionInvocation(options: {
     readonly pathParams: readonly string[];
     readonly dryRun: boolean;
 }): ActionInvocationResult {
-    const flagTypes = validateSuppliedFlagTypes(options.values, options.suppliedFlags);
-    if (!flagTypes.ok) return flagTypes;
-
+    // Primitive argv shape (missing values, inline booleans, a flag consumed as
+    // another flag's value) is validated once in `main()`, before dispatch and
+    // therefore before this runs. Re-checking here would need the per-occurrence
+    // tokens threaded through purely to repeat a decision already made.
     const fileIsStdin = options.values['file'] === '-';
     const outIsStdout = options.values['out'] === '-';
 

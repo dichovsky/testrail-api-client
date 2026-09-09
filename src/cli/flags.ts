@@ -6,6 +6,8 @@
  * to ActionSpec and is resolved after resource/action dispatch.
  */
 
+import { parseArgs } from 'node:util';
+
 export type ActionCapability =
     'body' | 'destructive' | 'file-input' | 'file-output' | 'pagination' | 'pagination-request' | 'write';
 
@@ -456,22 +458,115 @@ export function isCliFlagName(value: string): value is CliFlagName {
 
 export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string };
 
-/** Reject parseArgs' permissive missing/inline-value representations. */
-export function validateSuppliedFlagTypes(
-    values: Readonly<Record<string, unknown>>,
-    suppliedFlags: readonly string[],
-): CliFlagTypeValidationResult {
-    for (const supplied of suppliedFlags) {
-        if (!isCliFlagName(supplied)) continue;
-        const definition: CliFlagDefinition = FLAG_CATALOG[supplied];
-        const value = values[supplied];
-        if (definition.type === 'string' && typeof value !== 'string') {
-            return { ok: false, error: `--${supplied} requires a value.` };
+/**
+ * One `parseArgs` option token: a single occurrence of a flag on argv.
+ *
+ * Structurally compatible with Node's option token, declared locally so callers
+ * do not depend on `node:util`'s type. The merged `values` record cannot stand
+ * in for this: it is last-wins, so a repeated flag hides every occurrence but
+ * the final one, and it drops the `inlineValue` distinction entirely.
+ */
+export interface SuppliedFlagOccurrence {
+    readonly name: string;
+    readonly value?: string | undefined;
+    /** `true` for the `--flag=value` form, where no following token was consumed. */
+    readonly inlineValue?: boolean | undefined;
+}
+
+/** Argv projected into the shapes the CLI's pre-dispatch gates consume. */
+export interface ParsedCliArgv {
+    readonly values: Record<string, unknown>;
+    readonly positionals: string[];
+    readonly suppliedFlags: string[];
+    readonly flagOccurrences: SuppliedFlagOccurrence[];
+}
+
+/**
+ * Parse argv into every projection the CLI gates need.
+ *
+ * The single owner of this projection: `main()` and the flag-shape tests both
+ * call it, so a test can never assert against a stale copy of the shape while
+ * production drifts to another.
+ */
+export function parseCliArgv(args: readonly string[]): ParsedCliArgv {
+    const parsed = parseArgs({
+        args: [...args],
+        options: CLI_OPTIONS,
+        allowPositionals: true,
+        strict: false,
+        tokens: true,
+    });
+    const optionTokens = parsed.tokens.filter((token) => token.kind === 'option');
+    return {
+        values: parsed.values,
+        positionals: parsed.positionals,
+        suppliedFlags: optionTokens.map((token) => token.name),
+        flagOccurrences: optionTokens.map(({ name, value, inlineValue }) => ({ name, value, inlineValue })),
+    };
+}
+
+/**
+ * True when a consumed token was written as a flag rather than as a value.
+ *
+ * Structural on purpose. Matching against {@link KNOWN_FLAGS} would make
+ * correctness depend on the swallowed token's spelling, so every new spelling
+ * would need its own patch: `--dry-run` matches, `--dry-run=true` does not (the
+ * whole token is not a catalog key), and the typo `--dryrun` never matches at
+ * all — yet all three are argv elements the user wrote as flags, and all three
+ * silently drop their effect when consumed as a value. A leading `--` plus at
+ * least one more character covers the set uniformly.
+ *
+ * Values that are not flags stay valid: a negative number (`-5`), the `-`
+ * stdin/stdout sentinel, and the bare `--` terminator all fail this test.
+ */
+function looksLikeFlag(value: string): boolean {
+    return value.startsWith('--') && value.length > 2;
+}
+
+/**
+ * Reject parseArgs' permissive missing/inline-value representations.
+ *
+ * `parseArgs({ strict: false })` binds whatever token follows a string flag as
+ * that flag's value, including another flag: `--filename --dry-run` yields
+ * `filename: '--dry-run'` and emits no `dry-run` token at all. An omitted value
+ * is only self-evident when the flag is argv's last token, so a swallowed flag
+ * would otherwise pass silently and its own effect — a `--dry-run` preview,
+ * `--strict-responses` fail-closed mode, `--all` aggregation, `--force` — would
+ * be dropped while the action ran for real.
+ *
+ * Driven entirely by per-occurrence tokens. The merged `values` record is
+ * deliberately not consulted: it is last-wins, so in
+ * `--filter --dry-run --filter abc` it holds the legitimate `abc` and hides the
+ * swallow on the first occurrence. A token carries everything the checks need —
+ * a string flag with no `value` was left without one, and a boolean flag with a
+ * `value` was given one through `=`.
+ *
+ * `--filter=--all` stays valid: an inline value consumes no following token, so
+ * it is a deliberate literal and the escape hatch for a value that reads as a
+ * flag.
+ */
+export function validateSuppliedFlagTypes(occurrences: readonly SuppliedFlagOccurrence[]): CliFlagTypeValidationResult {
+    for (const { name, value, inlineValue } of occurrences) {
+        if (!isCliFlagName(name)) continue;
+        const definition: CliFlagDefinition = FLAG_CATALOG[name];
+        if (definition.type === 'boolean') {
+            if (value !== undefined) {
+                return {
+                    ok: false,
+                    error: `--${name} does not take a value; pass the flag without \`=\`.`,
+                };
+            }
+            continue;
         }
-        if (definition.type === 'boolean' && typeof value !== 'boolean') {
+        if (value === undefined) {
+            return { ok: false, error: `--${name} requires a value.` };
+        }
+        if (inlineValue !== true && looksLikeFlag(value)) {
             return {
                 ok: false,
-                error: `--${supplied} does not take a value; pass the flag without \`=\`.`,
+                error:
+                    `--${name} requires a value, but the next argument was the flag ${value}. ` +
+                    `If that is the value, pass it inline: --${name}=<value>.`,
             };
         }
     }

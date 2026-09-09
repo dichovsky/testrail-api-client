@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { parseArgs } from 'node:util';
 import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
@@ -10,7 +9,7 @@ import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispat
 import { buildHelpText } from './help.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
-import { CLI_OPTIONS, KNOWN_FLAGS, validateSuppliedFlagTypes } from './flags.js';
+import { KNOWN_FLAGS, parseCliArgv, validateSuppliedFlagTypes, type SuppliedFlagOccurrence } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
 import { readBoundedStdin } from './stdin.js';
 import { parseId } from './ids.js';
@@ -48,17 +47,14 @@ async function main(): Promise<number> {
     let values: Record<string, unknown>;
     let positionals: string[];
     let suppliedFlags: string[];
+    let flagOccurrences: SuppliedFlagOccurrence[];
     try {
-        const parsed = parseArgs({
-            args: process.argv.slice(2),
-            options: CLI_OPTIONS,
-            allowPositionals: true,
-            strict: false,
-            tokens: true,
-        });
+        // Shared with the flag-shape tests so neither can drift from the other.
+        const parsed = parseCliArgv(process.argv.slice(2));
         values = parsed.values;
         positionals = parsed.positionals;
-        suppliedFlags = parsed.tokens.filter((token) => token.kind === 'option').map((token) => token.name);
+        suppliedFlags = parsed.suppliedFlags;
+        flagOccurrences = parsed.flagOccurrences;
     } catch (e: unknown) {
         // Pre-parse failure: `values` is unavailable, so honor --quiet via
         // a raw-argv lookup. parseArgs is highly tolerant under strict:false
@@ -109,7 +105,7 @@ async function main(): Promise<number> {
         }
     }
 
-    const flagTypes = validateSuppliedFlagTypes(values, suppliedFlags);
+    const flagTypes = validateSuppliedFlagTypes(flagOccurrences);
     if (!flagTypes.ok) {
         err(flagTypes.error);
         return 1;
