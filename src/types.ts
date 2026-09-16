@@ -285,9 +285,13 @@ export interface UploadFilePathInput {
      * Optional open file descriptor to read the upload content from.
      * When provided on POSIX systems (macOS, Linux), the client streams the
      * file via `/dev/fd/<N>` or `/proc/self/fd/<N>` (protecting against TOCTOU
-     * symlink swap attacks) and closes the descriptor after `openAsBlob` returns
-     * its own independent file description. On non-POSIX systems the descriptor
-     * is closed before `openAsBlob` and the original `path` is used directly.
+     * symlink swap attacks) and holds the descriptor open until the request
+     * body has been consumed, closing it during request cleanup. It has to stay
+     * open that long: `openAsBlob` reads lazily and re-opens that path on the
+     * first stream pull, so closing it earlier made every descriptor-bearing
+     * upload fail with `DOMException: The blob could not be read` (issue #277).
+     * On non-POSIX systems the descriptor is closed before `openAsBlob` and the
+     * original `path` is used directly.
      * In all cases the descriptor is consumed by the upload — callers must not
      * use it after the upload completes.
      *
