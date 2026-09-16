@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { describe, expect, it, vi } from 'vitest';
 import { observeOperation, startOperation } from '../src/operation-tracking.js';
+import { ownUploadStreams } from '../src/upload-lifetime.js';
+import { MULTIPART_FIELD_NAME } from '../src/constants.js';
 import { TestRailClient } from '../src/index.js';
 import { BASE_CONFIG } from './helpers.js';
 
@@ -40,6 +43,34 @@ describe('operation tracking engagement', () => {
         // scope was entered. This is the assertion that fails if the latch is
         // removed and every request enters AsyncLocalStorage again.
         await expect(settlesPromptly(handle.settled)).resolves.toBe(true);
+    });
+
+    // Must stay ahead of the engagement test below: once `trackOperation` latches
+    // the feature on, entering `AsyncLocalStorage` is expected and this assertion
+    // no longer means anything.
+    it('owns upload streams without entering AsyncLocalStorage before engagement', async () => {
+        const runSpy = vi.spyOn(AsyncLocalStorage.prototype, 'run');
+        try {
+            const formData = new globalThis.FormData();
+            formData.append(MULTIPART_FIELD_NAME, new globalThis.File(['payload'], 'upload.txt'));
+            const cleanup = ownUploadStreams(formData);
+
+            const file = formData.get(MULTIPART_FIELD_NAME);
+            if (!(file instanceof globalThis.File)) throw new Error('expected the appended upload File');
+
+            // Drive the same overrides fetch's FormData encoder drives: the
+            // `stream()` override plus the underlying source's `pull`.
+            await expect(new Response(file.stream()).text()).resolves.toBe('payload');
+            cleanup();
+
+            // An upload is an ordinary SDK call. A consumer who never calls
+            // `trackOperation` must not have process-wide async-hooks context
+            // tracking installed on their behalf — on Node 20/22 that is roughly
+            // +170% on unrelated promise traffic, and it can never be undone.
+            expect(runSpy).not.toHaveBeenCalled();
+        } finally {
+            runSpy.mockRestore();
+        }
     });
 
     it('creates scopes for every later operation once trackOperation engages it', async () => {

@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -15,31 +15,55 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [7.2.0] — 2026-09-17 — operation settlement and independent report execution
+
 ### Added
 
 - Public `client.trackOperation(callback)` returns independent `result` and
   `settled` promises. Resource ownership includes started and coalesced DNS,
   fetch, response reads/cancellation, upload streams, and retry work even when
   the visible result has already reached its deadline.
+- Exported type `OperationHandle<T>` (`{ result: Promise<T>; settled: Promise<void> }`),
+  the return type of `trackOperation`, for callers annotating their own signatures.
+- Settlement tracking is opt-in and costs nothing until first use. Entering an
+  `AsyncLocalStorage` installs context propagation process-wide — on the Node
+  20/22 lines this package supports, roughly +170% on unrelated promise traffic —
+  so no request path, including multipart uploads, enters one until
+  `trackOperation` is called for the first time.
+
+### Changed
+
+- **Report execution methods no longer cache, coalesce, or retry transport
+  failures.** `reports.runReport()` and `reports.runCrossProjectReport()` keep
+  their GET routes but now set cache bypass, so every explicit call executes
+  once instead of being served from cache or merged with a concurrent identical
+  call. They also no longer retry 5xx or network failures, whose outcome is
+  ambiguous for a report that may already have been generated and emailed; 429
+  is still retried (honoring `Retry-After`) because the rate limiter rejects
+  before execution. Callers that relied on the previous deduplication will see
+  more requests reach TestRail, and errors that were previously absorbed by
+  automatic retry now propagate. No other method's caching or retry behavior
+  changes.
 
 ### Fixed
 
-- Report execution methods preserve their GET routes but bypass caching and
-  in-flight coalescing, so every explicit call executes once. They no longer
-  retry 5xx or network failures, whose outcome is ambiguous for a report that
-  may already have been generated and emailed; 429 is still retried (honoring
-  `Retry-After`) because the rate limiter rejects before execution.
 - Late fetch responses and unread error/redirect bodies receive observed
   cancellation. Multipart cleanup observes actual stream reads and cancellation
   while retaining native FormData encoding, and aborts an in-flight upload by
   erroring its stream rather than closing it — a clean close would have sent a
   truncated file under a valid closing boundary.
+
+### Internal
+
 - Publication verification now allows up to five minutes for npm's accepted
   upload to become visible in registry metadata, with bounded online lookups
   and no repeated publish. This avoids reporting a failed release after npm
   accepts a package but needs more than the previous 27-second polling window
   to process it. Identity checks and immediate package-content mismatch failures
   remain unchanged.
+- The packaged-executable smoke matrix now covers Node 22.13.0 in addition to
+  Node 24 on Windows and macOS, so the supported lower bound is exercised on
+  every platform rather than Linux alone.
 
 ## [7.1.0] — 2026-09-10 — CLI diagnostics and safer workflows
 
