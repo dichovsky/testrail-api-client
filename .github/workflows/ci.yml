@@ -37,6 +37,9 @@ jobs:
             - name: Run AGENTS.md drift check
               run: npm run agents-md:check
 
+            - name: Run published-versions drift check
+              run: npm run published:check
+
     lint-and-test:
         runs-on: ubuntu-latest
 

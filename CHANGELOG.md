@@ -15,6 +15,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Internal
+
+- The hand-maintained "Published to npm" list at the top of this file now has a
+  drift gate (`npm run published:check`, wired into `pretest`, CI, and the
+  release workflow). It verifies that the `package.json` version appears in the
+  list and that every entry is stable semver, unique, and in ascending order.
+  The list is the only in-repo record of which versions actually reached the
+  registry — several version headers here never did — and it was the last
+  version-bearing artifact without a check.
+- Removed the `prepublishOnly` script. It could never run for a real release:
+  the publish workflow uses `npm publish --ignore-scripts` and `.npmrc` sets
+  `ignore-scripts=true` globally, so it read as a safety net while being
+  attached to nothing. The release gates in `docs/RELEASING.md` and
+  `.github/workflows/publish.yml` are the authority.
+- `docs/RELEASING.md` no longer describes an `npm-publish` environment approval
+  step. The environment is declared, but no required reviewers are configured,
+  so publishing proceeds unattended once the GitHub Release is published; the
+  guide now says so and shows how to check.
+
 ## [7.2.0] — 2026-09-17 — operation settlement and independent report execution
 
 ### Added
