@@ -1529,6 +1529,31 @@ describe('CLI', () => {
             expect(exitCodes).toContain(0);
         });
 
+        it('run watch polls upstream on every interval, not through the GET cache (issue #281)', async () => {
+            // `run watch` reads the same endpoint repeatedly, but the CLI
+            // built its client with caching left on at the 5-minute default
+            // TTL. Every poll after the first was served from
+            // `PARSED:GET:get_run/7`, so --interval (5-600s) was pinned at
+            // 300s upstream and a run could complete without the watcher
+            // ever noticing.
+            //
+            // Two responses: still running, then completed. With the cache
+            // in play the second poll never reaches fetch, the watcher
+            // never observes `is_completed`, and this times out.
+            const { exitCodes } = await runCli(
+                ['run', 'watch', '7', '--interval', '5'],
+                [
+                    jsonResponse({ ...MOCK_RUN, id: 7, is_completed: false, untested_count: 1 }),
+                    jsonResponse({ ...MOCK_RUN, id: 7, is_completed: true, untested_count: 0 }),
+                ],
+            );
+
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            const urls = mockFetch.mock.calls.map((c) => String(c[0]));
+            expect(urls.every((u) => u.includes('get_run/7'))).toBe(true);
+            expect(exitCodes).toContain(0);
+        }, 20_000);
+
         it('run close without --yes rejects (destructive: irreversible)', async () => {
             const { exitCodes, stderr } = await runCli(['run', 'close', '1']);
             expect(exitCodes).toContain(1);

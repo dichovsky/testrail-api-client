@@ -66,6 +66,18 @@ export interface ActionSpec {
      * endpoint inventory by mapping gate E.
      */
     itemsRequestControls?: boolean;
+    /**
+     * This action reads the same endpoint repeatedly within one invocation, so
+     * its client must not serve those reads from the GET cache.
+     *
+     * The cache is keyed per endpoint with a 5-minute default TTL, longer than
+     * any polling interval the CLI accepts. Leaving it on made `run watch`
+     * issue exactly one upstream request and then replay that snapshot until
+     * the process was killed — the run could complete without the watcher ever
+     * noticing (issue #281). A one-shot action is unaffected either way, so
+     * this stays opt-in rather than disabling the cache for the whole CLI.
+     */
+    polls?: boolean;
     /** Zod schema for the request body. `undefined` for read actions, for
      *  no-body POSTs like `run close`, and for file-input write actions
      *  (which take `--file <path>` instead of a JSON body). */

@@ -15,6 +15,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **`testrail run watch` now polls upstream on every interval.** The CLI built
+  its client with the GET cache enabled at its 5-minute default TTL, which is
+  longer than any `--interval` the command accepts (5–600s). Every poll after
+  the first was served from the cached `get_run/{run_id}` entry, so the
+  effective upstream poll period was pinned at 300s and a run could complete
+  without the watcher ever emitting a change. Actions that re-read one endpoint
+  for the life of the process are now marked `polls` in the CLI action metadata
+  and build a non-caching client; one-shot actions keep the cache.
+
 ## [7.2.0] — 2026-09-17 — operation settlement and independent report execution
 
 ### Added
