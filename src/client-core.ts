@@ -827,20 +827,16 @@ export class TestRailClientCore {
 
                         blob = await openAsBlob(uploadPath, opts);
 
-                        // `/dev/fd/<N>` and `/proc/self/fd/<N>` are kernel-resolved
-                        // symlinks: the OS dereferenced the symlink and opened a new,
-                        // independent file description to the same inode. Our original
-                        // fd N is now redundant — close it early to shrink the
-                        // concurrent-fd window (SEC #30). If openAsBlob threw above,
-                        // this block is never reached and cleanup closes fd N.
-                        if (fdToClose !== undefined) {
-                            try {
-                                closeSync(fdToClose);
-                            } catch {
-                                // best-effort cleanup
-                            }
-                            fdToClose = undefined;
-                        }
+                        // The fd deliberately stays open until the body has been
+                        // consumed. `openAsBlob` does NOT read the file up front — it
+                        // returns a Blob that re-opens `uploadPath` lazily on the first
+                        // stream pull, which happens while fetch encodes the FormData.
+                        // Closing fd N here (as an earlier version did, to shrink the
+                        // concurrent-fd window of SEC #30) left `/dev/fd/<N>` dangling,
+                        // and every upload carrying a descriptor — which is every CLI
+                        // attachment upload — died with `DOMException: The blob could
+                        // not be read` (issue #277). Release is deferred to `cleanup`
+                        // below, so the descriptor is still closed deterministically.
                     } else if (file instanceof globalThis.Blob) {
                         blob = file;
                     } else {
@@ -849,18 +845,29 @@ export class TestRailClientCore {
                     }
                     formData.append(MULTIPART_FIELD_NAME, blob, filename);
 
+                    const releaseStreams = ownUploadStreams(formData);
                     return {
-                        // By the time this `cleanup` runs (via executePipeline's
-                        // `finally`), the caller-supplied fd has already been closed and
-                        // `fdToClose` reset to undefined on every path that reaches this
-                        // return: on POSIX after `openAsBlob` succeeds (the early-close
-                        // block above), on non-POSIX before `openAsBlob`, and in the
-                        // `catch (buildErr)` arm before it rethrows (so this object is
-                        // never returned in that case). Cleanup instead owns the
-                        // File streams that fetch starts while encoding FormData;
-                        // their actual reads and cancellation remain observable.
                         body: formData,
-                        cleanup: ownUploadStreams(formData),
+                        // Runs from executePipeline's `finally`, i.e. after the body has
+                        // been consumed (or the request has failed), which is the
+                        // earliest point the descriptor is genuinely redundant.
+                        //
+                        // Order matters: tear the upload streams down first so any
+                        // in-flight read is aborted against a still-valid descriptor,
+                        // then release the descriptor itself. `fdToClose` is already
+                        // undefined on the non-POSIX path (closed before `openAsBlob`)
+                        // and for in-memory inputs, so this is a no-op there.
+                        cleanup: () => {
+                            releaseStreams();
+                            if (fdToClose !== undefined) {
+                                try {
+                                    closeSync(fdToClose);
+                                } catch {
+                                    // best-effort cleanup
+                                }
+                                fdToClose = undefined;
+                            }
+                        },
                     };
                 } catch (buildErr) {
                     // If build throws before returning cleanup, close the fd here

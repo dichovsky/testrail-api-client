@@ -15,6 +15,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Attachment uploads that supply a file descriptor no longer fail.** An upload
+  built from `{ path, fd }` closed the caller's descriptor immediately after
+  `openAsBlob()`, but a file-backed `Blob` reads lazily and re-opens
+  `/dev/fd/<N>` on the first stream pull — by then the path was dead, and the
+  upload died with `DOMException: The blob could not be read`. Because the CLI
+  always opens the file and passes its descriptor, **every**
+  `testrail attachment add-to-*` command using `--file <path>` crashed. The
+  descriptor is now held until the request body has been consumed and released
+  during request cleanup, so the `/dev/fd` TOCTOU protection is preserved.
+
 ## [7.2.0] — 2026-09-17 — operation settlement and independent report execution
 
 ### Added

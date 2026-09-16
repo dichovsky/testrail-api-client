@@ -135,6 +135,46 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         expect(init.redirect).toBe('manual');
     });
 
+    it('streams the real file bytes through a { path, fd } descriptor (issue #277)', async () => {
+        // Every other test here asserts the parsed *result* while `mockOk` never
+        // touches `init.body`, so a Blob that cannot be read still "uploads"
+        // successfully. Consume the body the way fetch does.
+        //
+        // Closing the caller's fd immediately after `openAsBlob('/dev/fd/<N>')`
+        // left that path dangling: Node's file-backed Blob re-opens it lazily on
+        // the first pull, long after the early close. Every CLI attachment
+        // upload (which always supplies an fd) died with
+        // `DOMException: The blob could not be read`.
+        const client = buildClient();
+        const payload = Buffer.from('ISSUE-277-REAL-PAYLOAD-BYTES');
+        const payloadPath = join(tmp, 'payload.bin');
+        writeFileSync(payloadPath, payload);
+
+        let encoded = '';
+        mockFetch.mockImplementationOnce(async (_url: string, init: RequestInit) => {
+            encoded = await new globalThis.Request('https://capture.test', {
+                method: 'POST',
+                body: init.body as globalThis.FormData,
+            }).text();
+            return {
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+                text: async () => JSON.stringify({ attachment_id: 5 }),
+                headers: { get: (): null => null },
+            };
+        });
+
+        const fd = openSync(payloadPath, 'r');
+        const result = await client.attachments.addAttachmentToCase(1, { path: payloadPath, fd }, 'payload.bin');
+
+        expect(result).toEqual({ attachment_id: 5 });
+        expect(encoded).toContain('filename="payload.bin"');
+        expect(encoded).toContain(payload.toString());
+        // The descriptor is still released — deferred to cleanup, not skipped.
+        expect(closeSyncControl.callsWithFd).toContain(fd);
+    });
+
     it('uploads via { path, fd } descriptor on POSIX platforms (covers /dev/fd and /proc/self/fd rewrites)', async () => {
         // Exercises the platform-specific fd-rewrite branches at
         // src/client-core.ts:1058-1072. On Darwin the path is rewritten to
