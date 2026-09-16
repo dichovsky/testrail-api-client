@@ -134,6 +134,9 @@ jobs:
             - name: Verify skill drift
               run: npm run skill:check
 
+            - name: Verify published-versions list
+              run: npm run published:check
+
             - name: Strip source maps from dist/
               run: npm run clean:maps
 
