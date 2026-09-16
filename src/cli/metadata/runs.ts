@@ -54,6 +54,9 @@ export const runActions: readonly ActionSpec[] = [
         apiEndpoint: 'GET get_run/{run_id}',
         flags: [{ name: 'interval' }, { name: 'once' }, { name: 'dry-run' }],
         isWrite: false,
+        // Repeated reads of one endpoint: must not be served from the GET cache,
+        // whose 5-minute TTL exceeds every accepted --interval (issue #281).
+        polls: true,
         handler: handleRunWatch,
     },
     {

@@ -15,6 +15,26 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- **Attachment uploads that supply a file descriptor no longer fail.** An upload
+  built from `{ path, fd }` closed the caller's descriptor immediately after
+  `openAsBlob()`, but a file-backed `Blob` reads lazily and re-opens
+  `/dev/fd/<N>` on the first stream pull — by then the path was dead, and the
+  upload died with `DOMException: The blob could not be read`. Because the CLI
+  always opens the file and passes its descriptor, **every**
+  `testrail attachment add-to-*` command using `--file <path>` crashed. The
+  descriptor is now held until the request body has been consumed and released
+  during request cleanup, so the `/dev/fd` TOCTOU protection is preserved.
+- **`testrail run watch` now polls upstream on every interval.** The CLI built
+  its client with the GET cache enabled at its 5-minute default TTL, which is
+  longer than any `--interval` the command accepts (5–600s). Every poll after
+  the first was served from the cached `get_run/{run_id}` entry, so the
+  effective upstream poll period was pinned at 300s and a run could complete
+  without the watcher ever emitting a change. Actions that re-read one endpoint
+  for the life of the process are now marked `polls` in the CLI action metadata
+  and build a non-caching client; one-shot actions keep the cache.
+
 ### Internal
 
 - The hand-maintained "Published to npm" list at the top of this file now has a

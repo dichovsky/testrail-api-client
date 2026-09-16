@@ -378,6 +378,12 @@ async function main(): Promise<number> {
             ...timeoutConfig,
             registerProcessHandlers: true,
             onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
+            // A polling action re-reads one endpoint for the life of the
+            // process. The GET cache's default TTL is longer than any interval
+            // the CLI accepts, so leaving it on served every poll after the
+            // first from cache and the watcher never observed the run finishing
+            // (issue #281). One-shot actions keep the cache.
+            ...(invocation.spec.polls === true && { enableCache: false }),
         });
         handlerStarted = true;
         await invocation.spec.handler({
