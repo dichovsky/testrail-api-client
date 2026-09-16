@@ -69,6 +69,17 @@ export function bindOperation<Args extends unknown[], Result>(
     callback: (...args: Args) => Result,
 ): (...args: Args) => Result {
     const scope = operations.getStore();
+    // Same latch as `startOperation`, and for the same reason: uploads bind
+    // streams on every multipart request, tracked or not, so wrapping them
+    // unconditionally would enter `AsyncLocalStorage` — and install process-wide
+    // context tracking — for embedders who never call `trackOperation`.
+    //
+    // Skipping is only safe while nothing can be in a scope. Once tracking is
+    // engaged the wrapper is kept even for an undefined scope, because `run`
+    // *clears* ambient context: returning the bare callback would instead let it
+    // inherit whatever scope happens to be active when the transport calls it,
+    // attributing this upload's resources to an unrelated operation.
+    if (scope === undefined && !trackingEngaged) return callback;
     return (...args) => operations.run(scope, () => callback(...args));
 }
 

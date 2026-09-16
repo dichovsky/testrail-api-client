@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "7.1.0"
+    "version": "7.2.0"
   },
-  "sourceHash": "3386c31fa562122f688a1243e08601e13978ca5c5c25c98de2b6fa5c29281d83",
+  "sourceHash": "b248463db949b133bf87f9266be0e3f2f18f2b31a119f6940e52677bc4953b96",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -9795,35 +9795,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "trackingEngaged",
           "kind": "let",
-          "line": 86,
+          "line": 97,
           "exported": false,
           "signature": "let trackingEngaged = false"
         },
         {
           "name": "engageOperationTracking",
           "kind": "function",
-          "line": 89,
+          "line": 100,
           "exported": true,
           "signature": "export function engageOperationTracking(): void"
         },
         {
           "name": "exposeRejection",
           "kind": "function",
-          "line": 98,
+          "line": 109,
           "exported": false,
           "signature": "function exposeRejection<T>(result: Promise<T>): Promise<T>"
         },
         {
           "name": "invoke",
           "kind": "function",
-          "line": 105,
+          "line": 116,
           "exported": false,
           "signature": "function invoke<T>(callback: () => T | PromiseLike<T>, run: (fn: () => Promise<T>) => Promise<T>): Promise<T>"
         },
         {
           "name": "startOperation",
           "kind": "function",
-          "line": 124,
+          "line": 135,
           "exported": true,
           "signature": "export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T>"
         }
