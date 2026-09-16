@@ -106,6 +106,14 @@ Rationale: a `TypeError` from `fetch` may fire after request bytes are already o
 
 Retry behaviour is selected by the spec's `retry` policy name (`src/retry-policy.ts`). Multipart uploads (`retry: 'none'`) never retry — uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the server with the attachment already persisted; retrying would duplicate the record. Binary GETs (`retry: 'binaryGet'`) retry 5xx / 429 / network errors for their single GET method.
 
+Report generators are an explicit GET exception: `runReport` and
+`runCrossProjectReport` use `retry: 'rateLimitOnly'` and `bypassCache: true`. Each
+invocation generates a distinct report without cached results or coalescing. These
+GETs are side-effecting — TestRail builds a report and the template may email it —
+so a 5xx or network failure leaves an ambiguous outcome and is never repeated. A 429
+is repeated (honoring `Retry-After`): the rate limiter rejects before execution, so
+no report was generated and no mail was sent.
+
 **Streaming upload bodies.** A multipart `request<T>(spec)` (`body.kind === 'multipart'`) accepts either an in-memory variant (`Blob`, `Uint8Array`, `File`) or a `{ path: string; type?: string }` descriptor. The descriptor is resolved via `node:fs.openAsBlob`, which returns a file-backed `Blob` whose `.stream()` reads bytes on demand. `fetch` consumes the multipart `FormData` through that stream, so a 100 MB attachment grows process heap by ~0 MB instead of fully buffering. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) always passes the descriptor; programmatic callers that already hold the bytes in memory may continue to pass them directly. File-open errors (ENOENT, EACCES, EISDIR, …) surface as `TestRailApiError(0, 'Network error: …')` — the open is performed inside the same try/catch that wraps `fetch`, so the error path is symmetric with a transport failure.
 
 Backoff: `min(BASE_RETRY_DELAY_MS × 2^n, MAX_RETRY_DELAY_MS)` — currently `min(1000 × 2^n, 10000)` ms. `Retry-After` (numeric or HTTP-date) is honored, capped to `MAX_RETRY_DELAY_MS` to defend against a malicious server pinning the client with a huge value.
@@ -122,6 +130,44 @@ Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), an
 - Module-level `activeClients: Set<TestRailClientCore>`. Constructor adds `this`.
 - Process signal handlers (`exit`, `SIGINT`, `SIGTERM`) are **opt-in** via `registerProcessHandlers: true` on `TestRailConfig` (default `false`, SEC #8). When opted in, they are registered lazily — once per process — behind a `processHandlersRegistered` guard. SIGINT exits 130, SIGTERM exits 143. Library consumers (servers, daemons, embedders) leave the flag off so the host owns the signal chain and the exit code; the bundled CLI opts in. Once installed for a process, handlers persist for its lifetime — safely deregistering would require ownership tracking across every client in the process.
 - `destroy()` is idempotent: sets `isDestroyed`, disposes `RequestCache` (timer plus stored/in-flight state), zeroes `auth`, and removes `this` from `activeClients`. Subsequent `request()` calls throw a plain `Error` (not `TestRailApiError`) — calling a destroyed client is a programmer error, not a network failure.
+
+`trackOperation(callback)` exposes `{ result, settled }`. The result retains
+ordinary callback semantics; settlement is a separate, never-rejecting promise
+covering the callback and all driver descendants. `operation-tracking.ts` uses
+Node's `AsyncLocalStorage` to keep concurrent and nested invocations separate.
+Every cache loader has its own scope, including untracked initiators, and a
+coalesced caller joins that loader's settlement independently of its result wait.
+
+Scope creation is latched by the first `trackOperation` call and never cleared.
+Entering an `AsyncLocalStorage` installs context propagation process-wide — on
+Node 24 that is `AsyncContextFrame` (~1%), but on the Node 20/22 lines this
+package supports it is the async_hooks promise hook, measured at roughly +170%
+on promise traffic unrelated to this client. Embedders who never track are
+therefore never charged for it: before the latch, `startOperation` returns a
+handle whose `settled` simply follows the callback. One consequence is bounded
+and deliberate — a request already in flight when a process first engages
+tracking can be joined for its result but not for its post-result cleanup.
+
+Resource promises are registered before deadline races: DNS validation, fetch,
+retry delays, body drains, individual reads, fallback reads, and cancellation.
+The resource promise remains observed after a visible timeout, and late headers
+trigger observed cancellation of the unused response body. Requesting abort is
+not proof of settlement. A hung resource keeps the owning handle pending.
+
+`upload-lifetime.ts` binds the driver-owned FormData File's stream factory to
+the operation scope. It observes each actual reader and its cancellation without
+mutating caller Blobs or replacing native multipart encoding. Cleanup prevents
+new streams, **errors** active wrapper streams, and requests underlying
+cancellation; settlement still waits for pending reads and cancellation
+completion. Erroring rather than closing is load-bearing: `close()` is a clean
+end-of-stream, so an encoder still reading that part would emit a truncated file
+followed by a valid closing boundary — a well-formed upload of partial bytes the
+server would store as though complete. An unconsumed upload stream has never
+started and can be conclusively stopped.
+
+Neither `trackOperation` nor `destroy()` aborts in-flight requests. Callbacks
+must return their application workflow promise; detached application timers are
+not resources the driver can account for.
 
 ---
 

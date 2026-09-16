@@ -15,8 +15,25 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- Public `client.trackOperation(callback)` returns independent `result` and
+  `settled` promises. Resource ownership includes started and coalesced DNS,
+  fetch, response reads/cancellation, upload streams, and retry work even when
+  the visible result has already reached its deadline.
+
 ### Fixed
 
+- Report execution methods preserve their GET routes but bypass caching and
+  in-flight coalescing, so every explicit call executes once. They no longer
+  retry 5xx or network failures, whose outcome is ambiguous for a report that
+  may already have been generated and emailed; 429 is still retried (honoring
+  `Retry-After`) because the rate limiter rejects before execution.
+- Late fetch responses and unread error/redirect bodies receive observed
+  cancellation. Multipart cleanup observes actual stream reads and cancellation
+  while retaining native FormData encoding, and aborts an in-flight upload by
+  erroring its stream rather than closing it — a clean close would have sent a
+  truncated file under a valid closing boundary.
 - Publication verification now allows up to five minutes for npm's accepted
   upload to become visible in registry metadata, with bounded online lookups
   and no repeated publish. This avoids reporting a failed release after npm

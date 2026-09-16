@@ -42,6 +42,38 @@ describe('RequestCache', () => {
         cache.dispose();
     });
 
+    // `CacheResolution.load` is declared as returning a Promise, but a loader
+    // that breaks that contract must still reach callers as the promised error
+    // shape rather than a raw thrown value.
+    it.each([
+        ['an Error', new Error('loader exploded')],
+        ['a non-Error', 'loader exploded'],
+    ])('converts %s synchronous loader throw into a rejected Error', async (_label, thrown) => {
+        const cache = createCache();
+        const load = (): Promise<CacheLoadResult<unknown>> => {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw thrown;
+        };
+
+        const rejection = await resolve(cache, 'project:1', load).catch((error: unknown) => error);
+        expect(rejection).toBeInstanceOf(Error);
+        expect((rejection as Error).message).toBe('loader exploded');
+    });
+
+    it('invokes the loader synchronously so the entry is shared before resolve returns', async () => {
+        const cache = createCache();
+        const started: string[] = [];
+        const load = async (): Promise<CacheLoadResult<number>> => {
+            started.push('load');
+            return { value: 1, cacheable: true };
+        };
+
+        const pending = resolve(cache, 'project:1', load);
+        // Not after a microtask — the loader must already have run.
+        expect(started).toEqual(['load']);
+        await expect(pending).resolves.toBe(1);
+    });
+
     it('coalesces identical upstream work even when storage is disabled', async () => {
         const cache = createCache({ enableStorage: false });
         let release: ((value: CacheLoadResult<number>) => void) | undefined;

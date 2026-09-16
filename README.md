@@ -160,6 +160,42 @@ const client = new TestRailClient({
 
 Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
 
+To retain a concurrency slot or staged upload until driver work has actually
+finished, use `trackOperation`:
+
+```typescript
+const operation = client.trackOperation(() => client.projects.getAllProjects({ maxDurationMs: 1000 }));
+try {
+    const projects = await operation.result;
+    console.log(projects.length);
+} finally {
+    await operation.settled;
+    // Release the operation's slot or staged files here.
+}
+```
+
+`result` preserves the normal method value, error, and deadline. `settled`
+always resolves, after the callback and every started or joined driver task
+finish, including DNS, fetch, response reads and cancellation, upload streams,
+retries, and shared requests. A deadline can reject `result` while `settled`
+is still pending. An abort request alone does not release ownership; custom
+transports or cancellation that never complete keep it pending. Nested
+operations are included. Return the promise for your complete callback workflow;
+unawaited application timers are outside the driver's accounting.
+`trackOperation` does not add cancellation, and `destroy()` does not abort
+in-flight work or settle its handles. Settlement tracking switches on with the
+first `trackOperation` call and stays on, so a process that never tracks pays no
+context-propagation cost; a request already in flight at that first call can be
+joined for its result but not for its post-result cleanup.
+
+`reports.runReport()` and `reports.runCrossProjectReport()` generate a new
+report for each call. Although the API routes use GET, these methods bypass
+cache reads, writes, and request coalescing. A 5xx or network failure is never
+retried — the report may already have been generated and the template may have
+sent email, so re-running an uncertain outcome must be your own explicit new
+invocation. A 429 is retried (honoring `Retry-After`), because the rate limiter
+rejects the request before execution.
+
 By default, the host guard rejects private, loopback, link-local, and CGNAT
 addresses, including IPv4-mapped IPv6 spellings, plus IPv6 transition ranges
 such as 6to4 and the well-known and local-use NAT64 prefixes. Literal URLs and
