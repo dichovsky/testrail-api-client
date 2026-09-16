@@ -183,7 +183,10 @@ transports or cancellation that never complete keep it pending. Nested
 operations are included. Return the promise for your complete callback workflow;
 unawaited application timers are outside the driver's accounting.
 `trackOperation` does not add cancellation, and `destroy()` does not abort
-in-flight work or settle its handles.
+in-flight work or settle its handles. Settlement tracking switches on with the
+first `trackOperation` call and stays on, so a process that never tracks pays no
+context-propagation cost; a request already in flight at that first call can be
+joined for its result but not for its post-result cleanup.
 
 `reports.runReport()` and `reports.runCrossProjectReport()` generate a new
 report for each call. Although the API routes use GET, these methods bypass

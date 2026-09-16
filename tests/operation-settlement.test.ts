@@ -444,6 +444,11 @@ describe('TestRailClient.trackOperation settlement', () => {
             const body = controlledBody();
             fetch.mockResolvedValueOnce(body.response);
             const client = createClient({ enableCache: false });
+            // An untracked initiator is only joinable once the process has
+            // engaged tracking; before the first `trackOperation` call no scope
+            // exists to join. Engage it explicitly rather than depending on
+            // whichever test happened to run first in this file.
+            await client.trackOperation(() => undefined).settled;
             const first =
                 initiator === 'tracked' ? client.trackOperation(() => client.projects.getProject(1)) : undefined;
             const firstResult = (first?.result ?? client.projects.getProject(1)).catch((error: unknown) => error);

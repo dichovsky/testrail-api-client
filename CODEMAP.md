@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.1.0"
   },
-  "sourceHash": "4194a3c3276c02617fcd715b7ed066798db9305824e99476ed250dc0c131375e",
+  "sourceHash": "d29b52249b30c79f44fc130ef4155234ffb8a68c3bf6e9ca4e498757ccd48aca",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6409,289 +6409,289 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 25,
+          "line": 31,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 35,
+          "line": 41,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 64,
+          "line": 70,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 66,
+          "line": 72,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 120,
+          "line": 126,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 121,
+          "line": 127,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 124,
+          "line": 130,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 134,
+          "line": 140,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 158,
+          "line": 164,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly deadlineAt?: number; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 171,
+          "line": 177,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 179,
+          "line": 185,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 180
+              "line": 186
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 183
+              "line": 189
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 184
+              "line": 190
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 185
+              "line": 191
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 186
+              "line": 192
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 187
+              "line": 193
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 188
+              "line": 194
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 189
+              "line": 195
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 190
+              "line": 196
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 191
+              "line": 197
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 192
+              "line": 198
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 197
+              "line": 203
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 203
+              "line": 209
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 210
+              "line": 216
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 211
+              "line": 217
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 212
+              "line": 218
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 213
+              "line": 219
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 215
+              "line": 221
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 285
+              "line": 291
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 310
+              "line": 316
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 352
+              "line": 358
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 395
+              "line": 401
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 443
+              "line": 449
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 462
+              "line": 468
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 476
+              "line": 482
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 490
+              "line": 500
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 536
+              "line": 546
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 635
+              "line": 645
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 675
+              "line": 685
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 695
+              "line": 705
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 726
+              "line": 736
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 756
+              "line": 766
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 774
+              "line": 784
             },
             {
               "name": "remainingDeadlineMs",
               "kind": "method",
-              "line": 868
+              "line": 878
             },
             {
               "name": "clipBodyTimeout",
               "kind": "method",
-              "line": 877
+              "line": 887
             },
             {
               "name": "withDeadline",
               "kind": "method",
-              "line": 887
+              "line": 897
             },
             {
               "name": "waitForRetryDelay",
               "kind": "method",
-              "line": 916
+              "line": 926
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 927
+              "line": 937
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1099
+              "line": 1109
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1125
+              "line": 1135
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1161
+              "line": 1171
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1173
+              "line": 1183
             }
           ]
         }
@@ -9793,9 +9793,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export function bindOperation<Args extends unknown[], Result>( callback: (...args: Args) => Result, ): (...args: Args) => Result"
         },
         {
+          "name": "trackingEngaged",
+          "kind": "let",
+          "line": 86,
+          "exported": false,
+          "signature": "let trackingEngaged = false"
+        },
+        {
+          "name": "engageOperationTracking",
+          "kind": "function",
+          "line": 89,
+          "exported": true,
+          "signature": "export function engageOperationTracking(): void"
+        },
+        {
+          "name": "exposeRejection",
+          "kind": "function",
+          "line": 98,
+          "exported": false,
+          "signature": "function exposeRejection<T>(result: Promise<T>): Promise<T>"
+        },
+        {
+          "name": "invoke",
+          "kind": "function",
+          "line": 105,
+          "exported": false,
+          "signature": "function invoke<T>(callback: () => T | PromiseLike<T>, run: (fn: () => Promise<T>) => Promise<T>): Promise<T>"
+        },
+        {
           "name": "startOperation",
           "kind": "function",
-          "line": 76,
+          "line": 124,
           "exported": true,
           "signature": "export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T>"
         }

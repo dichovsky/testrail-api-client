@@ -138,6 +138,16 @@ Node's `AsyncLocalStorage` to keep concurrent and nested invocations separate.
 Every cache loader has its own scope, including untracked initiators, and a
 coalesced caller joins that loader's settlement independently of its result wait.
 
+Scope creation is latched by the first `trackOperation` call and never cleared.
+Entering an `AsyncLocalStorage` installs context propagation process-wide — on
+Node 24 that is `AsyncContextFrame` (~1%), but on the Node 20/22 lines this
+package supports it is the async_hooks promise hook, measured at roughly +170%
+on promise traffic unrelated to this client. Embedders who never track are
+therefore never charged for it: before the latch, `startOperation` returns a
+handle whose `settled` simply follows the callback. One consequence is bounded
+and deliberate — a request already in flight when a process first engages
+tracking can be joined for its result but not for its post-result cleanup.
+
 Resource promises are registered before deadline races: DNS validation, fetch,
 retry delays, body drains, individual reads, fallback reads, and cancellation.
 The resource promise remains observed after a visible timeout, and late headers

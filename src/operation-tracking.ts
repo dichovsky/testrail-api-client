@@ -72,27 +72,73 @@ export function bindOperation<Args extends unknown[], Result>(
     return (...args) => operations.run(scope, () => callback(...args));
 }
 
-/** Starts a scope even without a caller, so later coalesced callers can join it. */
-export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T> {
-    const scope = new OperationScope();
-    void observeOperation(scope.settled);
-    let result: Promise<T>;
+/**
+ * Whether this process has ever asked for settlement tracking. Latched by
+ * {@link engageOperationTracking} and never cleared.
+ *
+ * Entering an `AsyncLocalStorage` even once installs its context tracking for
+ * the whole process. On Node 24 that is `AsyncContextFrame` and costs ~1%, but
+ * on the Node 20/22 lines this package supports it is the async_hooks promise
+ * hook, measured at roughly +170% on promise traffic that has nothing to do
+ * with this client. A library must not impose that on embedders who never use
+ * `trackOperation`, so scopes are created only once the feature is in play.
+ */
+let trackingEngaged = false;
+
+/** Latches scope creation on. Called by `TestRailClientCore.trackOperation`. */
+export function engageOperationTracking(): void {
+    trackingEngaged = true;
+}
+
+/**
+ * Re-exposes a rejection that {@link OperationScope.observe} has marked handled.
+ * Without this, a caller who awaits only `settled` loses the unhandled-rejection
+ * report for a failed callback.
+ */
+function exposeRejection<T>(result: Promise<T>): Promise<T> {
+    return result.then(undefined, (error: unknown) => {
+        throw error;
+    });
+}
+
+/** Invokes `callback` synchronously, converting a synchronous throw. */
+function invoke<T>(callback: () => T | PromiseLike<T>, run: (fn: () => Promise<T>) => Promise<T>): Promise<T> {
     try {
-        result = operations.run(scope, () => Promise.resolve(callback()));
+        return run(() => Promise.resolve(callback()));
     } catch (error) {
         // Preserve even non-Error callback rejections without changing identity.
         // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-        result = Promise.reject(error);
+        return Promise.reject(error);
     }
+}
+
+/**
+ * Starts a scope even without a caller, so later coalesced callers can join it.
+ *
+ * Until tracking is engaged no scope is created, because nothing can observe
+ * one: `observeOperation` is a no-op outside a scope, and a joiner can only
+ * exist after someone has called `trackOperation`. Requests already in flight
+ * when a process first engages tracking are the one exception — a later joiner
+ * can await their result but not their post-result resource cleanup.
+ */
+export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T> {
+    if (!trackingEngaged && operations.getStore() === undefined) {
+        const result = invoke(callback, (fn) => fn());
+        // `settled` marks `result` handled here just as `observe` would, so the
+        // caller still needs the re-exposed rejection.
+        return {
+            result: exposeRejection(result),
+            settled: result.then(
+                () => undefined,
+                () => undefined,
+            ),
+        };
+    }
+
+    const scope = new OperationScope();
+    void observeOperation(scope.settled);
+    const result = invoke(callback, (fn) => operations.run(scope, fn));
     scope.observe(result);
     scope.release();
-    // `observe` attaches a rejection handler to `result`, which would otherwise
-    // mark it handled and silence Node's unhandled-rejection report for a
-    // caller that awaits only `settled`. Hand out a derived promise instead: it
-    // carries the same value and the same rejection reason, and is itself
-    // unhandled — and therefore still reported — when the caller ignores it.
-    const exposed = result.then(undefined, (error: unknown) => {
-        throw error;
-    });
-    return { result: exposed, settled: scope.settled };
+    return { result: exposeRejection(result), settled: scope.settled };
 }

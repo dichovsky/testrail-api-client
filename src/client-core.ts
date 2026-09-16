@@ -9,7 +9,13 @@ import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
 import { getRetryPolicy, type RetryPolicyName } from './retry-policy.js';
 import { RequestCache, type CacheLoadResult } from './request-cache.js';
 import { isPrivateHostLiteral, isPrivateOrLoopbackIP, validateTestRailConfig } from './config-validation.js';
-import { startOperation, observeOperation, bindOperation, type OperationHandle } from './operation-tracking.js';
+import {
+    startOperation,
+    observeOperation,
+    bindOperation,
+    engageOperationTracking,
+    type OperationHandle,
+} from './operation-tracking.js';
 import { ownUploadStreams } from './upload-lifetime.js';
 
 /**
@@ -474,6 +480,10 @@ export class TestRailClientCore {
      * or cancellation that never finishes keeps `settled` pending.
      */
     public trackOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T> {
+        // Latches scope creation for the process. Until the first call, requests
+        // skip AsyncLocalStorage entirely so embedders that never track are not
+        // charged for context propagation they cannot observe.
+        engageOperationTracking();
         return startOperation(callback);
     }
 
