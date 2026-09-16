@@ -127,6 +127,47 @@ describe('TestRailClient.trackOperation settlement', () => {
         expect(fetch).not.toHaveBeenCalled();
     });
 
+    // `observe` attaches a rejection handler to the callback's promise. Handing
+    // that same promise back as `result` would mark it handled, so a caller who
+    // awaits only `settled` would lose the unhandled-rejection report entirely.
+    it('hands out a derived result so an ignored rejection stays unhandled', async () => {
+        const client = createClient();
+        const failure = new Error('nobody awaited result');
+        const callbackPromise = Promise.reject(failure);
+
+        const operation = client.trackOperation(() => callbackPromise);
+
+        // Returning `callbackPromise` itself would be silently fatal: tracking
+        // has already attached a rejection handler to it, so Node would treat
+        // it as handled and a caller who awaits only `settled` would never see
+        // the failure. The handle must expose a distinct promise.
+        expect(operation.result).not.toBe(callbackPromise);
+        await expect(operation.result).rejects.toBe(failure);
+        await expect(operation.settled).resolves.toBeUndefined();
+    });
+
+    // `readBodyViaFallback` exists for Response-like objects that are not
+    // guaranteed to return promises. Observation must not turn that into a
+    // TypeError on the caller's result path.
+    it('accepts a non-thenable fallback body without failing the read', async () => {
+        const payload = new globalThis.TextEncoder().encode(JSON.stringify(MOCK_PROJECT));
+        const response = {
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: new globalThis.Headers(),
+            body: null,
+            // Deliberately synchronous: returns the buffer itself, not a Promise.
+            arrayBuffer: () => payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength),
+        } as unknown as Response;
+        fetch.mockResolvedValueOnce(response);
+        const client = createClient();
+        const operation = client.trackOperation(() => client.projects.getProject(1));
+
+        await expect(operation.result).resolves.toEqual(MOCK_PROJECT);
+        await operation.settled;
+    });
+
     it('preserves the exact reason of a synchronous non-Error callback throw', async () => {
         const client = createClient();
         const reason = { kind: 'caller-defined failure' };

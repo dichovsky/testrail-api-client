@@ -93,7 +93,7 @@ describe.each([
         expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it.each([429, 500, 503])('surfaces HTTP %s without retrying despite maxRetries', async (status) => {
+    it.each([500, 503])('surfaces HTTP %s without retrying despite maxRetries', async (status) => {
         mockFetch
             .mockResolvedValueOnce(
                 new Response('Report execution failed', {
@@ -109,6 +109,33 @@ describe.each([
             response: 'Report execution failed',
         });
         expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    // 429 is the one retryable status here: the rate limiter rejects before
+    // execution, so no report was generated and no template email was sent.
+    it('retries HTTP 429 and honors Retry-After', async () => {
+        mockFetch
+            .mockResolvedValueOnce(
+                new Response('Rate limit exceeded', { status: 429, headers: { 'Retry-After': '0' } }),
+            )
+            .mockResolvedValueOnce(mockOk(SECOND_REPORT));
+
+        await expect(client.reports[method](7)).resolves.toEqual(SECOND_REPORT);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops retrying 429 at maxRetries', async () => {
+        const rateLimited = (): Response =>
+            new Response('Rate limit exceeded', { status: 429, headers: { 'Retry-After': '0' } });
+        client.destroy();
+        client = createClient({ maxRetries: 1 });
+        mockFetch.mockResolvedValueOnce(rateLimited()).mockResolvedValueOnce(rateLimited());
+
+        await expect(client.reports[method](7)).rejects.toMatchObject({
+            name: TestRailApiError.name,
+            status: 429,
+        });
+        expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('preserves advisory ReportResultSchema mismatch reporting and the raw response', async () => {

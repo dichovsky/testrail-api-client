@@ -187,9 +187,11 @@ in-flight work or settle its handles.
 
 `reports.runReport()` and `reports.runCrossProjectReport()` generate a new
 report for each call. Although the API routes use GET, these methods bypass
-cache reads, writes, and request coalescing and never retry failed requests.
-Report templates may send email; retry an uncertain outcome only as an explicit
-new invocation.
+cache reads, writes, and request coalescing. A 5xx or network failure is never
+retried — the report may already have been generated and the template may have
+sent email, so re-running an uncertain outcome must be your own explicit new
+invocation. A 429 is retried (honoring `Retry-After`), because the rate limiter
+rejects the request before execution.
 
 By default, the host guard rejects private, loopback, link-local, and CGNAT
 addresses, including IPv4-mapped IPv6 spellings, plus IPv6 transition ranges

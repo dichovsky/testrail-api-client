@@ -173,7 +173,10 @@ describe('public multipart cleanup error handling', () => {
         expect(upload.releaseLock).toHaveBeenCalledOnce();
         expect(settled).not.toHaveBeenCalled();
         const consumer = upload.consumer();
-        await expect(consumer.result).resolves.toEqual({ done: true, value: undefined });
+        // Errored, not closed. A clean `{ done: true }` here would tell the
+        // encoder the part ended normally, producing a truncated file under a
+        // valid closing boundary; the rejection aborts the request body instead.
+        expect(await consumer.result).toEqual(new Error('Upload aborted before the request completed'));
         consumer.reader.releaseLock();
 
         upload.reading.reject(new Error('late source read failure'));

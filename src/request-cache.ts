@@ -69,7 +69,18 @@ export class RequestCache {
         }
 
         const startedAtGeneration = this.generation;
-        const upstream = startOperation(resolution.load);
+        // `startOperation` invokes the loader synchronously inside its scope, so
+        // the caller can begin transport setup and this entry can be published
+        // before `resolve()` returns. Normalize a synchronous loader throw into
+        // the promised error contract here; `startOperation` itself deliberately
+        // preserves non-Error reasons for `trackOperation` callbacks.
+        const upstream = startOperation(() => {
+            try {
+                return resolution.load();
+            } catch (error) {
+                throw error instanceof Error ? error : new Error(String(error));
+            }
+        });
         const loaded = upstream.result.then(({ value, cacheable }) => {
             if (cacheable && startedAtGeneration === this.generation) {
                 this.write(key, value);

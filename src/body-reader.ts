@@ -130,8 +130,12 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
     // over the stream cannot do (cancelling the stream does not interrupt the
     // iterator's pending `next()`), so a slowloris-on-body server would hang
     // the read forever under `for await`.
+    // `drain()` as a whole is observed below. It awaits each read directly and
+    // recurses via `return drain()`, so its promise cannot settle while a read
+    // is outstanding — observing every individual read would add a handler pair
+    // per chunk without widening what settlement waits for.
     const drain = async (): Promise<void> => {
-        const { done, value } = await observeOperation(reader.read());
+        const { done, value } = await reader.read();
         // A chain of already-resolved read() promises can monopolise the
         // microtask queue long enough to starve the timeout callback. Compare
         // the absolute deadline after every read so such a stream cannot

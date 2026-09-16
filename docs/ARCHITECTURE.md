@@ -107,8 +107,12 @@ Rationale: a `TypeError` from `fetch` may fire after request bytes are already o
 Retry behaviour is selected by the spec's `retry` policy name (`src/retry-policy.ts`). Multipart uploads (`retry: 'none'`) never retry — uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the server with the attachment already persisted; retrying would duplicate the record. Binary GETs (`retry: 'binaryGet'`) retry 5xx / 429 / network errors for their single GET method.
 
 Report generators are an explicit GET exception: `runReport` and
-`runCrossProjectReport` use `retry: 'none'` and `bypassCache: true`. Each invocation
-generates a distinct report without cached results, coalescing, or automatic retries.
+`runCrossProjectReport` use `retry: 'rateLimitOnly'` and `bypassCache: true`. Each
+invocation generates a distinct report without cached results or coalescing. These
+GETs are side-effecting — TestRail builds a report and the template may email it —
+so a 5xx or network failure leaves an ambiguous outcome and is never repeated. A 429
+is repeated (honoring `Retry-After`): the rate limiter rejects before execution, so
+no report was generated and no mail was sent.
 
 **Streaming upload bodies.** A multipart `request<T>(spec)` (`body.kind === 'multipart'`) accepts either an in-memory variant (`Blob`, `Uint8Array`, `File`) or a `{ path: string; type?: string }` descriptor. The descriptor is resolved via `node:fs.openAsBlob`, which returns a file-backed `Blob` whose `.stream()` reads bytes on demand. `fetch` consumes the multipart `FormData` through that stream, so a 100 MB attachment grows process heap by ~0 MB instead of fully buffering. The CLI (`testrail attachment add-to-* --file …`, `testrail bdd add --file …`) always passes the descriptor; programmatic callers that already hold the bytes in memory may continue to pass them directly. File-open errors (ENOENT, EACCES, EISDIR, …) surface as `TestRailApiError(0, 'Network error: …')` — the open is performed inside the same try/catch that wraps `fetch`, so the error path is symmetric with a transport failure.
 
@@ -143,9 +147,13 @@ not proof of settlement. A hung resource keeps the owning handle pending.
 `upload-lifetime.ts` binds the driver-owned FormData File's stream factory to
 the operation scope. It observes each actual reader and its cancellation without
 mutating caller Blobs or replacing native multipart encoding. Cleanup prevents
-new streams, closes active wrapper streams, and requests underlying cancellation;
-settlement still waits for pending reads and cancellation completion. An
-unconsumed upload stream has never started and can be conclusively stopped.
+new streams, **errors** active wrapper streams, and requests underlying
+cancellation; settlement still waits for pending reads and cancellation
+completion. Erroring rather than closing is load-bearing: `close()` is a clean
+end-of-stream, so an encoder still reading that part would emit a truncated file
+followed by a valid closing boundary — a well-formed upload of partial bytes the
+server would store as though complete. An unconsumed upload stream has never
+started and can be conclusively stopped.
 
 Neither `trackOperation` nor `destroy()` aborts in-flight requests. Callbacks
 must return their application workflow promise; detached application timers are

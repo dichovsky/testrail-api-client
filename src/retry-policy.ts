@@ -32,6 +32,25 @@ const BINARY_GET_RETRY_POLICY: RetryPolicy = {
 };
 
 /**
+ * Rate-limit-only retry policy: 429 is retried, nothing else is.
+ *
+ * Used by report generation. A `run_report` GET is side-effecting — TestRail
+ * builds a new report and the template may email it — so a 5xx or a network
+ * failure leaves an ambiguous outcome that must not be repeated. A 429 is not
+ * ambiguous: the rate limiter rejects the request before execution, so no
+ * report was generated and no mail was sent. That makes it the one status here
+ * that is provably safe to retry, and the only one carrying `Retry-After`.
+ */
+const RATE_LIMIT_RETRY_POLICY: RetryPolicy = {
+    isStatusRetryable(status: number): boolean {
+        return status === 429;
+    },
+    isNetworkErrorRetryable(): boolean {
+        return false;
+    },
+};
+
+/**
  * No-retry policy: nothing is retried.
  *
  * Used by multipart uploads — non-idempotent and TestRail does not document
@@ -47,7 +66,7 @@ const NO_RETRY_POLICY: RetryPolicy = {
 };
 
 /** Named retry policies exposed by `RequestSpec.retry`. */
-export type RetryPolicyName = 'full' | 'binaryGet' | 'none';
+export type RetryPolicyName = 'full' | 'binaryGet' | 'rateLimitOnly' | 'none';
 
 /**
  * Resolve a named retry policy. Policies are frozen module-level singletons
@@ -59,6 +78,8 @@ export function getRetryPolicy(name: RetryPolicyName): RetryPolicy {
             return FULL_RETRY_POLICY;
         case 'binaryGet':
             return BINARY_GET_RETRY_POLICY;
+        case 'rateLimitOnly':
+            return RATE_LIMIT_RETRY_POLICY;
         case 'none':
             return NO_RETRY_POLICY;
     }

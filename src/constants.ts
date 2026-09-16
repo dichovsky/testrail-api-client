@@ -108,6 +108,14 @@ export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777;
 export const CLI_DIAGNOSTIC_ACL_TIMEOUT_MS = 1000;
 
 /**
+ * Multipart form field name TestRail expects for an attachment upload. Shared
+ * so the builder that appends the entry and the lifetime wrapper that looks it
+ * back up cannot drift: a mismatch would leave `ownUploadStreams` returning a
+ * no-op cleanup, resolving `settled` while the upload is still streaming.
+ */
+export const MULTIPART_FIELD_NAME = 'attachment';
+
+/**
  * CLI binary stdin upload cap (PR3a — `--file -` sentinel). The text-body
  * `MAX_STDIN_BYTES` is too small for binary attachment uploads (screenshots,
  * videos, log archives). Sized at 100 MiB to match

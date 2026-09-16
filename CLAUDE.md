@@ -31,6 +31,8 @@ npx vitest run tests/client-endpoints.test.ts    # Single file
 | `src/pagination.ts`                                                         | `Page<T>` structural decoding, safe continuation parsing, bounded all-page collection                                                          |
 | `src/errors.ts`                                                             | API, validation, license, and pagination errors plus `handleZodError`                                                                          |
 | `src/body-reader.ts`                                                        | Streaming response-body reader with byte cap (SEC #12) + wall-clock deadline (SEC #21); shared by every response shape                         |
+| `src/operation-tracking.ts`                                                 | `AsyncLocalStorage` operation scopes behind `trackOperation`: resource observation, scope binding, one-shot settlement                         |
+| `src/upload-lifetime.ts`                                                    | Driver ownership of the multipart File streams fetch consumes; cleanup errors (never closes) an in-flight upload                               |
 | `src/constants.ts`                                                          | Configuration defaults/limits, pagination and transport bounds, and the shared constructor-compatible email pattern                            |
 | `src/config-validation.ts`                                                  | `TestRailConfigSchema` adapter: URL/SSRF semantics plus stable `TestRailValidationError` messages                                              |
 | `src/utils.ts`                                                              | `base64Encode`, `sleep`                                                                                                                        |
@@ -185,6 +187,8 @@ Consequence for types: exported response types describe the expected shape, not 
 ## Constants (`src/constants.ts`)
 
 `BASE_RETRY_DELAY_MS=1000` · `MAX_RETRY_DELAY_MS=10000` · `MAX_TIMEOUT_MS=300000` · `HTTP_OK_STATUS=200` · `DEFAULT_TIMEOUT_MS=30000` · `DEFAULT_MAX_RETRIES=3` · `MAX_RETRIES=10` · `DEFAULT_CACHE_TTL_MS=300000` · `DEFAULT_CACHE_CLEANUP_INTERVAL_MS=60000` · `MAX_NODE_TIMER_DELAY_MS=2147483647` · `DEFAULT_MAX_CACHE_SIZE=1000` · `DEFAULT_RATE_LIMIT_MAX_REQUESTS=100` · `DEFAULT_RATE_LIMIT_WINDOW_MS=60000` · `DEFAULT_PAGE_SIZE=250` · `DEFAULT_MAX_PAGES=100` · `DEFAULT_MAX_ITEMS=25000` · `DEFAULT_MAX_PAGINATION_DURATION_MS=300000` · `DEFAULT_MAX_PAGINATION_BYTES=104857600` · `MAX_PAGINATION_BYTES=1073741824` · `MAX_CLI_SCHEMA_MISMATCH_WARNINGS=10` · `DEFAULT_MAX_JSON_RESPONSE_BYTES=10485760` · `DEFAULT_MAX_BINARY_RESPONSE_BYTES=104857600` · `MAX_RESPONSE_BYTES_LIMIT=1073741824`
+
+Shared literals: `MULTIPART_FIELD_NAME='attachment'` (the upload builder and `ownUploadStreams` must agree on it).
 
 Diagnostic limits: `MAX_CLI_DIAGNOSTIC_INPUT_BYTES=65536` · `MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES=16384` · `MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS=4096` · `MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS=2048` · `MAX_CLI_DIAGNOSTIC_NODES=128` · `MAX_CLI_DIAGNOSTIC_DEPTH=6` · `MAX_CLI_DIAGNOSTIC_DECODE_PASSES=3` · `CLI_DIAGNOSTIC_FILE_MODE=0o600` · `CLI_DIAGNOSTIC_DIRECTORY_MODE=0o700` · `CLI_DIAGNOSTIC_PERMISSION_MASK=0o777` · `CLI_DIAGNOSTIC_ACL_TIMEOUT_MS=1000`.
 

@@ -1,4 +1,8 @@
+import { MULTIPART_FIELD_NAME } from './constants.js';
 import { bindOperation, observeOperation } from './operation-tracking.js';
+
+/** Reason surfaced to the encoder when cleanup tears a stream down mid-upload. */
+const UPLOAD_ABORTED_MESSAGE = 'Upload aborted before the request completed';
 
 /**
  * Observe the streams actually consumed by fetch's FormData encoder. The
@@ -6,13 +10,19 @@ import { bindOperation, observeOperation } from './operation-tracking.js';
  * Keep FormData's native boundary, filename escaping, and content length.
  */
 export function ownUploadStreams(formData: globalThis.FormData): () => void {
-    const file = formData.get('attachment');
+    const file = formData.get(MULTIPART_FIELD_NAME);
     if (!(file instanceof globalThis.Blob)) return () => undefined;
     const originalStream = file.stream.bind(file);
     const active = new Set<() => Promise<void>>();
     let closed = false;
 
+    // `writable`/`configurable` mirror `defineOverride` in client-core.ts: an
+    // own override that cannot be redefined turns any second pass over the same
+    // entry into `TypeError: Cannot redefine property`.
     Object.defineProperty(file, 'stream', {
+        writable: true,
+        configurable: true,
+        enumerable: false,
         value: bindOperation((): globalThis.ReadableStream<Uint8Array> => {
             if (closed) throw new Error('Upload stream is closed');
             const reader = originalStream().getReader();
@@ -40,9 +50,18 @@ export function ownUploadStreams(formData: globalThis.FormData): () => void {
                 if (finished) return Promise.resolve();
                 finished = true;
                 try {
-                    outputController?.close();
+                    // Error, never close. `close()` is a clean end-of-stream, so
+                    // an encoder still reading this part would emit a truncated
+                    // file followed by a valid closing boundary — a well-formed
+                    // upload of partial bytes that the server stores as though
+                    // complete. Erroring rejects the encoder's pending read and
+                    // aborts the request body instead. A consumer-initiated
+                    // cancel arrives here with the stream already terminated, so
+                    // this throws and its reason is irrelevant — hence no
+                    // reason plumbing.
+                    outputController?.error(new Error(UPLOAD_ABORTED_MESSAGE));
                 } catch {
-                    // A consumer-initiated cancellation already closed it.
+                    // A consumer-initiated cancellation already terminated it.
                 }
                 try {
                     cancellation = observeOperation(reader.cancel()).then(complete, complete);

@@ -6,7 +6,7 @@ import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
 import { type ZodType } from 'zod';
 import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
-import { getRetryPolicy } from './retry-policy.js';
+import { getRetryPolicy, type RetryPolicyName } from './retry-policy.js';
 import { RequestCache, type CacheLoadResult } from './request-cache.js';
 import { isPrivateHostLiteral, isPrivateOrLoopbackIP, validateTestRailConfig } from './config-validation.js';
 import { startOperation, observeOperation, bindOperation, type OperationHandle } from './operation-tracking.js';
@@ -45,6 +45,7 @@ import {
     DEFAULT_RATE_LIMIT_WINDOW_MS,
     DEFAULT_MAX_JSON_RESPONSE_BYTES,
     DEFAULT_MAX_BINARY_RESPONSE_BYTES,
+    MULTIPART_FIELD_NAME,
 } from './constants.js';
 import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
 import { validateTimeout } from './validation.js';
@@ -635,7 +636,7 @@ export class TestRailClientCore {
         method: string,
         endpoint: string,
         body: RequestSpec<unknown>['body'],
-        retry: 'full' | 'binaryGet' | 'none',
+        retry: RetryPolicyName,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
         const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
@@ -695,7 +696,7 @@ export class TestRailClientCore {
         method: string,
         endpoint: string,
         body: RequestSpec<unknown>['body'],
-        retry: 'full' | 'binaryGet' | 'none',
+        retry: RetryPolicyName,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
         const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
@@ -722,11 +723,7 @@ export class TestRailClientCore {
      * as `ArrayBuffer`. GET-only by construction (the retry policy assumes a
      * safe retry on 5xx/network).
      */
-    private async executeBinary<T>(
-        endpoint: string,
-        retry: 'full' | 'binaryGet' | 'none',
-        timeouts: ResolvedTimeouts,
-    ): Promise<T> {
+    private async executeBinary<T>(endpoint: string, retry: RetryPolicyName, timeouts: ResolvedTimeouts): Promise<T> {
         return this.executePipeline<T>({
             method: 'GET',
             endpoint,
@@ -835,7 +832,7 @@ export class TestRailClientCore {
                         // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
                         blob = new globalThis.Blob([new Uint8Array(file)]);
                     }
-                    formData.append('attachment', blob, filename);
+                    formData.append(MULTIPART_FIELD_NAME, blob, filename);
 
                     return {
                         // By the time this `cleanup` runs (via executePipeline's
