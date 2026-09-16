@@ -47,6 +47,17 @@ export function ownUploadStreams(formData: globalThis.FormData): () => void {
             let cancellation: Promise<void> | undefined;
             const cancel = bindOperation((): Promise<void> => {
                 if (cancellation !== undefined) return cancellation;
+                // Unreachable on today's call graph, and deliberately kept.
+                // Reaching it needs `complete()` to have run without `cancel()`
+                // — i.e. `pull` finished the part — and then a cancel anyway;
+                // but `complete()` removes this entry from `active` so cleanup
+                // skips it, and a stream already closed or errored short-
+                // circuits `cancel` per spec. The remaining caller is the
+                // platform's FormData encoder, which is external, untyped, and
+                // has changed shape across undici versions, so this stays as a
+                // re-entrancy guard rather than being deleted on the strength
+                // of a trace. Joins the documented unreachable-branch set that
+                // the 98% branch floor in vitest.config.ts accounts for.
                 if (finished) return Promise.resolve();
                 finished = true;
                 try {

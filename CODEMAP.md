@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.1.0"
   },
-  "sourceHash": "d29b52249b30c79f44fc130ef4155234ffb8a68c3bf6e9ca4e498757ccd48aca",
+  "sourceHash": "3386c31fa562122f688a1243e08601e13978ca5c5c25c98de2b6fa5c29281d83",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6606,92 +6606,92 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 482
+              "line": 487
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 500
+              "line": 505
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 546
+              "line": 551
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 645
+              "line": 650
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 685
+              "line": 690
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 705
+              "line": 710
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 736
+              "line": 741
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 766
+              "line": 771
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 784
+              "line": 789
             },
             {
               "name": "remainingDeadlineMs",
               "kind": "method",
-              "line": 878
+              "line": 883
             },
             {
               "name": "clipBodyTimeout",
               "kind": "method",
-              "line": 887
+              "line": 892
             },
             {
               "name": "withDeadline",
               "kind": "method",
-              "line": 897
+              "line": 902
             },
             {
               "name": "waitForRetryDelay",
               "kind": "method",
-              "line": 926
+              "line": 931
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 937
+              "line": 942
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1109
+              "line": 1114
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1135
+              "line": 1140
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1171
+              "line": 1176
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1183
+              "line": 1188
             }
           ]
         }

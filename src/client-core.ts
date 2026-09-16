@@ -478,6 +478,11 @@ export class TestRailClientCore {
      * observed, and nested operations are included in their parent's lifetime.
      * This does not cancel requests or change destroy()'s behavior. A transport
      * or cancellation that never finishes keeps `settled` pending.
+     *
+     * The first call latches settlement tracking on for the process. A request
+     * already in flight at that moment can be joined for its result but not for
+     * its post-result cleanup; every request started afterwards is fully
+     * joinable, tracked or not.
      */
     public trackOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T> {
         // Latches scope creation for the process. Until the first call, requests
