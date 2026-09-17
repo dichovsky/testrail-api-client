@@ -161,7 +161,14 @@ The resource promise remains observed after a visible timeout, and late headers
 trigger observed cancellation of the unused response body. Requesting abort is
 not proof of settlement. A hung resource keeps the owning handle pending.
 
-`upload-lifetime.ts` binds the driver-owned FormData File's stream factory to
+`upload-source.ts` owns a multipart upload end to end — platform path mapping,
+`openAsBlob`, the FormData append, the stream wrapping, and the single
+descriptor close — so no other module needs to know when the caller's fd is
+handed to the kernel or released. `build()` may be called at most once and a
+second call throws: the first `cleanup()` has already released the descriptor,
+so a rebuild would fall back to `file.path` and read whatever now lives there,
+silently forfeiting the TOCTOU protection the descriptor exists to provide. It
+binds the driver-owned FormData File's stream factory to
 the operation scope. It observes each actual reader and its cancellation without
 mutating caller Blobs or replacing native multipart encoding. Cleanup prevents
 new streams, **errors** active wrapper streams, and requests underlying

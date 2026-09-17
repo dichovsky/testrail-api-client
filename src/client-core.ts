@@ -1,9 +1,8 @@
-import type { TestRailConfig, SchemaMismatch, UploadFileInput, UploadFilePathInput } from './types.js';
+import type { TestRailConfig, SchemaMismatch } from './types.js';
 import { base64Encode, sleep } from './utils.js';
 import { TestRailApiError, TestRailLicenseError, TestRailValidationError, isLicenseRestriction } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
-import { openAsBlob, closeSync } from 'node:fs';
 import { type ZodType } from 'zod';
 import type { PipelineSpec, RequestSpec, RetryPolicy } from './http-pipeline-types.js';
 import { deriveRetryPolicy } from './retry-policy.js';
@@ -16,27 +15,7 @@ import {
     engageOperationTracking,
     type OperationHandle,
 } from './operation-tracking.js';
-import { ownUploadStreams } from './upload-lifetime.js';
-
-/**
- * Narrow `requestMultipart`'s `file` parameter to the streaming-from-disk
- * descriptor. The Blob / Uint8Array / File variants are detected by
- * `instanceof`, so the path variant is recognized by the presence of a
- * `path` string on a non-Blob, non-Uint8Array object.
- *
- * Defined at module scope so the (constant) shape check has no per-call
- * allocation cost. It's indirectly covered through `requestMultipart`
- * tests that exercise both path-descriptor and in-memory inputs.
- */
-function isFilePathInput(value: unknown): value is UploadFilePathInput {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        !(value instanceof globalThis.Blob) &&
-        !(value instanceof Uint8Array) &&
-        typeof (value as { path?: unknown }).path === 'string'
-    );
-}
+import { createUploadSource } from './upload-source.js';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -51,7 +30,6 @@ import {
     DEFAULT_RATE_LIMIT_WINDOW_MS,
     DEFAULT_MAX_JSON_RESPONSE_BYTES,
     DEFAULT_MAX_BINARY_RESPONSE_BYTES,
-    MULTIPART_FIELD_NAME,
 } from './constants.js';
 import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
 import { validateTimeout } from './validation.js';
@@ -776,9 +754,8 @@ export class TestRailClientCore {
 
     /**
      * Converts a {@link RequestBody} (the public-to-modules shape) into the
-     * pipeline-internal {@link BodyShape}. Multipart bodies are wrapped in
-     * the streaming builder that drives `node:fs.openAsBlob` for path inputs
-     * and closes the caller-supplied fd in `finally`.
+     * pipeline-internal {@link BodyShape}. The descriptor lifetime of a
+     * multipart body belongs entirely to `src/upload-source.ts`.
      */
     private buildPipelineBody(body: RequestSpec<unknown>['body']): PipelineSpec<unknown>['body'] {
         if (body === undefined) {
@@ -787,115 +764,7 @@ export class TestRailClientCore {
         if (body.kind === 'json') {
             return { kind: 'json', data: body.data };
         }
-        return this.buildMultipartBody(body.file, body.filename);
-    }
-
-    /**
-     * Constructs the streaming-multipart body builder. Mirrors the original
-     * `requestMultipart` lifecycle exactly: the caller-supplied fd is tracked
-     * locally (never mutated, SEC #30), `/dev/fd/<N>` or `/proc/self/fd/<N>`
-     * are used on POSIX to allow `openAsBlob` to take over the descriptor,
-     * and the cleanup function in `finally` closes the fd if it was never
-     * transferred to the kernel.
-     */
-    private buildMultipartBody(file: UploadFileInput, filename: string): PipelineSpec<unknown>['body'] {
-        // Track the caller-supplied fd locally so we never mutate the input
-        // descriptor (SEC #30 — immutability). `fdToClose` is set to undefined
-        // as soon as we close the fd so cleanup never double-closes.
-        let fdToClose: number | undefined = isFilePathInput(file) ? file.fd : undefined;
-        return {
-            kind: 'formdata',
-            build: async () => {
-                try {
-                    // Build the multipart body inside the try block so file-open
-                    // failures (ENOENT, EACCES, EISDIR, etc.) surface as a structured
-                    // TestRailApiError rather than an unhandled TypeError. openAsBlob
-                    // returns a file-backed Blob whose stream() reads from disk on
-                    // demand, so fetch consumes the FormData via that stream and the
-                    // entire file is never resident in memory at once.
-                    const formData = new globalThis.FormData();
-                    let blob: globalThis.Blob;
-                    if (isFilePathInput(file)) {
-                        const opts: { type?: string } = {};
-                        if (file.type !== undefined) opts.type = file.type;
-
-                        let uploadPath = file.path;
-                        if (fdToClose !== undefined) {
-                            if (process.platform === 'darwin') {
-                                uploadPath = `/dev/fd/${fdToClose}`;
-                            } else if (process.platform === 'linux') {
-                                uploadPath = `/proc/self/fd/${fdToClose}`;
-                            } else {
-                                // Non-POSIX: use the original path directly; close the
-                                // fd now since /dev/fd symlinks aren't available.
-                                try {
-                                    closeSync(fdToClose);
-                                } catch {
-                                    // best-effort
-                                }
-                                fdToClose = undefined; // prevent duplicate close in cleanup
-                            }
-                        }
-
-                        blob = await openAsBlob(uploadPath, opts);
-
-                        // The fd deliberately stays open until the body has been
-                        // consumed. `openAsBlob` does NOT read the file up front — it
-                        // returns a Blob that re-opens `uploadPath` lazily on the first
-                        // stream pull, which happens while fetch encodes the FormData.
-                        // Closing fd N here (as an earlier version did, to shrink the
-                        // concurrent-fd window of SEC #30) left `/dev/fd/<N>` dangling,
-                        // and every upload carrying a descriptor — which is every CLI
-                        // attachment upload — died with `DOMException: The blob could
-                        // not be read` (issue #277). Release is deferred to `cleanup`
-                        // below, so the descriptor is still closed deterministically.
-                    } else if (file instanceof globalThis.Blob) {
-                        blob = file;
-                    } else {
-                        // Copy binary-like input into a plain Uint8Array to satisfy BlobPart type constraints
-                        blob = new globalThis.Blob([new Uint8Array(file)]);
-                    }
-                    formData.append(MULTIPART_FIELD_NAME, blob, filename);
-
-                    const releaseStreams = ownUploadStreams(formData);
-                    return {
-                        body: formData,
-                        // Runs from executePipeline's `finally`, i.e. after the body has
-                        // been consumed (or the request has failed), which is the
-                        // earliest point the descriptor is genuinely redundant.
-                        //
-                        // Order matters: tear the upload streams down first so any
-                        // in-flight read is aborted against a still-valid descriptor,
-                        // then release the descriptor itself. `fdToClose` is already
-                        // undefined on the non-POSIX path (closed before `openAsBlob`)
-                        // and for in-memory inputs, so this is a no-op there.
-                        cleanup: () => {
-                            releaseStreams();
-                            if (fdToClose !== undefined) {
-                                try {
-                                    closeSync(fdToClose);
-                                } catch {
-                                    // best-effort cleanup
-                                }
-                                fdToClose = undefined;
-                            }
-                        },
-                    };
-                } catch (buildErr) {
-                    // If build throws before returning cleanup, close the fd here
-                    // so executePipeline's formdataCleanup?.() (undefined) doesn't leak.
-                    if (fdToClose !== undefined) {
-                        try {
-                            closeSync(fdToClose);
-                        } catch {
-                            // best-effort
-                        }
-                        fdToClose = undefined;
-                    }
-                    throw buildErr;
-                }
-            },
-        };
+        return createUploadSource(body.file, body.filename);
     }
 
     /** Remaining milliseconds before an aggregate request deadline. */
