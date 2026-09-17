@@ -83,7 +83,7 @@ export interface PaginatedListExecutor<
     all(client: TestRailClientCore, args: Args, options?: AllOptions): Promise<Item[]>;
 }
 
-type PaginationTransport = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & {
+type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'remainingTimeMs' | 'deadlineAt'>> & {
     readonly pageProjection?: boolean;
 };
 
@@ -189,13 +189,13 @@ export function createPaginatedListExecutor<
             limit: controls.limit,
             offset: controls.offset,
         });
-        const pageProjection = transport?.pageProjection === true || transport?.bypassCache === true;
+        const pageProjection = transport?.pageProjection === true || transport?.intent !== undefined;
         return client.request<unknown>({
             method: 'GET',
             endpoint,
             schema: pageProjection ? pageSchema : listSchema,
             ...(pageProjection && { cacheVariant: 'page' as const }),
-            ...(transport?.bypassCache !== undefined && { bypassCache: transport.bypassCache }),
+            ...(transport?.intent !== undefined && { intent: transport.intent }),
             ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
             ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
@@ -232,16 +232,11 @@ export function createPaginatedListExecutor<
             const fetchPage = async ({
                 offset,
                 limit,
-                bypassCache,
+                intent,
                 remainingTimeMs,
                 deadlineAt,
             }: PaginationRequest): Promise<Page<Item>> => {
-                const raw = await request(
-                    client,
-                    prepared,
-                    { limit, offset },
-                    { bypassCache, remainingTimeMs, deadlineAt },
-                );
+                const raw = await request(client, prepared, { limit, offset }, { intent, remainingTimeMs, deadlineAt });
                 return decode(raw);
             };
 

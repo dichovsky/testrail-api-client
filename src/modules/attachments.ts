@@ -143,7 +143,6 @@ export class AttachmentModule {
             method: 'GET',
             endpoint: `get_attachment/${attachmentId}`,
             responseKind: 'binary',
-            retry: 'binaryGet',
         });
     }
 
@@ -154,7 +153,6 @@ export class AttachmentModule {
             method: 'POST',
             endpoint: `add_attachment_to_case/${caseId}`,
             body: { kind: 'multipart', file, filename },
-            retry: 'none',
         });
     }
 
@@ -165,7 +163,6 @@ export class AttachmentModule {
             method: 'POST',
             endpoint: `add_attachment_to_result/${resultId}`,
             body: { kind: 'multipart', file, filename },
-            retry: 'none',
         });
     }
 
@@ -176,7 +173,6 @@ export class AttachmentModule {
             method: 'POST',
             endpoint: `add_attachment_to_run/${runId}`,
             body: { kind: 'multipart', file, filename },
-            retry: 'none',
         });
     }
 
@@ -187,7 +183,6 @@ export class AttachmentModule {
             method: 'POST',
             endpoint: `add_attachment_to_plan/${planId}`,
             body: { kind: 'multipart', file, filename },
-            retry: 'none',
         });
     }
 
@@ -209,7 +204,6 @@ export class AttachmentModule {
             method: 'POST',
             endpoint: `add_attachment_to_plan_entry/${planId}/${entryId}`,
             body: { kind: 'multipart', file, filename },
-            retry: 'none',
         });
     }
 

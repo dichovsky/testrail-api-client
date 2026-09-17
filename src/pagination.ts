@@ -52,7 +52,11 @@ export interface PaginatedRequestOptions extends PaginationSafetyOptions {
 export interface PaginationRequest {
     readonly offset: number | undefined;
     readonly limit: number | undefined;
-    readonly bypassCache: true;
+    /**
+     * Always `'fresh-read'`: an aggregate must execute every page rather than
+     * combine differently aged cached snapshots, or evict unrelated entries.
+     */
+    readonly intent: 'fresh-read';
     /** Absolute wall-clock deadline shared by every request in one aggregate. */
     readonly deadlineAt: number;
     readonly remainingTimeMs: number;
@@ -386,7 +390,7 @@ export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Pr
             page = await options.fetchPage({
                 offset: nextOffset,
                 limit: nextLimit,
-                bypassCache: true,
+                intent: 'fresh-read',
                 deadlineAt,
                 remainingTimeMs,
             });

@@ -5,8 +5,8 @@ import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
 import { openAsBlob, closeSync } from 'node:fs';
 import { type ZodType } from 'zod';
-import type { PipelineSpec, RequestSpec } from './http-pipeline-types.js';
-import { getRetryPolicy, type RetryPolicyName } from './retry-policy.js';
+import type { PipelineSpec, RequestSpec, RetryPolicy } from './http-pipeline-types.js';
+import { deriveRetryPolicy } from './retry-policy.js';
 import { RequestCache, type CacheLoadResult } from './request-cache.js';
 import { isPrivateHostLiteral, isPrivateOrLoopbackIP, validateTestRailConfig } from './config-validation.js';
 import {
@@ -522,8 +522,8 @@ export class TestRailClientCore {
     /**
      * Executes a single HTTP request against the TestRail API. The behavior of
      * each call is driven by the {@link RequestSpec} record (response kind,
-     * body shape, schema, retry policy). Modules dispatch every API call
-     * through this method.
+     * body shape, schema, intent). Modules dispatch every API call through
+     * this method.
      *
      * Behavioural guarantees (preserved verbatim across the refactor):
      *
@@ -533,9 +533,10 @@ export class TestRailClientCore {
      *   - Writes (non-GET) clear the entire cache before parsing.
      *   - DNS revalidation runs before every distinct upstream fetch.
      *   - Identical in-flight GETs are coalesced (SEC #23).
-     *   - Retry contract: 429 retries for all methods; 5xx + network errors
-     *     retry only on GET; `'binaryGet'` retries 5xx/network always;
-     *     `'none'` (multipart uploads) never retries.
+     *   - Retry contract, derived not declared: a multipart body never retries
+     *     (it outranks every other input); a side-effecting read retries 429
+     *     only; a binary GET retries 5xx/network always; otherwise 429 retries
+     *     for all methods and 5xx + network errors retry only on GET.
      *   - `Retry-After` is honored on every retryable response, capped at
      *     {@link MAX_RETRY_DELAY_MS}.
      *   - 3xx is surfaced as `TestRailApiError`, never followed, never cached.
@@ -549,7 +550,12 @@ export class TestRailClientCore {
      * @throws {Error} When called after `destroy()`.
      */
     public async request<T>(spec: RequestSpec<T>): Promise<T> {
-        const { method, endpoint, body, schema, responseKind = 'json', retry = 'full' } = spec;
+        const { method, endpoint, body, schema, responseKind = 'json', intent } = spec;
+
+        // Derived, never declared. A multipart body is non-idempotent by
+        // construction, so the policy follows from the request's shape instead
+        // of from six call sites remembering to spell `retry: 'none'`.
+        const retryPolicy = deriveRetryPolicy({ bodyKind: body?.kind, responseKind, intent });
 
         // Validate per-request overrides before they reach the abort timer /
         // body-read deadline. These `@internal` fields are set only by
@@ -603,8 +609,11 @@ export class TestRailClientCore {
         // Without those splits a raw response could be returned unvalidated,
         // a Zod-transformed value could surface to a raw-bytes caller, or a
         // collection-only legacy wrapper could poison a Page<T> read.
+        // Both intents mean "execute this read, don't serve or publish it":
+        // a side-effecting GET must reach TestRail every time it is called, and
+        // an aggregate page must not be combined with a differently aged one.
         let cacheKey: string | undefined;
-        if (method === 'GET' && responseKind === 'json' && spec.bypassCache !== true) {
+        if (method === 'GET' && responseKind === 'json' && intent === undefined) {
             const variant = spec.cacheVariant === 'page' ? 'PAGE:' : '';
             cacheKey = schema !== undefined ? `${variant}PARSED:GET:${endpoint}` : `${variant}GET:${endpoint}`;
         }
@@ -618,13 +627,16 @@ export class TestRailClientCore {
         // available to the caller without being pinned for the cache TTL.
         const load = async (): Promise<CacheLoadResult<T>> => {
             if (responseKind === 'binary') {
-                return { value: await this.executeBinary<T>(endpoint, retry, timeouts), cacheable: false };
+                return { value: await this.executeBinary<T>(endpoint, retryPolicy, timeouts), cacheable: false };
             }
             if (responseKind === 'text') {
-                return { value: await this.executeText<T>(method, endpoint, body, retry, timeouts), cacheable: false };
+                return {
+                    value: await this.executeText<T>(method, endpoint, body, retryPolicy, timeouts),
+                    cacheable: false,
+                };
             }
 
-            const raw = await this.executeJson<unknown>(method, endpoint, body, retry, timeouts);
+            const raw = await this.executeJson<unknown>(method, endpoint, body, retryPolicy, timeouts);
             if (schema !== undefined) {
                 const { value, matched } = this.parseAdvisory<T>(schema, raw, { method, endpoint });
                 return { value, cacheable: cacheKey !== undefined && matched };
@@ -651,7 +663,7 @@ export class TestRailClientCore {
         method: string,
         endpoint: string,
         body: RequestSpec<unknown>['body'],
-        retry: RetryPolicyName,
+        retryPolicy: RetryPolicy,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
         const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
@@ -663,7 +675,7 @@ export class TestRailClientCore {
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
             ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
-            retryPolicy: getRetryPolicy(retry),
+            retryPolicy,
             parseSuccess: async (response: Response) => {
                 const responseText = await readBodyAsText(response, {
                     ...jsonLimits,
@@ -711,7 +723,7 @@ export class TestRailClientCore {
         method: string,
         endpoint: string,
         body: RequestSpec<unknown>['body'],
-        retry: RetryPolicyName,
+        retryPolicy: RetryPolicy,
         timeouts: ResolvedTimeouts,
     ): Promise<T> {
         const jsonLimits = { maxBytes: this.maxJsonResponseBytes, deadlineMs: timeouts.bodyTimeout };
@@ -723,7 +735,7 @@ export class TestRailClientCore {
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
             ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
-            retryPolicy: getRetryPolicy(retry),
+            retryPolicy,
             parseSuccess: async (response: Response) =>
                 (await readBodyAsText(response, {
                     ...jsonLimits,
@@ -738,7 +750,7 @@ export class TestRailClientCore {
      * as `ArrayBuffer`. GET-only by construction (the retry policy assumes a
      * safe retry on 5xx/network).
      */
-    private async executeBinary<T>(endpoint: string, retry: RetryPolicyName, timeouts: ResolvedTimeouts): Promise<T> {
+    private async executeBinary<T>(endpoint: string, retryPolicy: RetryPolicy, timeouts: ResolvedTimeouts): Promise<T> {
         return this.executePipeline<T>({
             method: 'GET',
             endpoint,
@@ -747,7 +759,7 @@ export class TestRailClientCore {
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
             ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
-            retryPolicy: getRetryPolicy(retry),
+            retryPolicy,
             parseSuccess: async (response: Response) => {
                 const bytes = await readBodyWithLimits(response, {
                     maxBytes: this.maxBinaryResponseBytes,

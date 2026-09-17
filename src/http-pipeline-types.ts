@@ -2,7 +2,6 @@
 
 import type { ZodType } from 'zod';
 import type { UploadFileInput } from './types.js';
-import type { RetryPolicyName } from './retry-policy.js';
 
 /**
  * Internal types for the unified HTTP pipeline (ARCH #1).
@@ -77,6 +76,29 @@ export type RequestBody =
     | { readonly kind: 'multipart'; readonly file: UploadFileInput; readonly filename: string };
 
 /**
+ * Declared execution intent for the small set of requests whose handling cannot
+ * be derived from their shape.
+ *
+ * Every other request's retry policy and cacheability follow from `method`,
+ * `body.kind` and `responseKind` — see {@link deriveRetryPolicy}. These two
+ * cases are genuinely irreducible because they describe what the *endpoint*
+ * does, which the request shape cannot express:
+ *
+ * - `side-effecting-read` — a GET that mutates server state. TestRail's
+ *   `run_report` builds a new report and the template may email it, so a 5xx or
+ *   network failure leaves an ambiguous outcome that must not be repeated, and
+ *   a cached response would hide a generation the caller asked for. Retries 429
+ *   only: the rate limiter rejects before execution, so nothing was generated.
+ * - `fresh-read` — a GET that must be executed, not served from or published to
+ *   the cache. Multi-page aggregation uses it so an aggregate cannot combine
+ *   differently aged cached pages or evict unrelated entries.
+ *
+ * Both replace the former `retry` + `bypassCache` field pair, whose legal
+ * combinations were documented rather than enforced.
+ */
+export type RequestIntent = 'side-effecting-read' | 'fresh-read';
+
+/**
  * Public-to-modules description of a single HTTP request. Modules call
  * `TestRailClientCore.request<T>(spec)` instead of the historical
  * `request/requestText/requestBinary/requestMultipart/requestParsed` quintet.
@@ -87,9 +109,12 @@ export type RequestBody =
  * - GET + no schema    → cache key `GET:{endpoint}`
  * - non-GET            → no cache; write invalidates the cache before parse
  * - `responseKind`     → defaults to `'json'`
- * - `retry`            → defaults to `'full'` (the only sensible default for
- *                        JSON and text); binary GETs use `'binaryGet'` and
- *                        multipart uploads use `'none'`
+ * - retry policy       → **derived**, never declared. See
+ *                        {@link deriveRetryPolicy}: a multipart body is
+ *                        non-idempotent so it never retries, a binary GET
+ *                        retries 5xx/network, everything else gets the full
+ *                        policy. `intent` covers the two cases the shape
+ *                        cannot express.
  */
 // `T` is a phantom-but-witnessed type parameter — it captures the caller's
 // expected return type at `request<T>(spec: RequestSpec<T>): Promise<T>`.
@@ -121,14 +146,13 @@ export interface RequestSpec<T> {
     readonly schema?: ZodType;
     /** Default `'json'`. `'text'` returns the raw response body; `'binary'` returns `ArrayBuffer`. */
     readonly responseKind?: 'json' | 'text' | 'binary';
-    /** Default `'full'`. Use `'binaryGet'` for binary downloads, `'none'` for uploads. */
-    readonly retry?: RetryPolicyName;
     /**
-     * @internal Disable cache reads, writes, and pending-request coalescing.
-     * Multi-page aggregation uses this to avoid combining differently aged
-     * cached pages and evicting unrelated entries.
+     * Declared intent for the two endpoint classes whose handling cannot be
+     * derived from the request's shape. Omit it for every ordinary request:
+     * the retry policy and cacheability follow from `method`, `body.kind` and
+     * `responseKind`. See {@link RequestIntent}.
      */
-    readonly bypassCache?: boolean;
+    readonly intent?: RequestIntent;
     /**
      * @internal Optional validated-cache namespace. Explicit pagination Page
      * reads use `page` so their stricter envelope schema cannot share cached

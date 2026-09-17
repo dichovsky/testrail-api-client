@@ -58,7 +58,7 @@ These are declared `public` (not `protected`) because modules consume them by co
 
 Pre-flight ID guards live in the pure `src/validation.ts` leaf module. TestRail-specific query construction lives in the pure `src/url.ts` leaf module.
 
-`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and a `retry` policy name (default `'full'`; binary GETs use `'binaryGet'`, uploads use `'none'`). Internal `bypassCache` omits the cache key for all-page snapshots; `remainingTimeMs` clips both request phases to the aggregate deadline; `cacheVariant: 'page'` selects the strict page namespace. `request()` derives the key and supplies `RequestCache.resolve()` with a loader and a cacheability disposition. A schema-valid ordinary GET caches under `PARSED:GET:{endpoint}`, while an explicit page projection caches under `PAGE:PARSED:GET:{endpoint}`. This prevents a collection-only wrapper accepted by a legacy one-response method from poisoning the stricter page contract. A schema-invalid GET returns the raw body with `cacheable: false`, so the next call re-fetches and re-reports the mismatch. A GET without a schema caches the raw body under `GET:{endpoint}`, while non-GET calls omit the key and invalidate on success. The loader builds a cache-free `PipelineSpec` and runs it through `executePipeline()`.
+`request<T>(spec)` (PR-E) replaced the historical `request` / `requestText` / `requestMultipart` / `requestBinary` / `requestParsed` quintet. One `RequestSpec<T>` (in `src/http-pipeline-types.ts`) carries `method`, `endpoint`, an optional `body` (`json` or `multipart`), an optional response `schema`, `responseKind` (`'json' | 'text' | 'binary'`, default `'json'`), and an optional `intent`. The retry policy is **not** a spec field: `deriveRetryPolicy()` selects it from `body.kind`, `responseKind` and `intent`, so the illegal combinations the old `retry` field admitted — most importantly a multipart POST inheriting `'full'` and retrying 429 — are no longer expressible. `intent` also decides cacheability, replacing the former internal `bypassCache`: `'side-effecting-read'` marks a GET that mutates server state, `'fresh-read'` a GET that must execute rather than be served from or published to the cache. `remainingTimeMs` clips both request phases to the aggregate deadline; `cacheVariant: 'page'` selects the strict page namespace. `request()` derives the key and supplies `RequestCache.resolve()` with a loader and a cacheability disposition. A schema-valid ordinary GET caches under `PARSED:GET:{endpoint}`, while an explicit page projection caches under `PAGE:PARSED:GET:{endpoint}`. This prevents a collection-only wrapper accepted by a legacy one-response method from poisoning the stricter page contract. A schema-invalid GET returns the raw body with `cacheable: false`, so the next call re-fetches and re-reports the mismatch. A GET without a schema caches the raw body under `GET:{endpoint}`, while non-GET calls omit the key and invalidate on success. The loader builds a cache-free `PipelineSpec` and runs it through `executePipeline()`.
 
 ### 2.2 HTTP pipeline (`request<T>()`)
 
@@ -91,7 +91,7 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 - In-flight requests coalesce even when storage is disabled. Deadline-bearing initiators are not published for later unbounded callers; bounded waiters may race an ordinary shared request without cancelling it.
 - `invalidate()` clears entries and shared work and advances a generation, so a request started before a write may finish for its initiator but cannot repopulate stale data.
 - Text and binary GETs (`responseKind: 'text' | 'binary'`) neither read nor write the cache. Non-GET calls still invalidate, to keep the JSON cache consistent.
-- Bounded `getAll*()` reads set `bypassCache`: they neither consume nor populate the LRU and do not coalesce with another pending GET. A `get*Page()` call uses normal cache behavior in the separate strict-page namespace.
+- Bounded `getAll*()` reads declare `intent: 'fresh-read'`: they neither consume nor populate the LRU and do not coalesce with another pending GET. A `get*Page()` call uses normal cache behavior in the separate strict-page namespace.
 
 ### 2.4 Retry policy (the GET / write asymmetry)
 
@@ -104,10 +104,17 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 
 Rationale: a `TypeError` from `fetch` may fire after request bytes are already on the wire (e.g. `ECONNRESET` post-send). Retrying a write risks duplicate server-side processing. 429s remain safe because they are rejected pre-flight by the rate limiter, before any byte leaves the process. 5xx is explicitly _not_ safe — server state is ambiguous.
 
-Retry behaviour is selected by the spec's `retry` policy name (`src/retry-policy.ts`). Multipart uploads (`retry: 'none'`) never retry — uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the server with the attachment already persisted; retrying would duplicate the record. Binary GETs (`retry: 'binaryGet'`) retry 5xx / 429 / network errors for their single GET method.
+Retry behaviour is **derived from the request's shape**, not declared by the caller
+(`deriveRetryPolicy()` in `src/retry-policy.ts`). Multipart uploads never retry —
+uploads are non-idempotent and bandwidth-expensive. A `5xx` mid-stream can leave the
+server with the attachment already persisted; retrying would duplicate the record.
+Because that follows from `body.kind === 'multipart'` alone, a new upload endpoint
+inherits the guarantee without its author knowing the rule exists; previously the
+policy was hand-typed at six call sites and an omission silently inherited `'full'`.
+Binary GETs retry 5xx / 429 / network errors for their single GET method.
 
 Report generators are an explicit GET exception: `runReport` and
-`runCrossProjectReport` use `retry: 'rateLimitOnly'` and `bypassCache: true`. Each
+`runCrossProjectReport` declare `intent: 'side-effecting-read'`. Each
 invocation generates a distinct report without cached results or coalescing. These
 GETs are side-effecting — TestRail builds a report and the template may email it —
 so a 5xx or network failure leaves an ambiguous outcome and is never repeated. A 429

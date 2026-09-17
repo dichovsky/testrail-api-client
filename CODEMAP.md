@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "bd3542a3fd6525cd03ed1a5ca37a8915f978e785c51a03026c12a9063ff350c8",
+  "sourceHash": "1d51b5c44efa5500fbf4902d75ae0e021f5886be6fc66d9c919e8b3eccfd052b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6616,82 +6616,82 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "request",
               "kind": "method",
-              "line": 551
+              "line": 552
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 650
+              "line": 662
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 690
+              "line": 702
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 710
+              "line": 722
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 741
+              "line": 753
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 771
+              "line": 783
             },
             {
               "name": "buildMultipartBody",
               "kind": "method",
-              "line": 789
+              "line": 801
             },
             {
               "name": "remainingDeadlineMs",
               "kind": "method",
-              "line": 890
+              "line": 902
             },
             {
               "name": "clipBodyTimeout",
               "kind": "method",
-              "line": 899
+              "line": 911
             },
             {
               "name": "withDeadline",
               "kind": "method",
-              "line": 909
+              "line": 921
             },
             {
               "name": "waitForRetryDelay",
               "kind": "method",
-              "line": 938
+              "line": 950
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 949
+              "line": 961
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1121
+              "line": 1133
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1147
+              "line": 1159
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1183
+              "line": 1195
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1195
+              "line": 1207
             }
           ]
         }
@@ -7357,7 +7357,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/http-pipeline-types.ts",
       "imports": [
-        "./retry-policy.js",
         "./types.js",
         "zod"
       ],
@@ -7366,35 +7365,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "RetryPolicy",
           "kind": "interface",
-          "line": 14,
+          "line": 13,
           "exported": true,
           "signature": "export interface RetryPolicy { isStatusRetryable(status: number, method: string): boolean; isNetworkErrorRetryable(method: string): boolean; }"
         },
         {
           "name": "BodyShape",
           "kind": "type",
-          "line": 28,
+          "line": 27,
           "exported": true,
           "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: () => vo…"
         },
         {
           "name": "PipelineSpec",
           "kind": "interface",
-          "line": 37,
+          "line": 36,
           "exported": true,
           "signature": "export interface PipelineSpec<TParsed> { readonly method: string; readonly endpoint: string; readonly body: BodyShape; readonly timeout: number; readonly bodyTimeout: number; readonly deadlineAt?: num…"
         },
         {
           "name": "RequestBody",
           "kind": "type",
-          "line": 75,
+          "line": 74,
           "exported": true,
           "signature": "export type RequestBody = | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'multipart'; readonly file: UploadFileInput; readonly filename: string }"
         },
         {
+          "name": "RequestIntent",
+          "kind": "type",
+          "line": 99,
+          "exported": true,
+          "signature": "export type RequestIntent = 'side-effecting-read' | 'fresh-read'"
+        },
+        {
           "name": "RequestSpec",
           "kind": "interface",
-          "line": 99,
+          "line": 124,
           "exported": true,
           "signature": "export interface RequestSpec<T> { readonly __t?: T; readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'; readonly endpoint: string; readonly body?: RequestBody; readonly schema?: ZodType; readonly resp…"
         }
@@ -7547,32 +7553,32 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "addAttachmentToCase",
               "kind": "method",
-              "line": 151
+              "line": 150
             },
             {
               "name": "addAttachmentToResult",
               "kind": "method",
-              "line": 162
+              "line": 160
             },
             {
               "name": "addAttachmentToRun",
               "kind": "method",
-              "line": 173
+              "line": 170
             },
             {
               "name": "addAttachmentToPlan",
               "kind": "method",
-              "line": 184
+              "line": 180
             },
             {
               "name": "addAttachmentToPlanEntry",
               "kind": "method",
-              "line": 200
+              "line": 195
             },
             {
               "name": "deleteAttachment",
               "kind": "method",
-              "line": 217
+              "line": 211
             }
           ]
         }
@@ -8481,7 +8487,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "type",
           "line": 86,
           "exported": false,
-          "signature": "type PaginationTransport = Partial<Pick<PaginationRequest, 'bypassCache' | 'remainingTimeMs' | 'deadlineAt'>> & { readonly pageProjection?: boolean; }"
+          "signature": "type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'remainingTimeMs' | 'deadlineAt'>> & { readonly pageProjection?: boolean; }"
         },
         {
           "name": "isQueryArray",
@@ -8827,12 +8833,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
             {
               "name": "getCrossProjectReports",
               "kind": "method",
-              "line": 40
+              "line": 35
             },
             {
               "name": "runCrossProjectReport",
               "kind": "method",
-              "line": 52
+              "line": 47
             }
           ]
         }
@@ -9877,173 +9883,173 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 52,
           "exported": true,
-          "signature": "export interface PaginationRequest { readonly offset: number | undefined; readonly limit: number | undefined; readonly bypassCache: true; readonly deadlineAt: number; readonly remainingTimeMs: number;…"
+          "signature": "export interface PaginationRequest { readonly offset: number | undefined; readonly limit: number | undefined; readonly intent: 'fresh-read'; readonly deadlineAt: number; readonly remainingTimeMs: numb…"
         },
         {
           "name": "PaginationContinuation",
           "kind": "interface",
-          "line": 61,
+          "line": 65,
           "exported": true,
           "signature": "export interface PaginationContinuation { readonly offset: number; readonly limit: number | undefined; }"
         },
         {
           "name": "CollectionStats",
           "kind": "interface",
-          "line": 66,
+          "line": 70,
           "exported": false,
           "signature": "interface CollectionStats { readonly pagesFetched: number; readonly itemsFetched: number; }"
         },
         {
           "name": "ControlledCollectionOptions",
           "kind": "interface",
-          "line": 71,
+          "line": 75,
           "exported": false,
           "signature": "interface ControlledCollectionOptions<T> extends PaginatedRequestOptions { readonly requestControls?: true; readonly fetchPage: (request: PaginationRequest) => Promise<Page<T>>; readonly now?: () => n…"
         },
         {
           "name": "EnvelopeOnlyCollectionOptions",
           "kind": "interface",
-          "line": 78,
+          "line": 82,
           "exported": false,
           "signature": "interface EnvelopeOnlyCollectionOptions<T> extends PaginationSafetyOptions { readonly requestControls: false; readonly pageSize?: never; readonly startOffset?: never; readonly fetchPage: (request: Pag…"
         },
         {
           "name": "CollectAllPagesOptions",
           "kind": "type",
-          "line": 87,
+          "line": 91,
           "exported": true,
           "signature": "export type CollectAllPagesOptions<T> = ControlledCollectionOptions<T> | EnvelopeOnlyCollectionOptions<T>"
         },
         {
           "name": "ResolvedCollectionOptions",
           "kind": "interface",
-          "line": 89,
+          "line": 93,
           "exported": false,
           "signature": "interface ResolvedCollectionOptions { readonly requestControls: boolean; readonly pageSize: number | undefined; readonly startOffset: number | undefined; readonly maxPages: number; readonly maxItems: …"
         },
         {
           "name": "PAGINATION_METADATA_KEYS",
           "kind": "const",
-          "line": 99,
+          "line": 103,
           "exported": false,
           "signature": "const PAGINATION_METADATA_KEYS = ['offset', 'limit', 'size', '_links'] as const"
         },
         {
           "name": "isRecord",
           "kind": "function",
-          "line": 101,
+          "line": 105,
           "exported": false,
           "signature": "function isRecord(value: unknown): value is Record<string, unknown>"
         },
         {
           "name": "hasPaginationMetadataSignature",
           "kind": "function",
-          "line": 105,
+          "line": 109,
           "exported": false,
           "signature": "function hasPaginationMetadataSignature(value: unknown): boolean"
         },
         {
           "name": "isNonNegativeInteger",
           "kind": "function",
-          "line": 112,
+          "line": 116,
           "exported": false,
           "signature": "function isNonNegativeInteger(value: unknown): value is number"
         },
         {
           "name": "isPositiveInteger",
           "kind": "function",
-          "line": 116,
+          "line": 120,
           "exported": false,
           "signature": "function isPositiveInteger(value: unknown): value is number"
         },
         {
           "name": "invalidPage",
           "kind": "function",
-          "line": 120,
+          "line": 124,
           "exported": false,
           "signature": "function invalidPage(message: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }): never"
         },
         {
           "name": "decodeEnvelope",
           "kind": "function",
-          "line": 124,
+          "line": 128,
           "exported": false,
           "signature": "function decodeEnvelope<T>(key: string, raw: Record<string, unknown>, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodePage",
           "kind": "function",
-          "line": 177,
+          "line": 181,
           "exported": true,
           "signature": "export function decodePage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodeNestedPage",
           "kind": "function",
-          "line": 194,
+          "line": 198,
           "exported": true,
           "signature": "export function decodeNestedPage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 221,
+          "line": 225,
           "exported": false,
           "signature": "function parseCanonicalInteger(values: string[], name: string, allowZero: boolean, stats: CollectionStats): number"
         },
         {
           "name": "parsePaginationContinuation",
           "kind": "function",
-          "line": 256,
+          "line": 260,
           "exported": true,
           "signature": "export function parsePaginationContinuation( next: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }, ): PaginationContinuation"
         },
         {
           "name": "validatePositiveBound",
           "kind": "function",
-          "line": 304,
+          "line": 308,
           "exported": false,
           "signature": "function validatePositiveBound(value: number, name: string, maximum?: number): void"
         },
         {
           "name": "defaultWhenUndefined",
           "kind": "function",
-          "line": 311,
+          "line": 315,
           "exported": false,
           "signature": "function defaultWhenUndefined<T>(value: T | undefined, fallback: T): T"
         },
         {
           "name": "resolveCollectionOptions",
           "kind": "function",
-          "line": 316,
+          "line": 320,
           "exported": false,
           "signature": "function resolveCollectionOptions<T>(options: CollectAllPagesOptions<T>): ResolvedCollectionOptions"
         },
         {
           "name": "serializedByteLength",
           "kind": "function",
-          "line": 337,
+          "line": 341,
           "exported": false,
           "signature": "function serializedByteLength(items: readonly unknown[], stats: CollectionStats): number"
         },
         {
           "name": "appendPageItems",
           "kind": "function",
-          "line": 345,
+          "line": 349,
           "exported": false,
           "signature": "function appendPageItems<T>(target: T[], pageItems: readonly T[]): void"
         },
         {
           "name": "policyError",
           "kind": "function",
-          "line": 349,
+          "line": 353,
           "exported": false,
           "signature": "function policyError( reason: PaginationErrorReason, message: string, stats: CollectionStats, context: Readonly<Record<string, string | number | boolean | null>> = {}, ): never"
         },
         {
           "name": "collectAllPages",
           "kind": "function",
-          "line": 363,
+          "line": 367,
           "exported": true,
           "signature": "export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Promise<T[]>"
         }
@@ -10187,9 +10193,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export type RetryPolicyName = 'full' | 'binaryGet' | 'rateLimitOnly' | 'none'"
         },
         {
+          "name": "RetryDerivationInput",
+          "kind": "interface",
+          "line": 76,
+          "exported": true,
+          "signature": "export interface RetryDerivationInput { readonly bodyKind?: RequestBody['kind'] | undefined; readonly responseKind: 'json' | 'text' | 'binary'; readonly intent?: RequestIntent | undefined; }"
+        },
+        {
+          "name": "deriveRetryPolicy",
+          "kind": "function",
+          "line": 101,
+          "exported": true,
+          "signature": "export function deriveRetryPolicy(input: RetryDerivationInput): RetryPolicy"
+        },
+        {
           "name": "getRetryPolicy",
           "kind": "function",
-          "line": 75,
+          "line": 120,
           "exported": true,
           "signature": "export function getRetryPolicy(name: RetryPolicyName): RetryPolicy"
         }

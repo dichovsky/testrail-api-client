@@ -10,4 +10,13 @@ Archive file: [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.m
 
 ## 🏗️ Architecture
 
-- [ ] 🟡 ♻️ ARCH #4: `Endpoint` registry — colocate method/URL/payload-schema/response-schema per endpoint; generate `modules/*.ts` methods and CLI handlers as adapters (depends on #2 + #3)
+Deepening slate from the 2026-09-18 architecture review. Ordered; **ARCH #8 must
+precede ARCH #9** (#9's second-attempt hazard is prevented only by the convention
+#8 replaces). All internal — no published-API change; ships as one `7.3.0`.
+
+- [ ] 🟡 ♻️ ARCH #9: Upload source — one module owns descriptor → consumed body → release; folds in the platform mapping, the three close sites, and `MULTIPART_FIELD_NAME`
+- [ ] 🟡 ♻️ ARCH #10: Request budget — one module owns absolute time, phase clipping, the 408 and promise racing; deletes the inert `remainingTimeMs`
+- [ ] 🟡 ♻️ ARCH #11: `main()` interface — `(argv, env, streams) → exit code`, injected stdin reader and client factory; exit code becomes a property of the failure
+- [ ] 🟡 ♻️ ARCH #12: Diagnostic scope — `withDiagnostics(request, work)` absorbs the six-step protocol plus a process-lifetime port (depends on #11)
+- [ ] 🟡 ♻️ ARCH #13: Output ownership — one module owns every byte; non-optional `HandlerContext` writers, widened `actionSpec`, lint rule on `process.stderr.write` (depends on #11)
+- [ ] 🟡 ♻️ ARCH #4: Endpoint registry — one runtime declaration per endpoint read by the SDK method, `ActionSpec` and the pagination descriptor; gates D/E become type constraints. No codegen. Folds in the `ACTIONS` slice-arithmetic removal

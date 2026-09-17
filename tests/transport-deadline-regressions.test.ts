@@ -32,7 +32,7 @@ describe('transport deadline regressions', () => {
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(10);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_expired', bypassCache: true, remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_expired', intent: 'fresh-read', remainingTimeMs: 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         await expect(client.request<{ id: number }>({ method: 'GET', endpoint: 'get_valid' })).resolves.toEqual({
             id: 1,
@@ -57,7 +57,7 @@ describe('transport deadline regressions', () => {
             client.request({
                 method: 'GET',
                 endpoint: 'get_expired',
-                bypassCache: true,
+                intent: 'fresh-read',
                 deadlineAt: 10,
                 remainingTimeMs: 1,
             }),
@@ -101,7 +101,7 @@ describe('transport deadline regressions', () => {
             client.request<{ id: number }>({
                 method: 'GET',
                 endpoint: 'get_clock_step',
-                bypassCache: true,
+                intent: 'fresh-read',
                 deadlineAt: 301_000,
                 remainingTimeMs: 300_001,
             }),
@@ -123,7 +123,7 @@ describe('transport deadline regressions', () => {
             clients.push(client);
 
             await expect(
-                client.request({ method: 'GET', endpoint: 'get_x', bypassCache: true, deadlineAt }),
+                client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', deadlineAt }),
             ).rejects.toThrow('deadlineAt must be a finite number');
             expect(fetch).not.toHaveBeenCalled();
         },
@@ -146,7 +146,7 @@ describe('transport deadline regressions', () => {
                 client.request({
                     method: 'GET',
                     endpoint: 'get_x',
-                    bypassCache: true,
+                    intent: 'fresh-read',
                     deadlineAt: Date.now() + 100,
                     remainingTimeMs,
                 }),
