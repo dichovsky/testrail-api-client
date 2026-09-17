@@ -279,8 +279,8 @@ describe('bounded sequential collection', () => {
 
         expect(result).toEqual([1, 2, 3]);
         expect(requests).toEqual([
-            expect.objectContaining({ offset: 5, limit: 2, bypassCache: true }),
-            expect.objectContaining({ offset: 7, limit: 2, bypassCache: true }),
+            expect.objectContaining({ offset: 5, limit: 2, intent: 'fresh-read' }),
+            expect.objectContaining({ offset: 7, limit: 2, intent: 'fresh-read' }),
         ]);
     });
 
@@ -347,7 +347,9 @@ describe('bounded sequential collection', () => {
                 },
             }),
         ).rejects.toMatchObject({ reason: 'invalid_page', pagesFetched: 1, itemsFetched: 1 });
-        expect(requests).toEqual([expect.objectContaining({ offset: undefined, limit: undefined, bypassCache: true })]);
+        expect(requests).toEqual([
+            expect.objectContaining({ offset: undefined, limit: undefined, intent: 'fresh-read' }),
+        ]);
     });
 
     it('rejects a second-page failure without returning the first page', async () => {
@@ -618,7 +620,7 @@ describe('request hooks used by pagination adapters', () => {
         const spec = { method: 'GET' as const, endpoint: 'get_x', schema: ItemSchema };
         await expect(client.request<{ id: number }>(spec)).resolves.toEqual({ id: 1 });
         await expect(client.request<{ id: number }>(spec)).resolves.toEqual({ id: 1 });
-        await expect(client.request<{ id: number }>({ ...spec, bypassCache: true })).resolves.toEqual({ id: 2 });
+        await expect(client.request<{ id: number }>({ ...spec, intent: 'fresh-read' })).resolves.toEqual({ id: 2 });
         await expect(client.request<{ id: number }>(spec)).resolves.toEqual({ id: 1 });
         expect(fetch).toHaveBeenCalledTimes(2);
     });
@@ -640,7 +642,7 @@ describe('request hooks used by pagination adapters', () => {
         });
         clients.push(client);
 
-        const spec = { method: 'GET' as const, endpoint: 'get_x', schema: ItemSchema, bypassCache: true };
+        const spec = { method: 'GET' as const, endpoint: 'get_x', schema: ItemSchema, intent: 'fresh-read' as const };
         const first = client.request<{ id: number }>(spec);
         const second = client.request<{ id: number }>(spec);
         await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
@@ -665,7 +667,7 @@ describe('request hooks used by pagination adapters', () => {
         const pending = client.request({
             method: 'GET',
             endpoint: 'get_x',
-            bypassCache: true,
+            intent: 'fresh-read',
             remainingTimeMs: 20,
         });
         const assertion = expect(pending).rejects.toMatchObject({
@@ -690,7 +692,7 @@ describe('request hooks used by pagination adapters', () => {
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(10);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_x', bypassCache: true, remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', remainingTimeMs: 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         expect(fetch).not.toHaveBeenCalled();
     });
@@ -713,7 +715,7 @@ describe('request hooks used by pagination adapters', () => {
         const pending = client.request({
             method: 'GET',
             endpoint: 'get_x',
-            bypassCache: true,
+            intent: 'fresh-read',
             remainingTimeMs: 10,
         });
         const assertion = expect(pending).rejects.toMatchObject({
@@ -741,7 +743,7 @@ describe('request hooks used by pagination adapters', () => {
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(10);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_x', bypassCache: true, remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', remainingTimeMs: 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         expect(fetch).not.toHaveBeenCalled();
     });
@@ -765,7 +767,7 @@ describe('request hooks used by pagination adapters', () => {
         vi.spyOn(Date, 'now').mockImplementation(() => clock);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_x', bypassCache: true, remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', remainingTimeMs: 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
     });
 
@@ -796,7 +798,7 @@ describe('request hooks used by pagination adapters', () => {
         const pending = client.request({
             method: 'GET',
             endpoint: 'get_x',
-            bypassCache: true,
+            intent: 'fresh-read',
             remainingTimeMs: 20,
         });
         const assertion = expect(pending).rejects.toMatchObject({
@@ -831,7 +833,7 @@ describe('request hooks used by pagination adapters', () => {
         const pending = client.request({
             method: 'GET',
             endpoint: 'get_x',
-            bypassCache: true,
+            intent: 'fresh-read',
             remainingTimeMs: 100,
         });
         const assertion = expect(pending).rejects.toMatchObject({

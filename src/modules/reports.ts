@@ -23,12 +23,7 @@ export class ReportModule {
             method: 'GET',
             endpoint: `run_report/${reportTemplateId}`,
             schema: ReportResultSchema,
-            // Side-effecting GET: each call generates a new report and the
-            // template may email it. Bypass cache/coalescing so every explicit
-            // call executes once, and retry only 429 — the rate limiter rejects
-            // before execution, so nothing was generated (see retry-policy.ts).
-            retry: 'rateLimitOnly',
-            bypassCache: true,
+            intent: 'side-effecting-read',
         });
     }
 
@@ -55,12 +50,7 @@ export class ReportModule {
             method: 'GET',
             endpoint: `run_cross_project_report/${reportTemplateId}`,
             schema: ReportResultSchema,
-            // Side-effecting GET: each call generates a new report and the
-            // template may email it. Bypass cache/coalescing so every explicit
-            // call executes once, and retry only 429 — the rate limiter rejects
-            // before execution, so nothing was generated (see retry-policy.ts).
-            retry: 'rateLimitOnly',
-            bypassCache: true,
+            intent: 'side-effecting-read',
         });
     }
 }

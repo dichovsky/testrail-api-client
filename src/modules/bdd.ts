@@ -132,7 +132,6 @@ export class BddModule {
                 method: 'POST',
                 endpoint,
                 body: { kind: 'multipart', file, filename },
-                retry: 'none',
             }),
             { method: 'POST', endpoint },
         );
