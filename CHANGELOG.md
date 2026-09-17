@@ -15,6 +15,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed — BREAKING
+
+- **Node 24 is now the minimum supported runtime.** `engines.node` narrows from
+  `^20.19.0 || ^22.13.0 || >=24` to `>=24`, and the packed-package smoke matrix
+  runs Node 24 only on Linux, Windows, and macOS. Consumers on Node 20 or 22
+  must stay on 7.2.0 or upgrade their runtime. Nothing in the shipped code
+  branches on the Node version — the change is the support contract, the CI
+  matrix, and the process-wide `AsyncLocalStorage` cost note (on Node 24 that is
+  `AsyncContextFrame` at ~1%, not the async_hooks promise hook the older lines
+  used).
+
 ### Fixed
 
 - **Attachment uploads that supply a file descriptor no longer fail.** An upload
@@ -37,6 +48,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Internal
 
+- Dependencies bumped to current latest: `zod` `^4.6.5` (the only runtime
+  dependency; a minor range bump with no consumer-visible change) and the dev
+  toolchain — `vitest`/`@vitest/coverage-v8` `5.0.1`, `eslint` `10.10.0`,
+  `@typescript-eslint/*` `8.70.0`, `@types/node` `26.6.1`, `fast-check`
+  `4.10.1`, `prettier` `3.9.8`. Vitest 5 requires Node >= 22.12, which the
+  Node 24 floor above satisfies.
 - The hand-maintained "Published to npm" list at the top of this file now has a
   drift gate (`npm run published:check`, wired into `pretest`, CI, and the
   release workflow). It verifies that the `package.json` version appears in the

@@ -88,11 +88,11 @@ export function bindOperation<Args extends unknown[], Result>(
  * {@link engageOperationTracking} and never cleared.
  *
  * Entering an `AsyncLocalStorage` even once installs its context tracking for
- * the whole process. On Node 24 that is `AsyncContextFrame` and costs ~1%, but
- * on the Node 20/22 lines this package supports it is the async_hooks promise
- * hook, measured at roughly +170% on promise traffic that has nothing to do
- * with this client. A library must not impose that on embedders who never use
- * `trackOperation`, so scopes are created only once the feature is in play.
+ * the whole process, and it can never be undone. On Node 24 — the only line
+ * this package supports — that is `AsyncContextFrame`, costing ~1% on promise
+ * traffic that has nothing to do with this client. A library must not impose
+ * even that on embedders who never use `trackOperation`, so scopes are created
+ * only once the feature is in play.
  */
 let trackingEngaged = false;
 

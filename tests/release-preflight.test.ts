@@ -474,15 +474,14 @@ describe('CI package smoke wiring', () => {
         expect(primaryTypecheck).toBeLessThan(compatibilityTypecheck);
     });
 
-    it('covers every supported Node line on Linux plus Node 22 and 24 on Windows and macOS', () => {
-        expect(workflow).toContain("node-version: ['20.19.0', '22.13.0', '24']");
+    it('covers the supported Node line on Linux, Windows, and macOS', () => {
         expect(workflow).toContain('package-smoke-windows:');
         expect(workflow).toContain('name: Package smoke (Windows, Node ${{ matrix.node-version }})');
         expect(workflow).toContain('runs-on: windows-latest');
         expect(workflow).toContain('package-smoke-macos:');
         expect(workflow).toContain('name: Package smoke (macOS, Node ${{ matrix.node-version }})');
         expect(workflow).toContain('runs-on: macos-14');
-        expect(workflow.match(/node-version: \['22.13.0', '24'\]/g)).toHaveLength(2);
+        expect(workflow.match(/node-version: \['24'\]/g)).toHaveLength(3);
         expect(
             workflow.match(
                 /run: npx vitest run tests\/report-execution-policy.test.ts tests\/operation-settlement.test.ts tests\/upload-settlement.test.ts tests\/upload-cleanup-errors.test.ts/g,
