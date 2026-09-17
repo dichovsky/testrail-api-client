@@ -25,7 +25,7 @@ remaining upstream documentation ambiguities.
 npm install @dichovsky/testrail-api-client
 ```
 
-Requires Node.js 20.19+ (or 22.13+ / 24+).
+Requires Node.js 24+.
 
 Published declarations are smoke-tested with TypeScript 6 and 7. The repository
 build and primary type-check use native TypeScript 7; compiler-API-based

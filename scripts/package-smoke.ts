@@ -365,7 +365,7 @@ function readPackageIdentity(filePath: string, label: string): PackageIdentity {
         !validExports ||
         !isExactStringRecord(manifest['bin'], { testrail: 'dist/cli.js' }) ||
         !validFiles ||
-        !isExactStringRecord(manifest['engines'], { node: '^20.19.0 || ^22.13.0 || >=24' }) ||
+        !isExactStringRecord(manifest['engines'], { node: '>=24' }) ||
         !isExactStringRecord(manifest['publishConfig'], { access: 'public' }) ||
         ['private', 'os', 'cpu', 'libc', 'workspaces'].some((field) => manifest[field] !== undefined)
     ) {

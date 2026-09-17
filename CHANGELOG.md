@@ -15,6 +15,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed — BREAKING
+
+- **Node 24 is now the minimum supported runtime.** `engines.node` narrows from
+  `^20.19.0 || ^22.13.0 || >=24` to `>=24`, and the packed-package smoke matrix
+  runs Node 24 only on Linux, Windows, and macOS. Consumers on Node 20 or 22
+  must stay on 7.2.0 or upgrade their runtime. Nothing in the shipped code
+  branches on the Node version — the change is the support contract, the CI
+  matrix, and the process-wide `AsyncLocalStorage` cost note (on Node 24 that is
+  `AsyncContextFrame` at ~1%, not the async_hooks promise hook the older lines
+  used).
+
 ### Fixed
 
 - **Attachment uploads that supply a file descriptor no longer fail.** An upload

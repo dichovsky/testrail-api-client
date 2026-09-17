@@ -72,8 +72,8 @@ npm run package:smoke -- --prepared
 ```
 
 Open a release PR with the version, release scope, compatibility notes, and
-validation results. Wait for all CI jobs, including package smoke on the minimum
-supported Node 20 and 22 versions, current Node 24, Windows, and macOS. Merge
+validation results. Wait for all CI jobs, including package smoke on the only
+supported Node line, 24, across Linux, Windows, and macOS. Merge
 the PR, fetch `main`, and verify its resulting commit and CI before tagging.
 If other changes land before the merge, reassess the release contents and gates.
 
