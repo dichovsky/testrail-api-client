@@ -13,11 +13,10 @@ import { BASE_CONFIG } from './helpers.js';
  * deliberate and load-bearing.
  *
  * Why the latch exists: entering an `AsyncLocalStorage` installs context
- * propagation for the whole process. On Node 24 that is `AsyncContextFrame`
- * (~1% overhead), but on the Node 20/22 lines this package supports it is the
- * async_hooks promise hook, measured at roughly +170% on promise traffic that
- * has nothing to do with this client. Embedders who never call
- * `trackOperation` must not pay it.
+ * propagation for the whole process and can never be undone. On Node 24 — the
+ * only line this package supports — that is `AsyncContextFrame`, ~1% overhead
+ * on promise traffic that has nothing to do with this client. Embedders who
+ * never call `trackOperation` must not pay it.
  */
 describe('operation tracking engagement', () => {
     // A resource that never finishes. Inside a scope it pins `settled` forever;
@@ -64,9 +63,9 @@ describe('operation tracking engagement', () => {
             cleanup();
 
             // An upload is an ordinary SDK call. A consumer who never calls
-            // `trackOperation` must not have process-wide async-hooks context
-            // tracking installed on their behalf — on Node 20/22 that is roughly
-            // +170% on unrelated promise traffic, and it can never be undone.
+            // `trackOperation` must not have process-wide context tracking
+            // installed on their behalf — it costs ~1% on unrelated promise
+            // traffic, and it can never be undone.
             expect(runSpy).not.toHaveBeenCalled();
         } finally {
             runSpy.mockRestore();
