@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { describe, expect, it, vi } from 'vitest';
 import { observeOperation, startOperation } from '../src/operation-tracking.js';
-import { ownUploadStreams } from '../src/upload-lifetime.js';
+import { ownUploadStreams } from '../src/upload-source.js';
 import { MULTIPART_FIELD_NAME } from '../src/constants.js';
 import { TestRailClient } from '../src/index.js';
 import { BASE_CONFIG } from './helpers.js';

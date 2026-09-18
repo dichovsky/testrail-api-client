@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TestRailClient, type TestRailConfig } from '../src/index.js';
-import { ownUploadStreams } from '../src/upload-lifetime.js';
+import { ownUploadStreams } from '../src/upload-source.js';
 
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (reason: Error) => void } {
     let resolve: (value: T) => void = () => undefined;

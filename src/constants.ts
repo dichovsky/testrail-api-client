@@ -108,10 +108,14 @@ export const CLI_DIAGNOSTIC_PERMISSION_MASK = 0o777;
 export const CLI_DIAGNOSTIC_ACL_TIMEOUT_MS = 1000;
 
 /**
- * Multipart form field name TestRail expects for an attachment upload. Shared
- * so the builder that appends the entry and the lifetime wrapper that looks it
- * back up cannot drift: a mismatch would leave `ownUploadStreams` returning a
- * no-op cleanup, resolving `settled` while the upload is still streaming.
+ * Multipart form field name TestRail expects for an attachment upload.
+ *
+ * No longer a cross-module agreement: `src/upload-source.ts` both appends this
+ * entry and looks it back up, so the drift it used to guard against — a
+ * mismatch leaving `ownUploadStreams` with a no-op cleanup, resolving `settled`
+ * while the upload was still streaming — is no longer expressible. It stays
+ * exported only so tests can drive `ownUploadStreams` with a hand-built
+ * FormData.
  */
 export const MULTIPART_FIELD_NAME = 'attachment';
 
