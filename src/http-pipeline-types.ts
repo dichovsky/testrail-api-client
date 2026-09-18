@@ -2,6 +2,7 @@
 
 import type { ZodType } from 'zod';
 import type { UploadFileInput } from './types.js';
+import type { RequestBudget } from './request-budget.js';
 
 /**
  * Internal types for the unified HTTP pipeline (ARCH #1).
@@ -27,7 +28,18 @@ export interface RetryPolicy {
 export type BodyShape =
     | { readonly kind: 'none' }
     | { readonly kind: 'json'; readonly data: unknown }
-    | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: () => void }> };
+    | {
+          readonly kind: 'formdata';
+          readonly build: () => Promise<{ body: FormData; cleanup: () => void }>;
+          /**
+           * Idempotently release any resource the source holds without having
+           * built. The pipeline calls this when a request fails before reaching
+           * `build()` — a destroyed client, a rejected host, an already-spent
+           * budget — because `cleanup` was never handed out on those paths and
+           * the caller's file descriptor would otherwise leak.
+           */
+          readonly release: () => void;
+      };
 
 /**
  * Full spec for one pipeline execution. The public `request<T>(spec)` method
@@ -49,8 +61,11 @@ export interface PipelineSpec<TParsed> {
      * response-body read (success and error paths).
      */
     readonly bodyTimeout: number;
-    /** Absolute wall-clock deadline shared by every retry in this execution. */
-    readonly deadlineAt?: number;
+    /**
+     * Wall-clock allowance for this execution, shared by every retry. Created
+     * once in `request<T>()`; see {@link RequestBudget}.
+     */
+    readonly budget: RequestBudget;
     /**
      * When `true`, the pipeline adds `Content-Type: application/json` to
      * outbound headers. Set `false` for binary GETs and multipart POSTs where
@@ -166,12 +181,6 @@ export interface RequestSpec<T> {
      * stricter client/view timeout and is shared by retries.
      */
     readonly deadlineAt?: number;
-    /**
-     * @internal Legacy relative aggregate budget used by direct/internal
-     * callers. Pagination also supplies {@link deadlineAt}; when both are
-     * present, the fixed absolute deadline is authoritative.
-     */
-    readonly remainingTimeMs?: number;
     /**
      * @internal Per-request override for the connect/send/response-headers
      * timeout, in milliseconds. Set by {@link TestRailClient.withTimeout}

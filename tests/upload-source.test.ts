@@ -138,6 +138,26 @@ describe('createUploadSource', () => {
         }).not.toThrow();
     });
 
+    // A source is created when the request spec is built, but only releases
+    // from inside `build()`. The pipeline can fail before it ever builds — a
+    // destroyed client, a rejected host, a spent budget — so the shape exposes
+    // `release()` for exactly that. Without it a long-lived consumer uploading
+    // against a flaky host accumulated one descriptor per failure until EMFILE.
+    it('releases a source that is never built', () => {
+        const { path, fd } = scratchFile('payload');
+        const source = createUploadSource({ path, fd }, 'evidence.txt');
+
+        expect(isOpen(fd)).toBe(true);
+        source.release();
+        expect(isOpen(fd)).toBe(false);
+
+        // Idempotent, so the pipeline calling it after a successful build that
+        // already cleaned up is harmless.
+        expect(() => {
+            source.release();
+        }).not.toThrow();
+    });
+
     it('appends under the field name the stream wrapper looks for', async () => {
         // The builder and the wrapper used to agree on this by both importing a
         // shared constant across two files; they now live in one module. If they

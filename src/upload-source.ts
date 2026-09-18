@@ -17,14 +17,11 @@ import type { UploadFileInput, UploadFilePathInput } from './types.js';
  * the kernel and closed now lives here, and the field name is internal because
  * the same module appends and wraps it.
  *
- * One gap remains, pre-dating this module: the descriptor is captured when the
- * source is created but only released from inside `build()`, so a request that
- * fails before the pipeline reaches `build()` — destroyed client, DNS/SSRF
- * rejection, an already-expired aggregate deadline — leaks it. Harmless for the
- * CLI (process exit closes it) but a long-lived consumer uploading against a
- * flaky host accumulates one per failure. Closing it needs a release hook the
- * pipeline can call from its pre-fetch path, which is tracked as part of ARCH
- * #10 because that work restructures exactly that preamble.
+ * A source that is never built still holds the caller's descriptor, so the
+ * shape exposes `release()` for the pipeline to call when a request fails
+ * before reaching `build()` — a destroyed client, a rejected host, an
+ * already-spent budget. It is the same idempotent release `cleanup` uses, so
+ * calling both is harmless.
  */
 
 /** Reason surfaced to the encoder when cleanup tears a stream down mid-upload. */
@@ -204,6 +201,7 @@ export function createUploadSource(file: UploadFileInput, filename: string): Ext
 
     return {
         kind: 'formdata',
+        release: releaseDescriptor,
         build: async () => {
             if (built) {
                 throw new Error(

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "f89297201608e8fc4dfbabd11172013e51fd7ffd0eabe729a2c788cdfb0b82a1",
+  "sourceHash": "2d276ef78704328fb678e8679148e3308cad3d56b29a1028f9b86d9937081bb6",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6394,6 +6394,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./errors.js",
         "./http-pipeline-types.js",
         "./operation-tracking.js",
+        "./request-budget.js",
         "./request-cache.js",
         "./retry-policy.js",
         "./types.js",
@@ -6459,226 +6460,211 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 142,
           "exported": false,
-          "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly deadlineAt?: number; }"
+          "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestBudget; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 155,
+          "line": 156,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 163,
+          "line": 164,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 164
+              "line": 165
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 167
+              "line": 168
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 168
+              "line": 169
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 169
+              "line": 170
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 170
+              "line": 171
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 171
+              "line": 172
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 172
+              "line": 173
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 173
+              "line": 174
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 174
+              "line": 175
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 175
+              "line": 176
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 176
+              "line": 177
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 181
+              "line": 182
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 187
+              "line": 188
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 194
+              "line": 195
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 195
+              "line": 196
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 196
+              "line": 197
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 197
+              "line": 198
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 199
+              "line": 200
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 269
+              "line": 270
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 294
+              "line": 295
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 336
+              "line": 337
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 379
+              "line": 380
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 427
+              "line": 428
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 446
+              "line": 447
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 465
+              "line": 466
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 483
+              "line": 484
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 530
+              "line": 531
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 640
+              "line": 626
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 680
+              "line": 666
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 700
+              "line": 686
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 731
+              "line": 717
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 760
-            },
-            {
-              "name": "remainingDeadlineMs",
-              "kind": "method",
-              "line": 771
-            },
-            {
-              "name": "clipBodyTimeout",
-              "kind": "method",
-              "line": 780
-            },
-            {
-              "name": "withDeadline",
-              "kind": "method",
-              "line": 790
-            },
-            {
-              "name": "waitForRetryDelay",
-              "kind": "method",
-              "line": 819
+              "line": 746
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 830
+              "line": 761
+            },
+            {
+              "name": "attemptPipeline",
+              "kind": "method",
+              "line": 777
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1002
+              "line": 941
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1028
+              "line": 967
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1064
+              "line": 1003
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1076
+              "line": 1015
             }
           ]
         }
@@ -7344,6 +7330,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/http-pipeline-types.ts",
       "imports": [
+        "./request-budget.js",
         "./types.js",
         "zod"
       ],
@@ -7352,42 +7339,42 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "RetryPolicy",
           "kind": "interface",
-          "line": 13,
+          "line": 14,
           "exported": true,
           "signature": "export interface RetryPolicy { isStatusRetryable(status: number, method: string): boolean; isNetworkErrorRetryable(method: string): boolean; }"
         },
         {
           "name": "BodyShape",
           "kind": "type",
-          "line": 27,
+          "line": 28,
           "exported": true,
           "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: () => vo…"
         },
         {
           "name": "PipelineSpec",
           "kind": "interface",
-          "line": 36,
+          "line": 48,
           "exported": true,
-          "signature": "export interface PipelineSpec<TParsed> { readonly method: string; readonly endpoint: string; readonly body: BodyShape; readonly timeout: number; readonly bodyTimeout: number; readonly deadlineAt?: num…"
+          "signature": "export interface PipelineSpec<TParsed> { readonly method: string; readonly endpoint: string; readonly body: BodyShape; readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestB…"
         },
         {
           "name": "RequestBody",
           "kind": "type",
-          "line": 74,
+          "line": 89,
           "exported": true,
           "signature": "export type RequestBody = | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'multipart'; readonly file: UploadFileInput; readonly filename: string }"
         },
         {
           "name": "RequestIntent",
           "kind": "type",
-          "line": 99,
+          "line": 114,
           "exported": true,
           "signature": "export type RequestIntent = 'side-effecting-read' | 'fresh-read'"
         },
         {
           "name": "RequestSpec",
           "kind": "interface",
-          "line": 124,
+          "line": 139,
           "exported": true,
           "signature": "export interface RequestSpec<T> { readonly __t?: T; readonly method: 'GET' | 'POST' | 'PUT' | 'DELETE'; readonly endpoint: string; readonly body?: RequestBody; readonly schema?: ZodType; readonly resp…"
         }
@@ -8474,7 +8461,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "type",
           "line": 86,
           "exported": false,
-          "signature": "type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'remainingTimeMs' | 'deadlineAt'>> & { readonly pageProjection?: boolean; }"
+          "signature": "type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'deadlineAt'>> & { readonly pageProjection?: boolean; }"
         },
         {
           "name": "isQueryArray",
@@ -9870,175 +9857,221 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 52,
           "exported": true,
-          "signature": "export interface PaginationRequest { readonly offset: number | undefined; readonly limit: number | undefined; readonly intent: 'fresh-read'; readonly deadlineAt: number; readonly remainingTimeMs: numb…"
+          "signature": "export interface PaginationRequest { readonly offset: number | undefined; readonly limit: number | undefined; readonly intent: 'fresh-read'; readonly deadlineAt: number; }"
         },
         {
           "name": "PaginationContinuation",
           "kind": "interface",
-          "line": 65,
+          "line": 64,
           "exported": true,
           "signature": "export interface PaginationContinuation { readonly offset: number; readonly limit: number | undefined; }"
         },
         {
           "name": "CollectionStats",
           "kind": "interface",
-          "line": 70,
+          "line": 69,
           "exported": false,
           "signature": "interface CollectionStats { readonly pagesFetched: number; readonly itemsFetched: number; }"
         },
         {
           "name": "ControlledCollectionOptions",
           "kind": "interface",
-          "line": 75,
+          "line": 74,
           "exported": false,
           "signature": "interface ControlledCollectionOptions<T> extends PaginatedRequestOptions { readonly requestControls?: true; readonly fetchPage: (request: PaginationRequest) => Promise<Page<T>>; readonly now?: () => n…"
         },
         {
           "name": "EnvelopeOnlyCollectionOptions",
           "kind": "interface",
-          "line": 82,
+          "line": 81,
           "exported": false,
           "signature": "interface EnvelopeOnlyCollectionOptions<T> extends PaginationSafetyOptions { readonly requestControls: false; readonly pageSize?: never; readonly startOffset?: never; readonly fetchPage: (request: Pag…"
         },
         {
           "name": "CollectAllPagesOptions",
           "kind": "type",
-          "line": 91,
+          "line": 90,
           "exported": true,
           "signature": "export type CollectAllPagesOptions<T> = ControlledCollectionOptions<T> | EnvelopeOnlyCollectionOptions<T>"
         },
         {
           "name": "ResolvedCollectionOptions",
           "kind": "interface",
-          "line": 93,
+          "line": 92,
           "exported": false,
           "signature": "interface ResolvedCollectionOptions { readonly requestControls: boolean; readonly pageSize: number | undefined; readonly startOffset: number | undefined; readonly maxPages: number; readonly maxItems: …"
         },
         {
           "name": "PAGINATION_METADATA_KEYS",
           "kind": "const",
-          "line": 103,
+          "line": 102,
           "exported": false,
           "signature": "const PAGINATION_METADATA_KEYS = ['offset', 'limit', 'size', '_links'] as const"
         },
         {
           "name": "isRecord",
           "kind": "function",
-          "line": 105,
+          "line": 104,
           "exported": false,
           "signature": "function isRecord(value: unknown): value is Record<string, unknown>"
         },
         {
           "name": "hasPaginationMetadataSignature",
           "kind": "function",
-          "line": 109,
+          "line": 108,
           "exported": false,
           "signature": "function hasPaginationMetadataSignature(value: unknown): boolean"
         },
         {
           "name": "isNonNegativeInteger",
           "kind": "function",
-          "line": 116,
+          "line": 115,
           "exported": false,
           "signature": "function isNonNegativeInteger(value: unknown): value is number"
         },
         {
           "name": "isPositiveInteger",
           "kind": "function",
-          "line": 120,
+          "line": 119,
           "exported": false,
           "signature": "function isPositiveInteger(value: unknown): value is number"
         },
         {
           "name": "invalidPage",
           "kind": "function",
-          "line": 124,
+          "line": 123,
           "exported": false,
           "signature": "function invalidPage(message: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }): never"
         },
         {
           "name": "decodeEnvelope",
           "kind": "function",
-          "line": 128,
+          "line": 127,
           "exported": false,
           "signature": "function decodeEnvelope<T>(key: string, raw: Record<string, unknown>, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodePage",
           "kind": "function",
-          "line": 181,
+          "line": 180,
           "exported": true,
           "signature": "export function decodePage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodeNestedPage",
           "kind": "function",
-          "line": 198,
+          "line": 197,
           "exported": true,
           "signature": "export function decodeNestedPage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 225,
+          "line": 224,
           "exported": false,
           "signature": "function parseCanonicalInteger(values: string[], name: string, allowZero: boolean, stats: CollectionStats): number"
         },
         {
           "name": "parsePaginationContinuation",
           "kind": "function",
-          "line": 260,
+          "line": 259,
           "exported": true,
           "signature": "export function parsePaginationContinuation( next: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }, ): PaginationContinuation"
         },
         {
           "name": "validatePositiveBound",
           "kind": "function",
-          "line": 308,
+          "line": 307,
           "exported": false,
           "signature": "function validatePositiveBound(value: number, name: string, maximum?: number): void"
         },
         {
           "name": "defaultWhenUndefined",
           "kind": "function",
-          "line": 315,
+          "line": 314,
           "exported": false,
           "signature": "function defaultWhenUndefined<T>(value: T | undefined, fallback: T): T"
         },
         {
           "name": "resolveCollectionOptions",
           "kind": "function",
-          "line": 320,
+          "line": 319,
           "exported": false,
           "signature": "function resolveCollectionOptions<T>(options: CollectAllPagesOptions<T>): ResolvedCollectionOptions"
         },
         {
           "name": "serializedByteLength",
           "kind": "function",
-          "line": 341,
+          "line": 340,
           "exported": false,
           "signature": "function serializedByteLength(items: readonly unknown[], stats: CollectionStats): number"
         },
         {
           "name": "appendPageItems",
           "kind": "function",
-          "line": 349,
+          "line": 348,
           "exported": false,
           "signature": "function appendPageItems<T>(target: T[], pageItems: readonly T[]): void"
         },
         {
           "name": "policyError",
           "kind": "function",
-          "line": 353,
+          "line": 352,
           "exported": false,
           "signature": "function policyError( reason: PaginationErrorReason, message: string, stats: CollectionStats, context: Readonly<Record<string, string | number | boolean | null>> = {}, ): never"
         },
         {
           "name": "collectAllPages",
           "kind": "function",
-          "line": 367,
+          "line": 366,
           "exported": true,
           "signature": "export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Promise<T[]>"
+        }
+      ]
+    },
+    {
+      "path": "src/request-budget.ts",
+      "imports": [
+        "./errors.js",
+        "./operation-tracking.js",
+        "./utils.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "RequestBudget",
+          "kind": "interface",
+          "line": 26,
+          "exported": true,
+          "signature": "export interface RequestBudget { readonly bounded: boolean; readonly expired: boolean; expiredBy(instant: number): boolean; allowanceFor(configuredMs: number): number; bound<T>(promise: Promise<T>, on…"
+        },
+        {
+          "name": "AGGREGATE_EXPIRED",
+          "kind": "const",
+          "line": 60,
+          "exported": false,
+          "signature": "const AGGREGATE_EXPIRED = 'Aggregate request deadline exceeded'"
+        },
+        {
+          "name": "expiredError",
+          "kind": "function",
+          "line": 63,
+          "exported": false,
+          "signature": "function expiredError(): TestRailApiError"
+        },
+        {
+          "name": "RequestBudgetOptions",
+          "kind": "interface",
+          "line": 67,
+          "exported": true,
+          "signature": "export interface RequestBudgetOptions { readonly deadlineAt?: number | undefined; readonly now?: () => number; }"
+        },
+        {
+          "name": "createRequestBudget",
+          "kind": "function",
+          "line": 77,
+          "exported": true,
+          "signature": "export function createRequestBudget({ deadlineAt, now = Date.now }: RequestBudgetOptions = {}): RequestBudget"
         }
       ]
     },
@@ -12323,28 +12356,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "UPLOAD_ABORTED_MESSAGE",
           "kind": "const",
-          "line": 31,
+          "line": 28,
           "exported": false,
           "signature": "const UPLOAD_ABORTED_MESSAGE = 'Upload aborted before the request completed'"
         },
         {
           "name": "isFilePathInput",
           "kind": "function",
-          "line": 33,
+          "line": 30,
           "exported": false,
           "signature": "function isFilePathInput(value: unknown): value is UploadFilePathInput"
         },
         {
           "name": "ownUploadStreams",
           "kind": "function",
-          "line": 48,
+          "line": 45,
           "exported": true,
           "signature": "export function ownUploadStreams(formData: globalThis.FormData): () => void"
         },
         {
           "name": "createUploadSource",
           "kind": "function",
-          "line": 169,
+          "line": 166,
           "exported": true,
           "signature": "export function createUploadSource(file: UploadFileInput, filename: string): Extract<BodyShape, { kind: 'formdata' }>"
         }

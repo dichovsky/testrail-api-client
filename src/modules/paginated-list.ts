@@ -83,7 +83,7 @@ export interface PaginatedListExecutor<
     all(client: TestRailClientCore, args: Args, options?: AllOptions): Promise<Item[]>;
 }
 
-type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'remainingTimeMs' | 'deadlineAt'>> & {
+type PaginationTransport = Partial<Pick<PaginationRequest, 'intent' | 'deadlineAt'>> & {
     readonly pageProjection?: boolean;
 };
 
@@ -196,7 +196,6 @@ export function createPaginatedListExecutor<
             schema: pageProjection ? pageSchema : listSchema,
             ...(pageProjection && { cacheVariant: 'page' as const }),
             ...(transport?.intent !== undefined && { intent: transport.intent }),
-            ...(transport?.remainingTimeMs !== undefined && { remainingTimeMs: transport.remainingTimeMs }),
             ...(transport?.deadlineAt !== undefined && { deadlineAt: transport.deadlineAt }),
         });
     };
@@ -229,14 +228,8 @@ export function createPaginatedListExecutor<
                 descriptor.prepare(args, endpointOptions<ReadOptions>(options)),
                 allowedOperations,
             );
-            const fetchPage = async ({
-                offset,
-                limit,
-                intent,
-                remainingTimeMs,
-                deadlineAt,
-            }: PaginationRequest): Promise<Page<Item>> => {
-                const raw = await request(client, prepared, { limit, offset }, { intent, remainingTimeMs, deadlineAt });
+            const fetchPage = async ({ offset, limit, intent, deadlineAt }: PaginationRequest): Promise<Page<Item>> => {
+                const raw = await request(client, prepared, { limit, offset }, { intent, deadlineAt });
                 return decode(raw);
             };
 
