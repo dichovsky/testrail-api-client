@@ -27,42 +27,21 @@ describe('transport deadline regressions', () => {
         });
         clients.push(client);
 
-        // request() establishes deadline 10 at the first reading. Admission
-        // work then observes equality with that deadline before fetch starts.
+        // Three readings before the deadline lands, so the request survives
+        // `bound(dns)` and `allowanceFor` and is stopped by the admission guard
+        // itself — the one this test exists to pin. Collapsing this to a single
+        // `mockReturnValue(10)` spends the budget at the first gate instead, and
+        // deleting the admission guard then leaves the whole suite green.
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(10);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_expired', intent: 'fresh-read', remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_expired', intent: 'fresh-read', deadlineAt: 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         await expect(client.request<{ id: number }>({ method: 'GET', endpoint: 'get_valid' })).resolves.toEqual({
             id: 1,
         });
 
         expect(fetch).toHaveBeenCalledOnce();
-    });
-
-    it('honors the supplied absolute deadline instead of rebasing the relative budget', async () => {
-        const fetch = vi.fn().mockResolvedValue(new Response('{"id":1}', { status: 200 }));
-        const client = new TestRailClient({
-            baseUrl: 'https://example.test',
-            email: 'agent@example.test',
-            apiKey: 'key',
-            allowPrivateHosts: true,
-            fetch,
-        });
-        clients.push(client);
-        vi.spyOn(Date, 'now').mockReturnValue(10);
-
-        await expect(
-            client.request({
-                method: 'GET',
-                endpoint: 'get_expired',
-                intent: 'fresh-read',
-                deadlineAt: 10,
-                remainingTimeMs: 1,
-            }),
-        ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
-        expect(fetch).not.toHaveBeenCalled();
     });
 
     it('preserves the collector deadline through a public adapter and its synchronous setup', async () => {
@@ -85,30 +64,6 @@ describe('transport deadline regressions', () => {
         expect(fetch).not.toHaveBeenCalled();
     });
 
-    it('accepts a clock-step-expanded relative hint when a fixed deadline is present', async () => {
-        const fetch = vi.fn().mockResolvedValue(new Response('{"id":1}', { status: 200 }));
-        const client = new TestRailClient({
-            baseUrl: 'https://example.test',
-            email: 'agent@example.test',
-            apiKey: 'key',
-            allowPrivateHosts: true,
-            fetch,
-        });
-        clients.push(client);
-        vi.spyOn(Date, 'now').mockReturnValue(999);
-
-        await expect(
-            client.request<{ id: number }>({
-                method: 'GET',
-                endpoint: 'get_clock_step',
-                intent: 'fresh-read',
-                deadlineAt: 301_000,
-                remainingTimeMs: 300_001,
-            }),
-        ).resolves.toEqual({ id: 1 });
-        expect(fetch).toHaveBeenCalledOnce();
-    });
-
     it.each([Number.NaN, Number.POSITIVE_INFINITY, 'soon' as unknown as number])(
         'rejects a malformed absolute deadline (%s)',
         async (deadlineAt) => {
@@ -125,32 +80,6 @@ describe('transport deadline regressions', () => {
             await expect(
                 client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', deadlineAt }),
             ).rejects.toThrow('deadlineAt must be a finite number');
-            expect(fetch).not.toHaveBeenCalled();
-        },
-    );
-
-    it.each([0, Number.NaN, 'later' as unknown as number])(
-        'rejects a malformed relative hint even when an absolute deadline is present (%s)',
-        async (remainingTimeMs) => {
-            const fetch = vi.fn();
-            const client = new TestRailClient({
-                baseUrl: 'https://example.test',
-                email: 'agent@example.test',
-                apiKey: 'key',
-                allowPrivateHosts: true,
-                fetch,
-            });
-            clients.push(client);
-
-            await expect(
-                client.request({
-                    method: 'GET',
-                    endpoint: 'get_x',
-                    intent: 'fresh-read',
-                    deadlineAt: Date.now() + 100,
-                    remainingTimeMs,
-                }),
-            ).rejects.toThrow('remainingTimeMs must be a positive finite number');
             expect(fetch).not.toHaveBeenCalled();
         },
     );
@@ -183,7 +112,7 @@ describe('transport deadline regressions', () => {
         const bounded = client.request<{ id: number }>({
             method: 'GET',
             endpoint: 'get_shared',
-            remainingTimeMs: 10,
+            deadlineAt: Date.now() + 10,
             ...schema,
         });
         const boundedAssertion = expect(bounded).rejects.toMatchObject({
@@ -225,7 +154,7 @@ describe('transport deadline regressions', () => {
         const bounded = client.request<{ id: number }>({
             method: 'GET',
             endpoint: 'get_shared',
-            remainingTimeMs: 10,
+            deadlineAt: Date.now() + 10,
             ...schema,
         });
         await vi.advanceTimersByTimeAsync(0);
@@ -274,7 +203,7 @@ describe('transport deadline regressions', () => {
                 method: 'POST',
                 endpoint: 'add_item',
                 body: { kind: 'json', data: { name: 'write' } },
-                remainingTimeMs: 10,
+                deadlineAt: 10,
             }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         await expect(client.request<{ name: string }>({ method: 'GET', endpoint: 'get_cached' })).resolves.toEqual({

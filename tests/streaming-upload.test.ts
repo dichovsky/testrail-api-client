@@ -255,6 +255,45 @@ describe('streaming upload — requestMultipart with { path } descriptor', () =>
         expect(part.type).toBe('image/png');
     });
 
+    // The pipeline can fail before it ever calls `build()` — a rejected host, a
+    // destroyed client, a spent budget — and on those paths `cleanup` was never
+    // handed out. Without the wrapper's `release()` the caller's descriptor
+    // leaks for the life of the process; a long-lived consumer uploading
+    // against a flaky host accumulates one per failure until EMFILE.
+    //
+    // This has to go through the client: asserting `release()` closes an fd in
+    // isolation passes even when nothing calls it. Deleting the release line
+    // leaves every other upload test green.
+    it('releases the caller descriptor when the request fails before the body is built', async () => {
+        const path = join(tmp, 'pre-build-failure.bin');
+        writeFileSync(path, Buffer.from('payload'));
+        const fd = openSync(path, 'r');
+
+        const client = new TestRailClient({
+            baseUrl: 'https://example.testrail.io',
+            email: 't@example.com',
+            apiKey: 'k',
+            enableCache: false,
+            // Rejected during the preamble, before any body construction.
+            dnsLookup: () => Promise.reject(new Error('EAI_AGAIN')),
+        });
+
+        try {
+            await expect(client.attachments.addAttachmentToCase(1, { path, fd }, 'p.bin')).rejects.toThrow();
+            expect(mockFetch).not.toHaveBeenCalled();
+
+            let stillOpen = true;
+            try {
+                closeSync(fd);
+            } catch {
+                stillOpen = false;
+            }
+            expect(stillOpen).toBe(false);
+        } finally {
+            client.destroy();
+        }
+    });
+
     it('surfaces ENOENT as TestRailApiError (Network error), no unhandled rejection', async () => {
         const client = buildClient();
         // No mockFetch — openAsBlob should fail before fetch runs.

@@ -1,5 +1,5 @@
 import type { TestRailConfig, SchemaMismatch } from './types.js';
-import { base64Encode, sleep } from './utils.js';
+import { base64Encode } from './utils.js';
 import { TestRailApiError, TestRailLicenseError, TestRailValidationError, isLicenseRestriction } from './errors.js';
 import pkg from '../package.json' with { type: 'json' };
 import { isIP } from 'node:net';
@@ -11,11 +11,11 @@ import { isPrivateHostLiteral, isPrivateOrLoopbackIP, validateTestRailConfig } f
 import {
     startOperation,
     observeOperation,
-    bindOperation,
     engageOperationTracking,
     type OperationHandle,
 } from './operation-tracking.js';
 import { createUploadSource } from './upload-source.js';
+import { createRequestBudget, type RequestBudget } from './request-budget.js';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -142,7 +142,8 @@ function registerProcessHandlers(): void {
 interface ResolvedTimeouts {
     readonly timeout: number;
     readonly bodyTimeout: number;
-    readonly deadlineAt?: number;
+    /** Shared by every retry of this call; see {@link RequestBudget}. */
+    readonly budget: RequestBudget;
 }
 
 /**
@@ -550,34 +551,19 @@ export class TestRailClientCore {
         ) {
             throw new TestRailValidationError('deadlineAt must be a finite number');
         }
-        if (spec.remainingTimeMs !== undefined) {
-            if (spec.deadlineAt === undefined) {
-                validateTimeout(spec.remainingTimeMs);
-            } else if (
-                typeof spec.remainingTimeMs !== 'number' ||
-                !Number.isFinite(spec.remainingTimeMs) ||
-                spec.remainingTimeMs <= 0
-            ) {
-                // A fixed deadline is authoritative and deliberately permits a
-                // derived relative value above MAX_TIMEOUT_MS after a backward
-                // clock step, but malformed/non-positive values still fail fast.
-                throw new TestRailValidationError('remainingTimeMs must be a positive finite number');
-            }
-        }
-
         // Resolve the effective timeouts once. A `withTimeout(ms)` view sets
         // `spec.timeout`/`spec.bodyTimeout`; a normal call leaves them undefined
         // and falls back to the client-wide values. Threaded into every pipeline
         // execution so the override reaches the abort timer and body-read deadline.
-        const configuredTimeout = spec.timeout ?? this.timeout;
-        const configuredBodyTimeout = spec.bodyTimeout ?? this.bodyTimeout;
-        const remainingTimeMs = spec.remainingTimeMs;
-        const deadlineAt =
-            spec.deadlineAt ?? (remainingTimeMs === undefined ? undefined : Date.now() + remainingTimeMs);
+        //
+        // The budget is created once here and shared by every retry, so time
+        // already spent is never refunded. An ordinary call carries no aggregate
+        // deadline and gets an unbounded budget, which answers with the caller's
+        // configured values and never raises.
         const timeouts: ResolvedTimeouts = {
-            timeout: configuredTimeout,
-            bodyTimeout: configuredBodyTimeout,
-            ...(deadlineAt === undefined ? {} : { deadlineAt }),
+            timeout: spec.timeout ?? this.timeout,
+            bodyTimeout: spec.bodyTimeout ?? this.bodyTimeout,
+            budget: createRequestBudget({ deadlineAt: spec.deadlineAt }),
         };
 
         // Cache key namespace selection — preserves the prior split where the
@@ -626,8 +612,8 @@ export class TestRailClientCore {
             key: cacheKey,
             // Bounded initiators are not shared with later unbounded callers;
             // bounded waiters may still join an ordinary shared request.
-            shareInFlight: timeouts.deadlineAt === undefined,
-            wait: (promise) => this.withDeadline(promise, timeouts.deadlineAt),
+            shareInFlight: !timeouts.budget.bounded,
+            wait: (promise) => timeouts.budget.bound(promise),
             load,
         });
     }
@@ -652,12 +638,12 @@ export class TestRailClientCore {
             sendJsonContentType: body?.kind !== 'multipart',
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
-            ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
+            budget: timeouts.budget,
             retryPolicy,
             parseSuccess: async (response: Response) => {
                 const responseText = await readBodyAsText(response, {
                     ...jsonLimits,
-                    deadlineMs: this.clipBodyTimeout(timeouts.bodyTimeout, timeouts.deadlineAt),
+                    deadlineMs: timeouts.budget.allowanceFor(timeouts.bodyTimeout),
                 });
                 if (!responseText) return {} as T;
                 try {
@@ -712,12 +698,12 @@ export class TestRailClientCore {
             sendJsonContentType: body?.kind !== 'multipart',
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
-            ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
+            budget: timeouts.budget,
             retryPolicy,
             parseSuccess: async (response: Response) =>
                 (await readBodyAsText(response, {
                     ...jsonLimits,
-                    deadlineMs: this.clipBodyTimeout(timeouts.bodyTimeout, timeouts.deadlineAt),
+                    deadlineMs: timeouts.budget.allowanceFor(timeouts.bodyTimeout),
                 })) as T,
             ...this.cacheInvalidationHook(method, body),
         });
@@ -736,12 +722,12 @@ export class TestRailClientCore {
             sendJsonContentType: false,
             timeout: timeouts.timeout,
             bodyTimeout: timeouts.bodyTimeout,
-            ...(timeouts.deadlineAt === undefined ? {} : { deadlineAt: timeouts.deadlineAt }),
+            budget: timeouts.budget,
             retryPolicy,
             parseSuccess: async (response: Response) => {
                 const bytes = await readBodyWithLimits(response, {
                     maxBytes: this.maxBinaryResponseBytes,
-                    deadlineMs: this.clipBodyTimeout(timeouts.bodyTimeout, timeouts.deadlineAt),
+                    deadlineMs: timeouts.budget.allowanceFor(timeouts.bodyTimeout),
                 });
                 const buf =
                     bytes.byteLength === bytes.buffer.byteLength
@@ -767,72 +753,33 @@ export class TestRailClientCore {
         return createUploadSource(body.file, body.filename);
     }
 
-    /** Remaining milliseconds before an aggregate request deadline. */
-    private remainingDeadlineMs(deadlineAt: number): number {
-        return Math.ceil(deadlineAt - Date.now());
-    }
-
-    /**
-     * Clips a body-read timeout to an aggregate deadline without increasing a
-     * stricter configured timeout. Called immediately before every body read,
-     * including retries, so time already spent on DNS/headers is deducted.
-     */
-    private clipBodyTimeout(bodyTimeout: number, deadlineAt?: number): number {
-        if (deadlineAt === undefined) return bodyTimeout;
-        const remaining = this.remainingDeadlineMs(deadlineAt);
-        if (remaining <= 0) {
-            throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
-        }
-        return bodyTimeout === 0 ? remaining : Math.min(bodyTimeout, remaining);
-    }
-
-    /** Bounds DNS, fetch, and retry-delay awaits by the same aggregate deadline. */
-    private withDeadline<T>(promise: Promise<T>, deadlineAt?: number, onTimeout?: () => void): Promise<T> {
-        void observeOperation(promise);
-        if (deadlineAt === undefined) return promise;
-        const remaining = this.remainingDeadlineMs(deadlineAt);
-        if (remaining <= 0) {
-            // The caller has already created the losing operation. Attach a
-            // rejection handler before cancellation so an immediate abort
-            // cannot become an unhandled rejection.
-            void promise.catch(() => undefined);
-            onTimeout?.();
-            return Promise.reject(new TestRailApiError(408, 'Aggregate request deadline exceeded'));
-        }
-
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-        const deadline = new Promise<never>((_resolve, reject) => {
-            timeoutId = setTimeout(
-                bindOperation(() => {
-                    reject(new TestRailApiError(408, 'Aggregate request deadline exceeded'));
-                    onTimeout?.();
-                }),
-                remaining,
-            );
-        });
-        return Promise.race([promise, deadline]).finally(() => {
-            if (timeoutId !== undefined) clearTimeout(timeoutId);
-        });
-    }
-
-    /** Waits between retries without leaving the losing delay timer alive. */
-    private waitForRetryDelay(delayMs: number, deadlineAt?: number): Promise<void> {
-        if (deadlineAt === undefined) return observeOperation(sleep(delayMs));
-        const controller = new AbortController();
-        return this.withDeadline(sleep(delayMs, controller.signal), deadlineAt, () => controller.abort());
-    }
-
     /**
      * Shared HTTP pipeline: DNS validation, rate limiting, fetch, redirect guard,
      * error-body read, retry (via spec.retryPolicy), and success parsing.
      * Request caching and coalescing live entirely in {@link RequestCache}.
      */
     private async executePipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
+        try {
+            return await this.attemptPipeline<TParsed>(spec, retryCount);
+        } catch (error) {
+            // A multipart source captures the caller's descriptor when the spec
+            // is built, but only releases it from inside `build()`. The
+            // preamble below — destroyed client, DNS/SSRF rejection, a spent
+            // budget — throws before `build()` runs, so without this the
+            // descriptor leaks for the life of the process. Release is
+            // idempotent, so a request that did build and clean up is
+            // unaffected.
+            if (spec.body.kind === 'formdata') spec.body.release();
+            throw error;
+        }
+    }
+
+    private async attemptPipeline<TParsed>(spec: PipelineSpec<TParsed>, retryCount = 0): Promise<TParsed> {
         if (this.isDestroyed) {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        await this.withDeadline(this.awaitDnsValidation(), spec.deadlineAt);
+        await spec.budget.bound(this.awaitDnsValidation());
 
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
@@ -844,12 +791,7 @@ export class TestRailClientCore {
         }
 
         const controller = new AbortController();
-        const deadlineRemaining =
-            spec.deadlineAt === undefined ? spec.timeout : this.remainingDeadlineMs(spec.deadlineAt);
-        if (deadlineRemaining <= 0) {
-            throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
-        }
-        const effectiveTimeout = Math.min(spec.timeout, deadlineRemaining);
+        const effectiveTimeout = spec.budget.allowanceFor(spec.timeout);
         const requestDeadlineAt = Date.now() + effectiveTimeout;
         const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
@@ -881,7 +823,7 @@ export class TestRailClientCore {
                 // expired request/aggregate deadline therefore cannot consume
                 // a limiter slot without a corresponding fetch.
                 const admissionTime = Date.now();
-                if (spec.deadlineAt !== undefined && admissionTime >= spec.deadlineAt) {
+                if (spec.budget.expiredBy(admissionTime)) {
                     throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
                 }
                 if (controller.signal.aborted || admissionTime >= requestDeadlineAt) {
@@ -894,17 +836,16 @@ export class TestRailClientCore {
                 // are respected) but must not be rejected by a local 429.
                 this.checkRateLimit(retryCount === 0, admissionTime);
 
-                const response: Response = await this.withDeadline(
+                const response: Response = await spec.budget.bound(
                     (this.fetchOverride ?? globalThis.fetch)(url, options).then((received) => {
                         receivedResponse = received;
                         // A custom fetch may ignore abort and return headers
                         // after its result deadline. Own the late body cleanup.
-                        if (spec.deadlineAt !== undefined && this.remainingDeadlineMs(spec.deadlineAt) <= 0) {
+                        if (spec.budget.expired) {
                             this.cancelUnusedBody(received);
                         }
                         return received;
                     }),
-                    spec.deadlineAt,
                     () => controller.abort(),
                 );
                 // Headers received — header timeout has done its job. The body
@@ -923,7 +864,7 @@ export class TestRailClientCore {
 
                 const jsonLimits = {
                     maxBytes: this.maxJsonResponseBytes,
-                    deadlineMs: this.clipBodyTimeout(spec.bodyTimeout, spec.deadlineAt),
+                    deadlineMs: spec.budget.allowanceFor(spec.bodyTimeout),
                 };
 
                 if (!response.ok) {
@@ -945,7 +886,7 @@ export class TestRailClientCore {
                     if (spec.retryPolicy.isStatusRetryable(status, spec.method) && retryCount < this.maxRetries) {
                         const retryAfterMs = this.parseRetryAfterMs(response);
                         const delay = retryAfterMs ?? this.getRetryDelay(retryCount);
-                        await this.waitForRetryDelay(delay, spec.deadlineAt);
+                        await spec.budget.delay(delay);
                         return this.executePipeline<TParsed>(spec, retryCount + 1);
                     }
 
@@ -976,15 +917,13 @@ export class TestRailClientCore {
                 if (error instanceof TestRailApiError) throw error;
 
                 if ((error as Error).name === 'AbortError') {
-                    const aggregateExpired =
-                        spec.deadlineAt !== undefined && this.remainingDeadlineMs(spec.deadlineAt) <= 0;
-                    throw aggregateExpired
+                    throw spec.budget.expired
                         ? new TestRailApiError(408, 'Aggregate request deadline exceeded')
                         : new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
                 }
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
-                    await this.waitForRetryDelay(this.getRetryDelay(retryCount), spec.deadlineAt);
+                    await spec.budget.delay(this.getRetryDelay(retryCount));
                     return this.executePipeline<TParsed>(spec, retryCount + 1);
                 }
 

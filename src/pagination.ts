@@ -59,7 +59,6 @@ export interface PaginationRequest {
     readonly intent: 'fresh-read';
     /** Absolute wall-clock deadline shared by every request in one aggregate. */
     readonly deadlineAt: number;
-    readonly remainingTimeMs: number;
 }
 
 export interface PaginationContinuation {
@@ -392,7 +391,6 @@ export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Pr
                 limit: nextLimit,
                 intent: 'fresh-read',
                 deadlineAt,
-                remainingTimeMs,
             });
         } catch (error) {
             if (now() >= deadlineAt) {

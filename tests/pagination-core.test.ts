@@ -331,8 +331,8 @@ describe('bounded sequential collection', () => {
         ).resolves.toEqual([1, 2]);
 
         expect(requests).toEqual([
-            expect.objectContaining({ deadlineAt: 1_100, remainingTimeMs: 100 }),
-            expect.objectContaining({ deadlineAt: 1_100, remainingTimeMs: 90 }),
+            expect.objectContaining({ deadlineAt: 1_100 }),
+            expect.objectContaining({ deadlineAt: 1_100 }),
         ]);
     });
 
@@ -668,7 +668,7 @@ describe('request hooks used by pagination adapters', () => {
             method: 'GET',
             endpoint: 'get_x',
             intent: 'fresh-read',
-            remainingTimeMs: 20,
+            deadlineAt: Date.now() + 20,
         });
         const assertion = expect(pending).rejects.toMatchObject({
             status: 408,
@@ -692,7 +692,7 @@ describe('request hooks used by pagination adapters', () => {
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(10);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', deadlineAt: Date.now() + 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         expect(fetch).not.toHaveBeenCalled();
     });
@@ -716,7 +716,7 @@ describe('request hooks used by pagination adapters', () => {
             method: 'GET',
             endpoint: 'get_x',
             intent: 'fresh-read',
-            remainingTimeMs: 10,
+            deadlineAt: Date.now() + 10,
         });
         const assertion = expect(pending).rejects.toMatchObject({
             status: 408,
@@ -743,7 +743,7 @@ describe('request hooks used by pagination adapters', () => {
         vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(10);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', deadlineAt: Date.now() + 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
         expect(fetch).not.toHaveBeenCalled();
     });
@@ -767,7 +767,7 @@ describe('request hooks used by pagination adapters', () => {
         vi.spyOn(Date, 'now').mockImplementation(() => clock);
 
         await expect(
-            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', remainingTimeMs: 10 }),
+            client.request({ method: 'GET', endpoint: 'get_x', intent: 'fresh-read', deadlineAt: Date.now() + 10 }),
         ).rejects.toMatchObject({ status: 408, statusText: 'Aggregate request deadline exceeded' });
     });
 
@@ -799,7 +799,7 @@ describe('request hooks used by pagination adapters', () => {
             method: 'GET',
             endpoint: 'get_x',
             intent: 'fresh-read',
-            remainingTimeMs: 20,
+            deadlineAt: Date.now() + 20,
         });
         const assertion = expect(pending).rejects.toMatchObject({
             status: 408,
@@ -834,7 +834,7 @@ describe('request hooks used by pagination adapters', () => {
             method: 'GET',
             endpoint: 'get_x',
             intent: 'fresh-read',
-            remainingTimeMs: 100,
+            deadlineAt: Date.now() + 100,
         });
         const assertion = expect(pending).rejects.toMatchObject({
             status: 408,
