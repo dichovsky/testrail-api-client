@@ -352,8 +352,8 @@ Twin distribution: `bin: testrail` installs a binary, and `./cli` subpath export
 ```
 package.json:bin
   → dist/cli.js  (shebang + import)
-    → src/cli.ts                  one-line re-export
-      → src/cli/index.ts:main()
+    → src/cli.ts                  builds the CliRuntime, assigns process.exitCode
+      → src/cli/index.ts:runCli(runtime)   exported; a test calls it directly
         → parseCliArgv (Node parseArgs, strict:false + per-occurrence tokens)
         → KNOWN_FLAGS gate         rejects --typoed-flag
         → validateSuppliedFlagTypes rejects missing values, swallowed flags,

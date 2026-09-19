@@ -1,8 +1,10 @@
 /**
- * Coverage for the top-level `main().then(onFulfilled, onRejected)` handler in
- * src/cli/index.ts.
+ * Coverage for the top-level `runCli(...).then(onFulfilled, onRejected)`
+ * handler, which moved to src/cli.ts when ARCH #11 gave the CLI a callable
+ * interface. This suite still drives it by importing src/cli.js, because the
+ * arm under test belongs to the binary entrypoint rather than to `runCli`.
  *
- * main() is written to catch every reachable error internally and resolve with
+ * runCli is written to catch every reachable error internally and resolve with
  * an exit code, so the rejection arm only fires for a "hypothetical failure
  * that bypasses the inner try/catch" (e.g. a synchronous throw from a
  * collaborator invoked outside main()'s try block). To exercise it
