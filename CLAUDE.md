@@ -236,11 +236,11 @@ Shared test helpers live in `tests/helpers.ts`; use the suite output rather than
 1. Add the response Zod schema + inferred type to the matching `src/schemas/{domain}.ts` (re-exported via the `src/schemas.ts` barrel). For write endpoints, also add a payload schema there
 2. Add the method to the relevant module in `src/modules/` (e.g., `cases.ts` for case endpoints) — the method is reached via its namespaced module field (`client.cases.getCase(id)`); there is no flat facade wrapper to add
 3. Validate IDs by importing `validateId` from `../validation.js` and calling `validateId(id, 'paramName')` before any network call (`validateEntryId` for UUID plan-entry IDs)
-4. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, retry? })`
+4. Call `this.client.request<ReturnType>({ method, endpoint, schema, body, responseKind?, intent? })` — the retry policy is **derived**, never declared: `deriveRetryPolicy()` (`src/retry-policy.ts`) selects it from `body.kind` + `responseKind` + `intent`. Omit `intent` for every ordinary request; it exists only for side-effecting reads and fresh reads
 5. Add response schema and inferred type re-exports to `src/index.ts` if they're public
 6. Add a test case to the matching `tests/client-*.test.ts` file
 7. **Surface the new method on the CLI and in the skill (layer-coverage invariant — mandatory).** Add the CLI command (see _Add CLI write action_ for writes, or add a read `ActionSpec` + handler for reads) and a numbered recipe in `skill/SKILL.md` tagged `<!-- recipe-for: resource:action -->`. The endpoint is not complete until both exist
-8. Run `npm run codemap`, `npm run skill`, `npm run mapping`, and `npm run agents-md` to regenerate all artifacts, then `npm run mapping:check` to verify endpoint, CLI, recipe, and pagination coverage
+8. Run `npm run codemap`, `npm run skill`, `npm run mapping`, and `npm run agents-md` to regenerate all artifacts, then `npm run mapping:check` to verify endpoint, CLI, and recipe coverage. Pagination coverage is **not** a mapping gate (gate E was retired in 8.0.0): a new paginated endpoint must be registered in `src/cli/metadata/paginated-endpoints.ts`, and that registration is checked by the compile-time `_PaginatedEndpointsAreSurfaced` assertion plus the `pagination registry` block in `tests/generate-mapping.test.ts` — so run `npm test` as well
 
 **Add CLI write action:**
 
