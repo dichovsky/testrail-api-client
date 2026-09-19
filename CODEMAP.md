@@ -9,7 +9,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "7.2.0"
+    "version": "8.0.0"
   },
   "sourceHash": "6c741d4e9634588896200cc7796db50456c1d74bfbe80c4ad00805057393df0f",
   "entrypoints": [

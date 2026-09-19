@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -14,6 +14,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > were realigned with what npm actually shipped.
 
 ## [Unreleased]
+
+## [8.0.0] — 2026-09-19 — Node 24, deep modules, and two user-visible fixes
+
+A major because the supported-runtime floor moves. The bulk of the release is
+internal restructuring with no published-API change; the two fixes below and the
+runtime requirement are what a consumer actually notices.
 
 ### Changed — BREAKING
 
@@ -46,6 +52,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   for the life of the process are now marked `polls` in the CLI action metadata
   and build a non-caching client; one-shot actions keep the cache.
 
+- **A bounded `getAll*()` now reports `max_duration` when its own deadline
+  expires.** `collectAllPages` passes one absolute `deadlineAt` to every page
+  request, where the request budget schedules `setTimeout` against it. Node
+  timers can fire up to a millisecond earlier than `Date.now()` agrees, so the
+  budget rejected with a raw `TestRailApiError(408)` while the aggregate's
+  wall-clock check still read "not expired" — and the raw 408 escaped instead of
+  the documented `TestRailPaginationError` with `reason: 'max_duration'`. A
+  caller branching on `reason` silently stopped matching, under load only. The
+  aggregate now recognises its own budget's expiry directly rather than
+  re-deriving it from a clock.
+
 ### Internal
 
 - Dependencies bumped to current latest: `zod` `^4.6.5` (the only runtime
@@ -70,6 +87,43 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   step. The environment is declared, but no required reviewers are configured,
   so publishing proceeds unattended once the GitHub Release is published; the
   guide now says so and shows how to check.
+
+- **Seven deep-module refactors.** No published-API change; each replaced a
+  convention that had to be remembered with one a caller cannot get wrong.
+    - _Retry policy is derived, not declared._ `deriveRetryPolicy()` selects from
+      `body.kind` + `responseKind` + `intent`, so a multipart body never retries by
+      construction and the combination that duplicated an upload is unspellable.
+      `RequestSpec.retry`/`bypassCache` gave way to a single `intent`.
+    - _One module owns a multipart upload end to end_ (`src/upload-source.ts`):
+      platform path mapping, `openAsBlob`, FormData append, stream ownership, one
+      descriptor close, single-use `build()`.
+    - _One call's wall-clock allowance became a module_ (`src/request-budget.ts`),
+      replacing 36 inline `deadlineAt` sites and six separate constructions of the
+      same 408.
+    - _`runCli(runtime)` is a callable interface._ Everything process-shaped moved
+      to `src/cli.ts`; the CLI suite dropped module re-imports and `process.exitCode`
+      polling, and the full suite went from ~25s to ~8s.
+    - _`withDiagnostics(request, deps, work)` absorbed a six-step protocol_ the CLI
+      previously executed by hand, shedding three mutable flags.
+    - _One module owns every byte the CLI emits._ `createOutput` requires its
+      writers; `HandlerContext`'s five writers are non-optional; ESLint forbids
+      `process.stdout`/`stderr`/`argv` outside `src/cli.ts`. This surfaced that
+      `run watch` read `--quiet` from `process.argv` rather than the argv `runCli`
+      was handed, so an embedded caller passing `--quiet` still got status lines.
+    - _The `ACTIONS` slice arithmetic is gone, and CLI pagination is derived._ 29
+      `.slice(a, b)` calls whose bounds nothing could check became named read/write
+      arrays; `ActionSpec.pagination` was deleted in favour of one contract table
+      keyed by `apiEndpoint`, retiring mapping gate E. Verified byte-neutral
+      against a pre-change snapshot of all 134 entries.
+- **Three silent-drop paths closed in the mapping generator's parser.** It fed
+  gates C, C2-reverse and D — all set-membership tests — and could return a short
+  or empty list without any signal, which those gates read as "nothing to check"
+  and passed. All now throw.
+- ARCH #4's charter ("one runtime declaration per endpoint; gates D/E become type
+  constraints") is recorded as unreachable rather than done: the endpoint
+  inventory must stay hand-curated, so a registry would be a second hand-maintained
+  copy, and a type-level gate D fires for the wrong author. See
+  `docs/archive/BACKLOG-ARCHIVE.md`.
 
 ## [7.2.0] — 2026-09-17 — operation settlement and independent report execution
 
