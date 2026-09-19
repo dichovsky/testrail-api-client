@@ -64,6 +64,20 @@ function expiredError(): TestRailApiError {
     return new TestRailApiError(408, AGGREGATE_EXPIRED);
 }
 
+/**
+ * Whether `error` is this module reporting that a budget ran out.
+ *
+ * Exists so a caller that supplied the deadline can recognise the resulting
+ * failure as its own, instead of re-deriving "did we expire?" by reading a
+ * clock. Those two answers disagree: `bound()` schedules `setTimeout` against
+ * the deadline, and Node timers may fire up to a millisecond EARLY relative to
+ * `Date.now()`, so a caller re-checking the wall clock can be told the deadline
+ * has not passed by the very rejection announcing that it has.
+ */
+export function isBudgetExpiry(error: unknown): boolean {
+    return error instanceof TestRailApiError && error.status === 408 && error.statusText === AGGREGATE_EXPIRED;
+}
+
 export interface RequestBudgetOptions {
     /**
      * Absolute wall-clock instant the allowance runs out. Omit for an

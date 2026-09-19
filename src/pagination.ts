@@ -8,6 +8,7 @@ import {
     MAX_PAGINATION_LIMIT,
     MAX_TIMEOUT_MS,
 } from './constants.js';
+import { isBudgetExpiry } from './request-budget.js';
 import { TestRailPaginationError, TestRailValidationError } from './errors.js';
 
 export interface PageLinks {
@@ -393,7 +394,14 @@ export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Pr
                 deadlineAt,
             });
         } catch (error) {
-            if (now() >= deadlineAt) {
+            // Two ways to learn the allowance is gone, and the clock is the
+            // weaker one. The budget below this call was created from
+            // `deadlineAt`, so its expiry error IS this aggregate's
+            // `max_duration` by construction — no clock reading can contradict
+            // it. The wall-clock check stays for expiry observed some other
+            // way, e.g. a page that failed for an unrelated reason after the
+            // deadline had genuinely passed.
+            if (isBudgetExpiry(error) || now() >= deadlineAt) {
                 return policyError('max_duration', 'Pagination aggregate exceeded maxDurationMs', beforeStats, {
                     maxDurationMs: resolved.maxDurationMs,
                 });

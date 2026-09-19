@@ -310,6 +310,32 @@ describe('bounded sequential collection', () => {
         ]);
     });
 
+    it('reports max_duration when the budget expires a hair before the wall clock agrees', async () => {
+        // The aggregate hands its own `deadlineAt` to each page request, and
+        // `createRequestBudget` schedules `setTimeout` against it. Node timers
+        // may fire up to 1ms EARLY relative to `Date.now()`, so the budget can
+        // reject with its 408 while the aggregate's clock still reads just
+        // short of the deadline.
+        //
+        // Re-deriving "did we expire?" from the clock in the catch therefore
+        // misses, and the raw 408 escapes instead of the documented
+        // `TestRailPaginationError`. A caller branching on
+        // `TestRailPaginationError.reason` silently stops matching.
+        const clock = 1_000;
+        const deadlineAt = clock + 20;
+
+        await expect(
+            collectAllPages({
+                pageSize: 1,
+                maxDurationMs: 20,
+                // Frozen one millisecond short of the deadline: the state the
+                // wall clock is in when an early timer fires.
+                now: () => deadlineAt - 1,
+                fetchPage: () => Promise.reject(new TestRailApiError(408, 'Aggregate request deadline exceeded')),
+            }),
+        ).rejects.toMatchObject({ reason: 'max_duration' });
+    });
+
     it('passes one fixed absolute deadline through every page request', async () => {
         let clock = 1_000;
         const requests: PaginationRequest[] = [];

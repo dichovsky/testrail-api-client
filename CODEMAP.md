@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "0255c617bc2dc5d32a0ad00ffa85b41987d48977cd09b22e92ff589f18bddb0c",
+  "sourceHash": "bad119811c657d9a2d2142d65b9c9305a4ee3c23d0897124e11119c5708c6cbf",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -1227,7 +1227,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Page",
       "kind": "type",
       "file": "src/pagination.ts",
-      "line": 19,
+      "line": 20,
       "signature": "export type Page<T> = | { kind: 'envelope'; items: T[]; offset: number; limit: number; size: number; _links: PageLinks; } | { kind: 'legacy-array'; items: T[]; size: number; }",
       "jsdoc": "A normalized TestRail list response without invented legacy metadata.",
       "typeOnly": true
@@ -1236,7 +1236,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PageLinks",
       "kind": "interface",
       "file": "src/pagination.ts",
-      "line": 13,
+      "line": 14,
       "signature": "export interface PageLinks { next: string | null; prev: string | null; }",
       "typeOnly": true
     },
@@ -1244,7 +1244,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PaginatedRequestOptions",
       "kind": "interface",
       "file": "src/pagination.ts",
-      "line": 46,
+      "line": 47,
       "signature": "export interface PaginatedRequestOptions extends PaginationSafetyOptions { pageSize?: number; startOffset?: number; }",
       "jsdoc": "Request controls exposed only by endpoints with documented limit/offset input.",
       "typeOnly": true
@@ -1253,7 +1253,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PaginationErrorReason",
       "kind": "type",
       "file": "src/pagination.ts",
-      "line": 34,
+      "line": 35,
       "signature": "export type PaginationErrorReason = 'max_pages' | 'max_items' | 'max_duration' | 'max_bytes' | 'invalid_page' | 'invalid_continuation' | 'non_progress'",
       "typeOnly": true
     },
@@ -1269,7 +1269,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PaginationSafetyOptions",
       "kind": "interface",
       "file": "src/pagination.ts",
-      "line": 38,
+      "line": 39,
       "signature": "export interface PaginationSafetyOptions { maxPages?: number; maxItems?: number; maxDurationMs?: number; maxBytes?: number; }",
       "jsdoc": "Bounds shared by all get-all methods, including envelope-only endpoints.",
       "typeOnly": true
@@ -10064,217 +10064,218 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/pagination.ts",
       "imports": [
         "./constants.js",
-        "./errors.js"
+        "./errors.js",
+        "./request-budget.js"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "PageLinks",
           "kind": "interface",
-          "line": 13,
+          "line": 14,
           "exported": true,
           "signature": "export interface PageLinks { next: string | null; prev: string | null; }"
         },
         {
           "name": "Page",
           "kind": "type",
-          "line": 19,
+          "line": 20,
           "exported": true,
           "signature": "export type Page<T> = | { kind: 'envelope'; items: T[]; offset: number; limit: number; size: number; _links: PageLinks; } | { kind: 'legacy-array'; items: T[]; size: number; }"
         },
         {
           "name": "PaginationErrorReason",
           "kind": "type",
-          "line": 34,
+          "line": 35,
           "exported": true,
           "signature": "export type PaginationErrorReason = 'max_pages' | 'max_items' | 'max_duration' | 'max_bytes' | 'invalid_page' | 'invalid_continuation' | 'non_progress'"
         },
         {
           "name": "PaginationSafetyOptions",
           "kind": "interface",
-          "line": 38,
+          "line": 39,
           "exported": true,
           "signature": "export interface PaginationSafetyOptions { maxPages?: number; maxItems?: number; maxDurationMs?: number; maxBytes?: number; }"
         },
         {
           "name": "PaginatedRequestOptions",
           "kind": "interface",
-          "line": 46,
+          "line": 47,
           "exported": true,
           "signature": "export interface PaginatedRequestOptions extends PaginationSafetyOptions { pageSize?: number; startOffset?: number; }"
         },
         {
           "name": "PaginationRequest",
           "kind": "interface",
-          "line": 52,
+          "line": 53,
           "exported": true,
           "signature": "export interface PaginationRequest { readonly offset: number | undefined; readonly limit: number | undefined; readonly intent: 'fresh-read'; readonly deadlineAt: number; }"
         },
         {
           "name": "PaginationContinuation",
           "kind": "interface",
-          "line": 64,
+          "line": 65,
           "exported": true,
           "signature": "export interface PaginationContinuation { readonly offset: number; readonly limit: number | undefined; }"
         },
         {
           "name": "CollectionStats",
           "kind": "interface",
-          "line": 69,
+          "line": 70,
           "exported": false,
           "signature": "interface CollectionStats { readonly pagesFetched: number; readonly itemsFetched: number; }"
         },
         {
           "name": "ControlledCollectionOptions",
           "kind": "interface",
-          "line": 74,
+          "line": 75,
           "exported": false,
           "signature": "interface ControlledCollectionOptions<T> extends PaginatedRequestOptions { readonly requestControls?: true; readonly fetchPage: (request: PaginationRequest) => Promise<Page<T>>; readonly now?: () => n…"
         },
         {
           "name": "EnvelopeOnlyCollectionOptions",
           "kind": "interface",
-          "line": 81,
+          "line": 82,
           "exported": false,
           "signature": "interface EnvelopeOnlyCollectionOptions<T> extends PaginationSafetyOptions { readonly requestControls: false; readonly pageSize?: never; readonly startOffset?: never; readonly fetchPage: (request: Pag…"
         },
         {
           "name": "CollectAllPagesOptions",
           "kind": "type",
-          "line": 90,
+          "line": 91,
           "exported": true,
           "signature": "export type CollectAllPagesOptions<T> = ControlledCollectionOptions<T> | EnvelopeOnlyCollectionOptions<T>"
         },
         {
           "name": "ResolvedCollectionOptions",
           "kind": "interface",
-          "line": 92,
+          "line": 93,
           "exported": false,
           "signature": "interface ResolvedCollectionOptions { readonly requestControls: boolean; readonly pageSize: number | undefined; readonly startOffset: number | undefined; readonly maxPages: number; readonly maxItems: …"
         },
         {
           "name": "PAGINATION_METADATA_KEYS",
           "kind": "const",
-          "line": 102,
+          "line": 103,
           "exported": false,
           "signature": "const PAGINATION_METADATA_KEYS = ['offset', 'limit', 'size', '_links'] as const"
         },
         {
           "name": "isRecord",
           "kind": "function",
-          "line": 104,
+          "line": 105,
           "exported": false,
           "signature": "function isRecord(value: unknown): value is Record<string, unknown>"
         },
         {
           "name": "hasPaginationMetadataSignature",
           "kind": "function",
-          "line": 108,
+          "line": 109,
           "exported": false,
           "signature": "function hasPaginationMetadataSignature(value: unknown): boolean"
         },
         {
           "name": "isNonNegativeInteger",
           "kind": "function",
-          "line": 115,
+          "line": 116,
           "exported": false,
           "signature": "function isNonNegativeInteger(value: unknown): value is number"
         },
         {
           "name": "isPositiveInteger",
           "kind": "function",
-          "line": 119,
+          "line": 120,
           "exported": false,
           "signature": "function isPositiveInteger(value: unknown): value is number"
         },
         {
           "name": "invalidPage",
           "kind": "function",
-          "line": 123,
+          "line": 124,
           "exported": false,
           "signature": "function invalidPage(message: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }): never"
         },
         {
           "name": "decodeEnvelope",
           "kind": "function",
-          "line": 127,
+          "line": 128,
           "exported": false,
           "signature": "function decodeEnvelope<T>(key: string, raw: Record<string, unknown>, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodePage",
           "kind": "function",
-          "line": 180,
+          "line": 181,
           "exported": true,
           "signature": "export function decodePage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "decodeNestedPage",
           "kind": "function",
-          "line": 197,
+          "line": 198,
           "exported": true,
           "signature": "export function decodeNestedPage<T>(key: string, raw: unknown, stats?: CollectionStats): Page<T>"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 224,
+          "line": 225,
           "exported": false,
           "signature": "function parseCanonicalInteger(values: string[], name: string, allowZero: boolean, stats: CollectionStats): number"
         },
         {
           "name": "parsePaginationContinuation",
           "kind": "function",
-          "line": 259,
+          "line": 260,
           "exported": true,
           "signature": "export function parsePaginationContinuation( next: string, stats: CollectionStats = { pagesFetched: 0, itemsFetched: 0 }, ): PaginationContinuation"
         },
         {
           "name": "validatePositiveBound",
           "kind": "function",
-          "line": 307,
+          "line": 308,
           "exported": false,
           "signature": "function validatePositiveBound(value: number, name: string, maximum?: number): void"
         },
         {
           "name": "defaultWhenUndefined",
           "kind": "function",
-          "line": 314,
+          "line": 315,
           "exported": false,
           "signature": "function defaultWhenUndefined<T>(value: T | undefined, fallback: T): T"
         },
         {
           "name": "resolveCollectionOptions",
           "kind": "function",
-          "line": 319,
+          "line": 320,
           "exported": false,
           "signature": "function resolveCollectionOptions<T>(options: CollectAllPagesOptions<T>): ResolvedCollectionOptions"
         },
         {
           "name": "serializedByteLength",
           "kind": "function",
-          "line": 340,
+          "line": 341,
           "exported": false,
           "signature": "function serializedByteLength(items: readonly unknown[], stats: CollectionStats): number"
         },
         {
           "name": "appendPageItems",
           "kind": "function",
-          "line": 348,
+          "line": 349,
           "exported": false,
           "signature": "function appendPageItems<T>(target: T[], pageItems: readonly T[]): void"
         },
         {
           "name": "policyError",
           "kind": "function",
-          "line": 352,
+          "line": 353,
           "exported": false,
           "signature": "function policyError( reason: PaginationErrorReason, message: string, stats: CollectionStats, context: Readonly<Record<string, string | number | boolean | null>> = {}, ): never"
         },
         {
           "name": "collectAllPages",
           "kind": "function",
-          "line": 366,
+          "line": 367,
           "exported": true,
           "signature": "export async function collectAllPages<T>(options: CollectAllPagesOptions<T>): Promise<T[]>"
         }
@@ -10311,16 +10312,23 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "function expiredError(): TestRailApiError"
         },
         {
+          "name": "isBudgetExpiry",
+          "kind": "function",
+          "line": 77,
+          "exported": true,
+          "signature": "export function isBudgetExpiry(error: unknown): boolean"
+        },
+        {
           "name": "RequestBudgetOptions",
           "kind": "interface",
-          "line": 67,
+          "line": 81,
           "exported": true,
           "signature": "export interface RequestBudgetOptions { readonly deadlineAt?: number | undefined; readonly now?: () => number; }"
         },
         {
           "name": "createRequestBudget",
           "kind": "function",
-          "line": 77,
+          "line": 91,
           "exported": true,
           "signature": "export function createRequestBudget({ deadlineAt, now = Date.now }: RequestBudgetOptions = {}): RequestBudget"
         }

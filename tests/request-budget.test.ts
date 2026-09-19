@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRequestBudget } from '../src/request-budget.js';
+import { createRequestBudget, isBudgetExpiry } from '../src/request-budget.js';
 import { TestRailApiError } from '../src/errors.js';
 
 /**
@@ -176,5 +176,28 @@ describe('retry delay', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    describe('isBudgetExpiry', () => {
+        it('recognises the error this module raises, and nothing else', async () => {
+            // The aggregate in `src/pagination.ts` uses this to tell its OWN
+            // deadline apart from any other failure, because re-deriving that
+            // from a clock disagrees with the timer that raised it.
+            const budget = createRequestBudget({ deadlineAt: 0, now: () => 1 });
+            const raised = await budget.bound(Promise.resolve('never')).catch((e: unknown) => e);
+
+            expect(isBudgetExpiry(raised)).toBe(true);
+        });
+
+        it.each([
+            ['a different 408', new TestRailApiError(408, 'Request timeout')],
+            ['a same-text non-408', new TestRailApiError(504, 'Aggregate request deadline exceeded')],
+            ['an unrelated error', new Error('Aggregate request deadline exceeded')],
+            ['a non-error', 'Aggregate request deadline exceeded'],
+        ])('rejects %s', (_label, candidate) => {
+            // Narrow on purpose: a false positive here would relabel an
+            // unrelated upstream failure as the caller's own deadline.
+            expect(isBudgetExpiry(candidate)).toBe(false);
+        });
     });
 });
