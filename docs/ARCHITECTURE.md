@@ -353,6 +353,7 @@ Twin distribution: `bin: testrail` installs a binary, and `./cli` subpath export
 package.json:bin
   → dist/cli.js  (shebang + import)
     → src/cli.ts                  builds the CliRuntime, assigns process.exitCode
+                                  (the only file in src/ that names the process streams)
       → src/cli/index.ts:runCli(runtime)   exported; a test calls it directly
         → parseCliArgv (Node parseArgs, strict:false + per-occurrence tokens)
         → KNOWN_FLAGS gate         rejects --typoed-flag
@@ -452,25 +453,25 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 
 ### 6.5 Cross-cutting CLI infrastructure
 
-| File                     | Role                                                                                                                                                                                                                                                                       |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth.ts`                | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                                                                                                      |
-| `output.ts`              | `createOutput({quiet, format})` → `{ out, err }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`.                                                                                   |
-| `flags.ts`               | Primitive flag catalog, per-occurrence argv parsing/validation, known spellings, capability groups, and typed handler/pagination projections.                                                                                                                              |
-| `action-invocation.ts`   | Compiles accepted/required flags from metadata capabilities, preserves precise stdio/pagination diagnostics, and rejects invalid action/meta invocations before auth or mutation.                                                                                          |
-| `ids.ts`                 | `parseId` / `optInt` with consistent error shapes.                                                                                                                                                                                                                         |
-| `pagination.ts`          | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                                                                                                  |
-| `response-validation.ts` | Resolves strict-response flag/env policy and builds the bounded privacy-safe advisory mismatch reporter.                                                                                                                                                                   |
-| `diagnostics.ts`         | Owns the diagnostic lifetime behind `withDiagnostics(request, deps, work)`: reserve, exit listener, outcome classification, write-on-failure, finalize/remove. Redacts bounded server messages. Takes a process-lifetime port so a test registers no real `exit` listener. |
-| `body.ts`                | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                                                                                                             |
-| `stdin.ts`               | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                                                                                                            |
-| `file-input.ts`          | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                                                                                                      |
-| `file-output.ts`         | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                                                                                                         |
-| `sanitize.ts`            | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                                                                                                   |
-| `safe-write.ts`          | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                                                                                                            |
-| `handler-context.ts`     | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                                                                                                            |
-| `install-skill.ts`       | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                                                                                                       |
-| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                                                                                                          |
+| File                     | Role                                                                                                                                                                                                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.ts`                | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                                                                                                            |
+| `output.ts`              | Owns every byte the CLI emits. `createOutput({quiet, format, stdout, stderr, stdoutIsTTY})` → `{ out, outRaw, outPayload, err, errRaw }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
+| `flags.ts`               | Primitive flag catalog, per-occurrence argv parsing/validation, known spellings, capability groups, and typed handler/pagination projections.                                                                                                                                    |
+| `action-invocation.ts`   | Compiles accepted/required flags from metadata capabilities, preserves precise stdio/pagination diagnostics, and rejects invalid action/meta invocations before auth or mutation.                                                                                                |
+| `ids.ts`                 | `parseId` / `optInt` with consistent error shapes.                                                                                                                                                                                                                               |
+| `pagination.ts`          | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                                                                                                        |
+| `response-validation.ts` | Resolves strict-response flag/env policy and builds the bounded privacy-safe advisory mismatch reporter.                                                                                                                                                                         |
+| `diagnostics.ts`         | Owns the diagnostic lifetime behind `withDiagnostics(request, deps, work)`: reserve, exit listener, outcome classification, write-on-failure, finalize/remove. Redacts bounded server messages. Takes a process-lifetime port so a test registers no real `exit` listener.       |
+| `body.ts`                | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                                                                                                                   |
+| `stdin.ts`               | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                                                                                                                  |
+| `file-input.ts`          | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                                                                                                            |
+| `file-output.ts`         | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                                                                                                               |
+| `sanitize.ts`            | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                                                                                                         |
+| `safe-write.ts`          | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                                                                                                                  |
+| `handler-context.ts`     | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                                                                                                                  |
+| `install-skill.ts`       | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                                                                                                             |
+| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                                                                                                                |
 
 Pagination validation runs before auth resolution and client construction.
 Default mode emits the existing item array; `--page` emits `Page<T>` and
@@ -530,6 +531,39 @@ Both gates must clear. The env var is process-wide audit-friendly (visible in `p
 - **Dry-run wins.** The `if (ctx.dryRun)` branch returns before `--yes` / `--soft` / env-var matter. Dry-run output for soft-capable deletes still records `soft` in the preview JSON for audit, but makes zero network calls.
 
 ---
+
+### 6.7 Output ownership
+
+`src/cli/output.ts` owns every byte the CLI emits, and `src/cli.ts` is the only
+file in `src/` permitted to name `process.stdout` or `process.stderr` — ESLint's
+`no-restricted-properties` rejects both (and `process.argv`) everywhere else.
+Nothing else needs them: `createOutput` requires its writers rather than
+defaulting to the process streams, and `HandlerContext` carries the full writer
+set as non-optional fields.
+
+| Writer       | Stream | `--quiet` | Notes                                                                    |
+| ------------ | ------ | --------- | ------------------------------------------------------------------------ |
+| `out`        | stdout | gated     | Renders through the selected format encoder.                             |
+| `outRaw`     | stdout | gated     | Verbatim text that is already final (an installed path, a confirmation). |
+| `outPayload` | both   | see below | `--out -` download: payload to stdout, JSON ack to stderr.               |
+| `err`        | stderr | gated     | `Error: ` prefix, sanitized (CTF #16).                                   |
+| `errRaw`     | stderr | gated     | Verbatim; the caller owns sanitization.                                  |
+
+`outPayload` does not gate the payload on `--quiet`: `--out -` is an explicit
+request for those bytes on stdout, and `--quiet` suppresses commentary about a
+command, not the command's result. The ack is commentary, so it is gated.
+
+Its TTY warning is derived from the payload rather than declared by the caller —
+a `Uint8Array` on a terminal warns, a string never does. `attachment get` cannot
+forget the warning and `bdd get --out -` cannot emit one about its own Gherkin.
+
+Why this is enforced rather than conventional: a handler with no writer to hand
+reaches for `process.stderr`. That is how `run watch`'s status line came to read
+`--quiet` out of `process.argv` — not the argv `runCli` was handed, so an
+embedded caller passing `--quiet` got status lines anyway. `tests/cli-output-ownership.test.ts`
+drives the four paths that used to bypass the runtime and asserts both halves:
+the content arrives through the injected writers, and the process streams stay
+untouched.
 
 ## 7. Errors
 
