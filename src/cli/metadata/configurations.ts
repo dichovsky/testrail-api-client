@@ -21,7 +21,7 @@ import type { ActionSpec } from './types.js';
  * config CRUD are split into two CLI resources (`configuration` and
  * `configuration-group`) because the path-param contract is asymmetric.
  */
-export const configurationActions: readonly ActionSpec[] = [
+export const configurationReadActions: readonly ActionSpec[] = [
     {
         resource: 'configuration',
         action: 'list',
@@ -31,6 +31,9 @@ export const configurationActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleConfigurationList,
     },
+];
+
+export const configurationWriteActions: readonly ActionSpec[] = [
     {
         resource: 'configuration',
         action: 'add',

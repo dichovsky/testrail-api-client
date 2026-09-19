@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write (structural-setup)
  *   [4] delete — write (destructive)
  */
-export const suiteActions: readonly ActionSpec[] = [
+export const suiteReadActions: readonly ActionSpec[] = [
     {
         resource: 'suite',
         action: 'get',
@@ -32,6 +32,9 @@ export const suiteActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleSuiteList,
     },
+];
+
+export const suiteWriteActions: readonly ActionSpec[] = [
     {
         resource: 'suite',
         action: 'add',

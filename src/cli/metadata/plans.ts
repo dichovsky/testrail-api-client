@@ -36,7 +36,7 @@ import type { ActionSpec } from './types.js';
  *   [10] delete-entry           — write (destructive)
  *   [11] delete-run-from-entry  — write (destructive)
  */
-export const planActions: readonly ActionSpec[] = [
+export const planReadActions: readonly ActionSpec[] = [
     {
         resource: 'plan',
         action: 'get',
@@ -65,6 +65,9 @@ export const planActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handlePlanList,
     },
+];
+
+export const planWriteActions: readonly ActionSpec[] = [
     {
         resource: 'plan',
         action: 'add',

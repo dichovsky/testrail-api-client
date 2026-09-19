@@ -14,7 +14,7 @@ import type { ActionSpec } from './types.js';
  * map to TestRail's `update_test` / `update_tests`; the CLI action names spell
  * out the label-only scope so users don't expect a full `test update`.
  */
-export const testActions: readonly ActionSpec[] = [
+export const testReadActions: readonly ActionSpec[] = [
     {
         resource: 'test',
         action: 'get',
@@ -36,6 +36,9 @@ export const testActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleTestList,
     },
+];
+
+export const testWriteActions: readonly ActionSpec[] = [
     {
         resource: 'test',
         action: 'update-labels',

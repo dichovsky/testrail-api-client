@@ -12,7 +12,7 @@ import type { ActionSpec } from './types.js';
  *   [4] add          — write (TestRail 7.3+)
  *   [5] update       — write (TestRail 7.3+)
  */
-export const userActions: readonly ActionSpec[] = [
+export const userReadActions: readonly ActionSpec[] = [
     {
         resource: 'user',
         action: 'get',
@@ -51,6 +51,9 @@ export const userActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleUserGetCurrent,
     },
+];
+
+export const userWriteActions: readonly ActionSpec[] = [
     {
         resource: 'user',
         action: 'add',

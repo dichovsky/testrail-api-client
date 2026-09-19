@@ -6,7 +6,7 @@ import { handleDynamicFilterFieldList } from '../src/cli/handlers/dynamic-filter
 import { handleResultEdit } from '../src/cli/handlers/result-write.js';
 import { handleVersionGet } from '../src/cli/handlers/version.js';
 import { dynamicFilterFieldActions } from '../src/cli/metadata/dynamicFilterFields.js';
-import { resultActions } from '../src/cli/metadata/results.js';
+import { resultWriteActions } from '../src/cli/metadata/results.js';
 import { versionActions } from '../src/cli/metadata/versions.js';
 import { EditResultPayloadSchema } from '../src/schemas.js';
 
@@ -108,7 +108,7 @@ describe('TestRail 10.4–10.6 CLI actions', () => {
     });
 
     it('declares metadata that matches the SDK endpoints and payload schema', () => {
-        expect(resultActions.at(-1)).toMatchObject({
+        expect(resultWriteActions.at(-1)).toMatchObject({
             resource: 'result',
             action: 'edit',
             apiEndpoint: 'POST edit_result/{result_id}',

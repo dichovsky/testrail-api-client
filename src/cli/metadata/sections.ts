@@ -17,7 +17,7 @@ import type { ActionSpec } from './types.js';
  *   [4] move   — write (TestRail 6.5.2+)
  *   [5] delete — write (destructive)
  */
-export const sectionActions: readonly ActionSpec[] = [
+export const sectionReadActions: readonly ActionSpec[] = [
     {
         resource: 'section',
         action: 'get',
@@ -38,6 +38,9 @@ export const sectionActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleSectionList,
     },
+];
+
+export const sectionWriteActions: readonly ActionSpec[] = [
     {
         resource: 'section',
         action: 'add',

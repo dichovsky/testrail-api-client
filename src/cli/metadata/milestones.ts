@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write (structural-setup)
  *   [4] delete — write (destructive)
  */
-export const milestoneActions: readonly ActionSpec[] = [
+export const milestoneReadActions: readonly ActionSpec[] = [
     {
         resource: 'milestone',
         action: 'get',
@@ -32,6 +32,9 @@ export const milestoneActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleMilestoneList,
     },
+];
+
+export const milestoneWriteActions: readonly ActionSpec[] = [
     {
         resource: 'milestone',
         action: 'add',

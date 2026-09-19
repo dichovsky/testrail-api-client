@@ -35,7 +35,7 @@ import type { ActionSpec } from './types.js';
  *   [10] copy-to-section — write
  *   [11] move-to-section — write
  */
-export const caseActions: readonly ActionSpec[] = [
+export const caseReadActions: readonly ActionSpec[] = [
     {
         resource: 'case',
         action: 'get',
@@ -92,6 +92,9 @@ export const caseActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleCaseTitles,
     },
+];
+
+export const caseWriteActions: readonly ActionSpec[] = [
     {
         resource: 'case',
         action: 'add',
