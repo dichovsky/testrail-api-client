@@ -4,7 +4,7 @@ import type { TestRailConfig } from '../types.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveActionInvocation, validateMetaCommandFlags } from './action-invocation.js';
 import { resolveAuth } from './auth.js';
-import { createDiagnosticRecord, prepareDiagnosticDestination, type CliDiagnosticDestination } from './diagnostics.js';
+import { diagnosticSupportError, withDiagnostics, type ProcessLifetime } from './diagnostics.js';
 import { createOutput, isOutputFormat, OUTPUT_FORMATS, type OutputFormat } from './output.js';
 import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispatch.js';
 import { buildHelpText } from './help.js';
@@ -66,6 +66,13 @@ export interface CliRuntime {
         readonly read: (maxBytes: number) => string;
     };
     readonly createClient: (config: TestRailConfig) => TestRailClient;
+    /** `process.platform`. Injected so the Windows diagnostic refusal is testable anywhere. */
+    readonly platform: string;
+    /**
+     * Process-exit hooks for the diagnostic reservation. A test supplies a fake
+     * rather than registering an `exit` listener it can never remove.
+     */
+    readonly lifetime: ProcessLifetime;
 }
 
 /**
@@ -237,10 +244,9 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
     // The platform restriction is static: reject it before consuming stdin
     // or resolving credentials. Dry-run never reserves a diagnostic file.
     const diagnosticPath = values['diagnostic-file'];
-    if (!dryRun && typeof diagnosticPath === 'string' && process.platform === 'win32') {
-        return fail(
-            '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.',
-        );
+    if (!dryRun && typeof diagnosticPath === 'string') {
+        const unsupported = diagnosticSupportError(runtime.platform);
+        if (unsupported !== undefined) return fail(unsupported);
     }
 
     // Validate response-mode configuration before auth resolution or any
@@ -359,103 +365,101 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
     });
 
     let client: TestRailClient | undefined;
-    let diagnostic: CliDiagnosticDestination | undefined;
-    let succeeded = false;
-    let handlerStarted = false;
-    const finishDiagnostic = (): void => {
-        // SIGINT/SIGTERM terminate synchronously through the client's process
-        // handlers, so the async finally block alone cannot release a reserved
-        // file. Remove our CLI-only exit listener and clear the reservation
-        // before finishing so the exit and normal paths cannot close it twice.
-        process.removeListener('exit', finishDiagnostic);
-        const destination = diagnostic;
-        diagnostic = undefined;
-        if (destination !== undefined && !destination.finish()) {
-            errRaw(
-                succeeded
-                    ? 'Warning: Command succeeded, but diagnostic file cleanup failed; the API operation is unchanged.\n'
-                    : 'Warning: Diagnostic file cleanup failed; the command remains failed or indeterminate.\n',
-            );
+    // Set by the scope's `reportFailure`. A rejection that bypasses it — a
+    // throw from the warning writer inside the scope's `finally`, or from the
+    // mismatch flush below — would otherwise exit 1 with nothing on stderr.
+    let reported = false;
+    const timeoutFlag = values['timeout'] as string | undefined;
+    const timeoutEnv = runtime.env['TESTRAIL_TIMEOUT'];
+    const usingTimeoutFlag = timeoutFlag !== undefined && timeoutFlag !== '';
+    const timeoutRaw = usingTimeoutFlag
+        ? timeoutFlag
+        : timeoutEnv !== undefined && timeoutEnv !== ''
+          ? timeoutEnv
+          : undefined;
+    // Name the actual source in any parse error so a bad TESTRAIL_TIMEOUT
+    // isn't reported as a bad `--timeout`.
+    const timeoutSource = usingTimeoutFlag ? '--timeout' : 'TESTRAIL_TIMEOUT';
+    let timeoutConfig: { timeout?: number } = {};
+    if (timeoutRaw !== undefined) {
+        try {
+            timeoutConfig = { timeout: parseId(timeoutRaw, timeoutSource) };
+        } catch (e: unknown) {
+            // An argv/env shape error, refused like every other one — and
+            // before any diagnostic file is reserved, as it always was.
+            return fail(e instanceof Error ? e.message : String(e));
         }
-    };
+    }
+
     try {
-        // Resolve the request timeout (milliseconds). `--timeout` beats
-        // TESTRAIL_TIMEOUT beats the 30s default; an empty value is treated as
-        // unset (parity with resolveAuth's ''-is-missing rule). parseId rejects
-        // a non-positive-integer value (IdParseError → caught below → exit 1);
-        // the constructor's validateTimeout rejects out-of-range (> 5 min) via
-        // TestRailValidationError.
-        const timeoutFlag = values['timeout'] as string | undefined;
-        const timeoutEnv = runtime.env['TESTRAIL_TIMEOUT'];
-        const usingTimeoutFlag = timeoutFlag !== undefined && timeoutFlag !== '';
-        const timeoutRaw = usingTimeoutFlag
-            ? timeoutFlag
-            : timeoutEnv !== undefined && timeoutEnv !== ''
-              ? timeoutEnv
-              : undefined;
-        // Name the actual source in any parse error so a bad TESTRAIL_TIMEOUT
-        // isn't reported as a bad `--timeout`.
-        const timeoutSource = usingTimeoutFlag ? '--timeout' : 'TESTRAIL_TIMEOUT';
-        const timeoutConfig = timeoutRaw !== undefined ? { timeout: parseId(timeoutRaw, timeoutSource) } : {};
-        if (!dryRun && typeof diagnosticPath === 'string') {
-            const outputPath = values['out'];
-            diagnostic = prepareDiagnosticDestination(
-                diagnosticPath,
-                typeof outputPath === 'string' ? outputPath : undefined,
-            );
-            process.on('exit', finishDiagnostic);
-        }
-        // The CLI is a standalone entry-point process: opt in to the
-        // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
-        // conventional 130/143 exit codes. Library consumers leave this off.
-        client = runtime.createClient({
-            ...auth.config,
-            ...timeoutConfig,
-            onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
-            // A polling action re-reads one endpoint for the life of the
-            // process. The GET cache's default TTL is longer than any interval
-            // the CLI accepts, so leaving it on served every poll after the
-            // first from cache and the watcher never observed the run finishing
-            // (issue #281). One-shot actions keep the cache.
-            ...(invocation.spec.polls === true && { enableCache: false }),
-        });
-        handlerStarted = true;
-        await invocation.spec.handler({
-            client,
-            actionSpec: invocation.spec,
-            args,
-            pagination,
-            bodyInput,
-            dryRun,
-            force,
-            confirmDestructive,
-            out,
-            err,
-            errRaw,
-        });
-        succeeded = true;
+        await withDiagnostics(
+            {
+                path: diagnosticPath,
+                otherOutput: values['out'],
+                dryRun,
+                credentials: auth.config,
+            },
+            {
+                lifetime: runtime.lifetime,
+                warn: errRaw,
+                reportFailure: (error) => {
+                    reported = true;
+                    schemaMismatchReporter.flush();
+                    // err() already sanitizes; passing the raw message is safe.
+                    err(error instanceof Error ? error.message : String(error));
+                },
+            },
+            async (scope) => {
+                try {
+                    client = runtime.createClient({
+                        ...auth.config,
+                        ...timeoutConfig,
+                        onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
+                        // A polling action re-reads one endpoint for the life of
+                        // the process. The GET cache's default TTL is longer than
+                        // any interval the CLI accepts, so leaving it on served
+                        // every poll after the first from cache and the watcher
+                        // never observed the run finishing (issue #281). One-shot
+                        // actions keep the cache.
+                        ...(invocation.spec.polls === true && { enableCache: false }),
+                    });
+                    // Past this point a failure may have reached TestRail, so the
+                    // record reports an indeterminate outcome rather than
+                    // "nothing was sent".
+                    scope.markDispatched();
+                    await invocation.spec.handler({
+                        client,
+                        actionSpec: invocation.spec,
+                        args,
+                        pagination,
+                        bodyInput,
+                        dryRun,
+                        force,
+                        confirmDestructive,
+                        out,
+                        err,
+                        errRaw,
+                    });
+                } finally {
+                    // Inside the scope so disposal keeps its position relative
+                    // to finalizing the reservation, as it had before this
+                    // protocol moved. No behaviour is known to depend on the
+                    // order — `credentials` is a separate object from the one
+                    // the client holds, so `destroy()` zeroing its credential
+                    // cannot blank the redaction source. Preserved rather than
+                    // required; don't let a future change make `credentials`
+                    // alias the client's own config.
+                    client?.destroy();
+                }
+            },
+        );
+
         schemaMismatchReporter.flush();
         return EXIT_SUCCESS;
     } catch (e: unknown) {
-        schemaMismatchReporter.flush();
-        // err() already sanitizes; passing the raw message is safe.
-        err(e instanceof Error ? e.message : String(e));
-        if (diagnostic !== undefined) {
-            let saved = false;
-            try {
-                saved = diagnostic.write(createDiagnosticRecord(e, auth.config, handlerStarted));
-            } catch {
-                // Diagnostic processing must never replace the operation's error.
-            }
-            if (!saved) {
-                errRaw(
-                    'Warning: Could not save the diagnostic file. The command failed or its outcome is indeterminate; no request was repeated for diagnostics.\n',
-                );
-            }
-        }
+        // Normally already reported by `reportFailure`; the scope rethrows the
+        // original error only so this arm can choose the exit code.
+        if (!reported) err(e instanceof Error ? e.message : String(e));
         return EXIT_FAILURE;
-    } finally {
-        client?.destroy();
-        finishDiagnostic();
     }
 }

@@ -14,6 +14,5 @@ Deepening slate from the 2026-09-18 architecture review. Ordered; **ARCH #8 must
 precede ARCH #9** (#9's second-attempt hazard is prevented only by the convention
 #8 replaces). All internal — no published-API change; ships as one `7.3.0`.
 
-- [ ] 🟡 ♻️ ARCH #12: Diagnostic scope — `withDiagnostics(request, work)` absorbs the six-step protocol plus a process-lifetime port (now unblocked)
 - [ ] 🟡 ♻️ ARCH #13: Output ownership — one module owns every byte; non-optional `HandlerContext` writers, widened `actionSpec`, lint rule on `process.stderr.write` (now unblocked)
 - [ ] 🟡 ♻️ ARCH #4: Endpoint registry — one runtime declaration per endpoint read by the SDK method, `ActionSpec` and the pagination descriptor; gates D/E become type constraints. No codegen. Folds in the `ACTIONS` slice-arithmetic removal
