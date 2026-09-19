@@ -54,7 +54,19 @@ export function collectActionsFromSource(source: string, filePath: string): Acti
         const resource = entry['resource'];
         const action = entry['action'];
         const apiEndpoint = entry['apiEndpoint'];
-        if (typeof resource === 'string' && typeof action === 'string' && typeof apiEndpoint === 'string') {
+        if (typeof resource !== 'string' || typeof action !== 'string' || typeof apiEndpoint !== 'string') {
+            // Same reasoning as the array-shape check above: an entry whose
+            // resource/action/apiEndpoint is not a plain string literal (a
+            // const reference, a template with substitutions, a spread) used to
+            // be dropped here with no signal, shrinking the set every gate
+            // tests membership against.
+            throw new Error(
+                `${filePath}: an ActionSpec entry has a non-literal resource/action/apiEndpoint ` +
+                    `(resource=${JSON.stringify(resource)}, action=${JSON.stringify(action)}, ` +
+                    `apiEndpoint=${JSON.stringify(apiEndpoint)}). Gates C, C2 and D would skip it silently.`,
+            );
+        }
+        {
             actions.push({
                 resource,
                 action,
@@ -72,12 +84,32 @@ export function collectActionsFromSource(source: string, filePath: string): Acti
             node.name.text.endsWith('Actions') &&
             node.initializer !== undefined
         ) {
+            // `[...] as const satisfies readonly ActionSpec[]` parses as
+            // SatisfiesExpression(AsExpression(ArrayLiteral)). Unwrapping only
+            // `as` used to leave the satisfies wrapper in place, the array
+            // literal went unseen, and this function returned [] — which gates
+            // C, C2-reverse and D read as "nothing to check" and pass.
             let arrayNode: ts.Node = node.initializer;
-            while (ts.isAsExpression(arrayNode)) arrayNode = arrayNode.expression;
-            if (ts.isArrayLiteralExpression(arrayNode)) {
-                for (const element of arrayNode.elements) {
-                    if (ts.isObjectLiteralExpression(element)) pushEntry(element);
-                }
+            while (
+                ts.isAsExpression(arrayNode) ||
+                ts.isSatisfiesExpression(arrayNode) ||
+                ts.isParenthesizedExpression(arrayNode)
+            ) {
+                arrayNode = arrayNode.expression;
+            }
+            if (!ts.isArrayLiteralExpression(arrayNode)) {
+                // Refuse rather than skip. Every gate downstream is a
+                // set-membership test over what this returns, so an
+                // unrecognised declaration makes them vacuous instead of
+                // failing — the one outcome worse than a parse error.
+                throw new Error(
+                    `${filePath}: cannot read \`${node.name.text}\` — expected an array literal, found ` +
+                        `${ts.SyntaxKind[arrayNode.kind]}. The mapping gates would silently check nothing. ` +
+                        `Teach collectActionsFromSource this shape before using it.`,
+                );
+            }
+            for (const element of arrayNode.elements) {
+                if (ts.isObjectLiteralExpression(element)) pushEntry(element);
             }
         }
         ts.forEachChild(node, visit);

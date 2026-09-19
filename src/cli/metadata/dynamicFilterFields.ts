@@ -2,7 +2,7 @@ import { handleDynamicFilterFieldList } from '../handlers/dynamic-filter-field.j
 import type { ActionSpec } from './types.js';
 
 /** `dynamic-filter-field` actions. */
-export const dynamicFilterFieldActions: readonly ActionSpec[] = [
+export const dynamicFilterFieldActions = [
     {
         resource: 'dynamic-filter-field',
         action: 'list',
@@ -12,4 +12,4 @@ export const dynamicFilterFieldActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleDynamicFilterFieldList,
     },
-];
+] as const satisfies readonly ActionSpec[];

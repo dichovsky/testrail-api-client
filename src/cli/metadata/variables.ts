@@ -10,7 +10,7 @@ import type { ActionSpec } from './types.js';
  *   [2] update — write
  *   [3] delete — write (destructive)
  */
-export const variableActions: readonly ActionSpec[] = [
+export const variableActions = [
     {
         resource: 'variable',
         action: 'list',
@@ -54,4 +54,4 @@ export const variableActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleVariableDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

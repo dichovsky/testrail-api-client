@@ -5,7 +5,7 @@ import type { ActionSpec } from './types.js';
  * `status` actions:
  *   [0] list — read (result statuses)
  */
-export const statusActions: readonly ActionSpec[] = [
+export const statusActions = [
     {
         resource: 'status',
         action: 'list',
@@ -15,4 +15,4 @@ export const statusActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleStatusList,
     },
-];
+] as const satisfies readonly ActionSpec[];

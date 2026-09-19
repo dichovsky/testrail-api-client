@@ -25,7 +25,7 @@ import type { ActionSpec } from './types.js';
  *   [6] add-by-test       — write
  *   [7] edit              — write
  */
-export const resultReadActions: readonly ActionSpec[] = [
+export const resultReadActions = [
     {
         resource: 'result',
         action: 'list',
@@ -69,9 +69,9 @@ export const resultReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleResultListForCase,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const resultWriteActions: readonly ActionSpec[] = [
+export const resultWriteActions = [
     {
         resource: 'result',
         action: 'add',
@@ -130,4 +130,4 @@ export const resultWriteActions: readonly ActionSpec[] = [
         isWrite: true,
         handler: handleResultEdit,
     },
-];
+] as const satisfies readonly ActionSpec[];

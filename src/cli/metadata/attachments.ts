@@ -31,7 +31,7 @@ import type { ActionSpec } from './types.js';
  *   [10] add-to-plan-entry      — write (file input)
  *   [11] delete                 — write (destructive)
  */
-export const attachmentReadActions: readonly ActionSpec[] = [
+export const attachmentReadActions = [
     {
         resource: 'attachment',
         action: 'list-for-case',
@@ -95,9 +95,9 @@ export const attachmentReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleAttachmentGet,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const attachmentWriteActions: readonly ActionSpec[] = [
+export const attachmentWriteActions = [
     {
         resource: 'attachment',
         action: 'add-to-case',
@@ -166,4 +166,4 @@ export const attachmentWriteActions: readonly ActionSpec[] = [
         destructive: true,
         handler: handleAttachmentDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

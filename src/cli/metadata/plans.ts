@@ -36,7 +36,7 @@ import type { ActionSpec } from './types.js';
  *   [10] delete-entry           — write (destructive)
  *   [11] delete-run-from-entry  — write (destructive)
  */
-export const planReadActions: readonly ActionSpec[] = [
+export const planReadActions = [
     {
         resource: 'plan',
         action: 'get',
@@ -65,9 +65,9 @@ export const planReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handlePlanList,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const planWriteActions: readonly ActionSpec[] = [
+export const planWriteActions = [
     {
         resource: 'plan',
         action: 'add',
@@ -190,4 +190,4 @@ export const planWriteActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported)',
         handler: handlePlanDeleteRunFromEntry,
     },
-];
+] as const satisfies readonly ActionSpec[];

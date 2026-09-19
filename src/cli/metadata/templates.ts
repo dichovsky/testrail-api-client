@@ -5,7 +5,7 @@ import type { ActionSpec } from './types.js';
  * `template` actions:
  *   [0] list — read
  */
-export const templateActions: readonly ActionSpec[] = [
+export const templateActions = [
     {
         resource: 'template',
         action: 'list',
@@ -15,4 +15,4 @@ export const templateActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleTemplateList,
     },
-];
+] as const satisfies readonly ActionSpec[];

@@ -17,7 +17,7 @@ import type { ActionSpec } from './types.js';
  * split because the path-param contract is asymmetric (group add takes a
  * `project_id`; config add takes a `config_group_id`).
  */
-export const configurationGroupActions: readonly ActionSpec[] = [
+export const configurationGroupActions = [
     {
         resource: 'configuration-group',
         action: 'add',
@@ -52,4 +52,4 @@ export const configurationGroupActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleConfigurationGroupDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

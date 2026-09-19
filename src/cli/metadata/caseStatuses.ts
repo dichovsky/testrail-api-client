@@ -5,7 +5,7 @@ import type { ActionSpec } from './types.js';
  * `case-status` actions:
  *   [0] list — read (TestRail Enterprise 7.3+)
  */
-export const caseStatusActions: readonly ActionSpec[] = [
+export const caseStatusActions = [
     {
         resource: 'case-status',
         action: 'list',
@@ -16,4 +16,4 @@ export const caseStatusActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleCaseStatusList,
     },
-];
+] as const satisfies readonly ActionSpec[];

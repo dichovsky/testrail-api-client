@@ -12,7 +12,7 @@ import type { ActionSpec } from './types.js';
  *   [4] update  — write (TestRail 7.0+)
  *   [5] delete  — write (destructive; TestRail 7.0+)
  */
-export const sharedStepReadActions: readonly ActionSpec[] = [
+export const sharedStepReadActions = [
     {
         resource: 'shared-step',
         action: 'get',
@@ -54,9 +54,9 @@ export const sharedStepReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleSharedStepHistory,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const sharedStepWriteActions: readonly ActionSpec[] = [
+export const sharedStepWriteActions = [
     {
         resource: 'shared-step',
         action: 'add',
@@ -92,4 +92,4 @@ export const sharedStepWriteActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.0+)',
         handler: handleSharedStepDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

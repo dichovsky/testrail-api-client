@@ -12,7 +12,7 @@ import type { ActionSpec } from './types.js';
  * UTF-8. `bdd add` and `bdd update` reuse the multipart upload path of
  * attachments.
  */
-export const bddActions: readonly ActionSpec[] = [
+export const bddActions = [
     {
         resource: 'bdd',
         action: 'get',
@@ -64,4 +64,4 @@ export const bddActions: readonly ActionSpec[] = [
         isWrite: true,
         handler: handleBddUpdate,
     },
-];
+] as const satisfies readonly ActionSpec[];

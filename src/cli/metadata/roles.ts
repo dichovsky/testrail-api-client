@@ -5,7 +5,7 @@ import type { ActionSpec } from './types.js';
  * `role` actions:
  *   [0] list — read
  */
-export const roleActions: readonly ActionSpec[] = [
+export const roleActions = [
     {
         resource: 'role',
         action: 'list',
@@ -16,4 +16,4 @@ export const roleActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleRoleList,
     },
-];
+] as const satisfies readonly ActionSpec[];

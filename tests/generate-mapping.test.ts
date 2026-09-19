@@ -182,6 +182,46 @@ describe('pagination registry', () => {
             },
         ]);
     });
+
+    it('reads an array wrapped in `as const satisfies`', () => {
+        // Every gate downstream is a set-membership test over what this
+        // returns, so a shape the parser cannot read makes gates C, C2-reverse
+        // and D check an empty set and pass. `as const satisfies T` parses as
+        // SatisfiesExpression(AsExpression(ArrayLiteral)); unwrapping only
+        // `as` left the array unseen.
+        const source = `
+            export const sampleActions = [{
+                resource: 'case',
+                action: 'get',
+                apiEndpoint: 'GET get_case/{case_id}',
+            }] as const satisfies readonly ActionSpec[];
+        `;
+        expect(collectActionsFromSource(source, 'sample.ts')).toEqual([
+            { resource: 'case', action: 'get', apiEndpoint: 'GET get_case/{case_id}' },
+        ]);
+    });
+
+    it('refuses an initializer it cannot read instead of returning nothing', () => {
+        // The failure this guards is silence: returning [] here reads as
+        // "no actions to check" to every gate.
+        const source = `export const sampleActions = buildActions();`;
+        expect(() => collectActionsFromSource(source, 'sample.ts')).toThrow(/cannot read `sampleActions`/);
+    });
+
+    it('refuses an entry whose apiEndpoint is not a string literal', () => {
+        // A const reference here would have been dropped with no signal,
+        // shrinking the set gates C, C2 and D test membership against.
+        const source = `
+            export const sampleActions = [{
+                resource: 'case',
+                action: 'get',
+                apiEndpoint: ENDPOINTS.getCase,
+            }] as const satisfies readonly ActionSpec[];
+        `;
+        expect(() => collectActionsFromSource(source, 'sample.ts')).toThrow(
+            /non-literal resource\/action\/apiEndpoint/,
+        );
+    });
 });
 
 describe('EndpointsArraySchema', () => {

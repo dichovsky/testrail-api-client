@@ -14,7 +14,7 @@ import type { ActionSpec } from './types.js';
  *   [5] close  — write (destructive)
  *   [6] delete — write (destructive)
  */
-export const runReadActions: readonly ActionSpec[] = [
+export const runReadActions = [
     {
         resource: 'run',
         action: 'get',
@@ -59,9 +59,9 @@ export const runReadActions: readonly ActionSpec[] = [
         polls: true,
         handler: handleRunWatch,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const runWriteActions: readonly ActionSpec[] = [
+export const runWriteActions = [
     {
         resource: 'run',
         action: 'add',
@@ -107,4 +107,4 @@ export const runWriteActions: readonly ActionSpec[] = [
         softMode: 'optional',
         handler: handleRunDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

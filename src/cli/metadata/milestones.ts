@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write (structural-setup)
  *   [4] delete — write (destructive)
  */
-export const milestoneReadActions: readonly ActionSpec[] = [
+export const milestoneReadActions = [
     {
         resource: 'milestone',
         action: 'get',
@@ -32,9 +32,9 @@ export const milestoneReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleMilestoneList,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const milestoneWriteActions: readonly ActionSpec[] = [
+export const milestoneWriteActions = [
     {
         resource: 'milestone',
         action: 'add',
@@ -68,4 +68,4 @@ export const milestoneWriteActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleMilestoneDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

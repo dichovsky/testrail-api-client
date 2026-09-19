@@ -17,7 +17,7 @@ import type { ActionSpec } from './types.js';
  *   [4] delete      — destructive write (single label)
  *   [5] delete-bulk — destructive write (body carries label IDs)
  */
-export const labelActions: readonly ActionSpec[] = [
+export const labelActions = [
     {
         resource: 'label',
         action: 'get',
@@ -81,4 +81,4 @@ export const labelActions: readonly ActionSpec[] = [
         destructive: true,
         handler: handleLabelDeleteBulk,
     },
-];
+] as const satisfies readonly ActionSpec[];

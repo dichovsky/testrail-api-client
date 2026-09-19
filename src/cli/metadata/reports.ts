@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [0] list — read
  *   [1] run  — read (executes a report template)
  */
-export const reportActions: readonly ActionSpec[] = [
+export const reportActions = [
     {
         resource: 'report',
         action: 'list',
@@ -48,4 +48,4 @@ export const reportActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleCrossProjectReportRun,
     },
-];
+] as const satisfies readonly ActionSpec[];

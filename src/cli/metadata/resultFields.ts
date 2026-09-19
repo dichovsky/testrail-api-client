@@ -5,7 +5,7 @@ import type { ActionSpec } from './types.js';
  * `result-field` actions:
  *   [0] list — read
  */
-export const resultFieldActions: readonly ActionSpec[] = [
+export const resultFieldActions = [
     {
         resource: 'result-field',
         action: 'list',
@@ -15,4 +15,4 @@ export const resultFieldActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleResultFieldList,
     },
-];
+] as const satisfies readonly ActionSpec[];

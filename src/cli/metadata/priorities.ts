@@ -5,7 +5,7 @@ import type { ActionSpec } from './types.js';
  * `priority` actions:
  *   [0] list — read
  */
-export const priorityActions: readonly ActionSpec[] = [
+export const priorityActions = [
     {
         resource: 'priority',
         action: 'list',
@@ -15,4 +15,4 @@ export const priorityActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handlePriorityList,
     },
-];
+] as const satisfies readonly ActionSpec[];

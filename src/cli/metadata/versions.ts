@@ -2,7 +2,7 @@ import { handleVersionGet } from '../handlers/version.js';
 import type { ActionSpec } from './types.js';
 
 /** `version` actions. */
-export const versionActions: readonly ActionSpec[] = [
+export const versionActions = [
     {
         resource: 'version',
         action: 'get',
@@ -12,4 +12,4 @@ export const versionActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleVersionGet,
     },
-];
+] as const satisfies readonly ActionSpec[];

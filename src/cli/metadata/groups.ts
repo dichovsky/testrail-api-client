@@ -16,7 +16,7 @@ import type { ActionSpec } from './types.js';
  * `update`/`delete` take a single `group_id`. Disjoint from
  * `configuration-group` (project-scoped, owns nested configs).
  */
-export const groupActions: readonly ActionSpec[] = [
+export const groupActions = [
     {
         resource: 'group',
         action: 'get',
@@ -69,4 +69,4 @@ export const groupActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.5+)',
         handler: handleGroupDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write
  *   [4] delete — write (destructive)
  */
-export const datasetActions: readonly ActionSpec[] = [
+export const datasetActions = [
     {
         resource: 'dataset',
         action: 'get',
@@ -64,4 +64,4 @@ export const datasetActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleDatasetDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

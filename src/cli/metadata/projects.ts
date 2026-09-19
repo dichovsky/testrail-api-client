@@ -8,7 +8,7 @@ import type { ActionSpec } from './types.js';
  * interleaves reads and writes from several resources, so each half is its own
  * export rather than a slice of one array — an index that nothing checks.
  */
-export const projectReadActions: readonly ActionSpec[] = [
+export const projectReadActions = [
     {
         resource: 'project',
         action: 'get',
@@ -29,9 +29,9 @@ export const projectReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleProjectList,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const projectWriteActions: readonly ActionSpec[] = [
+export const projectWriteActions = [
     {
         resource: 'project',
         action: 'add',
@@ -66,4 +66,4 @@ export const projectWriteActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail; highest blast radius)',
         handler: handleProjectDelete,
     },
-];
+] as const satisfies readonly ActionSpec[];

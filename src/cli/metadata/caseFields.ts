@@ -8,7 +8,7 @@ import type { ActionSpec } from './types.js';
  *   [0] list — read
  *   [1] add  — write (admin-only)
  */
-export const caseFieldReadActions: readonly ActionSpec[] = [
+export const caseFieldReadActions = [
     {
         resource: 'case-field',
         action: 'list',
@@ -18,9 +18,9 @@ export const caseFieldReadActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleCaseFieldList,
     },
-];
+] as const satisfies readonly ActionSpec[];
 
-export const caseFieldWriteActions: readonly ActionSpec[] = [
+export const caseFieldWriteActions = [
     {
         resource: 'case-field',
         action: 'add',
@@ -32,4 +32,4 @@ export const caseFieldWriteActions: readonly ActionSpec[] = [
         isWrite: true,
         handler: handleCaseFieldAdd,
     },
-];
+] as const satisfies readonly ActionSpec[];

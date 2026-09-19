@@ -66,7 +66,7 @@ export type { ActionSpec, PathParam } from './metadata/types.js';
  * compiled clean. Each resource now exports its reads and writes separately and
  * the barrel spreads them by name.
  */
-export const ACTIONS: readonly ActionSpec[] = [
+const ACTION_TUPLE = [
     // ── Read actions ──────────────────────────────────────────────────────
     ...projectReadActions, // project get, list
     ...suiteReadActions, // suite get, list
@@ -142,9 +142,56 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...configurationWriteActions, // configuration add, update, delete
     // ── Label actions (TestRail Labels API, 2025) ─────────────────────────
     ...labelActions, // label get, list, add, update, delete, delete-bulk
-];
+] as const satisfies readonly ActionSpec[];
+
+/**
+ * Every `resource:action` the CLI exposes.
+ *
+ * Deliberately typed as the wide `readonly ActionSpec[]` rather than the
+ * literal tuple above: a consumer reading an optional field (`flags`,
+ * `softMode`, `destructive`) off a literal union has to narrow against every
+ * member that omits it, which is churn for no gain. The literal types are kept
+ * on `ACTION_TUPLE` because the endpoint assertions below are the only thing
+ * that needs them.
+ */
+export const ACTIONS: readonly ActionSpec[] = ACTION_TUPLE;
 
 /** Look up the spec for a resource:action pair, or return undefined. */
 export function getActionSpec(resource: string, action: string): ActionSpec | undefined {
     return ACTIONS.find((a) => a.resource === resource && a.action === action);
 }
+
+// ── Endpoint literal types ────────────────────────────────────────────────────
+
+/**
+ * Every endpoint the CLI surfaces, as a union of string literals.
+ *
+ * Only resolves to literals while every per-resource array is written
+ * `as const satisfies readonly ActionSpec[]`. Annotating any one of them
+ * `: readonly ActionSpec[]` instead widens this to plain `string` — see the
+ * guard below, which exists for exactly that reason.
+ */
+export type ActionEndpoint = (typeof ACTION_TUPLE)[number]['apiEndpoint'];
+
+/** Compile-time assertion helper: `Assert<false>` is an error. */
+type Assert<T extends true> = T;
+
+/**
+ * DO NOT DELETE THIS WITHOUT READING THIS COMMENT.
+ *
+ * This alias has no runtime effect and no consumers. Its only job is to be
+ * inconvenient: it fails compilation the moment `ActionEndpoint` degrades from
+ * a union of literals to `string`.
+ *
+ * That matters because a widened `ActionEndpoint` does not break anything
+ * loudly — it makes the coverage assertions that depend on it pass while
+ * checking nothing (`Exclude<X, string>` is `never` for every `X`). Deleting
+ * this line to silence a merge conflict therefore disarms those assertions
+ * silently, which is the failure mode this whole approach trades for gate E's
+ * printed error message.
+ *
+ * If this fires, the fix is to restore `as const satisfies readonly
+ * ActionSpec[]` on whichever array in `src/cli/metadata/` lost it — never to
+ * delete this.
+ */
+export type _ActionEndpointsAreLiterals = Assert<[string] extends [ActionEndpoint] ? false : true>;
