@@ -40,8 +40,9 @@
  *        `ActionSpec.apiEndpoint`, i.e. the SDK method is actually reachable
  *        from the CLI. Unconditional — no exemption escape hatch, matching
  *        this repo's absolute, exception-free SDK⇒CLI layer-coverage policy.
- *   E  — Pagination metadata is identical in `docs/testrail-endpoints.json`
- *        and the matching `ActionSpec`, in both directions.
+ * Pagination is no longer gated here: an `ActionSpec` reads its endpoint's
+ * contract from `src/cli/metadata/paginated-endpoints.ts` instead of restating
+ * it. See the `pagination registry` block in `tests/generate-mapping.test.ts`.
  *
  * Determinism: no timestamps; tables and per-resource sections sorted by
  * stable keys; running twice produces byte-identical output.

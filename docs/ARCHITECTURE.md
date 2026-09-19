@@ -245,7 +245,9 @@ Construction assigns the shared `createModuleBindings()` result explicitly; time
 ### 3.3 Pagination projections
 
 The machine-readable `pagination` entry on an endpoint in
-`docs/testrail-endpoints.json`, mirrored by its CLI `ActionSpec`, opts that
+`docs/testrail-endpoints.json`, mirrored by the contract table in
+`src/cli/metadata/paginated-endpoints.ts` (keyed by `apiEndpoint`; an
+`ActionSpec` no longer restates it — see §6.3), opts that
 endpoint into a three-method contract:
 
 - Existing `get*()` methods issue one request and return that response's `T[]`.

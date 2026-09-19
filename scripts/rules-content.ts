@@ -66,6 +66,8 @@ export function renderRulesBody(actions: readonly ActionLike[]): string {
         '',
         '## Quick start (CLI)',
         '',
+        'Requires Node.js 24 or newer.',
+        '',
         '```bash',
         'export TESTRAIL_BASE_URL="https://example.testrail.io"',
         'export TESTRAIL_EMAIL="agent@example.com"',

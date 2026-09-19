@@ -28,7 +28,9 @@ not a TestRail user manual. For the browser UI, see TestRail's own docs.
 ## Install / verify
 
 The CLI ships with the npm package `@dichovsky/testrail-api-client` and
-exposes the `testrail` binary. Install it locally and verify the binary:
+exposes the `testrail` binary. Requires Node.js 24 or newer
+(`engines.node: ">=24"` as of 8.0.0; pin `7.2.0` for Node 20/22). Install it
+locally and verify the binary:
 
 ```bash
 npm install @dichovsky/testrail-api-client
@@ -447,7 +449,9 @@ package source.
 
 By default, `testrail` emits pretty-printed JSON to stdout. Use `--format
 table` for column-aligned human-readable output. Use `--quiet` to
-suppress stdout entirely (rely on exit code).
+suppress normal output and advisory warnings (rely on exit code). One
+exception: `--out -` payload bytes are an explicit request and still go to
+stdout; only its JSON ack is suppressed.
 
 ```bash
 testrail project get 1                  # JSON (default)
@@ -3419,8 +3423,9 @@ testrail report run-cross-project 12
 
 **Saving a report to a file:**
 
-Use `--out <path>` to download the HTML report directly (if your TestRail
-instance supports direct binary downloads; consult your admin):
+`report run` returns report URLs as JSON; it does not support `--out` (the
+flag is rejected before dispatch). Download the HTML with `curl`/`wget` from
+the returned URL:
 
 ```bash
 # Note: The API returns URLs; to download, use curl or wget
@@ -4070,12 +4075,12 @@ dispatch can have an indeterminate outcome.
   programmatic client; the CLI uses defaults). The CLI throws an error
   rather than queueing on overflow.
 - **GET cache:** GET responses are cached in-process for ~5 minutes by
-  default. POSTs invalidate the entire cache. Stale reads are possible
-  if the same `testrail` invocation re-fetches the same endpoint within
-  the TTL. Programmatic `getAll*()` walks bypass cache reads/writes and
+  default. POSTs invalidate the entire cache. Polling actions opt out:
+  `run watch` builds its client with the cache disabled, so every poll
+  reaches TestRail at the requested interval. Programmatic `getAll*()` walks bypass cache reads/writes and
   pending-request coalescing; `get*Page()` uses normal caching in a separate
   strict-schema namespace from legacy one-response list reads.
-- **Retry:** GET requests retry 5xx responses, 429s, and network errors.
+- **Retry:** GET requests retry 5xx responses, 429s, and network errors — except `report run` / `report run-cross-project`, which are side-effecting GETs and retry 429 only.
   JSON writes retry only 429; write 5xx/network errors surface immediately
   to avoid duplicate writes. Multipart uploads never retry. The default is
   three retries after the initial attempt, with exponential backoff and

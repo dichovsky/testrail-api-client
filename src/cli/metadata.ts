@@ -163,8 +163,9 @@ type EndpointsOf<T extends readonly { readonly apiEndpoint: string }[]> = T[numb
  * shape into `dist/cli/metadata.d.ts` — 2 KB to 105 KB — for a projection that
  * only ever needed the endpoint strings.
  *
- * Only resolves to literals while every per-resource array is written
- * `as const satisfies readonly ActionSpec[]`. Annotating any one of them
+ * Only resolves to literals while every per-resource array is wrapped in
+ * `defineActions([...])` (`src/cli/metadata/types.ts`), whose `const E` generic
+ * preserves the endpoint strings. Annotating any one of them
  * `: readonly ActionSpec[]` widens this to plain `string` — see the guard
  * below, which exists for exactly that reason.
  */
@@ -231,8 +232,7 @@ type Assert<T extends true> = T;
  * silence a merge conflict therefore disarms that assertion silently, which is
  * the failure mode this approach trades for gate E's printed error message.
  *
- * If this fires, the fix is to restore `as const satisfies readonly
- * ActionSpec[]` on whichever array in `src/cli/metadata/` lost it — never to
- * delete this.
+ * If this fires, the fix is to restore the `defineActions([...])` wrapper on
+ * whichever array in `src/cli/metadata/` lost it — never to delete this.
  */
 export type _ActionEndpointsAreLiterals = Assert<[string] extends [ActionEndpoint] ? false : true>;

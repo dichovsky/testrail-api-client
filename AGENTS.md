@@ -31,6 +31,8 @@ method on one of the `TestRailClient` domain modules.
 
 ## Quick start (CLI)
 
+Requires Node.js 24 or newer.
+
 ```bash
 export TESTRAIL_BASE_URL="https://example.testrail.io"
 export TESTRAIL_EMAIL="agent@example.com"

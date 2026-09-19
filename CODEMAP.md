@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "6c741d4e9634588896200cc7796db50456c1d74bfbe80c4ad00805057393df0f",
+  "sourceHash": "89cd33c5fe6960cf347f54add3623fedc60a59903b3244903f7bc406ce16780e",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5062,14 +5062,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ActionEndpoint",
           "kind": "type",
-          "line": 171,
+          "line": 172,
           "exported": true,
           "signature": "export type ActionEndpoint = | EndpointsOf<typeof projectReadActions> | EndpointsOf<typeof projectWriteActions> | EndpointsOf<typeof suiteReadActions> | EndpointsOf<typeof suiteWriteActions> | Endpoin…"
         },
         {
           "name": "Assert",
           "kind": "type",
-          "line": 218,
+          "line": 219,
           "exported": false,
           "signature": "type Assert<T extends true> = T"
         },

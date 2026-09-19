@@ -55,7 +55,7 @@ The client surfaces the supported TestRail REST API endpoints. See [`docs/API-MA
 
 ### Write example
 
-With a live `client` instance, write payloads are Zod-validated before the request:
+With a live `client` instance, write payloads are typed from the Zod payload schemas (compile-time only — the SDK does not re-validate them at runtime; the CLI does):
 
 ```typescript
 const run = await client.runs.addRun(5, {
@@ -96,17 +96,17 @@ For a literal value beginning with `--`, use the inline form, such as
 
 ## Features
 
-| Capability         | What it does                                                                         | Documented in                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Response caching   | GET-only in-process LRU cache with TTL; any write invalidates it                     | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-request-cache)                         |
-| Bounded pagination | Preserve page metadata or collect every page with explicit safety limits             | [Pagination](#pagination)                                                                                                                             |
-| Rate limiting      | Sliding-window limiter (default 100 req/60s); rejects over-limit before fetch        | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
-| Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, writes only 429 | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
-| SSRF guard         | DNS validation per upstream fetch, private-host blocking, manual-redirect rejection  | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
-| Response-body caps | Byte ceiling + wall-clock deadline on every body read                                | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
-| Streaming uploads  | Attachment uploads stream from disk, so large files don't buffer in heap             | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
-| CLI                | `testrail` binary: read / write / destructive actions, four output formats           | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
-| AI-agent skill     | Bundled Claude Code skill; install it with `npx testrail install-skill`              | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
+| Capability         | What it does                                                                                                             | Documented in                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Response caching   | GET-only in-process LRU cache with TTL; any write invalidates it                                                         | [docs/ARCHITECTURE.md §2.3](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#23-request-cache)                         |
+| Bounded pagination | Preserve page metadata or collect every page with explicit safety limits                                                 | [Pagination](#pagination)                                                                                                                             |
+| Rate limiting      | Sliding-window limiter (default 100 req/60s); rejects over-limit before fetch                                            | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
+| Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, JSON writes only 429, multipart uploads never retry | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
+| SSRF guard         | DNS validation per upstream fetch, private-host blocking, manual-redirect rejection                                      | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
+| Response-body caps | Byte ceiling + wall-clock deadline on every body read                                                                    | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
+| Streaming uploads  | Attachment uploads stream from disk, so large files don't buffer in heap                                                 | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
+| CLI                | `testrail` binary: read / write / destructive actions, four output formats                                               | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
+| AI-agent skill     | Bundled Claude Code skill; install it with `npx testrail install-skill`                                                  | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
 
 For a project-scoped Claude Code installation, run `npx testrail install-skill`. Add `--global` to install it under `~/.claude/skills/`.
 
