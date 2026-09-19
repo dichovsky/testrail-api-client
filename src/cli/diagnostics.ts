@@ -444,14 +444,33 @@ function createDarwinDiagnosticFile(destination: string): number {
     return fd;
 }
 
+/**
+ * Why `--diagnostic-file` is refused on Windows. One constant, because this
+ * sentence used to exist byte-identically in two files: here, and again in the
+ * CLI's early platform gate.
+ */
+export const DIAGNOSTIC_UNSUPPORTED_PLATFORM =
+    '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.';
+
+/**
+ * Whether diagnostics can be reserved on this platform, as a message or
+ * `undefined`.
+ *
+ * Exported so the CLI can refuse *early* — before stdin is consumed or
+ * credentials resolved — while the reason itself stays owned here.
+ * {@link prepareDiagnosticDestination} re-checks as defence in depth, since it
+ * is what actually touches the filesystem.
+ */
+export function diagnosticSupportError(platform: string): string | undefined {
+    return platform === 'win32' ? DIAGNOSTIC_UNSUPPORTED_PLATFORM : undefined;
+}
+
 /** Reserve a new private regular file before dispatch; retain its descriptor throughout the request. */
 export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination {
     // Node's file mode cannot establish a private Windows ACL. Fail before
     // dispatch rather than silently inheriting a potentially shared ACL.
     if (process.platform === 'win32') {
-        throw new Error(
-            '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.',
-        );
+        throw new Error(DIAGNOSTIC_UNSUPPORTED_PLATFORM);
     }
     let fd: number | undefined;
     let destination: string | undefined;
@@ -583,4 +602,131 @@ export function prepareDiagnosticDestination(path: string, otherOutput?: string)
             return complete;
         },
     };
+}
+
+// ── Diagnostic scope ─────────────────────────────────────────────────────────
+
+/**
+ * The process facts a diagnostic reservation depends on, as a port.
+ *
+ * Only `exit` is needed: SIGINT/SIGTERM terminate synchronously through the
+ * client's own handlers, so an async `finally` cannot be relied on to release a
+ * reservation. Injected rather than reached for, so a test drives the exit path
+ * without registering a listener it can never remove.
+ */
+export interface ProcessLifetime {
+    onExit: (listener: () => void) => void;
+    offExit: (listener: () => void) => void;
+}
+
+/** What the caller must decide before a reservation can be made. */
+export interface DiagnosticRequest {
+    /** `--diagnostic-file`; anything non-string means the flag was not supplied. */
+    readonly path: unknown;
+    /** `--out`, so a diagnostic cannot silently collide with the download target. */
+    readonly otherOutput: unknown;
+    /** Dry-run previews never reserve: no API request will be sent. */
+    readonly dryRun: boolean;
+    /** Redaction source for the record; never written verbatim. */
+    readonly credentials: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>;
+}
+
+export interface DiagnosticScopeDeps {
+    readonly lifetime: ProcessLifetime;
+    /** Raw, quiet-aware stderr writer for the warning lines. */
+    readonly warn: (chunk: string) => void;
+    /**
+     * Report the operation's own failure. Invoked before the diagnostic is
+     * written so the operation error still reaches the user first, exactly as
+     * it did when this protocol lived in `runCli`.
+     */
+    readonly reportFailure: (error: unknown) => void;
+}
+
+/** Handed to the work so it can mark the point after which a write may have landed. */
+export interface DiagnosticScope {
+    /**
+     * Called once the request has been dispatched. Before this, a failure
+     * provably sent nothing; after it, the outcome is indeterminate and the
+     * record says so.
+     */
+    markDispatched: () => void;
+}
+
+/**
+ * Run `work` with a diagnostic reservation around it.
+ *
+ * This replaces a six-step protocol the caller had to execute in the right
+ * order — reject the platform, skip under dry-run, reserve only after auth,
+ * register an `exit` listener and remember to remove it inside the handler,
+ * write on failure while swallowing any throw, then finish in a `finally` and
+ * pick one of two warning strings. Getting any step wrong was a security or a
+ * hang bug, and the ordering lived in prose. Now the caller hands over a
+ * request and a thunk.
+ *
+ * Resolves with the work's value. On failure it reports, writes the record, and
+ * rethrows the original error — never its own.
+ */
+export async function withDiagnostics<T>(
+    request: DiagnosticRequest,
+    deps: DiagnosticScopeDeps,
+    work: (scope: DiagnosticScope) => Promise<T>,
+): Promise<T> {
+    const enabled = !request.dryRun && typeof request.path === 'string';
+    let destination: CliDiagnosticDestination | undefined;
+    let succeeded = false;
+    let dispatched = false;
+
+    const finishDiagnostic = (): void => {
+        // Remove the listener and clear the reservation before finishing, so
+        // the exit path and the normal path cannot close it twice.
+        deps.lifetime.offExit(finishDiagnostic);
+        const held = destination;
+        destination = undefined;
+        if (held !== undefined && !held.finish()) {
+            deps.warn(
+                succeeded
+                    ? 'Warning: Command succeeded, but diagnostic file cleanup failed; the API operation is unchanged.\n'
+                    : 'Warning: Diagnostic file cleanup failed; the command remains failed or indeterminate.\n',
+            );
+        }
+    };
+
+    try {
+        // Inside the try: a reservation that cannot be made safely is an
+        // operation failure the user must see, and it has no record to write.
+        if (enabled) {
+            destination = prepareDiagnosticDestination(
+                request.path,
+                typeof request.otherOutput === 'string' ? request.otherOutput : undefined,
+            );
+            deps.lifetime.onExit(finishDiagnostic);
+        }
+
+        const result = await work({
+            markDispatched: () => {
+                dispatched = true;
+            },
+        });
+        succeeded = true;
+        return result;
+    } catch (error: unknown) {
+        deps.reportFailure(error);
+        if (destination !== undefined) {
+            let saved = false;
+            try {
+                saved = destination.write(createDiagnosticRecord(error, request.credentials, dispatched));
+            } catch {
+                // Diagnostic processing must never replace the operation's error.
+            }
+            if (!saved) {
+                deps.warn(
+                    'Warning: Could not save the diagnostic file. The command failed or its outcome is indeterminate; no request was repeated for diagnostics.\n',
+                );
+            }
+        }
+        throw error;
+    } finally {
+        finishDiagnostic();
+    }
 }

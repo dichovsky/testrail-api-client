@@ -31,6 +31,14 @@ runCli({
         read: (maxBytes) => readBoundedStdin(maxBytes),
     },
     createClient: (config) => new TestRailClient({ ...config, registerProcessHandlers: true }),
+    platform: process.platform,
+    lifetime: {
+        // The diagnostic reservation registers here because SIGINT/SIGTERM
+        // terminate synchronously through the client's own handlers, so an
+        // async `finally` alone cannot release a reserved file.
+        onExit: (listener) => void process.on('exit', listener),
+        offExit: (listener) => void process.removeListener('exit', listener),
+    },
 }).then(
     (code) => {
         // Assign rather than call `process.exit()`: an immediate exit can

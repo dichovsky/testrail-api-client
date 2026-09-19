@@ -192,6 +192,9 @@ const AUTH_ENV = {
 
 // ── Fetch mock ────────────────────────────────────────────────────────────────
 
+/** Exit listeners the diagnostic scope registers, captured instead of installed. */
+const exitListeners = new Set<() => void>();
+
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
 
@@ -311,6 +314,14 @@ async function runCli(
             // No `registerProcessHandlers`: a test run must not install
             // exit/SIGINT/SIGTERM listeners that can never be removed.
             createClient: (config) => new TestRailClient(config),
+            platform: process.platform,
+            // A fake lifetime for the same reason: the diagnostic scope
+            // registers an `exit` listener, and real ones would accumulate one
+            // per test with no way to remove them after the fact.
+            lifetime: {
+                onExit: (listener) => void exitListeners.add(listener),
+                offExit: (listener) => void exitListeners.delete(listener),
+            },
         });
     } finally {
         spyOut.mockRestore();

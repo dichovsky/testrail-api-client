@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "63326651070099c19af5f72ec4c26a739f11e80be5b8679a8948c1439c18e6cf",
+  "sourceHash": "eb79360180f7f7af455754233cd7ff2193c55c14c82d4a608671bfbc5b90e98b",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2481,11 +2481,60 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "function createDarwinDiagnosticFile(destination: string): number"
         },
         {
+          "name": "DIAGNOSTIC_UNSUPPORTED_PLATFORM",
+          "kind": "const",
+          "line": 452,
+          "exported": true,
+          "signature": "export const DIAGNOSTIC_UNSUPPORTED_PLATFORM = '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.'"
+        },
+        {
+          "name": "diagnosticSupportError",
+          "kind": "function",
+          "line": 464,
+          "exported": true,
+          "signature": "export function diagnosticSupportError(platform: string): string | undefined"
+        },
+        {
           "name": "prepareDiagnosticDestination",
           "kind": "function",
-          "line": 448,
+          "line": 469,
           "exported": true,
           "signature": "export function prepareDiagnosticDestination(path: string, otherOutput?: string): CliDiagnosticDestination"
+        },
+        {
+          "name": "ProcessLifetime",
+          "kind": "interface",
+          "line": 617,
+          "exported": true,
+          "signature": "export interface ProcessLifetime { onExit: (listener: () => void) => void; offExit: (listener: () => void) => void; }"
+        },
+        {
+          "name": "DiagnosticRequest",
+          "kind": "interface",
+          "line": 623,
+          "exported": true,
+          "signature": "export interface DiagnosticRequest { readonly path: unknown; readonly otherOutput: unknown; readonly dryRun: boolean; readonly credentials: Pick<TestRailConfig, 'email' | 'apiKey' | 'baseUrl'>; }"
+        },
+        {
+          "name": "DiagnosticScopeDeps",
+          "kind": "interface",
+          "line": 634,
+          "exported": true,
+          "signature": "export interface DiagnosticScopeDeps { readonly lifetime: ProcessLifetime; readonly warn: (chunk: string) => void; readonly reportFailure: (error: unknown) => void; }"
+        },
+        {
+          "name": "DiagnosticScope",
+          "kind": "interface",
+          "line": 647,
+          "exported": true,
+          "signature": "export interface DiagnosticScope { markDispatched: () => void; }"
+        },
+        {
+          "name": "withDiagnostics",
+          "kind": "function",
+          "line": 670,
+          "exported": true,
+          "signature": "export async function withDiagnostics<T>( request: DiagnosticRequest, deps: DiagnosticScopeDeps, work: (scope: DiagnosticScope) => Promise<T>, ): Promise<T>"
         }
       ]
     },
@@ -4910,7 +4959,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "runCli",
           "kind": "function",
-          "line": 85,
+          "line": 92,
           "exported": true,
           "signature": "export async function runCli(runtime: CliRuntime): Promise<number>"
         }
