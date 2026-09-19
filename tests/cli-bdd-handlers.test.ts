@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { handleBddAdd, handleBddGet, handleBddList, handleBddUpdate } from '../src/cli/handlers/bdd.js';
+import { captureOutput, type CapturedOutput } from './helpers.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -62,8 +63,9 @@ interface CtxOverrides {
 function buildCtx(
     client: MockedClient,
     overrides: CtxOverrides = {},
-): { ctx: HandlerContext; out: ReturnType<typeof vi.fn>; errRaw: ReturnType<typeof vi.fn> } {
+): { ctx: HandlerContext; out: ReturnType<typeof vi.fn>; errRaw: ReturnType<typeof vi.fn>; captured: CapturedOutput } {
     const out = vi.fn();
+    const captured = captureOutput({ stdoutIsTTY: true });
     const errRaw = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
@@ -86,10 +88,11 @@ function buildCtx(
         dryRun: overrides.dryRun ?? false,
         force: overrides.force ?? false,
         confirmDestructive: false,
+        ...captured.output,
         out,
         errRaw,
     };
-    return { ctx, out, errRaw };
+    return { ctx, out, errRaw, captured };
 }
 
 // ── bdd list ─────────────────────────────────────────────────────────────
@@ -222,52 +225,30 @@ describe('handleBddGet', () => {
     });
 
     describe("--out '-' (stdout)", () => {
-        let stdoutSpy: ReturnType<typeof vi.spyOn>;
-        let stdoutChunks: string[];
-
-        beforeEach(() => {
-            stdoutChunks = [];
-            stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-                stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-                return true;
-            });
-        });
-
-        afterEach(() => {
-            stdoutSpy.mockRestore();
-        });
-
-        it("writes Gherkin text to stdout and routes JSON ack to errRaw (--out '-')", async () => {
-            // Exercises the `resolved.target === 'stdout'` true branch and
-            // the `ctx.errRaw !== undefined` true branch — JSON ack must
-            // land on stderr via errRaw so the stdout binary stream stays
-            // pure Gherkin.
+        it("writes Gherkin text to stdout and its JSON ack to stderr (--out '-')", async () => {
             const client = buildClient();
-            const { ctx, errRaw } = buildCtx(client, { pathParams: ['42'], out: '-' });
+            const { ctx, captured } = buildCtx(client, { pathParams: ['42'], out: '-' });
             await handleBddGet(ctx);
+
             expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
-            expect(stdoutChunks.join('')).toBe('Feature: Login\n  Scenario: ok\n');
-            expect(errRaw).toHaveBeenCalledTimes(1);
-            const ackCall = errRaw.mock.calls[0] as [string];
-            const ack = JSON.parse(ackCall[0].trimEnd()) as Record<string, unknown>;
+            expect(captured.stdout.join('')).toBe('Feature: Login\n  Scenario: ok\n');
+
+            const ack = JSON.parse(captured.stderr.join('').trimEnd()) as Record<string, unknown>;
             expect(ack['caseId']).toBe(42);
             expect(ack['out']).toBe('<stdout>');
             expect(ack['size']).toBe(Buffer.byteLength('Feature: Login\n  Scenario: ok\n', 'utf-8'));
         });
 
-        it('writes to stdout but silently skips ack when ctx.errRaw is undefined (defensive)', async () => {
-            // Exercises the `if (ctx.errRaw !== undefined)` false branch.
-            // Minimal-ctx callers (synthetic handlers, deferred tests) must
-            // not crash when errRaw is missing — the binary stream still
-            // lands on stdout, only the ack is dropped.
+        it('does not warn about a TTY, because Gherkin is text', async () => {
+            // The factory builds these contexts with `stdoutIsTTY: true`. A
+            // binary download warns here; text must not, and the payload's own
+            // type is what decides — `bdd get` cannot ask for the warning and
+            // `attachment get` cannot opt out of it.
             const client = buildClient();
-            const { ctx } = buildCtx(client, { pathParams: ['42'], out: '-' });
-            // Remove errRaw to simulate a minimal ctx.
-            const minimalCtx: HandlerContext = { ...ctx };
-            delete (minimalCtx as { errRaw?: unknown }).errRaw;
-            await handleBddGet(minimalCtx);
-            expect(client.bdd.getBdd).toHaveBeenCalledWith(42);
-            expect(stdoutChunks.join('')).toBe('Feature: Login\n  Scenario: ok\n');
+            const { ctx, captured } = buildCtx(client, { pathParams: ['42'], out: '-' });
+            await handleBddGet(ctx);
+
+            expect(captured.stderr.join('')).not.toContain('TTY');
         });
     });
 });

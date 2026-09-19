@@ -33,6 +33,7 @@ import {
     handleAttachmentDelete,
 } from '../src/cli/handlers/attachment-write.js';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput, type CapturedOutput } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
 
@@ -80,6 +81,7 @@ interface CtxOverrides {
     limit?: string;
     offset?: string;
     dryRun?: boolean;
+    stdoutIsTTY?: boolean;
     force?: boolean;
     confirmDestructive?: boolean;
     soft?: boolean;
@@ -90,12 +92,16 @@ interface BuiltCtx {
     out: ReturnType<typeof vi.fn>;
     err: ReturnType<typeof vi.fn>;
     errRaw: ReturnType<typeof vi.fn>;
+    captured: CapturedOutput;
 }
 
 function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx {
     const out = vi.fn();
     const err = vi.fn();
     const errRaw = vi.fn();
+    // A real Output: `outPayload` writes the download bytes into `captured.stdout`
+    // instead of the process stream the handler used to reach for.
+    const captured = captureOutput({ stdoutIsTTY: overrides.stdoutIsTTY ?? false });
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
         actionSpec: { resource: 'attachment', action: 'delete' },
@@ -113,11 +119,12 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
         dryRun: overrides.dryRun ?? false,
         force: overrides.force ?? false,
         confirmDestructive: overrides.confirmDestructive ?? false,
+        ...captured.output,
         out,
         err,
         errRaw,
     };
-    return { ctx, out, err, errRaw };
+    return { ctx, out, err, errRaw, captured };
 }
 
 // ── list-for-* ────────────────────────────────────────────────────────────
@@ -522,78 +529,43 @@ describe("attachment upload handlers with --file '-'", () => {
 // ── --out '-' (stdout download) ────────────────────────────────────────────
 
 describe("attachment get with --out '-'", () => {
-    const ORIG_IS_TTY = process.stdout.isTTY;
-
-    let stdoutBytes: Buffer[];
-    let stdoutSpy: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-        stdoutBytes = [];
-        // Capture stdout.write so the assertions can inspect the bytes
-        // without polluting test output. Use a typed signature that
-        // matches the multiple overloads of process.stdout.write.
-        stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
-            stdoutBytes.push(Buffer.from(chunk));
-            return true;
-        });
-    });
-
-    afterEach(() => {
-        stdoutSpy.mockRestore();
-        (process.stdout as { isTTY?: boolean }).isTTY = ORIG_IS_TTY;
-    });
-
-    it('writes raw bytes to stdout and JSON ack to stderr (via errRaw)', async () => {
-        (process.stdout as { isTTY?: boolean }).isTTY = false;
+    // No process-stream spy and no mutation of `process.stdout.isTTY`: the
+    // payload, its ack, and the TTY warning all travel through the context's
+    // own writers now, so the terminal state of the test runner is irrelevant.
+    it('writes raw bytes to stdout and its JSON ack to stderr', async () => {
         const client = buildClient();
-        const { ctx, out, errRaw } = buildCtx(client, { pathParams: ['42'], out: '-' });
+        const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: '-' });
         await handleAttachmentGet(ctx);
+
         expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
-        // out (stdout JSON) must not be called; the binary went straight to stdout.write
+        // `out` renders JSON; the binary must not go through it.
         expect(out).not.toHaveBeenCalled();
-        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
-        // The JSON ack landed on stderr via errRaw.
-        expect(errRaw).toHaveBeenCalledTimes(1);
-        const ackCall = errRaw.mock.calls[0];
-        expect(ackCall).toBeDefined();
-        const ack = (ackCall?.[0] ?? '') as string;
+        expect(Buffer.from(captured.stdout.join(''), 'binary').equals(Buffer.from([7, 8, 9]))).toBe(true);
+
+        // The ack lands on stderr, keeping stdout a pure payload.
+        const ack = captured.stderr.join('');
         expect(ack).toContain('"attachmentId": 42');
         expect(ack).toContain('"out": "<stdout>"');
         expect(ack).toContain('"size": 3');
     });
 
-    it("--out '-' with no errRaw on ctx still streams bytes (defensive — covers `ctx.errRaw !== undefined` false branch)", async () => {
-        // A minimal-ctx caller (deferred tests, synthetic dispatch) may not
-        // wire up errRaw. The handler must still write the binary stream
-        // to stdout — only the JSON ack is dropped.
-        (process.stdout as { isTTY?: boolean }).isTTY = false;
+    it('warns about binary on a TTY but still writes the payload', async () => {
         const client = buildClient();
-        const { ctx } = buildCtx(client, { pathParams: ['42'], out: '-' });
-        const minimalCtx = { ...ctx };
-        delete (minimalCtx as { errRaw?: unknown }).errRaw;
-        await handleAttachmentGet(minimalCtx);
-        expect(client.attachments.getAttachment).toHaveBeenCalledWith(42);
-        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
-    });
-
-    it('emits a TTY warning on stderr when stdout is a terminal but still writes', async () => {
-        (process.stdout as { isTTY?: boolean }).isTTY = true;
-        const client = buildClient();
-        const { ctx, err } = buildCtx(client, { pathParams: ['42'], out: '-' });
+        const { ctx, captured } = buildCtx(client, { pathParams: ['42'], out: '-', stdoutIsTTY: true });
         await handleAttachmentGet(ctx);
-        expect(err).toHaveBeenCalledTimes(1);
-        const warnCall = err.mock.calls[0];
-        expect(warnCall).toBeDefined();
-        expect((warnCall?.[0] ?? '') as string).toContain('TTY');
-        expect(Buffer.concat(stdoutBytes).equals(Buffer.from([7, 8, 9]))).toBe(true);
+
+        expect(captured.stderr.join('')).toContain('TTY');
+        // A warning, not a refusal — piping to xxd from a terminal is legitimate.
+        expect(Buffer.from(captured.stdout.join(''), 'binary').equals(Buffer.from([7, 8, 9]))).toBe(true);
     });
 
     it('dry-run with --out - emits preview to ctx.out, no fetch, no stdout writes', async () => {
         const client = buildClient();
-        const { ctx, out } = buildCtx(client, { pathParams: ['42'], out: '-', dryRun: true });
+        const { ctx, out, captured } = buildCtx(client, { pathParams: ['42'], out: '-', dryRun: true });
         await handleAttachmentGet(ctx);
+
         expect(client.attachments.getAttachment).not.toHaveBeenCalled();
-        expect(stdoutBytes.length).toBe(0);
+        expect(captured.stdout).toEqual([]);
         expect(out).toHaveBeenCalledWith({
             dryRun: true,
             action: 'attachment get',

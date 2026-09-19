@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput } from './helpers.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -48,6 +49,7 @@ function context(client: object, fixture: InvocationFixture): { ctx: HandlerCont
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out,
         },
         out,

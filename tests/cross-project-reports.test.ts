@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { handleCrossProjectReportList, handleCrossProjectReportRun } from '../src/cli/handlers/report.js';
 import { reportActions } from '../src/cli/metadata/reports.js';
@@ -71,6 +72,7 @@ function buildContext(
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out,
         },
         out,

@@ -10,6 +10,11 @@ import { readBoundedStdin } from './cli/stdin.js';
  * function a test can call: argv slicing, the real streams, stdin, the exit
  * code, and the signal handlers.
  *
+ * This is the only file in `src/` permitted to name `process.stdout` or
+ * `process.stderr`; ESLint's `no-restricted-properties` rejects them
+ * everywhere else, so every other byte the CLI emits has to travel through
+ * these writers.
+ *
  * `registerProcessHandlers` is set here rather than inside `runCli` on purpose.
  * It installs `exit`/`SIGINT`/`SIGTERM` listeners that, per ARCHITECTURE.md
  * §2.6, persist for the life of the process with no safe deregistration — so a
@@ -22,6 +27,10 @@ runCli({
     env: process.env,
     stdout: (chunk) => void process.stdout.write(chunk),
     stderr: (chunk) => void process.stderr.write(chunk),
+    // Read once here rather than at the point of use: `process.stdout.isTTY`
+    // is `true` for a terminal and `undefined` otherwise, never `false` — the
+    // same shape that broke the stdin pipe in #221/#230.
+    stdoutIsTTY: process.stdout.isTTY === true,
     stdin: {
         // Node sets `isTTY` to `true` for a terminal and leaves it `undefined`
         // for a pipe or redirect — it is never `false`. Testing `!== false`

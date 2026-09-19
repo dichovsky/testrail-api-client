@@ -13,7 +13,6 @@ describe('CLI response-validation reporter', () => {
         const chunks: string[] = [];
         const reporter = createCliSchemaMismatchReporter({
             strict: false,
-            quiet: false,
             resource: 'person@example.test',
             action: 'get?token=private',
             write: (chunk) => chunks.push(chunk),
@@ -51,7 +50,6 @@ describe('CLI response-validation reporter', () => {
         const nestedError = mismatchError(z.object({ outer: z.object({ field: z.number() }) }), nestedValue);
         const reporter = createCliSchemaMismatchReporter({
             strict: false,
-            quiet: false,
             resource: 'project',
             action: 'list',
             write: (chunk) => chunks.push(chunk),
@@ -85,7 +83,6 @@ describe('CLI response-validation reporter', () => {
         const chunks: string[] = [];
         const reporter = createCliSchemaMismatchReporter({
             strict: false,
-            quiet: false,
             resource: 'project',
             action: 'list',
             write: (chunk) => chunks.push(chunk),
@@ -108,7 +105,6 @@ describe('CLI response-validation reporter', () => {
         const chunks: string[] = [];
         const reporter = createCliSchemaMismatchReporter({
             strict: false,
-            quiet: false,
             resource: 'project',
             action: 'list',
             write: (chunk) => chunks.push(chunk),

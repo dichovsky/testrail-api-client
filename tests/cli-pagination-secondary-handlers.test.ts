@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput } from './helpers.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -304,6 +305,7 @@ describe('secondary pagination CLI handlers', () => {
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out,
         };
 
@@ -339,6 +341,7 @@ describe('secondary pagination CLI handlers', () => {
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out: vi.fn(),
         };
 

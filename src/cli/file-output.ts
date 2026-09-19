@@ -3,7 +3,8 @@ import { lstatSync } from 'node:fs';
 /**
  * Sentinel value for the `--out -` Unix-convention stdout target. When the
  * resolver sees this literal string in `outFlag`, the handler writes the
- * payload to `process.stdout.write()` instead of opening a filesystem path.
+ * payload through the output module's `outPayload` instead of opening a
+ * filesystem path.
  * The accompanying JSON ack is redirected to stderr so the binary stream
  * remains uncontaminated.
  */
@@ -35,7 +36,7 @@ export interface ResolveOutOptions {
  * network round-trip.
  *
  * `--out -` (`STDOUT_SENTINEL`) bypasses filesystem checks entirely — the
- * destination is `process.stdout`, no path is opened, and there's no
+ * destination is stdout, no path is opened, and there's no
  * clobber/symlink concern. The handler is responsible for routing the JSON
  * ack to stderr when this target is selected.
  *

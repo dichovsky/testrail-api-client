@@ -1,5 +1,38 @@
 import { TestRailClient } from '../src/client.js';
+import { createOutput, type Output, type OutputFormat } from '../src/cli/output.js';
 import type { TestRailConfig } from '../src/types.js';
+
+export interface CapturedOutput {
+    /** Spread into a `HandlerContext` literal; override `out` to assert on a mock. */
+    readonly output: Output;
+    /** Everything written to stdout, in order. Bytes are captured as binary-encoded text. */
+    readonly stdout: string[];
+    /** Everything written to stderr, in order. */
+    readonly stderr: string[];
+}
+
+/**
+ * A real `Output` whose writers collect instead of reaching a terminal.
+ *
+ * Every `HandlerContext` needs the full writer set now that those fields are
+ * non-optional (ARCH #13), and building it from `createOutput` rather than from
+ * four bare `vi.fn()`s means a test exercises the same `--quiet` gating,
+ * `Error:` prefixing, and sanitization that production does.
+ */
+export function captureOutput(
+    opts: { quiet?: boolean; format?: OutputFormat; stdoutIsTTY?: boolean } = {},
+): CapturedOutput {
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const output = createOutput({
+        quiet: opts.quiet ?? false,
+        format: opts.format ?? 'json',
+        stdoutIsTTY: opts.stdoutIsTTY ?? false,
+        stdout: (chunk) => void stdout.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('binary')),
+        stderr: (chunk) => void stderr.push(chunk),
+    });
+    return { output, stdout, stderr };
+}
 
 // Standard test client config
 export const BASE_CONFIG: TestRailConfig = {

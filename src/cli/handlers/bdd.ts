@@ -2,7 +2,6 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteText } from '../safe-write.js';
-import { emitStdoutAck } from '../output.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 import { parseOptionalId, parseOptionalIdList, parseOptionalRefs } from '../filters.js';
 import { setupUpload, uploadPayload } from '../upload.js';
@@ -47,7 +46,7 @@ export async function handleBddList(ctx: HandlerContext): Promise<void> {
  * string content is written with `utf-8` encoding. JSON ack on stdout
  * reports caseId, out path, and byte count for confirmation.
  *
- * When `--out -`: text is written verbatim to `process.stdout` (no JSON
+ * When `--out -`: text is written verbatim to stdout (no JSON
  * envelope, no trailing newline beyond what TestRail already returned) and
  * the JSON ack is rerouted to stderr so the stdout stream remains pure
  * Gherkin for downstream tools.
@@ -73,7 +72,7 @@ export async function handleBddGet(ctx: HandlerContext): Promise<void> {
     const text = await ctx.client.bdd.getBdd(caseId);
 
     if (resolved.target === 'stdout') {
-        emitStdoutAck(text, { caseId, out: '<stdout>', size: Buffer.byteLength(text, 'utf-8') }, ctx.errRaw);
+        ctx.outPayload(text, { caseId, out: '<stdout>', size: Buffer.byteLength(text, 'utf-8') });
         return;
     }
 

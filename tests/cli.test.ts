@@ -279,54 +279,42 @@ async function runCli(
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
 
-    // Several writers still bypass the runtime and reach the process streams
-    // directly: `emitStdoutAck` (raw binary behind `attachment get --out -`),
-    // the install/uninstall-skill meta-commands, the schema-mismatch reporter,
-    // and `run watch`'s status line. ARCH #13 routes them through the output
-    // module; until then the harness captures both streams, so those
-    // assertions keep working AND `expect(stderr).toBe('')` cannot pass
-    // vacuously for a path that wrote straight to the terminal.
-    const spyOut = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-        stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-        return true;
+    // ARCH #13: the runtime's two writers are now the whole picture. This
+    // harness used to ALSO spy both process streams, because the meta-commands,
+    // the schema-mismatch reporter, `run watch`'s status line, and the raw
+    // binary ack each wrote straight to the terminal. `expect(stderr).toBe('')`
+    // could not be trusted then; it can now, and
+    // `tests/cli-output-ownership.test.ts` fails if that stops being true.
+    const exitCode = await invokeCli({
+        argv,
+        env: process.env,
+        stdout: (chunk) =>
+            void stdoutChunks.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('binary')),
+        stderr: (chunk) => void stderrChunks.push(chunk),
+        // Not a terminal: the `--out -` TTY warning is asserted where it
+        // belongs, in the attachment handler's own suite.
+        stdoutIsTTY: false,
+        stdin: {
+            // The suite's fixture defaults `process.stdin.isTTY` to true (an
+            // interactive terminal) and individual tests override it to
+            // simulate a pipe. `runCli` no longer reads it — the harness
+            // translates that fixture into the runtime, so the existing tests
+            // keep working and production keeps one canonical `=== true`.
+            isTTY: process.stdin.isTTY === true,
+            read: () => readStubbedStdin(),
+        },
+        // No `registerProcessHandlers`: a test run must not install
+        // exit/SIGINT/SIGTERM listeners that can never be removed.
+        createClient: (config) => new TestRailClient(config),
+        platform: process.platform,
+        // A fake lifetime for the same reason: the diagnostic scope registers
+        // an `exit` listener, and real ones would accumulate one per test with
+        // no way to remove them after the fact.
+        lifetime: {
+            onExit: (listener) => void exitListeners.add(listener),
+            offExit: (listener) => void exitListeners.delete(listener),
+        },
     });
-    const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-        stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-        return true;
-    });
-
-    let exitCode: number;
-    try {
-        exitCode = await invokeCli({
-            argv,
-            env: process.env,
-            stdout: (chunk) => void stdoutChunks.push(chunk),
-            stderr: (chunk) => void stderrChunks.push(chunk),
-            stdin: {
-                // The suite's fixture defaults `process.stdin.isTTY` to true (an
-                // interactive terminal) and individual tests override it to
-                // simulate a pipe. `runCli` no longer reads it — the harness
-                // translates that fixture into the runtime, so the existing tests
-                // keep working and production keeps one canonical `=== true`.
-                isTTY: process.stdin.isTTY === true,
-                read: () => readStubbedStdin(),
-            },
-            // No `registerProcessHandlers`: a test run must not install
-            // exit/SIGINT/SIGTERM listeners that can never be removed.
-            createClient: (config) => new TestRailClient(config),
-            platform: process.platform,
-            // A fake lifetime for the same reason: the diagnostic scope
-            // registers an `exit` listener, and real ones would accumulate one
-            // per test with no way to remove them after the fact.
-            lifetime: {
-                onExit: (listener) => void exitListeners.add(listener),
-                offExit: (listener) => void exitListeners.delete(listener),
-            },
-        });
-    } finally {
-        spyOut.mockRestore();
-        spyErr.mockRestore();
-    }
 
     return {
         stdout: stdoutChunks.join(''),
@@ -7046,16 +7034,17 @@ describe('CLI', () => {
         // ── PR3a: --out - (stdout binary download) ───────────────────────
 
         it('get --out - streams binary to stdout and JSON ack to stderr', async () => {
-            // runCli stringifies chunks via `String(chunk)` which renders a
-            // Uint8Array as its comma-joined byte list (e.g. "171,205,239").
-            // Assert against that representation — the byte order is what
-            // matters, not the encoding round-trip.
+            // The harness preserves the bytes now that the payload travels
+            // through `runtime.stdout` rather than a `process.stdout` spy that
+            // rendered a Uint8Array as its comma-joined byte list. Assert on
+            // the bytes themselves: "171,205,239" would have passed for a
+            // payload that was stringified on the way out.
             const { exitCodes, stdout, stderr } = await runCli(
                 ['attachment', 'get', '42', '--out', '-'],
                 [binaryResponse(new Uint8Array([0xab, 0xcd, 0xef]))],
             );
             expect(exitCodes).toContain(0);
-            expect(stdout).toContain('171,205,239');
+            expect(Buffer.from(stdout, 'binary')).toEqual(Buffer.from([0xab, 0xcd, 0xef]));
             // JSON ack rerouted to stderr.
             expect(stderr).toContain('"attachmentId": 42');
             expect(stderr).toContain('"out": "<stdout>"');

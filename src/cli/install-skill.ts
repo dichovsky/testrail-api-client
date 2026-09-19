@@ -28,13 +28,18 @@ import {
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sanitizeForTerminal } from './sanitize.js';
+import type { Output } from './output.js';
 
 export interface InstallSkillOptions {
     global: boolean;
     force: boolean;
     printPath: boolean;
-    quiet: boolean;
+    /**
+     * Where this command's output goes. Both writers are already `--quiet`
+     * aware, so the meta-command no longer carries its own copy of that rule —
+     * `createOutput` is the single place it is decided.
+     */
+    output: Pick<Output, 'outRaw' | 'err'>;
     /** Override for tests; resolved from import.meta.url otherwise. */
     sourceOverride?: string;
     /** Override target root for tests; otherwise `homedir()` or `process.cwd()`. */
@@ -54,21 +59,16 @@ export function getBundledSkillPath(metaUrl: string): string {
 }
 
 export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number {
-    // Match the rest of the CLI's --quiet semantics (createOutput in
-    // output.ts): when quiet, suppress both stdout success messages AND
-    // stderr errors. Callers rely on exit code 0/1 only.
-    const writeErr = (message: string): void => {
-        // CTF #16: sanitize before writing to stderr. Error messages may
-        // interpolate paths derived from opts.cwdOverride / opts.homeOverride
-        // or filesystem error.message strings, which can carry control chars
-        // from attacker-controlled environment variables (HOME, CWD).
-        if (!opts.quiet) process.stderr.write(`Error: ${sanitizeForTerminal(message)}\n`);
-    };
+    // CTF #16: `err` sanitizes before writing. Error messages interpolate paths
+    // derived from opts.cwdOverride / opts.homeOverride or filesystem
+    // error.message strings, which can carry control chars from
+    // attacker-controlled environment variables (HOME, CWD).
+    const writeErr = opts.output.err;
 
     const source = opts.sourceOverride ?? getBundledSkillPath(metaUrl);
 
     if (opts.printPath) {
-        if (!opts.quiet) process.stdout.write(`${source}\n`);
+        opts.output.outRaw(`${source}\n`);
         return 0;
     }
 
@@ -139,8 +139,6 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         return 1;
     }
 
-    if (!opts.quiet) {
-        process.stdout.write(`Installed testrail-cli skill → ${target}\n`);
-    }
+    opts.output.outRaw(`Installed testrail-cli skill → ${target}\n`);
     return 0;
 }

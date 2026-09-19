@@ -17,6 +17,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { handleSectionGet, handleSectionList } from '../src/cli/handlers/section.js';
+import { captureOutput } from './helpers.js';
 import { handleCaseList } from '../src/cli/handlers/case.js';
 import { handleTestGet, handleTestList } from '../src/cli/handlers/test.js';
 import { handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
@@ -282,6 +283,7 @@ function buildCtx(
         dryRun: false,
         force: false,
         confirmDestructive: false,
+        ...captureOutput().output,
         out,
     };
     return { ctx, out };

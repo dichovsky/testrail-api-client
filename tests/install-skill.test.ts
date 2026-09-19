@@ -22,6 +22,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInstallSkill, getBundledSkillPath } from '../src/cli/install-skill.js';
+import { createOutput, type Output } from '../src/cli/output.js';
+import { captureOutput } from './helpers.js';
 
 const SKILL_CONTENT = '---\nname: testrail-cli\nversion: 2.1.0\n---\n# Skill\n';
 
@@ -36,8 +38,8 @@ const REPO_ROOT = resolve(__dirname, '..');
 describe('runInstallSkill', () => {
     let tmp: string;
     let source: string;
-    let stdoutSpy: ReturnType<typeof vi.spyOn>;
-    let stderrSpy: ReturnType<typeof vi.spyOn>;
+    let output: Output;
+    let quietOutput: Output;
     let stdoutChunks: string[];
     let stderrChunks: string[];
 
@@ -45,21 +47,25 @@ describe('runInstallSkill', () => {
         tmp = mkdtempSync(join(tmpdir(), 'tr-install-'));
         source = join(tmp, 'bundled-SKILL.md');
         writeFileSync(source, SKILL_CONTENT, 'utf-8');
-        stdoutChunks = [];
-        stderrChunks = [];
-        stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-            stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-        stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
+        // ARCH #13: the meta-command takes its writers, so the test reads what
+        // it produced instead of intercepting the process streams.
+        const captured = captureOutput();
+        output = captured.output;
+        stdoutChunks = captured.stdout;
+        stderrChunks = captured.stderr;
+        // The quiet writer shares those collectors on purpose: a --quiet run
+        // that emitted anything shows up in the very arrays these tests assert
+        // are empty.
+        quietOutput = createOutput({
+            quiet: true,
+            format: 'json',
+            stdoutIsTTY: false,
+            stdout: (chunk) => void stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk)),
+            stderr: (chunk) => void stderrChunks.push(chunk),
         });
     });
 
     afterEach(() => {
-        stdoutSpy.mockRestore();
-        stderrSpy.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -70,7 +76,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: false,
+                output,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -90,7 +96,7 @@ describe('runInstallSkill', () => {
                 global: true,
                 force: false,
                 printPath: false,
-                quiet: false,
+                output,
                 sourceOverride: source,
                 homeOverride: home,
             },
@@ -108,7 +114,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -121,7 +127,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: false,
+                output,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -140,7 +146,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -149,7 +155,14 @@ describe('runInstallSkill', () => {
         // Mutate the source to verify the second install actually wrote new content
         writeFileSync(source, 'updated content', 'utf-8');
         const code = runInstallSkill(
-            { global: false, force: true, printPath: false, quiet: true, sourceOverride: source, cwdOverride: project },
+            {
+                global: false,
+                force: true,
+                printPath: false,
+                output: quietOutput,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
             'file:///irrelevant',
         );
         expect(code).toBe(0);
@@ -163,7 +176,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: true,
-                quiet: false,
+                output,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -186,7 +199,7 @@ describe('runInstallSkill', () => {
                     global: false,
                     force: false,
                     printPath: false,
-                    quiet: true,
+                    output: quietOutput,
                     sourceOverride: source,
                     // cwdOverride deliberately omitted — must fall back to process.cwd().
                 },
@@ -215,7 +228,7 @@ describe('runInstallSkill', () => {
                     global: true,
                     force: false,
                     printPath: false,
-                    quiet: true,
+                    output: quietOutput,
                     sourceOverride: source,
                     // homeOverride deliberately omitted — must fall back to homedir().
                 },
@@ -242,7 +255,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: true,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -259,7 +272,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -277,7 +290,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -289,7 +302,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -308,7 +321,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: false,
+                output,
                 sourceOverride: join(tmp, 'does-not-exist.md'),
                 cwdOverride: join(tmp, 'proj'),
             },
@@ -330,7 +343,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -373,7 +386,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: true,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -410,7 +423,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -426,7 +439,7 @@ describe('runInstallSkill', () => {
                 global: false,
                 force: true,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -452,18 +465,15 @@ describe('runInstallSkill — real bundled skill/SKILL.md', () => {
     // dist/cli/install-skill.js location, which doesn't match this test
     // file's location under tests/.
     let tmp: string;
-    let stdoutSpy: ReturnType<typeof vi.spyOn>;
-    let stderrSpy: ReturnType<typeof vi.spyOn>;
+    // This block asserts on the installed file, not on messages, so a quiet
+    // writer set is enough to keep the run silent.
+    const quietOutput: Output = captureOutput({ quiet: true }).output;
 
     beforeEach(() => {
         tmp = mkdtempSync(join(tmpdir(), 'tr-install-real-'));
-        stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-        stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     });
 
     afterEach(() => {
-        stdoutSpy.mockRestore();
-        stderrSpy.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -476,7 +486,7 @@ describe('runInstallSkill — real bundled skill/SKILL.md', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: realSkillPath,
                 cwdOverride: project,
             },

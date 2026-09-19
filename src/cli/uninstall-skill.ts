@@ -37,11 +37,16 @@
 import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { sanitizeForTerminal } from './sanitize.js';
+import type { Output } from './output.js';
 
 export interface UninstallSkillOptions {
     global: boolean;
-    quiet: boolean;
+    /**
+     * Where this command's output goes. Both writers are already `--quiet`
+     * aware, so this meta-command no longer carries its own copy of that rule —
+     * `createOutput` is the single place it is decided.
+     */
+    output: Pick<Output, 'outRaw' | 'err'>;
     /** Override target root for tests; otherwise `homedir()` or `process.cwd()`. */
     cwdOverride?: string;
     homeOverride?: string;
@@ -59,14 +64,10 @@ export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'c
 }
 
 export function runUninstallSkill(opts: UninstallSkillOptions): number {
-    const writeErr = (message: string): void => {
-        // Mirrors install-skill: sanitize before writing to stderr;
-        // honor --quiet by suppressing both stdout and stderr.
-        if (!opts.quiet) process.stderr.write(`Error: ${sanitizeForTerminal(message)}\n`);
-    };
-    const writeOut = (message: string): void => {
-        if (!opts.quiet) process.stdout.write(`${message}\n`);
-    };
+    // Mirrors install-skill: `err` sanitizes before writing, and both writers
+    // already honor --quiet.
+    const writeErr = opts.output.err;
+    const writeOut = (message: string): void => opts.output.outRaw(`${message}\n`);
 
     const target = getInstallTarget(opts);
 

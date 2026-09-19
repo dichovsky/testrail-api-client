@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { handleDynamicFilterFieldList } from '../src/cli/handlers/dynamic-filter-field.js';
 import { handleResultEdit } from '../src/cli/handlers/result-write.js';
@@ -29,6 +30,7 @@ function makeContext(
         dryRun: options.dryRun ?? false,
         force: false,
         confirmDestructive: false,
+        ...captureOutput().output,
         out,
     };
     return { ctx, out };

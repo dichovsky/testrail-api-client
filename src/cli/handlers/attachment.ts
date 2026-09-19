@@ -2,7 +2,6 @@ import type { HandlerContext } from '../handler-context.js';
 import { parseId, parseEntryId, parseAttachmentId } from '../ids.js';
 import { resolveOut } from '../file-output.js';
 import { safeWriteBinary } from '../safe-write.js';
-import { emitStdoutAck } from '../output.js';
 import { getPaginatedRequestOptions, outputPaginated } from '../pagination.js';
 
 /**
@@ -73,7 +72,7 @@ export async function handleAttachmentListForPlanEntry(ctx: HandlerContext): Pro
  * out path, and byte count so callers can confirm a successful write without
  * re-reading the file.
  *
- * When `--out -` is passed, raw bytes stream to `process.stdout` and the
+ * When `--out -` is passed, raw bytes stream to stdout and the
  * JSON ack is rerouted to stderr (so the binary payload on stdout stays
  * uncontaminated for downstream tools like `hexdump`, `xxd`, or another
  * `testrail` pipeline). A TTY check on stdout emits a warning (not a hard
@@ -101,15 +100,9 @@ export async function handleAttachmentGet(ctx: HandlerContext): Promise<void> {
     const bytes = new Uint8Array(buf);
 
     if (resolved.target === 'stdout') {
-        // TTY warning: terminals interpret binary as escape sequences, which
-        // can corrupt the user's session. Don't block (BACKLOG explicitly
-        // allows piping to `xxd`/`hexdump` when stdout *is* a TTY) — just
-        // warn. err() respects --quiet so this is suppressible.
-        if (process.stdout.isTTY === true) {
-            ctx.err?.('--out - is writing binary to a TTY; pipe to a tool like xxd or redirect to a file.');
-        }
-        // Route the JSON ack to stderr so the stdout stream stays pure binary.
-        emitStdoutAck(bytes, { attachmentId, out: '<stdout>', size: bytes.byteLength }, ctx.errRaw);
+        // The output module owns the rest: the TTY warning, the payload, and
+        // routing the JSON ack to stderr so the stdout stream stays pure binary.
+        ctx.outPayload(bytes, { attachmentId, out: '<stdout>', size: bytes.byteLength });
         return;
     }
 

@@ -92,11 +92,15 @@ export interface CliSchemaMismatchReporter {
 
 export interface CliSchemaMismatchReporterOptions {
     readonly strict: boolean;
-    readonly quiet: boolean;
     readonly resource: string;
     readonly action: string;
-    /** Injectable for focused tests; production defaults to process.stderr. */
-    readonly write?: ((chunk: string) => void) | undefined;
+    /**
+     * Where warnings go. Required, and already `--quiet` aware: this reporter
+     * had the only other copy of the quiet rule in the CLI, and a default
+     * pointing at `process.stderr` is what let its warnings bypass the
+     * runtime's writers entirely.
+     */
+    readonly write: (chunk: string) => void;
 }
 
 /**
@@ -109,11 +113,7 @@ export interface CliSchemaMismatchReporterOptions {
 export function createCliSchemaMismatchReporter(options: CliSchemaMismatchReporterOptions): CliSchemaMismatchReporter {
     const methodFor = (method: string): string => normalizeMethod(method);
     const command = `${normalizeCommandToken(options.resource)}:${normalizeCommandToken(options.action)}`;
-    const write =
-        options.write ??
-        ((chunk: string): void => {
-            process.stderr.write(chunk);
-        });
+    const write = options.write;
     const seen = new Set<string>();
     let emittedCount = 0;
     let suppressedCount = 0;
@@ -130,8 +130,6 @@ export function createCliSchemaMismatchReporter(options: CliSchemaMismatchReport
             }
             throw handleZodError(mismatch.error);
         }
-        if (options.quiet) return;
-
         for (const issue of flattenIssues(mismatch.error.issues)) {
             const method = methodFor(mismatch.method);
             const code = normalizeIssueCode(issue.code);
@@ -154,7 +152,7 @@ export function createCliSchemaMismatchReporter(options: CliSchemaMismatchReport
     const flush = (): void => {
         if (flushed) return;
         flushed = true;
-        if (options.quiet || suppressedCount === 0) return;
+        if (suppressedCount === 0) return;
 
         const noun = suppressedCount === 1 ? 'warning' : 'warnings';
         write(`Warning: suppressed ${suppressedCount} additional response schema mismatch ${noun}.\n`);

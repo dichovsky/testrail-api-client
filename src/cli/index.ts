@@ -58,8 +58,11 @@ export interface CliRuntime {
     /** argv with the node binary and script path already removed. */
     readonly argv: readonly string[];
     readonly env: Readonly<Record<string, string | undefined>>;
-    readonly stdout: (chunk: string) => void;
+    /** Accepts bytes as well as text: `--out -` streams a payload verbatim. */
+    readonly stdout: (chunk: string | Uint8Array) => void;
     readonly stderr: (chunk: string) => void;
+    /** True only when stdout is an interactive terminal. */
+    readonly stdoutIsTTY: boolean;
     readonly stdin: {
         /** True only for an interactive terminal; a pipe or redirect is false. */
         readonly isTTY: boolean;
@@ -82,12 +85,12 @@ export interface CliRuntime {
  * inside, so an initialization failure is funneled through the same exit-code
  * path rather than escaping as an uncaught module-evaluation error.
  *
- * Two writers still bypass the runtime and reach `process.stdout` directly:
- * `emitStdoutAck` (the raw-binary path behind `attachment get --out -`) and the
- * `install-skill` / `uninstall-skill` meta-commands, which build their own
- * quiet-aware writers. Routing those needs non-optional writers on
- * `HandlerContext`, which is ARCH #13's job — until then a caller cannot assume
- * every byte goes through `runtime.stdout`.
+ * Every byte the invocation emits leaves through `runtime.stdout` /
+ * `runtime.stderr` — including the download payloads, the meta-commands, the
+ * schema-mismatch warnings, and `run watch`'s status lines. `src/cli.ts` is the
+ * only file in `src/` permitted to name the process streams, and ESLint
+ * enforces it. `tests/cli-output-ownership.test.ts` asserts the invariant from
+ * the outside.
  */
 export async function runCli(runtime: CliRuntime): Promise<number> {
     let values: Record<string, unknown>;
@@ -129,7 +132,17 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
     // explicitly — otherwise the renderer would silently fall through to
     // the JSON path, masking the user's typo.
     const format: OutputFormat = isOutputFormat(formatRaw) ? formatRaw : 'json';
-    const { out, err, errRaw } = createOutput({ quiet, format, stdout: runtime.stdout, stderr: runtime.stderr });
+    const output = createOutput({
+        quiet,
+        format,
+        stdout: runtime.stdout,
+        stderr: runtime.stderr,
+        stdoutIsTTY: runtime.stdoutIsTTY,
+    });
+    // `--version` / `--help` answer on stdout regardless of --quiet: they are
+    // the thing the user asked for, not commentary about it, so they take the
+    // runtime writer directly rather than the quiet-aware `outRaw`.
+    const { err, errRaw } = output;
 
     /**
      * Report a failure and yield its exit code, so the code is a property of
@@ -190,7 +203,7 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
                 global: values['global'] === true,
                 force: values['force'] === true,
                 printPath: values['print-path'] === true,
-                quiet,
+                output,
             },
             import.meta.url,
         );
@@ -207,7 +220,7 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
         }
         return runUninstallSkill({
             global: values['global'] === true,
-            quiet,
+            output,
         });
     }
 
@@ -359,9 +372,9 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
     const confirmDestructive = values['yes'] === true;
     const schemaMismatchReporter = createCliSchemaMismatchReporter({
         strict: strictResponses.strict,
-        quiet,
         resource,
         action,
+        write: errRaw,
     });
 
     let client: TestRailClient | undefined;
@@ -436,9 +449,7 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
                         dryRun,
                         force,
                         confirmDestructive,
-                        out,
-                        err,
-                        errRaw,
+                        ...output,
                     });
                 } finally {
                     // Inside the scope so disposal keeps its position relative

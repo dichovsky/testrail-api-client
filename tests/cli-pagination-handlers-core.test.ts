@@ -5,6 +5,7 @@ import {
     handleAttachmentListForRun,
 } from '../src/cli/handlers/attachment.js';
 import { handleCaseHistory, handleCaseList } from '../src/cli/handlers/case.js';
+import { captureOutput } from './helpers.js';
 import { handleResultList, handleResultListForCase, handleResultListForTest } from '../src/cli/handlers/result.js';
 import { handleTestList } from '../src/cli/handlers/test.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
@@ -50,6 +51,7 @@ function context(client: object, fixture: InvocationFixture): { ctx: HandlerCont
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out,
         } as unknown as HandlerContext,
         out,
