@@ -1,6 +1,7 @@
 import type { TestRailClient } from '../client.js';
 import type { CliHandlerArgs } from './flags.js';
 import type { ActionSpec } from './metadata/types.js';
+import type { Output } from './output.js';
 import type { CliPaginationParsed } from './pagination.js';
 
 /** Parsed CLI argument bundle passed to every handler. */
@@ -15,8 +16,14 @@ export interface BodyInput {
 
 export interface HandlerContext {
     client: TestRailClient;
-    /** Resolved metadata entry used for handler execution semantics. */
-    actionSpec: Pick<ActionSpec, 'resource' | 'action' | 'softMode'>;
+    /**
+     * The resolved metadata entry. The whole spec, not a projection of it:
+     * `runCli` always passed the full object and only the type narrowed it, so
+     * the `Pick` described the caller's generosity rather than the handler's
+     * needs — and a handler that wanted one more field had to be given a
+     * parallel channel for it instead.
+     */
+    actionSpec: ActionSpec;
     args: HandlerArgs;
     pagination: CliPaginationParsed;
     bodyInput: BodyInput;
@@ -25,11 +32,18 @@ export interface HandlerContext {
     force: boolean;
     /** Per-invocation confirmation required for destructive actions. */
     confirmDestructive: boolean;
-    out: (data: unknown) => void;
-    /** Quiet-aware, sanitized stderr writer with an `Error:` prefix. */
-    err?: (message: string) => void;
-    /** Quiet-aware raw stderr writer for binary-output acknowledgements. */
-    errRaw?: (chunk: string) => void;
+    /**
+     * The writer set from `src/cli/output.ts`, spread in whole. Non-optional:
+     * a handler that cannot rely on being handed a writer reaches for
+     * `process.stderr` instead, which is how `run watch`'s status line ended
+     * up reading `--quiet` out of `process.argv` and the download ack ended up
+     * bypassing the runtime entirely.
+     */
+    out: Output['out'];
+    outRaw: Output['outRaw'];
+    outPayload: Output['outPayload'];
+    err: Output['err'];
+    errRaw: Output['errRaw'];
 }
 
 export type Handler = (ctx: HandlerContext) => Promise<void>;

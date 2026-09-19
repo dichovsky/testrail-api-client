@@ -165,14 +165,12 @@ export async function handleRunWatch(ctx: HandlerContext): Promise<void> {
     // never runs → process hangs even after the client's exit handler runs).
     let resolveLoop: (() => void) | undefined;
 
-    // Quiet-aware, sanitized status line to stderr. `--quiet` is read from
-    // process.argv (the same fallback index.ts uses pre-parse) because the
-    // handler context carries no parsed quiet flag.
-    const writeStatus = (line: string): void => {
-        if (!process.argv.includes('--quiet')) {
-            process.stderr.write(sanitizeForTerminal(line));
-        }
-    };
+    // Quiet-aware, sanitized status line to stderr. `errRaw` carries the
+    // invocation's own `--quiet`; this used to read `process.argv` instead,
+    // which is not the argv `runCli` was handed — an embedded caller passing
+    // `--quiet` got status lines anyway, and a test runner's argv decided the
+    // behaviour under test.
+    const writeStatus = (line: string): void => ctx.errRaw(sanitizeForTerminal(line));
 
     const onSignal = (): void => {
         if (cancelled) return;

@@ -13,8 +13,10 @@ import {
     safeJsonStringify,
     renderYaml,
     renderCsv,
-    createOutput,
+    type Output,
+    type OutputFormat,
 } from '../src/cli/output.js';
+import { captureOutput } from './helpers.js';
 import { parseId, optInt, parseEntryId, parseAttachmentId, IdParseError } from '../src/cli/ids.js';
 import { resolveAuth, MISSING_AUTH_MESSAGE } from '../src/cli/auth.js';
 import {
@@ -1911,89 +1913,116 @@ describe('safeJsonStringify — additional edge cases for branch coverage', () =
 });
 
 describe('createOutput — opts.quiet routing', () => {
-    function captureStdout(fn: () => void): string {
-        const original = process.stdout.write.bind(process.stdout);
-        const chunks: string[] = [];
-        process.stdout.write = (c: unknown): boolean => {
-            chunks.push(typeof c === 'string' ? c : String(c));
-            return true;
+    // The writers are injected now (ARCH #13), so these read what the module
+    // produced instead of swapping `process.stdout.write` out from under it.
+    function build(opts: { quiet: boolean; format?: OutputFormat; stdoutIsTTY?: boolean }): {
+        o: Output;
+        stdout: () => string;
+        stderr: () => string;
+    } {
+        const captured = captureOutput({
+            quiet: opts.quiet,
+            format: opts.format ?? 'json',
+            stdoutIsTTY: opts.stdoutIsTTY ?? false,
+        });
+        return {
+            o: captured.output,
+            stdout: () => captured.stdout.join(''),
+            stderr: () => captured.stderr.join(''),
         };
-        try {
-            fn();
-        } finally {
-            process.stdout.write = original;
-        }
-        return chunks.join('');
-    }
-    function captureStderr(fn: () => void): string {
-        const original = process.stderr.write.bind(process.stderr);
-        const chunks: string[] = [];
-        process.stderr.write = (c: unknown): boolean => {
-            chunks.push(typeof c === 'string' ? c : String(c));
-            return true;
-        };
-        try {
-            fn();
-        } finally {
-            process.stderr.write = original;
-        }
-        return chunks.join('');
     }
 
-    it('quiet=true suppresses out()', () => {
-        const o = createOutput({ format: 'json', quiet: true });
-        const written = captureStdout(() => o.out({ id: 1 }));
-        expect(written).toBe('');
+    it('quiet=true suppresses out() entirely', () => {
+        const { o, stdout } = build({ quiet: true });
+        o.out({ id: 1 });
+        expect(stdout()).toBe('');
     });
 
-    it('quiet=true suppresses err()', () => {
-        const o = createOutput({ format: 'json', quiet: true });
-        const written = captureStderr(() => o.err('boom'));
-        expect(written).toBe('');
+    it('quiet=true suppresses err() — covers the `!opts.quiet` false branch', () => {
+        const { o, stderr } = build({ quiet: true });
+        o.err('boom');
+        expect(stderr()).toBe('');
     });
 
     it('quiet=true suppresses errRaw() — covers the `!opts.quiet` false branch', () => {
-        // Hits the `if (!opts.quiet) process.stderr.write(chunk)` false
-        // branch inside errRaw. Quiet must keep JSON acks off stderr too.
-        const o = createOutput({ format: 'json', quiet: true });
-        const written = captureStderr(() => o.errRaw('{"ack":true}\n'));
-        expect(written).toBe('');
+        // Quiet must keep JSON acks off stderr too.
+        const { o, stderr } = build({ quiet: true });
+        o.errRaw('{"ack":true}\n');
+        expect(stderr()).toBe('');
+    });
+
+    it('quiet=true suppresses outRaw() but never the payload itself', () => {
+        // `outRaw` is commentary (an installed-path line) and is gated. A
+        // payload is the thing the user asked for with `--out -`, so it is
+        // written regardless; only its ack is suppressed.
+        const { o, stdout, stderr } = build({ quiet: true });
+        o.outRaw('a line\n');
+        expect(stdout()).toBe('');
+
+        o.outPayload('PAYLOAD', { size: 7 });
+        expect(stdout()).toBe('PAYLOAD');
+        expect(stderr()).toBe('');
     });
 
     it('quiet=false routes out() to stdout, err() prefixes "Error: ", errRaw() writes verbatim', () => {
-        const o = createOutput({ format: 'json', quiet: false });
-        expect(captureStdout(() => o.out({ id: 1 }))).toContain('"id": 1');
-        expect(captureStderr(() => o.err('boom'))).toMatch(/^Error: boom\n$/);
-        expect(captureStderr(() => o.errRaw('verbatim\n'))).toBe('verbatim\n');
+        const { o, stdout, stderr } = build({ quiet: false });
+        o.out({ id: 1 });
+        expect(stdout()).toContain('"id": 1');
+        o.err('boom');
+        expect(stderr()).toMatch(/^Error: boom\n$/);
+        o.errRaw('verbatim\n');
+        expect(stderr()).toMatch(/verbatim\n$/);
+    });
+
+    it('outPayload writes the payload to stdout and its ack to stderr', () => {
+        const { o, stdout, stderr } = build({ quiet: false });
+        o.outPayload(Uint8Array.from([1, 2, 3]), { out: '<stdout>', size: 3 });
+        // The ack must not contaminate the payload stream — that separation is
+        // the whole reason `--out -` exists.
+        expect(Buffer.from(stdout(), 'binary')).toEqual(Buffer.from([1, 2, 3]));
+        expect(stderr()).toContain('"size": 3');
+    });
+
+    it('warns about binary on a TTY, and only about binary', () => {
+        const binary = build({ quiet: false, stdoutIsTTY: true });
+        binary.o.outPayload(Uint8Array.from([0]), { size: 1 });
+        expect(binary.stderr()).toContain('writing binary to a TTY');
+
+        // `bdd get --out -` hands over Gherkin text. Warning about that would
+        // be noise, and the payload type is what decides it — no handler can
+        // spell the combination that warns about its own text.
+        const text = build({ quiet: false, stdoutIsTTY: true });
+        text.o.outPayload('Feature: login\n', { size: 15 });
+        expect(text.stderr()).not.toContain('TTY');
     });
 
     it('table format dispatches through renderTable', () => {
-        const o = createOutput({ format: 'table', quiet: false });
-        const written = captureStdout(() => o.out([{ id: 1, name: 'a' }]));
-        expect(written).toContain('id');
-        expect(written).toContain('name');
-        expect(written).toContain('a');
+        const { o, stdout } = build({ quiet: false, format: 'table' });
+        o.out([{ id: 1, name: 'a' }]);
+        expect(stdout()).toContain('id');
+        expect(stdout()).toContain('name');
+        expect(stdout()).toContain('a');
     });
 
     it('yaml format dispatches through renderYaml', () => {
-        const o = createOutput({ format: 'yaml', quiet: false });
-        const written = captureStdout(() => o.out({ id: 1, name: 'a' }));
-        expect(written).toContain('id: 1');
-        expect(written).toContain('name: a');
+        const { o, stdout } = build({ quiet: false, format: 'yaml' });
+        o.out({ id: 1, name: 'a' });
+        expect(stdout()).toContain('id: 1');
+        expect(stdout()).toContain('name: a');
     });
 
     it('csv format suppresses output entirely when renderCsv returns empty (empty array path)', () => {
-        // Exercises the `csvOutput === '' ? '' : ...` true branch.
-        const o = createOutput({ format: 'csv', quiet: false });
-        const written = captureStdout(() => o.out([]));
-        expect(written).toBe('');
+        // Exercises the `omitEmpty` true branch.
+        const { o, stdout } = build({ quiet: false, format: 'csv' });
+        o.out([]);
+        expect(stdout()).toBe('');
     });
 
     it('csv format emits a final CRLF terminator when output is non-empty', () => {
         // Exercises the false branch of the same conditional.
-        const o = createOutput({ format: 'csv', quiet: false });
-        const written = captureStdout(() => o.out({ id: 1 }));
-        expect(written.endsWith('\r\n')).toBe(true);
+        const { o, stdout } = build({ quiet: false, format: 'csv' });
+        o.out({ id: 1 });
+        expect(stdout().endsWith('\r\n')).toBe(true);
     });
 });
 

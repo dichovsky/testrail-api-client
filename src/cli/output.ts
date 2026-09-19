@@ -12,13 +12,22 @@ export interface OutputOptions {
     quiet: boolean;
     format: OutputFormat;
     /**
-     * Where rendered output goes. Optional, defaulting to the process streams,
-     * so the handlers and meta-commands that build their own output are
-     * unchanged; `runCli` passes its runtime's writers so a test run never
-     * touches the real stdout/stderr.
+     * Where output goes. Required: this module owns every byte the CLI emits,
+     * so there is nowhere for a default to point. `src/cli.ts` supplies the
+     * real process streams and is the only file that names them; a test
+     * supplies collectors and the run touches no terminal.
+     *
+     * `stdout` accepts bytes as well as text because the `--out -` download
+     * path streams a payload verbatim.
      */
-    stdout?: (chunk: string) => void;
-    stderr?: (chunk: string) => void;
+    stdout: (chunk: string | Uint8Array) => void;
+    stderr: (chunk: string) => void;
+    /**
+     * Whether stdout is an interactive terminal. Drives the warning in
+     * `outPayload`; injected rather than read from `process.stdout.isTTY` so a
+     * test can exercise both sides of it.
+     */
+    stdoutIsTTY: boolean;
 }
 
 type ProjectedCell =
@@ -38,8 +47,29 @@ interface ProjectedOutput<Cell> {
 
 type ProjectionShape = 'table' | 'csv';
 
+/**
+ * Every way the CLI can emit a byte. Five methods rather than one because each
+ * carries a different policy — rendering, sanitization, stream choice, and the
+ * `--quiet` gate are decided here, once, instead of at each call site.
+ */
 export interface Output {
+    /** Render `data` in the selected format and write it to stdout. */
     out: (data: unknown) => void;
+    /** Quiet-aware verbatim stdout writer, for text that is already final
+     *  (a resolved path, an install confirmation) rather than a rendered
+     *  value. The caller owns sanitization. */
+    outRaw: (chunk: string) => void;
+    /**
+     * Write a download payload to stdout and its JSON ack to stderr, so the
+     * stdout stream stays a pure payload for downstream tools. Shared by the
+     * `attachment get --out -` and `bdd get --out -` handlers.
+     *
+     * Warns first when stdout is a terminal: terminals interpret binary as
+     * escape sequences and it can corrupt the session. A warning rather than a
+     * refusal — piping to `xxd`/`hexdump` from a TTY is legitimate.
+     */
+    outPayload: (payload: Uint8Array | string, ack: Record<string, unknown>) => void;
+    /** Quiet-aware, sanitized stderr writer with an `Error:` prefix. */
     err: (message: string) => void;
     /** Quiet-aware raw stderr writer (no 'Error:' prefix). Used when a
      *  handler needs to emit a JSON ack to stderr so stdout stays pure
@@ -213,24 +243,6 @@ export function safeJsonStringify(data: unknown): string {
             null,
             2,
         );
-    }
-}
-
-/**
- * Write a download payload to stdout and emit its JSON ack to stderr, so the
- * stdout stream stays a pure binary/text payload for downstream tools. Shared
- * by the `attachment get --out -` and `bdd get --out -` handlers. `errRaw` is
- * the quiet-aware raw stderr writer; when absent (minimal-ctx callers) the ack
- * is dropped.
- */
-export function emitStdoutAck(
-    payload: Uint8Array | string,
-    ack: Record<string, unknown>,
-    errRaw?: (chunk: string) => void,
-): void {
-    process.stdout.write(payload);
-    if (errRaw !== undefined) {
-        errRaw(`${safeJsonStringify(ack)}\n`);
     }
 }
 
@@ -676,27 +688,42 @@ const OUTPUT_ENCODERS: Record<OutputFormat, OutputEncoder> = {
 };
 
 export function createOutput(opts: OutputOptions): Output {
-    const writeOut = opts.stdout ?? ((chunk: string): void => void process.stdout.write(chunk));
-    const writeErr = opts.stderr ?? ((chunk: string): void => void process.stderr.write(chunk));
     const out = (data: unknown): void => {
         if (opts.quiet) return;
         const encoder = OUTPUT_ENCODERS[opts.format];
         const output = encoder.render(data);
         if (encoder.omitEmpty && output === '') return;
-        writeOut(`${output}${encoder.terminator}`);
+        opts.stdout(`${output}${encoder.terminator}`);
+    };
+    const outRaw = (chunk: string): void => {
+        if (!opts.quiet) opts.stdout(chunk);
     };
     const err = (message: string): void => {
         // CTF #16: sanitize before writing to stderr so TestRail-controlled
         // strings reflected through error messages (validation errors,
         // server response bodies, IDs echoed back) can't inject ANSI/OSC
         // escapes into the user's terminal.
-        if (!opts.quiet) writeErr(`Error: ${sanitizeForTerminal(message)}\n`);
+        if (!opts.quiet) opts.stderr(`Error: ${sanitizeForTerminal(message)}\n`);
     };
     const errRaw = (chunk: string): void => {
         // No 'Error:' prefix and no sanitization — caller already produced
         // the exact bytes to emit (e.g. a JSON ack from safeJsonStringify).
         // Still gated on --quiet so structured JSON acks remain suppressible.
-        if (!opts.quiet) writeErr(chunk);
+        if (!opts.quiet) opts.stderr(chunk);
     };
-    return { out, err, errRaw };
+    const outPayload = (payload: Uint8Array | string, ack: Record<string, unknown>): void => {
+        // Derived from the payload rather than declared by the caller: bytes
+        // are what a terminal misreads as escape sequences. `bdd get --out -`
+        // hands over text and needs no warning, and no handler can spell the
+        // combination that warns about its own Gherkin.
+        if (opts.stdoutIsTTY && typeof payload !== 'string') {
+            err('--out - is writing binary to a TTY; pipe to a tool like xxd or redirect to a file.');
+        }
+        // Deliberately NOT quiet-gated: `--out -` is an explicit request for
+        // the payload on stdout, and `--quiet` suppresses commentary, not the
+        // thing the user asked for. The ack is commentary, so it is gated.
+        opts.stdout(payload);
+        errRaw(`${safeJsonStringify(ack)}\n`);
+    };
+    return { out, outRaw, outPayload, err, errRaw };
 }

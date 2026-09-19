@@ -1,5 +1,59 @@
 import { TestRailClient } from '../src/client.js';
+import type { ActionSpec } from '../src/cli/metadata/types.js';
+import { createOutput, type Output, type OutputFormat } from '../src/cli/output.js';
 import type { TestRailConfig } from '../src/types.js';
+
+/**
+ * A complete `ActionSpec` for a handler test.
+ *
+ * `HandlerContext.actionSpec` carries the whole spec, but a handler test only
+ * ever cares about `resource` / `action` / `softMode`; the remaining fields
+ * exist for the dispatcher, the help emitter, and the mapping drift gates, none
+ * of which run here. `handler` is never invoked — a handler under test is
+ * called directly rather than dispatched to.
+ */
+export function makeActionSpec(overrides: Partial<ActionSpec> & Pick<ActionSpec, 'resource' | 'action'>): ActionSpec {
+    return {
+        summary: `${overrides.resource} ${overrides.action}`,
+        pathParams: [],
+        handler: () => Promise.resolve(),
+        apiEndpoint: `GET ${overrides.resource}`,
+        isWrite: false,
+        ...overrides,
+    };
+}
+
+export interface CapturedOutput {
+    /** Spread into a `HandlerContext` literal; override `out` to assert on a mock. */
+    readonly output: Output;
+    /** Everything written to stdout, in order. Bytes are captured as binary-encoded text. */
+    readonly stdout: string[];
+    /** Everything written to stderr, in order. */
+    readonly stderr: string[];
+}
+
+/**
+ * A real `Output` whose writers collect instead of reaching a terminal.
+ *
+ * Every `HandlerContext` needs the full writer set now that those fields are
+ * non-optional (ARCH #13), and building it from `createOutput` rather than from
+ * four bare `vi.fn()`s means a test exercises the same `--quiet` gating,
+ * `Error:` prefixing, and sanitization that production does.
+ */
+export function captureOutput(
+    opts: { quiet?: boolean; format?: OutputFormat; stdoutIsTTY?: boolean } = {},
+): CapturedOutput {
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    const output = createOutput({
+        quiet: opts.quiet ?? false,
+        format: opts.format ?? 'json',
+        stdoutIsTTY: opts.stdoutIsTTY ?? false,
+        stdout: (chunk) => void stdout.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('binary')),
+        stderr: (chunk) => void stderr.push(chunk),
+    });
+    return { output, stdout, stderr };
+}
 
 // Standard test client config
 export const BASE_CONFIG: TestRailConfig = {

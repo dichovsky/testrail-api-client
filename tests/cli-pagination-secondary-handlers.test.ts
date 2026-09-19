@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput, makeActionSpec } from './helpers.js';
 import type { RawCliPaginationArgs } from '../src/cli/flags.js';
 import type { Handler, HandlerArgs, HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -297,13 +298,14 @@ describe('secondary pagination CLI handlers', () => {
         const invocation = splitFixture(adapter.args[mode]);
         const ctx: HandlerContext = {
             client: harness.client,
-            actionSpec: { resource: 'test', action: 'list' },
+            actionSpec: makeActionSpec({ resource: 'test', action: 'list' }),
             args: invocation.args,
             pagination: parseCliPagination(invocation.paginationArgs),
             bodyInput: {},
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out,
         };
 
@@ -332,13 +334,14 @@ describe('secondary pagination CLI handlers', () => {
         });
         const ctx: HandlerContext = {
             client: harness.client,
-            actionSpec: { resource: 'shared-step', action: 'list' },
+            actionSpec: makeActionSpec({ resource: 'shared-step', action: 'list' }),
             args: invocation.args,
             pagination: parseCliPagination(invocation.paginationArgs),
             bodyInput: {},
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captureOutput().output,
             out: vi.fn(),
         };
 

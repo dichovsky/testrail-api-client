@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
+import { captureOutput, makeActionSpec } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { handleDynamicFilterFieldList } from '../src/cli/handlers/dynamic-filter-field.js';
 import { handleResultEdit } from '../src/cli/handlers/result-write.js';
@@ -22,13 +23,14 @@ function makeContext(
     const out = vi.fn();
     const ctx: HandlerContext = {
         client: client as TestRailClient,
-        actionSpec: { resource: 'test', action: 'test' },
+        actionSpec: makeActionSpec({ resource: 'test', action: 'test' }),
         args: { pathParams: options.pathParams ?? [] },
         pagination: { mode: 'items' },
         bodyInput: options.dataFlag === undefined ? {} : { dataFlag: options.dataFlag },
         dryRun: options.dryRun ?? false,
         force: false,
         confirmDestructive: false,
+        ...captureOutput().output,
         out,
     };
     return { ctx, out };

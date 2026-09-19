@@ -123,6 +123,48 @@ export default [
         },
     },
     {
+        // ARCH #13 — output ownership. `src/cli/output.ts` owns every byte the
+        // CLI emits, and `src/cli.ts` is the single place the real process
+        // streams are named. Everything in between takes a writer from
+        // `CliRuntime` / `HandlerContext`.
+        //
+        // Without this, a handler with no writer to hand reaches for
+        // `process.stderr` and quietly leaves the runtime: that is how `run
+        // watch` came to read `--quiet` out of `process.argv`, and how the
+        // `--out -` download ack bypassed the writers a caller supplied.
+        //
+        // A tripwire against accidental reintroduction, not a guarantee. It
+        // catches the direct form, the bracketed `process['stdout']`, and
+        // destructuring; it does NOT catch aliasing (`const p = process`) or
+        // `globalThis.process`. `tests/cli-output-ownership.test.ts` is the
+        // behavioural backstop that would still fail.
+        files: ['src/**/*.ts'],
+        ignores: ['src/cli.ts'],
+        rules: {
+            'no-restricted-properties': [
+                'error',
+                {
+                    object: 'process',
+                    property: 'stdout',
+                    message:
+                        'Write through the output module instead (ctx.out / ctx.err / ctx.outPayload, or CliRuntime.stdout). Only src/cli.ts may name the process streams — see ARCH #13.',
+                },
+                {
+                    object: 'process',
+                    property: 'stderr',
+                    message:
+                        'Write through the output module instead (ctx.err / ctx.errRaw, or CliRuntime.stderr). Only src/cli.ts may name the process streams — see ARCH #13.',
+                },
+                {
+                    object: 'process',
+                    property: 'argv',
+                    message:
+                        'Take argv from CliRuntime.argv. Reading process.argv inside a handler ignores the argv runCli was actually handed — see ARCH #13.',
+                },
+            ],
+        },
+    },
+    {
         // Less strict rules for test files
         files: ['tests/**/*'],
         languageOptions: {

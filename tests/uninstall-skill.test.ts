@@ -28,6 +28,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInstallSkill } from '../src/cli/install-skill.js';
+import { createOutput, type Output } from '../src/cli/output.js';
+import { captureOutput } from './helpers.js';
 import { getInstallTarget, runUninstallSkill } from '../src/cli/uninstall-skill.js';
 
 const SKILL_CONTENT = '---\nname: testrail-cli\nversion: 2.1.0\n---\n# Skill\n';
@@ -35,8 +37,8 @@ const SKILL_CONTENT = '---\nname: testrail-cli\nversion: 2.1.0\n---\n# Skill\n';
 describe('runUninstallSkill', () => {
     let tmp: string;
     let source: string;
-    let stdoutSpy: ReturnType<typeof vi.spyOn>;
-    let stderrSpy: ReturnType<typeof vi.spyOn>;
+    let output: Output;
+    let quietOutput: Output;
     let stdoutChunks: string[];
     let stderrChunks: string[];
 
@@ -44,21 +46,25 @@ describe('runUninstallSkill', () => {
         tmp = mkdtempSync(join(tmpdir(), 'tr-uninstall-'));
         source = join(tmp, 'bundled-SKILL.md');
         writeFileSync(source, SKILL_CONTENT, 'utf-8');
-        stdoutChunks = [];
-        stderrChunks = [];
-        stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-            stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-        stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
+        // ARCH #13: the meta-command takes its writers, so the test reads what
+        // it produced instead of intercepting the process streams.
+        const captured = captureOutput();
+        output = captured.output;
+        stdoutChunks = captured.stdout;
+        stderrChunks = captured.stderr;
+        // The quiet writer shares those collectors on purpose: a --quiet run
+        // that emitted anything shows up in the very arrays these tests assert
+        // are empty.
+        quietOutput = createOutput({
+            quiet: true,
+            format: 'json',
+            stdoutIsTTY: false,
+            stdout: (chunk) => void stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk)),
+            stderr: (chunk) => void stderrChunks.push(chunk),
         });
     });
 
     afterEach(() => {
-        stdoutSpy.mockRestore();
-        stderrSpy.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -70,7 +76,7 @@ describe('runUninstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -79,7 +85,7 @@ describe('runUninstallSkill', () => {
         const target = join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
         expect(existsSync(target)).toBe(true);
 
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
         expect(code).toBe(0);
         expect(existsSync(target)).toBe(false);
         expect(stdoutChunks.join('')).toContain('Uninstalled testrail-cli skill');
@@ -90,20 +96,27 @@ describe('runUninstallSkill', () => {
     it('removes a global-scoped installed skill when --global is set', () => {
         const home = join(tmp, 'home');
         runInstallSkill(
-            { global: true, force: false, printPath: false, quiet: true, sourceOverride: source, homeOverride: home },
+            {
+                global: true,
+                force: false,
+                printPath: false,
+                output: quietOutput,
+                sourceOverride: source,
+                homeOverride: home,
+            },
             'file:///irrelevant',
         );
         const target = join(home, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
         expect(existsSync(target)).toBe(true);
 
-        const code = runUninstallSkill({ global: true, quiet: false, homeOverride: home });
+        const code = runUninstallSkill({ global: true, output, homeOverride: home });
         expect(code).toBe(0);
         expect(existsSync(target)).toBe(false);
     });
 
     it('exits 1 with a clear message when no skill is installed', () => {
         const project = join(tmp, 'proj');
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('not found');
         expect(stderrChunks.join('')).toContain('Nothing to uninstall');
@@ -116,13 +129,13 @@ describe('runUninstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
             'file:///irrelevant',
         );
-        const code = runUninstallSkill({ global: false, quiet: true, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output: quietOutput, cwdOverride: project });
         expect(code).toBe(0);
         expect(stdoutChunks.join('')).toBe('');
         expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(false);
@@ -130,7 +143,7 @@ describe('runUninstallSkill', () => {
 
     it('--quiet suppresses the not-found error (exit code 1 still distinguishes)', () => {
         const project = join(tmp, 'proj');
-        const code = runUninstallSkill({ global: false, quiet: true, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output: quietOutput, cwdOverride: project });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toBe('');
     });
@@ -142,17 +155,17 @@ describe('runUninstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
             'file:///irrelevant',
         );
         expect(installed).toBe(0);
-        const uninstalled = runUninstallSkill({ global: false, quiet: true, cwdOverride: project });
+        const uninstalled = runUninstallSkill({ global: false, output: quietOutput, cwdOverride: project });
         expect(uninstalled).toBe(0);
         // Re-running uninstall must produce a clean error, not a crash.
-        const again = runUninstallSkill({ global: false, quiet: true, cwdOverride: project });
+        const again = runUninstallSkill({ global: false, output: quietOutput, cwdOverride: project });
         expect(again).toBe(1);
     });
 
@@ -165,7 +178,7 @@ describe('runUninstallSkill', () => {
         writeFileSync(bystander, 'do not delete me', 'utf-8');
         symlinkSync(bystander, target);
 
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('symlink');
         // Bystander still on disk.
@@ -184,7 +197,7 @@ describe('runUninstallSkill', () => {
         // The documented TOCTOU posture lstats the target and refuses it.
         symlinkSync(join(tmp, 'no-such-target'), target);
 
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
         expect(code).toBe(1);
         // A symlink is detected and refused with a clear message — NOT silently
         // misreported as "SKILL.md not found. Nothing to uninstall.".
@@ -200,7 +213,7 @@ describe('runUninstallSkill', () => {
         // Plant a directory where the file would live.
         mkdirSync(target, { recursive: true });
 
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('not a regular file');
         expect(existsSync(target)).toBe(true);
@@ -213,7 +226,7 @@ describe('runUninstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
@@ -225,7 +238,7 @@ describe('runUninstallSkill', () => {
         const sibling = join(parent, 'NOTES.md');
         writeFileSync(sibling, 'hand-written notes', 'utf-8');
 
-        const code = runUninstallSkill({ global: false, quiet: true, cwdOverride: project });
+        const code = runUninstallSkill({ global: false, output: quietOutput, cwdOverride: project });
         expect(code).toBe(0);
         expect(existsSync(join(parent, 'SKILL.md'))).toBe(false);
         expect(existsSync(sibling)).toBe(true);
@@ -241,13 +254,13 @@ describe('runUninstallSkill', () => {
                 global: false,
                 force: false,
                 printPath: false,
-                quiet: true,
+                output: quietOutput,
                 sourceOverride: source,
                 cwdOverride: project,
             },
             'file:///irrelevant',
         );
-        runUninstallSkill({ global: false, quiet: false, cwdOverride: project });
+        runUninstallSkill({ global: false, output, cwdOverride: project });
         const out = stdoutChunks.join('');
         expect(out).not.toContain('.cursor/rules/testrail.mdc');
         expect(out).toContain('.continue/rules/testrail.md');

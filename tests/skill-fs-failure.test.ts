@@ -68,6 +68,9 @@ vi.mock('node:fs', async (importOriginal) => {
 
 const { runInstallSkill } = await import('../src/cli/install-skill.js');
 const { runUninstallSkill } = await import('../src/cli/uninstall-skill.js');
+const { createOutput } = await import('../src/cli/output.js');
+const { captureOutput } = await import('./helpers.js');
+type Output = import('../src/cli/output.js').Output;
 
 const SKILL_CONTENT = '---\nname: testrail-cli\n---\n# Skill\n';
 
@@ -75,7 +78,8 @@ describe('install-skill — filesystem-failure catch', () => {
     let tmp: string;
     let source: string;
     let stderrChunks: string[];
-    let spyErr: ReturnType<typeof vi.spyOn>;
+    let output: Output;
+    let quietOutput: Output;
 
     beforeEach(() => {
         fsControl.throwOnRename = false;
@@ -86,17 +90,30 @@ describe('install-skill — filesystem-failure catch', () => {
         tmp = mkdtempSync(join(tmpdir(), 'tr-fsfail-install-'));
         source = join(tmp, 'bundled-SKILL.md');
         writeFileSync(source, SKILL_CONTENT, 'utf-8');
-        stderrChunks = [];
-        vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-        spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
+        const captured = captureOutput();
+        // Shared collector: a --quiet run that wrote anything lands in the
+        // array these tests assert is empty.
+        stderrChunks = captured.stderr;
+        output = captured.output;
+        quietOutput = createOutput({
+            quiet: true,
+            format: 'json',
+            stdoutIsTTY: false,
+            stdout: () => undefined,
+            stderr: (chunk) => void stderrChunks.push(chunk),
         });
     });
 
     function run(quiet = false): number {
         return runInstallSkill(
-            { global: false, force: false, printPath: false, quiet, sourceOverride: source, cwdOverride: tmp },
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                output: quiet ? quietOutput : output,
+                sourceOverride: source,
+                cwdOverride: tmp,
+            },
             'file:///irrelevant',
         );
     }
@@ -107,7 +124,6 @@ describe('install-skill — filesystem-failure catch', () => {
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to install skill');
         expect(stderrChunks.join('')).toContain('EACCES');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -120,7 +136,6 @@ describe('install-skill — filesystem-failure catch', () => {
         const code = run();
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to install skill');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -129,7 +144,6 @@ describe('install-skill — filesystem-failure catch', () => {
         const code = run(true);
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toBe('');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -142,7 +156,6 @@ describe('install-skill — filesystem-failure catch', () => {
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to install skill');
         expect(stderrChunks.join('')).toContain('EACCES');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 });
@@ -151,11 +164,19 @@ describe('uninstall-skill — filesystem-failure catches', () => {
     let tmp: string;
     let source: string;
     let stderrChunks: string[];
-    let spyErr: ReturnType<typeof vi.spyOn>;
+    let output: Output;
+    let quietOutput: Output;
 
     function install(): void {
         runInstallSkill(
-            { global: false, force: false, printPath: false, quiet: true, sourceOverride: source, cwdOverride: tmp },
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                output: quietOutput,
+                sourceOverride: source,
+                cwdOverride: tmp,
+            },
             'file:///irrelevant',
         );
     }
@@ -169,33 +190,37 @@ describe('uninstall-skill — filesystem-failure catches', () => {
         tmp = mkdtempSync(join(tmpdir(), 'tr-fsfail-uninstall-'));
         source = join(tmp, 'bundled-SKILL.md');
         writeFileSync(source, SKILL_CONTENT, 'utf-8');
-        stderrChunks = [];
-        vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-        spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
+        const captured = captureOutput();
+        // Shared collector: a --quiet run that wrote anything lands in the
+        // array these tests assert is empty.
+        stderrChunks = captured.stderr;
+        output = captured.output;
+        quietOutput = createOutput({
+            quiet: true,
+            format: 'json',
+            stdoutIsTTY: false,
+            stdout: () => undefined,
+            stderr: (chunk) => void stderrChunks.push(chunk),
         });
     });
 
     it('exits 1 with "cannot stat" when lstatSync throws after existsSync passed', () => {
         install();
         fsControl.throwOnLstat = true;
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: tmp });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('cannot stat');
         expect(stderrChunks.join('')).toContain('EACCES');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
     it('exits 1 with "failed to remove" when unlinkSync throws after lstat said regular file', () => {
         install();
         fsControl.throwOnUnlinkTarget = true;
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: tmp });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to remove');
         expect(stderrChunks.join('')).toContain('EPERM');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -203,10 +228,9 @@ describe('uninstall-skill — filesystem-failure catches', () => {
         install();
         fsControl.throwOnLstat = true;
         fsControl.throwNonError = true;
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: tmp });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('cannot stat');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -214,10 +238,9 @@ describe('uninstall-skill — filesystem-failure catches', () => {
         install();
         fsControl.throwOnUnlinkTarget = true;
         fsControl.throwNonError = true;
-        const code = runUninstallSkill({ global: false, quiet: false, cwdOverride: tmp });
+        const code = runUninstallSkill({ global: false, output, cwdOverride: tmp });
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to remove');
-        spyErr.mockRestore();
         rmSync(tmp, { recursive: true, force: true });
     });
 });

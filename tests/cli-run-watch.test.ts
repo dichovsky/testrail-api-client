@@ -23,6 +23,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import type { Mock } from 'vitest';
 import { handleRunWatch } from '../src/cli/handlers/run-watch.js';
+import { captureOutput, makeActionSpec } from './helpers.js';
 import { TestRailApiError } from '../src/errors.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
@@ -67,16 +68,21 @@ interface CtxOverrides {
     interval?: string;
     once?: boolean;
     dryRun?: boolean;
+    quiet?: boolean;
 }
 
 function buildCtx(
     client: MockedClient,
     overrides: CtxOverrides = {},
-): { ctx: HandlerContext; out: ReturnType<typeof vi.fn> } {
+): { ctx: HandlerContext; out: ReturnType<typeof vi.fn>; stderr: () => string } {
     const out = vi.fn();
+    // `--quiet` reaches the status line through `errRaw` now, so a quiet
+    // watcher is built by asking for quiet writers rather than by pushing
+    // '--quiet' onto the test process's own argv.
+    const captured = captureOutput({ quiet: overrides.quiet ?? false });
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
-        actionSpec: { resource: 'run', action: 'watch' },
+        actionSpec: makeActionSpec({ resource: 'run', action: 'watch' }),
         args: {
             pathParams: overrides.pathParams ?? ['42'],
             ...(overrides.interval !== undefined && { interval: overrides.interval }),
@@ -87,9 +93,10 @@ function buildCtx(
         dryRun: overrides.dryRun ?? false,
         force: false,
         confirmDestructive: false,
+        ...captured.output,
         out,
     };
-    return { ctx, out };
+    return { ctx, out, stderr: () => captured.stderr.join('') };
 }
 
 describe('handleRunWatch', () => {
@@ -245,13 +252,7 @@ describe('handleRunWatch', () => {
             .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
             .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx, out } = buildCtx(client);
+        const { ctx, out, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         // Advance past the retry timer (30s default interval).
         await vi.advanceTimersByTimeAsync(30_000);
@@ -259,13 +260,11 @@ describe('handleRunWatch', () => {
 
         expect(client.runs.getRun).toHaveBeenCalledTimes(2);
         // Transient error written to stderr.
-        expect(stderrWrites.join('')).toMatch(/transient error for runId=42/);
+        expect(stderr()).toMatch(/transient error for runId=42/);
         // Watcher continued and completed on the second poll.
         const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
         expect(events).toContain('snapshot');
         expect(events).toContain('completed');
-
-        spyErr.mockRestore();
     });
 
     it('logs a network error (status 0) transiently and continues polling', async () => {
@@ -275,24 +274,16 @@ describe('handleRunWatch', () => {
             .mockResolvedValueOnce(mockRun({ is_completed: false }))
             .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 3, untested_count: 0 }));
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx, out } = buildCtx(client);
+        const { ctx, out, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         await vi.advanceTimersByTimeAsync(30_000); // retry after transient
         await vi.advanceTimersByTimeAsync(30_000); // second successful poll
         await promise;
 
         expect(client.runs.getRun).toHaveBeenCalledTimes(3);
-        expect(stderrWrites.join('')).toMatch(/transient error/);
+        expect(stderr()).toMatch(/transient error/);
         const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
         expect(events).toContain('completed');
-
-        spyErr.mockRestore();
     });
 
     it('SIGINT during transient-retry wait cancels the watcher cleanly', async () => {
@@ -300,13 +291,7 @@ describe('handleRunWatch', () => {
         // First poll: transient 500. SIGINT fires during the retry wait.
         client.runs.getRun.mockRejectedValueOnce(new TestRailApiError(500, 'Internal Server Error'));
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx } = buildCtx(client);
+        const { ctx, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         // Let the transient poll settle.
         await Promise.resolve();
@@ -317,9 +302,7 @@ describe('handleRunWatch', () => {
         await promise;
 
         // Should resolve cleanly (not reject) — cancelled flag is checked.
-        expect(stderrWrites.join('')).toMatch(/transient error|interrupted/);
-
-        spyErr.mockRestore();
+        expect(stderr()).toMatch(/transient error|interrupted/);
     });
 
     it('SIGINT prepends a listener that cancels the pending poll and writes a status summary', async () => {
@@ -327,13 +310,7 @@ describe('handleRunWatch', () => {
         // First poll succeeds, then we emit SIGINT before the second poll fires.
         client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx } = buildCtx(client);
+        const { ctx, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         // Let the first poll settle (microtask flush).
         await Promise.resolve();
@@ -346,8 +323,7 @@ describe('handleRunWatch', () => {
         await vi.advanceTimersByTimeAsync(0);
         await promise;
 
-        expect(stderrWrites.join('')).toMatch(/run watch: interrupted at runId=42/);
-        spyErr.mockRestore();
+        expect(stderr()).toMatch(/run watch: interrupted at runId=42/);
     });
 
     it('SIGINT before any successful poll writes "(no successful poll)" summary', async () => {
@@ -358,13 +334,7 @@ describe('handleRunWatch', () => {
         // First poll: never resolves until we cancel.
         client.runs.getRun.mockImplementationOnce(() => new Promise<Run>(() => undefined));
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx } = buildCtx(client);
+        const { ctx, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         // Emit SIGINT immediately — no poll has settled yet.
         await Promise.resolve();
@@ -372,8 +342,7 @@ describe('handleRunWatch', () => {
         await vi.advanceTimersByTimeAsync(0);
         await promise;
 
-        expect(stderrWrites.join('')).toMatch(/\(no successful poll\)/);
-        spyErr.mockRestore();
+        expect(stderr()).toMatch(/\(no successful poll\)/);
     });
 
     it('SIGINT delivered twice is idempotent (covers the `if (cancelled) return` re-entry guard)', async () => {
@@ -382,13 +351,7 @@ describe('handleRunWatch', () => {
         const client = buildClient();
         client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx } = buildCtx(client);
+        const { ctx, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         await Promise.resolve();
         await Promise.resolve();
@@ -398,71 +361,46 @@ describe('handleRunWatch', () => {
         await promise;
 
         // Only one "interrupted at" line should appear despite two signals.
-        const interruptedCount = stderrWrites.join('').match(/interrupted at runId=42/g) ?? [];
+        const interruptedCount = stderr().match(/interrupted at runId=42/g) ?? [];
         expect(interruptedCount.length).toBe(1);
-        spyErr.mockRestore();
     });
 
-    it('--quiet suppresses transient-error stderr writes (covers the !argv.includes("--quiet") false branch)', async () => {
-        // Exercises the `!process.argv.includes('--quiet')` false branch
-        // in the transient-error stderr path.
-        const argvBackup = process.argv.slice();
-        process.argv.push('--quiet');
-        try {
-            const client = buildClient();
-            client.runs.getRun
-                .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
-                .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
+    it('--quiet suppresses the transient-error status line', async () => {
+        // The quiet flag reaches the watcher through its own `errRaw`. This
+        // used to be asserted by pushing '--quiet' onto the TEST PROCESS's
+        // argv, because the handler read `process.argv` rather than the argv
+        // `runCli` was handed — so an embedded caller passing --quiet got
+        // status lines anyway, and the assertion depended on a global nobody
+        // in the invocation controlled.
+        const client = buildClient();
+        client.runs.getRun
+            .mockRejectedValueOnce(new TestRailApiError(503, 'Service Unavailable'))
+            .mockResolvedValueOnce(mockRun({ is_completed: true, passed_count: 5, untested_count: 0 }));
 
-            const stderrWrites: string[] = [];
-            const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-                stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-                return true;
-            });
+        const { ctx, stderr } = buildCtx(client, { quiet: true });
+        const promise = handleRunWatch(ctx);
+        await vi.advanceTimersByTimeAsync(30_000);
+        await promise;
 
-            const { ctx } = buildCtx(client);
-            const promise = handleRunWatch(ctx);
-            await vi.advanceTimersByTimeAsync(30_000);
-            await promise;
-
-            // --quiet suppresses the transient line; no `transient error`
-            // string should reach stderr even though the 503 was retried.
-            expect(stderrWrites.join('')).not.toMatch(/transient error/);
-            spyErr.mockRestore();
-        } finally {
-            process.argv.length = 0;
-            process.argv.push(...argvBackup);
-        }
+        // The 503 was retried, so the line had something to say and was
+        // suppressed — not simply never reached.
+        expect(client.runs.getRun).toHaveBeenCalledTimes(2);
+        expect(stderr()).toBe('');
     });
 
     it('--quiet suppresses the SIGINT status summary too', async () => {
-        // Mirror suppression on the signal-summary write at line 179.
-        const argvBackup = process.argv.slice();
-        process.argv.push('--quiet');
-        try {
-            const client = buildClient();
-            client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
+        const client = buildClient();
+        client.runs.getRun.mockResolvedValueOnce(mockRun({ passed_count: 1 }));
 
-            const stderrWrites: string[] = [];
-            const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-                stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-                return true;
-            });
+        const { ctx, stderr } = buildCtx(client, { quiet: true });
+        const promise = handleRunWatch(ctx);
+        await Promise.resolve();
+        await Promise.resolve();
+        process.emit('SIGINT');
+        await vi.advanceTimersByTimeAsync(0);
+        await promise;
 
-            const { ctx } = buildCtx(client);
-            const promise = handleRunWatch(ctx);
-            await Promise.resolve();
-            await Promise.resolve();
-            process.emit('SIGINT');
-            await vi.advanceTimersByTimeAsync(0);
-            await promise;
-
-            expect(stderrWrites.join('')).not.toMatch(/interrupted at runId/);
-            spyErr.mockRestore();
-        } finally {
-            process.argv.length = 0;
-            process.argv.push(...argvBackup);
-        }
+        expect(stderr()).toBe('');
     });
 
     it('wraps a non-Error rejection from getRun as Error (covers the rejection-shape coercion)', async () => {
@@ -558,13 +496,7 @@ describe('handleRunWatch', () => {
             });
         });
 
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
-
-        const { ctx } = buildCtx(client);
+        const { ctx, stderr } = buildCtx(client);
         const promise = handleRunWatch(ctx);
         await Promise.resolve();
         // Fire SIGINT then reject — catch should see cancelled=true and
@@ -576,8 +508,7 @@ describe('handleRunWatch', () => {
 
         // No "transient error" line should have been written — cancelled
         // short-circuited before the retry-log branch.
-        expect(stderrWrites.join('')).not.toMatch(/transient error/);
-        spyErr.mockRestore();
+        expect(stderr()).not.toMatch(/transient error/);
     });
 });
 
@@ -651,37 +582,33 @@ describe('handleRunWatch – String(e) branch via non-Error transient mock', () 
         });
 
         const out = vi.fn();
+        const captured = captureOutput();
         const ctx = {
             client: { runs: { getRun } } as unknown as TestRailClient,
-            actionSpec: { resource: 'run', action: 'watch' },
+            actionSpec: makeActionSpec({ resource: 'run', action: 'watch' }),
             args: { pathParams: ['42'] },
             pagination: { mode: 'items' as const },
             bodyInput: {},
             dryRun: false,
             force: false,
             confirmDestructive: false,
+            ...captured.output,
             out,
         };
 
         vi.useFakeTimers();
-        const stderrWrites: string[] = [];
-        const spyErr = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-            stderrWrites.push(typeof chunk === 'string' ? chunk : String(chunk));
-            return true;
-        });
         try {
             const promise = handleRunWatchIsolated(ctx);
             await vi.advanceTimersByTimeAsync(30_000);
             await promise;
         } finally {
-            spyErr.mockRestore();
             vi.useRealTimers();
         }
 
         // String(e) for a plain-class instance gives "[object Object]" unless
         // Symbol.toPrimitive / toString is defined. The important thing is
         // that the transient-error line was written to stderr.
-        expect(stderrWrites.join('')).toMatch(/transient error for runId=42/);
+        expect(captured.stderr.join('')).toMatch(/transient error for runId=42/);
         // The watcher continued and completed after the transient error.
         const events = out.mock.calls.map((c) => (c[0] as { event: string }).event);
         expect(events).toContain('completed');
