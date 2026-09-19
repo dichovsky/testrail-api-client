@@ -2,18 +2,24 @@
  * CLI test suite for src/cli.ts.
  *
  * Strategy:
- * - vi.resetModules() before each dynamic import gives every test a fresh CLI module.
+ * - `runCli` is called directly with a fake CliRuntime — no module re-import, no
+ *   `vi.resetModules()`, no polling of process.exitCode. The runtime's
+ *   `createClient` omits `registerProcessHandlers`, so a test run installs no
+ *   signal handlers.
  * - global.fetch is mocked so network calls never leave the process.
  * - node:dns/promises is mocked so DNS resolution completes instantly (no real network).
  *   Without this, validatePublicHost() makes a real lookup that can take >30ms on CI,
  *   causing dnsValidationPromise to outlive the spy teardown window and producing
  *   cross-test stdout contamination and empty exitCodes arrays.
- * - process.exitCode is reset and observed so async exit paths complete without
- *   truncating output; assertions use exitCodes[0] as the primary exit code.
- * - process.stdout/stderr.write are captured for output assertions.
+ * - The exit code is `runCli`'s resolved value; assertions use exitCodes[0].
+ * - Output is captured from the runtime's injected writers, plus a spy on each
+ *   process stream for the collaborators that still bypass the runtime (see the
+ *   harness comment; ARCH #13 removes those).
  * - Credentials come from AUTH_ENV so the real TestRailClient config-validation passes.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { runCli as invokeCli } from '../src/cli/index.js';
+import { TestRailClient } from '../src/client.js';
 import {
     mkdtempSync,
     writeFileSync,
@@ -27,15 +33,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-// Each `runCli` invocation re-imports `src/cli.js` after `vi.resetModules()`,
-// and the CLI opts into process signal handlers (`exit` / `SIGINT` /
-// `SIGTERM`) via `registerProcessHandlers: true`. Node's default
-// `defaultMaxListeners` is 10, so once the suite passes ~10 entrypoint-style
-// tests the runtime emits `MaxListenersExceededWarning` for the `exit`
-// event (one listener added per CLI re-import; nothing removes them since
-// the worker stays alive between tests). Disable the cap for this test
-// process only — the worker dies between vitest invocations so there's no
-// long-lived listener leak.
+// Kept as a guard rail rather than a necessity: the harness now calls `runCli`
+// directly with a `createClient` that does NOT opt into process signal
+// handlers, so this suite no longer accumulates one `exit` listener per test.
+// Other suites in the same worker still re-import `src/cli.js`, which does opt
+// in, and Node's default cap of 10 would warn once they pass it.
 process.setMaxListeners(0);
 
 // Mock DNS so validatePublicHost() resolves immediately without hitting the network.
@@ -54,42 +56,30 @@ vi.mock('../src/utils.js', async (importOriginal) => {
     };
 });
 
-// Stub readBoundedStdin so tests can simulate piped-stdin input for the
-// --api-key-stdin happy path without spawning a real subprocess. Default
-// behaviour: throw, so any test that accidentally trips the bounded
-// reader without setting up the stub fails loudly instead of returning
-// the test process's actual stdin contents. vi.hoisted is required
-// because vi.mock factories cannot capture file-scope variables (they're
-// lifted above all imports).
+// Simulated piped-stdin input. `runCli` takes its stdin reader from the
+// runtime, so this is a plain value the harness injects — no module mock, and
+// no fd-sniffing delegation for `--data-file` (that path reads a real file
+// descriptor through the untouched `readBoundedStdin`).
 //
-// When fd is provided and is not 0 (stdin), the call is coming from
-// body.ts reading a --data-file path; delegate to the real implementation
-// so the file contents are read normally.
+// Default behaviour is to throw, so a test that trips the reader without
+// arranging for it fails loudly instead of draining the test process's own
+// stdin.
 const stubbedStdin = vi.hoisted(() => ({
     value: null as string | null,
     throwNonError: false,
 }));
-vi.mock('../src/cli/stdin.js', async (importOriginal) => {
-    const real = await importOriginal<typeof import('../src/cli/stdin.js')>();
-    return {
-        readBoundedStdin: (maxBytes: number, fd = 0): string => {
-            if (fd !== 0) {
-                // Reading from a real file fd (e.g. --data-file); use the
-                // real implementation — the stub only applies to stdin.
-                return real.readBoundedStdin(maxBytes, fd);
-            }
-            if (stubbedStdin.throwNonError) {
-                // Typed `unknown` so this is an intentional non-Error throw.
-                const nonError: unknown = 'non-error-string-failure';
-                throw nonError;
-            }
-            if (stubbedStdin.value === null) {
-                throw new Error('readBoundedStdin not stubbed for this test');
-            }
-            return stubbedStdin.value;
-        },
-    };
-});
+
+function readStubbedStdin(): string {
+    if (stubbedStdin.throwNonError) {
+        // Typed `unknown` so this is an intentional non-Error throw.
+        const nonError: unknown = 'non-error-string-failure';
+        throw nonError;
+    }
+    if (stubbedStdin.value === null) {
+        throw new Error('readBoundedStdin not stubbed for this test');
+    }
+    return stubbedStdin.value;
+}
 
 async function withStubbedStdin<T>(value: string, fn: () => Promise<T>): Promise<T> {
     const orig = stubbedStdin.value;
@@ -263,7 +253,6 @@ async function runCli(
     env: Record<string, string | undefined> = AUTH_ENV,
     fetchRejection?: Error,
 ): Promise<CliResult> {
-    vi.resetModules();
     // Fully reset between runs so queued mockResolvedValueOnce items from a
     // previous test cannot leak into the next test's fetch sequence (a real
     // hazard when a test pre-queues N responses but the CLI consumes fewer
@@ -276,7 +265,8 @@ async function runCli(
         mockFetch.mockResolvedValue(jsonResponse({ error: 'Not found' }, 404));
     }
 
-    process.argv = ['node', 'testrail', ...argv];
+    // Still mirrored onto process.env: collaborators outside runCli's runtime
+    // (file resolution, diagnostics) read it directly.
     setEnv(env);
 
     for (const resp of fetchResponses) {
@@ -285,9 +275,14 @@ async function runCli(
 
     const stdoutChunks: string[] = [];
     const stderrChunks: string[] = [];
-    const originalExitCode = process.exitCode;
-    process.exitCode = undefined;
 
+    // Several writers still bypass the runtime and reach the process streams
+    // directly: `emitStdoutAck` (raw binary behind `attachment get --out -`),
+    // the install/uninstall-skill meta-commands, the schema-mismatch reporter,
+    // and `run watch`'s status line. ARCH #13 routes them through the output
+    // module; until then the harness captures both streams, so those
+    // assertions keep working AND `expect(stderr).toBe('')` cannot pass
+    // vacuously for a path that wrote straight to the terminal.
     const spyOut = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
         stdoutChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
         return true;
@@ -296,24 +291,36 @@ async function runCli(
         stderrChunks.push(typeof chunk === 'string' ? chunk : String(chunk));
         return true;
     });
-    let exitCode: number | undefined;
 
+    let exitCode: number;
     try {
-        await import('../src/cli.js');
-        // Wait for main() to assign process.exitCode, bounded by a generous
-        // timeout to cover GET retry chains (≈ 7s at the configured maximum).
-        await vi.waitFor(() => expect(process.exitCode).not.toBeUndefined(), { interval: 1, timeout: 15_000 });
-        exitCode = typeof process.exitCode === 'number' ? process.exitCode : Number(process.exitCode);
+        exitCode = await invokeCli({
+            argv,
+            env: process.env,
+            stdout: (chunk) => void stdoutChunks.push(chunk),
+            stderr: (chunk) => void stderrChunks.push(chunk),
+            stdin: {
+                // The suite's fixture defaults `process.stdin.isTTY` to true (an
+                // interactive terminal) and individual tests override it to
+                // simulate a pipe. `runCli` no longer reads it — the harness
+                // translates that fixture into the runtime, so the existing tests
+                // keep working and production keeps one canonical `=== true`.
+                isTTY: process.stdin.isTTY === true,
+                read: () => readStubbedStdin(),
+            },
+            // No `registerProcessHandlers`: a test run must not install
+            // exit/SIGINT/SIGTERM listeners that can never be removed.
+            createClient: (config) => new TestRailClient(config),
+        });
     } finally {
         spyOut.mockRestore();
         spyErr.mockRestore();
-        process.exitCode = originalExitCode;
     }
 
     return {
         stdout: stdoutChunks.join(''),
         stderr: stderrChunks.join(''),
-        exitCodes: exitCode === undefined ? [] : [exitCode],
+        exitCodes: [exitCode],
     };
 }
 
@@ -7723,6 +7730,97 @@ describe('CLI', () => {
             const { stderr } = await runCli(['run', 'delete', '5', '--yes'], [], ENV_WITHOUT_DESTRUCTIVE);
             expect(stderr).toContain('TESTRAIL_ALLOW_DESTRUCTIVE=1');
             expect(stderr).toContain('--dry-run');
+        });
+    });
+
+    // ── Refusal gates pin their own exit codes ────────────────────────────
+    //
+    // Seven of the sixteen `return fail(...)` guards survived a mutation
+    // campaign that replaced `return fail(X)` with `void fail(X)`: the message
+    // was still emitted, so message-only assertions passed while the CLI fell
+    // through and kept going. The same mutants survived before this PR, so the
+    // gap is not new — but a gate that refuses an action and then proceeds is
+    // the whole point of a refusal, and now that `runCli` is callable these are
+    // cheap to pin. Each case asserts the exit code, which no fall-through can
+    // produce.
+    describe('refusal gates return, not merely report', () => {
+        it.each([
+            {
+                what: 'uninstall-skill rejecting an inapplicable flag',
+                argv: ['uninstall-skill', '--force'],
+                contains: '--force',
+            },
+            {
+                what: 'a missing action',
+                argv: ['project'],
+                contains: 'Usage: testrail <resource> <action>',
+            },
+            {
+                what: 'a wrong path-param count',
+                argv: ['project', 'get', '1', '2'],
+                contains: 'takes 1 path p',
+            },
+            {
+                what: 'auth resolution failure',
+                argv: ['project', 'get', '1'],
+                env: {},
+                contains: 'TESTRAIL_BASE_URL',
+            },
+        ])('exits non-zero for $what', async ({ argv, env, contains }) => {
+            const { stderr, exitCodes } = await runCli(argv, [], env ?? AUTH_ENV);
+            expect(stderr).toContain(contains);
+            expect(exitCodes[0]).not.toBe(0);
+            // The assertion a fall-through cannot satisfy. Exiting non-zero is
+            // too weak on its own — a gate that reports and continues usually
+            // fails somewhere downstream anyway, and still exits non-zero. A
+            // gate that RETURNS reports exactly one error; one that falls
+            // through reports its own and then the downstream one.
+            expect(stderr.match(/Error:/g) ?? []).toHaveLength(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('exits non-zero when --api-key-stdin is used on an interactive terminal', async () => {
+            // The #221/#230 surface: `isTTY === true` must refuse, and must
+            // refuse by returning rather than falling through to a client
+            // built with no API key.
+            const { stderr, exitCodes } = await runCli(['project', 'get', '1', '--api-key-stdin'], [], {
+                TESTRAIL_BASE_URL: 'https://example.testrail.io',
+                TESTRAIL_EMAIL: 'user@example.com',
+            });
+            expect(stderr).toContain('--api-key-stdin requires the API key to be piped on stdin');
+            expect(exitCodes[0]).not.toBe(0);
+            expect(stderr.match(/Error:/g) ?? []).toHaveLength(1);
+            expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            {
+                what: 'the stdin read throws',
+                arrange: () => (stubbedStdin.throwNonError = true),
+                needle: 'cannot read',
+            },
+            { what: 'stdin is empty', arrange: () => (stubbedStdin.value = ''), needle: 'empty stdin input' },
+        ])('exits non-zero when $what', async ({ arrange, needle }) => {
+            const savedValue = stubbedStdin.value;
+            const savedThrow = stubbedStdin.throwNonError;
+            // A pipe, not a terminal, so the read is actually attempted.
+            const savedIsTTY = process.stdin.isTTY;
+            (process.stdin as { isTTY?: boolean | undefined }).isTTY = undefined;
+            arrange();
+            try {
+                const { stderr, exitCodes } = await runCli(['project', 'get', '1', '--api-key-stdin'], [], {
+                    TESTRAIL_BASE_URL: 'https://example.testrail.io',
+                    TESTRAIL_EMAIL: 'user@example.com',
+                });
+                expect(stderr).toContain(needle);
+                expect(exitCodes[0]).not.toBe(0);
+                expect(stderr.match(/Error:/g) ?? []).toHaveLength(1);
+                expect(mockFetch).not.toHaveBeenCalled();
+            } finally {
+                stubbedStdin.value = savedValue;
+                stubbedStdin.throwNonError = savedThrow;
+                (process.stdin as { isTTY?: boolean | undefined }).isTTY = savedIsTTY;
+            }
         });
     });
 });

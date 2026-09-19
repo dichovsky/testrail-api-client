@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "2d276ef78704328fb678e8679148e3308cad3d56b29a1028f9b86d9937081bb6",
+  "sourceHash": "63326651070099c19af5f72ec4c26a739f11e80be5b8679a8948c1439c18e6cf",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2182,7 +2182,10 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     {
       "path": "src/cli.ts",
       "imports": [
-        "./cli/index.js"
+        "./cli/index.js",
+        "./cli/sanitize.js",
+        "./cli/stdin.js",
+        "./client.js"
       ],
       "reExports": [],
       "symbols": []
@@ -4837,6 +4840,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "imports": [
         "../client.js",
         "../constants.js",
+        "../types.js",
         "./action-invocation.js",
         "./auth.js",
         "./diagnostics.js",
@@ -4849,7 +4853,6 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./output.js",
         "./response-validation.js",
         "./sanitize.js",
-        "./stdin.js",
         "./uninstall-skill.js",
         "node:module"
       ],
@@ -4858,30 +4861,58 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "require",
           "kind": "const",
-          "line": 26,
+          "line": 25,
           "exported": false,
           "signature": "const require = createRequire(import.meta.url)"
         },
         {
           "name": "VERSION",
           "kind": "const",
-          "line": 27,
+          "line": 26,
           "exported": false,
           "signature": "const VERSION: string = (require('../../package.json') as { version: string }).version"
         },
         {
           "name": "HELP",
           "kind": "const",
-          "line": 35,
+          "line": 34,
           "exported": false,
           "signature": "const HELP = buildHelpText()"
         },
         {
-          "name": "main",
-          "kind": "function",
-          "line": 47,
+          "name": "EXIT_SUCCESS",
+          "kind": "const",
+          "line": 37,
           "exported": false,
-          "signature": "async function main(): Promise<number>"
+          "signature": "const EXIT_SUCCESS = 0"
+        },
+        {
+          "name": "EXIT_FAILURE",
+          "kind": "const",
+          "line": 38,
+          "exported": false,
+          "signature": "const EXIT_FAILURE = 1"
+        },
+        {
+          "name": "EXIT_ARGV_INVALID",
+          "kind": "const",
+          "line": 39,
+          "exported": false,
+          "signature": "const EXIT_ARGV_INVALID = 2"
+        },
+        {
+          "name": "CliRuntime",
+          "kind": "interface",
+          "line": 57,
+          "exported": true,
+          "signature": "export interface CliRuntime { readonly argv: readonly string[]; readonly env: Readonly<Record<string, string | undefined>>; readonly stdout: (chunk: string) => void; readonly stderr: (chunk: string) =…"
+        },
+        {
+          "name": "runCli",
+          "kind": "function",
+          "line": 85,
+          "exported": true,
+          "signature": "export async function runCli(runtime: CliRuntime): Promise<number>"
         }
       ]
     },
@@ -5594,264 +5625,264 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 11,
           "exported": true,
-          "signature": "export interface OutputOptions { quiet: boolean; format: OutputFormat; }"
+          "signature": "export interface OutputOptions { quiet: boolean; format: OutputFormat; stdout?: (chunk: string) => void; stderr?: (chunk: string) => void; }"
         },
         {
           "name": "ProjectedCell",
           "kind": "type",
-          "line": 16,
+          "line": 24,
           "exported": false,
           "signature": "type ProjectedCell = | { readonly trusted: true; readonly source: null | undefined | number | boolean | bigint } | { readonly trusted: false; readonly source: unknown }"
         },
         {
           "name": "ProjectedRow",
           "kind": "interface",
-          "line": 20,
+          "line": 28,
           "exported": false,
           "signature": "interface ProjectedRow<Cell> { cells: Record<string, Cell>; isRecord: boolean; scalarValue?: Cell; }"
         },
         {
           "name": "ProjectedOutput",
           "kind": "interface",
-          "line": 26,
+          "line": 34,
           "exported": false,
           "signature": "interface ProjectedOutput<Cell> { readonly columns: readonly string[]; readonly rows: readonly ProjectedRow<Cell>[]; }"
         },
         {
           "name": "ProjectionShape",
           "kind": "type",
-          "line": 31,
+          "line": 39,
           "exported": false,
           "signature": "type ProjectionShape = 'table' | 'csv'"
         },
         {
           "name": "Output",
           "kind": "interface",
-          "line": 33,
+          "line": 41,
           "exported": true,
           "signature": "export interface Output { out: (data: unknown) => void; err: (message: string) => void; errRaw: (chunk: string) => void; }"
         },
         {
           "name": "valueToString",
           "kind": "function",
-          "line": 43,
+          "line": 51,
           "exported": true,
           "signature": "export function valueToString(v: unknown): string"
         },
         {
           "name": "getField",
           "kind": "function",
-          "line": 65,
+          "line": 73,
           "exported": false,
           "signature": "function getField(row: unknown, key: string): unknown"
         },
         {
           "name": "projectCell",
           "kind": "function",
-          "line": 70,
+          "line": 78,
           "exported": false,
           "signature": "function projectCell(value: unknown): ProjectedCell"
         },
         {
           "name": "isProjectionRecord",
           "kind": "function",
-          "line": 80,
+          "line": 88,
           "exported": false,
           "signature": "function isProjectionRecord(value: unknown, shape: ProjectionShape): value is Record<string, unknown>"
         },
         {
           "name": "projectRecord",
           "kind": "function",
-          "line": 84,
+          "line": 92,
           "exported": false,
           "signature": "function projectRecord<Cell>( row: Record<string, unknown>, columns: readonly string[], project: (value: unknown) => Cell, ): ProjectedRow<Cell>"
         },
         {
           "name": "projectOutput",
           "kind": "function",
-          "line": 96,
+          "line": 104,
           "exported": false,
           "signature": "function projectOutput<Cell>( data: unknown, shape: ProjectionShape, project: (value: unknown) => Cell, ): ProjectedOutput<Cell>"
         },
         {
           "name": "renderTable",
           "kind": "function",
-          "line": 147,
+          "line": 155,
           "exported": true,
           "signature": "export function renderTable(data: unknown): string"
         },
         {
           "name": "safeJsonStringify",
           "kind": "function",
-          "line": 196,
+          "line": 204,
           "exported": true,
           "signature": "export function safeJsonStringify(data: unknown): string"
         },
         {
           "name": "emitStdoutAck",
           "kind": "function",
-          "line": 218,
+          "line": 226,
           "exported": true,
           "signature": "export function emitStdoutAck( payload: Uint8Array | string, ack: Record<string, unknown>, errRaw?: (chunk: string) => void, ): void"
         },
         {
           "name": "SPECIAL_BARE_STRINGS",
           "kind": "const",
-          "line": 246,
+          "line": 254,
           "exported": false,
           "signature": "const SPECIAL_BARE_STRINGS: ReadonlySet<string> = new Set([ '', '~', 'null', 'Null', 'NULL', 'true', 'True', 'TRUE', 'false', 'False', 'FALSE', 'yes', 'Yes', 'YES', 'no', 'No', 'NO', 'on', 'On', 'ON',…"
         },
         {
           "name": "needsQuoting",
           "kind": "function",
-          "line": 289,
+          "line": 297,
           "exported": false,
           "signature": "function needsQuoting(s: string): boolean"
         },
         {
           "name": "escapeDoubleQuoted",
           "kind": "function",
-          "line": 331,
+          "line": 339,
           "exported": false,
           "signature": "function escapeDoubleQuoted(s: string): string"
         },
         {
           "name": "renderYamlScalar",
           "kind": "function",
-          "line": 374,
+          "line": 382,
           "exported": false,
           "signature": "function renderYamlScalar(v: unknown): string"
         },
         {
           "name": "isPlainObject",
           "kind": "function",
-          "line": 396,
+          "line": 404,
           "exported": false,
           "signature": "function isPlainObject(v: unknown): v is Record<string, unknown>"
         },
         {
           "name": "renderYamlNode",
           "kind": "function",
-          "line": 405,
+          "line": 413,
           "exported": false,
           "signature": "function renderYamlNode(v: unknown, depth: number): string"
         },
         {
           "name": "renderYaml",
           "kind": "function",
-          "line": 486,
+          "line": 494,
           "exported": true,
           "signature": "export function renderYaml(value: unknown): string"
         },
         {
           "name": "CSV_LINE_TERMINATOR",
           "kind": "const",
-          "line": 518,
+          "line": 526,
           "exported": false,
           "signature": "const CSV_LINE_TERMINATOR = '\\r\\n'"
         },
         {
           "name": "TAB",
           "kind": "const",
-          "line": 523,
+          "line": 531,
           "exported": false,
           "signature": "const TAB = 0x09"
         },
         {
           "name": "LF",
           "kind": "const",
-          "line": 524,
+          "line": 532,
           "exported": false,
           "signature": "const LF = 0x0a"
         },
         {
           "name": "CR",
           "kind": "const",
-          "line": 525,
+          "line": 533,
           "exported": false,
           "signature": "const CR = 0x0d"
         },
         {
           "name": "CSV_FORMULA_LEAD_CHARS",
           "kind": "const",
-          "line": 530,
+          "line": 538,
           "exported": false,
           "signature": "const CSV_FORMULA_LEAD_CHARS: ReadonlySet<string> = new Set(['=', '+', '-', '@'])"
         },
         {
           "name": "neutralizeCsvFormula",
           "kind": "function",
-          "line": 534,
+          "line": 542,
           "exported": false,
           "signature": "function neutralizeCsvFormula(cell: string): string"
         },
         {
           "name": "csvCellRequiresQuoting",
           "kind": "function",
-          "line": 544,
+          "line": 552,
           "exported": false,
           "signature": "function csvCellRequiresQuoting(cell: string): boolean"
         },
         {
           "name": "csvQuoteCell",
           "kind": "function",
-          "line": 553,
+          "line": 561,
           "exported": false,
           "signature": "function csvQuoteCell(cell: string): string"
         },
         {
           "name": "csvEscapeCell",
           "kind": "function",
-          "line": 562,
+          "line": 570,
           "exported": false,
           "signature": "function csvEscapeCell(cell: string): string"
         },
         {
           "name": "csvDataCell",
           "kind": "function",
-          "line": 569,
+          "line": 577,
           "exported": false,
           "signature": "function csvDataCell(cell: ProjectedCell | undefined): string"
         },
         {
           "name": "sanitizeForCsv",
           "kind": "function",
-          "line": 573,
+          "line": 581,
           "exported": false,
           "signature": "function sanitizeForCsv(cell: string): string"
         },
         {
           "name": "csvCellFromProjected",
           "kind": "function",
-          "line": 579,
+          "line": 587,
           "exported": false,
           "signature": "function csvCellFromProjected(cell: ProjectedCell | undefined): string"
         },
         {
           "name": "renderCsv",
           "kind": "function",
-          "line": 619,
+          "line": 627,
           "exported": true,
           "signature": "export function renderCsv(value: unknown): string"
         },
         {
           "name": "OutputEncoder",
           "kind": "interface",
-          "line": 657,
+          "line": 665,
           "exported": false,
           "signature": "interface OutputEncoder { readonly render: (payload: unknown) => string; readonly terminator: string; readonly omitEmpty: boolean; }"
         },
         {
           "name": "OUTPUT_ENCODERS",
           "kind": "const",
-          "line": 663,
+          "line": 671,
           "exported": false,
           "signature": "const OUTPUT_ENCODERS: Record<OutputFormat, OutputEncoder> = { table: { render: renderTable, terminator: '\\n', omitEmpty: false }, yaml: { render: renderYaml, terminator: '\\n', omitEmpty: false }, csv…"
         },
         {
           "name": "createOutput",
           "kind": "function",
-          "line": 670,
+          "line": 678,
           "exported": true,
           "signature": "export function createOutput(opts: OutputOptions): Output"
         }

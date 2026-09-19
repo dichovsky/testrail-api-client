@@ -1,6 +1,6 @@
-#!/usr/bin/env node
 import { createRequire } from 'node:module';
 import { TestRailClient } from '../client.js';
+import type { TestRailConfig } from '../types.js';
 import { MAX_STDIN_BYTES } from '../constants.js';
 import { resolveActionInvocation, validateMetaCommandFlags } from './action-invocation.js';
 import { resolveAuth } from './auth.js';
@@ -12,7 +12,6 @@ import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
 import { KNOWN_FLAGS, parseCliArgv, validateSuppliedFlagTypes, type SuppliedFlagOccurrence } from './flags.js';
 import { sanitizeForTerminal } from './sanitize.js';
-import { readBoundedStdin } from './stdin.js';
 import { parseId } from './ids.js';
 import type { BodyInput } from './handler-context.js';
 import {
@@ -34,24 +33,63 @@ const VERSION: string = (require('../../package.json') as { version: string }).v
 // composes them with the static trailing blocks (auth, options, etc.).
 const HELP = buildHelpText();
 
+/** Exit codes. `2` marks an argv/environment-shape refusal that sent no request. */
+const EXIT_SUCCESS = 0;
+const EXIT_FAILURE = 1;
+const EXIT_ARGV_INVALID = 2;
+
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 /**
- * Compute the exit code in an async function and assign `process.exitCode`
- * at the very end. An immediate `process.exit()` can truncate pipe-backed
- * stdout on supported Node releases. parseArgs and createOutput are invoked inside main() so
- * any failure during initialization (e.g. an invalid CLI shape that makes
- * parseArgs throw) is funneled through the same exit-code return path
- * rather than escaping as an uncaught module-evaluation error.
+ * Everything the CLI touches outside itself.
+ *
+ * Reaching for `process` directly is what made the CLI untestable: `main` was
+ * not exported and ran at module scope, so six test files re-imported the
+ * module and polled `process.exitCode`, and the two bugs that actually shipped
+ * — stdin detection (#230) and a client-constructor argument (#281) — sat in
+ * wiring no unit test could reach.
+ *
+ * `src/cli.ts` builds the real one; a test supplies fakes and gets an exit code
+ * back. Process-wide effects a test must not trigger stay in the wrapper:
+ * signal handlers are installed by its `createClient`, and `process.exitCode`
+ * is assigned there.
  */
-async function main(): Promise<number> {
+export interface CliRuntime {
+    /** argv with the node binary and script path already removed. */
+    readonly argv: readonly string[];
+    readonly env: Readonly<Record<string, string | undefined>>;
+    readonly stdout: (chunk: string) => void;
+    readonly stderr: (chunk: string) => void;
+    readonly stdin: {
+        /** True only for an interactive terminal; a pipe or redirect is false. */
+        readonly isTTY: boolean;
+        readonly read: (maxBytes: number) => string;
+    };
+    readonly createClient: (config: TestRailConfig) => TestRailClient;
+}
+
+/**
+ * Run one CLI invocation and resolve with its exit code.
+ *
+ * Never throws for an expected failure. `parseCliArgv` and `createOutput` run
+ * inside, so an initialization failure is funneled through the same exit-code
+ * path rather than escaping as an uncaught module-evaluation error.
+ *
+ * Two writers still bypass the runtime and reach `process.stdout` directly:
+ * `emitStdoutAck` (the raw-binary path behind `attachment get --out -`) and the
+ * `install-skill` / `uninstall-skill` meta-commands, which build their own
+ * quiet-aware writers. Routing those needs non-optional writers on
+ * `HandlerContext`, which is ARCH #13's job — until then a caller cannot assume
+ * every byte goes through `runtime.stdout`.
+ */
+export async function runCli(runtime: CliRuntime): Promise<number> {
     let values: Record<string, unknown>;
     let positionals: string[];
     let suppliedFlags: string[];
     let flagOccurrences: SuppliedFlagOccurrence[];
     try {
         // Shared with the flag-shape tests so neither can drift from the other.
-        const parsed = parseCliArgv(process.argv.slice(2));
+        const parsed = parseCliArgv([...runtime.argv]);
         values = parsed.values;
         positionals = parsed.positionals;
         suppliedFlags = parsed.suppliedFlags;
@@ -64,10 +102,12 @@ async function main(): Promise<number> {
         // tightening; this catch funnels any such failure through the
         // controlled exit path instead of crashing the module, while still
         // honoring the "no stderr writes under --quiet" rule.
-        if (!process.argv.includes('--quiet')) {
-            process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
+        if (!runtime.argv.includes('--quiet')) {
+            runtime.stderr(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
         }
-        return 1;
+        // The only failure that cannot use `fail()`: `createOutput` has not run
+        // yet, so --quiet is honoured against raw argv instead.
+        return EXIT_FAILURE;
     }
 
     // Derive --quiet / --format up-front so the unknown-flag gate and the
@@ -82,15 +122,25 @@ async function main(): Promise<number> {
     // explicitly — otherwise the renderer would silently fall through to
     // the JSON path, masking the user's typo.
     const format: OutputFormat = isOutputFormat(formatRaw) ? formatRaw : 'json';
-    const { out, err, errRaw } = createOutput({ quiet, format });
+    const { out, err, errRaw } = createOutput({ quiet, format, stdout: runtime.stdout, stderr: runtime.stderr });
+
+    /**
+     * Report a failure and yield its exit code, so the code is a property of
+     * the failure rather than a number hand-written at each return. Sixteen
+     * sites previously spelled `err(...); return 1;` by hand, with a lone
+     * `return 2` among them that read no differently from its neighbours.
+     */
+    const fail = (message: string, exitCode: number = EXIT_FAILURE): number => {
+        err(message);
+        return exitCode;
+    };
 
     // Reject unknown --format values with a clear, quiet-aware error. The
     // assignment above defaults invalid values to 'json' so createOutput
     // always gets a valid format (defense-in-depth); the error path below
     // surfaces the typo before any handler runs.
     if (typeof formatRaw === 'string' && !isOutputFormat(formatRaw)) {
-        err(`unknown --format '${formatRaw}'. Valid values: ${OUTPUT_FORMATS.join(', ')}.`);
-        return 1;
+        return fail(`unknown --format '${formatRaw}'. Valid values: ${OUTPUT_FORMATS.join(', ')}.`);
     }
 
     // Post-parse strict gate: reject any flag not in KNOWN_FLAGS. Catches
@@ -101,25 +151,23 @@ async function main(): Promise<number> {
             // CTF #16: err() sanitizes the user-controlled flag name before
             // reflecting it. An argv like `--\x1b]0;evil\x07` would
             // otherwise execute the OSC. err() also honors --quiet.
-            err(`unknown flag '--${key}'. Run --help for the full list.`);
-            return 1;
+            return fail(`unknown flag '--${key}'. Run --help for the full list.`);
         }
     }
 
     const flagTypes = validateSuppliedFlagTypes(flagOccurrences);
     if (!flagTypes.ok) {
-        err(flagTypes.error);
-        return 1;
+        return fail(flagTypes.error);
     }
 
     if (values['version'] === true) {
-        process.stdout.write(`testrail-cli v${VERSION}\n`);
-        return 0;
+        runtime.stdout(`testrail-cli v${VERSION}\n`);
+        return EXIT_SUCCESS;
     }
 
     if (values['help'] === true || positionals.length === 0) {
-        process.stdout.write(`${HELP}\n`);
-        return 0;
+        runtime.stdout(`${HELP}\n`);
+        return EXIT_SUCCESS;
     }
 
     // `install-skill` is a meta-command (manages the bundled skill on the
@@ -128,8 +176,7 @@ async function main(): Promise<number> {
     if (positionals[0] === 'install-skill') {
         const metaFlags = validateMetaCommandFlags('install-skill', suppliedFlags);
         if (!metaFlags.ok) {
-            err(metaFlags.error);
-            return 1;
+            return fail(metaFlags.error);
         }
         return runInstallSkill(
             {
@@ -149,8 +196,7 @@ async function main(): Promise<number> {
     if (positionals[0] === 'uninstall-skill') {
         const metaFlags = validateMetaCommandFlags('uninstall-skill', suppliedFlags);
         if (!metaFlags.ok) {
-            err(metaFlags.error);
-            return 1;
+            return fail(metaFlags.error);
         }
         return runUninstallSkill({
             global: values['global'] === true,
@@ -165,14 +211,12 @@ async function main(): Promise<number> {
         // err() is the standard quiet-aware path; usage hint is structurally
         // an error message (missing required args), so prefix-format matches
         // every other 'Error: …' write.
-        err('Usage: testrail <resource> <action> [args] [options]. Run with --help for details.');
-        return 1;
+        return fail('Usage: testrail <resource> <action> [args] [options]. Run with --help for details.');
     }
 
     const dispatched = dispatch(resource, action);
     if (!dispatched.ok) {
-        err(dispatched.error);
-        return 1;
+        return fail(dispatched.error);
     }
 
     const actionSpec = dispatched.spec;
@@ -186,8 +230,7 @@ async function main(): Promise<number> {
         dryRun,
     });
     if (!invocationResult.ok) {
-        err(invocationResult.error);
-        return 1;
+        return fail(invocationResult.error);
     }
     const invocation = invocationResult.invocation;
 
@@ -195,10 +238,9 @@ async function main(): Promise<number> {
     // or resolving credentials. Dry-run never reserves a diagnostic file.
     const diagnosticPath = values['diagnostic-file'];
     if (!dryRun && typeof diagnosticPath === 'string' && process.platform === 'win32') {
-        err(
+        return fail(
             '--diagnostic-file is unavailable on Windows because private file permissions cannot be guaranteed; no API request was sent.',
         );
-        return 1;
     }
 
     // Validate response-mode configuration before auth resolution or any
@@ -206,10 +248,9 @@ async function main(): Promise<number> {
     // the explicit flag is additive, but does not conceal an invalid
     // environment value.
     const strictResponsesFlag = values['strict-responses'];
-    const strictResponses = resolveStrictResponses(strictResponsesFlag === true, process.env[STRICT_RESPONSES_ENV_VAR]);
+    const strictResponses = resolveStrictResponses(strictResponsesFlag === true, runtime.env[STRICT_RESPONSES_ENV_VAR]);
     if (!strictResponses.ok) {
-        err(strictResponses.error);
-        return 1;
+        return fail(strictResponses.error);
     }
 
     // Defense-in-depth env-var gate for destructive actions. Runs before
@@ -221,18 +262,16 @@ async function main(): Promise<number> {
     // TO the per-handler `--yes` check — both must be satisfied. See SEC
     // notes in CHANGELOG.md for the breaking-change rationale.
     const pagination = invocation.pagination;
-    const envGate = checkDestructiveEnvGate(actionSpec, process.env, dryRun);
+    const envGate = checkDestructiveEnvGate(actionSpec, runtime.env, dryRun);
     if (!envGate.ok) {
-        err(envGate.error);
-        return 2;
+        return fail(envGate.error, EXIT_ARGV_INVALID);
     }
 
     // Validate path-param count before stdin/auth work so a wrong arg count
     // fails immediately without reading stdin or checking credentials.
     const paramCountResult = checkPathParamCount(actionSpec, pathParams);
     if (!paramCountResult.ok) {
-        err(paramCountResult.error);
-        return 1;
+        return fail(paramCountResult.error);
     }
 
     // CTF #11: --api-key (argv string) was removed in v3.0 because argv is
@@ -250,23 +289,20 @@ async function main(): Promise<number> {
         // `undefined` for a pipe/redirect — it is never `false`, so the old
         // `!== false` test rejected the documented `echo $KEY | testrail …`
         // pipe. Mirror the canonical TTY check in file-input.ts.
-        if (process.stdin.isTTY === true) {
-            err('--api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).');
-            return 1;
+        if (runtime.stdin.isTTY) {
+            return fail('--api-key-stdin requires the API key to be piped on stdin (e.g. `echo $KEY | testrail ...`).');
         }
         try {
             // Trim trailing newline / whitespace so `echo $KEY | …` works
             // without the user having to strip the \n themselves. The
             // 1 MiB cap (CTF #24) is orders of magnitude beyond any sane
             // API key; if it's exceeded the user piped the wrong thing.
-            apiKeyFromStdin = readBoundedStdin(MAX_STDIN_BYTES).trim();
+            apiKeyFromStdin = runtime.stdin.read(MAX_STDIN_BYTES).trim();
         } catch (e: unknown) {
-            err(`cannot read --api-key-stdin: ${e instanceof Error ? e.message : String(e)}`);
-            return 1;
+            return fail(`cannot read --api-key-stdin: ${e instanceof Error ? e.message : String(e)}`);
         }
         if (apiKeyFromStdin === '') {
-            err('--api-key-stdin received an empty stdin input.');
-            return 1;
+            return fail('--api-key-stdin received an empty stdin input.');
         }
     }
 
@@ -277,17 +313,16 @@ async function main(): Promise<number> {
             apiKey: apiKeyFromStdin,
         },
         {
-            ...(process.env['TESTRAIL_BASE_URL'] !== undefined && {
-                TESTRAIL_BASE_URL: process.env['TESTRAIL_BASE_URL'],
+            ...(runtime.env['TESTRAIL_BASE_URL'] !== undefined && {
+                TESTRAIL_BASE_URL: runtime.env['TESTRAIL_BASE_URL'],
             }),
-            ...(process.env['TESTRAIL_EMAIL'] !== undefined && { TESTRAIL_EMAIL: process.env['TESTRAIL_EMAIL'] }),
-            ...(process.env['TESTRAIL_API_KEY'] !== undefined && { TESTRAIL_API_KEY: process.env['TESTRAIL_API_KEY'] }),
+            ...(runtime.env['TESTRAIL_EMAIL'] !== undefined && { TESTRAIL_EMAIL: runtime.env['TESTRAIL_EMAIL'] }),
+            ...(runtime.env['TESTRAIL_API_KEY'] !== undefined && { TESTRAIL_API_KEY: runtime.env['TESTRAIL_API_KEY'] }),
         },
     );
 
     if (!auth.ok) {
-        err(auth.error);
-        return 1;
+        return fail(auth.error);
     }
 
     const args = invocation.args;
@@ -307,11 +342,11 @@ async function main(): Promise<number> {
         // prevents "Multiple body sources" errors in non-interactive
         // environments (CI, Docker, cron) where isTTY=undefined but the user
         // already passed --data.
-        ...(process.stdin.isTTY !== true &&
+        ...(!runtime.stdin.isTTY &&
             !isFileInputAction &&
             !apiKeyStdin &&
             values['data'] === undefined &&
-            values['data-file'] === undefined && { readStdin: () => readBoundedStdin(MAX_STDIN_BYTES) }),
+            values['data-file'] === undefined && { readStdin: () => runtime.stdin.read(MAX_STDIN_BYTES) }),
     };
 
     const force = values['force'] === true;
@@ -351,7 +386,7 @@ async function main(): Promise<number> {
         // the constructor's validateTimeout rejects out-of-range (> 5 min) via
         // TestRailValidationError.
         const timeoutFlag = values['timeout'] as string | undefined;
-        const timeoutEnv = process.env['TESTRAIL_TIMEOUT'];
+        const timeoutEnv = runtime.env['TESTRAIL_TIMEOUT'];
         const usingTimeoutFlag = timeoutFlag !== undefined && timeoutFlag !== '';
         const timeoutRaw = usingTimeoutFlag
             ? timeoutFlag
@@ -373,10 +408,9 @@ async function main(): Promise<number> {
         // The CLI is a standalone entry-point process: opt in to the
         // signal handlers so Ctrl-C / SIGTERM trigger destroy() and the
         // conventional 130/143 exit codes. Library consumers leave this off.
-        client = new TestRailClient({
+        client = runtime.createClient({
             ...auth.config,
             ...timeoutConfig,
-            registerProcessHandlers: true,
             onSchemaMismatch: schemaMismatchReporter.onSchemaMismatch,
             // A polling action re-reads one endpoint for the life of the
             // process. The GET cache's default TTL is longer than any interval
@@ -401,7 +435,7 @@ async function main(): Promise<number> {
         });
         succeeded = true;
         schemaMismatchReporter.flush();
-        return 0;
+        return EXIT_SUCCESS;
     } catch (e: unknown) {
         schemaMismatchReporter.flush();
         // err() already sanitizes; passing the raw message is safe.
@@ -419,25 +453,9 @@ async function main(): Promise<number> {
                 );
             }
         }
-        return 1;
+        return EXIT_FAILURE;
     } finally {
         client?.destroy();
         finishDiagnostic();
     }
 }
-
-// main() catches all reachable errors internally and resolves with an exit
-// code; this rejection arm is a last-resort net for a hypothetical failure
-// that bypasses the inner try/catch (e.g. a synchronous throw from a
-// collaborator invoked outside main()'s try). It sanitizes the message before
-// writing to stderr so a control-char-laden error can't inject a terminal
-// escape, then leaves the event loop to flush both output streams naturally.
-main().then(
-    (code) => {
-        process.exitCode = code;
-    },
-    (e: unknown) => {
-        process.stderr.write(`Error: ${sanitizeForTerminal(e instanceof Error ? e.message : String(e))}\n`);
-        process.exitCode = 1;
-    },
-);
