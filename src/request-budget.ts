@@ -59,9 +59,37 @@ export interface RequestBudget {
 
 const AGGREGATE_EXPIRED = 'Aggregate request deadline exceeded';
 
-/** Raised whenever the allowance is gone. One construction site, not six. */
-function expiredError(): TestRailApiError {
-    return new TestRailApiError(408, AGGREGATE_EXPIRED);
+/**
+ * Marks an error as this module's own. Not derived from `status` or
+ * `statusText`: `statusText` is the server's reason phrase, so a 408 whose
+ * phrase happened to match would otherwise be mistaken for the caller's own
+ * deadline. A module-private symbol cannot arrive over the wire.
+ */
+const BUDGET_EXPIRY = Symbol('requestBudget.expired');
+
+/**
+ * Raised whenever the allowance is gone. One construction site — including the
+ * two in `client-core.ts`, which ask a budget whether it expired and then need
+ * the error that answer implies.
+ */
+export function budgetExpiredError(): TestRailApiError {
+    const error = new TestRailApiError(408, AGGREGATE_EXPIRED);
+    Object.defineProperty(error, BUDGET_EXPIRY, { value: true, enumerable: false });
+    return error;
+}
+
+/**
+ * Whether `error` is this module reporting that a budget ran out.
+ *
+ * Exists so a caller that supplied the deadline can recognise the resulting
+ * failure as its own, instead of re-deriving "did we expire?" by reading a
+ * clock. Those two answers disagree: `bound()` schedules `setTimeout` against
+ * the deadline, and Node timers may fire up to a millisecond EARLY relative to
+ * `Date.now()`, so a caller re-checking the wall clock can be told the deadline
+ * has not passed by the very rejection announcing that it has.
+ */
+export function isBudgetExpiry(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && BUDGET_EXPIRY in error;
 }
 
 export interface RequestBudgetOptions {
@@ -102,7 +130,7 @@ export function createRequestBudget({ deadlineAt, now = Date.now }: RequestBudge
             // surface as an unhandled rejection.
             void promise.catch(() => undefined);
             onExpiry?.();
-            return Promise.reject(expiredError());
+            return Promise.reject(budgetExpiredError());
         }
 
         // Definitely-assigned: the `Promise` executor runs synchronously, so
@@ -113,7 +141,7 @@ export function createRequestBudget({ deadlineAt, now = Date.now }: RequestBudge
         const expiry = new Promise<never>((_resolve, reject) => {
             timeoutId = setTimeout(
                 bindOperation(() => {
-                    reject(expiredError());
+                    reject(budgetExpiredError());
                     onExpiry?.();
                 }),
                 left,
@@ -132,7 +160,7 @@ export function createRequestBudget({ deadlineAt, now = Date.now }: RequestBudge
         expiredBy: (instant) => instant >= deadlineAt,
         allowanceFor: (configuredMs) => {
             const left = remaining();
-            if (left <= 0) throw expiredError();
+            if (left <= 0) throw budgetExpiredError();
             return configuredMs === 0 ? left : Math.min(configuredMs, left);
         },
         bound,

@@ -15,7 +15,7 @@ import {
     type OperationHandle,
 } from './operation-tracking.js';
 import { createUploadSource } from './upload-source.js';
-import { createRequestBudget, type RequestBudget } from './request-budget.js';
+import { budgetExpiredError, createRequestBudget, type RequestBudget } from './request-budget.js';
 
 const USER_AGENT = `${pkg.description}/${pkg.version}`;
 import {
@@ -824,7 +824,7 @@ export class TestRailClientCore {
                 // a limiter slot without a corresponding fetch.
                 const admissionTime = Date.now();
                 if (spec.budget.expiredBy(admissionTime)) {
-                    throw new TestRailApiError(408, 'Aggregate request deadline exceeded');
+                    throw budgetExpiredError();
                 }
                 if (controller.signal.aborted || admissionTime >= requestDeadlineAt) {
                     controller.abort();
@@ -918,7 +918,7 @@ export class TestRailClientCore {
 
                 if ((error as Error).name === 'AbortError') {
                     throw spec.budget.expired
-                        ? new TestRailApiError(408, 'Aggregate request deadline exceeded')
+                        ? budgetExpiredError()
                         : new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
                 }
 

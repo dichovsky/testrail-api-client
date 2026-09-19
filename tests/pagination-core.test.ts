@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { readBodyWithLimits } from '../src/body-reader.js';
 import { TestRailClient } from '../src/client.js';
 import { handleZodError, TestRailApiError, TestRailPaginationError, TestRailValidationError } from '../src/errors.js';
+import { budgetExpiredError } from '../src/request-budget.js';
 import { listOf, listOfNested, unwrapList, unwrapNestedList } from '../src/modules/list.js';
 import {
     collectAllPages,
@@ -308,6 +309,35 @@ describe('bounded sequential collection', () => {
             expect.objectContaining({ offset: undefined, limit: undefined }),
             expect.objectContaining({ offset: 2, limit: 7 }),
         ]);
+    });
+
+    it('reports max_duration when the budget expires a hair before the wall clock agrees', async () => {
+        // The aggregate hands its own `deadlineAt` to each page request, and
+        // `createRequestBudget` schedules `setTimeout` against it. Node timers
+        // may fire up to 1ms EARLY relative to `Date.now()`, so the budget can
+        // reject with its 408 while the aggregate's clock still reads just
+        // short of the deadline.
+        //
+        // Re-deriving "did we expire?" from the clock in the catch therefore
+        // misses, and the raw 408 escapes instead of the documented
+        // `TestRailPaginationError`. A caller branching on
+        // `TestRailPaginationError.reason` silently stops matching.
+        const clock = 1_000;
+        const deadlineAt = clock + 20;
+
+        await expect(
+            collectAllPages({
+                pageSize: 1,
+                maxDurationMs: 20,
+                // Frozen one millisecond short of the deadline: the state the
+                // wall clock is in when an early timer fires.
+                now: () => deadlineAt - 1,
+                // The real factory, not a hand-built lookalike: recognition is by a
+                // module-private brand, so an imitation is correctly NOT treated as
+                // this aggregate's own deadline.
+                fetchPage: () => Promise.reject(budgetExpiredError()),
+            }),
+        ).rejects.toMatchObject({ reason: 'max_duration' });
     });
 
     it('passes one fixed absolute deadline through every page request', async () => {
