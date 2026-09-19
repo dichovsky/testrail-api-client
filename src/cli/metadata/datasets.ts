@@ -1,7 +1,7 @@
 import { AddDatasetPayloadSchema, UpdateDatasetPayloadSchema } from '../../schemas.js';
 import { handleDatasetGet, handleDatasetList } from '../handlers/dataset.js';
 import { handleDatasetAdd, handleDatasetDelete, handleDatasetUpdate } from '../handlers/dataset-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `dataset` actions in their original relative order:
@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write
  *   [4] delete — write (destructive)
  */
-export const datasetActions = [
+export const datasetActions = defineActions([
     {
         resource: 'dataset',
         action: 'get',
@@ -27,7 +27,6 @@ export const datasetActions = [
         summary: 'List datasets in a project (pagination envelope)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_datasets/{project_id}',
-        pagination: { response: 'envelope', requestControls: false, collectionKey: 'datasets' },
         isWrite: false,
         handler: handleDatasetList,
     },
@@ -64,4 +63,4 @@ export const datasetActions = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleDatasetDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

@@ -1,7 +1,7 @@
 import { AddVariablePayloadSchema, UpdateVariablePayloadSchema } from '../../schemas.js';
 import { handleVariableList } from '../handlers/variable.js';
 import { handleVariableAdd, handleVariableDelete, handleVariableUpdate } from '../handlers/variable-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `variable` actions in their original relative order:
@@ -10,14 +10,13 @@ import type { ActionSpec } from './types.js';
  *   [2] update — write
  *   [3] delete — write (destructive)
  */
-export const variableActions = [
+export const variableActions = defineActions([
     {
         resource: 'variable',
         action: 'list',
         summary: 'List variables in a project (pagination envelope)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_variables/{project_id}',
-        pagination: { response: 'envelope', requestControls: false, collectionKey: 'variables' },
         isWrite: false,
         handler: handleVariableList,
     },
@@ -54,4 +53,4 @@ export const variableActions = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleVariableDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

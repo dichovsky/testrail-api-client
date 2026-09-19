@@ -6,7 +6,7 @@ import {
     handleLabelDeleteBulk,
     handleLabelUpdate,
 } from '../handlers/label-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `label` actions in their original relative order (TestRail Labels API, 2025):
@@ -17,7 +17,7 @@ import type { ActionSpec } from './types.js';
  *   [4] delete      — destructive write (single label)
  *   [5] delete-bulk — destructive write (body carries label IDs)
  */
-export const labelActions = [
+export const labelActions = defineActions([
     {
         resource: 'label',
         action: 'get',
@@ -33,7 +33,6 @@ export const labelActions = [
         summary: "List a project's labels (paginated)",
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_labels/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'labels' },
         isWrite: false,
         handler: handleLabelList,
     },
@@ -81,4 +80,4 @@ export const labelActions = [
         destructive: true,
         handler: handleLabelDeleteBulk,
     },
-] as const satisfies readonly ActionSpec[];
+]);

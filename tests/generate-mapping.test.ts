@@ -9,10 +9,12 @@
  * the build if the committed `docs/API-MAPPING.md` is out of date.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectActionsFromSource } from '../scripts/action-metadata-parser.js';
+import { ACTIONS } from '../src/cli/metadata.js';
+import { PAGINATED_ENDPOINTS, type PaginationContract } from '../src/cli/metadata/paginated-endpoints.js';
 import {
     EndpointsArraySchema,
     EndpointSchema,
@@ -131,56 +133,34 @@ describe('pagination registry', () => {
         expect(operations.has('get_attachments_for_plan_entry')).toBe(false);
     });
 
-    it('matches source ActionSpec pagination metadata bidirectionally', () => {
-        const endpointByApi = new Map(
+    it('keeps the pagination contract table equal to the endpoint inventory', () => {
+        // What gate E used to check, minus the half that is now unspellable.
+        //
+        // Gate E compared each endpoint's contract against a copy of it on the
+        // matching `ActionSpec`. That copy is gone — the CLI looks the contract
+        // up by `apiEndpoint` — so the only comparison left is between the two
+        // hand-maintained channels the constraints require: TestRail's
+        // documented inventory (`docs/testrail-endpoints.json`, which records
+        // what the API documents) and the runtime table the CLI reads.
+        const table = PAGINATED_ENDPOINTS as Record<string, PaginationContract>;
+        const fromInventory = Object.fromEntries(
             paginated.map((endpoint) => [`${endpoint.method} ${endpoint.path}`, endpoint.pagination]),
         );
-        const metadataDir = join(root, 'src', 'cli', 'metadata');
-        const actionsWithPagination = readdirSync(metadataDir)
-            .filter((name) => name.endsWith('.ts') && name !== 'types.ts')
-            .flatMap((name) => {
-                const path = join(metadataDir, name);
-                return collectActionsFromSource(readFileSync(path, 'utf8'), path);
-            })
-            .filter((action) => action.pagination !== undefined);
-        expect(actionsWithPagination).toHaveLength(24);
 
-        for (const action of actionsWithPagination) {
-            expect(action.pagination, action.apiEndpoint).toEqual(endpointByApi.get(action.apiEndpoint));
-        }
-        for (const [apiEndpoint] of endpointByApi) {
-            expect(
-                actionsWithPagination.some((action) => action.apiEndpoint === apiEndpoint),
-                apiEndpoint,
-            ).toBe(true);
+        expect(Object.keys(table).sort()).toEqual(Object.keys(fromInventory).sort());
+        for (const [key, contract] of Object.entries(fromInventory)) {
+            expect(table[key], key).toEqual(contract);
         }
     });
 
-    it('parses nested pagination object literals without executing action modules', () => {
-        const source = `
-            const sampleActions = [{
-                resource: 'case',
-                action: 'history',
-                apiEndpoint: 'GET get_history_for_case/{case_id}',
-                pagination: {
-                    response: 'nested-envelope',
-                    requestControls: true,
-                    collectionKey: 'history',
-                },
-            }];
-        `;
-        expect(collectActionsFromSource(source, 'sample.ts')).toEqual([
-            {
-                resource: 'case',
-                action: 'history',
-                apiEndpoint: 'GET get_history_for_case/{case_id}',
-                pagination: {
-                    response: 'nested-envelope',
-                    requestControls: true,
-                    collectionKey: 'history',
-                },
-            },
-        ]);
+    it('surfaces every paginated endpoint through at least one CLI command', () => {
+        // The other half of gate E's endpoint→ACTIONS direction. It is also a
+        // compile-time assertion (`_PaginatedEndpointsAreSurfaced`), but that
+        // one passes vacuously if `ActionEndpoint` ever widens to `string`, so
+        // this asserts the same fact somewhere a widening cannot silence.
+        const surfaced = new Set(ACTIONS.map((action) => action.apiEndpoint));
+        const unreachable = Object.keys(PAGINATED_ENDPOINTS).filter((endpoint) => !surfaced.has(endpoint));
+        expect(unreachable).toEqual([]);
     });
 
     it('reads an array wrapped in `as const satisfies`', () => {
@@ -846,82 +826,6 @@ describe('validateGates — gates B, C, C2, D, E', () => {
             // Strips rootPrefix from the file path, same as gate B.
             expect(gateD[0]).toContain('src/modules/runs.ts:10');
             expect(gateD[0]).toContain('no ActionSpec entry surfaces it on the CLI');
-        });
-    });
-
-    describe('gate E (pagination inventory ↔ ActionSpec)', () => {
-        const PAGINATED_ENDPOINT = { ...HAPPY_ENDPOINT, pagination: PAGINATION };
-        const PAGINATED_ACTION: ActionEntry = { ...HAPPY_ACTION, pagination: PAGINATION };
-
-        it('passes when both sides carry the same pagination contract', () => {
-            const errors = validateGates({
-                callSites: [HAPPY_CALL_SITE],
-                actions: [PAGINATED_ACTION],
-                endpoints: [PAGINATED_ENDPOINT],
-                recipes: HAPPY_RECIPE,
-            });
-            expect(errors.filter((error) => error.includes('[gate E'))).toEqual([]);
-        });
-
-        it('flags endpoint pagination omitted from the matching ActionSpec', () => {
-            const errors = validateGates({
-                callSites: [HAPPY_CALL_SITE],
-                actions: [HAPPY_ACTION],
-                endpoints: [PAGINATED_ENDPOINT],
-                recipes: HAPPY_RECIPE,
-            });
-            const gateE = errors.filter((error) => error.includes('[gate E'));
-            expect(gateE).toHaveLength(1);
-            expect(gateE[0]).toContain('endpoint→ACTIONS');
-            expect(gateE[0]).toContain('GET get_case/{case_id}');
-        });
-
-        it('flags any duplicate ActionSpec for a paginated endpoint that omits the contract', () => {
-            const alias: ActionEntry = {
-                resource: 'case',
-                action: 'list-alias',
-                apiEndpoint: HAPPY_ACTION.apiEndpoint,
-                skillRecipeExempt: true,
-            };
-            const errors = validateGates({
-                callSites: [HAPPY_CALL_SITE],
-                actions: [PAGINATED_ACTION, alias],
-                endpoints: [PAGINATED_ENDPOINT],
-                recipes: HAPPY_RECIPE,
-            });
-            const gateE = errors.filter((error) => error.includes('[gate E'));
-            expect(gateE).toHaveLength(1);
-            expect(gateE[0]).toContain('case:list-alias');
-        });
-
-        it('flags ActionSpec pagination omitted from the endpoint inventory', () => {
-            const errors = validateGates({
-                callSites: [HAPPY_CALL_SITE],
-                actions: [PAGINATED_ACTION],
-                endpoints: [HAPPY_ENDPOINT],
-                recipes: HAPPY_RECIPE,
-            });
-            const gateE = errors.filter((error) => error.includes('[gate E'));
-            expect(gateE).toHaveLength(1);
-            expect(gateE[0]).toContain('ACTIONS→endpoint');
-            expect(gateE[0]).toContain('case:get');
-        });
-
-        it('reports metadata disagreement in both directions', () => {
-            const mismatched: ActionEntry = {
-                ...PAGINATED_ACTION,
-                pagination: { ...PAGINATION, collectionKey: 'wrong_cases' },
-            };
-            const errors = validateGates({
-                callSites: [HAPPY_CALL_SITE],
-                actions: [mismatched],
-                endpoints: [PAGINATED_ENDPOINT],
-                recipes: HAPPY_RECIPE,
-            });
-            const gateE = errors.filter((error) => error.includes('[gate E'));
-            expect(gateE).toHaveLength(2);
-            expect(gateE.some((error) => error.includes('endpoint→ACTIONS'))).toBe(true);
-            expect(gateE.some((error) => error.includes('ACTIONS→endpoint'))).toBe(true);
         });
     });
 });

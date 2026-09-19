@@ -6,7 +6,7 @@ import {
     handleSectionMove,
     handleSectionUpdate,
 } from '../handlers/section-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `section` actions in their original relative order:
@@ -17,7 +17,7 @@ import type { ActionSpec } from './types.js';
  *   [4] move   — write (TestRail 6.5.2+)
  *   [5] delete — write (destructive)
  */
-export const sectionReadActions = [
+export const sectionReadActions = defineActions([
     {
         resource: 'section',
         action: 'get',
@@ -33,14 +33,13 @@ export const sectionReadActions = [
         summary: 'List sections in a project (optionally filtered by suite; paginated)',
         pathParams: [{ name: 'project_id', description: 'TestRail project ID' }],
         apiEndpoint: 'GET get_sections/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'sections' },
         flags: [{ name: 'suite-id' }],
         isWrite: false,
         handler: handleSectionList,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const sectionWriteActions = [
+export const sectionWriteActions = defineActions([
     {
         resource: 'section',
         action: 'add',
@@ -86,4 +85,4 @@ export const sectionWriteActions = [
         softMode: 'optional',
         handler: handleSectionDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

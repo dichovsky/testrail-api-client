@@ -5,7 +5,7 @@ import {
     handleConfigurationDelete,
     handleConfigurationUpdate,
 } from '../handlers/configuration-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `configuration` actions in their original relative order:
@@ -21,7 +21,7 @@ import type { ActionSpec } from './types.js';
  * config CRUD are split into two CLI resources (`configuration` and
  * `configuration-group`) because the path-param contract is asymmetric.
  */
-export const configurationReadActions = [
+export const configurationReadActions = defineActions([
     {
         resource: 'configuration',
         action: 'list',
@@ -31,9 +31,9 @@ export const configurationReadActions = [
         isWrite: false,
         handler: handleConfigurationList,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const configurationWriteActions = [
+export const configurationWriteActions = defineActions([
     {
         resource: 'configuration',
         action: 'add',
@@ -67,4 +67,4 @@ export const configurationWriteActions = [
         helpExample: '(no body; --soft NOT supported)',
         handler: handleConfigurationDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

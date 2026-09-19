@@ -1,7 +1,7 @@
 import { AddGroupPayloadSchema, UpdateGroupPayloadSchema } from '../../schemas.js';
 import { handleGroupGet, handleGroupList } from '../handlers/group.js';
 import { handleGroupAdd, handleGroupDelete, handleGroupUpdate } from '../handlers/group-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `group` actions in their original relative order (all TestRail 7.5+):
@@ -16,7 +16,7 @@ import type { ActionSpec } from './types.js';
  * `update`/`delete` take a single `group_id`. Disjoint from
  * `configuration-group` (project-scoped, owns nested configs).
  */
-export const groupActions = [
+export const groupActions = defineActions([
     {
         resource: 'group',
         action: 'get',
@@ -32,7 +32,6 @@ export const groupActions = [
         summary: 'List all user groups on the instance (pagination envelope; TestRail 7.5+)',
         pathParams: [],
         apiEndpoint: 'GET get_groups',
-        pagination: { response: 'envelope', requestControls: false, collectionKey: 'groups' },
         isWrite: false,
         handler: handleGroupList,
     },
@@ -69,4 +68,4 @@ export const groupActions = [
         helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.5+)',
         handler: handleGroupDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

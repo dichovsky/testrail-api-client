@@ -1,11 +1,11 @@
 import { handleCaseTypeList } from '../handlers/case-type.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `case-type` actions:
  *   [0] list — read
  */
-export const caseTypeActions = [
+export const caseTypeActions = defineActions([
     {
         resource: 'case-type',
         action: 'list',
@@ -15,4 +15,4 @@ export const caseTypeActions = [
         isWrite: false,
         handler: handleCaseTypeList,
     },
-] as const satisfies readonly ActionSpec[];
+]);

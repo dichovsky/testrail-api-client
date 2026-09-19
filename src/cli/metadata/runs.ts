@@ -2,7 +2,7 @@ import { AddRunPayloadSchema, UpdateRunPayloadSchema } from '../../schemas.js';
 import { handleRunGet, handleRunList } from '../handlers/run.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../handlers/run-write.js';
 import { handleRunWatch } from '../handlers/run-watch.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `run` actions in their original relative order:
@@ -14,7 +14,7 @@ import type { ActionSpec } from './types.js';
  *   [5] close  — write (destructive)
  *   [6] delete — write (destructive)
  */
-export const runReadActions = [
+export const runReadActions = defineActions([
     {
         resource: 'run',
         action: 'get',
@@ -30,7 +30,6 @@ export const runReadActions = [
         summary: 'List runs in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_runs/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'runs' },
         flags: [
             { name: 'project-id', required: true },
             { name: 'created-after' },
@@ -59,9 +58,9 @@ export const runReadActions = [
         polls: true,
         handler: handleRunWatch,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const runWriteActions = [
+export const runWriteActions = defineActions([
     {
         resource: 'run',
         action: 'add',
@@ -107,4 +106,4 @@ export const runWriteActions = [
         softMode: 'optional',
         handler: handleRunDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

@@ -8,26 +8,31 @@ import {
     validateCliPagination,
 } from '../src/cli/pagination.js';
 
-const paginatedAction = (requestControls: boolean): ActionSpec => ({
+// Pagination is no longer declared on the spec — it is looked up from the
+// endpoint's own contract — so these fixtures pick real endpoints whose
+// contract has the shape each test needs. `get_cases` documents caller-driven
+// page controls; `get_variables` is response-driven; `get_user` is not
+// paginated at all.
+const ENDPOINT = {
+    requestControls: 'GET get_cases/{project_id}',
+    responseDriven: 'GET get_variables/{project_id}',
+    unpaginated: 'GET get_user/{user_id}',
+} as const;
+
+const specFor = (apiEndpoint: string): ActionSpec => ({
     resource: 'case',
     action: 'list',
     summary: 'test action',
     pathParams: [],
-    apiEndpoint: 'GET get_cases/{project_id}',
-    pagination: { response: 'envelope', requestControls, collectionKey: 'cases' },
+    apiEndpoint,
     isWrite: false,
     handler: async () => undefined,
 });
 
-const unpaginatedAction = (): ActionSpec => ({
-    resource: 'case',
-    action: 'list',
-    summary: 'test action',
-    pathParams: [],
-    apiEndpoint: 'GET get_cases/{project_id}',
-    isWrite: false,
-    handler: async () => undefined,
-});
+const paginatedAction = (requestControls: boolean): ActionSpec =>
+    specFor(requestControls ? ENDPOINT.requestControls : ENDPOINT.responseDriven);
+
+const unpaginatedAction = (): ActionSpec => specFor(ENDPOINT.unpaginated);
 
 const itemsControlsOnlyAction = (): ActionSpec => ({
     ...unpaginatedAction(),

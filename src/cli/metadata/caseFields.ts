@@ -1,14 +1,14 @@
 import { AddCaseFieldPayloadSchema } from '../../schemas.js';
 import { handleCaseFieldList } from '../handlers/case-field.js';
 import { handleCaseFieldAdd } from '../handlers/case-field-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `case-field` actions in their original relative order:
  *   [0] list — read
  *   [1] add  — write (admin-only)
  */
-export const caseFieldReadActions = [
+export const caseFieldReadActions = defineActions([
     {
         resource: 'case-field',
         action: 'list',
@@ -18,9 +18,9 @@ export const caseFieldReadActions = [
         isWrite: false,
         handler: handleCaseFieldList,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const caseFieldWriteActions = [
+export const caseFieldWriteActions = defineActions([
     {
         resource: 'case-field',
         action: 'add',
@@ -32,4 +32,4 @@ export const caseFieldWriteActions = [
         isWrite: true,
         handler: handleCaseFieldAdd,
     },
-] as const satisfies readonly ActionSpec[];
+]);

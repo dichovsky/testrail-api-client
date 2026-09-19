@@ -1,14 +1,14 @@
 import { AddProjectPayloadSchema, UpdateProjectPayloadSchema } from '../../schemas.js';
 import { handleProjectGet, handleProjectList } from '../handlers/project.js';
 import { handleProjectAdd, handleProjectDelete, handleProjectUpdate } from '../handlers/project-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `project` actions, split the way the barrel consumes them. `ACTIONS`
  * interleaves reads and writes from several resources, so each half is its own
  * export rather than a slice of one array — an index that nothing checks.
  */
-export const projectReadActions = [
+export const projectReadActions = defineActions([
     {
         resource: 'project',
         action: 'get',
@@ -24,14 +24,13 @@ export const projectReadActions = [
         summary: 'List all projects (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_projects',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'projects' },
         flags: [{ name: 'is-completed' }],
         isWrite: false,
         handler: handleProjectList,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const projectWriteActions = [
+export const projectWriteActions = defineActions([
     {
         resource: 'project',
         action: 'add',
@@ -66,4 +65,4 @@ export const projectWriteActions = [
         helpExample: '(no body; --soft NOT supported by TestRail; highest blast radius)',
         handler: handleProjectDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

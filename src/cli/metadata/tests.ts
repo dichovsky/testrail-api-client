@@ -1,7 +1,7 @@
 import { UpdateTestLabelsPayloadSchema, UpdateTestsLabelsPayloadSchema } from '../../schemas.js';
 import { handleTestGet, handleTestList } from '../handlers/test.js';
 import { handleTestUpdate, handleTestUpdateBulk } from '../handlers/test-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `test` actions in their original relative order:
@@ -14,7 +14,7 @@ import type { ActionSpec } from './types.js';
  * map to TestRail's `update_test` / `update_tests`; the CLI action names spell
  * out the label-only scope so users don't expect a full `test update`.
  */
-export const testReadActions = [
+export const testReadActions = defineActions([
     {
         resource: 'test',
         action: 'get',
@@ -31,14 +31,13 @@ export const testReadActions = [
         summary: 'List tests in a run (optionally filtered by status, paginated)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_tests/{run_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'tests' },
         flags: [{ name: 'status-id' }, { name: 'label-id' }],
         isWrite: false,
         handler: handleTestList,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const testWriteActions = [
+export const testWriteActions = defineActions([
     {
         resource: 'test',
         action: 'update-labels',
@@ -61,4 +60,4 @@ export const testWriteActions = [
         isWrite: true,
         handler: handleTestUpdateBulk,
     },
-] as const satisfies readonly ActionSpec[];
+]);

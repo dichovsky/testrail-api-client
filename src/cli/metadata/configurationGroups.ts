@@ -4,7 +4,7 @@ import {
     handleConfigurationGroupDelete,
     handleConfigurationGroupUpdate,
 } from '../handlers/configuration-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `configuration-group` actions in their original relative order:
@@ -17,7 +17,7 @@ import type { ActionSpec } from './types.js';
  * split because the path-param contract is asymmetric (group add takes a
  * `project_id`; config add takes a `config_group_id`).
  */
-export const configurationGroupActions = [
+export const configurationGroupActions = defineActions([
     {
         resource: 'configuration-group',
         action: 'add',
@@ -52,4 +52,4 @@ export const configurationGroupActions = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleConfigurationGroupDelete,
     },
-] as const satisfies readonly ActionSpec[];
+]);

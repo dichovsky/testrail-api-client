@@ -1,7 +1,7 @@
 import { UserAddPayloadSchema, UserUpdatePayloadSchema } from '../../schemas.js';
 import { handleUserGet, handleUserList, handleUserGetByEmail, handleUserGetCurrent } from '../handlers/user.js';
 import { handleUserAdd, handleUserUpdate } from '../handlers/user-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `user` actions in their original relative order:
@@ -12,7 +12,7 @@ import type { ActionSpec } from './types.js';
  *   [4] add          — write (TestRail 7.3+)
  *   [5] update       — write (TestRail 7.3+)
  */
-export const userReadActions = [
+export const userReadActions = defineActions([
     {
         resource: 'user',
         action: 'get',
@@ -51,9 +51,9 @@ export const userReadActions = [
         isWrite: false,
         handler: handleUserGetCurrent,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const userWriteActions = [
+export const userWriteActions = defineActions([
     {
         resource: 'user',
         action: 'add',
@@ -76,4 +76,4 @@ export const userWriteActions = [
         isWrite: true,
         handler: handleUserUpdate,
     },
-] as const satisfies readonly ActionSpec[];
+]);

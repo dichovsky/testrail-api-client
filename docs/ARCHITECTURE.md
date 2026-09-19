@@ -405,7 +405,7 @@ value-specific validation still run at their own boundaries.
 - `apiEndpoint` — the TestRail endpoint (`'METHOD path'`); the API-mapping generator binds it to the linked module method's `@testrail` tag.
 - `pathParams: readonly PathParam[]` — `{ name, description }` tuples.
 - `bodySchema?` — Zod schema for `--data` / `--data-file` / stdin payloads. Absent for reads, no-body POSTs (`run close`), and file-input actions.
-- `pagination?` — response shape, caller-control support, and collection key. Must match the endpoint inventory exactly (mapping gate E).
+- Pagination is **not** an `ActionSpec` field. The contract lives in `src/cli/metadata/paginated-endpoints.ts`, keyed by `apiEndpoint`, and the CLI reads it there.
 - `fileInput?` / `fileOutput?` — binary I/O flags (`--file <path>` / `--out <path>`).
 - `outputKind?: 'binary' | 'text'` — encoding hint.
 - `isWrite: boolean`, `destructive?: boolean` — affects dry-run applicability and `--yes` gating.
@@ -416,7 +416,7 @@ Consumers:
 1. `dispatch.ts` derives both `HANDLERS` and `RESOURCES` from `ACTIONS`.
 2. `src/cli/help.ts` generates the action catalog from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD). Its option reference comes from the typed `CLI_OPTION_DOCUMENTATION` registry in `src/cli/flags.ts`; only the non-option trailing guidance (binary stdio, meta, auth, and safety semantics) is hand-written.
 3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema sections from `ACTIONS`, and renders the complete CLI option reference from `CLI_OPTION_DOCUMENTATION`.
-4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C), reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D), and checks pagination metadata bidirectionally (gate E).
+4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C) and reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D). Pagination is no longer gated: an `ActionSpec` reads its endpoint's contract rather than restating it, so there is nothing to compare.
 5. `resolveActionInvocation()` combines `flags` with capabilities derived from pagination/body/file/write/destructive metadata, rejects supplied known-but-irrelevant flags and missing required values before auth, and projects only catalogued handler/pagination inputs. The same seam validates meta-command applicability before install/uninstall can mutate disk.
 
 ### 6.4 Handler conventions — `src/cli/handlers/`
@@ -620,7 +620,7 @@ The in-process CLI suite keeps its large command matrix fast. `scripts/package-s
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | `CODEMAP.md`                                             | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)                               | `npm run codemap:check` (pretest + CI)                      |
 | `skill/SKILL.md`, `skill/reference/payload-schemas.yaml` | `scripts/generate-skill.ts` (consumes source `ACTIONS` and `CLI_OPTION_DOCUMENTATION` directly through `tsx`) | `npm run skill:check` (in-memory render/content comparison) |
-| `docs/API-MAPPING.md`                                    | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D/E)                              | `npm run mapping:check` (pretest + CI)                      |
+| `docs/API-MAPPING.md`                                    | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)                                | `npm run mapping:check` (pretest + CI)                      |
 | `AGENTS.md`                                              | `npm run agents-md` (consumes `ACTIONS`)                                                                      | `npm run agents-md:check` (pretest + CI)                    |
 
 All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.

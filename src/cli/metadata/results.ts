@@ -12,7 +12,7 @@ import {
     handleResultAddByTest,
     handleResultEdit,
 } from '../handlers/result-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `result` actions in their original relative order:
@@ -25,14 +25,13 @@ import type { ActionSpec } from './types.js';
  *   [6] add-by-test       — write
  *   [7] edit              — write
  */
-export const resultReadActions = [
+export const resultReadActions = defineActions([
     {
         resource: 'result',
         action: 'list',
         summary: 'List results for a run (paginated; creator/date, status, and defect filters supported)',
         pathParams: [],
         apiEndpoint: 'GET get_results_for_run/{run_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'results' },
         flags: [
             { name: 'run-id', required: true },
             { name: 'created-after' },
@@ -50,7 +49,6 @@ export const resultReadActions = [
         summary: 'List results for a single test (paginated; --status-id / --defects-filter supported)',
         pathParams: [{ name: 'test_id', description: 'TestRail test ID' }],
         apiEndpoint: 'GET get_results/{test_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'results' },
         flags: [{ name: 'status-id' }, { name: 'defects-filter' }],
         isWrite: false,
         handler: handleResultListForTest,
@@ -64,14 +62,13 @@ export const resultReadActions = [
             { name: 'case_id', description: 'TestRail case ID' },
         ],
         apiEndpoint: 'GET get_results_for_case/{run_id}/{case_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'results' },
         flags: [{ name: 'status-id' }, { name: 'defects-filter' }],
         isWrite: false,
         handler: handleResultListForCase,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const resultWriteActions = [
+export const resultWriteActions = defineActions([
     {
         resource: 'result',
         action: 'add',
@@ -130,4 +127,4 @@ export const resultWriteActions = [
         isWrite: true,
         handler: handleResultEdit,
     },
-] as const satisfies readonly ActionSpec[];
+]);

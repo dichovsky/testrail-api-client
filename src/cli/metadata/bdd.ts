@@ -1,5 +1,5 @@
 import { handleBddAdd, handleBddGet, handleBddList, handleBddUpdate } from '../handlers/bdd.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `bdd` actions in their original relative order:
@@ -12,7 +12,7 @@ import type { ActionSpec } from './types.js';
  * UTF-8. `bdd add` and `bdd update` reuse the multipart upload path of
  * attachments.
  */
-export const bddActions = [
+export const bddActions = defineActions([
     {
         resource: 'bdd',
         action: 'get',
@@ -31,7 +31,6 @@ export const bddActions = [
         summary: 'List BDD entries in a project (suite/section/label/refs filters; paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_bdds/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'bdd' },
         flags: [
             { name: 'project-id', required: true },
             { name: 'suite-id' },
@@ -64,4 +63,4 @@ export const bddActions = [
         isWrite: true,
         handler: handleBddUpdate,
     },
-] as const satisfies readonly ActionSpec[];
+]);

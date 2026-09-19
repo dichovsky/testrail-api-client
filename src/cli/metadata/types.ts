@@ -21,16 +21,6 @@ export interface ActionFlagSpec {
     readonly required?: boolean;
 }
 
-/** Pagination contract mirrored from the upstream endpoint inventory. */
-export interface PaginationSpec {
-    /** Standard object envelope, or the outer-array envelope used by case history. */
-    response: 'envelope' | 'nested-envelope';
-    /** Whether TestRail documents caller-controlled page parameters. */
-    requestControls: boolean;
-    /** Response property containing the endpoint's entities. */
-    collectionKey: string;
-}
-
 export interface ActionSpec {
     resource: string;
     action: string;
@@ -56,14 +46,12 @@ export interface ActionSpec {
      *  directions (no orphan ActionSpec referencing a non-existent endpoint,
      *  no missing endpoints when the JSON says the CLI covers it). */
     apiEndpoint: string;
-    /** Kept in lockstep with `docs/testrail-endpoints.json` by mapping gate E. */
-    pagination?: PaginationSpec;
     /**
      * Preserve `--limit` / `--offset` in the default item-array mode when an
      * endpoint accepts those query controls but does not expose a stable
      * envelope contract for `--page` / `--all`. This is intentionally
-     * separate from `pagination`, whose shape is enforced against the
-     * endpoint inventory by mapping gate E.
+     * separate from the endpoint's own pagination contract, which lives in
+     * `paginated-endpoints.ts` and is keyed by `apiEndpoint`.
      */
     itemsRequestControls?: boolean;
     /**
@@ -126,4 +114,20 @@ export interface ActionSpec {
      *  in SKILL.md still covers them). The default (no flag) is to require a
      *  recipe so PR #114 / PR #118-style silent recipe drops are impossible. */
     skillRecipeExempt?: boolean;
+}
+
+/**
+ * Declare a group of CLI actions, preserving their `apiEndpoint` strings as
+ * literal types while leaving every other field at its declared width.
+ *
+ * `as const satisfies readonly ActionSpec[]` would also preserve the endpoint
+ * literals, but it preserves *everything* — which forces consumers reading an
+ * optional field off the union to narrow against every member that omits it,
+ * and makes the compiler spell all 134 entries' full shapes into the emitted
+ * declarations. The endpoint strings are the only projection anything needs.
+ */
+export function defineActions<const E extends string>(
+    actions: readonly (ActionSpec & { readonly apiEndpoint: E })[],
+): readonly (ActionSpec & { readonly apiEndpoint: E })[] {
+    return actions;
 }

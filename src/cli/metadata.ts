@@ -66,7 +66,7 @@ export type { ActionSpec, PathParam } from './metadata/types.js';
  * compiled clean. Each resource now exports its reads and writes separately and
  * the barrel spreads them by name.
  */
-const ACTION_TUPLE = [
+export const ACTIONS: readonly ActionSpec[] = [
     // ── Read actions ──────────────────────────────────────────────────────
     ...projectReadActions, // project get, list
     ...suiteReadActions, // suite get, list
@@ -142,19 +142,7 @@ const ACTION_TUPLE = [
     ...configurationWriteActions, // configuration add, update, delete
     // ── Label actions (TestRail Labels API, 2025) ─────────────────────────
     ...labelActions, // label get, list, add, update, delete, delete-bulk
-] as const satisfies readonly ActionSpec[];
-
-/**
- * Every `resource:action` the CLI exposes.
- *
- * Deliberately typed as the wide `readonly ActionSpec[]` rather than the
- * literal tuple above: a consumer reading an optional field (`flags`,
- * `softMode`, `destructive`) off a literal union has to narrow against every
- * member that omits it, which is churn for no gain. The literal types are kept
- * on `ACTION_TUPLE` because the endpoint assertions below are the only thing
- * that needs them.
- */
-export const ACTIONS: readonly ActionSpec[] = ACTION_TUPLE;
+];
 
 /** Look up the spec for a resource:action pair, or return undefined. */
 export function getActionSpec(resource: string, action: string): ActionSpec | undefined {
@@ -163,15 +151,68 @@ export function getActionSpec(resource: string, action: string): ActionSpec | un
 
 // ── Endpoint literal types ────────────────────────────────────────────────────
 
+/** The `apiEndpoint` strings a group of actions declares. */
+type EndpointsOf<T extends readonly { readonly apiEndpoint: string }[]> = T[number]['apiEndpoint'];
+
 /**
  * Every endpoint the CLI surfaces, as a union of string literals.
  *
+ * Built from the per-resource arrays rather than from `ACTIONS`, which is
+ * annotated `readonly ActionSpec[]` for its consumers. Inferring a literal
+ * tuple for all 134 entries instead made the compiler spell every entry's full
+ * shape into `dist/cli/metadata.d.ts` — 2 KB to 105 KB — for a projection that
+ * only ever needed the endpoint strings.
+ *
  * Only resolves to literals while every per-resource array is written
  * `as const satisfies readonly ActionSpec[]`. Annotating any one of them
- * `: readonly ActionSpec[]` instead widens this to plain `string` — see the
- * guard below, which exists for exactly that reason.
+ * `: readonly ActionSpec[]` widens this to plain `string` — see the guard
+ * below, which exists for exactly that reason.
  */
-export type ActionEndpoint = (typeof ACTION_TUPLE)[number]['apiEndpoint'];
+export type ActionEndpoint =
+    | EndpointsOf<typeof projectReadActions>
+    | EndpointsOf<typeof projectWriteActions>
+    | EndpointsOf<typeof suiteReadActions>
+    | EndpointsOf<typeof suiteWriteActions>
+    | EndpointsOf<typeof caseReadActions>
+    | EndpointsOf<typeof caseWriteActions>
+    | EndpointsOf<typeof runReadActions>
+    | EndpointsOf<typeof runWriteActions>
+    | EndpointsOf<typeof testReadActions>
+    | EndpointsOf<typeof testWriteActions>
+    | EndpointsOf<typeof resultReadActions>
+    | EndpointsOf<typeof resultWriteActions>
+    | EndpointsOf<typeof milestoneReadActions>
+    | EndpointsOf<typeof milestoneWriteActions>
+    | EndpointsOf<typeof userReadActions>
+    | EndpointsOf<typeof userWriteActions>
+    | EndpointsOf<typeof planReadActions>
+    | EndpointsOf<typeof planWriteActions>
+    | EndpointsOf<typeof sectionReadActions>
+    | EndpointsOf<typeof sectionWriteActions>
+    | EndpointsOf<typeof sharedStepReadActions>
+    | EndpointsOf<typeof sharedStepWriteActions>
+    | EndpointsOf<typeof reportActions>
+    | EndpointsOf<typeof caseStatusActions>
+    | EndpointsOf<typeof caseFieldReadActions>
+    | EndpointsOf<typeof caseFieldWriteActions>
+    | EndpointsOf<typeof resultFieldActions>
+    | EndpointsOf<typeof statusActions>
+    | EndpointsOf<typeof templateActions>
+    | EndpointsOf<typeof roleActions>
+    | EndpointsOf<typeof priorityActions>
+    | EndpointsOf<typeof caseTypeActions>
+    | EndpointsOf<typeof attachmentReadActions>
+    | EndpointsOf<typeof attachmentWriteActions>
+    | EndpointsOf<typeof bddActions>
+    | EndpointsOf<typeof variableActions>
+    | EndpointsOf<typeof groupActions>
+    | EndpointsOf<typeof datasetActions>
+    | EndpointsOf<typeof configurationReadActions>
+    | EndpointsOf<typeof configurationWriteActions>
+    | EndpointsOf<typeof configurationGroupActions>
+    | EndpointsOf<typeof labelActions>
+    | EndpointsOf<typeof versionActions>
+    | EndpointsOf<typeof dynamicFilterFieldActions>;
 
 /** Compile-time assertion helper: `Assert<false>` is an error. */
 type Assert<T extends true> = T;
@@ -184,11 +225,11 @@ type Assert<T extends true> = T;
  * a union of literals to `string`.
  *
  * That matters because a widened `ActionEndpoint` does not break anything
- * loudly — it makes the coverage assertions that depend on it pass while
- * checking nothing (`Exclude<X, string>` is `never` for every `X`). Deleting
- * this line to silence a merge conflict therefore disarms those assertions
- * silently, which is the failure mode this whole approach trades for gate E's
- * printed error message.
+ * loudly — it makes `_PaginatedEndpointsAreSurfaced` in
+ * `src/cli/metadata/paginated-endpoints.ts` pass while checking nothing
+ * (`Exclude<X, string>` is `never` for every `X`). Deleting this line to
+ * silence a merge conflict therefore disarms that assertion silently, which is
+ * the failure mode this approach trades for gate E's printed error message.
  *
  * If this fires, the fix is to restore `as const satisfies readonly
  * ActionSpec[]` on whichever array in `src/cli/metadata/` lost it — never to

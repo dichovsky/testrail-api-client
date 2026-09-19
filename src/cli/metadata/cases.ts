@@ -18,7 +18,7 @@ import {
     handleCaseCopyToSection,
     handleCaseMoveToSection,
 } from '../handlers/case-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `case` actions in their original relative order:
@@ -35,7 +35,7 @@ import type { ActionSpec } from './types.js';
  *   [10] copy-to-section — write
  *   [11] move-to-section — write
  */
-export const caseReadActions = [
+export const caseReadActions = defineActions([
     {
         resource: 'case',
         action: 'get',
@@ -51,7 +51,6 @@ export const caseReadActions = [
         summary: 'List cases in a project (optionally filtered by suite; paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_cases/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'cases' },
         flags: [
             { name: 'project-id', required: true },
             { name: 'suite-id' },
@@ -79,7 +78,6 @@ export const caseReadActions = [
         summary: 'List edit history for a test case (paginated; TestRail 6.5.4+)',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'GET get_history_for_case/{case_id}',
-        pagination: { response: 'nested-envelope', requestControls: true, collectionKey: 'history' },
         isWrite: false,
         handler: handleCaseHistory,
     },
@@ -92,9 +90,9 @@ export const caseReadActions = [
         isWrite: false,
         handler: handleCaseTitles,
     },
-] as const satisfies readonly ActionSpec[];
+]);
 
-export const caseWriteActions = [
+export const caseWriteActions = defineActions([
     {
         resource: 'case',
         action: 'add',
@@ -188,4 +186,4 @@ export const caseWriteActions = [
         isWrite: true,
         handler: handleCaseMoveToSection,
     },
-] as const satisfies readonly ActionSpec[];
+]);
