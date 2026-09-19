@@ -6,12 +6,16 @@ Release starts verification; a separate job then publishes the tested artifact
 through npm Trusted Publishing with provenance. No persistent npm token is
 required.
 
-> **Publishing is automatic.** Creating the GitHub Release is the point of no
-> return — nothing prompts for a human confirmation after it. The publish job
-> declares `environment: npm-publish`, but that becomes an approval gate only
-> once required reviewers are configured on the environment in GitHub settings,
-> and they are not (issue #278). Verify before you publish the Release, not
-> after.
+> **Creating the GitHub Release starts the publish; an approval gate stops it.**
+> The publish job declares `environment: npm-publish`, and that environment DOES
+> have a required reviewer configured (`dichovsky`, observed on the 8.0.0
+> release — this guide previously said it did not, citing issue #278). So the
+> run reaches `publish` and waits for a human to approve the deployment.
+>
+> Do not rely on that gate as your safety net: it is environment configuration
+> that can be removed without touching this repository, and the check below is
+> the only way to know its current state. Verify before you publish the Release,
+> not after.
 
 ## Prepare
 
@@ -88,18 +92,33 @@ If other changes land before the merge, reassess the release contents and gates.
    manifest, lockfile, and ancestry on `main`, then runs the release gates and
    archives the tested build. Registry checks require the new version to
    advance `latest` and all published stable versions.
-4. Once verification passes, the publish job runs on its own: it verifies the
-   archived build's digest, rechecks registry state, and publishes with
-   isolated npm configuration, OIDC authentication, and SLSA provenance. It
-   does not wait for a human unless required reviewers have been configured on
-   the `npm-publish` environment. Confirm whether that gate exists before you
-   rely on it:
+4. Once verification passes, the publish job verifies the archived build's
+   digest, rechecks registry state, and publishes with isolated npm
+   configuration, OIDC authentication, and SLSA provenance.
+
+    It waits for a deployment approval first. Confirm the gate's current state
+    rather than assuming it — this command is the authority, not this guide:
 
     ```bash
     gh api "repos/<owner>/<repo>/actions/runs/<run-id>/pending_deployments"
     ```
 
-    An empty array means the job published unattended.
+    A non-empty array names the environment and its reviewers; the job stays
+    `waiting` until one of them approves. An empty array means it published
+    unattended. On the 8.0.0 release this returned
+    `[{"environment":{"name":"npm-publish"},"reviewers":["dichovsky"]}]` and the
+    run held until approved in the GitHub UI.
+
+    Read the environment itself for what the gate is actually worth:
+
+    ```bash
+    gh api "repos/<owner>/<repo>/environments/npm-publish" --jq '.protection_rules'
+    ```
+
+    As of 2026-09-20 it carries one `required_reviewers` rule naming a single
+    reviewer, with `prevent_self_review: false` — so the release author can
+    approve their own deployment. It is a deliberate pause, not a second pair of
+    eyes. Treat it as a chance to stop, not as review.
 
 ## Verify after publication
 
