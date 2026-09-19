@@ -4,7 +4,7 @@ import { Script } from 'node:vm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddCaseFieldPayloadSchema } from '../src/index.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { createClient, mockOk, captureOutput } from './helpers.js';
+import { createClient, mockOk, captureOutput, makeActionSpec } from './helpers.js';
 
 const markdown = readFileSync(new URL('../skill/SKILL.md', import.meta.url), 'utf8');
 const section = markdown.split('### 45. Case field configuration and discovery')[1]?.split('\n### ')[0];
@@ -193,7 +193,7 @@ describe('Recipe 45 — option text passthrough (#268)', () => {
         try {
             await handleCaseFieldAdd({
                 client,
-                actionSpec: { resource: 'case-field', action: 'add' },
+                actionSpec: makeActionSpec({ resource: 'case-field', action: 'add' }),
                 args: { pathParams: [] },
                 pagination: { mode: 'items' },
                 bodyInput: { dataFlag: original },

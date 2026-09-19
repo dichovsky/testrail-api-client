@@ -16,8 +16,14 @@ export interface BodyInput {
 
 export interface HandlerContext {
     client: TestRailClient;
-    /** Resolved metadata entry used for handler execution semantics. */
-    actionSpec: Pick<ActionSpec, 'resource' | 'action' | 'softMode'>;
+    /**
+     * The resolved metadata entry. The whole spec, not a projection of it:
+     * `runCli` always passed the full object and only the type narrowed it, so
+     * the `Pick` described the caller's generosity rather than the handler's
+     * needs — and a handler that wanted one more field had to be given a
+     * parallel channel for it instead.
+     */
+    actionSpec: ActionSpec;
     args: HandlerArgs;
     pagination: CliPaginationParsed;
     bodyInput: BodyInput;

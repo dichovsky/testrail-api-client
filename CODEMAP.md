@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "d01a6ff6e8ed862f0c1bc335fd4e445d8eb3764387273dd0e42dde1cc663f864",
+  "sourceHash": "759312e18cf3353ca1573c3c4a42341ba7047f6bcab6cebd0200779e9ca9fb19",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -3023,12 +3023,12 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 17,
           "exported": true,
-          "signature": "export interface HandlerContext { client: TestRailClient; actionSpec: Pick<ActionSpec, 'resource' | 'action' | 'softMode'>; args: HandlerArgs; pagination: CliPaginationParsed; bodyInput: BodyInput; dr…"
+          "signature": "export interface HandlerContext { client: TestRailClient; actionSpec: ActionSpec; args: HandlerArgs; pagination: CliPaginationParsed; bodyInput: BodyInput; dryRun: boolean; force: boolean; confirmDest…"
         },
         {
           "name": "Handler",
           "kind": "type",
-          "line": 43,
+          "line": 49,
           "exported": true,
           "signature": "export type Handler = (ctx: HandlerContext) => Promise<void>"
         }

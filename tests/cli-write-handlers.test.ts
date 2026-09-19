@@ -30,7 +30,7 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { captureOutput } from './helpers.js';
+import { captureOutput, makeActionSpec } from './helpers.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import {
     handleResultAdd,
@@ -340,11 +340,11 @@ function buildCtx(
     const action = actionParts.length > 0 ? actionParts.join(' ') : 'write';
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
-        actionSpec: {
+        actionSpec: makeActionSpec({
             resource,
             action,
             ...(overrides.softMode !== undefined && { softMode: overrides.softMode }),
-        },
+        }),
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.projectId !== undefined && { projectId: overrides.projectId }),

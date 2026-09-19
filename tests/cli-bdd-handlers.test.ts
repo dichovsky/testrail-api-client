@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { handleBddAdd, handleBddGet, handleBddList, handleBddUpdate } from '../src/cli/handlers/bdd.js';
-import { captureOutput, type CapturedOutput } from './helpers.js';
+import { captureOutput, type CapturedOutput, makeActionSpec } from './helpers.js';
 import type { TestRailClient } from '../src/client.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
@@ -69,7 +69,7 @@ function buildCtx(
     const errRaw = vi.fn();
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
-        actionSpec: { resource: 'bdd', action: 'list' },
+        actionSpec: makeActionSpec({ resource: 'bdd', action: 'list' }),
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.file !== undefined && { file: overrides.file }),

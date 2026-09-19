@@ -1,6 +1,27 @@
 import { TestRailClient } from '../src/client.js';
+import type { ActionSpec } from '../src/cli/metadata/types.js';
 import { createOutput, type Output, type OutputFormat } from '../src/cli/output.js';
 import type { TestRailConfig } from '../src/types.js';
+
+/**
+ * A complete `ActionSpec` for a handler test.
+ *
+ * `HandlerContext.actionSpec` carries the whole spec, but a handler test only
+ * ever cares about `resource` / `action` / `softMode`; the remaining fields
+ * exist for the dispatcher, the help emitter, and the mapping drift gates, none
+ * of which run here. `handler` is never invoked — a handler under test is
+ * called directly rather than dispatched to.
+ */
+export function makeActionSpec(overrides: Partial<ActionSpec> & Pick<ActionSpec, 'resource' | 'action'>): ActionSpec {
+    return {
+        summary: `${overrides.resource} ${overrides.action}`,
+        pathParams: [],
+        handler: () => Promise.resolve(),
+        apiEndpoint: `GET ${overrides.resource}`,
+        isWrite: false,
+        ...overrides,
+    };
+}
 
 export interface CapturedOutput {
     /** Spread into a `HandlerContext` literal; override `out` to assert on a mock. */

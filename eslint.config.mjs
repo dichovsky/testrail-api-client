@@ -132,6 +132,12 @@ export default [
         // `process.stderr` and quietly leaves the runtime: that is how `run
         // watch` came to read `--quiet` out of `process.argv`, and how the
         // `--out -` download ack bypassed the writers a caller supplied.
+        //
+        // A tripwire against accidental reintroduction, not a guarantee. It
+        // catches the direct form, the bracketed `process['stdout']`, and
+        // destructuring; it does NOT catch aliasing (`const p = process`) or
+        // `globalThis.process`. `tests/cli-output-ownership.test.ts` is the
+        // behavioural backstop that would still fail.
         files: ['src/**/*.ts'],
         ignores: ['src/cli.ts'],
         rules: {

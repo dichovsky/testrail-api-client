@@ -33,7 +33,7 @@ import {
     handleAttachmentDelete,
 } from '../src/cli/handlers/attachment-write.js';
 import type { TestRailClient } from '../src/client.js';
-import { captureOutput, type CapturedOutput } from './helpers.js';
+import { captureOutput, type CapturedOutput, makeActionSpec } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { parseCliPagination } from '../src/cli/pagination.js';
 
@@ -104,7 +104,7 @@ function buildCtx(client: MockedClient, overrides: CtxOverrides = {}): BuiltCtx 
     const captured = captureOutput({ stdoutIsTTY: overrides.stdoutIsTTY ?? false });
     const ctx: HandlerContext = {
         client: client as unknown as TestRailClient,
-        actionSpec: { resource: 'attachment', action: 'delete' },
+        actionSpec: makeActionSpec({ resource: 'attachment', action: 'delete' }),
         args: {
             pathParams: overrides.pathParams ?? [],
             ...(overrides.file !== undefined && { file: overrides.file }),

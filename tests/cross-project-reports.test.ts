@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TestRailClient } from '../src/client.js';
-import { captureOutput } from './helpers.js';
+import { captureOutput, makeActionSpec } from './helpers.js';
 import type { HandlerContext } from '../src/cli/handler-context.js';
 import { handleCrossProjectReportList, handleCrossProjectReportRun } from '../src/cli/handlers/report.js';
 import { reportActions } from '../src/cli/metadata/reports.js';
@@ -65,7 +65,7 @@ function buildContext(
     return {
         ctx: {
             client,
-            actionSpec: { resource: 'report', action: 'get' },
+            actionSpec: makeActionSpec({ resource: 'report', action: 'get' }),
             args: { pathParams },
             pagination: { mode: 'items' },
             bodyInput: {},
