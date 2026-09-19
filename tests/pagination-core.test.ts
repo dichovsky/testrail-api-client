@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { readBodyWithLimits } from '../src/body-reader.js';
 import { TestRailClient } from '../src/client.js';
 import { handleZodError, TestRailApiError, TestRailPaginationError, TestRailValidationError } from '../src/errors.js';
+import { budgetExpiredError } from '../src/request-budget.js';
 import { listOf, listOfNested, unwrapList, unwrapNestedList } from '../src/modules/list.js';
 import {
     collectAllPages,
@@ -331,7 +332,10 @@ describe('bounded sequential collection', () => {
                 // Frozen one millisecond short of the deadline: the state the
                 // wall clock is in when an early timer fires.
                 now: () => deadlineAt - 1,
-                fetchPage: () => Promise.reject(new TestRailApiError(408, 'Aggregate request deadline exceeded')),
+                // The real factory, not a hand-built lookalike: recognition is by a
+                // module-private brand, so an imitation is correctly NOT treated as
+                // this aggregate's own deadline.
+                fetchPage: () => Promise.reject(budgetExpiredError()),
             }),
         ).rejects.toMatchObject({ reason: 'max_duration' });
     });

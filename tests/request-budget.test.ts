@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRequestBudget, isBudgetExpiry } from '../src/request-budget.js';
+import { budgetExpiredError, createRequestBudget, isBudgetExpiry } from '../src/request-budget.js';
 import { TestRailApiError } from '../src/errors.js';
 
 /**
@@ -187,16 +187,23 @@ describe('retry delay', () => {
             const raised = await budget.bound(Promise.resolve('never')).catch((e: unknown) => e);
 
             expect(isBudgetExpiry(raised)).toBe(true);
+            // And the factory the pipeline shares, so `client-core.ts` cannot
+            // drift back to hand-building a lookalike.
+            expect(isBudgetExpiry(budgetExpiredError())).toBe(true);
         });
 
         it.each([
             ['a different 408', new TestRailApiError(408, 'Request timeout')],
+            // `statusText` is the SERVER's reason phrase. Recognition is by a
+            // module-private brand precisely so a response that echoes this
+            // wording cannot pass itself off as the caller's own deadline.
+            ['a server 408 echoing the wording', new TestRailApiError(408, 'Aggregate request deadline exceeded')],
             ['a same-text non-408', new TestRailApiError(504, 'Aggregate request deadline exceeded')],
             ['an unrelated error', new Error('Aggregate request deadline exceeded')],
             ['a non-error', 'Aggregate request deadline exceeded'],
         ])('rejects %s', (_label, candidate) => {
-            // Narrow on purpose: a false positive here would relabel an
-            // unrelated upstream failure as the caller's own deadline.
+            // A false positive here would relabel an unrelated upstream
+            // failure as the caller's own deadline.
             expect(isBudgetExpiry(candidate)).toBe(false);
         });
     });

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "bad119811c657d9a2d2142d65b9c9305a4ee3c23d0897124e11119c5708c6cbf",
+  "sourceHash": "6c741d4e9634588896200cc7796db50456c1d74bfbe80c4ad00805057393df0f",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -10305,30 +10305,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "const AGGREGATE_EXPIRED = 'Aggregate request deadline exceeded'"
         },
         {
-          "name": "expiredError",
-          "kind": "function",
-          "line": 63,
+          "name": "BUDGET_EXPIRY",
+          "kind": "const",
+          "line": 68,
           "exported": false,
-          "signature": "function expiredError(): TestRailApiError"
+          "signature": "const BUDGET_EXPIRY = Symbol('requestBudget.expired')"
+        },
+        {
+          "name": "budgetExpiredError",
+          "kind": "function",
+          "line": 75,
+          "exported": true,
+          "signature": "export function budgetExpiredError(): TestRailApiError"
         },
         {
           "name": "isBudgetExpiry",
           "kind": "function",
-          "line": 77,
+          "line": 91,
           "exported": true,
           "signature": "export function isBudgetExpiry(error: unknown): boolean"
         },
         {
           "name": "RequestBudgetOptions",
           "kind": "interface",
-          "line": 81,
+          "line": 95,
           "exported": true,
           "signature": "export interface RequestBudgetOptions { readonly deadlineAt?: number | undefined; readonly now?: () => number; }"
         },
         {
           "name": "createRequestBudget",
           "kind": "function",
-          "line": 91,
+          "line": 105,
           "exported": true,
           "signature": "export function createRequestBudget({ deadlineAt, now = Date.now }: RequestBudgetOptions = {}): RequestBudget"
         }
