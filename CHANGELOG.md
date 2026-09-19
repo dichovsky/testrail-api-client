@@ -32,6 +32,15 @@ what a consumer actually notices.
   `AsyncContextFrame` at ~1%, not the async_hooks promise hook the older lines
   used).
 
+- **`RequestSpec` lost `retry`, `bypassCache` and `remainingTimeMs`.** Listed
+  here as well as under Internal because triaging a major bump means reading
+  this section. The type is not exported by name and `dist/index.d.ts` is
+  byte-identical to 7.2.0 — but `TestRailClientCore.request<T>(spec)` is
+  `public` and inherited by `TestRailClient`, so the parameter is reachable by
+  structure. Nothing documented routes through it; see the caveat under
+  _Seven deep-module refactors_ in Internal for what a caller who had found it
+  would see.
+
 ### Fixed
 
 - **Attachment uploads that supply a file descriptor no longer fail.** An upload

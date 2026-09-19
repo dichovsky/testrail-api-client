@@ -109,6 +109,17 @@ If other changes land before the merge, reassess the release contents and gates.
     `[{"environment":{"name":"npm-publish"},"reviewers":["dichovsky"]}]` and the
     run held until approved in the GitHub UI.
 
+    Read the environment itself for what the gate is actually worth:
+
+    ```bash
+    gh api "repos/<owner>/<repo>/environments/npm-publish" --jq '.protection_rules'
+    ```
+
+    As of 2026-09-20 it carries one `required_reviewers` rule naming a single
+    reviewer, with `prevent_self_review: false` — so the release author can
+    approve their own deployment. It is a deliberate pause, not a second pair of
+    eyes. Treat it as a chance to stop, not as review.
+
 ## Verify after publication
 
 - Require the complete `Publish` run to succeed. It checks npm version,
