@@ -15,11 +15,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [8.0.0] — 2026-09-19 — Node 24, deep modules, and two user-visible fixes
+## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 
 A major because the supported-runtime floor moves. The bulk of the release is
-internal restructuring with no published-API change; the two fixes below and the
-runtime requirement are what a consumer actually notices.
+internal restructuring; the three fixes below and the runtime requirement are
+what a consumer actually notices.
 
 ### Changed — BREAKING
 
@@ -88,8 +88,20 @@ runtime requirement are what a consumer actually notices.
   so publishing proceeds unattended once the GitHub Release is published; the
   guide now says so and shows how to check.
 
-- **Seven deep-module refactors.** No published-API change; each replaced a
+- **Seven deep-module refactors.** No change to the documented SDK or CLI
+  surface — `dist/index.d.ts` is byte-identical to 7.2.0 — and each replaced a
   convention that had to be remembered with one a caller cannot get wrong.
+
+    One caveat, stated because "no published-API change" is not literally true at
+    the TypeScript structural level: `TestRailClientCore.request<T>(spec)` is
+    `public` and inherited by `TestRailClient`, so its `RequestSpec` parameter is
+    reachable by structure even though the type is not exported by name. That
+    interface lost `retry`, `bypassCache` and `remainingTimeMs` and gained
+    `intent`. Nothing documented routes through it — using it means
+    reverse-engineering endpoint strings and Zod schemas — but a caller who had
+    found it and passed `retry` would now see an excess-property error on an
+    object literal, or have the field silently ignored if passed via a variable,
+    since the policy is derived from the request's shape instead.
     - _Retry policy is derived, not declared._ `deriveRetryPolicy()` selects from
       `body.kind` + `responseKind` + `intent`, so a multipart body never retries by
       construction and the combination that duplicated an upload is unspellable.
@@ -115,6 +127,7 @@ runtime requirement are what a consumer actually notices.
       arrays; `ActionSpec.pagination` was deleted in favour of one contract table
       keyed by `apiEndpoint`, retiring mapping gate E. Verified byte-neutral
       against a pre-change snapshot of all 134 entries.
+
 - **Three silent-drop paths closed in the mapping generator's parser.** It fed
   gates C, C2-reverse and D — all set-membership tests — and could return a short
   or empty list without any signal, which those gates read as "nothing to check"
