@@ -1,7 +1,7 @@
 import { AddMilestonePayloadSchema, UpdateMilestonePayloadSchema } from '../../schemas.js';
 import { handleMilestoneGet, handleMilestoneList } from '../handlers/milestone.js';
 import { handleMilestoneAdd, handleMilestoneDelete, handleMilestoneUpdate } from '../handlers/milestone-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `milestone` actions in their original relative order:
@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write (structural-setup)
  *   [4] delete — write (destructive)
  */
-export const milestoneActions: readonly ActionSpec[] = [
+export const milestoneReadActions = defineActions([
     {
         resource: 'milestone',
         action: 'get',
@@ -27,11 +27,13 @@ export const milestoneActions: readonly ActionSpec[] = [
         summary: 'List milestones in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_milestones/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'milestones' },
         flags: [{ name: 'project-id', required: true }, { name: 'is-completed' }, { name: 'is-started' }],
         isWrite: false,
         handler: handleMilestoneList,
     },
+]);
+
+export const milestoneWriteActions = defineActions([
     {
         resource: 'milestone',
         action: 'add',
@@ -65,4 +67,4 @@ export const milestoneActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail)',
         handler: handleMilestoneDelete,
     },
-];
+]);

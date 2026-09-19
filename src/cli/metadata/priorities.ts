@@ -1,11 +1,11 @@
 import { handlePriorityList } from '../handlers/priority.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `priority` actions:
  *   [0] list — read
  */
-export const priorityActions: readonly ActionSpec[] = [
+export const priorityActions = defineActions([
     {
         resource: 'priority',
         action: 'list',
@@ -15,4 +15,4 @@ export const priorityActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handlePriorityList,
     },
-];
+]);

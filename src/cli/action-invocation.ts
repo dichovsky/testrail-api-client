@@ -8,6 +8,7 @@ import {
     type CliFlagName,
     type CliHandlerArgs,
 } from './flags.js';
+import { paginationFor } from './metadata/paginated-endpoints.js';
 import type { ActionSpec } from './metadata/types.js';
 import { validateCliPagination, type CliPaginationParsed } from './pagination.js';
 
@@ -40,9 +41,13 @@ export function getAllowedActionFlags(spec: ActionSpec): ReadonlySet<CliFlagName
         for (const flag of getCapabilityFlags(capability)) allowed.add(flag);
     };
 
-    if (spec.pagination !== undefined) {
+    // Read from the endpoint's own contract rather than a copy on the spec:
+    // an action cannot declare a pagination shape that disagrees with the
+    // endpoint it calls, because there is nothing left to disagree with.
+    const pagination = paginationFor(spec.apiEndpoint);
+    if (pagination !== undefined) {
         addCapability('pagination');
-        if (spec.pagination.requestControls) addCapability('pagination-request');
+        if (pagination.requestControls) addCapability('pagination-request');
     }
     if (spec.itemsRequestControls === true) addCapability('pagination-request');
     if (spec.bodySchema !== undefined) addCapability('body');
@@ -122,7 +127,9 @@ export function resolveActionInvocation(options: {
     // endpoints preserve explicit legacy items-mode controls without admitting
     // those controls to page/all projections.
     const paginationValidation =
-        options.spec.pagination === undefined ? undefined : validateCliPagination(options.spec, paginationArgs);
+        paginationFor(options.spec.apiEndpoint) === undefined
+            ? undefined
+            : validateCliPagination(options.spec, paginationArgs);
     if (paginationValidation !== undefined && !paginationValidation.ok) return paginationValidation;
 
     const allowed = getAllowedActionFlags(options.spec);

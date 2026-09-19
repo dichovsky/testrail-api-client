@@ -19,7 +19,7 @@ import {
     handlePlanDeleteEntry,
     handlePlanDeleteRunFromEntry,
 } from '../handlers/plan-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `plan` actions in their original relative order:
@@ -36,7 +36,7 @@ import type { ActionSpec } from './types.js';
  *   [10] delete-entry           — write (destructive)
  *   [11] delete-run-from-entry  — write (destructive)
  */
-export const planActions: readonly ActionSpec[] = [
+export const planReadActions = defineActions([
     {
         resource: 'plan',
         action: 'get',
@@ -52,7 +52,6 @@ export const planActions: readonly ActionSpec[] = [
         summary: 'List plans in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_plans/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'plans' },
         flags: [
             { name: 'project-id', required: true },
             { name: 'created-after' },
@@ -65,6 +64,9 @@ export const planActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handlePlanList,
     },
+]);
+
+export const planWriteActions = defineActions([
     {
         resource: 'plan',
         action: 'add',
@@ -187,4 +189,4 @@ export const planActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported)',
         handler: handlePlanDeleteRunFromEntry,
     },
-];
+]);

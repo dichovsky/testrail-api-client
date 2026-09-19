@@ -351,12 +351,23 @@ describe('CODEMAP.md structural invariants', () => {
         expect(Array.isArray(data.files)).toBe(true);
     });
 
-    it('size is under the 440 KB sanity bound', () => {
+    it('size is under the 460 KB sanity bound', () => {
         // Guards against runaway generation (duplicated entries, an unbounded
         // loop), not against ordinary growth. The bound includes modest
         // headroom for the internal pagination, cache, and CLI diagnostic interfaces that
         // are deliberately indexed alongside the public API.
+        //
+        // Raised from 440 KB when ARCH #4 split the 14 sliced metadata arrays
+        // into read/write pairs: +14 net symbols, ~5 KB. Verified ordinary
+        // growth rather than the runaway case this bound exists for — 28
+        // symbols added, 14 removed, zero duplicate keys.
+        //
+        // Deliberately a ~4% margin over the current 443 KB, not a round
+        // number well clear of it. The 440 KB bound was at 99.7% when this
+        // change arrived, which is what a bound should look like just before
+        // it fires; granting 40 KB of slack would have bought several silent
+        // bumps before the guard spoke again.
         const md = readFileSync(join(REPO_ROOT, 'CODEMAP.md'), 'utf8');
-        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(440_000);
+        expect(Buffer.byteLength(md, 'utf8')).toBeLessThan(460_000);
     });
 });

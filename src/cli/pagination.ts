@@ -3,6 +3,7 @@ import type { PaginatedRequestOptions, PaginationSafetyOptions } from '../pagina
 import type { RawCliPaginationArgs } from './flags.js';
 import type { HandlerContext } from './handler-context.js';
 import { optInt } from './ids.js';
+import { paginationFor } from './metadata/paginated-endpoints.js';
 import type { ActionSpec } from './metadata/types.js';
 
 export type CliPaginationMode = 'items' | 'page' | 'all';
@@ -165,7 +166,9 @@ export function validateCliPagination(
         };
     }
 
-    if (mode !== 'items' && actionSpec?.pagination === undefined) {
+    const contract = actionSpec === undefined ? undefined : paginationFor(actionSpec.apiEndpoint);
+
+    if (mode !== 'items' && contract === undefined) {
         const command = actionSpec === undefined ? 'this action' : `${actionSpec.resource} ${actionSpec.action}`;
         return { ok: false, error: `${mode === 'page' ? '--page' : '--all'} is not supported by ${command}.` };
     }
@@ -173,7 +176,7 @@ export function validateCliPagination(
     if (
         mode === 'items' &&
         actionSpec !== undefined &&
-        actionSpec.pagination === undefined &&
+        contract === undefined &&
         actionSpec.itemsRequestControls !== true &&
         (args.limit !== undefined || args.offset !== undefined)
     ) {
@@ -194,7 +197,7 @@ export function validateCliPagination(
     const itemsModeOffsetDeclared = actionSpec?.flags?.some(({ name }) => name === 'offset') === true;
 
     if (
-        actionSpec?.pagination?.requestControls === false &&
+        contract?.requestControls === false &&
         ((mode === 'items' &&
             ((args.limit !== undefined && !itemsModeLimitDeclared) ||
                 (args.offset !== undefined && !itemsModeOffsetDeclared))) ||

@@ -14,7 +14,7 @@ import {
     handleAttachmentAddToPlanEntry,
     handleAttachmentDelete,
 } from '../handlers/attachment-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `attachment` actions in their original relative order:
@@ -31,14 +31,13 @@ import type { ActionSpec } from './types.js';
  *   [10] add-to-plan-entry      — write (file input)
  *   [11] delete                 — write (destructive)
  */
-export const attachmentActions: readonly ActionSpec[] = [
+export const attachmentReadActions = defineActions([
     {
         resource: 'attachment',
         action: 'list-for-case',
         summary: 'List attachments on a test case (paginated)',
         pathParams: [{ name: 'case_id', description: 'TestRail case ID' }],
         apiEndpoint: 'GET get_attachments_for_case/{case_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'attachments' },
         isWrite: false,
         handler: handleAttachmentListForCase,
     },
@@ -48,7 +47,6 @@ export const attachmentActions: readonly ActionSpec[] = [
         summary: 'List attachments on a test run (paginated)',
         pathParams: [{ name: 'run_id', description: 'TestRail run ID' }],
         apiEndpoint: 'GET get_attachments_for_run/{run_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'attachments' },
         isWrite: false,
         handler: handleAttachmentListForRun,
     },
@@ -68,7 +66,6 @@ export const attachmentActions: readonly ActionSpec[] = [
         summary: 'List attachments on a test plan (paginated)',
         pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }],
         apiEndpoint: 'GET get_attachments_for_plan/{plan_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'attachments' },
         isWrite: false,
         handler: handleAttachmentListForPlan,
     },
@@ -95,6 +92,9 @@ export const attachmentActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleAttachmentGet,
     },
+]);
+
+export const attachmentWriteActions = defineActions([
     {
         resource: 'attachment',
         action: 'add-to-case',
@@ -163,4 +163,4 @@ export const attachmentActions: readonly ActionSpec[] = [
         destructive: true,
         handler: handleAttachmentDelete,
     },
-];
+]);

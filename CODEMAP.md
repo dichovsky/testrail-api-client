@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "7.2.0"
   },
-  "sourceHash": "759312e18cf3353ca1573c3c4a42341ba7047f6bcab6cebd0200779e9ca9fb19",
+  "sourceHash": "0255c617bc2dc5d32a0ad00ffa85b41987d48977cd09b22e92ff589f18bddb0c",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2194,6 +2194,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/cli/action-invocation.ts",
       "imports": [
         "./flags.js",
+        "./metadata/paginated-endpoints.js",
         "./metadata/types.js",
         "./pagination.js"
       ],
@@ -2202,56 +2203,56 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ActionInvocation",
           "kind": "interface",
-          "line": 14,
+          "line": 15,
           "exported": true,
           "signature": "export interface ActionInvocation { readonly spec: ActionSpec; readonly args: CliHandlerArgs; readonly pagination: CliPaginationParsed; }"
         },
         {
           "name": "ActionInvocationResult",
           "kind": "type",
-          "line": 20,
+          "line": 21,
           "exported": true,
           "signature": "export type ActionInvocationResult = { readonly ok: true; readonly invocation: ActionInvocation } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "MetaCommandName",
           "kind": "type",
-          "line": 23,
+          "line": 24,
           "exported": true,
           "signature": "export type MetaCommandName = 'install-skill' | 'uninstall-skill'"
         },
         {
           "name": "META_COMMAND_FLAGS",
           "kind": "const",
-          "line": 25,
+          "line": 26,
           "exported": false,
           "signature": "const META_COMMAND_FLAGS = { 'install-skill': ['global', 'force', 'print-path', 'quiet'], 'uninstall-skill': ['global', 'quiet'], } as const satisfies Readonly<Record<MetaCommandName, readonly CliFlag…"
         },
         {
           "name": "getAllowedActionFlags",
           "kind": "function",
-          "line": 35,
+          "line": 36,
           "exported": true,
           "signature": "export function getAllowedActionFlags(spec: ActionSpec): ReadonlySet<CliFlagName>"
         },
         {
           "name": "validateMetaCommandFlags",
           "kind": "function",
-          "line": 58,
+          "line": 63,
           "exported": true,
           "signature": "export function validateMetaCommandFlags( command: MetaCommandName, suppliedFlags: readonly string[], ): { readonly ok: true } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "hasRequiredFlagValue",
           "kind": "function",
-          "line": 72,
+          "line": 77,
           "exported": false,
           "signature": "function hasRequiredFlagValue(values: Readonly<Record<string, unknown>>, name: CliFlagName): boolean"
         },
         {
           "name": "resolveActionInvocation",
           "kind": "function",
-          "line": 81,
+          "line": 86,
           "exported": true,
           "signature": "export function resolveActionInvocation(options: { readonly spec: ActionSpec; readonly values: Readonly<Record<string, unknown>>; readonly suppliedFlags: readonly string[]; readonly pathParams: readon…"
         }
@@ -5040,16 +5041,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "ACTIONS",
           "kind": "const",
-          "line": 64,
+          "line": 69,
           "exported": true,
-          "signature": "export const ACTIONS: readonly ActionSpec[] = [ ...projectActions.slice(0, 2), ...suiteActions.slice(0, 2), ...caseActions.slice(0, 4), ...runActions.slice(0, 3), ...testActions.slice(0, 2), ...result…"
+          "signature": "export const ACTIONS: readonly ActionSpec[] = [ ...projectReadActions, ...suiteReadActions, ...caseReadActions, ...runReadActions, ...testReadActions, ...resultReadActions, ...milestoneReadActions, ..…"
         },
         {
           "name": "getActionSpec",
           "kind": "function",
-          "line": 144,
+          "line": 148,
           "exported": true,
           "signature": "export function getActionSpec(resource: string, action: string): ActionSpec | undefined"
+        },
+        {
+          "name": "EndpointsOf",
+          "kind": "type",
+          "line": 155,
+          "exported": false,
+          "signature": "type EndpointsOf<T extends readonly { readonly apiEndpoint: string }[]> = T[number]['apiEndpoint']"
+        },
+        {
+          "name": "ActionEndpoint",
+          "kind": "type",
+          "line": 171,
+          "exported": true,
+          "signature": "export type ActionEndpoint = | EndpointsOf<typeof projectReadActions> | EndpointsOf<typeof projectWriteActions> | EndpointsOf<typeof suiteReadActions> | EndpointsOf<typeof suiteWriteActions> | Endpoin…"
+        },
+        {
+          "name": "Assert",
+          "kind": "type",
+          "line": 218,
+          "exported": false,
+          "signature": "type Assert<T extends true> = T"
+        },
+        {
+          "name": "_ActionEndpointsAreLiterals",
+          "kind": "type",
+          "line": 238,
+          "exported": true,
+          "signature": "export type _ActionEndpointsAreLiterals = Assert<[string] extends [ActionEndpoint] ? false : true>"
         }
       ]
     },
@@ -5063,11 +5092,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "attachmentActions",
+          "name": "attachmentReadActions",
           "kind": "const",
           "line": 34,
           "exported": true,
-          "signature": "export const attachmentActions: readonly ActionSpec[] = [ { resource: 'attachment', action: 'list-for-case', summary: 'List attachments on a test case (paginated)', pathParams: [{ name: 'case_id', des…"
+          "signature": "export const attachmentReadActions = defineActions([ { resource: 'attachment', action: 'list-for-case', summary: 'List attachments on a test case (paginated)', pathParams: [{ name: 'case_id', descript…"
+        },
+        {
+          "name": "attachmentWriteActions",
+          "kind": "const",
+          "line": 97,
+          "exported": true,
+          "signature": "export const attachmentWriteActions = defineActions([ { resource: 'attachment', action: 'add-to-case', summary: 'Upload an attachment to a test case', pathParams: [{ name: 'case_id', description: 'Tes…"
         }
       ]
     },
@@ -5084,7 +5120,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 15,
           "exported": true,
-          "signature": "export const bddActions: readonly ActionSpec[] = [ { resource: 'bdd', action: 'get', summary: \"Download a case's BDD (Gherkin .feature) content to --out <path>\", pathParams: [{ name: 'case_id', descri…"
+          "signature": "export const bddActions = defineActions([ { resource: 'bdd', action: 'get', summary: \"Download a case's BDD (Gherkin .feature) content to --out <path>\", pathParams: [{ name: 'case_id', description: 'T…"
         }
       ]
     },
@@ -5099,11 +5135,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "caseFieldActions",
+          "name": "caseFieldReadActions",
           "kind": "const",
           "line": 11,
           "exported": true,
-          "signature": "export const caseFieldActions: readonly ActionSpec[] = [ { resource: 'case-field', action: 'list', summary: 'List all custom case fields defined on the TestRail instance', pathParams: [], apiEndpoint:…"
+          "signature": "export const caseFieldReadActions = defineActions([ { resource: 'case-field', action: 'list', summary: 'List all custom case fields defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET…"
+        },
+        {
+          "name": "caseFieldWriteActions",
+          "kind": "const",
+          "line": 23,
+          "exported": true,
+          "signature": "export const caseFieldWriteActions = defineActions([ { resource: 'case-field', action: 'add', summary: 'Create a custom case field (admin-only); no path params, payload-only', pathParams: [], apiEndpo…"
         }
       ]
     },
@@ -5118,11 +5161,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "caseActions",
+          "name": "caseReadActions",
           "kind": "const",
           "line": 38,
           "exported": true,
-          "signature": "export const caseActions: readonly ActionSpec[] = [ { resource: 'case', action: 'get', summary: 'Fetch a single test case by ID', pathParams: [{ name: 'case_id', description: 'TestRail case ID' }], ap…"
+          "signature": "export const caseReadActions = defineActions([ { resource: 'case', action: 'get', summary: 'Fetch a single test case by ID', pathParams: [{ name: 'case_id', description: 'TestRail case ID' }], apiEndp…"
+        },
+        {
+          "name": "caseWriteActions",
+          "kind": "const",
+          "line": 95,
+          "exported": true,
+          "signature": "export const caseWriteActions = defineActions([ { resource: 'case', action: 'add', summary: 'Create a new test case under a section', pathParams: [{ name: 'section_id', description: 'Section to create…"
         }
       ]
     },
@@ -5139,7 +5189,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const caseStatusActions: readonly ActionSpec[] = [ { resource: 'case-status', action: 'list', summary: 'List case-level lifecycle statuses (pagination envelope; TestRail Enterprise 7.3+)', path…"
+          "signature": "export const caseStatusActions = defineActions([ { resource: 'case-status', action: 'list', summary: 'List case-level lifecycle statuses (pagination envelope; TestRail Enterprise 7.3+)', pathParams: […"
         }
       ]
     },
@@ -5156,7 +5206,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const caseTypeActions: readonly ActionSpec[] = [ { resource: 'case-type', action: 'list', summary: 'List all case types defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_…"
+          "signature": "export const caseTypeActions = defineActions([ { resource: 'case-type', action: 'list', summary: 'List all case types defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_case_type…"
         }
       ]
     },
@@ -5174,7 +5224,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 20,
           "exported": true,
-          "signature": "export const configurationGroupActions: readonly ActionSpec[] = [ { resource: 'configuration-group', action: 'add', summary: 'Create a new configuration group in a project (e.g. \"Browsers\")', pathPara…"
+          "signature": "export const configurationGroupActions = defineActions([ { resource: 'configuration-group', action: 'add', summary: 'Create a new configuration group in a project (e.g. \"Browsers\")', pathParams: [{ na…"
         }
       ]
     },
@@ -5189,11 +5239,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "configurationActions",
+          "name": "configurationReadActions",
           "kind": "const",
           "line": 24,
           "exported": true,
-          "signature": "export const configurationActions: readonly ActionSpec[] = [ { resource: 'configuration', action: 'list', summary: 'List configuration groups (with nested configs) for a project', pathParams: [{ name:…"
+          "signature": "export const configurationReadActions = defineActions([ { resource: 'configuration', action: 'list', summary: 'List configuration groups (with nested configs) for a project', pathParams: [{ name: 'pro…"
+        },
+        {
+          "name": "configurationWriteActions",
+          "kind": "const",
+          "line": 36,
+          "exported": true,
+          "signature": "export const configurationWriteActions = defineActions([ { resource: 'configuration', action: 'add', summary: 'Create a new configuration (leaf) inside a configuration group (e.g. \"Chrome\")', pathPara…"
         }
       ]
     },
@@ -5212,7 +5269,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 14,
           "exported": true,
-          "signature": "export const datasetActions: readonly ActionSpec[] = [ { resource: 'dataset', action: 'get', summary: 'Fetch a single dataset by ID', pathParams: [{ name: 'dataset_id', description: 'TestRail dataset …"
+          "signature": "export const datasetActions = defineActions([ { resource: 'dataset', action: 'get', summary: 'Fetch a single dataset by ID', pathParams: [{ name: 'dataset_id', description: 'TestRail dataset ID' }], a…"
         }
       ]
     },
@@ -5229,7 +5286,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 5,
           "exported": true,
-          "signature": "export const dynamicFilterFieldActions: readonly ActionSpec[] = [ { resource: 'dynamic-filter-field', action: 'list', summary: 'List fields available for dynamic filtering in a project', pathParams: […"
+          "signature": "export const dynamicFilterFieldActions = defineActions([ { resource: 'dynamic-filter-field', action: 'list', summary: 'List fields available for dynamic filtering in a project', pathParams: [{ name: '…"
         }
       ]
     },
@@ -5248,7 +5305,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 19,
           "exported": true,
-          "signature": "export const groupActions: readonly ActionSpec[] = [ { resource: 'group', action: 'get', summary: 'Fetch a single user group by ID (TestRail 7.5+)', pathParams: [{ name: 'group_id', description: 'Test…"
+          "signature": "export const groupActions = defineActions([ { resource: 'group', action: 'get', summary: 'Fetch a single user group by ID (TestRail 7.5+)', pathParams: [{ name: 'group_id', description: 'TestRail grou…"
         }
       ]
     },
@@ -5267,7 +5324,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 20,
           "exported": true,
-          "signature": "export const labelActions: readonly ActionSpec[] = [ { resource: 'label', action: 'get', summary: 'Fetch a single label by ID', pathParams: [{ name: 'label_id', description: 'TestRail label ID' }], ap…"
+          "signature": "export const labelActions = defineActions([ { resource: 'label', action: 'get', summary: 'Fetch a single label by ID', pathParams: [{ name: 'label_id', description: 'TestRail label ID' }], apiEndpoint…"
         }
       ]
     },
@@ -5282,11 +5339,69 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "milestoneActions",
+          "name": "milestoneReadActions",
           "kind": "const",
           "line": 14,
           "exported": true,
-          "signature": "export const milestoneActions: readonly ActionSpec[] = [ { resource: 'milestone', action: 'get', summary: 'Fetch a single milestone by ID', pathParams: [{ name: 'milestone_id', description: 'TestRail …"
+          "signature": "export const milestoneReadActions = defineActions([ { resource: 'milestone', action: 'get', summary: 'Fetch a single milestone by ID', pathParams: [{ name: 'milestone_id', description: 'TestRail miles…"
+        },
+        {
+          "name": "milestoneWriteActions",
+          "kind": "const",
+          "line": 36,
+          "exported": true,
+          "signature": "export const milestoneWriteActions = defineActions([ { resource: 'milestone', action: 'add', summary: 'Create a new milestone in a project', pathParams: [{ name: 'project_id', description: 'TestRail p…"
+        }
+      ]
+    },
+    {
+      "path": "src/cli/metadata/paginated-endpoints.ts",
+      "imports": [
+        "../metadata.js"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "PaginationContract",
+          "kind": "interface",
+          "line": 17,
+          "exported": true,
+          "signature": "export interface PaginationContract { readonly response: 'envelope' | 'nested-envelope'; readonly requestControls: boolean; readonly collectionKey: string; }"
+        },
+        {
+          "name": "PAGINATED_ENDPOINTS",
+          "kind": "const",
+          "line": 26,
+          "exported": true,
+          "signature": "export const PAGINATED_ENDPOINTS = { 'GET get_attachments_for_case/{case_id}': { response: 'envelope', requestControls: true, collectionKey: 'attachments', }, 'GET get_attachments_for_plan/{plan_id}':…"
+        },
+        {
+          "name": "PaginatedEndpoint",
+          "kind": "type",
+          "line": 78,
+          "exported": true,
+          "signature": "export type PaginatedEndpoint = keyof typeof PAGINATED_ENDPOINTS"
+        },
+        {
+          "name": "paginationFor",
+          "kind": "function",
+          "line": 87,
+          "exported": true,
+          "signature": "export function paginationFor(apiEndpoint: string): PaginationContract | undefined"
+        },
+        {
+          "name": "Assert",
+          "kind": "type",
+          "line": 92,
+          "exported": false,
+          "signature": "type Assert<T extends true> = T"
+        },
+        {
+          "name": "_PaginatedEndpointsAreSurfaced",
+          "kind": "type",
+          "line": 103,
+          "exported": true,
+          "signature": "export type _PaginatedEndpointsAreSurfaced = Assert< Exclude<PaginatedEndpoint, ActionEndpoint> extends never ? true : false >"
         }
       ]
     },
@@ -5301,11 +5416,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "planActions",
+          "name": "planReadActions",
           "kind": "const",
           "line": 39,
           "exported": true,
-          "signature": "export const planActions: readonly ActionSpec[] = [ { resource: 'plan', action: 'get', summary: 'Fetch a single test plan by ID', pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }], ap…"
+          "signature": "export const planReadActions = defineActions([ { resource: 'plan', action: 'get', summary: 'Fetch a single test plan by ID', pathParams: [{ name: 'plan_id', description: 'TestRail plan ID' }], apiEndp…"
+        },
+        {
+          "name": "planWriteActions",
+          "kind": "const",
+          "line": 69,
+          "exported": true,
+          "signature": "export const planWriteActions = defineActions([ { resource: 'plan', action: 'add', summary: 'Create a new test plan in a project (optionally with nested entries)', pathParams: [{ name: 'project_id', d…"
         }
       ]
     },
@@ -5322,7 +5444,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const priorityActions: readonly ActionSpec[] = [ { resource: 'priority', action: 'list', summary: 'List all case priorities defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET …"
+          "signature": "export const priorityActions = defineActions([ { resource: 'priority', action: 'list', summary: 'List all case priorities defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_prior…"
         }
       ]
     },
@@ -5337,11 +5459,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "projectActions",
+          "name": "projectReadActions",
           "kind": "const",
-          "line": 17,
+          "line": 11,
           "exported": true,
-          "signature": "export const projectActions: readonly ActionSpec[] = [ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project …"
+          "signature": "export const projectReadActions = defineActions([ { resource: 'project', action: 'get', summary: 'Fetch a single project by ID', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }…"
+        },
+        {
+          "name": "projectWriteActions",
+          "kind": "const",
+          "line": 33,
+          "exported": true,
+          "signature": "export const projectWriteActions = defineActions([ { resource: 'project', action: 'add', summary: 'Create a new project (no path params, payload-only)', pathParams: [], apiEndpoint: 'POST add_project'…"
         }
       ]
     },
@@ -5358,7 +5487,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 14,
           "exported": true,
-          "signature": "export const reportActions: readonly ActionSpec[] = [ { resource: 'report', action: 'list', summary: 'List report templates configured for a project', pathParams: [{ name: 'project_id', description: '…"
+          "signature": "export const reportActions = defineActions([ { resource: 'report', action: 'list', summary: 'List report templates configured for a project', pathParams: [{ name: 'project_id', description: 'TestRail …"
         }
       ]
     },
@@ -5375,7 +5504,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const resultFieldActions: readonly ActionSpec[] = [ { resource: 'result-field', action: 'list', summary: 'List all custom result fields defined on the TestRail instance', pathParams: [], apiEnd…"
+          "signature": "export const resultFieldActions = defineActions([ { resource: 'result-field', action: 'list', summary: 'List all custom result fields defined on the TestRail instance', pathParams: [], apiEndpoint: 'G…"
         }
       ]
     },
@@ -5390,11 +5519,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "resultActions",
+          "name": "resultReadActions",
           "kind": "const",
           "line": 28,
           "exported": true,
-          "signature": "export const resultActions: readonly ActionSpec[] = [ { resource: 'result', action: 'list', summary: 'List results for a run (paginated; creator/date, status, and defect filters supported)', pathParam…"
+          "signature": "export const resultReadActions = defineActions([ { resource: 'result', action: 'list', summary: 'List results for a run (paginated; creator/date, status, and defect filters supported)', pathParams: []…"
+        },
+        {
+          "name": "resultWriteActions",
+          "kind": "const",
+          "line": 71,
+          "exported": true,
+          "signature": "export const resultWriteActions = defineActions([ { resource: 'result', action: 'add', summary: 'Record a single result for a case in a run', pathParams: [ { name: 'run_id', description: 'TestRail run…"
         }
       ]
     },
@@ -5411,7 +5547,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const roleActions: readonly ActionSpec[] = [ { resource: 'role', action: 'list', summary: 'List all user roles defined on the TestRail instance (pagination envelope)', pathParams: [], apiEndpoi…"
+          "signature": "export const roleActions = defineActions([ { resource: 'role', action: 'list', summary: 'List all user roles defined on the TestRail instance (pagination envelope)', pathParams: [], apiEndpoint: 'GET …"
         }
       ]
     },
@@ -5427,11 +5563,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "runActions",
+          "name": "runReadActions",
           "kind": "const",
           "line": 17,
           "exported": true,
-          "signature": "export const runActions: readonly ActionSpec[] = [ { resource: 'run', action: 'get', summary: 'Fetch a single run by ID', pathParams: [{ name: 'run_id', description: 'TestRail run ID' }], apiEndpoint:…"
+          "signature": "export const runReadActions = defineActions([ { resource: 'run', action: 'get', summary: 'Fetch a single run by ID', pathParams: [{ name: 'run_id', description: 'TestRail run ID' }], apiEndpoint: 'GET…"
+        },
+        {
+          "name": "runWriteActions",
+          "kind": "const",
+          "line": 63,
+          "exported": true,
+          "signature": "export const runWriteActions = defineActions([ { resource: 'run', action: 'add', summary: 'Create a new test run in a project', pathParams: [{ name: 'project_id', description: 'TestRail project ID' }]…"
         }
       ]
     },
@@ -5446,11 +5589,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "sectionActions",
+          "name": "sectionReadActions",
           "kind": "const",
           "line": 20,
           "exported": true,
-          "signature": "export const sectionActions: readonly ActionSpec[] = [ { resource: 'section', action: 'get', summary: 'Fetch a single section by ID', pathParams: [{ name: 'section_id', description: 'TestRail section …"
+          "signature": "export const sectionReadActions = defineActions([ { resource: 'section', action: 'get', summary: 'Fetch a single section by ID', pathParams: [{ name: 'section_id', description: 'TestRail section ID' }…"
+        },
+        {
+          "name": "sectionWriteActions",
+          "kind": "const",
+          "line": 42,
+          "exported": true,
+          "signature": "export const sectionWriteActions = defineActions([ { resource: 'section', action: 'add', summary: 'Create a new section in a project (suite_id required for multi-suite-mode projects)', pathParams: [{ …"
         }
       ]
     },
@@ -5465,11 +5615,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "sharedStepActions",
+          "name": "sharedStepReadActions",
           "kind": "const",
           "line": 15,
           "exported": true,
-          "signature": "export const sharedStepActions: readonly ActionSpec[] = [ { resource: 'shared-step', action: 'get', summary: 'Fetch a single shared step by ID', pathParams: [{ name: 'shared_step_id', description: 'Te…"
+          "signature": "export const sharedStepReadActions = defineActions([ { resource: 'shared-step', action: 'get', summary: 'Fetch a single shared step by ID', pathParams: [{ name: 'shared_step_id', description: 'TestRai…"
+        },
+        {
+          "name": "sharedStepWriteActions",
+          "kind": "const",
+          "line": 57,
+          "exported": true,
+          "signature": "export const sharedStepWriteActions = defineActions([ { resource: 'shared-step', action: 'add', summary: 'Create a new shared step set in a project (TestRail 7.0+)', pathParams: [{ name: 'project_id',…"
         }
       ]
     },
@@ -5486,7 +5643,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const statusActions: readonly ActionSpec[] = [ { resource: 'status', action: 'list', summary: 'List all result statuses defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_…"
+          "signature": "export const statusActions = defineActions([ { resource: 'status', action: 'list', summary: 'List all result statuses defined on the TestRail instance', pathParams: [], apiEndpoint: 'GET get_statuses'…"
         }
       ]
     },
@@ -5501,11 +5658,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "suiteActions",
+          "name": "suiteReadActions",
           "kind": "const",
           "line": 14,
           "exported": true,
-          "signature": "export const suiteActions: readonly ActionSpec[] = [ { resource: 'suite', action: 'get', summary: 'Fetch a single suite by ID', pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }], ap…"
+          "signature": "export const suiteReadActions = defineActions([ { resource: 'suite', action: 'get', summary: 'Fetch a single suite by ID', pathParams: [{ name: 'suite_id', description: 'TestRail suite ID' }], apiEndp…"
+        },
+        {
+          "name": "suiteWriteActions",
+          "kind": "const",
+          "line": 36,
+          "exported": true,
+          "signature": "export const suiteWriteActions = defineActions([ { resource: 'suite', action: 'add', summary: 'Create a new test suite in a project', pathParams: [{ name: 'project_id', description: 'TestRail project …"
         }
       ]
     },
@@ -5522,7 +5686,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 8,
           "exported": true,
-          "signature": "export const templateActions: readonly ActionSpec[] = [ { resource: 'template', action: 'list', summary: 'List case templates available in a project', pathParams: [{ name: 'project_id', description: '…"
+          "signature": "export const templateActions = defineActions([ { resource: 'template', action: 'list', summary: 'List case templates available in a project', pathParams: [{ name: 'project_id', description: 'TestRail …"
         }
       ]
     },
@@ -5537,11 +5701,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "testActions",
+          "name": "testReadActions",
           "kind": "const",
           "line": 17,
           "exported": true,
-          "signature": "export const testActions: readonly ActionSpec[] = [ { resource: 'test', action: 'get', summary: 'Fetch a single test by ID (optionally with TestRail data via --with-data)', pathParams: [{ name: 'test_…"
+          "signature": "export const testReadActions = defineActions([ { resource: 'test', action: 'get', summary: 'Fetch a single test by ID (optionally with TestRail data via --with-data)', pathParams: [{ name: 'test_id', …"
+        },
+        {
+          "name": "testWriteActions",
+          "kind": "const",
+          "line": 40,
+          "exported": true,
+          "signature": "export const testWriteActions = defineActions([ { resource: 'test', action: 'update-labels', summary: 'Set the labels on a single test (label-only; IDs or titles)', pathParams: [{ name: 'test_id', des…"
         }
       ]
     },
@@ -5569,18 +5740,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "export interface ActionFlagSpec { readonly name: ActionSpecFlagName; readonly required?: boolean; }"
         },
         {
-          "name": "PaginationSpec",
-          "kind": "interface",
-          "line": 25,
-          "exported": true,
-          "signature": "export interface PaginationSpec { response: 'envelope' | 'nested-envelope'; requestControls: boolean; collectionKey: string; }"
-        },
-        {
           "name": "ActionSpec",
           "kind": "interface",
-          "line": 34,
+          "line": 24,
           "exported": true,
-          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; handler: Handler; flags?: readonly ActionFlagSpec[]; apiEndpoint: string; pagination?…"
+          "signature": "export interface ActionSpec { resource: string; action: string; summary: string; pathParams: readonly PathParam[]; handler: Handler; flags?: readonly ActionFlagSpec[]; apiEndpoint: string; itemsReques…"
+        },
+        {
+          "name": "defineActions",
+          "kind": "function",
+          "line": 129,
+          "exported": true,
+          "signature": "export function defineActions<const E extends string>( actions: readonly (ActionSpec & { readonly apiEndpoint: E })[], ): readonly (ActionSpec & { readonly apiEndpoint: E })[]"
         }
       ]
     },
@@ -5595,11 +5766,18 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "reExports": [],
       "symbols": [
         {
-          "name": "userActions",
+          "name": "userReadActions",
           "kind": "const",
           "line": 15,
           "exported": true,
-          "signature": "export const userActions: readonly ActionSpec[] = [ { resource: 'user', action: 'get', summary: 'Fetch a single user by ID', pathParams: [{ name: 'user_id', description: 'TestRail user ID' }], apiEndp…"
+          "signature": "export const userReadActions = defineActions([ { resource: 'user', action: 'get', summary: 'Fetch a single user by ID', pathParams: [{ name: 'user_id', description: 'TestRail user ID' }], apiEndpoint:…"
+        },
+        {
+          "name": "userWriteActions",
+          "kind": "const",
+          "line": 56,
+          "exported": true,
+          "signature": "export const userWriteActions = defineActions([ { resource: 'user', action: 'add', summary: 'Create a new user (no path param, payload-only; TestRail 7.3+)', pathParams: [], apiEndpoint: 'POST add_use…"
         }
       ]
     },
@@ -5618,7 +5796,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 13,
           "exported": true,
-          "signature": "export const variableActions: readonly ActionSpec[] = [ { resource: 'variable', action: 'list', summary: 'List variables in a project (pagination envelope)', pathParams: [{ name: 'project_id', descrip…"
+          "signature": "export const variableActions = defineActions([ { resource: 'variable', action: 'list', summary: 'List variables in a project (pagination envelope)', pathParams: [{ name: 'project_id', description: 'Te…"
         }
       ]
     },
@@ -5635,7 +5813,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "const",
           "line": 5,
           "exported": true,
-          "signature": "export const versionActions: readonly ActionSpec[] = [ { resource: 'version', action: 'get', summary: 'Get the installed TestRail version', pathParams: [], apiEndpoint: 'GET get_version', isWrite: fal…"
+          "signature": "export const versionActions = defineActions([ { resource: 'version', action: 'get', summary: 'Get the installed TestRail version', pathParams: [], apiEndpoint: 'GET get_version', isWrite: false, handl…"
         }
       ]
     },
@@ -5937,6 +6115,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./flags.js",
         "./handler-context.js",
         "./ids.js",
+        "./metadata/paginated-endpoints.js",
         "./metadata/types.js"
       ],
       "reExports": [],
@@ -5944,154 +6123,154 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "CliPaginationMode",
           "kind": "type",
-          "line": 8,
+          "line": 9,
           "exported": true,
           "signature": "export type CliPaginationMode = 'items' | 'page' | 'all'"
         },
         {
           "name": "CliPaginationOperations",
           "kind": "interface",
-          "line": 10,
+          "line": 11,
           "exported": true,
           "signature": "export interface CliPaginationOperations<T> { readonly items: () => Promise<T[]>; readonly page: () => Promise<unknown>; readonly all: () => Promise<T[]>; }"
         },
         {
           "name": "CliPaginationParsed",
           "kind": "interface",
-          "line": 16,
+          "line": 17,
           "exported": true,
           "signature": "export interface CliPaginationParsed { readonly mode: CliPaginationMode; readonly limit?: number; readonly offset?: number; readonly pageSize?: number; readonly startOffset?: number; readonly maxPages…"
         },
         {
           "name": "CliPaginationValidationResult",
           "kind": "type",
-          "line": 28,
+          "line": 29,
           "exported": true,
           "signature": "export type CliPaginationValidationResult = { readonly ok: true; readonly parsed: CliPaginationParsed } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "ParsedPaginationAggregateProperty",
           "kind": "type",
-          "line": 31,
+          "line": 32,
           "exported": false,
           "signature": "type ParsedPaginationAggregateProperty = 'pageSize' | 'startOffset' | 'maxPages' | 'maxItems' | 'maxDurationMs' | 'maxBytes'"
         },
         {
           "name": "ParsedPaginationArgs",
           "kind": "type",
-          "line": 34,
+          "line": 35,
           "exported": false,
           "signature": "type ParsedPaginationArgs = Omit<CliPaginationParsed, 'mode'>"
         },
         {
           "name": "NumericFlag",
           "kind": "interface",
-          "line": 36,
+          "line": 37,
           "exported": false,
           "signature": "interface NumericFlag { readonly property: ParsedPaginationAggregateProperty; readonly flag: string; readonly allowZero: boolean; readonly maximum?: number; }"
         },
         {
           "name": "PAGE_SIZE_FLAG",
           "kind": "const",
-          "line": 43,
+          "line": 44,
           "exported": false,
           "signature": "const PAGE_SIZE_FLAG = { property: 'pageSize', flag: '--page-size', allowZero: false, maximum: MAX_PAGINATION_LIMIT, } satisfies NumericFlag"
         },
         {
           "name": "START_OFFSET_FLAG",
           "kind": "const",
-          "line": 49,
+          "line": 50,
           "exported": false,
           "signature": "const START_OFFSET_FLAG = { property: 'startOffset', flag: '--start-offset', allowZero: true, } satisfies NumericFlag"
         },
         {
           "name": "MAX_PAGES_FLAG",
           "kind": "const",
-          "line": 54,
+          "line": 55,
           "exported": false,
           "signature": "const MAX_PAGES_FLAG = { property: 'maxPages', flag: '--max-pages', allowZero: false } satisfies NumericFlag"
         },
         {
           "name": "MAX_ITEMS_FLAG",
           "kind": "const",
-          "line": 55,
+          "line": 56,
           "exported": false,
           "signature": "const MAX_ITEMS_FLAG = { property: 'maxItems', flag: '--max-items', allowZero: false } satisfies NumericFlag"
         },
         {
           "name": "MAX_DURATION_FLAG",
           "kind": "const",
-          "line": 56,
+          "line": 57,
           "exported": false,
           "signature": "const MAX_DURATION_FLAG = { property: 'maxDurationMs', flag: '--max-duration-ms', allowZero: false, maximum: MAX_TIMEOUT_MS, } satisfies NumericFlag"
         },
         {
           "name": "MAX_BYTES_FLAG",
           "kind": "const",
-          "line": 62,
+          "line": 63,
           "exported": false,
           "signature": "const MAX_BYTES_FLAG = { property: 'maxBytes', flag: '--max-bytes', allowZero: false, maximum: MAX_PAGINATION_BYTES, } satisfies NumericFlag"
         },
         {
           "name": "NUMERIC_FLAGS",
           "kind": "const",
-          "line": 69,
+          "line": 70,
           "exported": false,
           "signature": "const NUMERIC_FLAGS: readonly NumericFlag[] = [ PAGE_SIZE_FLAG, START_OFFSET_FLAG, MAX_PAGES_FLAG, MAX_ITEMS_FLAG, MAX_DURATION_FLAG, MAX_BYTES_FLAG, ]"
         },
         {
           "name": "parseCanonicalInteger",
           "kind": "function",
-          "line": 78,
+          "line": 79,
           "exported": false,
           "signature": "function parseCanonicalInteger(raw: unknown, flag: string, allowZero: boolean, maximum?: number): number"
         },
         {
           "name": "parseOptional",
           "kind": "function",
-          "line": 98,
+          "line": 99,
           "exported": false,
           "signature": "function parseOptional(args: RawCliPaginationArgs, definition: NumericFlag): number | undefined"
         },
         {
           "name": "parseCliPagination",
           "kind": "function",
-          "line": 105,
+          "line": 106,
           "exported": true,
           "signature": "export function parseCliPagination(args: RawCliPaginationArgs): CliPaginationParsed"
         },
         {
           "name": "validateCliPagination",
           "kind": "function",
-          "line": 141,
+          "line": 142,
           "exported": true,
           "signature": "export function validateCliPagination( actionSpec: ActionSpec | undefined, args: RawCliPaginationArgs, ): CliPaginationValidationResult"
         },
         {
           "name": "getCliPaginationMode",
           "kind": "function",
-          "line": 218,
+          "line": 221,
           "exported": true,
           "signature": "export function getCliPaginationMode(args: Pick<RawCliPaginationArgs, 'page' | 'all'>): CliPaginationMode"
         },
         {
           "name": "outputPaginated",
           "kind": "function",
-          "line": 225,
+          "line": 228,
           "exported": true,
           "signature": "export async function outputPaginated<T>( ctx: Pick<HandlerContext, 'pagination' | 'out'>, operations: CliPaginationOperations<T>, ): Promise<void>"
         },
         {
           "name": "getPaginationSafetyOptions",
           "kind": "function",
-          "line": 236,
+          "line": 239,
           "exported": true,
           "signature": "export function getPaginationSafetyOptions(pagination: CliPaginationParsed): PaginationSafetyOptions"
         },
         {
           "name": "getPaginatedRequestOptions",
           "kind": "function",
-          "line": 246,
+          "line": 249,
           "exported": true,
           "signature": "export function getPaginatedRequestOptions(pagination: CliPaginationParsed): PaginatedRequestOptions"
         }

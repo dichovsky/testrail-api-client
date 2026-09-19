@@ -1,7 +1,7 @@
 import { AddSuitePayloadSchema, UpdateSuitePayloadSchema } from '../../schemas.js';
 import { handleSuiteGet, handleSuiteList } from '../handlers/suite.js';
 import { handleSuiteAdd, handleSuiteDelete, handleSuiteUpdate } from '../handlers/suite-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `suite` actions in their original relative order:
@@ -11,7 +11,7 @@ import type { ActionSpec } from './types.js';
  *   [3] update — write (structural-setup)
  *   [4] delete — write (destructive)
  */
-export const suiteActions: readonly ActionSpec[] = [
+export const suiteReadActions = defineActions([
     {
         resource: 'suite',
         action: 'get',
@@ -27,11 +27,13 @@ export const suiteActions: readonly ActionSpec[] = [
         summary: 'List suites in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_suites/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'suites' },
         flags: [{ name: 'project-id', required: true }],
         isWrite: false,
         handler: handleSuiteList,
     },
+]);
+
+export const suiteWriteActions = defineActions([
     {
         resource: 'suite',
         action: 'add',
@@ -66,4 +68,4 @@ export const suiteActions: readonly ActionSpec[] = [
         softMode: 'optional',
         handler: handleSuiteDelete,
     },
-];
+]);

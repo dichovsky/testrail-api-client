@@ -4,14 +4,14 @@ import {
     handleReportList,
     handleReportRun,
 } from '../handlers/report.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `report` actions in their original relative order:
  *   [0] list — read
  *   [1] run  — read (executes a report template)
  */
-export const reportActions: readonly ActionSpec[] = [
+export const reportActions = defineActions([
     {
         resource: 'report',
         action: 'list',
@@ -48,4 +48,4 @@ export const reportActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleCrossProjectReportRun,
     },
-];
+]);

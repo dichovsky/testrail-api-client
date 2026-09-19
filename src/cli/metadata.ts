@@ -1,31 +1,31 @@
 import type { ActionSpec } from './metadata/types.js';
 
-import { projectActions } from './metadata/projects.js';
-import { suiteActions } from './metadata/suites.js';
-import { caseActions } from './metadata/cases.js';
-import { runActions } from './metadata/runs.js';
-import { testActions } from './metadata/tests.js';
-import { resultActions } from './metadata/results.js';
-import { milestoneActions } from './metadata/milestones.js';
-import { userActions } from './metadata/users.js';
-import { planActions } from './metadata/plans.js';
-import { sectionActions } from './metadata/sections.js';
-import { sharedStepActions } from './metadata/sharedSteps.js';
+import { projectReadActions, projectWriteActions } from './metadata/projects.js';
+import { suiteReadActions, suiteWriteActions } from './metadata/suites.js';
+import { caseReadActions, caseWriteActions } from './metadata/cases.js';
+import { runReadActions, runWriteActions } from './metadata/runs.js';
+import { testReadActions, testWriteActions } from './metadata/tests.js';
+import { resultReadActions, resultWriteActions } from './metadata/results.js';
+import { milestoneReadActions, milestoneWriteActions } from './metadata/milestones.js';
+import { userReadActions, userWriteActions } from './metadata/users.js';
+import { planReadActions, planWriteActions } from './metadata/plans.js';
+import { sectionReadActions, sectionWriteActions } from './metadata/sections.js';
+import { sharedStepReadActions, sharedStepWriteActions } from './metadata/sharedSteps.js';
 import { reportActions } from './metadata/reports.js';
 import { caseStatusActions } from './metadata/caseStatuses.js';
-import { caseFieldActions } from './metadata/caseFields.js';
+import { caseFieldReadActions, caseFieldWriteActions } from './metadata/caseFields.js';
 import { resultFieldActions } from './metadata/resultFields.js';
 import { statusActions } from './metadata/statuses.js';
 import { templateActions } from './metadata/templates.js';
 import { roleActions } from './metadata/roles.js';
 import { priorityActions } from './metadata/priorities.js';
 import { caseTypeActions } from './metadata/caseTypes.js';
-import { attachmentActions } from './metadata/attachments.js';
+import { attachmentReadActions, attachmentWriteActions } from './metadata/attachments.js';
 import { bddActions } from './metadata/bdd.js';
 import { variableActions } from './metadata/variables.js';
 import { groupActions } from './metadata/groups.js';
 import { datasetActions } from './metadata/datasets.js';
-import { configurationActions } from './metadata/configurations.js';
+import { configurationReadActions, configurationWriteActions } from './metadata/configurations.js';
 import { configurationGroupActions } from './metadata/configurationGroups.js';
 import { labelActions } from './metadata/labels.js';
 import { versionActions } from './metadata/versions.js';
@@ -54,47 +54,52 @@ export type { ActionSpec, PathParam } from './metadata/types.js';
  * under `src/cli/metadata/`. The dispatcher, the skill, and the mapping
  * table stay accurate automatically.
  *
- * **Order preservation.** This array is composed from per-resource modules
- * via explicit slicing so the published `ACTIONS` order matches the
- * pre-PR-B layout byte-for-byte. Renderers (skill command table,
- * AGENTS.md destructive list) iterate this array in declaration order, so
- * any reordering would force a `--check` drift across multiple generated
- * artifacts. Each slice comment indicates the original logical section.
+ * **Order preservation.** Renderers (skill command table, AGENTS.md
+ * destructive list) iterate this array in declaration order, so any reordering
+ * forces a `--check` drift across several generated artifacts.
+ *
+ * That order used to be produced by 29 `.slice(a, b)` calls over per-resource
+ * arrays, each with a comment naming the entries it was supposed to cover.
+ * Nothing checked the comment against the bounds, and nothing could: `.slice()`
+ * on a tuple returns the union of every element regardless of the numbers, so
+ * inserting an entry silently shifted every later bound and a wrong bound
+ * compiled clean. Each resource now exports its reads and writes separately and
+ * the barrel spreads them by name.
  */
 export const ACTIONS: readonly ActionSpec[] = [
     // ── Read actions ──────────────────────────────────────────────────────
-    ...projectActions.slice(0, 2), // project get, list
-    ...suiteActions.slice(0, 2), // suite get, list
-    ...caseActions.slice(0, 4), // case get, list, history, titles
-    ...runActions.slice(0, 3), // run get, list, watch
-    ...testActions.slice(0, 2), // test get, list
-    ...resultActions.slice(0, 3), // result list, list-for-test, list-for-case
-    ...milestoneActions.slice(0, 2), // milestone get, list
-    ...userActions.slice(0, 4), // user get, list, get-by-email, get-current
-    ...planActions.slice(0, 2), // plan get, list
-    ...sectionActions.slice(0, 2), // section get, list
+    ...projectReadActions, // project get, list
+    ...suiteReadActions, // suite get, list
+    ...caseReadActions, // case get, list, history, titles
+    ...runReadActions, // run get, list, watch
+    ...testReadActions, // test get, list
+    ...resultReadActions, // result list, list-for-test, list-for-case
+    ...milestoneReadActions, // milestone get, list
+    ...userReadActions, // user get, list, get-by-email, get-current
+    ...planReadActions, // plan get, list
+    ...sectionReadActions, // section get, list
     // ── Write actions ─────────────────────────────────────────────────────
-    ...caseActions.slice(4, 12), // case add, add-bulk, update, update-bulk, delete, delete-bulk, copy-to-section, move-to-section
-    ...runActions.slice(3, 7), // run add, update, close, delete
-    ...testActions.slice(2, 4), // test update-labels, update-labels-bulk
-    ...resultActions.slice(3, 8), // result add, add-bulk, add-bulk-by-test, add-by-test, edit
-    ...planActions.slice(2, 12), // plan add, update, add-entry, add-run-to-entry, update-entry, update-run-in-entry, close, delete, delete-entry, delete-run-from-entry
-    ...sectionActions.slice(2, 6), // section add, update, move, delete
+    ...caseWriteActions, // case add, add-bulk, update, update-bulk, delete, delete-bulk, copy-to-section, move-to-section
+    ...runWriteActions, // run add, update, close, delete
+    ...testWriteActions, // test update-labels, update-labels-bulk
+    ...resultWriteActions, // result add, add-bulk, add-bulk-by-test, add-by-test, edit
+    ...planWriteActions, // plan add, update, add-entry, add-run-to-entry, update-entry, update-run-in-entry, close, delete, delete-entry, delete-run-from-entry
+    ...sectionWriteActions, // section add, update, move, delete
     // ── Structural-setup write actions ────────────────────────────────────
     // `project`, `suite`, `milestone`, and `user` add/update. Programmatic
     // methods already exist; these expose them via the CLI for agent
     // provisioning workflows. `user add` requires TestRail 7.3+.
-    ...projectActions.slice(2, 5), // project add, update, delete
-    ...suiteActions.slice(2, 5), // suite add, update, delete
-    ...milestoneActions.slice(2, 5), // milestone add, update, delete
+    ...projectWriteActions, // project add, update, delete
+    ...suiteWriteActions, // suite add, update, delete
+    ...milestoneWriteActions, // milestone add, update, delete
     // ── User write actions (TestRail 7.3+) ────────────────────────────────
-    ...userActions.slice(4, 6), // user add, update
+    ...userWriteActions, // user add, update
     // ── Shared-step read actions ──────────────────────────────────────────
-    ...sharedStepActions.slice(0, 3), // shared-step get, list, history
+    ...sharedStepReadActions, // shared-step get, list, history
     // ── Report read actions ───────────────────────────────────────────────
     ...reportActions, // report list, run
     // ── Shared-step write actions (TestRail 7.0+) ─────────────────────────
-    ...sharedStepActions.slice(3, 6), // shared-step add, update, delete
+    ...sharedStepWriteActions, // shared-step add, update, delete
     // ── Case-status read action ───────────────────────────────────────────
     ...caseStatusActions, // case-status list
     // ── Metadata + reference-data read actions ────────────────────────────
@@ -107,7 +112,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     // `testrail status list 5` or `testrail role list 5` surfaces as an
     // error instead of silently ignoring the `5`. `template list` takes a
     // single `project_id`.
-    ...caseFieldActions.slice(0, 1), // case-field list
+    ...caseFieldReadActions, // case-field list
     ...resultFieldActions, // result-field list
     ...statusActions, // status list
     ...templateActions, // template list
@@ -117,13 +122,12 @@ export const ACTIONS: readonly ActionSpec[] = [
     ...versionActions, // version get (TestRail 10.6+)
     ...dynamicFilterFieldActions, // dynamic-filter-field list (TestRail 10.4+)
     // ── Case-field write action ───────────────────────────────────────────
-    ...caseFieldActions.slice(1, 2), // case-field add
+    ...caseFieldWriteActions, // case-field add
     // ── Attachment read actions ───────────────────────────────────────────
-    ...attachmentActions.slice(0, 6), // attachment list-for-case, list-for-run, list-for-test, list-for-plan, list-for-plan-entry, get
-    // ── Attachment write actions (file input) ─────────────────────────────
-    ...attachmentActions.slice(6, 11), // attachment add-to-case, add-to-result, add-to-run, add-to-plan, add-to-plan-entry
-    // ── Attachment destructive action (requires --yes) ────────────────────
-    ...attachmentActions.slice(11, 12), // attachment delete
+    ...attachmentReadActions, // attachment list-for-case, list-for-run, list-for-test, list-for-plan, list-for-plan-entry, get
+    // ── Attachment write actions ──────────────────────────────────────────
+    // Five file-input uploads, then `attachment delete` (destructive, --yes).
+    ...attachmentWriteActions,
     // ── BDD actions (text I/O for `get`, file input for `add`) ────────────
     ...bddActions, // bdd get, list, add, update
     // ── Variable actions (data-driven testing) ────────────────────────────
@@ -133,9 +137,9 @@ export const ACTIONS: readonly ActionSpec[] = [
     // ── Dataset actions (data-driven testing) ─────────────────────────────
     ...datasetActions, // dataset get, list, add, update, delete
     // ── Configuration hierarchy (groups + leaf configs) ───────────────────
-    ...configurationActions.slice(0, 1), // configuration list
+    ...configurationReadActions, // configuration list
     ...configurationGroupActions, // configuration-group add, update, delete
-    ...configurationActions.slice(1, 4), // configuration add, update, delete
+    ...configurationWriteActions, // configuration add, update, delete
     // ── Label actions (TestRail Labels API, 2025) ─────────────────────────
     ...labelActions, // label get, list, add, update, delete, delete-bulk
 ];
@@ -144,3 +148,91 @@ export const ACTIONS: readonly ActionSpec[] = [
 export function getActionSpec(resource: string, action: string): ActionSpec | undefined {
     return ACTIONS.find((a) => a.resource === resource && a.action === action);
 }
+
+// ── Endpoint literal types ────────────────────────────────────────────────────
+
+/** The `apiEndpoint` strings a group of actions declares. */
+type EndpointsOf<T extends readonly { readonly apiEndpoint: string }[]> = T[number]['apiEndpoint'];
+
+/**
+ * Every endpoint the CLI surfaces, as a union of string literals.
+ *
+ * Built from the per-resource arrays rather than from `ACTIONS`, which is
+ * annotated `readonly ActionSpec[]` for its consumers. Inferring a literal
+ * tuple for all 134 entries instead made the compiler spell every entry's full
+ * shape into `dist/cli/metadata.d.ts` — 2 KB to 105 KB — for a projection that
+ * only ever needed the endpoint strings.
+ *
+ * Only resolves to literals while every per-resource array is written
+ * `as const satisfies readonly ActionSpec[]`. Annotating any one of them
+ * `: readonly ActionSpec[]` widens this to plain `string` — see the guard
+ * below, which exists for exactly that reason.
+ */
+export type ActionEndpoint =
+    | EndpointsOf<typeof projectReadActions>
+    | EndpointsOf<typeof projectWriteActions>
+    | EndpointsOf<typeof suiteReadActions>
+    | EndpointsOf<typeof suiteWriteActions>
+    | EndpointsOf<typeof caseReadActions>
+    | EndpointsOf<typeof caseWriteActions>
+    | EndpointsOf<typeof runReadActions>
+    | EndpointsOf<typeof runWriteActions>
+    | EndpointsOf<typeof testReadActions>
+    | EndpointsOf<typeof testWriteActions>
+    | EndpointsOf<typeof resultReadActions>
+    | EndpointsOf<typeof resultWriteActions>
+    | EndpointsOf<typeof milestoneReadActions>
+    | EndpointsOf<typeof milestoneWriteActions>
+    | EndpointsOf<typeof userReadActions>
+    | EndpointsOf<typeof userWriteActions>
+    | EndpointsOf<typeof planReadActions>
+    | EndpointsOf<typeof planWriteActions>
+    | EndpointsOf<typeof sectionReadActions>
+    | EndpointsOf<typeof sectionWriteActions>
+    | EndpointsOf<typeof sharedStepReadActions>
+    | EndpointsOf<typeof sharedStepWriteActions>
+    | EndpointsOf<typeof reportActions>
+    | EndpointsOf<typeof caseStatusActions>
+    | EndpointsOf<typeof caseFieldReadActions>
+    | EndpointsOf<typeof caseFieldWriteActions>
+    | EndpointsOf<typeof resultFieldActions>
+    | EndpointsOf<typeof statusActions>
+    | EndpointsOf<typeof templateActions>
+    | EndpointsOf<typeof roleActions>
+    | EndpointsOf<typeof priorityActions>
+    | EndpointsOf<typeof caseTypeActions>
+    | EndpointsOf<typeof attachmentReadActions>
+    | EndpointsOf<typeof attachmentWriteActions>
+    | EndpointsOf<typeof bddActions>
+    | EndpointsOf<typeof variableActions>
+    | EndpointsOf<typeof groupActions>
+    | EndpointsOf<typeof datasetActions>
+    | EndpointsOf<typeof configurationReadActions>
+    | EndpointsOf<typeof configurationWriteActions>
+    | EndpointsOf<typeof configurationGroupActions>
+    | EndpointsOf<typeof labelActions>
+    | EndpointsOf<typeof versionActions>
+    | EndpointsOf<typeof dynamicFilterFieldActions>;
+
+/** Compile-time assertion helper: `Assert<false>` is an error. */
+type Assert<T extends true> = T;
+
+/**
+ * DO NOT DELETE THIS WITHOUT READING THIS COMMENT.
+ *
+ * This alias has no runtime effect and no consumers. Its only job is to be
+ * inconvenient: it fails compilation the moment `ActionEndpoint` degrades from
+ * a union of literals to `string`.
+ *
+ * That matters because a widened `ActionEndpoint` does not break anything
+ * loudly — it makes `_PaginatedEndpointsAreSurfaced` in
+ * `src/cli/metadata/paginated-endpoints.ts` pass while checking nothing
+ * (`Exclude<X, string>` is `never` for every `X`). Deleting this line to
+ * silence a merge conflict therefore disarms that assertion silently, which is
+ * the failure mode this approach trades for gate E's printed error message.
+ *
+ * If this fires, the fix is to restore `as const satisfies readonly
+ * ActionSpec[]` on whichever array in `src/cli/metadata/` lost it — never to
+ * delete this.
+ */
+export type _ActionEndpointsAreLiterals = Assert<[string] extends [ActionEndpoint] ? false : true>;

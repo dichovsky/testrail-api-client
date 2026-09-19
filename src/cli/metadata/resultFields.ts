@@ -1,11 +1,11 @@
 import { handleResultFieldList } from '../handlers/result-field.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `result-field` actions:
  *   [0] list — read
  */
-export const resultFieldActions: readonly ActionSpec[] = [
+export const resultFieldActions = defineActions([
     {
         resource: 'result-field',
         action: 'list',
@@ -15,4 +15,4 @@ export const resultFieldActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleResultFieldList,
     },
-];
+]);

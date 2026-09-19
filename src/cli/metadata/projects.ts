@@ -1,20 +1,14 @@
 import { AddProjectPayloadSchema, UpdateProjectPayloadSchema } from '../../schemas.js';
 import { handleProjectGet, handleProjectList } from '../handlers/project.js';
 import { handleProjectAdd, handleProjectDelete, handleProjectUpdate } from '../handlers/project-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
- * `project` actions in their original relative order:
- *   [0] get   — read
- *   [1] list  — read
- *   [2] add   — write (structural-setup)
- *   [3] update — write (structural-setup)
- *   [4] delete — write (destructive)
- *
- * The barrel in `src/cli/metadata.ts` slices this array to preserve the
- * interleaved layout of the original `ACTIONS` literal.
+ * `project` actions, split the way the barrel consumes them. `ACTIONS`
+ * interleaves reads and writes from several resources, so each half is its own
+ * export rather than a slice of one array — an index that nothing checks.
  */
-export const projectActions: readonly ActionSpec[] = [
+export const projectReadActions = defineActions([
     {
         resource: 'project',
         action: 'get',
@@ -30,11 +24,13 @@ export const projectActions: readonly ActionSpec[] = [
         summary: 'List all projects (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_projects',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'projects' },
         flags: [{ name: 'is-completed' }],
         isWrite: false,
         handler: handleProjectList,
     },
+]);
+
+export const projectWriteActions = defineActions([
     {
         resource: 'project',
         action: 'add',
@@ -69,4 +65,4 @@ export const projectActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail; highest blast radius)',
         handler: handleProjectDelete,
     },
-];
+]);

@@ -1,11 +1,11 @@
 import { handleStatusList } from '../handlers/status.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `status` actions:
  *   [0] list — read (result statuses)
  */
-export const statusActions: readonly ActionSpec[] = [
+export const statusActions = defineActions([
     {
         resource: 'status',
         action: 'list',
@@ -15,4 +15,4 @@ export const statusActions: readonly ActionSpec[] = [
         isWrite: false,
         handler: handleStatusList,
     },
-];
+]);

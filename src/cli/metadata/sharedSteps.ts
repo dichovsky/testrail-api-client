@@ -1,7 +1,7 @@
 import { AddSharedStepPayloadSchema, UpdateSharedStepPayloadSchema } from '../../schemas.js';
 import { handleSharedStepGet, handleSharedStepList, handleSharedStepHistory } from '../handlers/shared-step.js';
 import { handleSharedStepAdd, handleSharedStepUpdate, handleSharedStepDelete } from '../handlers/shared-step-write.js';
-import type { ActionSpec } from './types.js';
+import { defineActions } from './types.js';
 
 /**
  * `shared-step` actions in their original relative order:
@@ -12,7 +12,7 @@ import type { ActionSpec } from './types.js';
  *   [4] update  — write (TestRail 7.0+)
  *   [5] delete  — write (destructive; TestRail 7.0+)
  */
-export const sharedStepActions: readonly ActionSpec[] = [
+export const sharedStepReadActions = defineActions([
     {
         resource: 'shared-step',
         action: 'get',
@@ -28,7 +28,6 @@ export const sharedStepActions: readonly ActionSpec[] = [
         summary: 'List shared steps in a project (paginated)',
         pathParams: [],
         apiEndpoint: 'GET get_shared_steps/{project_id}',
-        pagination: { response: 'envelope', requestControls: true, collectionKey: 'shared_steps' },
         flags: [
             { name: 'project-id', required: true },
             { name: 'created-after' },
@@ -47,13 +46,15 @@ export const sharedStepActions: readonly ActionSpec[] = [
         summary: 'List revision history for a shared step (pagination envelope)',
         pathParams: [{ name: 'shared_step_id', description: 'TestRail shared step ID' }],
         apiEndpoint: 'GET get_shared_step_history/{shared_step_id}',
-        pagination: { response: 'envelope', requestControls: false, collectionKey: 'step_history' },
         // Legacy items mode accepted these controls before page/all projections
         // were added. Page/all remain response-driven and never send them.
         flags: [{ name: 'limit' }, { name: 'offset' }],
         isWrite: false,
         handler: handleSharedStepHistory,
     },
+]);
+
+export const sharedStepWriteActions = defineActions([
     {
         resource: 'shared-step',
         action: 'add',
@@ -89,4 +90,4 @@ export const sharedStepActions: readonly ActionSpec[] = [
         helpExample: '(no body; --soft NOT supported by TestRail; TestRail 7.0+)',
         handler: handleSharedStepDelete,
     },
-];
+]);

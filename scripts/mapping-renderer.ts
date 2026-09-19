@@ -165,13 +165,12 @@ export interface ActionEntry {
     action: string;
     apiEndpoint: string;
     skillRecipeExempt?: boolean;
-    pagination?: PaginationMetadata;
 }
 
 export interface ValidateGatesInput {
     callSites: CallSite[];
     actions: ActionEntry[];
-    endpoints: { method: string; path: string; pagination?: PaginationMetadata | undefined }[];
+    endpoints: { method: string; path: string }[];
     recipes: Map<string, SkillRecipe>;
     rootPrefix?: string;
 }
@@ -198,8 +197,6 @@ export interface ValidateGatesInput {
  *          documented as absolute and exception-free (every `@testrail`-
  *          tagged SDK method must surface as ≥1 CLI command), so there is no
  *          `*Exempt` flag to opt out with.
- * Gate E:  pagination metadata is bidirectional between the endpoint inventory
- *          and `ActionSpec`: neither side may add, omit, or alter a pagination
  *          contract without the other changing in the same commit.
  *
  * All gates produce error lists; the caller exits non-zero if any is
@@ -221,10 +218,6 @@ export function validateGates({
             .filter((p): p is { method: string; path: string } => p !== null)
             .map((p) => `${p.method} ${normalizePathForMatch(p.path)}`),
     );
-    const endpointByKey = new Map(
-        endpoints.map((endpoint) => [`${endpoint.method} ${normalizePathForMatch(endpoint.path)}`, endpoint]),
-    );
-
     const errors: string[] = [];
 
     // Gate B
@@ -301,46 +294,16 @@ export function validateGates({
         }
     }
 
-    const samePagination = (left: PaginationMetadata, right: PaginationMetadata): boolean =>
-        left.response === right.response &&
-        left.requestControls === right.requestControls &&
-        left.collectionKey === right.collectionKey;
-
-    // Gate E (endpoint inventory → ACTIONS): every registered endpoint must
-    // have an ActionSpec with the exact same pagination contract.
-    for (const endpoint of endpoints) {
-        const pagination = endpoint.pagination;
-        if (pagination === undefined) continue;
-        const endpointKey = `${endpoint.method} ${normalizePathForMatch(endpoint.path)}`;
-        const matches = actions.filter((action) => {
-            const parsed = parseTestrailTag(action.apiEndpoint);
-            return parsed !== null && `${parsed.method} ${normalizePathForMatch(parsed.path)}` === endpointKey;
-        });
-        const mismatches = matches.filter(
-            (action) => action.pagination === undefined || !samePagination(action.pagination, pagination),
-        );
-        if (matches.length === 0 || mismatches.length > 0) {
-            const mismatchKeys = mismatches.map((action) => `${action.resource}:${action.action}`).join(', ');
-            errors.push(
-                `[gate E endpoint→ACTIONS] endpoint "${endpointKey}" declares pagination ${JSON.stringify(pagination)} but its ActionSpec metadata does not match${mismatchKeys === '' ? '' : ` (${mismatchKeys})`}`,
-            );
-        }
-    }
-
-    // Gate E (ACTIONS → endpoint inventory): CLI metadata cannot invent or
-    // disagree with an endpoint pagination contract.
-    for (const action of actions) {
-        if (action.pagination === undefined) continue;
-        const parsed = parseTestrailTag(action.apiEndpoint);
-        if (parsed === null) continue; // Gate C reports malformed apiEndpoint.
-        const endpointKey = `${parsed.method} ${normalizePathForMatch(parsed.path)}`;
-        const endpoint = endpointByKey.get(endpointKey);
-        if (endpoint?.pagination === undefined || !samePagination(action.pagination, endpoint.pagination)) {
-            errors.push(
-                `[gate E ACTIONS→endpoint] ActionSpec \`${action.resource}:${action.action}\` declares pagination ${JSON.stringify(action.pagination)} but endpoint "${endpointKey}" does not carry the same contract`,
-            );
-        }
-    }
+    // Gate E is gone. It compared each endpoint's pagination contract against a
+    // copy of that contract on the matching `ActionSpec`, which only worked
+    // because the copy existed. `ActionSpec` no longer carries one: the CLI
+    // reads `src/cli/metadata/paginated-endpoints.ts` keyed by `apiEndpoint`,
+    // so a disagreement is not spellable. What remains — that every paginated
+    // endpoint is reachable from some CLI command — is now the type-level
+    // `_PaginatedEndpointsAreSurfaced` assertion, backed by a runtime test
+    // because that assertion passes vacuously if `ActionEndpoint` widens. Both
+    // that and the table-vs-JSON agreement live in the `pagination registry`
+    // block of `tests/generate-mapping.test.ts`.
 
     return errors;
 }
@@ -479,7 +442,7 @@ export function renderDocument(
         '',
         '**Version target.** The inventory is audited against TestRail 10.7.0; source provenance, cumulative-release additions, resolved mismatches, and known upstream documentation conflicts are recorded in [`docs/TESTRAIL-10.7.0-COMPATIBILITY.md`](TESTRAIL-10.7.0-COMPATIBILITY.md).',
         '',
-        '**Drift gates.** The generator validates six things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); endpoint and `ActionSpec` pagination metadata agree bidirectionally (gate E); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI).',
+        "**Drift gates.** The generator validates five things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI). Pagination is no longer among them: an `ActionSpec` reads its endpoint's contract from `src/cli/metadata/paginated-endpoints.ts` instead of restating it, so there is nothing left for a gate to compare.",
         '',
         '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary distinguishes endpoint coverage from action counts because more than one CLI action can intentionally use the same TestRail endpoint.',
         '',
