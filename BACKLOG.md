@@ -10,8 +10,10 @@ Archive file: [`docs/archive/BACKLOG-ARCHIVE.md`](docs/archive/BACKLOG-ARCHIVE.m
 
 ## 🏗️ Architecture
 
-Deepening slate from the 2026-09-18 architecture review. Ordered; **ARCH #8 must
-precede ARCH #9** (#9's second-attempt hazard is prevented only by the convention
-#8 replaces). All internal — no published-API change; ships as one `7.3.0`.
+Deepening slate from the 2026-09-18 architecture review — complete. All internal;
+no published-API change. Ships as `7.3.0`.
 
-- [ ] 🟡 ♻️ ARCH #4: Endpoint registry — one runtime declaration per endpoint read by the SDK method, `ActionSpec` and the pagination descriptor; gates D/E become type constraints. No codegen. Folds in the `ACTIONS` slice-arithmetic removal
+ARCH #4 shipped reduced, deliberately: see the archive entry for why "one runtime
+declaration per endpoint" is unreachable while `docs/testrail-endpoints.json`
+stays hand-curated, and why gate D should not become a type constraint.
+
