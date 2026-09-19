@@ -300,9 +300,10 @@ export function validateGates({
     // reads `src/cli/metadata/paginated-endpoints.ts` keyed by `apiEndpoint`,
     // so a disagreement is not spellable. What remains — that every paginated
     // endpoint is reachable from some CLI command — is now the type-level
-    // `_PaginatedEndpointsAreSurfaced` assertion, and that the table agrees
-    // with the JSON inventory is asserted in
-    // `tests/pagination-descriptor-inventory.test.ts`.
+    // `_PaginatedEndpointsAreSurfaced` assertion, backed by a runtime test
+    // because that assertion passes vacuously if `ActionEndpoint` widens. Both
+    // that and the table-vs-JSON agreement live in the `pagination registry`
+    // block of `tests/generate-mapping.test.ts`.
 
     return errors;
 }

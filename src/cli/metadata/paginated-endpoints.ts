@@ -6,8 +6,8 @@ import type { ActionEndpoint } from '../metadata.js';
  * TestRail's own documentation of these 24 endpoints lives in
  * `docs/testrail-endpoints.json`, which stays hand-curated because it records
  * what the API documents rather than what this client implements. This table is
- * the runtime half of that fact, and `tests/pagination-descriptor-inventory.test.ts`
- * holds the two sides equal.
+ * the runtime half of that fact; the `pagination registry` block in
+ * `tests/generate-mapping.test.ts` holds the two sides equal.
  *
  * It exists so an `ActionSpec` no longer restates the contract. Each entry used
  * to carry a `pagination` field copied from the JSON, and gate E in the mapping

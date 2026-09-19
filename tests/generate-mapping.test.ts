@@ -181,6 +181,41 @@ describe('pagination registry', () => {
         ]);
     });
 
+    it('reads an array wrapped in `defineActions(...)`', () => {
+        // The wrapper every metadata file uses. Unwrapping only `as`/`satisfies`
+        // left this as an unread CallExpression, which the guard below turns
+        // into a throw — but a throw on the real files, not a silent [].
+        const source = `
+            export const sampleActions = defineActions([{
+                resource: 'case',
+                action: 'get',
+                apiEndpoint: 'GET get_case/{case_id}',
+            }]);
+        `;
+        expect(collectActionsFromSource(source, 'sample.ts')).toEqual([
+            { resource: 'case', action: 'get', apiEndpoint: 'GET get_case/{case_id}' },
+        ]);
+    });
+
+    it('refuses a call it does not recognise rather than guessing', () => {
+        const source = `export const sampleActions = buildActions([{ resource: 'case' }]);`;
+        expect(() => collectActionsFromSource(source, 'sample.ts')).toThrow(/cannot read `sampleActions`/);
+    });
+
+    it('refuses a spread element instead of checking a shorter list', () => {
+        // No metadata file spreads today, so nothing else in the suite — and
+        // not `mapping:check` either — would notice if this regressed to the
+        // old silent skip. The gates would go on testing membership against a
+        // list shorter than the array actually holds, and pass.
+        const source = `
+            export const sampleActions = defineActions([
+                { resource: 'case', action: 'get', apiEndpoint: 'GET get_case/{case_id}' },
+                ...sharedEntries,
+            ]);
+        `;
+        expect(() => collectActionsFromSource(source, 'sample.ts')).toThrow(/non-literal element \(SpreadElement\)/);
+    });
+
     it('refuses an initializer it cannot read instead of returning nothing', () => {
         // The failure this guards is silence: returning [] here reads as
         // "no actions to check" to every gate.
