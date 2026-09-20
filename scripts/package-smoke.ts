@@ -2,8 +2,9 @@
 /**
  * Verifies the package exactly as an npm consumer receives it.
  *
- * By default this script builds `dist/` and removes source maps before packing.
- * Pass `--prepared` when a release job has already performed those steps. The
+ * By default this script builds `dist/` before packing; `tsconfig.prod.json`
+ * emits no source maps, so there is nothing to strip afterwards.
+ * Pass `--prepared` when a release job has already built it. The
  * packed tarball is installed into a private temporary consumer with a local
  * Zod copy, then its declarations are compiled by both TypeScript 7 and 6, so
  * the smoke test does not depend on registry or TestRail access.
@@ -234,8 +235,11 @@ function buildPackage(compiler: CompilerLauncher): void {
     const distDirectory = path.join(REPOSITORY_ROOT, 'dist');
 
     // Reproduce `npm run build` with Node filesystem primitives so this
-    // verification script works in stock Windows shells too. The public
-    // package scripts remain unchanged for existing consumers.
+    // verification script works in stock Windows shells too. There is no
+    // map-stripping step to mirror any more: `tsconfig.prod.json` disables
+    // sourceMap and declarationMap, and the `clean:maps` script that used to
+    // delete them afterwards is gone — emitting-then-deleting is what left
+    // every emitted file pointing at a map the tarball did not ship.
     rmSync(distDirectory, {
         recursive: true,
         force: true,
