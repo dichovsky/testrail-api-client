@@ -475,22 +475,24 @@ function parsePackResult(raw: string): PackResult {
     return { name, version, filename, files: packedFiles };
 }
 
+// The skill body plus the reference files it points at. Enumerated rather than
+// globbed on `skill/reference/`, and used as both an allowlist and a
+// required-file list below, because the two directions catch different
+// mistakes: the allowlist rejects a file that ships without being declared
+// here, and the required list rejects a declared file that fails to ship.
+// SKILL.md's `./reference/*` pointers dangle in a consumer's install if either
+// half is missing, so neither direction alone is enough.
+const PACKED_SKILL_FILES = [
+    'skill/SKILL.md',
+    'skill/reference/commands.md',
+    'skill/reference/recipes.md',
+    'skill/reference/typescript-api.md',
+    'skill/reference/payload-schemas.yaml',
+];
+
 function isAllowedPackedPath(filePath: string): boolean {
     if (filePath === 'package.json' || filePath === 'README.md' || filePath === 'LICENSE') return true;
-    // The skill body plus the reference files it points at. Enumerated rather
-    // than globbed on `skill/reference/`: SKILL.md's pointers are only useful
-    // if the files land beside it, and an allowlist is what makes adding one
-    // without shipping it a smoke failure instead of a dangling reference in
-    // a consumer's install.
-    if (filePath === 'skill/SKILL.md') return true;
-    if (
-        filePath === 'skill/reference/commands.md' ||
-        filePath === 'skill/reference/recipes.md' ||
-        filePath === 'skill/reference/typescript-api.md' ||
-        filePath === 'skill/reference/payload-schemas.yaml'
-    ) {
-        return true;
-    }
+    if (PACKED_SKILL_FILES.includes(filePath)) return true;
     if (!filePath.startsWith('dist/')) return false;
     const segments = filePath.split('/');
     if (segments.some((segment) => segment.length === 0 || segment.startsWith('.'))) return false;
@@ -529,7 +531,7 @@ function packPackage(packDirectory: string, identity: PackageIdentity): string {
         'package.json',
         'README.md',
         'LICENSE',
-        'skill/SKILL.md',
+        ...PACKED_SKILL_FILES,
         'dist/index.js',
         'dist/index.d.ts',
         'dist/cli.js',
