@@ -165,7 +165,7 @@ export interface TestRailConfig {
      * Set to `0` to disable the deadline (only the byte cap protects, not
      * recommended).
      *
-     * Independent of `timeout`, which still applies to the
+     * Independent of `timeout`, which applies to DNS resolution plus the
      * connect/send/response-headers phase.
      */
     bodyTimeout?: number;
