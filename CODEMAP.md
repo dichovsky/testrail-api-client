@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "a63bd0272b19629c2f8bbcde0ec81d5a2d9b3a189365e80a53f79ec72a74b267",
+  "sourceHash": "d902c8766ce0608ed47daf4699c14f0abdee3b5cc432333d95786a3477e63c08",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4827,28 +4827,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "wrapIndented",
           "kind": "function",
-          "line": 300,
+          "line": 308,
           "exported": false,
           "signature": "function wrapIndented(words: readonly string[]): string"
         },
         {
           "name": "renderResourcesBlock",
           "kind": "function",
-          "line": 321,
+          "line": 329,
           "exported": false,
           "signature": "function renderResourcesBlock(): string"
         },
         {
           "name": "buildResourceHelpText",
           "kind": "function",
-          "line": 337,
+          "line": 348,
           "exported": true,
           "signature": "export function buildResourceHelpText(resource: string): string"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 352,
+          "line": 363,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }

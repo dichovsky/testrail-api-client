@@ -296,13 +296,21 @@ export function isKnownResource(resource: string): boolean {
     return ACTIONS.some((spec) => spec.resource === resource);
 }
 
-/** Wraps `words` into indented lines no wider than `RESOURCE_LINE_WIDTH`. */
+/**
+ * Wraps `words` into indented lines no wider than `RESOURCE_LINE_WIDTH`.
+ *
+ * A word longer than the width gets its own over-long line rather than a
+ * blank one: without the `current !== ''` guard, a first word that already
+ * exceeds the width flushes the still-empty accumulator and emits a stray
+ * two-space line. Unreachable with today's resource names (longest is 21
+ * against a width of 74), but this is the kind of helper that gets reused.
+ */
 function wrapIndented(words: readonly string[]): string {
     const lines: string[] = [];
     let current = '';
     for (const word of words) {
         const candidate = current === '' ? word : `${current} ${word}`;
-        if (candidate.length > RESOURCE_LINE_WIDTH) {
+        if (candidate.length > RESOURCE_LINE_WIDTH && current !== '') {
             lines.push(`  ${current}`);
             current = word;
         } else {
@@ -331,8 +339,11 @@ function renderResourcesBlock(): string {
  * Actions are partitioned on `isWrite` alone rather than through the
  * `isReadAction`/`isWriteAction` section predicates: those two deliberately
  * exclude file-I/O actions so they appear once under the Attachment and BDD
- * sections, and reusing them here would silently drop every action of the
- * `attachment` and `bdd` resources from their own help.
+ * sections. Reusing them here would silently drop every file-I/O action from
+ * its own resource's help — for `attachment` that is 6 of 12 actions, for
+ * `bdd` 3 of 4, and in both cases it is exactly the upload/download work the
+ * resource exists to do. `isWrite` is a required boolean on `ActionSpec`, so
+ * partitioning on it is exhaustive by construction rather than by inspection.
  */
 export function buildResourceHelpText(resource: string): string {
     const blocks = [
