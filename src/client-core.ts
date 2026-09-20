@@ -146,7 +146,11 @@ function registerProcessHandlers(): void {
 /**
  * Effective per-request timeouts resolved once in `request<T>()` and threaded
  * through the `execute*` helpers into the pipeline. `timeout` bounds the
- * connect/send/response-headers phase; `bodyTimeout` bounds the body read.
+ * DNS resolution plus the connect/send/response-headers phase; `bodyTimeout`
+ * bounds the body read. DNS is inside the allowance deliberately: `dns.lookup`
+ * has no deadline of its own, so leaving it outside made `timeout` unable to
+ * bound the call at all. A caller using an aggressively short `timeout` on a
+ * slow resolver can therefore be refused before any request is sent.
  */
 interface ResolvedTimeouts {
     readonly timeout: number;
