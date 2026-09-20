@@ -34,6 +34,9 @@ function buildPrivateAddressBlockList(): BlockList {
     list.addSubnet('169.254.0.0', 16); // link-local, cloud metadata
     list.addSubnet('172.16.0.0', 12); // RFC 1918
     list.addSubnet('192.168.0.0', 16); // RFC 1918
+    list.addSubnet('198.18.0.0', 15); // RFC 2544 benchmarking; routed inside some enterprises
+    list.addSubnet('224.0.0.0', 4); // multicast — never a unicast TestRail host
+    list.addSubnet('240.0.0.0', 4); // RFC 1112 reserved, includes 255.255.255.255 broadcast
     list.addAddress('::', 'ipv6'); // unspecified
     list.addAddress('::1', 'ipv6'); // loopback
     list.addSubnet('64:ff9b::', 96, 'ipv6'); // NAT64 well-known prefix

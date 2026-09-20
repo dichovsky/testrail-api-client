@@ -3,7 +3,14 @@
     "compilerOptions": {
         "noEmit": false,
         "outDir": "./dist",
-        "rootDir": "./src"
+        "rootDir": "./src",
+        // The release deliberately ships no maps. Emitting them and deleting
+        // them afterwards left every emitted file carrying a
+        // `//# sourceMappingURL=` comment pointing at a file that is not in the
+        // tarball, so consumers' editors and debuggers chased a missing target.
+        // Not emitting them is the same outcome without the dangling reference.
+        "declarationMap": false,
+        "sourceMap": false
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist", "tests"]

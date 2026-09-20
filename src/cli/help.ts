@@ -284,6 +284,82 @@ AND TESTRAIL_ALLOW_DESTRUCTIVE=1. All other destructive actions reject
 
 const HEADER = 'testrail <resource> <action> [args] [options]';
 
+const RESOURCE_LINE_WIDTH = 74;
+
+/** Every resource carrying at least one action, in `ACTIONS` order. */
+function resourceNames(): readonly string[] {
+    return [...new Set(ACTIONS.map((spec) => spec.resource))];
+}
+
+/** Whether `resource` names a real resource, so `--help` can scope to it. */
+export function isKnownResource(resource: string): boolean {
+    return ACTIONS.some((spec) => spec.resource === resource);
+}
+
+/**
+ * Wraps `words` into indented lines no wider than `RESOURCE_LINE_WIDTH`.
+ *
+ * A word longer than the width gets its own over-long line rather than a
+ * blank one: without the `current !== ''` guard, a first word that already
+ * exceeds the width flushes the still-empty accumulator and emits a stray
+ * two-space line.
+ *
+ * Today's resource names cannot reach that path (longest is 21 against a
+ * width of 74), so it is exported and unit-tested directly rather than left
+ * as an unreachable guard — the branch has to be exercised somewhere, and a
+ * test stating the intended output is worth more than a comment asserting
+ * the input can never occur.
+ */
+export function wrapIndented(words: readonly string[]): string {
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+        const candidate = current === '' ? word : `${current} ${word}`;
+        if (candidate.length > RESOURCE_LINE_WIDTH && current !== '') {
+            lines.push(`  ${current}`);
+            current = word;
+        } else {
+            current = candidate;
+        }
+    }
+    if (current !== '') lines.push(`  ${current}`);
+    return lines.join('\n');
+}
+
+/**
+ * The resource index. Without it the only way to discover that per-resource
+ * help exists is to guess, and the full listing is long enough that a reader
+ * scrolling it has already lost.
+ */
+function renderResourcesBlock(): string {
+    return `Resources (run 'testrail <resource> --help' for one resource's actions):\n${wrapIndented(resourceNames())}`;
+}
+
+/**
+ * Help scoped to a single resource.
+ *
+ * The global `--help` is 405 lines covering 134 commands, which is not
+ * something a reader can scan to answer "what can I do with a case?".
+ *
+ * Actions are partitioned on `isWrite` alone rather than through the
+ * `isReadAction`/`isWriteAction` section predicates: those two deliberately
+ * exclude file-I/O actions so they appear once under the Attachment and BDD
+ * sections. Reusing them here would silently drop every file-I/O action from
+ * its own resource's help — for `attachment` that is 6 of 12 actions, for
+ * `bdd` 3 of 4, and in both cases it is exactly the upload/download work the
+ * resource exists to do. `isWrite` is a required boolean on `ActionSpec`, so
+ * partitioning on it is exhaustive by construction rather than by inspection.
+ */
+export function buildResourceHelpText(resource: string): string {
+    const blocks = [
+        `testrail ${resource} <action> [args] [options]`,
+        renderSection('Read actions:', (spec) => spec.resource === resource && spec.isWrite === false),
+        renderSection('Write actions:', (spec) => spec.resource === resource && spec.isWrite === true),
+        "Run 'testrail --help' for global options, authentication, and semantics.",
+    ].filter((block) => block !== '');
+    return blocks.join('\n\n');
+}
+
 /**
  * Builds the full `--help` text by composing each per-section emitter with
  * the static trailing blocks. The leading newline matches the pre-PR-C
@@ -292,6 +368,8 @@ const HEADER = 'testrail <resource> <action> [args] [options]';
 export function buildHelpText(): string {
     const sections = [
         HEADER,
+        '',
+        renderResourcesBlock(),
         '',
         renderReadSection(),
         '',
