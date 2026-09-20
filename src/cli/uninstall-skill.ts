@@ -154,6 +154,15 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
     // `readdirSync(..., { withFileTypes: true })` reports the entry's own type,
     // so `entry.isFile()` is already false for a symlink.
     //
+    // The lstat closes the static case only. An attacker who can swap the real
+    // directory for a symlink between this check and `readdirSync`, or between
+    // enumeration and `unlinkSync`, still wins the race — every call here is
+    // path-based. Closing that needs `openat`/`unlinkat` semantics, and Node
+    // exposes neither (`fs.opendirSync` yields a `Dir` with no
+    // descriptor-relative unlink), so it is not fixable at this layer. The
+    // owned-names filter bounds the damage: only files this package bundles are
+    // ever removed. Same residual window as SEC #5 above.
+    //
     // Every failure here is non-fatal — the SKILL.md removal has succeeded.
     const parent = dirname(target);
     const referenceDir = join(parent, 'reference');
