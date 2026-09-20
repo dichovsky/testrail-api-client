@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "549060df779973575a7cb5309e105bfa5c996f9701b622d34392f8b09af3ed25",
+  "sourceHash": "4767dce63d7232087119958d3ae6c48e079fd7f7ed72dbb11a067b32d52729ed",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5042,14 +5042,21 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "listReferenceFiles",
           "kind": "function",
-          "line": 134,
+          "line": 138,
           "exported": false,
           "signature": "function listReferenceFiles(skillRoot: string): readonly string[]"
         },
         {
+          "name": "requireRealDirectory",
+          "kind": "function",
+          "line": 164,
+          "exported": false,
+          "signature": "function requireRealDirectory(path: string): void"
+        },
+        {
           "name": "installFile",
           "kind": "function",
-          "line": 159,
+          "line": 187,
           "exported": false,
           "signature": "function installFile(source: string, target: string): void"
         }
@@ -6557,28 +6564,36 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./output.js",
         "node:fs",
         "node:os",
-        "node:path"
+        "node:path",
+        "node:url"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "UninstallSkillOptions",
           "kind": "interface",
-          "line": 42,
+          "line": 43,
           "exported": true,
           "signature": "export interface UninstallSkillOptions { global: boolean; output: Pick<Output, 'outRaw' | 'err'>; cwdOverride?: string; homeOverride?: string; }"
         },
         {
+          "name": "bundledReferenceNames",
+          "kind": "function",
+          "line": 72,
+          "exported": false,
+          "signature": "function bundledReferenceNames(): readonly string[]"
+        },
+        {
           "name": "getInstallTarget",
           "kind": "function",
-          "line": 61,
+          "line": 84,
           "exported": true,
           "signature": "export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string"
         },
         {
           "name": "runUninstallSkill",
           "kind": "function",
-          "line": 66,
+          "line": 89,
           "exported": true,
           "signature": "export function runUninstallSkill(opts: UninstallSkillOptions): number"
         }

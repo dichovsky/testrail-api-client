@@ -36,7 +36,8 @@
 
 import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Output } from './output.js';
 
 export interface UninstallSkillOptions {
@@ -58,6 +59,28 @@ export interface UninstallSkillOptions {
  * can ask "where would install put it?" and "where would uninstall
  * look?" from the same surface).
  */
+/**
+ * Names of the reference files this package bundles — the only entries under
+ * an installed `reference/` that `install-skill` could have written, and so
+ * the only ones this command may remove.
+ *
+ * Resolved from this module's own location, mirroring `getBundledSkillPath`:
+ * at runtime the handler sits at `<packageRoot>/dist/cli/uninstall-skill.js`,
+ * two `..` segments from the package root. An unreadable or absent bundle
+ * yields an empty set, which removes nothing — the conservative direction.
+ */
+function bundledReferenceNames(): readonly string[] {
+    try {
+        const referenceDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skill', 'reference');
+        return readdirSync(referenceDir, { withFileTypes: true })
+            .filter((entry) => entry.isFile())
+            .map((entry) => entry.name);
+    } catch {
+        // No bundled reference set to match against; delete nothing.
+        return [];
+    }
+}
+
 export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string {
     const targetRoot = opts.global ? (opts.homeOverride ?? homedir()) : (opts.cwdOverride ?? process.cwd());
     return join(targetRoot, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
@@ -136,17 +159,24 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
     const referenceDir = join(parent, 'reference');
     try {
         if (lstatSync(referenceDir).isDirectory()) {
+            // Only files this package bundles are removed. The uninstaller's
+            // established contract is to leave hand-managed content alone (see
+            // the sibling-skill case in tests/uninstall-skill.test.ts), and a
+            // blanket sweep of `reference/` would silently delete a file the
+            // user added or edited there.
+            const owned = new Set(bundledReferenceNames());
             for (const entry of readdirSync(referenceDir, { withFileTypes: true })) {
-                if (entry.isFile()) {
+                if (entry.isFile() && owned.has(entry.name)) {
                     unlinkSync(join(referenceDir, entry.name));
                 }
             }
+            // Succeeds only when nothing unowned was left behind.
             rmdirSync(referenceDir);
         }
     } catch {
-        // No reference directory, or something in it is not ours to remove.
-        // Either way the body is gone; the parent cleanup below still runs and
-        // simply finds the directory non-empty.
+        // No reference directory, something in it is not ours to remove, or a
+        // non-empty directory after preserving unowned files. The body is gone
+        // either way; the parent cleanup below simply finds it non-empty.
     }
 
     // Best-effort cleanup of the enclosing testrail-cli/ directory if

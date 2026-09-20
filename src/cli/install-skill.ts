@@ -27,7 +27,7 @@ import {
     constants,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Output } from './output.js';
 
@@ -99,28 +99,32 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     // pointers dangling at the install location, which is worse than having no
     // reference at all: the agent is told a file exists and then cannot read it.
     const skillRoot = dirname(source);
-    const referenceSources = listReferenceFiles(skillRoot);
 
     try {
+        // Inside the try: listReferenceFiles rethrows anything that is not a
+        // missing directory, and that has to surface as a clean "failed to
+        // install skill" with exit 1 rather than an unhandled stack trace.
+        const referenceSources = listReferenceFiles(skillRoot);
         const dir = dirname(target);
         mkdirSync(dir, { recursive: true, mode: 0o755 });
         installFile(source, target);
 
         if (referenceSources.length > 0) {
             const referenceDir = join(dir, 'reference');
+            requireRealDirectory(referenceDir);
             mkdirSync(referenceDir, { recursive: true, mode: 0o755 });
             for (const name of referenceSources) {
                 installFile(join(skillRoot, 'reference', name), join(referenceDir, name));
             }
         }
+
+        const extra = referenceSources.length > 0 ? ` (+${referenceSources.length} reference)` : '';
+        opts.output.outRaw(`Installed testrail-cli skill → ${target}${extra}\n`);
+        return 0;
     } catch (e: unknown) {
         writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
     }
-
-    const extra = referenceSources.length > 0 ? ` (+${referenceSources.length} reference)` : '';
-    opts.output.outRaw(`Installed testrail-cli skill → ${target}${extra}\n`);
-    return 0;
 }
 
 /**
@@ -137,9 +141,33 @@ function listReferenceFiles(skillRoot: string): readonly string[] {
             .filter((entry) => entry.isFile())
             .map((entry) => entry.name)
             .sort();
-    } catch {
-        // No reference directory bundled — nothing to install alongside the body.
-        return [];
+    } catch (e: unknown) {
+        // Only a missing directory means "this package bundles no reference".
+        // Treating every failure that way would let a permission error or a
+        // `reference` that is somehow not a directory install SKILL.md alone
+        // and report success — recreating the dangling-pointer bug this whole
+        // change exists to fix, silently.
+        if ((e as { code?: string }).code === 'ENOENT') return [];
+        throw e;
+    }
+}
+
+/**
+ * Refuses to write through anything at `path` that is not a real directory.
+ *
+ * `mkdirSync(path, { recursive: true })` treats an existing symlink-to-directory
+ * as already satisfied, so without this the reference files would be renamed
+ * into whatever that link targets — the install-side twin of the symlink hole
+ * the uninstall cleanup had. `lstatSync` describes the link itself, so a
+ * symlink fails `isDirectory()`; `statSync` here would reintroduce the bug.
+ */
+function requireRealDirectory(path: string): void {
+    // `throwIfNoEntry: false` yields undefined for the ordinary absent case
+    // (mkdir creates it below) while still throwing on a permission or I/O
+    // failure, so no catch is needed and none of this is unreachable.
+    const stat = lstatSync(path, { throwIfNoEntry: false });
+    if (stat !== undefined && !stat.isDirectory()) {
+        throw new Error(`${path} exists and is not a directory; refusing to write through it`);
     }
 }
 
@@ -157,7 +185,15 @@ function listReferenceFiles(skillRoot: string): readonly string[] {
  * so a failed install leaves no stray sibling.
  */
 function installFile(source: string, target: string): void {
-    let tempPath: string | undefined = join(dirname(target), `.tmp.${Math.random().toString(36).substring(2, 9)}`);
+    // Derived from the target's own name, not a bare `.tmp.*`: the failure
+    // -injection mock in tests/skill-fs-failure.test.ts arms on the
+    // `SKILL.md.tmp.` prefix, so a generic name silently disarms it and leaves
+    // the cleanup path in the `finally` below untested. Deriving the prefix
+    // also names which file a stray temp belongs to.
+    let tempPath: string | undefined = join(
+        dirname(target),
+        `${basename(target)}.tmp.${Math.random().toString(36).substring(2, 9)}`,
+    );
     try {
         const fd = openSync(tempPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW);
         try {
