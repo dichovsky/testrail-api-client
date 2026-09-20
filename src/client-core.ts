@@ -17,7 +17,10 @@ import {
 import { createUploadSource } from './upload-source.js';
 import { budgetExpiredError, createRequestBudget, type RequestBudget } from './request-budget.js';
 
-const USER_AGENT = `${pkg.description}/${pkg.version}`;
+// RFC 7231 §5.5.3 product token: `token "/" token`. A token cannot contain
+// whitespace, so the package *name* is the only valid identifier here — a
+// prose description produces a header strict proxies mangle or reject.
+const USER_AGENT = `${pkg.name}/${pkg.version}`;
 import {
     BASE_RETRY_DELAY_MS,
     MAX_RETRY_DELAY_MS,
@@ -779,8 +782,6 @@ export class TestRailClientCore {
             throw new Error('Cannot use TestRailClient after destroy() has been called');
         }
 
-        await spec.budget.bound(this.awaitDnsValidation());
-
         const url = `${this.baseUrl}/index.php?/api/v2/${spec.endpoint}`;
         const headers: Record<string, string> = {
             Authorization: `Basic ${this.auth}`,
@@ -794,6 +795,32 @@ export class TestRailClientCore {
         const effectiveTimeout = spec.budget.allowanceFor(spec.timeout);
         const requestDeadlineAt = Date.now() + effectiveTimeout;
         const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
+
+        // The attempt timer starts before DNS, not after it. `dns.lookup`
+        // resolves through `getaddrinfo` and carries no JS-visible deadline of
+        // its own, so a resolver that drops packets rather than refusing them
+        // would otherwise keep this call pending far past `timeout` — while
+        // holding one of libuv's four default threadpool slots, starving
+        // unrelated fs/crypto work in the host process.
+        //
+        // The lookup is not cancellable. Like the non-streaming body-read
+        // fallback, it may still settle in the background; what it can no
+        // longer do is extend the caller-visible wait.
+        // `budget.bound` wraps the *raw* lookup so the aggregate deadline and
+        // operation-settlement observation keep owning it: a caller tracking
+        // the operation must stay un-settled until a late lookup finally
+        // resolves or rejects, even though this attempt stopped waiting.
+        try {
+            await this.raceAttemptDeadline(
+                spec.budget.bound(this.awaitDnsValidation()),
+                spec.budget,
+                controller.signal,
+                effectiveTimeout,
+            );
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+        }
 
         const fetchPromise: Promise<TParsed> = (async () => {
             let formdataCleanup: (() => void) | undefined;
@@ -916,7 +943,14 @@ export class TestRailClientCore {
 
                 if (error instanceof TestRailApiError) throw error;
 
-                if ((error as Error).name === 'AbortError') {
+                // `config.fetch` is public API, so the rejection reason is
+                // whatever the caller's adapter produced and is not guaranteed
+                // to be an Error. Reading `.name`/`.message` off a nullish
+                // reason throws a TypeError out of this very catch block,
+                // replacing the TestRailApiError the caller is entitled to.
+                const cause = error instanceof Error ? error : new Error(String(error));
+
+                if (cause.name === 'AbortError') {
                     throw spec.budget.expired
                         ? budgetExpiredError()
                         : new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
@@ -927,7 +961,7 @@ export class TestRailClientCore {
                     return this.executePipeline<TParsed>(spec, retryCount + 1);
                 }
 
-                throw new TestRailApiError(0, `Network error: ${(error as Error).message}`, (error as Error).message);
+                throw new TestRailApiError(0, `Network error: ${cause.message}`, cause.message);
             } finally {
                 formdataCleanup?.();
                 if (receivedResponse !== undefined) this.cancelUnusedBody(receivedResponse);
@@ -935,6 +969,38 @@ export class TestRailClientCore {
         })();
 
         return fetchPromise;
+    }
+
+    /**
+     * Races `work` against this attempt's abort signal so a phase that runs
+     * before `fetch` cannot outlive the attempt's own allowance.
+     *
+     * `Promise.race` subscribes to `work`, so a rejection arriving after the
+     * deadline already won is observed and cannot surface as an unhandled
+     * rejection.
+     */
+    private raceAttemptDeadline<T>(
+        work: Promise<T>,
+        budget: RequestBudget,
+        signal: AbortSignal,
+        timeoutMs: number,
+    ): Promise<T> {
+        // An aggregate deadline and this attempt's own timer can come due in
+        // the same tick, and the attempt timer is registered first. Defer to
+        // the budget whenever it has expired so the caller that supplied the
+        // deadline still recognises the failure as its own — the same
+        // precedence the AbortError branch applies.
+        const expired = (): TestRailApiError =>
+            budget.expired ? budgetExpiredError() : new TestRailApiError(408, `Request timeout after ${timeoutMs}ms`);
+        if (signal.aborted) {
+            return Promise.reject(expired());
+        }
+        return Promise.race([
+            work,
+            new Promise<never>((_resolve, reject) => {
+                signal.addEventListener('abort', () => reject(expired()), { once: true });
+            }),
+        ]);
     }
 
     /** Observe cancellation of an unread response, including late headers and redirects. */

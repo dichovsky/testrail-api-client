@@ -532,3 +532,42 @@ describe('SSRF defense — RFC 8215 local-use NAT64 prefix 64:ff9b:1::/48', () =
         },
     );
 });
+
+// Ranges that are not routable on the public Internet but that a resolver can
+// still hand back. None of them should ever be a TestRail host, and a
+// credentialed probe aimed at one is exactly the request the SSRF guard
+// exists to stop.
+describe('SSRF defense — non-routable IPv4 ranges', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockDnsLookup.mockReset();
+        mockDnsLookup.mockResolvedValue([]);
+    });
+
+    it.each([
+        ['198.18.0.1', 'RFC 2544 benchmarking, routed inside some enterprises'],
+        ['198.19.255.254', 'last address of the benchmarking /15'],
+        ['224.0.0.1', 'IPv4 multicast (all hosts)'],
+        ['239.255.255.250', 'administratively scoped multicast (SSDP)'],
+        ['240.0.0.1', 'RFC 1112 reserved'],
+        ['255.255.255.255', 'limited broadcast'],
+    ])('rejects literal %s at construction (%s)', (ip) => {
+        expect(
+            () => new TestRailClient({ baseUrl: `https://${ip}`, email: 'test@example.com', apiKey: 'key' }),
+        ).toThrow(/private\/loopback host/);
+    });
+
+    it.each([['198.18.0.1'], ['224.0.0.1'], ['240.0.0.1'], ['255.255.255.255']])(
+        'rejects DNS answer %s before any fetch',
+        async (address) => {
+            mockDnsLookup.mockResolvedValueOnce([{ address, family: 4 }] as never);
+            const client = new TestRailClient({
+                baseUrl: 'https://public-host.example',
+                email: 'test@example.com',
+                apiKey: 'key',
+            });
+            await expect(client.projects.getProject(1)).rejects.toThrow(TestRailValidationError);
+            expect(mockFetch).not.toHaveBeenCalled();
+        },
+    );
+});

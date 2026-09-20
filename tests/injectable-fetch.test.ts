@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TestRailClient } from '../src/client.js';
 import { TestRailApiError, TestRailValidationError } from '../src/errors.js';
+import pkg from '../package.json' with { type: 'json' };
 
 const BASE_CONFIG = {
     baseUrl: 'https://example.testrail.io',
@@ -138,6 +139,45 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         const error = await client.projects.getProject(1).catch((e: unknown) => e);
         expect(error).toBeInstanceOf(TestRailApiError);
         expect((error as TestRailApiError).message).toContain('Network failure');
+        client.destroy();
+    });
+
+    // `config.fetch` is public API, so the rejection reason is whatever the
+    // caller's adapter produced — not necessarily an `Error`. Reading `.name`
+    // or `.message` off a nullish reason throws a `TypeError` out of the
+    // pipeline's own catch block, replacing the TestRailApiError the caller
+    // is entitled to.
+    it.each([
+        ['null', null],
+        ['undefined', undefined],
+    ])('surfaces a TestRailApiError when the custom fetch rejects with %s', async (_label, reason) => {
+        const customFetch = vi.fn().mockRejectedValue(reason);
+        const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch, maxRetries: 0 });
+        const error = await client.projects.getProject(1).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(TestRailApiError);
+        client.destroy();
+    });
+
+    it('preserves a string rejection reason in the error message', async () => {
+        const customFetch = vi.fn().mockRejectedValue('socket hang up');
+        const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch, maxRetries: 0 });
+        const error = await client.projects.getProject(1).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(TestRailApiError);
+        expect((error as TestRailApiError).message).toContain('socket hang up');
+        client.destroy();
+    });
+
+    // RFC 7231 §5.5.3: User-Agent is a list of product tokens, and a token
+    // cannot contain whitespace. Strict proxies and WAFs mangle or reject a
+    // header built from a prose description.
+    it('sends a whitespace-free product token as User-Agent', async () => {
+        const customFetch = vi.fn().mockResolvedValue(okJson(MOCK_PROJECT));
+        const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
+        await client.projects.getProject(1);
+        const [, init] = customFetch.mock.calls[0] as [string, RequestInit];
+        const userAgent = (init.headers as Record<string, string>)['User-Agent'];
+        expect(userAgent).toBe(`${pkg.name}/${pkg.version}`);
+        expect(userAgent).not.toMatch(/\s/);
         client.destroy();
     });
 });

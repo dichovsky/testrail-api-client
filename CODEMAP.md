@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "89cd33c5fe6960cf347f54add3623fedc60a59903b3244903f7bc406ce16780e",
+  "sourceHash": "0e6ed74b29bdeb781ce017728a334afd710f20a1cd063af9ba9012172b6b3103",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6660,262 +6660,267 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 20,
+          "line": 23,
           "exported": false,
-          "signature": "const USER_AGENT = `${pkg.description}/${pkg.version}`"
+          "signature": "const USER_AGENT = `${pkg.name}/${pkg.version}`"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 48,
+          "line": 51,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 50,
+          "line": 53,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 104,
+          "line": 107,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 105,
+          "line": 108,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 108,
+          "line": 111,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 118,
+          "line": 121,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 142,
+          "line": 145,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestBudget; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 156,
+          "line": 159,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 164,
+          "line": 167,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 165
+              "line": 168
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 168
+              "line": 171
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 169
+              "line": 172
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 170
+              "line": 173
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 171
+              "line": 174
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 172
+              "line": 175
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 173
+              "line": 176
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 174
+              "line": 177
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 175
+              "line": 178
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 176
+              "line": 179
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 177
+              "line": 180
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 182
+              "line": 185
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 188
+              "line": 191
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 195
+              "line": 198
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 196
+              "line": 199
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 197
+              "line": 200
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 198
+              "line": 201
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 200
+              "line": 203
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 270
+              "line": 273
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 295
+              "line": 298
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 337
+              "line": 340
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 380
+              "line": 383
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 428
+              "line": 431
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 447
+              "line": 450
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 466
+              "line": 469
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 484
+              "line": 487
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 531
+              "line": 534
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 626
+              "line": 629
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 666
+              "line": 669
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 686
+              "line": 689
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 717
+              "line": 720
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 746
+              "line": 749
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 761
+              "line": 764
             },
             {
               "name": "attemptPipeline",
               "kind": "method",
-              "line": 777
+              "line": 780
+            },
+            {
+              "name": "raceAttemptDeadline",
+              "kind": "method",
+              "line": 982
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 941
+              "line": 1007
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 967
+              "line": 1033
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1003
+              "line": 1069
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1015
+              "line": 1081
             }
           ]
         }
@@ -7128,63 +7133,63 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "PRIVATE_ADDRESSES",
           "kind": "const",
-          "line": 48,
+          "line": 51,
           "exported": false,
           "signature": "const PRIVATE_ADDRESSES = buildPrivateAddressBlockList()"
         },
         {
           "name": "LOCALHOST_PATTERN",
           "kind": "const",
-          "line": 49,
+          "line": 52,
           "exported": false,
           "signature": "const LOCALHOST_PATTERN = /^localhost\\.?$/i"
         },
         {
           "name": "isPrivateOrLoopbackIP",
           "kind": "function",
-          "line": 57,
+          "line": 60,
           "exported": true,
           "signature": "export function isPrivateOrLoopbackIP(ip: string): boolean"
         },
         {
           "name": "isPrivateHostLiteral",
           "kind": "function",
-          "line": 65,
+          "line": 68,
           "exported": true,
           "signature": "export function isPrivateHostLiteral(hostname: string): boolean"
         },
         {
           "name": "requiredString",
           "kind": "function",
-          "line": 70,
+          "line": 73,
           "exported": false,
           "signature": "function requiredString(config: Readonly<Record<string, unknown>>, key: 'baseUrl' | 'email' | 'apiKey'): string"
         },
         {
           "name": "isRecord",
           "kind": "function",
-          "line": 78,
+          "line": 81,
           "exported": false,
           "signature": "function isRecord(value: unknown): value is Readonly<Record<string, unknown>>"
         },
         {
           "name": "validateBaseUrl",
           "kind": "function",
-          "line": 82,
+          "line": 85,
           "exported": false,
           "signature": "function validateBaseUrl(baseUrl: string, config: Readonly<Record<string, unknown>>): void"
         },
         {
           "name": "issueMessage",
           "kind": "function",
-          "line": 114,
+          "line": 117,
           "exported": false,
           "signature": "function issueMessage(path: readonly PropertyKey[]): string"
         },
         {
           "name": "validateTestRailConfig",
           "kind": "function",
-          "line": 172,
+          "line": 175,
           "exported": true,
           "signature": "export function validateTestRailConfig(config: unknown): asserts config is TestRailConfig"
         }
