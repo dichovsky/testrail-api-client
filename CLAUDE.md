@@ -202,11 +202,22 @@ Consequence for types: exported response types describe the expected shape, not 
 
 ## Constants (`src/constants.ts`)
 
-`BASE_RETRY_DELAY_MS=1000` · `MAX_RETRY_DELAY_MS=10000` · `MAX_TIMEOUT_MS=300000` · `HTTP_OK_STATUS=200` · `DEFAULT_TIMEOUT_MS=30000` · `DEFAULT_MAX_RETRIES=3` · `MAX_RETRIES=10` · `DEFAULT_CACHE_TTL_MS=300000` · `DEFAULT_CACHE_CLEANUP_INTERVAL_MS=60000` · `MAX_NODE_TIMER_DELAY_MS=2147483647` · `DEFAULT_MAX_CACHE_SIZE=1000` · `DEFAULT_RATE_LIMIT_MAX_REQUESTS=100` · `DEFAULT_RATE_LIMIT_WINDOW_MS=60000` · `DEFAULT_PAGE_SIZE=250` · `DEFAULT_MAX_PAGES=100` · `DEFAULT_MAX_ITEMS=25000` · `DEFAULT_MAX_PAGINATION_DURATION_MS=300000` · `DEFAULT_MAX_PAGINATION_BYTES=104857600` · `MAX_PAGINATION_BYTES=1073741824` · `MAX_CLI_SCHEMA_MISMATCH_WARNINGS=10` · `DEFAULT_MAX_JSON_RESPONSE_BYTES=10485760` · `DEFAULT_MAX_BINARY_RESPONSE_BYTES=104857600` · `MAX_RESPONSE_BYTES_LIMIT=1073741824`
+**Read the values from `src/constants.ts` — they are not mirrored here.** Every
+constant is exported from that one file with a comment explaining its bound,
+grouped into transport/retry, cache, rate limit, pagination, response-body,
+stdin/file-input, and CLI-diagnostic sections.
 
-Shared literals: `MULTIPART_FIELD_NAME='attachment'` — no longer a cross-module agreement, since `src/upload-source.ts` both appends and wraps that part. Still exported because tests build a FormData to drive `ownUploadStreams` directly.
+This section used to enumerate the values. That copy had no drift gate and was
+already wrong by omission: 6 of the 42 exported constants — `MAX_PAGINATION_LIMIT`,
+`MAX_DATA_FILE_BYTES`, `MAX_STDIN_BYTES`, `MAX_STDIN_UPLOAD_BYTES`,
+`STDIN_READ_TIMEOUT_MS`, `YAML_INDENT_SPACES` — never made it into the list.
+A hand-maintained mirror of a source file in a repo with five generator-backed
+drift gates is a liability, and one agents are especially prone to trusting.
 
-Diagnostic limits: `MAX_CLI_DIAGNOSTIC_INPUT_BYTES=65536` · `MAX_CLI_DIAGNOSTIC_OUTPUT_BYTES=16384` · `MAX_CLI_DIAGNOSTIC_CREDENTIAL_CHARS=4096` · `MAX_CLI_DIAGNOSTIC_MESSAGE_CHARS=2048` · `MAX_CLI_DIAGNOSTIC_NODES=128` · `MAX_CLI_DIAGNOSTIC_DEPTH=6` · `MAX_CLI_DIAGNOSTIC_DECODE_PASSES=3` · `CLI_DIAGNOSTIC_FILE_MODE=0o600` · `CLI_DIAGNOSTIC_DIRECTORY_MODE=0o700` · `CLI_DIAGNOSTIC_PERMISSION_MASK=0o777` · `CLI_DIAGNOSTIC_ACL_TIMEOUT_MS=1000`.
+Shared literals worth knowing without opening the file: `MULTIPART_FIELD_NAME`
+is no longer a cross-module agreement, since `src/upload-source.ts` both appends
+and wraps that part. It stays exported because tests build a FormData to drive
+`ownUploadStreams` directly.
 
 ## Tests
 
