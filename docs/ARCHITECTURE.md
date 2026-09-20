@@ -66,9 +66,9 @@ For a single call, the operations run in this fixed order:
 
 1. **Destroyed/spec guard** — throws plain `Error` after `destroy()` and validates internal timeout/deadline controls.
 2. **`RequestCache.resolve()`** — a keyed JSON GET may return a cloned LRU hit or join ordinary in-flight work. A miss starts one loader under the current invalidation generation; all-page, text, binary, and write calls have no key.
-3. **DNS revalidation for upstream work** — fresh `dns.lookup` of the configured hostname, fail-closed. It runs before each actual upstream fetch attempt, including retries; cache hits and in-flight joiners stop before DNS resolution.
-4. **URL + headers** — `{baseUrl}/index.php?/api/v2/{endpoint}`, Basic auth header, User-Agent.
-5. **`AbortController` + `setTimeout`** — per-call timeout via abort signal.
+3. **URL + headers** — `{baseUrl}/index.php?/api/v2/{endpoint}`, Basic auth header, and a `User-Agent` product token built from the unscoped package name (`testrail-api-client/<version>`; the npm scope is dropped because `@` and `/` are not `tchar` under RFC 7230 §3.2.6).
+4. **`AbortController` + `setTimeout`** — per-call timeout via abort signal. The timer starts **before** DNS, not after it, so the configured `timeout` bounds the whole attempt.
+5. **DNS revalidation for upstream work** — fresh `dns.lookup` of the configured hostname, fail-closed, raced against the abort signal from step 4. It runs before each actual upstream fetch attempt, including retries; cache hits and in-flight joiners stop before DNS resolution. `dns.lookup` carries no deadline of its own, so ordering it after the timer is what makes `timeout` able to bound the call at all — a resolver that drops packets rather than refusing them would otherwise keep the request pending indefinitely while holding a libuv threadpool slot. The lookup is not cancellable and may settle late; what it can no longer do is extend the caller-visible wait. A caller combining an aggressively short `timeout` with a slow resolver can therefore be refused before any request is sent.
 6. **Body preparation** — JSON serialization or multipart construction completes before admission.
 7. **Rate-limit admission** — sliding window over `rateLimiter.requests: number[]`; throws synthetic `TestRailApiError(429, …)` immediately before fetch when full.
 8. **`fetch` with `redirect: 'manual'`** — the single pipeline fetch site uses manual redirect handling for every request shape.

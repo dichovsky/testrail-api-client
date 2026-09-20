@@ -141,7 +141,7 @@ const client = new TestRailClient({
 | `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL; HTTP requires `allowInsecure`    |
 | `email`                   | `string`            | **required**       | TestRail user email (validated format)               |
 | `apiKey`                  | `string`            | **required**       | TestRail API key                                     |
-| `timeout`                 | `number`            | `30000`            | Request timeout in milliseconds (max 5 minutes)      |
+| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in ms (max 5 min); covers DNS    |
 | `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10 |
 | `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                      |
 | `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                   |
