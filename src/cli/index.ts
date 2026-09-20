@@ -7,7 +7,7 @@ import { resolveAuth } from './auth.js';
 import { diagnosticSupportError, withDiagnostics, type ProcessLifetime } from './diagnostics.js';
 import { createOutput, isOutputFormat, OUTPUT_FORMATS, type OutputFormat } from './output.js';
 import { dispatch, checkDestructiveEnvGate, checkPathParamCount } from './dispatch.js';
-import { buildHelpText } from './help.js';
+import { buildHelpText, buildResourceHelpText, isKnownResource } from './help.js';
 import { runInstallSkill } from './install-skill.js';
 import { runUninstallSkill } from './uninstall-skill.js';
 import { KNOWN_FLAGS, parseCliArgv, validateSuppliedFlagTypes, type SuppliedFlagOccurrence } from './flags.js';
@@ -186,7 +186,12 @@ export async function runCli(runtime: CliRuntime): Promise<number> {
     }
 
     if (values['help'] === true || positionals.length === 0) {
-        runtime.stdout(`${HELP}\n`);
+        // `testrail case --help` answers "what can I do with a case?" instead
+        // of reprinting all 134 commands. An unrecognized leading positional
+        // falls back to the full listing, which is where its resource index is.
+        const scope = positionals[0];
+        const helpText = scope !== undefined && isKnownResource(scope) ? buildResourceHelpText(scope) : HELP;
+        runtime.stdout(`${helpText}\n`);
         return EXIT_SUCCESS;
     }
 

@@ -3,6 +3,12 @@
 exports[`buildHelpText > matches the committed snapshot (accidental drift fails the test) 1`] = `
 "testrail <resource> <action> [args] [options]
 
+Resources (run 'testrail <resource> --help' for one resource's actions):
+  project suite case run test result milestone user plan section shared-step
+  report case-status case-field result-field status template role priority
+  case-type version dynamic-filter-field attachment bdd variable group
+  dataset configuration configuration-group label
+
 Read actions:
   project             get <project_id>
       Fetch a single project by ID

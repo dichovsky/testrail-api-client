@@ -71,7 +71,6 @@ npm run mapping:check
 npm run agents-md:check
 npm run skill:check
 npm run published:check
-npm run clean:maps
 npm run package:smoke -- --prepared
 ```
 
