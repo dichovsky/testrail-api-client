@@ -167,10 +167,12 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         client.destroy();
     });
 
-    // RFC 7231 §5.5.3: User-Agent is a list of product tokens, and a token
-    // cannot contain whitespace. Strict proxies and WAFs mangle or reject a
-    // header built from a prose description.
-    it('sends a whitespace-free product token as User-Agent', async () => {
+    // RFC 7231 §5.5.3 models User-Agent as product tokens separated by
+    // whitespace, so a header built from `pkg.description` read as several
+    // products. A scoped package name is still not a strict `tchar` token
+    // (it carries `@` and `/`), so this pins the property that matters:
+    // one whitespace-free identifier.
+    it('sends a whitespace-free User-Agent built from the package name', async () => {
         const customFetch = vi.fn().mockResolvedValue(okJson(MOCK_PROJECT));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
         await client.projects.getProject(1);

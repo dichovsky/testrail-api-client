@@ -17,9 +17,15 @@ import {
 import { createUploadSource } from './upload-source.js';
 import { budgetExpiredError, createRequestBudget, type RequestBudget } from './request-budget.js';
 
-// RFC 7231 §5.5.3 product token: `token "/" token`. A token cannot contain
-// whitespace, so the package *name* is the only valid identifier here — a
-// prose description produces a header strict proxies mangle or reject.
+// Built from the package *name*, not `pkg.description`, which embedded literal
+// spaces ("Type-safe ESM TestRail API client and CLI for Node.js/8.0.0").
+// RFC 7231 §5.5.3 models User-Agent as product tokens separated by whitespace,
+// so a value containing spaces reads as several products and makes upstream
+// attribution meaningless.
+//
+// This is not a claim of strict grammar conformance: a scoped package name
+// carries `@` and `/`, neither of which is a `tchar` under RFC 7230 §3.2.6.
+// Removing the whitespace is the part that matters in practice.
 const USER_AGENT = `${pkg.name}/${pkg.version}`;
 import {
     BASE_RETRY_DELAY_MS,
@@ -992,6 +998,12 @@ export class TestRailClientCore {
         // precedence the AbortError branch applies.
         const expired = (): TestRailApiError =>
             budget.expired ? budgetExpiredError() : new TestRailApiError(408, `Request timeout after ${timeoutMs}ms`);
+        // Unreachable from the sole call site — its controller is constructed
+        // three lines earlier and a `setTimeout` cannot fire before the next
+        // synchronous statement. Kept anyway: `addEventListener('abort')` on an
+        // already-aborted signal never invokes its listener, so a future second
+        // call site would hang silently instead of failing. Catalogued as
+        // unreachable branch #28 in vitest.config.ts.
         if (signal.aborted) {
             return Promise.reject(expired());
         }
