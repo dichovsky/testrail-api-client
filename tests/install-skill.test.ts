@@ -17,11 +17,13 @@ import {
     lstatSync,
     statSync,
     mkdirSync,
+    readdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runInstallSkill, getBundledSkillPath } from '../src/cli/install-skill.js';
+import { runUninstallSkill } from '../src/cli/uninstall-skill.js';
 import { createOutput, type Output } from '../src/cli/output.js';
 import { captureOutput } from './helpers.js';
 
@@ -530,5 +532,190 @@ describe('getBundledSkillPath', () => {
         const fakeUrl = 'file:///tmp/pkg/dist/cli/install-skill.js';
         const result = getBundledSkillPath(fakeUrl);
         expect(result).toBe(join('/tmp/pkg', 'skill', 'SKILL.md'));
+    });
+});
+
+/**
+ * SKILL.md points at `./reference/*` for the detail it keeps out of its body.
+ * Installing the body alone strands every one of those pointers at the install
+ * location — the agent is told a file exists and then cannot read it.
+ */
+describe('reference files travel with the skill body', () => {
+    let tmp: string;
+    let skillRoot: string;
+    let source: string;
+    let project: string;
+    let output: Output;
+
+    beforeEach(() => {
+        tmp = mkdtempSync(join(tmpdir(), 'tr-install-ref-'));
+        skillRoot = join(tmp, 'skill');
+        mkdirSync(join(skillRoot, 'reference'), { recursive: true });
+        source = join(skillRoot, 'SKILL.md');
+        writeFileSync(source, `${SKILL_CONTENT}See ./reference/payload-schemas.yaml\n`, 'utf-8');
+        writeFileSync(join(skillRoot, 'reference', 'payload-schemas.yaml'), 'schemas: []\n', 'utf-8');
+        writeFileSync(join(skillRoot, 'reference', 'recipes.md'), '# Recipes\n', 'utf-8');
+        project = join(tmp, 'project');
+        mkdirSync(project, { recursive: true });
+        output = captureOutput().output;
+    });
+
+    afterEach(() => {
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    const installed = (name: string): string => join(project, '.claude', 'skills', 'testrail-cli', 'reference', name);
+
+    it('installs every bundled reference file alongside SKILL.md', () => {
+        const code = runInstallSkill(
+            { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
+            'file:///unused',
+        );
+        expect(code).toBe(0);
+        expect(readFileSync(installed('payload-schemas.yaml'), 'utf-8')).toBe('schemas: []\n');
+        expect(readFileSync(installed('recipes.md'), 'utf-8')).toBe('# Recipes\n');
+    });
+
+    it('leaves no reference pointer in the body dangling', () => {
+        runInstallSkill(
+            { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
+            'file:///unused',
+        );
+        const body = readFileSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'), 'utf-8');
+        const referenced = [...body.matchAll(/\.\/(reference\/[\w.-]+)/g)]
+            .map((match) => match[1])
+            .filter((value): value is string => value !== undefined);
+
+        expect(referenced.length).toBeGreaterThan(0);
+        for (const relative of referenced) {
+            expect(
+                existsSync(join(project, '.claude', 'skills', 'testrail-cli', relative)),
+                `${relative} referenced by SKILL.md but not installed`,
+            ).toBe(true);
+        }
+    });
+
+    // A readdir failure that is not "absent" must fail the install rather than
+    // be read as "this package bundles no reference" — otherwise SKILL.md
+    // installs alone and reports success, recreating the dangling-pointer bug
+    // this change exists to fix.
+    it('fails the install when the bundled reference path is unreadable', () => {
+        const broken = join(tmp, 'broken');
+        mkdirSync(broken, { recursive: true });
+        const brokenSource = join(broken, 'SKILL.md');
+        writeFileSync(brokenSource, SKILL_CONTENT, 'utf-8');
+        // A file where the directory should be: readdirSync raises ENOTDIR.
+        writeFileSync(join(broken, 'reference'), 'not a directory\n', 'utf-8');
+
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                output,
+                sourceOverride: brokenSource,
+                cwdOverride: project,
+            },
+            'file:///unused',
+        );
+
+        expect(code).toBe(1);
+        expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(false);
+    });
+
+    it('installs the body when the package bundles no reference directory', () => {
+        const bare = join(tmp, 'bare');
+        mkdirSync(bare, { recursive: true });
+        const bareSource = join(bare, 'SKILL.md');
+        writeFileSync(bareSource, SKILL_CONTENT, 'utf-8');
+
+        const code = runInstallSkill(
+            { global: false, force: false, printPath: false, output, sourceOverride: bareSource, cwdOverride: project },
+            'file:///unused',
+        );
+        expect(code).toBe(0);
+        expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(true);
+        expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'reference'))).toBe(false);
+    });
+
+    // Uninstall removes only files this package bundles, which it resolves
+    // from its own location — not from whatever a test happened to install.
+    // `payload-schemas.yaml` is in the real bundle, so it is owned; the
+    // synthetic `recipes.md` is not, and must survive.
+    it('uninstall removes the bundled reference files and leaves unowned ones', () => {
+        runInstallSkill(
+            { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
+            'file:///unused',
+        );
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
+
+        expect(code).toBe(0);
+        expect(existsSync(join(skillDir, 'SKILL.md'))).toBe(false);
+        expect(existsSync(join(skillDir, 'reference', 'payload-schemas.yaml'))).toBe(false);
+        expect(readFileSync(join(skillDir, 'reference', 'recipes.md'), 'utf-8')).toBe('# Recipes\n');
+    });
+
+    it('uninstall clears the whole tree when nothing unowned remains', () => {
+        // Same flow with only the bundled name present, so the reference
+        // directory and its parent both end up empty and are removed.
+        const onlyBundled = join(tmp, 'only-bundled');
+        mkdirSync(join(onlyBundled, 'reference'), { recursive: true });
+        const bundledSource = join(onlyBundled, 'SKILL.md');
+        writeFileSync(bundledSource, SKILL_CONTENT, 'utf-8');
+        writeFileSync(join(onlyBundled, 'reference', 'payload-schemas.yaml'), 'schemas: []\n', 'utf-8');
+
+        runInstallSkill(
+            {
+                global: false,
+                force: false,
+                printPath: false,
+                output,
+                sourceOverride: bundledSource,
+                cwdOverride: project,
+            },
+            'file:///unused',
+        );
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
+
+        expect(code).toBe(0);
+        expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli'))).toBe(false);
+    });
+
+    // mkdirSync(..., {recursive:true}) accepts an existing symlink-to-directory
+    // as already satisfied, so without an lstat guard the reference files would
+    // be renamed into whatever the link targets.
+    it('refuses to install through a symlinked reference directory', () => {
+        const victim = join(tmp, 'victim');
+        mkdirSync(victim, { recursive: true });
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(skillDir, { recursive: true });
+        symlinkSync(victim, join(skillDir, 'reference'));
+
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: true,
+                printPath: false,
+                output,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///unused',
+        );
+
+        expect(code).toBe(1);
+        expect(readdirSync(victim)).toEqual([]);
+    });
+
+    it('leaves no temp files behind after a successful install', () => {
+        runInstallSkill(
+            { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
+            'file:///unused',
+        );
+        const dir = join(project, '.claude', 'skills', 'testrail-cli');
+        expect(readdirSync(dir).filter((name) => name.startsWith('.tmp.'))).toEqual([]);
+        expect(readdirSync(join(dir, 'reference')).filter((name) => name.startsWith('.tmp.'))).toEqual([]);
     });
 });

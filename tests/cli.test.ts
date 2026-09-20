@@ -549,16 +549,15 @@ describe('CLI', () => {
             expect(stdout).toContain('testrail case <action>');
         });
 
-        it('keeps file-I/O resources non-empty in their own help', async () => {
-            for (const resource of ['attachment', 'bdd']) {
-                const { stdout, exitCodes } = await runCli([resource, '--help']);
-                expect(exitCodes[0]).toBe(0);
-                expect(stdout).toContain(`testrail ${resource} <action>`);
-                // The predicates used by the full help exclude file-I/O
-                // actions; a resource view built on them would print a bare
-                // header and nothing else.
-                expect(stdout).toMatch(/--file <path\|->|--out <path\|->/);
-            }
+        // The predicates used by the full help exclude file-I/O actions; a
+        // resource view built on them would print a bare header and nothing
+        // else. `it.each` rather than a loop so each resource reports
+        // independently (and to avoid an await inside a loop).
+        it.each(['attachment', 'bdd'])('keeps %s non-empty in its own help', async (resource) => {
+            const { stdout, exitCodes } = await runCli([resource, '--help']);
+            expect(exitCodes[0]).toBe(0);
+            expect(stdout).toContain(`testrail ${resource} <action>`);
+            expect(stdout).toMatch(/--file <path\|->|--out <path\|->/);
         });
     });
 

@@ -20,6 +20,7 @@ import {
     lstatSync,
     mkdirSync,
     mkdtempSync,
+    readFileSync,
     readdirSync,
     rmSync,
     symlinkSync,
@@ -167,6 +168,35 @@ describe('runUninstallSkill', () => {
         // Re-running uninstall must produce a clean error, not a crash.
         const again = runUninstallSkill({ global: false, output: quietOutput, cwdOverride: project });
         expect(again).toBe(1);
+    });
+
+    // Mirrors the SKILL.md symlink defense below, for the reference/ directory
+    // the install also writes. Without an lstat guard, readdirSync follows a
+    // symlink planted at reference/ and unlinkSync deletes every regular file
+    // in whatever directory it points at — silently, with exit code 0.
+    it('refuses to follow a symlink at reference/ (arbitrary-deletion defense)', () => {
+        const project = join(tmp, 'proj-ref-symlink');
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(skillDir, { recursive: true });
+        writeFileSync(join(skillDir, 'SKILL.md'), '# skill\n', 'utf-8');
+
+        // A directory of bystanders that must survive the uninstall untouched.
+        const victimDir = join(tmp, 'victim');
+        mkdirSync(victimDir, { recursive: true });
+        const bystander = join(victimDir, 'IMPORTANT-DO-NOT-DELETE.txt');
+        writeFileSync(bystander, 'do not delete me', 'utf-8');
+        symlinkSync(victimDir, join(skillDir, 'reference'));
+
+        const code = runUninstallSkill({ global: false, output, cwdOverride: project });
+
+        // The body removal still succeeds — the reference symlink is skipped,
+        // not treated as a failure.
+        expect(code).toBe(0);
+        expect(existsSync(bystander)).toBe(true);
+        expect(readFileSync(bystander, 'utf-8')).toBe('do not delete me');
+        // The symlink itself is left for the user to resolve, exactly like a
+        // symlinked SKILL.md: we refuse to act on it rather than guess.
+        expect(lstatSync(join(skillDir, 'reference')).isSymbolicLink()).toBe(true);
     });
 
     it('refuses to remove a symlink at the install target (TOCTOU defense)', () => {

@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "335e7c32cd908566b39f0b95233a3a1eabb39f64f8e9b5d16029ee72a9eaafe3",
+  "sourceHash": "001beb0d52180e9b7db721cd1bd69c18da2bdb700b3f8adbcd8248f1065faf18",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -5021,23 +5021,44 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "InstallSkillOptions",
           "kind": "interface",
-          "line": 33,
+          "line": 34,
           "exported": true,
           "signature": "export interface InstallSkillOptions { global: boolean; force: boolean; printPath: boolean; output: Pick<Output, 'outRaw' | 'err'>; sourceOverride?: string; cwdOverride?: string; homeOverride?: string…"
         },
         {
           "name": "getBundledSkillPath",
           "kind": "function",
-          "line": 57,
+          "line": 58,
           "exported": true,
           "signature": "export function getBundledSkillPath(metaUrl: string): string"
         },
         {
           "name": "runInstallSkill",
           "kind": "function",
-          "line": 61,
+          "line": 62,
           "exported": true,
           "signature": "export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number"
+        },
+        {
+          "name": "listReferenceFiles",
+          "kind": "function",
+          "line": 138,
+          "exported": false,
+          "signature": "function listReferenceFiles(skillRoot: string): readonly string[]"
+        },
+        {
+          "name": "requireRealDirectory",
+          "kind": "function",
+          "line": 164,
+          "exported": false,
+          "signature": "function requireRealDirectory(path: string): void"
+        },
+        {
+          "name": "installFile",
+          "kind": "function",
+          "line": 187,
+          "exported": false,
+          "signature": "function installFile(source: string, target: string): void"
         }
       ]
     },
@@ -6543,28 +6564,36 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./output.js",
         "node:fs",
         "node:os",
-        "node:path"
+        "node:path",
+        "node:url"
       ],
       "reExports": [],
       "symbols": [
         {
           "name": "UninstallSkillOptions",
           "kind": "interface",
-          "line": 42,
+          "line": 43,
           "exported": true,
           "signature": "export interface UninstallSkillOptions { global: boolean; output: Pick<Output, 'outRaw' | 'err'>; cwdOverride?: string; homeOverride?: string; }"
         },
         {
+          "name": "bundledReferenceNames",
+          "kind": "function",
+          "line": 72,
+          "exported": false,
+          "signature": "function bundledReferenceNames(): readonly string[]"
+        },
+        {
           "name": "getInstallTarget",
           "kind": "function",
-          "line": 61,
+          "line": 84,
           "exported": true,
           "signature": "export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string"
         },
         {
           "name": "runUninstallSkill",
           "kind": "function",
-          "line": 66,
+          "line": 89,
           "exported": true,
           "signature": "export function runUninstallSkill(opts: UninstallSkillOptions): number"
         }

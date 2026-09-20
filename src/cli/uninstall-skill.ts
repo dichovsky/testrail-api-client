@@ -36,7 +36,8 @@
 
 import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Output } from './output.js';
 
 export interface UninstallSkillOptions {
@@ -58,6 +59,28 @@ export interface UninstallSkillOptions {
  * can ask "where would install put it?" and "where would uninstall
  * look?" from the same surface).
  */
+/**
+ * Names of the reference files this package bundles — the only entries under
+ * an installed `reference/` that `install-skill` could have written, and so
+ * the only ones this command may remove.
+ *
+ * Resolved from this module's own location, mirroring `getBundledSkillPath`:
+ * at runtime the handler sits at `<packageRoot>/dist/cli/uninstall-skill.js`,
+ * two `..` segments from the package root. An unreadable or absent bundle
+ * yields an empty set, which removes nothing — the conservative direction.
+ */
+function bundledReferenceNames(): readonly string[] {
+    try {
+        const referenceDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skill', 'reference');
+        return readdirSync(referenceDir, { withFileTypes: true })
+            .filter((entry) => entry.isFile())
+            .map((entry) => entry.name);
+    } catch {
+        // No bundled reference set to match against; delete nothing.
+        return [];
+    }
+}
+
 export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string {
     const targetRoot = opts.global ? (opts.homeOverride ?? homedir()) : (opts.cwdOverride ?? process.cwd());
     return join(targetRoot, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
@@ -115,11 +138,60 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
         return 1;
     }
 
+    // install-skill also writes `reference/`, so leaving it behind would make
+    // the enclosing directory non-empty forever and strand files the user
+    // asked to remove.
+    //
+    // The same symlink discipline the SKILL.md removal applies to `target`
+    // applies here, and for the same reason: `lstatSync` describes the link
+    // itself, so a symlink planted at `reference/` fails `isDirectory()` and we
+    // never enumerate what it points at. Using `statSync` — or skipping the
+    // check, as the first version of this cleanup did — makes `readdirSync`
+    // follow the link and `unlinkSync` delete every regular file in whatever
+    // directory it targets.
+    //
+    // Entries *inside* a real `reference/` need no extra guard: a `Dirent` from
+    // `readdirSync(..., { withFileTypes: true })` reports the entry's own type,
+    // so `entry.isFile()` is already false for a symlink.
+    //
+    // The lstat closes the static case only. An attacker who can swap the real
+    // directory for a symlink between this check and `readdirSync`, or between
+    // enumeration and `unlinkSync`, still wins the race — every call here is
+    // path-based. Closing that needs `openat`/`unlinkat` semantics, and Node
+    // exposes neither (`fs.opendirSync` yields a `Dir` with no
+    // descriptor-relative unlink), so it is not fixable at this layer. The
+    // owned-names filter bounds the damage: only files this package bundles are
+    // ever removed. Same residual window as SEC #5 above.
+    //
+    // Every failure here is non-fatal — the SKILL.md removal has succeeded.
+    const parent = dirname(target);
+    const referenceDir = join(parent, 'reference');
+    try {
+        if (lstatSync(referenceDir).isDirectory()) {
+            // Only files this package bundles are removed. The uninstaller's
+            // established contract is to leave hand-managed content alone (see
+            // the sibling-skill case in tests/uninstall-skill.test.ts), and a
+            // blanket sweep of `reference/` would silently delete a file the
+            // user added or edited there.
+            const owned = new Set(bundledReferenceNames());
+            for (const entry of readdirSync(referenceDir, { withFileTypes: true })) {
+                if (entry.isFile() && owned.has(entry.name)) {
+                    unlinkSync(join(referenceDir, entry.name));
+                }
+            }
+            // Succeeds only when nothing unowned was left behind.
+            rmdirSync(referenceDir);
+        }
+    } catch {
+        // No reference directory, something in it is not ours to remove, or a
+        // non-empty directory after preserving unowned files. The body is gone
+        // either way; the parent cleanup below simply finds it non-empty.
+    }
+
     // Best-effort cleanup of the enclosing testrail-cli/ directory if
     // empty. We deliberately stop here — never touch .claude/skills/ or
     // higher, since other skills may live there. Errors here are
     // non-fatal (the file removal already succeeded).
-    const parent = dirname(target);
     try {
         const entries = readdirSync(parent);
         if (entries.length === 0) {
