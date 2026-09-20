@@ -181,11 +181,11 @@ export interface ValidateGatesInput {
  *          a `@testrail` tag (i.e., the client actually implements it).
  * Gate C2: bidirectional binding between `ACTIONS` and skill recipes —
  *          (forward) every `<!-- recipe-for: resource:action -->` HTML comment
- *          in `skill/SKILL.md` must reference an existing entry in `ACTIONS`
+ *          in `skill/reference/recipes.md` must reference an existing entry in `ACTIONS`
  *          (catches typos / stale tags after an action is renamed or removed),
  *          AND
  *          (reverse) every `ACTIONS` entry must have ≥1 matching `recipe-for:`
- *          binding in `skill/SKILL.md` unless the spec sets
+ *          binding in `skill/reference/recipes.md` unless the spec sets
  *          `skillRecipeExempt: true` (catches the silent-recipe-drop regression
  *          seen in PR #114 / PR #118 where the one-way forward check let
  *          recipes vanish during rebase).
@@ -257,13 +257,13 @@ export function validateGates({
     for (const [key, recipe] of recipes) {
         if (!actionKeys.has(key)) {
             errors.push(
-                `[gate C2 forward] skill/SKILL.md recipe #${recipe.number} ("${recipe.title}") has \`recipe-for: ${key}\` but no such resource:action exists in ACTIONS`,
+                `[gate C2 forward] skill/reference/recipes.md recipe #${recipe.number} ("${recipe.title}") has \`recipe-for: ${key}\` but no such resource:action exists in ACTIONS`,
             );
         }
     }
 
     // Gate C2 (reverse): every ACTIONS entry must have ≥1 matching
-    // `recipe-for:` binding in skill/SKILL.md, unless the spec opts out via
+    // `recipe-for:` binding in skill/reference/recipes.md, unless the spec opts out via
     // `skillRecipeExempt: true`. Closes the silent-recipe-drop regression
     // (PR #114 dropped recipe #34; PR #118 dropped C3+C5 during rebase) that
     // the one-way forward check could not detect.
@@ -272,7 +272,7 @@ export function validateGates({
         const key = `${a.resource}:${a.action}`;
         if (!recipes.has(key)) {
             errors.push(
-                `[gate C2 reverse] ACTIONS entry \`${key}\` has no \`<!-- recipe-for: ${key} -->\` binding in skill/SKILL.md. Add a numbered recipe with that tag, or set \`skillRecipeExempt: true\` on the ActionSpec (with a justification comment) if the action genuinely does not warrant a curated recipe.`,
+                `[gate C2 reverse] ACTIONS entry \`${key}\` has no \`<!-- recipe-for: ${key} -->\` binding in skill/reference/recipes.md. Add a numbered recipe with that tag, or set \`skillRecipeExempt: true\` on the ActionSpec (with a justification comment) if the action genuinely does not warrant a curated recipe.`,
             );
         }
     }
@@ -316,7 +316,7 @@ export function validateGates({
 // move of the output file is a one-line change.
 
 const LINK_PREFIX = '../';
-const SKILL_COMMAND_TABLE_ANCHOR = `${LINK_PREFIX}skill/SKILL.md#command-surface`;
+const SKILL_COMMAND_TABLE_ANCHOR = `${LINK_PREFIX}skill/reference/commands.md#command-surface`;
 const TESTRAIL_DOCS_BASE = 'https://support.testrail.com/hc/en-us/sections/7077185274644-API-reference';
 
 export function renderEndpointCell(ep: { method: string; path: string; docUrl?: string | undefined }): string {
@@ -353,7 +353,7 @@ export function renderSkillCell(cliKeys: readonly string[], recipes?: Map<string
         .map((cliKey) => {
             const recipe = recipes !== undefined ? recipes.get(cliKey) : undefined;
             if (recipe !== undefined) {
-                return `[recipe #${recipe.number}](${LINK_PREFIX}skill/SKILL.md#${recipe.anchor})`;
+                return `[recipe #${recipe.number}](${LINK_PREFIX}skill/reference/recipes.md#${recipe.anchor})`;
             }
             return `[command-table](${SKILL_COMMAND_TABLE_ANCHOR})`;
         })
@@ -442,9 +442,9 @@ export function renderDocument(
         '',
         '**Version target.** The inventory is audited against TestRail 10.7.0; source provenance, cumulative-release additions, resolved mismatches, and known upstream documentation conflicts are recorded in [`docs/TESTRAIL-10.7.0-COMPATIBILITY.md`](TESTRAIL-10.7.0-COMPATIBILITY.md).',
         '',
-        "**Drift gates.** The generator validates five things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/SKILL.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI). Pagination is no longer among them: an `ActionSpec` reads its endpoint's contract from `src/cli/metadata/paginated-endpoints.ts` instead of restating it, so there is nothing left for a gate to compare.",
+        "**Drift gates.** The generator validates five things on every run: every `@testrail` tag references an endpoint that exists in the JSON (gate B); every `ActionSpec.apiEndpoint` references an endpoint that has a matching `@testrail` tag (gate C); every `<!-- recipe-for: resource:action -->` HTML comment in `skill/reference/recipes.md` references an existing entry in `ACTIONS` (gate C2); every `@testrail`-tagged client method is claimed by at least one `ActionSpec.apiEndpoint`, with no exemption escape hatch (gate D); the committed file matches generator output (gate A, enforced by `npm run mapping:check` in `pretest` and CI). Pagination is no longer among them: an `ActionSpec` reads its endpoint's contract from `src/cli/metadata/paginated-endpoints.ts` instead of restating it, so there is nothing left for a gate to compare.",
         '',
-        '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/SKILL.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary distinguishes endpoint coverage from action counts because more than one CLI action can intentionally use the same TestRail endpoint.',
+        '**Skill recipes** are surfaced two ways. When a numbered recipe in `skill/reference/recipes.md` carries a `<!-- recipe-for: resource:action -->` HTML comment, the skill cell links directly to that recipe — a curated, hand-written workflow showing how an agent uses the action in context. Otherwise the cell links to the auto-generated command-table entry as a fallback. The summary distinguishes endpoint coverage from action counts because more than one CLI action can intentionally use the same TestRail endpoint.',
         '',
         '## Summary',
         '',

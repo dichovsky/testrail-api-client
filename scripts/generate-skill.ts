@@ -42,22 +42,33 @@ const root = path.join(__dirname, '..');
 const skillPath = path.join(root, 'skill', 'SKILL.md');
 const referenceDir = path.join(root, 'skill', 'reference');
 const payloadReferencePath = path.join(referenceDir, 'payload-schemas.yaml');
+const commandsPath = path.join(referenceDir, 'commands.md');
 const checkMode = process.argv.includes('--check');
 
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { version: string };
 
 const committedContent = readFileSync(skillPath, 'utf-8');
 let content = committedContent;
-content = replaceSection(content, 'command-table', renderCommandTable(ACTIONS));
-content = replaceSection(content, 'option-reference', renderCliOptionReference(CLI_OPTION_DOCUMENTATION));
 content = replaceSection(content, 'payload-schemas', renderPayloadSchemas(ACTIONS));
 content = replaceFrontmatterVersion(content, pkg.version);
+
+// The command table and option reference moved out of the body: they are pure
+// lookup material, and inlining them put SKILL.md past the size where an agent
+// can load it cheaply. The sentinels travelled with them, so the same
+// replaceSection machinery now targets the reference file.
+const committedCommands = readFileSync(commandsPath, 'utf-8');
+let commands = committedCommands;
+commands = replaceSection(commands, 'command-table', renderCommandTable(ACTIONS));
+commands = replaceSection(commands, 'option-reference', renderCliOptionReference(CLI_OPTION_DOCUMENTATION));
+
 const payloadReference = renderPayloadSchemaReference(ACTIONS);
 
 if (checkMode) {
     const stale = findStaleSkillArtifacts({
         committedSkill: committedContent,
         generatedSkill: content,
+        committedCommands,
+        generatedCommands: commands,
         ...(existsSync(payloadReferencePath) && {
             committedPayloadReference: readFileSync(payloadReferencePath, 'utf-8'),
         }),
@@ -72,9 +83,11 @@ if (checkMode) {
 } else {
     writeFileSync(skillPath, content, 'utf-8');
     mkdirSync(referenceDir, { recursive: true });
+    writeFileSync(commandsPath, commands, 'utf-8');
     writeFileSync(payloadReferencePath, payloadReference, 'utf-8');
 
     process.stdout.write(
-        `skill/SKILL.md regenerated (${content.split('\n').length} lines); wrote skill/reference/payload-schemas.yaml.\n`,
+        `skill/SKILL.md regenerated (${content.split('\n').length} lines); ` +
+            `wrote skill/reference/commands.md and skill/reference/payload-schemas.yaml.\n`,
     );
 }

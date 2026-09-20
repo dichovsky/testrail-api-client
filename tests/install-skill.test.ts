@@ -554,7 +554,7 @@ describe('reference files travel with the skill body', () => {
         source = join(skillRoot, 'SKILL.md');
         writeFileSync(source, `${SKILL_CONTENT}See ./reference/payload-schemas.yaml\n`, 'utf-8');
         writeFileSync(join(skillRoot, 'reference', 'payload-schemas.yaml'), 'schemas: []\n', 'utf-8');
-        writeFileSync(join(skillRoot, 'reference', 'recipes.md'), '# Recipes\n', 'utf-8');
+        writeFileSync(join(skillRoot, 'reference', 'user-notes.md'), '# Notes\n', 'utf-8');
         project = join(tmp, 'project');
         mkdirSync(project, { recursive: true });
         output = captureOutput().output;
@@ -573,7 +573,7 @@ describe('reference files travel with the skill body', () => {
         );
         expect(code).toBe(0);
         expect(readFileSync(installed('payload-schemas.yaml'), 'utf-8')).toBe('schemas: []\n');
-        expect(readFileSync(installed('recipes.md'), 'utf-8')).toBe('# Recipes\n');
+        expect(readFileSync(installed('user-notes.md'), 'utf-8')).toBe('# Notes\n');
     });
 
     it('leaves no reference pointer in the body dangling', () => {
@@ -641,7 +641,7 @@ describe('reference files travel with the skill body', () => {
     // Uninstall removes only files this package bundles, which it resolves
     // from its own location — not from whatever a test happened to install.
     // `payload-schemas.yaml` is in the real bundle, so it is owned; the
-    // synthetic `recipes.md` is not, and must survive.
+    // synthetic `user-notes.md` is not, and must survive.
     it('uninstall removes the bundled reference files and leaves unowned ones', () => {
         runInstallSkill(
             { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
@@ -654,7 +654,7 @@ describe('reference files travel with the skill body', () => {
         expect(code).toBe(0);
         expect(existsSync(join(skillDir, 'SKILL.md'))).toBe(false);
         expect(existsSync(join(skillDir, 'reference', 'payload-schemas.yaml'))).toBe(false);
-        expect(readFileSync(join(skillDir, 'reference', 'recipes.md'), 'utf-8')).toBe('# Recipes\n');
+        expect(readFileSync(join(skillDir, 'reference', 'user-notes.md'), 'utf-8')).toBe('# Notes\n');
     });
 
     it('uninstall clears the whole tree when nothing unowned remains', () => {

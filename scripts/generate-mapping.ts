@@ -76,7 +76,10 @@ const OUTPUT_PATH = join(ROOT, 'docs', 'API-MAPPING.md');
 const ENDPOINTS_JSON_PATH = join(ROOT, 'docs', 'testrail-endpoints.json');
 const MODULES_DIR = join(ROOT, 'src', 'modules');
 const METADATA_DIR = join(ROOT, 'src', 'cli', 'metadata');
-const SKILL_PATH = join(ROOT, 'skill', 'SKILL.md');
+// Recipes live in the reference file, not the skill body: SKILL.md carries the
+// policy an agent needs before acting, and the 133 numbered recipes are lookup
+// material read on demand. Gate C2 follows them there.
+const SKILL_RECIPES_PATH = join(ROOT, 'skill', 'reference', 'recipes.md');
 
 // ── AST helpers ──────────────────────────────────────────────────────────────
 
@@ -182,8 +185,11 @@ function main(): void {
     // 3. Load CLI actions
     const actions = loadCliActions();
 
-    // 3b. Parse SKILL.md for `recipe-for:` tags
-    const skillSource = readFileSync(SKILL_PATH, 'utf8');
+    // 3b. Parse the recipe reference for `recipe-for:` tags. readFileSync is
+    // deliberately unguarded: a missing recipes file must fail the gate loudly,
+    // not read as "zero recipes" and let gate C2's reverse direction report
+    // every action as unbound.
+    const skillSource = readFileSync(SKILL_RECIPES_PATH, 'utf8');
     const recipes = parseSkillRecipes(skillSource);
 
     // 4. Run drift gates

@@ -6,7 +6,7 @@ import { AddCaseFieldPayloadSchema } from '../src/index.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
 import { createClient, mockOk, captureOutput, makeActionSpec } from './helpers.js';
 
-const markdown = readFileSync(new URL('../skill/SKILL.md', import.meta.url), 'utf8');
+const markdown = readFileSync(new URL('../skill/reference/recipes.md', import.meta.url), 'utf8');
 const section = markdown.split('### 45. Case field configuration and discovery')[1]?.split('\n### ')[0];
 if (section === undefined) throw new Error('Missing case-field recipe');
 

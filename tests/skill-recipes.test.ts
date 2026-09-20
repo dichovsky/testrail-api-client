@@ -1,5 +1,5 @@
 /**
- * Snapshot tests for hand-written recipes in `skill/SKILL.md`.
+ * Snapshot tests for hand-written recipes in `skill/reference/recipes.md`.
  *
  * The generator only rewrites the sentinel-delimited
  * `<!-- GENERATED:* -->` regions; hand-written recipes (with
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SKILL_PATH = join(HERE, '..', 'skill', 'SKILL.md');
+const SKILL_PATH = join(HERE, '..', 'skill', 'reference', 'recipes.md');
 
 /** Slice the markdown subsection starting at the first occurrence of
  *  `headingNeedle` (which is expected to fall inside an `### ` heading)
@@ -35,7 +35,7 @@ function extractSection(md: string, headingNeedle: string): string {
     return md.slice(start, end === -1 ? undefined : end).trimEnd();
 }
 
-describe('skill/SKILL.md — Results pipeline recipe', () => {
+describe('skill/reference/recipes.md — Results pipeline recipe', () => {
     const md = readFileSync(SKILL_PATH, 'utf-8');
 
     it('binds the recipe to result:list-for-test via recipe-for tag', () => {
@@ -79,7 +79,7 @@ describe('skill/SKILL.md — Results pipeline recipe', () => {
     });
 });
 
-describe('skill/SKILL.md — Plan entries lifecycle recipe', () => {
+describe('skill/reference/recipes.md — Plan entries lifecycle recipe', () => {
     const md = readFileSync(SKILL_PATH, 'utf-8');
 
     // gate C2 (`npm run mapping:check`) already enforces that the tags
@@ -119,7 +119,7 @@ describe('skill/SKILL.md — Plan entries lifecycle recipe', () => {
     });
 });
 
-describe('skill/SKILL.md — Bulk case delete recipe', () => {
+describe('skill/reference/recipes.md — Bulk case delete recipe', () => {
     const md = readFileSync(SKILL_PATH, 'utf-8');
 
     it('binds the recipe to case:delete-bulk via recipe-for tag', () => {
@@ -176,7 +176,7 @@ describe('skill/SKILL.md — Bulk case delete recipe', () => {
     });
 });
 
-describe('skill/SKILL.md — Configuration groups & configs hierarchy recipe', () => {
+describe('skill/reference/recipes.md — Configuration groups & configs hierarchy recipe', () => {
     const md = readFileSync(SKILL_PATH, 'utf-8');
 
     // gate C2 already enforces that the tags resolve to ActionSpec entries,
@@ -223,7 +223,7 @@ describe('skill/SKILL.md — Configuration groups & configs hierarchy recipe', (
     });
 });
 
-describe('skill/SKILL.md — Shared step propagation + history audit recipe', () => {
+describe('skill/reference/recipes.md — Shared step propagation + history audit recipe', () => {
     const md = readFileSync(SKILL_PATH, 'utf-8');
 
     // gate C2 already enforces that the tags resolve to ActionSpec entries,
@@ -312,7 +312,7 @@ describe('skill/SKILL.md — Shared step propagation + history audit recipe', ()
     });
 });
 
-describe('skill/SKILL.md — Data-driven runs via Variables + Datasets recipe', () => {
+describe('skill/reference/recipes.md — Data-driven runs via Variables + Datasets recipe', () => {
     const md = readFileSync(SKILL_PATH, 'utf-8');
 
     // gate C2 already enforces that the tags resolve to ActionSpec entries,

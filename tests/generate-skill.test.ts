@@ -247,11 +247,33 @@ describe('CLI option documentation', () => {
     });
 
     it('keeps the committed generated option section in sync', () => {
-        const committed = readFileSync(resolve(REPO_ROOT, 'skill/SKILL.md'), 'utf8');
+        // The option reference lives in the command reference, not the skill
+        // body — SKILL.md carries policy, `reference/commands.md` carries the
+        // full surface an agent looks up on demand.
+        const committed = readFileSync(resolve(REPO_ROOT, 'skill/reference/commands.md'), 'utf8');
         const expected = renderCliOptionReference(CLI_OPTION_DOCUMENTATION);
         expect(committed).toContain(
             `<!-- GENERATED:option-reference -->\n${expected}\n<!-- /GENERATED:option-reference -->`,
         );
+    });
+
+    it('keeps the skill body free of the bulk lookup material', () => {
+        const body = readFileSync(resolve(REPO_ROOT, 'skill/SKILL.md'), 'utf8');
+        // Regression guard for the restructure: the body must not re-absorb
+        // the command table, the option reference, or the recipes. Each is
+        // pinned by its own marker rather than by a size threshold, which
+        // would be both noisier and easier to defeat.
+        expect(body).not.toContain('<!-- GENERATED:command-table -->');
+        expect(body).not.toContain('<!-- GENERATED:option-reference -->');
+        expect(body).not.toContain('<!-- recipe-for:');
+        // It must still point at where they went.
+        for (const reference of [
+            './reference/commands.md',
+            './reference/recipes.md',
+            './reference/payload-schemas.yaml',
+        ]) {
+            expect(body).toContain(reference);
+        }
     });
 
     it('check mode compares both committed artifacts without regenerating first', () => {
@@ -271,29 +293,48 @@ describe('CLI option documentation', () => {
 
 describe('skill artifact drift detection', () => {
     it('reports each stale or missing generated artifact independently', () => {
+        // All three absent/stale at once — a missing committed file must be
+        // reported, not read as "matches".
         expect(
             findStaleSkillArtifacts({
                 committedSkill: 'old skill',
                 generatedSkill: 'new skill',
+                generatedCommands: 'new commands',
                 generatedPayloadReference: 'new payload',
             }),
-        ).toEqual(['skill/SKILL.md', 'skill/reference/payload-schemas.yaml']);
+        ).toEqual(['skill/SKILL.md', 'skill/reference/commands.md', 'skill/reference/payload-schemas.yaml']);
 
         expect(
             findStaleSkillArtifacts({
                 committedSkill: 'same',
                 generatedSkill: 'same',
+                committedCommands: 'same commands',
+                generatedCommands: 'same commands',
                 committedPayloadReference: 'old payload',
                 generatedPayloadReference: 'new payload',
             }),
         ).toEqual(['skill/reference/payload-schemas.yaml']);
+
+        // The command reference drifts independently of the body.
+        expect(
+            findStaleSkillArtifacts({
+                committedSkill: 'same',
+                generatedSkill: 'same',
+                committedCommands: 'old commands',
+                generatedCommands: 'new commands',
+                committedPayloadReference: 'payload',
+                generatedPayloadReference: 'payload',
+            }),
+        ).toEqual(['skill/reference/commands.md']);
     });
 
-    it('returns no paths only when both committed artifacts match', () => {
+    it('returns no paths only when every committed artifact matches', () => {
         expect(
             findStaleSkillArtifacts({
                 committedSkill: 'skill',
                 generatedSkill: 'skill',
+                committedCommands: 'commands',
+                generatedCommands: 'commands',
                 committedPayloadReference: 'payload',
                 generatedPayloadReference: 'payload',
             }),
