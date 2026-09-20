@@ -117,18 +117,32 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
 
     // install-skill also writes `reference/`, so leaving it behind would make
     // the enclosing directory non-empty forever and strand files the user
-    // asked to remove. Same discipline as the body: regular files only, never
-    // following a symlink, and every failure is non-fatal because the
-    // SKILL.md removal has already succeeded.
+    // asked to remove.
+    //
+    // The same symlink discipline the SKILL.md removal applies to `target`
+    // applies here, and for the same reason: `lstatSync` describes the link
+    // itself, so a symlink planted at `reference/` fails `isDirectory()` and we
+    // never enumerate what it points at. Using `statSync` — or skipping the
+    // check, as the first version of this cleanup did — makes `readdirSync`
+    // follow the link and `unlinkSync` delete every regular file in whatever
+    // directory it targets.
+    //
+    // Entries *inside* a real `reference/` need no extra guard: a `Dirent` from
+    // `readdirSync(..., { withFileTypes: true })` reports the entry's own type,
+    // so `entry.isFile()` is already false for a symlink.
+    //
+    // Every failure here is non-fatal — the SKILL.md removal has succeeded.
     const parent = dirname(target);
     const referenceDir = join(parent, 'reference');
     try {
-        for (const entry of readdirSync(referenceDir, { withFileTypes: true })) {
-            if (entry.isFile()) {
-                unlinkSync(join(referenceDir, entry.name));
+        if (lstatSync(referenceDir).isDirectory()) {
+            for (const entry of readdirSync(referenceDir, { withFileTypes: true })) {
+                if (entry.isFile()) {
+                    unlinkSync(join(referenceDir, entry.name));
+                }
             }
+            rmdirSync(referenceDir);
         }
-        rmdirSync(referenceDir);
     } catch {
         // No reference directory, or something in it is not ours to remove.
         // Either way the body is gone; the parent cleanup below still runs and
