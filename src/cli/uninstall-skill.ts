@@ -115,11 +115,30 @@ export function runUninstallSkill(opts: UninstallSkillOptions): number {
         return 1;
     }
 
+    // install-skill also writes `reference/`, so leaving it behind would make
+    // the enclosing directory non-empty forever and strand files the user
+    // asked to remove. Same discipline as the body: regular files only, never
+    // following a symlink, and every failure is non-fatal because the
+    // SKILL.md removal has already succeeded.
+    const parent = dirname(target);
+    const referenceDir = join(parent, 'reference');
+    try {
+        for (const entry of readdirSync(referenceDir, { withFileTypes: true })) {
+            if (entry.isFile()) {
+                unlinkSync(join(referenceDir, entry.name));
+            }
+        }
+        rmdirSync(referenceDir);
+    } catch {
+        // No reference directory, or something in it is not ours to remove.
+        // Either way the body is gone; the parent cleanup below still runs and
+        // simply finds the directory non-empty.
+    }
+
     // Best-effort cleanup of the enclosing testrail-cli/ directory if
     // empty. We deliberately stop here — never touch .claude/skills/ or
     // higher, since other skills may live there. Errors here are
     // non-fatal (the file removal already succeeded).
-    const parent = dirname(target);
     try {
         const entries = readdirSync(parent);
         if (entries.length === 0) {

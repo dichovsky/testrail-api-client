@@ -19,6 +19,7 @@ import {
     lstatSync,
     openSync,
     closeSync,
+    readdirSync,
     renameSync,
     unlinkSync,
     readFileSync,
@@ -93,52 +94,92 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         return 1;
     }
 
-    let tempPath: string | undefined;
+    // SKILL.md points at `./reference/*` for the detail it deliberately keeps
+    // out of its body. Installing the body alone leaves every one of those
+    // pointers dangling at the install location, which is worse than having no
+    // reference at all: the agent is told a file exists and then cannot read it.
+    const skillRoot = dirname(source);
+    const referenceSources = listReferenceFiles(skillRoot);
+
     try {
         const dir = dirname(target);
         mkdirSync(dir, { recursive: true, mode: 0o755 });
+        installFile(source, target);
 
-        // Create a secure sibling temp file first.
-        tempPath = join(dir, `SKILL.md.tmp.${Math.random().toString(36).substring(2, 9)}`);
+        if (referenceSources.length > 0) {
+            const referenceDir = join(dir, 'reference');
+            mkdirSync(referenceDir, { recursive: true, mode: 0o755 });
+            for (const name of referenceSources) {
+                installFile(join(skillRoot, 'reference', name), join(referenceDir, name));
+            }
+        }
+    } catch (e: unknown) {
+        writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
+        return 1;
+    }
+
+    const extra = referenceSources.length > 0 ? ` (+${referenceSources.length} reference)` : '';
+    opts.output.outRaw(`Installed testrail-cli skill → ${target}${extra}\n`);
+    return 0;
+}
+
+/**
+ * The bundled reference file names, or an empty list when the package ships
+ * none. A missing directory is not an error — the reference set is allowed to
+ * be empty, and an install must not fail because of it.
+ *
+ * One level deep only: the bundled layout is flat, and a recursive copy would
+ * be machinery for a shape that does not exist.
+ */
+function listReferenceFiles(skillRoot: string): readonly string[] {
+    try {
+        return readdirSync(join(skillRoot, 'reference'), { withFileTypes: true })
+            .filter((entry) => entry.isFile())
+            .map((entry) => entry.name)
+            .sort();
+    } catch {
+        // No reference directory bundled — nothing to install alongside the body.
+        return [];
+    }
+}
+
+/**
+ * Copies one bundled file to `target` through a sibling temp file and an
+ * atomic rename.
+ *
+ * `O_EXCL | O_NOFOLLOW` means the temp file cannot be pre-created or aimed
+ * elsewhere through a symlink. On POSIX `renameSync` delegates to rename(2),
+ * which replaces any existing directory entry — including a symlink — without
+ * a prior unlink, so there is no TOCTOU window. On Windows it overwrites
+ * regular files but may throw on an existing directory or symlink.
+ *
+ * Throws on any filesystem failure, after removing the temp file best-effort
+ * so a failed install leaves no stray sibling.
+ */
+function installFile(source: string, target: string): void {
+    let tempPath: string | undefined = join(dirname(target), `.tmp.${Math.random().toString(36).substring(2, 9)}`);
+    try {
         const fd = openSync(tempPath, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW);
-
         try {
-            const content = readFileSync(source);
-            writeFileSync(fd, content);
+            writeFileSync(fd, readFileSync(source));
         } finally {
             closeSync(fd);
         }
 
-        // Verify the temp path is a regular file before atomic swap
         const tempStat = lstatSync(tempPath);
         if (tempStat.isSymbolicLink() || !tempStat.isFile()) {
             throw new Error('temporary file is not a regular file');
         }
 
-        // Place the file at the target. On POSIX, Node's renameSync delegates to
-        // rename(2), which atomically replaces any existing directory entry
-        // (including symlinks) without a prior unlink — no TOCTOU window.
-        // On Windows, renameSync overwrites regular files but may throw on
-        // existing directories or symlinks depending on the OS version.
         renameSync(tempPath, target);
         tempPath = undefined;
-    } catch (e: unknown) {
-        // A filesystem failure (permission denied, full disk, rename race,
-        // etc.) anywhere in the write sequence lands here. If the temp file
-        // was already created, remove it best-effort so a failed install
-        // leaves no stray sibling; swallow any cleanup error since the
-        // original failure is the one worth surfacing.
+    } finally {
         if (tempPath !== undefined) {
             try {
                 unlinkSync(tempPath);
             } catch {
-                // Best-effort cleanup
+                // Best-effort cleanup; the original failure is the one to surface.
             }
         }
-        writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
-        return 1;
     }
-
-    opts.output.outRaw(`Installed testrail-cli skill → ${target}\n`);
-    return 0;
 }

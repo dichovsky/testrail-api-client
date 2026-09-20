@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "89cd33c5fe6960cf347f54add3623fedc60a59903b3244903f7bc406ce16780e",
+  "sourceHash": "54c632259880fca615d45b56f7c3dffecd5b38542eea51777400f83867c0058a",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4979,23 +4979,37 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "InstallSkillOptions",
           "kind": "interface",
-          "line": 33,
+          "line": 34,
           "exported": true,
           "signature": "export interface InstallSkillOptions { global: boolean; force: boolean; printPath: boolean; output: Pick<Output, 'outRaw' | 'err'>; sourceOverride?: string; cwdOverride?: string; homeOverride?: string…"
         },
         {
           "name": "getBundledSkillPath",
           "kind": "function",
-          "line": 57,
+          "line": 58,
           "exported": true,
           "signature": "export function getBundledSkillPath(metaUrl: string): string"
         },
         {
           "name": "runInstallSkill",
           "kind": "function",
-          "line": 61,
+          "line": 62,
           "exported": true,
           "signature": "export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number"
+        },
+        {
+          "name": "listReferenceFiles",
+          "kind": "function",
+          "line": 134,
+          "exported": false,
+          "signature": "function listReferenceFiles(skillRoot: string): readonly string[]"
+        },
+        {
+          "name": "installFile",
+          "kind": "function",
+          "line": 159,
+          "exported": false,
+          "signature": "function installFile(source: string, target: string): void"
         }
       ]
     },
