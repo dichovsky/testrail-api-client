@@ -106,7 +106,16 @@ export interface TestRailConfig {
     email: string;
     /** TestRail API key or password */
     apiKey: string;
-    /** Request timeout in milliseconds (default: 30000ms) */
+    /**
+     * Per-attempt timeout in milliseconds (default: 30000ms, maximum 5
+     * minutes).
+     *
+     * Covers DNS resolution as well as connect/send/response-headers, because
+     * `dns.lookup` carries no deadline of its own and would otherwise leave
+     * the call unbounded. A short timeout combined with a slow resolver can
+     * therefore fail before any request is sent. The response body is bounded
+     * separately by {@link TestRailConfig.bodyTimeout}.
+     */
     timeout?: number;
     /**
      * Maximum number of retry attempts for failed requests. Must be a whole
