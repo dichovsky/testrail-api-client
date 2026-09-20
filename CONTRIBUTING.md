@@ -37,8 +37,8 @@ npm run lockfile-lint
 npm test
 ```
 
-Depending on your npm version, `npm test` may not trigger `pretest`. Run the
-`:check` gates yourself before pushing rather than discovering them in CI.
+Do not assume `npm test` triggers `pretest` — run the `:check` gates yourself
+before pushing, rather than discovering them in CI.
 
 ## Generated files — never hand-edit
 
@@ -74,12 +74,11 @@ each step has been forgotten at least once.
 - **No hardcoded numbers.** Add a named export to `src/constants.ts`.
 - **Validate IDs before any network call** — `validateId(id, 'name')` from
   `src/validation.ts` (`validateEntryId` for UUID plan-entry IDs).
-- **Never swallow an error silently.** A `catch {}` should either convert the
-  failure into something the caller can act on, or carry a comment saying why
-  ignoring it is safe. Today 21 of the 36 `catch {}` blocks in `src/` have that
-  comment; most of the rest rethrow, return a structured error, or set a
-  failure flag the caller checks — so they are not silent either. Add the
-  comment to anything you touch that lacks one.
+- **Never swallow an error silently.** A `catch {}` must either convert the
+  failure into something the caller can act on — rethrow, a structured error,
+  a failure flag the caller checks — or carry a comment saying why ignoring it
+  is safe. Most already do; add the comment to anything you touch that does
+  not.
 
 ### Response schemas are widened, not narrowed
 
@@ -102,10 +101,13 @@ can check.
 Tests come first — write the failing test, watch it fail, then fix. A test that
 has never been seen red proves nothing about the code.
 
-Coverage sits near 99% and the suite runs in about 10 seconds; there is no
-reason to skip it. Put new tests in the existing file that owns the behavior
-rather than creating a new one — `tests/` already has 90-odd files and the
-matching one almost always exists.
+Coverage is high and the suite runs in seconds, so there is no reason to skip
+it. `vitest.config.ts` enforces per-metric floors; dropping below one fails
+CI, and an unreachable defensive branch needs a documented entry there rather
+than silent headroom.
+
+Put new tests in the existing file that owns the behavior rather than creating
+a new one — `tests/` is large and the matching file almost always exists.
 
 ## Commits and PRs
 
