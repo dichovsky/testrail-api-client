@@ -453,6 +453,17 @@ describe('TestRailClient - Coverage Improvement', () => {
             expect(global.fetch).toHaveBeenCalledTimes(2);
         });
 
+        // These two are the only clients in this file with a sub-second
+        // timeout, and `timeout` now covers DNS resolution as well as the
+        // fetch phase. Every other client here is left on live DNS because a
+        // 30s default cannot plausibly be exhausted by a lookup; at 50ms a
+        // real resolver easily can, which would abort the attempt before fetch
+        // is reached and make these tests measure resolver latency instead of
+        // the retry policy they are about.
+        const instantDnsLookup = async (): Promise<{ address: string; family: number }[]> => [
+            { address: '203.0.113.10', family: 4 },
+        ];
+
         it('should handle abort error after retries exhausted', async () => {
             const client = new TestRailClient({
                 baseUrl: 'https://example.testrail.net',
@@ -460,6 +471,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 apiKey: 'test-key',
                 maxRetries: 0, // No retries to simplify
                 timeout: 50,
+                dnsLookup: instantDnsLookup,
             });
 
             // Mock fetch to throw AbortError
@@ -477,6 +489,7 @@ describe('TestRailClient - Coverage Improvement', () => {
                 apiKey: 'test-key',
                 maxRetries: 3, // Set retries but timeouts should not be retried
                 timeout: 50,
+                dnsLookup: instantDnsLookup,
             });
 
             // Mock fetch to throw AbortError (timeout)

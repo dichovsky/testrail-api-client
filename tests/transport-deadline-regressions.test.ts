@@ -212,4 +212,64 @@ describe('transport deadline regressions', () => {
 
         expect(fetch).toHaveBeenCalledTimes(3);
     });
+
+    // DNS runs before the fetch phase and `dns.lookup` has no JS-visible
+    // deadline of its own, so the configured `timeout` has to cover it.
+    // Otherwise a resolver that drops packets rather than refusing them keeps
+    // `request()` pending indefinitely — and holds a libuv threadpool slot,
+    // which starves unrelated fs/crypto work in the host process.
+    it('fails the attempt with 408 when the resolver never answers', async () => {
+        const fetch = vi.fn();
+        const client = new TestRailClient({
+            baseUrl: 'https://example.test',
+            email: 'agent@example.test',
+            apiKey: 'key',
+            timeout: 50,
+            maxRetries: 0,
+            dnsLookup: () => new Promise(() => {}),
+            fetch,
+        });
+        clients.push(client);
+
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({ status: 408 });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('charges a slow lookup against the same attempt allowance', async () => {
+        const fetch = vi.fn().mockResolvedValue(new Response('{"id":1}', { status: 200 }));
+        const client = new TestRailClient({
+            baseUrl: 'https://example.test',
+            email: 'agent@example.test',
+            apiKey: 'key',
+            timeout: 80,
+            maxRetries: 0,
+            dnsLookup: async () => {
+                await new Promise((resolve) => setTimeout(resolve, 400));
+                return [{ address: '203.0.113.10', family: 4 }];
+            },
+            fetch,
+        });
+        clients.push(client);
+
+        await expect(client.projects.getProject(1)).rejects.toMatchObject({ status: 408 });
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('leaves a prompt lookup unaffected', async () => {
+        const fetch = vi.fn().mockResolvedValue(new Response('{"id":1}', { status: 200 }));
+        const client = new TestRailClient({
+            baseUrl: 'https://example.test',
+            email: 'agent@example.test',
+            apiKey: 'key',
+            timeout: 5000,
+            dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }],
+            fetch,
+        });
+        clients.push(client);
+
+        await expect(client.request<{ id: number }>({ method: 'GET', endpoint: 'get_project/1' })).resolves.toEqual({
+            id: 1,
+        });
+        expect(fetch).toHaveBeenCalledOnce();
+    });
 });
