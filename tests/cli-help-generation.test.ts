@@ -21,6 +21,7 @@ import {
     buildResourceHelpText,
     isKnownResource,
     renderOptionsBlock,
+    wrapIndented,
 } from '../src/cli/help.js';
 
 describe('buildHelpText', () => {
@@ -146,5 +147,31 @@ describe('buildResourceHelpText', () => {
         expect(isKnownResource('attachment')).toBe(true);
         expect(isKnownResource('bogus')).toBe(false);
         expect(isKnownResource('')).toBe(false);
+    });
+});
+
+describe('wrapIndented', () => {
+    it('packs words onto indented lines and breaks before overflowing', () => {
+        // 74 is the wrap width; fixed-length filler words let the boundary be
+        // asserted without depending on the real resource list.
+        const words = ['a'.repeat(40), 'b'.repeat(30), 'c'.repeat(10)];
+        expect(wrapIndented(words)).toBe(`  ${'a'.repeat(40)} ${'b'.repeat(30)}\n  ${'c'.repeat(10)}`);
+    });
+
+    // The guard this pins: a first word already wider than the limit must
+    // occupy its own over-long line, not flush an empty accumulator and emit
+    // a stray two-space line ahead of itself.
+    it('gives an over-long first word its own line, with no blank line before it', () => {
+        const long = 'x'.repeat(100);
+        expect(wrapIndented([long])).toBe(`  ${long}`);
+        expect(wrapIndented([long, 'short'])).toBe(`  ${long}\n  short`);
+    });
+
+    it('returns an empty string for no words', () => {
+        expect(wrapIndented([])).toBe('');
+    });
+
+    it('keeps a single short word on one line', () => {
+        expect(wrapIndented(['project'])).toBe('  project');
     });
 });

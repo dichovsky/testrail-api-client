@@ -302,10 +302,15 @@ export function isKnownResource(resource: string): boolean {
  * A word longer than the width gets its own over-long line rather than a
  * blank one: without the `current !== ''` guard, a first word that already
  * exceeds the width flushes the still-empty accumulator and emits a stray
- * two-space line. Unreachable with today's resource names (longest is 21
- * against a width of 74), but this is the kind of helper that gets reused.
+ * two-space line.
+ *
+ * Today's resource names cannot reach that path (longest is 21 against a
+ * width of 74), so it is exported and unit-tested directly rather than left
+ * as an unreachable guard — the branch has to be exercised somewhere, and a
+ * test stating the intended output is worth more than a comment asserting
+ * the input can never occur.
  */
-function wrapIndented(words: readonly string[]): string {
+export function wrapIndented(words: readonly string[]): string {
     const lines: string[] = [];
     let current = '';
     for (const word of words) {

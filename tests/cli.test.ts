@@ -523,6 +523,43 @@ describe('CLI', () => {
             expect(stdout).toContain('testrail <resource> <action>');
             expect(exitCodes[0]).toBe(0);
         });
+
+        it('scopes to a resource when the leading positional names one', async () => {
+            const { stdout, exitCodes } = await runCli(['case', '--help']);
+            expect(exitCodes[0]).toBe(0);
+            expect(stdout).toContain('testrail case <action>');
+            // Scoped help shows this resource's actions …
+            expect(stdout).toContain('Fetch a single test case by ID');
+            // … and not another resource's.
+            expect(stdout).not.toContain('Fetch a single milestone by ID');
+            // Far shorter than the full listing, which is the whole point.
+            expect(stdout.split('\n').length).toBeLessThan(60);
+        });
+
+        it('falls back to the full listing for an unknown resource', async () => {
+            const { stdout, exitCodes } = await runCli(['bogus', '--help']);
+            expect(exitCodes[0]).toBe(0);
+            expect(stdout).toContain('testrail <resource> <action>');
+            expect(stdout).toContain("Resources (run 'testrail <resource> --help'");
+        });
+
+        it('scopes on the resource even when an action follows it', async () => {
+            const { stdout, exitCodes } = await runCli(['case', 'get', '--help']);
+            expect(exitCodes[0]).toBe(0);
+            expect(stdout).toContain('testrail case <action>');
+        });
+
+        it('keeps file-I/O resources non-empty in their own help', async () => {
+            for (const resource of ['attachment', 'bdd']) {
+                const { stdout, exitCodes } = await runCli([resource, '--help']);
+                expect(exitCodes[0]).toBe(0);
+                expect(stdout).toContain(`testrail ${resource} <action>`);
+                // The predicates used by the full help exclude file-I/O
+                // actions; a resource view built on them would print a bare
+                // header and nothing else.
+                expect(stdout).toMatch(/--file <path\|->|--out <path\|->/);
+            }
+        });
     });
 
     describe('no arguments', () => {
