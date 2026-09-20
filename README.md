@@ -188,6 +188,15 @@ first `trackOperation` call and stays on, so a process that never tracks pays no
 context-propagation cost; a request already in flight at that first call can be
 joined for its result but not for its post-result cleanup.
 
+A cache hit is isolated, not free. Entries are deep-copied with
+`structuredClone` on both write and read, so a cached caller can mutate what it
+receives without corrupting the entry the next caller will get. The cost scales
+with payload size: a hit on a 250-case `getCases()` page copies that whole
+payload again. This is the right trade for correctness, but it means
+`maxCacheSize` bounds entry _count_, not memory — size it against the responses
+you actually cache, and lower `maxJsonResponseBytes` (default 10 MiB) if a
+bulk-export endpoint would otherwise pin large bodies for the full TTL.
+
 `reports.runReport()` and `reports.runCrossProjectReport()` generate a new
 report for each call. Although the API routes use GET, these methods bypass
 cache reads, writes, and request coalescing. A 5xx or network failure is never
