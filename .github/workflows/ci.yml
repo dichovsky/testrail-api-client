@@ -1,17 +1,36 @@
 name: CI
 
+# A push to a PR branch used to fire both `push` (unfiltered) and
+# `pull_request`, running every job twice for the same commit. Restricting
+# `push` to the long-lived branches leaves pre-merge validation to
+# `pull_request` and post-merge validation to `push`, with no overlap.
 on:
     push:
+        branches: [main, dev]
     pull_request:
         branches: [main, dev]
+
+# Least privilege by default. No CI job writes to the repository; anything
+# that needs more must opt in at the job level, as publish.yml does for OIDC.
+permissions:
+    contents: read
+
+# Superseded runs on the same ref are pointless once a newer commit exists.
+# `main` is exempt: its runs validate merged history and must not be cancelled.
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
     gen-drift:
         runs-on: ubuntu-latest
+        timeout-minutes: 15
 
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
 
             - name: Setup Node.js
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -42,10 +61,13 @@ jobs:
 
     lint-and-test:
         runs-on: ubuntu-latest
+        timeout-minutes: 20
 
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
 
             - name: Setup Node.js
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -77,46 +99,25 @@ jobs:
             - name: Run tests
               run: npm run test:coverage
 
-    package-smoke:
-        name: Package smoke (Node ${{ matrix.node-version }})
-        runs-on: ubuntu-latest
-        timeout-minutes: 10
-        strategy:
-            fail-fast: false
-            matrix:
-                node-version: ['24']
-
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-            - name: Setup Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-              with:
-                  node-version: ${{ matrix.node-version }}
-                  cache: 'npm'
-
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Smoke-test packed consumer and CLI
-              run: npm run package:smoke
-
-            - name: Verify report execution and operation settlement
-              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
-
-    package-smoke-windows:
-        name: Package smoke (Windows, Node ${{ matrix.node-version }})
-        runs-on: windows-latest
+    # One matrix instead of three near-identical jobs. Node stays pinned to the
+    # single supported line (see docs/RELEASING.md); the axis that actually
+    # varies is the OS, because the package smoke exercises platform-specific
+    # path handling and the npm shim.
+    package-smoke-matrix:
+        name: Package smoke (${{ matrix.os }}, Node ${{ matrix.node-version }})
+        runs-on: ${{ matrix.os }}
         timeout-minutes: 15
         strategy:
             fail-fast: false
             matrix:
+                os: [ubuntu-latest, windows-latest, macos-14]
                 node-version: ['24']
 
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
 
             - name: Setup Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -133,51 +134,24 @@ jobs:
             - name: Verify report execution and operation settlement
               run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
 
-    package-smoke-macos:
-        name: Package smoke (macOS, Node ${{ matrix.node-version }})
-        runs-on: macos-14
-        timeout-minutes: 15
-        strategy:
-            fail-fast: false
-            matrix:
-                node-version: ['24']
-
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-            - name: Setup Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-              with:
-                  node-version: ${{ matrix.node-version }}
-                  cache: 'npm'
-
-            - name: Install dependencies
-              run: npm ci
-
-            - name: Smoke-test packed consumer and CLI
-              run: npm run package:smoke
-
-            - name: Verify report execution and operation settlement
-              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
-
+    # Collapses the matrix into one stable check name for branch protection.
+    # A matrix leg that is skipped or cancelled must not read as success, so
+    # the aggregate result is compared against 'success' explicitly.
     package-smoke-gate:
         name: package-smoke
         if: always()
-        needs: [package-smoke, package-smoke-windows, package-smoke-macos]
+        needs: [package-smoke-matrix]
         runs-on: ubuntu-latest
 
         steps:
             - name: Require every package smoke lane
               shell: bash
               env:
-                  LINUX_RESULT: '${{ needs.package-smoke.result }}'
-                  WINDOWS_RESULT: '${{ needs.package-smoke-windows.result }}'
-                  MACOS_RESULT: '${{ needs.package-smoke-macos.result }}'
+                  MATRIX_RESULT: '${{ needs.package-smoke-matrix.result }}'
               run: |
                   set -euo pipefail
-                  if [[ "$LINUX_RESULT" != 'success' || "$WINDOWS_RESULT" != 'success' || "$MACOS_RESULT" != 'success' ]]; then
-                      echo 'One or more package smoke lanes failed or were cancelled.' >&2
+                  if [[ "$MATRIX_RESULT" != 'success' ]]; then
+                      echo "One or more package smoke lanes failed or were cancelled (result: $MATRIX_RESULT)." >&2
                       exit 1
                   fi
 
@@ -188,6 +162,8 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
 
             - name: Setup Node.js
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -203,10 +179,13 @@ jobs:
 
     security-audit:
         runs-on: ubuntu-latest
+        timeout-minutes: 10
 
         steps:
             - name: Checkout code
               uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  persist-credentials: false
 
             - name: Setup Node.js
               uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
