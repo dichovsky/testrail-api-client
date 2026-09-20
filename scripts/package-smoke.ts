@@ -204,18 +204,38 @@ function requirePreparedDist(): void {
             fail(`dist/${requiredFile} is missing; run npm run build first or omit --prepared.`);
         }
     }
-    const sourceMaps = listFiles(distDirectory).filter((file) => file.endsWith('.map'));
+    const emitted = listFiles(distDirectory);
+    const sourceMaps = emitted.filter((file) => file.endsWith('.map'));
     if (sourceMaps.length > 0) {
-        fail(`prepared dist/ still contains ${sourceMaps.length} source map(s); run npm run clean:maps first.`);
+        fail(
+            `prepared dist/ contains ${sourceMaps.length} source map(s); tsconfig.prod.json must keep ` +
+                'sourceMap and declarationMap disabled.',
+        );
+    }
+
+    // A `//# sourceMappingURL=` comment without its map is worse than no map
+    // at all: consumers' editors and debuggers resolve the reference, miss the
+    // file, and report an error on a package that is otherwise fine.
+    const dangling = emitted.filter(
+        (file) =>
+            (file.endsWith('.js') || file.endsWith('.d.ts')) &&
+            readFileSync(file, 'utf8').includes('//# sourceMappingURL='),
+    );
+    if (dangling.length > 0) {
+        const sample = dangling.slice(0, 3).map((file) => path.relative(REPOSITORY_ROOT, file));
+        fail(
+            `prepared dist/ has ${dangling.length} file(s) referencing a source map that is not shipped ` +
+                `(e.g. ${sample.join(', ')}).`,
+        );
     }
 }
 
 function buildPackage(compiler: CompilerLauncher): void {
     const distDirectory = path.join(REPOSITORY_ROOT, 'dist');
 
-    // Reproduce `npm run build` and `npm run clean:maps` with Node filesystem
-    // primitives so this verification script works in stock Windows shells too.
-    // The public package scripts remain unchanged for existing consumers.
+    // Reproduce `npm run build` with Node filesystem primitives so this
+    // verification script works in stock Windows shells too. The public
+    // package scripts remain unchanged for existing consumers.
     rmSync(distDirectory, {
         recursive: true,
         force: true,
@@ -231,9 +251,6 @@ function buildPackage(compiler: CompilerLauncher): void {
             safeChildEnvironment(),
         ),
     );
-    for (const sourceMap of listFiles(distDirectory).filter((file) => file.endsWith('.map'))) {
-        rmSync(sourceMap, { force: true });
-    }
     requirePreparedDist();
 }
 
