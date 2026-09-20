@@ -208,11 +208,12 @@ grouped into transport/retry, cache, rate limit, pagination, response-body,
 stdin/file-input, and CLI-diagnostic sections.
 
 This section used to enumerate the values. That copy had no drift gate and was
-already wrong by omission: 6 of the 42 exported constants — `MAX_PAGINATION_LIMIT`,
-`MAX_DATA_FILE_BYTES`, `MAX_STDIN_BYTES`, `MAX_STDIN_UPLOAD_BYTES`,
-`STDIN_READ_TIMEOUT_MS`, `YAML_INDENT_SPACES` — never made it into the list.
-A hand-maintained mirror of a source file in a repo with five generator-backed
-drift gates is a liability, and one agents are especially prone to trusting.
+already wrong by omission: 7 of the 42 exported constants —
+`TESTRAIL_CONFIG_EMAIL_PATTERN`, `MAX_PAGINATION_LIMIT`, `MAX_DATA_FILE_BYTES`,
+`MAX_STDIN_BYTES`, `MAX_STDIN_UPLOAD_BYTES`, `STDIN_READ_TIMEOUT_MS`,
+`YAML_INDENT_SPACES` — never made it into the list. A hand-maintained mirror of
+a source file in a repo with five generator-backed drift gates is a liability,
+and one agents are especially prone to trusting.
 
 Shared literals worth knowing without opening the file: `MULTIPART_FIELD_NAME`
 is no longer a cross-module agreement, since `src/upload-source.ts` both appends

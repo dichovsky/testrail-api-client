@@ -74,8 +74,12 @@ each step has been forgotten at least once.
 - **No hardcoded numbers.** Add a named export to `src/constants.ts`.
 - **Validate IDs before any network call** — `validateId(id, 'name')` from
   `src/validation.ts` (`validateEntryId` for UUID plan-entry IDs).
-- **Never swallow an error silently.** Every `catch {}` in this repo carries a
-  comment saying why the failure is safe to ignore. Keep that true.
+- **Never swallow an error silently.** A `catch {}` should either convert the
+  failure into something the caller can act on, or carry a comment saying why
+  ignoring it is safe. Today 21 of the 36 `catch {}` blocks in `src/` have that
+  comment; most of the rest rethrow, return a structured error, or set a
+  failure flag the caller checks — so they are not silent either. Add the
+  comment to anything you touch that lacks one.
 
 ### Response schemas are widened, not narrowed
 
@@ -85,8 +89,13 @@ shipped so far has widened a schema to admit a real response, never narrowed one
 to reject an invalid one.
 
 So: do not "fix" a response schema against the published docs. Back the change
-with an observed response. The schema authoring conventions in `CLAUDE.md` (five
-numbered rules) are enforced statically by `tests/schema-conventions.test.ts`.
+with an observed response. `CLAUDE.md` states five numbered schema-authoring
+conventions; `tests/schema-conventions.test.ts` statically enforces three of
+them — §2 (responses use `.nullish()`, never `.optional()`; no format
+validators), §3 (no `.extend()` across directions), §4 (payloads don't
+reference response schemas). §1 (naming) and §5 (endpoint-level divergence)
+are review-only: §5 turns on observed wire behavior, which no syntactic gate
+can check.
 
 ## Tests
 
