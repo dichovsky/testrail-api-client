@@ -51,7 +51,6 @@
         "agents-md:check": "tsx scripts/generate-agents-md.ts --check",
         "audit:dependencies": "audit-ci --moderate --config audit-ci.jsonc",
         "build": "rm -rf dist && node node_modules/@typescript/native/bin/tsc -p tsconfig.prod.json",
-        "clean:maps": "find dist -name '*.map' -delete",
         "codemap": "tsx scripts/generate-codemap.ts",
         "codemap:check": "tsx scripts/generate-codemap.ts --check",
         "format": "prettier --write .",
