@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "89cd33c5fe6960cf347f54add3623fedc60a59903b3244903f7bc406ce16780e",
+  "sourceHash": "a63bd0272b19629c2f8bbcde0ec81d5a2d9b3a189365e80a53f79ec72a74b267",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -4804,9 +4804,51 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
+          "name": "RESOURCE_LINE_WIDTH",
+          "kind": "const",
+          "line": 287,
+          "exported": false,
+          "signature": "const RESOURCE_LINE_WIDTH = 74"
+        },
+        {
+          "name": "resourceNames",
+          "kind": "function",
+          "line": 290,
+          "exported": false,
+          "signature": "function resourceNames(): readonly string[]"
+        },
+        {
+          "name": "isKnownResource",
+          "kind": "function",
+          "line": 295,
+          "exported": true,
+          "signature": "export function isKnownResource(resource: string): boolean"
+        },
+        {
+          "name": "wrapIndented",
+          "kind": "function",
+          "line": 300,
+          "exported": false,
+          "signature": "function wrapIndented(words: readonly string[]): string"
+        },
+        {
+          "name": "renderResourcesBlock",
+          "kind": "function",
+          "line": 321,
+          "exported": false,
+          "signature": "function renderResourcesBlock(): string"
+        },
+        {
+          "name": "buildResourceHelpText",
+          "kind": "function",
+          "line": 337,
+          "exported": true,
+          "signature": "export function buildResourceHelpText(resource: string): string"
+        },
+        {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 292,
+          "line": 352,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }

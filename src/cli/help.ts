@@ -284,6 +284,66 @@ AND TESTRAIL_ALLOW_DESTRUCTIVE=1. All other destructive actions reject
 
 const HEADER = 'testrail <resource> <action> [args] [options]';
 
+const RESOURCE_LINE_WIDTH = 74;
+
+/** Every resource carrying at least one action, in `ACTIONS` order. */
+function resourceNames(): readonly string[] {
+    return [...new Set(ACTIONS.map((spec) => spec.resource))];
+}
+
+/** Whether `resource` names a real resource, so `--help` can scope to it. */
+export function isKnownResource(resource: string): boolean {
+    return ACTIONS.some((spec) => spec.resource === resource);
+}
+
+/** Wraps `words` into indented lines no wider than `RESOURCE_LINE_WIDTH`. */
+function wrapIndented(words: readonly string[]): string {
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+        const candidate = current === '' ? word : `${current} ${word}`;
+        if (candidate.length > RESOURCE_LINE_WIDTH) {
+            lines.push(`  ${current}`);
+            current = word;
+        } else {
+            current = candidate;
+        }
+    }
+    if (current !== '') lines.push(`  ${current}`);
+    return lines.join('\n');
+}
+
+/**
+ * The resource index. Without it the only way to discover that per-resource
+ * help exists is to guess, and the full listing is long enough that a reader
+ * scrolling it has already lost.
+ */
+function renderResourcesBlock(): string {
+    return `Resources (run 'testrail <resource> --help' for one resource's actions):\n${wrapIndented(resourceNames())}`;
+}
+
+/**
+ * Help scoped to a single resource.
+ *
+ * The global `--help` is 405 lines covering 134 commands, which is not
+ * something a reader can scan to answer "what can I do with a case?".
+ *
+ * Actions are partitioned on `isWrite` alone rather than through the
+ * `isReadAction`/`isWriteAction` section predicates: those two deliberately
+ * exclude file-I/O actions so they appear once under the Attachment and BDD
+ * sections, and reusing them here would silently drop every action of the
+ * `attachment` and `bdd` resources from their own help.
+ */
+export function buildResourceHelpText(resource: string): string {
+    const blocks = [
+        `testrail ${resource} <action> [args] [options]`,
+        renderSection('Read actions:', (spec) => spec.resource === resource && spec.isWrite === false),
+        renderSection('Write actions:', (spec) => spec.resource === resource && spec.isWrite === true),
+        "Run 'testrail --help' for global options, authentication, and semantics.",
+    ].filter((block) => block !== '');
+    return blocks.join('\n\n');
+}
+
 /**
  * Builds the full `--help` text by composing each per-section emitter with
  * the static trailing blocks. The leading newline matches the pre-PR-C
@@ -292,6 +352,8 @@ const HEADER = 'testrail <resource> <action> [args] [options]';
 export function buildHelpText(): string {
     const sections = [
         HEADER,
+        '',
+        renderResourcesBlock(),
         '',
         renderReadSection(),
         '',

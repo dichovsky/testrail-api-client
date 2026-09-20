@@ -15,7 +15,13 @@
 import { describe, expect, it } from 'vitest';
 import { CLI_OPTION_DOCUMENTATION, CLI_OPTIONS, getCliFlagUsage } from '../src/cli/flags.js';
 import { ACTIONS } from '../src/cli/metadata.js';
-import { actionArgvHint, buildHelpText, renderOptionsBlock } from '../src/cli/help.js';
+import {
+    actionArgvHint,
+    buildHelpText,
+    buildResourceHelpText,
+    isKnownResource,
+    renderOptionsBlock,
+} from '../src/cli/help.js';
 
 describe('buildHelpText', () => {
     it('matches the committed snapshot (accidental drift fails the test)', () => {
@@ -83,5 +89,62 @@ describe('buildHelpText', () => {
         expect(help).toContain('TESTRAIL_ALLOW_DESTRUCTIVE=1');
         expect(help).toContain('--yes');
         expect(help).toContain('--dry-run');
+    });
+
+    it('indexes every resource so per-resource help is discoverable', () => {
+        const help = buildHelpText();
+        expect(help).toContain("Resources (run 'testrail <resource> --help'");
+        for (const resource of new Set(ACTIONS.map((spec) => spec.resource))) {
+            expect(help).toContain(resource);
+        }
+    });
+});
+
+describe('buildResourceHelpText', () => {
+    const resources = [...new Set(ACTIONS.map((spec) => spec.resource))];
+
+    it.each(resources)('lists every action of %s and nothing else', (resource) => {
+        const help = buildResourceHelpText(resource);
+        const own = ACTIONS.filter((spec) => spec.resource === resource);
+        const foreign = ACTIONS.filter((spec) => spec.resource !== resource);
+
+        expect(own.length).toBeGreaterThan(0);
+        for (const spec of own) {
+            expect(help).toContain(spec.summary);
+        }
+        // A resource view that leaks another resource's actions is no more
+        // scannable than the full listing it replaces.
+        for (const spec of foreign) {
+            if (!own.some((ownSpec) => ownSpec.summary === spec.summary)) {
+                expect(help).not.toContain(spec.summary);
+            }
+        }
+    });
+
+    // `isReadAction`/`isWriteAction` deliberately exclude file-I/O actions so
+    // they render once under the Attachment and BDD sections. Reusing those
+    // predicates here would drop every action these two resources have.
+    it.each(['attachment', 'bdd'])('does not drop the file-I/O actions of %s', (resource) => {
+        const help = buildResourceHelpText(resource);
+        const own = ACTIONS.filter((spec) => spec.resource === resource);
+        expect(own.length).toBeGreaterThan(0);
+        for (const spec of own) {
+            expect(help).toContain(spec.action);
+        }
+    });
+
+    it('is drastically shorter than the full listing', () => {
+        expect(buildResourceHelpText('case').split('\n').length).toBeLessThan(buildHelpText().split('\n').length / 4);
+    });
+
+    it('points back at the full help for global options', () => {
+        expect(buildResourceHelpText('case')).toContain("Run 'testrail --help'");
+    });
+
+    it('recognizes real resources and rejects the rest', () => {
+        expect(isKnownResource('case')).toBe(true);
+        expect(isKnownResource('attachment')).toBe(true);
+        expect(isKnownResource('bogus')).toBe(false);
+        expect(isKnownResource('')).toBe(false);
     });
 });
