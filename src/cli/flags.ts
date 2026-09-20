@@ -249,7 +249,8 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
     timeout: {
         value: '<ms>',
         scope: 'All API commands',
-        description: 'Request timeout in milliseconds; overrides TESTRAIL_TIMEOUT. Default 30000, maximum 300000.',
+        description:
+            'Per-attempt timeout in milliseconds, covering DNS resolution as well as the request; overrides TESTRAIL_TIMEOUT. Default 30000, maximum 300000.',
     },
     'strict-responses': {
         scope: 'All API commands',
