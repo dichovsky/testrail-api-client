@@ -23,10 +23,12 @@ import { budgetExpiredError, createRequestBudget, type RequestBudget } from './r
 // so a value containing spaces reads as several products and makes upstream
 // attribution meaningless.
 //
-// This is not a claim of strict grammar conformance: a scoped package name
-// carries `@` and `/`, neither of which is a `tchar` under RFC 7230 §3.2.6.
-// Removing the whitespace is the part that matters in practice.
-const USER_AGENT = `${pkg.name}/${pkg.version}`;
+// The npm scope is dropped rather than documented as an exception: RFC 7230
+// §3.2.6 excludes `@` and `/` from `tchar`, so `@dichovsky/testrail-api-client`
+// would leave the header non-conforming and add a second `/` that makes
+// `product/version` ambiguous to parse. `testrail-api-client/8.0.0` is a valid
+// product token, and the scope carries no information a server could use.
+const USER_AGENT = `${pkg.name.replace(/^@[^/]+\//, '')}/${pkg.version}`;
 import {
     BASE_RETRY_DELAY_MS,
     MAX_RETRY_DELAY_MS,

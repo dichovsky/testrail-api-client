@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "8.0.0"
   },
-  "sourceHash": "81ef16e03b1739e590b6572dfb13fb01f13c2dad2495bc78b3fc99159872141f",
+  "sourceHash": "61ee3734d833ffa0b7b4e831d40d204e0bc9a4a708da51579fe9cd70ef6b8d1e",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -6660,267 +6660,267 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 29,
+          "line": 31,
           "exported": false,
-          "signature": "const USER_AGENT = `${pkg.name}/${pkg.version}`"
+          "signature": "const USER_AGENT = `${pkg.name.replace(/^@[^/]+\\"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 57,
+          "line": 59,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 59,
+          "line": 61,
           "exported": false,
           "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 113,
+          "line": 115,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 114,
+          "line": 116,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 117,
+          "line": 119,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 127,
+          "line": 129,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 155,
+          "line": 157,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestBudget; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 169,
+          "line": 171,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 177,
+          "line": 179,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 178
+              "line": 180
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 181
+              "line": 183
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 182
+              "line": 184
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 183
+              "line": 185
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 184
+              "line": 186
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 185
+              "line": 187
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 186
+              "line": 188
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 187
+              "line": 189
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 188
+              "line": 190
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 189
+              "line": 191
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 190
+              "line": 192
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 195
+              "line": 197
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 201
+              "line": 203
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 208
+              "line": 210
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 209
+              "line": 211
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 210
+              "line": 212
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 211
+              "line": 213
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 213
+              "line": 215
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 283
+              "line": 285
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 308
+              "line": 310
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 350
+              "line": 352
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 393
+              "line": 395
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 441
+              "line": 443
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 460
+              "line": 462
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 479
+              "line": 481
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 497
+              "line": 499
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 544
+              "line": 546
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 639
+              "line": 641
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 679
+              "line": 681
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 699
+              "line": 701
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 730
+              "line": 732
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 759
+              "line": 761
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 774
+              "line": 776
             },
             {
               "name": "attemptPipeline",
               "kind": "method",
-              "line": 790
+              "line": 792
             },
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 992
+              "line": 994
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1023
+              "line": 1025
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1049
+              "line": 1051
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1085
+              "line": 1087
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1097
+              "line": 1099
             }
           ]
         }

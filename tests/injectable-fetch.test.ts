@@ -167,19 +167,22 @@ describe('injectable fetch adapter (ARCH #14)', () => {
         client.destroy();
     });
 
-    // RFC 7231 §5.5.3 models User-Agent as product tokens separated by
-    // whitespace, so a header built from `pkg.description` read as several
-    // products. A scoped package name is still not a strict `tchar` token
-    // (it carries `@` and `/`), so this pins the property that matters:
-    // one whitespace-free identifier.
-    it('sends a whitespace-free User-Agent built from the package name', async () => {
+    // RFC 7231 §5.5.3 models User-Agent as `product "/" version` product
+    // tokens. `pkg.description` produced a header with spaces, which reads as
+    // several products; the npm scope would leave `@` and `/`, neither of
+    // which is a `tchar` under RFC 7230 §3.2.6. Assert conformance directly
+    // rather than the weaker "no whitespace" property.
+    it('sends an RFC 7230 product token as User-Agent', async () => {
         const customFetch = vi.fn().mockResolvedValue(okJson(MOCK_PROJECT));
         const client = new TestRailClient({ ...BASE_CONFIG, fetch: customFetch });
         await client.projects.getProject(1);
         const [, init] = customFetch.mock.calls[0] as [string, RequestInit];
         const userAgent = (init.headers as Record<string, string>)['User-Agent'];
-        expect(userAgent).toBe(`${pkg.name}/${pkg.version}`);
-        expect(userAgent).not.toMatch(/\s/);
+
+        expect(userAgent).toBe(`${pkg.name.replace(/^@[^/]+\//, '')}/${pkg.version}`);
+        // tchar per RFC 7230 §3.2.6, exactly one "/" separating the two tokens.
+        expect(userAgent).toMatch(/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+\/[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
+        expect(userAgent).not.toContain('@');
         client.destroy();
     });
 });
