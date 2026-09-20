@@ -360,8 +360,10 @@ describe('cell renderers', () => {
     });
 
     it('renders skill cell as command-table fallback when CLI is bound but no recipe tag exists', () => {
-        expect(renderSkillCell(['case:get'])).toBe('[command-table](../skill/SKILL.md#command-surface)');
-        expect(renderSkillCell(['case:get'], new Map())).toBe('[command-table](../skill/SKILL.md#command-surface)');
+        expect(renderSkillCell(['case:get'])).toBe('[command-table](../skill/reference/commands.md#command-surface)');
+        expect(renderSkillCell(['case:get'], new Map())).toBe(
+            '[command-table](../skill/reference/commands.md#command-surface)',
+        );
         expect(renderSkillCell([])).toBe('—');
     });
 
@@ -369,7 +371,9 @@ describe('cell renderers', () => {
         const recipes: RecipeMap = new Map([
             ['case:get', { number: 5, title: 'Fetch a case', anchor: '5-fetch-a-case' }],
         ]);
-        expect(renderSkillCell(['case:get'], recipes)).toBe('[recipe #5](../skill/SKILL.md#5-fetch-a-case)');
+        expect(renderSkillCell(['case:get'], recipes)).toBe(
+            '[recipe #5](../skill/reference/recipes.md#5-fetch-a-case)',
+        );
     });
 
     it('renders one skill link per CLI action when actions share an endpoint', () => {
@@ -378,7 +382,7 @@ describe('cell renderers', () => {
             ['run:watch', { number: 31, title: 'Watch a run', anchor: '31-watch-a-run' }],
         ]);
         expect(renderSkillCell(['run:get', 'run:watch'], recipes)).toBe(
-            '[recipe #7](../skill/SKILL.md#7-inspect-a-run)<br>[recipe #31](../skill/SKILL.md#31-watch-a-run)',
+            '[recipe #7](../skill/reference/recipes.md#7-inspect-a-run)<br>[recipe #31](../skill/reference/recipes.md#31-watch-a-run)',
         );
     });
 
@@ -752,7 +756,7 @@ describe('validateGates — gates B, C, C2, D, E', () => {
             expect(rev).toHaveLength(1);
             expect(rev[0]).toContain('case:get');
             // The error must tell the dev exactly how to fix it.
-            expect(rev[0]).toContain('skill/SKILL.md');
+            expect(rev[0]).toContain('skill/reference/recipes.md');
             expect(rev[0]).toContain('skillRecipeExempt: true');
             // The error must include the literal tag so dev can copy/paste.
             expect(rev[0]).toContain('<!-- recipe-for: case:get -->');

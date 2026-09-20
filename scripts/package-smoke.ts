@@ -477,7 +477,20 @@ function parsePackResult(raw: string): PackResult {
 
 function isAllowedPackedPath(filePath: string): boolean {
     if (filePath === 'package.json' || filePath === 'README.md' || filePath === 'LICENSE') return true;
-    if (filePath === 'skill/SKILL.md' || filePath === 'skill/reference/payload-schemas.yaml') return true;
+    // The skill body plus the reference files it points at. Enumerated rather
+    // than globbed on `skill/reference/`: SKILL.md's pointers are only useful
+    // if the files land beside it, and an allowlist is what makes adding one
+    // without shipping it a smoke failure instead of a dangling reference in
+    // a consumer's install.
+    if (filePath === 'skill/SKILL.md') return true;
+    if (
+        filePath === 'skill/reference/commands.md' ||
+        filePath === 'skill/reference/recipes.md' ||
+        filePath === 'skill/reference/typescript-api.md' ||
+        filePath === 'skill/reference/payload-schemas.yaml'
+    ) {
+        return true;
+    }
     if (!filePath.startsWith('dist/')) return false;
     const segments = filePath.split('/');
     if (segments.some((segment) => segment.length === 0 || segment.startsWith('.'))) return false;

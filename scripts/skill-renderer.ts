@@ -28,6 +28,8 @@ interface CliOptionDocumentationLike {
 interface SkillArtifactComparison {
     readonly committedSkill: string;
     readonly generatedSkill: string;
+    readonly committedCommands?: string;
+    readonly generatedCommands: string;
     readonly committedPayloadReference?: string;
     readonly generatedPayloadReference: string;
 }
@@ -150,6 +152,7 @@ export function renderCliOptionReference(options: Readonly<Record<string, CliOpt
 export function findStaleSkillArtifacts(comparison: SkillArtifactComparison): readonly string[] {
     return [
         ...(comparison.committedSkill === comparison.generatedSkill ? [] : ['skill/SKILL.md']),
+        ...(comparison.committedCommands === comparison.generatedCommands ? [] : ['skill/reference/commands.md']),
         ...(comparison.committedPayloadReference === comparison.generatedPayloadReference
             ? []
             : ['skill/reference/payload-schemas.yaml']),
