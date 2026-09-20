@@ -474,25 +474,44 @@ describe('CI package smoke wiring', () => {
         expect(primaryTypecheck).toBeLessThan(compatibilityTypecheck);
     });
 
+    // The three OSes used to be three copy-pasted jobs; they are now one
+    // matrix. What this test pins is the coverage, not the encoding: every
+    // supported OS is exercised on the one supported Node line, a failing leg
+    // cannot be masked, and branch protection still sees a stable check name.
     it('covers the supported Node line on Linux, Windows, and macOS', () => {
-        expect(workflow).toContain('package-smoke-windows:');
-        expect(workflow).toContain('name: Package smoke (Windows, Node ${{ matrix.node-version }})');
-        expect(workflow).toContain('runs-on: windows-latest');
-        expect(workflow).toContain('package-smoke-macos:');
-        expect(workflow).toContain('name: Package smoke (macOS, Node ${{ matrix.node-version }})');
-        expect(workflow).toContain('runs-on: macos-14');
-        expect(workflow.match(/node-version: \['24'\]/g)).toHaveLength(3);
-        expect(
-            workflow.match(
-                /run: npx vitest run tests\/report-execution-policy.test.ts tests\/operation-settlement.test.ts tests\/upload-settlement.test.ts tests\/upload-cleanup-errors.test.ts/g,
-            ),
-        ).toHaveLength(3);
-        expect(workflow.match(/run: npm run package:smoke/g)).toHaveLength(3);
+        expect(workflow).toContain('package-smoke-matrix:');
+        expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-14]');
+        expect(workflow).toContain("node-version: ['24']");
+        expect(workflow).toContain('runs-on: ${{ matrix.os }}');
+        // fail-fast would cancel sibling legs on the first failure, hiding
+        // whether a break is platform-specific.
+        expect(workflow).toContain('fail-fast: false');
+        expect(workflow).toContain('run: npm run package:smoke');
+        expect(workflow).toContain(
+            'run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts',
+        );
+    });
+
+    it('collapses the matrix into one stable required check that fails closed', () => {
+        // `package-smoke` is the name branch protection requires; a matrix
+        // cannot supply one, which is why the gate job exists at all.
         expect(workflow).toContain('package-smoke-gate:');
         expect(workflow).toContain('name: package-smoke');
-        expect(workflow).toContain('needs: [package-smoke, package-smoke-windows, package-smoke-macos]');
-        expect(workflow).toContain("LINUX_RESULT: '${{ needs.package-smoke.result }}'");
-        expect(workflow).toContain("WINDOWS_RESULT: '${{ needs.package-smoke-windows.result }}'");
-        expect(workflow).toContain("MACOS_RESULT: '${{ needs.package-smoke-macos.result }}'");
+        expect(workflow).toContain('needs: [package-smoke-matrix]');
+        expect(workflow).toContain("MATRIX_RESULT: '${{ needs.package-smoke-matrix.result }}'");
+        // Whitelist, not blacklist: any aggregate other than success — a
+        // failed, cancelled, or skipped leg — must fail the gate.
+        expect(workflow).toContain(`if [[ "$MATRIX_RESULT" != 'success' ]]; then`);
+        // `if: always()` is what lets the gate run after a failing leg; without
+        // it the gate would be skipped and report neither pass nor fail.
+        expect(workflow).toContain('if: always()');
+    });
+
+    it('declares least-privilege permissions and cancels superseded runs', () => {
+        expect(workflow).toContain('permissions:\n    contents: read');
+        expect(workflow).toContain('group: ci-${{ github.ref }}');
+        // main is exempt: its runs validate merged history and must finish.
+        expect(workflow).toContain("cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}");
+        expect(workflow).toContain('persist-credentials: false');
     });
 });
