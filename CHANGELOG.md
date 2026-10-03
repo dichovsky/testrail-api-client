@@ -15,16 +15,69 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed — BREAKING
+
+- **A result no longer needs a `status_id`; it needs at least one of
+  `status_id`, `comment` or `assignedto_id`.** TestRail's
+  [Results](https://support.testrail.com/hc/en-us/articles/7077819312404-Results)
+  reference now settles the 6.0.0 known gap: `add_result` "adds a new test
+  result, comment or assigns a test", `add_results` and `add_results_for_cases`
+  require "at least one of the status, comment or assignee fields for each
+  result", and `add_result_for_case` takes the same fields as `add_result`.
+  `AddResultPayloadSchema`, `AddResultForCasePayloadSchema` and
+  `AddResultForTestPayloadSchema` (and so the `results` items of
+  `AddResultsForCasesPayloadSchema` / `AddResultsPayloadSchema`) make
+  `status_id` optional and refuse a result with none of the three, with
+  `At least one of status_id, comment or assignedto_id is required` (bulk issues
+  carry the entry's `results.<index>` path). `testrail result add`,
+  `add-by-test`, `add-bulk` and `add-bulk-by-test` therefore accept
+  comment-only and assignee-only bodies. Nothing previously accepted is
+  refused. Listed as breaking for typed and schema-deriving callers:
+    - `AddResultPayload`, `AddResultForCasePayload` and
+      `AddResultForTestPayload` make `status_id` optional
+      (`number | undefined`). Building payloads
+      is unaffected; code that reads `payload.status_id` as a `number` must
+      handle `undefined`.
+    - The three schemas now carry a refinement. Under Zod 4, `.pick()`,
+      `.omit()`, `.partial()` and `.merge()` throw on a refined object schema
+      (as they already did for `EditResultPayloadSchema`). `.extend()` keeps
+      the rule when it adds new keys, but throws when it redeclares an
+      existing one, such as `status_id` or `comment`; `.safeExtend()` keeps
+      the rule in both cases. `z.toJSONSchema()` omits it.
+    - As before, the SDK methods forward payloads unchanged — the rule is
+      enforced where the schemas are parsed (the CLI `--data` path), so a typed
+      `{}` now compiles and reaches TestRail.
+
+### Fixed
+
+- **Aggregate pagination deadlines retain `max_duration` when a timer fires
+  before the wall clock reaches its deadline.** The transport records whether
+  the aggregate owns an attempt's timeout, including equal deadlines, so DNS
+  and fetch aborts consistently surface `TestRailPaginationError` rather than
+  a plain 408. A tighter request timeout keeps its existing error, and late
+  DNS work remains tracked until it settles.
+
+- **`user add` / `user update` accept every address `user get-by-email` can
+  look up.** `UserAddPayloadSchema` and `UserUpdatePayloadSchema` checked
+  `email` with `z.string().email()`, which refuses the single-label and
+  domain-literal addresses (`ada@corp`, `user@localhost`,
+  `user@[192.168.1.1]`) that self-hosted / LDAP / AD / SSO instances store and
+  that `getUserByEmail()` deliberately admits since #236. All three now share
+  one shape rule, `TESTRAIL_USER_EMAIL_PATTERN` in `src/constants.ts`: exactly
+  one `@` with non-empty, whitespace-free local and domain parts. Only
+  widening — everything `z.string().email()` accepted still passes — and the
+  inferred types are unchanged. A refused write address now reports
+  `Invalid email format` (the lookup's message) instead of Zod's
+  `Invalid email address`, and schema introspection sees a `regex` check
+  where it saw the `email` format.
+
 ### Internal
 
-- Dev toolchain bumped to current latest: `vitest`/`@vitest/coverage-v8`
-  `5.0.3`, `eslint` `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node`
-  `26.6.4`, `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The
-  lockfile refresh also clears the transitive high-severity `brace-expansion`
-  advisories (GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p) in
-  the dev tree, which failed `npm run audit:dependencies`. `zod`, TypeScript
-  7/6, `audit-ci` and `lockfile-lint` were already at latest; no runtime or
-  consumer-visible change.
+- Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
+  `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,
+  `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The lockfile
+  keeps `brace-expansion` `5.0.12` from the dependency security update. The
+  runtime dependency remains Zod `4.6.5`.
 
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 

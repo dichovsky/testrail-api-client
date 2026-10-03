@@ -1079,10 +1079,10 @@ describe('handleConfigurationList', () => {
 //
 // `user get-by-email --user-email <addr>` — zero positional args. The lookup
 // address is separate from the authentication email. Handler enforces only
-// non-empty (post-trim); TestRail's `EMAIL_REGEX` in src/modules/users.ts
-// rejects malformed addresses before any network call, so format
-// validation isn't duplicated at the CLI boundary. Extra positional args
-// are rejected fail-fast with `IdParseError` — mirrors the `status list`
+// non-empty (post-trim); the `TESTRAIL_USER_EMAIL_PATTERN` check in
+// src/modules/users.ts rejects malformed addresses before any network call,
+// so format validation isn't duplicated at the CLI boundary. Extra positional
+// args are rejected fail-fast with `IdParseError` — mirrors the `status list`
 // pattern so a typo like `user get-by-email foo --user-email bar@x.com`
 // surfaces as an error rather than silently ignoring the `foo`.
 
@@ -1128,10 +1128,10 @@ describe('handleUserGetByEmail', () => {
     });
 
     it('passes the email through verbatim (no client-side format validation)', async () => {
-        // The CLI handler intentionally does not validate format — TestRail's
-        // module-level EMAIL_REGEX does. This locks the no-double-validation
-        // contract: even an obviously-invalid string is forwarded to the client
-        // method, which is where the rejection happens.
+        // The CLI handler intentionally does not validate format — the
+        // module's TESTRAIL_USER_EMAIL_PATTERN check does. This locks the
+        // no-double-validation contract: even an obviously-invalid string is
+        // forwarded to the client method, which is where the rejection happens.
         const client = buildClient();
         const { ctx } = buildCtx(client, { userEmail: 'not-an-email' });
         await handleUserGetByEmail(ctx);

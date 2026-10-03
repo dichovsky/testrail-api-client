@@ -175,3 +175,26 @@ export const MOCK_MILESTONE = {
     project_id: 1,
     url: 'https://example.testrail.io/milestones/view/1',
 };
+
+/**
+ * One shape rule for a TestRail user's email address, shared by the
+ * `get_user_by_email` lookup and the `add_user` / `update_user` payloads.
+ * Accepted: dotted, single-label and domain-literal domains, which
+ * self-hosted / LDAP / AD / SSO instances store. Refused: everything the lookup
+ * refuses — no `@`, an empty local or domain part, whitespace, a second `@`.
+ * Lookup and write tests run the same table so the two cannot drift apart.
+ */
+export const USER_EMAIL_SHAPE_CASES = {
+    accepted: ['ada@example.com', 'ada@corp', 'user@localhost', 'user@[192.168.1.1]'],
+    refused: [
+        ['no @', 'ada.example.com'],
+        ['empty local part', '@example.com'],
+        ['empty domain part', 'ada@'],
+        ['empty string', ''],
+        ['whitespace in local part', 'ada lovelace@example.com'],
+        ['whitespace in domain part', 'ada@example .com'],
+        ['leading whitespace', ' ada@example.com'],
+        ['trailing newline', 'ada@example.com\n'],
+        ['two @', 'ada@corp@example.com'],
+    ],
+} as const;

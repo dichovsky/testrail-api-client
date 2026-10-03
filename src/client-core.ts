@@ -815,6 +815,14 @@ export class TestRailClientCore {
         const controller = new AbortController();
         const effectiveTimeout = spec.budget.allowanceFor(spec.timeout);
         const requestDeadlineAt = Date.now() + effectiveTimeout;
+        // Capture which deadline owns this timer, including exact ties. Node
+        // timers can fire before Date.now agrees; re-reading the clock then
+        // would mislabel an aggregate timeout as an ordinary request timeout.
+        const aggregateOwnsTimeout = spec.budget.expiredBy(requestDeadlineAt);
+        const timeoutError = (): TestRailApiError =>
+            (controller.signal.aborted && aggregateOwnsTimeout) || spec.budget.expired
+                ? budgetExpiredError()
+                : new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
         const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
         // The attempt timer starts before DNS, not after it. `dns.lookup`
@@ -834,9 +842,8 @@ export class TestRailClientCore {
         try {
             await this.raceAttemptDeadline(
                 spec.budget.bound(this.awaitDnsValidation()),
-                spec.budget,
                 controller.signal,
-                effectiveTimeout,
+                timeoutError,
             );
         } catch (error) {
             clearTimeout(timeoutId);
@@ -876,7 +883,7 @@ export class TestRailClientCore {
                 }
                 if (controller.signal.aborted || admissionTime >= requestDeadlineAt) {
                     controller.abort();
-                    throw new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
+                    throw timeoutError();
                 }
                 // Enforce admission only on the initial attempt. A retry of an
                 // already-admitted request is still recorded (so the
@@ -972,9 +979,7 @@ export class TestRailClientCore {
                 const cause = error instanceof Error ? error : new Error(String(error));
 
                 if (cause.name === 'AbortError') {
-                    throw spec.budget.expired
-                        ? budgetExpiredError()
-                        : new TestRailApiError(408, `Request timeout after ${effectiveTimeout}ms`);
+                    throw timeoutError();
                 }
 
                 if (spec.retryPolicy.isNetworkErrorRetryable(spec.method) && retryCount < this.maxRetries) {
@@ -1000,22 +1005,10 @@ export class TestRailClientCore {
      * deadline already won is observed and cannot surface as an unhandled
      * rejection.
      */
-    private raceAttemptDeadline<T>(
-        work: Promise<T>,
-        budget: RequestBudget,
-        signal: AbortSignal,
-        timeoutMs: number,
-    ): Promise<T> {
-        // An aggregate deadline and this attempt's own timer can come due in
-        // the same tick, and the attempt timer is registered first. Defer to
-        // the budget whenever it has expired so the caller that supplied the
-        // deadline still recognises the failure as its own — the same
-        // precedence the AbortError branch applies.
-        const expired = (): TestRailApiError =>
-            budget.expired ? budgetExpiredError() : new TestRailApiError(408, `Request timeout after ${timeoutMs}ms`);
+    private raceAttemptDeadline<T>(work: Promise<T>, signal: AbortSignal, expired: () => TestRailApiError): Promise<T> {
         // Unreachable from the sole call site — its controller is constructed
-        // three lines earlier and a `setTimeout` cannot fire before the next
-        // synchronous statement. Kept anyway: `addEventListener('abort')` on an
+        // in the same synchronous attempt setup, before a timer can fire.
+        // Kept anyway: `addEventListener('abort')` on an
         // already-aborted signal never invokes its listener, so a future second
         // call site would hang silently instead of failing. Catalogued as
         // unreachable branch #28 in vitest.config.ts.

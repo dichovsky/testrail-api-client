@@ -55,6 +55,25 @@ export type Result = KnownResponse<typeof ResultSchema>;
 
 // ── Result write payloads ─────────────────────────────────────────────────────
 
+// A new result needs at least one of a status, a comment or an assignee — not
+// necessarily a status. TestRail API reference, "Results"
+// (https://support.testrail.com/hc/en-us/articles/7077819312404-Results):
+// add_result "adds a new test result, comment or assigns a test";
+// add_results / add_results_for_cases: "you need to specify at least one of the
+// status, comment or assignee fields for each result"; add_result_for_case
+// "supports the same POST fields as add_result". Shared by all three add
+// payloads (and through them the two bulk wrappers). A field counts as given
+// when its value is not `undefined`.
+const RESULT_CONTENT_MESSAGE = 'At least one of status_id, comment or assignedto_id is required';
+
+function hasResultContent(result: {
+    readonly status_id?: unknown;
+    readonly comment?: unknown;
+    readonly assignedto_id?: unknown;
+}): boolean {
+    return result.status_id !== undefined || result.comment !== undefined || result.assignedto_id !== undefined;
+}
+
 /**
  * SPEC #A.1 — canonical exemplar for **request** payload schemas.
  *
@@ -62,25 +81,23 @@ export type Result = KnownResponse<typeof ResultSchema>;
  * fields use `.optional()` (= `T | undefined`), NOT `.nullish()`: a request
  * `.nullish()` would widen the input type with `null` for no reason — callers
  * omit the key instead of sending `null`. Mirror of the response-side
- * `ResultSchema` with optionality flipped accordingly on `comment`, `defects`,
- * and `assignedto_id`.
+ * `ResultSchema` with optionality flipped accordingly on `status_id`,
+ * `comment`, `defects`, and `assignedto_id`.
+ *
+ * The at-least-one rule is a `.refine()`: in Zod 4 that leaves a `ZodObject`
+ * (`.shape` readable, nests in `z.array()`) and a plain inferred type with
+ * every field optional, so the rule is checked at parse time (CLI `--data`)
+ * rather than encoded in the type.
  */
 export const AddResultPayloadSchema = zObject({
-    // OPEN QUESTION (unverified): `status_id` is required here, so this client
-    // cannot create the comment-only results it can now read. The available API
-    // documentation does not establish whether omitting `status_id` is accepted;
-    // such rows could also originate from a bulk operation or internal state
-    // change. Keep the requirement until authoritative documentation or a
-    // synthetic integration test confirms the write contract; request schemas
-    // guard a real trust boundary (CLI `--data` is untrusted input).
-    status_id: z.number(),
+    status_id: z.number().optional(),
     comment: z.string().optional(),
     version: z.string().optional(),
     elapsed: z.string().optional(),
     defects: z.string().optional(),
     assignedto_id: z.number().optional(),
     custom_fields: z.record(z.string(), z.unknown()).optional(),
-});
+}).refine(hasResultContent, { message: RESULT_CONTENT_MESSAGE });
 
 export type AddResultPayload = z.infer<typeof AddResultPayloadSchema>;
 
@@ -110,14 +127,14 @@ export type EditResultPayload = z.infer<typeof EditResultPayloadSchema>;
 // behavior is unambiguous and the inferred type stays a plain object literal.
 export const AddResultForCasePayloadSchema = zObject({
     case_id: z.number(),
-    status_id: z.number(),
+    status_id: z.number().optional(),
     comment: z.string().optional(),
     version: z.string().optional(),
     elapsed: z.string().optional(),
     defects: z.string().optional(),
     assignedto_id: z.number().optional(),
     custom_fields: z.record(z.string(), z.unknown()).optional(),
-});
+}).refine(hasResultContent, { message: RESULT_CONTENT_MESSAGE });
 
 export type AddResultForCasePayload = z.infer<typeof AddResultForCasePayloadSchema>;
 
@@ -133,14 +150,14 @@ export type AddResultsForCasesPayload = z.infer<typeof AddResultsForCasesPayload
 // unambiguous and the inferred type stays a plain object literal.
 export const AddResultForTestPayloadSchema = zObject({
     test_id: z.number(),
-    status_id: z.number(),
+    status_id: z.number().optional(),
     comment: z.string().optional(),
     version: z.string().optional(),
     elapsed: z.string().optional(),
     defects: z.string().optional(),
     assignedto_id: z.number().optional(),
     custom_fields: z.record(z.string(), z.unknown()).optional(),
-});
+}).refine(hasResultContent, { message: RESULT_CONTENT_MESSAGE });
 
 export type AddResultForTestPayload = z.infer<typeof AddResultForTestPayloadSchema>;
 

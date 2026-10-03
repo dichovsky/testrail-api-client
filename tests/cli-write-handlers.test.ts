@@ -30,7 +30,7 @@ import {
     handleCaseMoveToSection,
 } from '../src/cli/handlers/case-write.js';
 import { handleCaseFieldAdd } from '../src/cli/handlers/case-field-write.js';
-import { captureOutput, makeActionSpec } from './helpers.js';
+import { USER_EMAIL_SHAPE_CASES, captureOutput, makeActionSpec } from './helpers.js';
 import { handleRunAdd, handleRunUpdate, handleRunClose, handleRunDelete } from '../src/cli/handlers/run-write.js';
 import {
     handleResultAdd,
@@ -996,9 +996,23 @@ describe('handleResultAdd', () => {
         await expect(handleResultAdd(ctx)).rejects.toThrow(/case_id/);
     });
 
-    it('rejects body missing required status_id', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['5', '7'], dataFlag: '{"comment":"ok"}' });
-        await expect(handleResultAdd(ctx)).rejects.toThrow(/validation failed/);
+    it.each([
+        ['a comment-only', '{"comment":"ok"}', { comment: 'ok' }],
+        ['an assignee-only', '{"assignedto_id":3}', { assignedto_id: 3 }],
+    ])('accepts %s result and forwards the body unchanged', async (_label, dataFlag, expected) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5', '7'], dataFlag });
+        await handleResultAdd(ctx);
+        expect(client.results.addResultForCase).toHaveBeenCalledWith(5, 7, expected);
+    });
+
+    it('rejects a body with none of status_id, comment or assignedto_id', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['5', '7'], dataFlag: '{"version":"1.0"}' });
+        await expect(handleResultAdd(ctx)).rejects.toThrow(
+            /validation failed[\s\S]*At least one of status_id, comment or assignedto_id is required/,
+        );
+        expect(client.results.addResultForCase).not.toHaveBeenCalled();
     });
 
     it('dry-run includes both runId and caseId', async () => {
@@ -1031,6 +1045,29 @@ describe('handleResultAddBulk', () => {
     it('rejects when a result lacks case_id', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['11'], dataFlag: '{"results":[{"status_id":1}]}' });
         await expect(handleResultAddBulk(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('accepts comment-only and assignee-only entries and forwards them unchanged', async () => {
+        const client = buildClient();
+        const results = [
+            { case_id: 1, comment: 'triage' },
+            { case_id: 2, assignedto_id: 4 },
+        ];
+        const { ctx } = buildCtx(client, { pathParams: ['11'], dataFlag: JSON.stringify({ results }) });
+        await handleResultAddBulk(ctx);
+        expect(client.results.addResultsForCases).toHaveBeenCalledWith(11, { results });
+    });
+
+    it('rejects when an entry has none of status_id, comment or assignedto_id', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['11'],
+            dataFlag: '{"results":[{"case_id":1,"status_id":1},{"case_id":2,"defects":"BUG-1"}]}',
+        });
+        await expect(handleResultAddBulk(ctx)).rejects.toThrow(
+            /validation failed[\s\S]*At least one of status_id, comment or assignedto_id is required/,
+        );
+        expect(client.results.addResultsForCases).not.toHaveBeenCalled();
     });
 
     it('rejects empty body', async () => {
@@ -1073,6 +1110,29 @@ describe('handleResultAddBulkByTest', () => {
     it('rejects when a result lacks test_id', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['11'], dataFlag: '{"results":[{"status_id":1}]}' });
         await expect(handleResultAddBulkByTest(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it('accepts comment-only and assignee-only entries and forwards them unchanged', async () => {
+        const client = buildClient();
+        const results = [
+            { test_id: 1, comment: 'triage' },
+            { test_id: 2, assignedto_id: 4 },
+        ];
+        const { ctx } = buildCtx(client, { pathParams: ['11'], dataFlag: JSON.stringify({ results }) });
+        await handleResultAddBulkByTest(ctx);
+        expect(client.results.addResults).toHaveBeenCalledWith(11, { results });
+    });
+
+    it('rejects when an entry has none of status_id, comment or assignedto_id', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, {
+            pathParams: ['11'],
+            dataFlag: '{"results":[{"test_id":1},{"test_id":2,"status_id":1}]}',
+        });
+        await expect(handleResultAddBulkByTest(ctx)).rejects.toThrow(
+            /validation failed[\s\S]*At least one of status_id, comment or assignedto_id is required/,
+        );
+        expect(client.results.addResults).not.toHaveBeenCalled();
     });
 
     it('rejects empty body', async () => {
@@ -1119,9 +1179,23 @@ describe('handleResultAddByTest', () => {
         await expect(handleResultAddByTest(ctx)).rejects.toThrow();
     });
 
-    it('rejects body missing required status_id', async () => {
-        const { ctx } = buildCtx(buildClient(), { pathParams: ['42'], dataFlag: '{"comment":"no status"}' });
-        await expect(handleResultAddByTest(ctx)).rejects.toThrow(/validation failed/);
+    it.each([
+        ['a comment-only', '{"comment":"no status"}', { comment: 'no status' }],
+        ['an assignee-only', '{"assignedto_id":8}', { assignedto_id: 8 }],
+    ])('accepts %s result and forwards the body unchanged', async (_label, dataFlag, expected) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], dataFlag });
+        await handleResultAddByTest(ctx);
+        expect(client.results.addResult).toHaveBeenCalledWith(42, expected);
+    });
+
+    it('rejects a body with none of status_id, comment or assignedto_id', async () => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['42'], dataFlag: '{}' });
+        await expect(handleResultAddByTest(ctx)).rejects.toThrow(
+            /validation failed[\s\S]*At least one of status_id, comment or assignedto_id is required/,
+        );
+        expect(client.results.addResult).not.toHaveBeenCalled();
     });
 
     it('rejects when body is absent', async () => {
@@ -3735,6 +3809,20 @@ describe('handleUserAdd', () => {
         await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed/);
     });
 
+    it.each(USER_EMAIL_SHAPE_CASES.accepted)('accepts the email %s (same shape rule as user lookup)', async (email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { dataFlag: JSON.stringify({ name: 'Ada', email }) });
+        await handleUserAdd(ctx);
+        expect(client.users.addUser).toHaveBeenCalledWith({ name: 'Ada', email });
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.refused)('refuses an email with %s (%j)', async (_label, email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { dataFlag: JSON.stringify({ name: 'Ada', email }) });
+        await expect(handleUserAdd(ctx)).rejects.toThrow(/validation failed[\s\S]*Invalid email format/);
+        expect(client.users.addUser).not.toHaveBeenCalled();
+    });
+
     it('accepts the documented access-control fields', async () => {
         const client = buildClient();
         const { ctx } = buildCtx(client, {
@@ -3789,6 +3877,20 @@ describe('handleUserUpdate', () => {
     it('rejects body with invalid email format', async () => {
         const { ctx } = buildCtx(buildClient(), { pathParams: ['88'], dataFlag: '{"email":"not-an-email"}' });
         await expect(handleUserUpdate(ctx)).rejects.toThrow(/validation failed/);
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.accepted)('accepts the email %s (same shape rule as user lookup)', async (email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['88'], dataFlag: JSON.stringify({ email }) });
+        await handleUserUpdate(ctx);
+        expect(client.users.updateUser).toHaveBeenCalledWith(88, { email });
+    });
+
+    it.each(USER_EMAIL_SHAPE_CASES.refused)('refuses an email with %s (%j)', async (_label, email) => {
+        const client = buildClient();
+        const { ctx } = buildCtx(client, { pathParams: ['88'], dataFlag: JSON.stringify({ email }) });
+        await expect(handleUserUpdate(ctx)).rejects.toThrow(/validation failed[\s\S]*Invalid email format/);
+        expect(client.users.updateUser).not.toHaveBeenCalled();
     });
 
     it.each([['0'], ['-1'], ['1.5'], ['abc'], [''], ['1e2'], ['0x1']])(

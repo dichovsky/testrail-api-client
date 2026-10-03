@@ -136,7 +136,11 @@ These contradictions are not filled with guessed fields or types:
 - `copy_cases_to_section` marks `case_ids` optional even though the operation
   cannot identify work without target cases.
 - `add_result` marks `status_id` optional in its table while its prose requires
-  at least one of status, comment, or assignee.
+  at least one of status, comment, or assignee. Resolved after this audit: the
+  current "Results" article states that rule for `add_results` and
+  `add_results_for_cases`, so every add-result payload now makes `status_id`
+  optional and requires at least one of `status_id`, `comment`, or
+  `assignedto_id` per result.
 - Project update documentation says users and groups are supported but lacks a
   complete request table and conflicts between `id` and `user_id` examples.
 - Shared-step write tables contain fields that appear copied from list-filter

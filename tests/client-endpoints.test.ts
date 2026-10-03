@@ -4137,6 +4137,50 @@ describe('TestRailClient', () => {
             expect(result).toEqual(mockResult);
         });
 
+        // TestRail's Results reference requires at least one of status, comment
+        // or assignee per result, not a status. The SDK types accept the
+        // comment-only and assignee-only shapes and forward every payload to the
+        // wire unchanged; the rule itself is checked by the payload schemas (the
+        // CLI `--data` path), not re-validated here.
+        it('sends comment-only and assignee-only results unchanged on all four add endpoints', async () => {
+            const commentOnly: AddResultPayload = { comment: 'investigating' };
+            const assigneeOnly: AddResultPayload = { assignedto_id: 5 };
+            const bulkByCase: AddResultsForCasesPayload = {
+                results: [
+                    { case_id: 1, comment: 'triage' },
+                    { case_id: 2, assignedto_id: 5 },
+                ],
+            };
+            const bulkByTest: AddResultsPayload = {
+                results: [
+                    { test_id: 10, comment: 'triage' },
+                    { test_id: 11, assignedto_id: 5 },
+                ],
+            };
+            mockFetch
+                .mockResolvedValueOnce(mockOk({ id: 2, test_id: 1, status_id: null, comment: 'investigating' }))
+                .mockResolvedValueOnce(mockOk({ id: 3, test_id: 1, status_id: null, assignedto_id: 5 }))
+                .mockResolvedValueOnce(mockOk([]))
+                .mockResolvedValueOnce(mockOk([]));
+
+            await client.results.addResult(1, commentOnly);
+            await client.results.addResultForCase(1, 9, assigneeOnly);
+            await client.results.addResultsForCases(1, bulkByCase);
+            await client.results.addResults(1, bulkByTest);
+
+            const sent = mockFetch.mock.calls.map(([url, init]) => [
+                String(url).replace(/^.*\/api\/v2\//, ''),
+                JSON.parse((init as RequestInit).body as string) as unknown,
+            ]);
+            expect(sent).toEqual([
+                ['add_result/1', commentOnly],
+                ['add_result_for_case/1/9', assigneeOnly],
+                ['add_results_for_cases/1', bulkByCase],
+                ['add_results/1', bulkByTest],
+            ]);
+            expect(schemaMismatches).toEqual([]);
+        });
+
         it('should add multiple results for cases', async () => {
             const mockResults: Result[] = [
                 {
