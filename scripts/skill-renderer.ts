@@ -370,11 +370,11 @@ export function replaceSection(content: string, name: string, body: string): str
 }
 
 /**
- * Replace the `version:` value inside the YAML frontmatter block (the
+ * Replace the `metadata.version` value inside the YAML frontmatter block (the
  * region between the first two `---` delimiter lines, tolerating a
  * trailing `\r` so a CRLF checkout is handled the same as LF) with the
  * given version string. Throws if the frontmatter delimiters can't be
- * found, or if no `version:` line exists inside the block.
+ * found, or if no `metadata.version` line exists inside the block.
  */
 export function replaceFrontmatterVersion(content: string, version: string): string {
     const lines = content.split('\n');
@@ -392,14 +392,20 @@ export function replaceFrontmatterVersion(content: string, version: string): str
     }
 
     let versionLineIdx = -1;
+    let inMetadata = false;
     for (let i = openIdx + 1; i < closeIdx; i++) {
-        if (lines[i]?.startsWith('version:') === true) {
+        const candidate = lines[i] ?? '';
+        if (/^metadata:\s*\r?$/.test(candidate)) {
+            inMetadata = true;
+        } else if (/^\S/.test(candidate)) {
+            inMetadata = false;
+        } else if (inMetadata && /^ {2}version:/.test(candidate)) {
             versionLineIdx = i;
             break;
         }
     }
     if (versionLineIdx === -1) {
-        throw new Error('No "version:" line found inside the YAML frontmatter block');
+        throw new Error('No "metadata.version" line found inside the YAML frontmatter block');
     }
 
     // Preserve this line's own CRLF-vs-LF ending so a CRLF checkout doesn't

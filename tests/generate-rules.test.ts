@@ -2,7 +2,7 @@
  * Tests for the agent-instruction generator: `AGENTS.md`. The renderer
  * uses `scripts/rules-content.mjs` so the tests cover both the pure
  * renderer and the committed output (drift gates run via the script at
- * `pretest` time).
+ * `verify` time).
  *
  * Focus: determinism (re-rendering the same input is byte-identical) and
  * structural invariants (agents.md self-references).
@@ -62,7 +62,7 @@ describe('renderAgentsMd', () => {
 describe('committed artifacts match generator output', () => {
     // These tests replicate the `--check` drift gates inside the test
     // runner, so a failure surfaces alongside the relevant unit tests
-    // instead of only from `npm run pretest`.
+    // instead of only from `npm run verify`.
     it('AGENTS.md matches generator output', () => {
         const committed = readFileSync(path.join(root, 'AGENTS.md'), 'utf-8');
         expect(committed).toBe(`${renderAgentsMd(ACTIONS)}\n`);

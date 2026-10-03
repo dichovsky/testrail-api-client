@@ -15,6 +15,7 @@ import {
     type OperationHandle,
 } from './operation-tracking.js';
 import { createUploadSource } from './upload-source.js';
+import { observeUploadTransport } from './upload-transport.js';
 import { budgetExpiredError, createRequestBudget, type RequestBudget } from './request-budget.js';
 
 // Built from the package *name*, not `pkg.description`, which embedded literal
@@ -44,6 +45,7 @@ import {
 } from './constants.js';
 import { readBodyWithLimits, readBodyAsText } from './body-reader.js';
 import { validateTimeout } from './validation.js';
+import { createPinnedDispatcher, type PinnedAddress } from './pinned-dispatcher.js';
 
 // SSRF guard. All requests carry a full Authorization header, making the client
 // a credentialed probe for internal services when baseUrl is attacker-controlled.
@@ -58,7 +60,7 @@ import { validateTimeout } from './validation.js';
 
 type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>;
 
-async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void> {
+async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<readonly PinnedAddress[]> {
     const bare = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
     const isPrivatePattern = isPrivateHostLiteral(bare);
     if (isPrivatePattern) {
@@ -69,8 +71,9 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
     }
 
     // IP literals were classified by isPrivateHostLiteral above; no DNS needed.
-    if (isIP(bare) !== 0) {
-        return;
+    const literalFamily = isIP(bare);
+    if (literalFamily !== 0) {
+        return [{ address: bare, family: literalFamily }];
     }
 
     // Hostname → resolve fresh. Lookup errors are fail-closed: a server that
@@ -103,6 +106,9 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
     }
 
     for (const lookup of lookups) {
+        if (isIP(lookup.address) === 0 || isIP(lookup.address) !== lookup.family) {
+            throw new TestRailValidationError('baseUrl DNS validation returned an invalid IP address');
+        }
         if (isPrivateOrLoopbackIP(lookup.address)) {
             throw new TestRailValidationError(
                 `baseUrl resolves to a private/loopback host ("${hostname}" -> "${lookup.address}"). ` +
@@ -110,6 +116,7 @@ async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Pr
             );
         }
     }
+    return lookups.map(({ address, family }) => ({ address, family }));
 }
 
 const activeClients = new Set<TestRailClientCore>();
@@ -257,10 +264,9 @@ export class TestRailClientCore {
 
         // DNS host validation runs fresh before every distinct upstream fetch
         // (see awaitDnsValidation).
-        // Resolving once at construction would let a DNS-rebinding attacker pin a
-        // public IP for the validation lookup and then flip to a private target
-        // before fetch performs its own (independent) lookup. The sync literal check
-        // in validateTestRailConfig already blocks private host literals.
+        // Each attempt passes its validated address snapshot to the connection
+        // resolver; fetch never performs an independent hostname lookup. The
+        // sync config check already blocks private host literals.
 
         // Register this instance for automatic cleanup
         activeClients.add(this);
@@ -634,6 +640,9 @@ export class TestRailClientCore {
 
         return this.requestCache.resolve({
             key: cacheKey,
+            ...(cacheKey !== undefined && {
+                pendingKey: `${cacheKey}:TIMEOUT:${timeouts.timeout}:${timeouts.bodyTimeout}`,
+            }),
             // Bounded initiators are not shared with later unbounded callers;
             // bounded waiters may still join an ordinary shared request.
             shareInFlight: !timeouts.budget.bounded,
@@ -839,8 +848,9 @@ export class TestRailClientCore {
         // operation-settlement observation keep owning it: a caller tracking
         // the operation must stay un-settled until a late lookup finally
         // resolves or rejects, even though this attempt stopped waiting.
+        let pinnedAddresses: readonly PinnedAddress[] | undefined;
         try {
-            await this.raceAttemptDeadline(
+            pinnedAddresses = await this.raceAttemptDeadline(
                 spec.budget.bound(this.awaitDnsValidation()),
                 controller.signal,
                 timeoutError,
@@ -851,7 +861,12 @@ export class TestRailClientCore {
         }
 
         const fetchPromise: Promise<TParsed> = (async () => {
-            let formdataCleanup: (() => void) | undefined;
+            let formdataCleanup: ((transportAborted?: boolean) => void) | undefined;
+            const pinnedDispatcher =
+                pinnedAddresses === undefined
+                    ? undefined
+                    : createPinnedDispatcher(new URL(this.baseUrl).origin, pinnedAddresses);
+            let uploadTransport: ReturnType<typeof observeUploadTransport> | undefined;
             let receivedResponse: Response | undefined;
             let parsingResponse = false;
             try {
@@ -863,6 +878,11 @@ export class TestRailClientCore {
                     // validates the *initial* hostname only; a 3xx Location pointing at
                     // a private/metadata IP would otherwise bypass it.
                     redirect: 'manual',
+                    ...(pinnedDispatcher !== undefined && {
+                        // Native fetch only consumes dispatch(); the full Undici
+                        // type also describes unrelated convenience methods.
+                        dispatcher: pinnedDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+                    }),
                 };
                 if (spec.body.kind === 'json') {
                     options.body = JSON.stringify(spec.body.data);
@@ -891,8 +911,10 @@ export class TestRailClientCore {
                 // are respected) but must not be rejected by a local 429.
                 this.checkRateLimit(retryCount === 0, admissionTime);
 
+                const fetch = (): Promise<Response> => (this.fetchOverride ?? globalThis.fetch)(url, options);
+                if (formdataCleanup !== undefined) uploadTransport = observeUploadTransport(url, spec.method);
                 const response: Response = await spec.budget.bound(
-                    (this.fetchOverride ?? globalThis.fetch)(url, options).then((received) => {
+                    (uploadTransport === undefined ? fetch() : uploadTransport.run(fetch)).then((received) => {
                         receivedResponse = received;
                         // A custom fetch may ignore abort and return headers
                         // after its result deadline. Own the late body cleanup.
@@ -989,7 +1011,21 @@ export class TestRailClientCore {
 
                 throw new TestRailApiError(0, `Network error: ${cause.message}`, cause.message);
             } finally {
-                formdataCleanup?.();
+                // An abort signal is only a request: an injected or global
+                // fetch replacement may ignore it and keep encoding. Cleanly
+                // close a multipart part only with actual transport evidence;
+                // otherwise error it to prevent a valid closing boundary after
+                // truncated bytes.
+                try {
+                    if (formdataCleanup !== undefined) {
+                        controller.abort();
+                        const transportStopped =
+                            pinnedDispatcher?.hasStoppedUploading() === true || uploadTransport?.stop() === true;
+                        formdataCleanup(transportStopped);
+                    }
+                } finally {
+                    uploadTransport?.dispose();
+                }
                 if (receivedResponse !== undefined) this.cancelUnusedBody(receivedResponse);
             }
         })();
@@ -1043,16 +1079,15 @@ export class TestRailClientCore {
 
     /**
      * Re-validates the baseUrl hostname against the public-IP allowlist before
-     * each distinct upstream fetch. Performing the lookup immediately before
-     * upstream work (rather than caching the construction-time result) eliminates
-     * the window in which a DNS-rebinding authority could serve a public IP to
-     * validation and a private IP to fetch.
+     * each distinct upstream fetch. The returned snapshot feeds the
+     * connection resolver, so fetch cannot independently resolve a different
+     * address after validation.
      * Lookup errors are fail-closed; callers needing to operate without DNS
      * must set allowPrivateHosts: true.
      */
-    private async awaitDnsValidation(): Promise<void> {
-        if (this.allowPrivateHosts) return;
-        await validatePublicHost(this.hostname, this.dnsLookup);
+    private async awaitDnsValidation(): Promise<readonly PinnedAddress[] | undefined> {
+        if (this.allowPrivateHosts) return undefined;
+        return validatePublicHost(this.hostname, this.dnsLookup);
     }
 
     /**

@@ -10,7 +10,7 @@
  * leaks into the real-fs suites.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,6 +18,8 @@ import { join } from 'node:path';
 // references; each test arms the relevant flag and resets in beforeEach.
 const fsControl = vi.hoisted(() => ({
     throwOnRename: false,
+    failPublicationOnce: false,
+    failRollback: false,
     throwOnUnlinkTemp: false,
     throwOnLstat: false,
     throwOnUnlinkTarget: false,
@@ -45,6 +47,19 @@ vi.mock('node:fs', async (importOriginal) => {
         ...actual,
         renameSync: (...args: Parameters<typeof actual.renameSync>) => {
             if (fsControl.throwOnRename) raise('EACCES', 'permission denied, rename');
+            if (
+                fsControl.failRollback &&
+                String(args[0]).endsWith(`${process.platform === 'win32' ? '\\' : '/'}previous`)
+            ) {
+                raise('EACCES', 'permission denied, restoring directory');
+            }
+            if (
+                fsControl.failPublicationOnce &&
+                String(args[0]).endsWith(`${process.platform === 'win32' ? '\\' : '/'}new`)
+            ) {
+                fsControl.failPublicationOnce = false;
+                raise('EACCES', 'permission denied, publishing directory');
+            }
             return actual.renameSync(...args);
         },
         unlinkSync: (...args: Parameters<typeof actual.unlinkSync>) => {
@@ -83,6 +98,8 @@ describe('install-skill — filesystem-failure catch', () => {
 
     beforeEach(() => {
         fsControl.throwOnRename = false;
+        fsControl.failPublicationOnce = false;
+        fsControl.failRollback = false;
         fsControl.throwOnUnlinkTemp = false;
         fsControl.throwOnLstat = false;
         fsControl.throwOnUnlinkTarget = false;
@@ -156,6 +173,53 @@ describe('install-skill — filesystem-failure catch', () => {
         expect(code).toBe(1);
         expect(stderrChunks.join('')).toContain('failed to install skill');
         expect(stderrChunks.join('')).toContain('EACCES');
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('restores the complete previous installation after publication fails', () => {
+        const installed = join(tmp, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(join(installed, 'reference'), { recursive: true });
+        writeFileSync(join(installed, 'SKILL.md'), 'old body\n');
+        writeFileSync(join(installed, 'reference', 'recipes.md'), 'old recipe\n');
+        mkdirSync(join(tmp, 'reference'));
+        writeFileSync(join(tmp, 'reference', 'recipes.md'), 'new recipe\n');
+        fsControl.failPublicationOnce = true;
+        const code = runInstallSkill(
+            { global: false, force: true, printPath: false, output, sourceOverride: source, cwdOverride: tmp },
+            'file:///unused',
+        );
+        expect(code).toBe(1);
+        expect(readFileSync(join(installed, 'SKILL.md'), 'utf8')).toBe('old body\n');
+        expect(readFileSync(join(installed, 'reference', 'recipes.md'), 'utf8')).toBe('old recipe\n');
+        expect(readdirSync(join(tmp, '.claude', 'skills'))).toEqual(['testrail-cli']);
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('removes staging after first-time publication fails', () => {
+        fsControl.failPublicationOnce = true;
+        expect(run()).toBe(1);
+        expect(readdirSync(join(tmp, '.claude', 'skills'))).toEqual([]);
+        rmSync(tmp, { recursive: true, force: true });
+    });
+
+    it('retains the old tree and reports its recovery path when rollback also fails', () => {
+        expect(run()).toBe(0);
+        const installed = join(tmp, '.claude', 'skills', 'testrail-cli');
+        writeFileSync(join(installed, 'SKILL.md'), 'old body\n');
+        fsControl.failPublicationOnce = true;
+        fsControl.failRollback = true;
+        const code = runInstallSkill(
+            { global: false, force: true, printPath: false, output, sourceOverride: source, cwdOverride: tmp },
+            'file:///unused',
+        );
+        expect(code).toBe(1);
+        const parent = join(tmp, '.claude', 'skills');
+        const workspace = readdirSync(parent).find((name) => name.startsWith('.testrail-cli-install-'));
+        expect(workspace).toBeDefined();
+        const backup = join(parent, workspace ?? '', 'previous');
+        expect(readFileSync(join(backup, 'SKILL.md'), 'utf8')).toBe('old body\n');
+        expect(stderrChunks.join('')).toContain(backup);
+        fsControl.failRollback = false;
         rmSync(tmp, { recursive: true, force: true });
     });
 });

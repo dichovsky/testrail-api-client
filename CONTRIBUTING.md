@@ -12,8 +12,7 @@ Node 24 (see `.nvmrc`); the package declares `engines: >=24`.
 
 ```bash
 npm ci
-npm run build
-npm test
+npm run verify
 ```
 
 `.npmrc` sets `ignore-scripts=true`, so nothing runs lifecycle hooks on install.
@@ -21,9 +20,11 @@ Build and codegen are always explicit `npm run` invocations.
 
 ## The gate you have to pass
 
-`pretest` runs the whole chain, and CI runs it again:
+`npm run verify` explicitly builds before running the local gate chain. CI
+invokes the same checks in separate steps:
 
 ```bash
+npm run build           # required before AGENTS introspection and package smoke
 npm run typecheck        # TypeScript 7
 npm run typecheck:ts6    # TypeScript 6 compatibility — both must pass
 npm run lint
@@ -34,11 +35,13 @@ npm run agents-md:check
 npm run skill:check
 npm run published:check
 npm run lockfile-lint
-npm test
+npm run test:coverage
+npm run package:smoke -- --prepared
 ```
 
-Do not assume `npm test` triggers `pretest` — run the `:check` gates yourself
-before pushing, rather than discovering them in CI.
+`npm test` runs only Vitest. The repository disables implicit pre/post hooks,
+so use `npm run verify` before pushing. CI additionally runs the explicit fuzz
+suite and dependency audits.
 
 ## Generated files — never hand-edit
 

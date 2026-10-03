@@ -231,26 +231,12 @@ function requirePreparedDist(): void {
     }
 }
 
-function buildPackage(compiler: CompilerLauncher): void {
-    const distDirectory = path.join(REPOSITORY_ROOT, 'dist');
-
-    // Reproduce `npm run build` with Node filesystem primitives so this
-    // verification script works in stock Windows shells too. There is no
-    // map-stripping step to mirror any more: `tsconfig.prod.json` disables
-    // sourceMap and declarationMap, and the `clean:maps` script that used to
-    // delete them afterwards is gone — emitting-then-deleting is what left
-    // every emitted file pointing at a map the tarball did not ship.
-    rmSync(distDirectory, {
-        recursive: true,
-        force: true,
-        maxRetries: REMOVE_MAX_RETRIES,
-        retryDelay: REMOVE_RETRY_DELAY_MS,
-    });
+function buildPackage(): void {
     requireSuccess(
-        `${compiler.displayName} production build`,
+        'production build',
         run(
             process.execPath,
-            [compiler.executablePath, '--project', path.join(REPOSITORY_ROOT, 'tsconfig.prod.json')],
+            [path.join(REPOSITORY_ROOT, 'scripts', 'build.ts')],
             REPOSITORY_ROOT,
             safeChildEnvironment(),
         ),
@@ -915,7 +901,7 @@ function main(): void {
     if (args.includes('--prepared')) {
         requirePreparedDist();
     } else {
-        buildPackage(compilers.typeScript7);
+        buildPackage();
     }
 
     const identity = readPackageIdentity(path.join(REPOSITORY_ROOT, 'package.json'), 'source package.json');

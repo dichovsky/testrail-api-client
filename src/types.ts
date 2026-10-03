@@ -195,29 +195,40 @@ export interface TestRailConfig {
     /**
      * Custom `fetch` implementation injected into every HTTP call made by this
      * client. Must have the same signature as `globalThis.fetch`. Defaults to
-     * `globalThis.fetch`. Useful for testing (pass a spy or mock) and for
-     * environments that require a custom fetch (e.g. proxy agents, undici,
-     * node-fetch).
+     * `globalThis.fetch`. Useful for testing or trusted custom transports.
+     *
+     * With private-host protection enabled, requests include Node fetch's
+     * `dispatcher` extension to bind connections to validated DNS addresses.
+     * A custom transport must honor that dispatcher or enforce equivalent
+     * destination checks itself, in addition to `signal` and manual redirects.
+     * Transports that ignore the extension (including some fetch polyfills or
+     * proxy wrappers) do not inherit connection pinning from this client.
      */
     fetch?: typeof globalThis.fetch;
     /**
-     * Custom DNS lookup function used for SSRF host validation (SEC #31).
+     * Custom DNS lookup function used for SSRF host validation and connection
+     * pinning (SEC #31). Ignored when `allowPrivateHosts` is enabled.
      * Receives the bare hostname (no brackets for IPv6 literals) and must
      * return the resolved addresses in the same shape as
      * `node:dns/promises lookup(hostname, { all: true })`.
+     * Every result must contain a valid IP literal and its matching numeric
+     * family (`4` or `6`); omitted, zero, and mismatched families are rejected
+     * before dispatch, even if other records in the answer are valid.
      *
      * Use this to supply static host-to-IP mappings or a custom resolver in
      * environments where the system DNS cannot reach the TestRail hostname
      * (e.g. CI networks with split-horizon DNS). The SSRF private-IP check
      * still runs against the returned addresses — this option does **not**
      * bypass the security validation, only replaces the resolution mechanism.
+     * Native fetch connects using the validated answer snapshot, retaining the
+     * configured hostname for the Host header and TLS certificate verification.
      *
      * When omitted (default), Node's system resolver is used. Resolution runs
      * before each distinct upstream fetch attempt, including retries; cache
      * hits and callers joining an in-flight request do not invoke it again.
      *
      * @example
-     * // Map a corporate hostname to a known public IP for CI validation
+     * // Map a corporate hostname to an approved public address
      * dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }]
      */
     dnsLookup?: (hostname: string) => Promise<{ address: string; family: number }[]>;

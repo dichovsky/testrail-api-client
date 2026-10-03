@@ -1,14 +1,10 @@
 import { TestRailClientCore } from '../client-core.js';
-import { TestRailValidationError } from '../errors.js';
+import { HTTP_OK_STATUS } from '../constants.js';
+import { TestRailApiError, TestRailValidationError } from '../errors.js';
 import type { Page, PaginatedRequestOptions } from '../pagination.js';
-import type {
-    TestWithDataResponse,
-    UpdateTestLabelsPayload,
-    UpdateTestsLabelsPayload,
-    UpdateTestsResponse,
-} from '../schemas.js';
+import type { UpdateTestLabelsPayload, UpdateTestsLabelsPayload, UpdateTestsResponse } from '../schemas.js';
 import { TestSchema, TestWithDataResponseSchema, UpdateTestsResponseSchema } from '../schemas.js';
-import type { GetTestsOptions, Test, TestWithData } from '../types.js';
+import type { Attachment, GetTestsOptions, Result, Test, TestWithData } from '../types.js';
 import { serializeIdList } from '../utils.js';
 import { validateId } from '../validation.js';
 import { buildEndpoint } from '../url.js';
@@ -19,6 +15,34 @@ export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'off
 export interface GetTestOptions {
     /** `1` includes results and attachments; `0` returns the ordinary test. */
     withData?: '0' | '1';
+}
+
+function unwrapTestWithData(raw: unknown): TestWithData {
+    const malformed = (): TestRailApiError =>
+        new TestRailApiError(HTTP_OK_STATUS, 'Unexpected enriched test response structure', raw);
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+        throw malformed();
+    }
+    const wrapper = raw as Record<string, unknown>;
+    const test = wrapper['test'];
+    const results = wrapper['results'] ?? [];
+    const attachments = wrapper['attachments'] ?? [];
+    if (
+        typeof test !== 'object' ||
+        test === null ||
+        Array.isArray(test) ||
+        !Array.isArray(results) ||
+        !Array.isArray(attachments)
+    ) {
+        throw malformed();
+    }
+    // Entity drift remains advisory. Normalize the structural wrapper even
+    // when a mismatch prevented the response schema's transforms from running.
+    return {
+        ...(test as Test),
+        results: [...(results as Result[])],
+        attachments: [...(attachments as Attachment[])],
+    };
 }
 
 export const TESTS_PAGINATION = createPaginatedListExecutor<
@@ -60,16 +84,12 @@ export class TestModule {
         }
         const endpoint = buildEndpoint(`get_test/${testId}`, { with_data: withData });
         if (withData === '1') {
-            const response = await this.client.request<TestWithDataResponse>({
+            const response = await this.client.request<unknown>({
                 method: 'GET',
                 endpoint,
                 schema: TestWithDataResponseSchema,
             });
-            return {
-                ...response.test,
-                results: [...response.results],
-                attachments: [...response.attachments],
-            };
+            return unwrapTestWithData(response);
         }
         return this.client.request<Test>({ method: 'GET', endpoint, schema: TestSchema });
     }

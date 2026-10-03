@@ -118,64 +118,53 @@ export async function readBodyWithLimits(response: Response, limits: BodyLimits)
         });
     }
 
-    // Sequential async recursion instead of a `while (await reader.read())`
-    // loop. The streaming read is inherently sequential (each chunk depends on
-    // the prior `read()` settling) so it cannot be parallelised; expressing it
-    // as a self-tail-calling async function keeps that intent explicit and
-    // avoids an `await` inside a loop body. Each `await` yields to the
-    // microtask queue rather than nesting a synchronous frame, so the recursion
-    // is stack-safe for an unbounded chunk count. The manual `reader.read()` +
-    // `reader.cancel()` pair is load-bearing for SEC #21: `reader.cancel()`
-    // settles the in-flight `read()` with `{ done: true }`, which a `for await`
-    // over the stream cannot do (cancelling the stream does not interrupt the
-    // iterator's pending `next()`), so a slowloris-on-body server would hang
-    // the read forever under `for await`.
-    // `drain()` as a whole is observed below. It awaits each read directly and
-    // recurses via `return drain()`, so its promise cannot settle while a read
-    // is outstanding — observing every individual read would add a handler pair
-    // per chunk without widening what settlement waits for.
+    // Drain sequentially without retaining one unresolved promise per chunk.
+    // The reader owns cancellation of a pending read; preserve that explicit
+    // ownership instead of using the stream's async iterator.
     const drain = async (): Promise<void> => {
-        const { done, value } = await reader.read();
-        // A chain of already-resolved read() promises can monopolise the
-        // microtask queue long enough to starve the timeout callback. Compare
-        // the absolute deadline after every read so such a stream cannot
-        // finish successfully after the wall-clock bound. Equality is expiry.
-        failIfDeadlineReached();
-        if (done) {
-            return;
-        }
-        if (value === undefined) {
-            return drain();
-        }
-        const newTotal = total + value.byteLength;
-        if (newTotal > maxBytes) {
-            // Cancellation may reject, throw, or never settle on a custom
-            // stream. Start cleanup without awaiting it so the size bound is
-            // still prompt and independent of upstream cancellation quality.
-            cancelReaderBestEffort(reader, new Error(`response body exceeded ${maxBytes} bytes`));
-            throw new TestRailApiError(
-                0,
-                'Response body too large',
-                `response body exceeded ${maxBytes} bytes before the stream closed`,
-            );
-        }
-        // Grow the buffer if the incoming chunk does not fit.  Double the
-        // capacity each time (capped at maxBytes) to amortise allocations.
-        // After the copy the previous buffer is GC-eligible.
-        failIfDeadlineReached();
-        if (newTotal > buf.byteLength) {
-            let newCap = buf.byteLength;
-            while (newCap < newTotal) {
-                newCap = Math.min(newCap * 2, maxBytes);
+        while (true) {
+            // eslint-disable-next-line no-await-in-loop -- each read depends on the previous chunk
+            const { done, value } = await reader.read();
+            // A chain of already-resolved read() promises can monopolise the
+            // microtask queue long enough to starve the timeout callback. Compare
+            // the absolute deadline after every read so such a stream cannot
+            // finish successfully after the wall-clock bound. Equality is expiry.
+            failIfDeadlineReached();
+            if (done) {
+                return;
             }
-            const grown = new Uint8Array(newCap);
-            grown.set(buf.subarray(0, total));
-            buf = grown;
+            if (value === undefined) {
+                continue;
+            }
+            const newTotal = total + value.byteLength;
+            if (newTotal > maxBytes) {
+                // Cancellation may reject, throw, or never settle on a custom
+                // stream. Start cleanup without awaiting it so the size bound is
+                // still prompt and independent of upstream cancellation quality.
+                cancelReaderBestEffort(reader, new Error(`response body exceeded ${maxBytes} bytes`));
+                throw new TestRailApiError(
+                    0,
+                    'Response body too large',
+                    `response body exceeded ${maxBytes} bytes before the stream closed`,
+                );
+            }
+            // Grow the buffer if the incoming chunk does not fit.  Double the
+            // capacity each time (capped at maxBytes) to amortise allocations.
+            // After the copy the previous buffer is GC-eligible.
+            failIfDeadlineReached();
+            if (newTotal > buf.byteLength) {
+                let newCap = buf.byteLength;
+                while (newCap < newTotal) {
+                    newCap = Math.min(newCap * 2, maxBytes);
+                }
+                const grown = new Uint8Array(newCap);
+                grown.set(buf.subarray(0, total));
+                buf = grown;
+            }
+            failIfDeadlineReached();
+            buf.set(value, total);
+            total = newTotal;
         }
-        failIfDeadlineReached();
-        buf.set(value, total);
-        total = newTotal;
-        return drain();
     };
 
     try {

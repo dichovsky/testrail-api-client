@@ -30,7 +30,7 @@ export type BodyShape =
     | { readonly kind: 'json'; readonly data: unknown }
     | {
           readonly kind: 'formdata';
-          readonly build: () => Promise<{ body: FormData; cleanup: () => void }>;
+          readonly build: () => Promise<{ body: FormData; cleanup: (transportAborted?: boolean) => void }>;
           /**
            * Idempotently release any resource the source holds without having
            * built. The pipeline calls this when a request fails before reaching

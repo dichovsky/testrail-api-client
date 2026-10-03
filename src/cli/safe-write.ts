@@ -1,4 +1,4 @@
-import { lstatSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, fstatSync, ftruncateSync, lstatSync, openSync, writeFileSync } from 'node:fs';
 
 /**
  * Writes `data` to `path` while defending against symlink-clobber TOCTOU
@@ -9,11 +9,11 @@ import { lstatSync, writeFileSync } from 'node:fs';
  *   - **!force**: writes with the `wx` (O_CREAT | O_EXCL) flag, which the
  *     kernel atomically refuses if **any** entry (regular file, symlink,
  *     directory) exists at the path.
- *   - **force**: re-runs `lstatSync` immediately before the write to reject
- *     symlinks that appeared during the network round-trip; then writes
- *     with the `w` flag. The residual TOCTOU window between this final
- *     lstat and the open is microseconds, vs the seconds-wide pre-write
- *     window covered by the original bug.
+ *   - **force**: opens without truncation, rejects symlinks and non-regular
+ *     files, then truncates and writes through the validated descriptor.
+ *     O_NOFOLLOW rejects symlinks at open where supported; checking the
+ *     descriptor against lstat also protects platforms without that flag.
+ *     Replacing the path after validation cannot redirect descriptor writes.
  *
  * The text/binary distinction is just the encoding argument forwarded to
  * `writeFileSync` — both share the same atomicity/symlink guarantees.
@@ -26,18 +26,48 @@ function safeWrite(path: string, data: Uint8Array | string, force: boolean, enco
         return;
     }
 
+    let fd: number | undefined;
     try {
-        const stat = lstatSync(path);
-        if (stat.isSymbolicLink()) {
+        try {
+            // No O_TRUNC: inspecting the opened inode must precede modifying it.
+            // O_NONBLOCK lets fstat reject a FIFO without waiting for a reader.
+            const flags = constants.O_WRONLY | (constants.O_NOFOLLOW || 0) | (constants.O_NONBLOCK || 0);
+            try {
+                fd = openSync(path, flags);
+            } catch (error) {
+                if ((error as { code?: string }).code !== 'ENOENT') throw error;
+                // Exclusive creation also refuses dangling links on platforms
+                // without O_NOFOLLOW, instead of creating their target files.
+                fd = openSync(path, flags | constants.O_CREAT | constants.O_EXCL);
+            }
+        } catch (error) {
+            const code = (error as { code?: string }).code;
+            if (code === 'ELOOP' || (code === 'EEXIST' && lstatSync(path).isSymbolicLink())) {
+                throw new Error(`Refusing to write through symbolic link '${path}'.`, { cause: error });
+            }
+            throw error;
+        }
+        const opened = fstatSync(fd);
+        const current = lstatSync(path);
+        if (current.isSymbolicLink()) {
             throw new Error(`Refusing to write through symbolic link '${path}'.`);
         }
-    } catch (err) {
-        if ((err as { code?: string }).code !== 'ENOENT') {
-            throw err;
+        if (!opened.isFile() || !current.isFile() || opened.dev !== current.dev || opened.ino !== current.ino) {
+            throw new Error(`Refusing to write to a non-regular or replaced file '${path}'.`);
         }
+        ftruncateSync(fd);
+        writeFileSync(fd, data, encoding === undefined ? undefined : { encoding });
+    } catch (error) {
+        if (fd !== undefined) {
+            try {
+                closeSync(fd);
+            } catch {
+                // Keep the validation/write failure as the primary error.
+            }
+        }
+        throw error;
     }
-
-    writeFileSync(path, data, { flag: 'w', ...(encoding !== undefined && { encoding }) });
+    closeSync(fd);
 }
 
 export function safeWriteBinary(path: string, bytes: Uint8Array, force: boolean): void {

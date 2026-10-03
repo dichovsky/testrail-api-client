@@ -42,12 +42,13 @@ function isFilePathInput(value: unknown): value is UploadFilePathInput {
  * appended File belongs to this FormData; caller-owned Blobs remain untouched.
  * Keep FormData's native boundary, filename escaping, and content length.
  */
-export function ownUploadStreams(formData: globalThis.FormData): () => void {
+export function ownUploadStreams(formData: globalThis.FormData): (transportAborted?: boolean) => void {
     const file = formData.get(MULTIPART_FIELD_NAME);
     if (!(file instanceof globalThis.Blob)) return () => undefined;
     const originalStream = file.stream.bind(file);
     const active = new Set<() => Promise<void>>();
     let closed = false;
+    let transportAborted = false;
 
     // `writable`/`configurable` mirror `defineOverride` in client-core.ts: an
     // own override that cannot be redefined turns any second pass over the same
@@ -94,16 +95,15 @@ export function ownUploadStreams(formData: globalThis.FormData): () => void {
                 if (finished) return Promise.resolve();
                 finished = true;
                 try {
-                    // Error, never close. `close()` is a clean end-of-stream, so
-                    // an encoder still reading this part would emit a truncated
-                    // file followed by a valid closing boundary — a well-formed
-                    // upload of partial bytes that the server stores as though
-                    // complete. Erroring rejects the encoder's pending read and
-                    // aborts the request body instead. A consumer-initiated
-                    // cancel arrives here with the stream already terminated, so
-                    // this throws and its reason is irrelevant — hence no
-                    // reason plumbing.
-                    outputController?.error(new Error(UPLOAD_ABORTED_MESSAGE));
+                    // Without a confirmed transport abort, error the part so
+                    // the encoder cannot send a valid but truncated file.
+                    // After the transport is aborted, clean termination is
+                    // safe and necessary: Node's FormData encoder can leave
+                    // its outer stream pending when a part rejects during
+                    // cancellation. Closing lets that producer settle while
+                    // the real reader/cancel promises remain observed below.
+                    if (transportAborted) outputController?.close();
+                    else outputController?.error(new Error(UPLOAD_ABORTED_MESSAGE));
                 } catch {
                     // A consumer-initiated cancellation already terminated it.
                 }
@@ -143,8 +143,9 @@ export function ownUploadStreams(formData: globalThis.FormData): () => void {
         }),
     });
 
-    return () => {
+    return (aborted = false) => {
         closed = true;
+        transportAborted = aborted;
         // Cancellation is requested promptly, but settlement waits for the
         // underlying cancel AND any outstanding reads, not just this call.
         for (const cancel of active) void cancel();
@@ -253,8 +254,8 @@ export function createUploadSource(file: UploadFileInput, filename: string): Ext
                     // Order matters: tear the streams down first so any in-flight
                     // read aborts against a still-valid descriptor, then release
                     // the descriptor itself.
-                    cleanup: () => {
-                        releaseStreams();
+                    cleanup: (transportAborted = false) => {
+                        releaseStreams(transportAborted);
                         releaseDescriptor();
                     },
                 };

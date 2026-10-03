@@ -99,10 +99,9 @@ jobs:
             - name: Run tests
               run: npm run test:coverage
 
-    # One matrix instead of three near-identical jobs. Node stays pinned to the
-    # single supported line (see docs/RELEASING.md); the axis that actually
-    # varies is the OS, because the package smoke exercises platform-specific
-    # path handling and the npm shim.
+    # Exercise both native-fetch handler generations and each supported OS:
+    # dispatcher behavior changes across Node majors, while package paths and
+    # executable shims vary across operating systems.
     package-smoke-matrix:
         name: Package smoke (${{ matrix.os }}, Node ${{ matrix.node-version }})
         runs-on: ${{ matrix.os }}
@@ -111,7 +110,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-14]
-                node-version: ['24']
+                node-version: ['24', '26']
 
         steps:
             - name: Checkout code
@@ -131,8 +130,8 @@ jobs:
             - name: Smoke-test packed consumer and CLI
               run: npm run package:smoke
 
-            - name: Verify report execution and operation settlement
-              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
+            - name: Verify pinned transport, report execution, and operation settlement
+              run: npx vitest run tests/pinned-dispatcher.test.ts tests/pinned-dispatcher-compatibility.test.ts tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts tests/upload-transport.test.ts tests/upload-http2.test.ts
 
     # Collapses the matrix into one stable check name for branch protection.
     # A matrix leg that is skipped or cancelled must not read as success, so

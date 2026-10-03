@@ -17,6 +17,28 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed — BREAKING
 
+- **Default connections no longer inherit global proxy or agent settings.**
+  The per-request DNS-pinned dispatcher connects directly, bypassing Undici
+  `setGlobalDispatcher()` customizations (including `ProxyAgent`,
+  `EnvHttpProxyAgent`, and custom CA settings), `NODE_USE_ENV_PROXY=1`, and
+  Node HTTP/HTTPS global-agent settings. Use `NODE_EXTRA_CA_CERTS` before
+  process startup for additional direct-connection trust. Required proxies
+  need an explicitly injected transport plus proxy-side destination enforcement;
+  replacing the dispatcher loses the client's connection pinning. See the
+  [proxy migration](README.md#proxies-and-custom-certificate-authorities).
+  Disabling the private-host guard is not a safe proxy migration.
+- **Custom DNS answers require a matching numeric family.** `dnsLookup` answers
+  with a missing `family`, `family: 0`, a non-IP address, or a family that does
+  not match the IP literal now fail closed. Return `{ address, family: 4 }` for
+  IPv4 and `{ address, family: 6 }` for IPv6; `dns.lookup(hostname, { all: true })`
+  already supplies the correct shape. Valid public addresses no longer make an
+  incomplete answer acceptable. See [resolver migration](README.md#custom-dns-resolvers).
+- **Forced download destinations must be regular files.** Attachment and BDD
+  `--out <path> --force` now reject devices such as `/dev/null`, as well as
+  symlinks and FIFOs, before truncation. To discard a payload, use
+  `testrail attachment get <id> --out - > /dev/null`; the acknowledgement remains
+  on stderr. The same stdout pattern applies to `bdd get`.
+
 - **A result no longer needs a `status_id`; it needs at least one of
   `status_id`, `comment` or `assignedto_id`.** TestRail's
   [Results](https://support.testrail.com/hc/en-us/articles/7077819312404-Results)
@@ -48,7 +70,43 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       enforced where the schemas are parsed (the CLI `--data` path), so a typed
       `{}` now compiles and reaches TestRail.
 
+### Security
+
+- Default fetch connections now use the exact DNS answers accepted by the
+  private-host guard, preserving the original hostname for Host, SNI, and TLS
+  certificate checks. Malformed DNS answers fail closed. The transport uses
+  direct connections; injected fetch/proxy implementations must honor the
+  supplied dispatcher or enforce equivalent destination checks themselves.
+- Forced CLI downloads validate an opened file descriptor before truncation,
+  preventing a replaced symlink from redirecting writes. File inputs reject
+  FIFOs without blocking while opening them.
+
 ### Fixed
+
+- The pinned transport supports native fetch's legacy Node 24 and modern
+  Node 26 handler contracts, including response backpressure and cancellation.
+  Reordered or duplicate DNS answers reuse the same approved socket pool;
+  connection lookup preserves resolver order and honors the requested IP family.
+- Concurrent timeout views no longer inherit another caller's header/body
+  deadline through in-flight coalescing; completed cached responses remain shared.
+- Fragmented response bodies drain iteratively without retaining one pending
+  promise chain per chunk.
+- Enriched test reads normalize nullish result/attachment collections even
+  when unrelated entity fields trigger advisory schema warnings.
+- Early-rejected multipart uploads require transport evidence before closing
+  owned streams normally. The pinned dispatcher and native request diagnostics
+  establish when transmission has stopped, preventing unhandled encoder errors
+  and stuck settlement while still waiting for source cancellation. Matched
+  HTTP/2 cleanup stops only the upload stream, preserving the shared session.
+  Unknown custom transports retain erroring cleanup so an ignored abort cannot
+  turn an incomplete upload into a valid truncated file.
+- Multipart transport observation now enters an async context even without
+  `trackOperation`. Processes that neither track operations nor upload continue
+  to avoid the library's process-wide context-propagation cost.
+- Skill installation protects all bundled files from unforced overwrites,
+  stages the complete tree, and restores the previous installation on failure.
+- Skill guidance now accurately distinguishes CLI runtime payload validation
+  from SDK compile-time types and shows explicit validation for dynamic input.
 
 - **Aggregate pagination deadlines retain `max_duration` when a timer fires
   before the wall clock reaches its deadline.** The transport records whether
@@ -72,6 +130,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   where it saw the `email` format.
 
 ### Internal
+
+- `npm run verify` explicitly builds and runs static checks, generated-document
+  checks, coverage, and packed-package smoke tests despite disabled lifecycle
+  hooks. The build uses the same portable Node entry point locally and in CI,
+  retaining bounded removal retries for transient Windows file locks.
+- The installed skill uses portable metadata, self-contained references, and a
+  body below 500 lines. CI exercises Node 24 and 26 on Linux, Windows, and macOS;
+  other Node majors allowed by the Node 24+ engine range are not in the matrix.
 
 - Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
   `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,
