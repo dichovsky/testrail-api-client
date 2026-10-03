@@ -15,18 +15,41 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [9.0.0] — 2026-10-03 — comment-only results, DNS-bounded timeouts, and a split skill
+## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
 
-A major because the add-result payload types make `status_id` optional and the
-three add-result schemas gain a refinement — a compile-time and
-schema-composition break for typed and schema-deriving callers. At runtime
-nothing previously accepted is refused. The rest is what a consumer notices
-without changing code: `timeout` now bounds DNS, the User-Agent is a single
-product token, the published `dist/` stops pointing at source maps it does not
-ship, and `install-skill` installs the reference files the slimmer skill body
-now points at.
+This major changes default transport and DNS behavior, forced download targets,
+and the exported add-result payload types and schemas. Default connections are
+pinned to validated DNS answers and connect directly; deployments that use a
+global proxy or custom agent need the migration below. Other changes include
+comment-only results, resource-scoped help, bounded DNS resolution, and a
+self-contained installed skill with on-demand references.
+
+The release includes #295–#307 and #309, plus the documentation and help
+corrections in the release PR (#308).
 
 ### Changed — BREAKING
+
+- **Default connections no longer inherit global proxy or agent settings.**
+  The per-request DNS-pinned dispatcher connects directly, bypassing Undici
+  `setGlobalDispatcher()` customizations (including `ProxyAgent`,
+  `EnvHttpProxyAgent`, and custom CA settings), `NODE_USE_ENV_PROXY=1`, and
+  Node HTTP/HTTPS global-agent settings. Use `NODE_EXTRA_CA_CERTS` before
+  process startup for additional direct-connection trust. Required proxies
+  need an explicitly injected transport plus proxy-side destination enforcement;
+  replacing the dispatcher loses the client's connection pinning. See the
+  [proxy migration](README.md#proxies-and-custom-certificate-authorities).
+  Disabling the private-host guard is not a safe proxy migration. (#309)
+- **Custom DNS answers require a matching numeric family.** `dnsLookup` answers
+  with a missing `family`, `family: 0`, a non-IP address, or a family that does
+  not match the IP literal now fail closed. Return `{ address, family: 4 }` for
+  IPv4 and `{ address, family: 6 }` for IPv6; `dns.lookup(hostname, { all: true })`
+  already supplies the correct shape. Valid public addresses no longer make an
+  incomplete answer acceptable. See [resolver migration](README.md#custom-dns-resolvers). (#309)
+- **Forced download destinations must be regular files.** Attachment and BDD
+  `--out <path> --force` now reject devices such as `/dev/null`, as well as
+  symlinks and FIFOs, before truncation. To discard a payload, use
+  `testrail attachment get <id> --out - > /dev/null`; the acknowledgement remains
+  on stderr. The same stdout pattern applies to `bdd get`. (#309)
 
 - **A result no longer needs a `status_id`; it needs at least one of
   `status_id`, `comment` or `assignedto_id`.** TestRail's
@@ -64,8 +87,8 @@ now points at.
 - **`testrail <resource> --help` prints only that resource's actions.** Every
   `--help` printed the full listing of all 134 commands, whichever resource was
   named. A known resource before `--help` (`testrail case --help`, or
-  `testrail case get --help`) now scopes it — for `case`, 31 lines instead of
-  the full 411. An unknown name falls back to the full listing, which gains a
+  `testrail case get --help`) now scopes it to that resource. An unknown name
+  falls back to the full listing, which gains a
   resource index so the scoped form is discoverable. `attachment` and `bdd`
   help keep their file-I/O actions. (#299)
 
@@ -75,11 +98,12 @@ now points at.
   `skill/SKILL.md` carried every command, option and recipe — 4,179 lines and
   162 KB loaded whenever the skill fired. The body now keeps what an agent needs
   before acting (when to use it, auth, body input, the destructive gates, output
-  and pagination policy, errors, limits, SDK fallback) in about 29 KB, and
+  and pagination policy, errors, limits, SDK fallback) in fewer than 500 lines, and
   indexes the files under `skill/reference/` to read only when a task needs
   them: `commands.md` (command table and option reference), `recipes.md` (the
   numbered recipes), `typescript-api.md` (SDK fallback) and the existing
-  `payload-schemas.yaml`. Nothing was dropped. A skill installed by an earlier
+  `payload-schemas.yaml`. The installed references are self-contained; repository
+  development guidance stays in the repository. A skill installed by an earlier
   version keeps its old single-file content until reinstalled; run
   `npx testrail install-skill --force` (add `--global` if that is where it
   lives — the existing `SKILL.md` blocks a plain install). Tooling that reads
@@ -87,6 +111,31 @@ now points at.
   links for the command table and recipes. (#304)
 
 ### Fixed
+
+- The pinned transport supports native fetch's legacy Node 24 and modern
+  Node 26 handler contracts, including response backpressure and cancellation.
+  Reordered or duplicate DNS answers reuse the same approved socket pool;
+  connection lookup preserves resolver order and honors the requested IP family. (#309)
+- Concurrent timeout views no longer inherit another caller's header/body
+  deadline through in-flight coalescing; completed cached responses remain shared. (#309)
+- Fragmented response bodies drain iteratively without retaining one pending
+  promise chain per chunk. (#309)
+- Enriched test reads normalize nullish result/attachment collections even
+  when unrelated entity fields trigger advisory schema warnings. (#309)
+- Early-rejected multipart uploads require transport evidence before closing
+  owned streams normally. The pinned dispatcher and native request diagnostics
+  establish when transmission has stopped, preventing unhandled encoder errors
+  and stuck settlement while still waiting for source cancellation. Matched
+  HTTP/2 cleanup stops only the upload stream, preserving the shared session.
+  Unknown custom transports retain erroring cleanup so an ignored abort cannot
+  turn an incomplete upload into a valid truncated file. (#309)
+- Multipart transport observation now enters an async context even without
+  `trackOperation`. Processes that neither track operations nor upload continue
+  to avoid the library's process-wide context-propagation cost. (#309)
+- Skill installation protects all bundled files from unforced overwrites,
+  stages the complete tree, and restores the previous installation on failure. (#309)
+- Skill guidance now accurately distinguishes CLI runtime payload validation
+  from SDK compile-time types and shows explicit validation for dynamic input. (#309)
 
 - **Aggregate pagination deadlines retain `max_duration` when a timer fires
   before the wall clock reaches its deadline.** The transport records whether
@@ -146,13 +195,22 @@ now points at.
   `./reference/payload-schemas.yaml` throughout, but only the body was copied,
   so every installed skill told the agent the detail existed and then could not
   produce it. The bundled `reference/` directory is now installed beside the
-  body through the same exclusive-create, no-follow, atomic-rename sequence,
+  body in a staged installation that rolls back on publication failure,
   and a symlink at the installed `reference/` is refused rather than written
   through. `uninstall-skill` removes only the reference files this package
   bundles — files you added there are kept — and does not follow a symlink
-  planted at `reference/`. (#301)
+  planted at `reference/`. (#301, #309)
 
 ### Security
+
+- Default fetch connections now use the exact DNS answers accepted by the
+  private-host guard, preserving the original hostname for Host, SNI, and TLS
+  certificate checks. Malformed DNS answers fail closed. The transport uses
+  direct connections; injected fetch/proxy implementations must honor the
+  supplied dispatcher or enforce equivalent destination checks themselves. (#309)
+- Forced CLI downloads validate an opened file descriptor before truncation,
+  preventing a replaced symlink from redirecting writes. File inputs reject
+  FIFOs without blocking while opening them. (#309)
 
 - **The host guard blocks three more non-routable IPv4 ranges:**
   `198.18.0.0/15` (RFC 2544 benchmarking, routed inside some enterprise
@@ -192,6 +250,14 @@ now points at.
   shipped apart from a `RequestSpec` bullet now also listed under its BREAKING
   section. The guide also records that the single reviewer may approve their
   own deployment — a deliberate pause, not review. (#295)
+- `npm run verify` explicitly builds and runs static checks, generated-document
+  checks, coverage, and packed-package smoke tests despite disabled lifecycle
+  hooks. The build uses the same portable Node entry point locally and in CI,
+  retaining bounded removal retries for transient Windows file locks. (#309)
+- The installed skill uses portable metadata, self-contained references, and a
+  body below 500 lines. CI exercises Node 24 and 26 on Linux, Windows, and macOS;
+  other Node majors allowed by the Node 24+ engine range are not in the matrix. (#309)
+
 - Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
   `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,
   `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The lockfile

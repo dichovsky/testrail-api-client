@@ -11,7 +11,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
     "name": "@dichovsky/testrail-api-client",
     "version": "9.0.0"
   },
-  "sourceHash": "9c7944ce6209d01a7e66b444a965bba692f1975e1818ede9a883f68c82d8c43d",
+  "sourceHash": "c48784c94a66a8cd8d5e365f97e4f445ce1d14cb4053bd54e2a5525e6312674e",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -400,7 +400,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Attachment",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 637,
+      "line": 648,
       "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>",
       "jsdoc": "An attachment metadata record returned by attachment list and upload endpoints.",
       "typeOnly": true
@@ -432,7 +432,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Case",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 317,
+      "line": 328,
       "signature": "export type Case = ResponseWithCustomFields<typeof CaseSchema>",
       "typeOnly": true
     },
@@ -440,7 +440,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CaseField",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 466,
+      "line": 477,
       "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>",
       "jsdoc": "Custom case field definition returned by get_case_fields.",
       "typeOnly": true
@@ -449,7 +449,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CaseFieldConfig",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 463,
+      "line": 474,
       "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>",
       "jsdoc": "Context/options configuration block shared by CaseField entries.",
       "typeOnly": true
@@ -479,7 +479,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CaseStatus",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 346,
+      "line": 357,
       "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>",
       "typeOnly": true
     },
@@ -509,7 +509,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CaseType",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 469,
+      "line": 480,
       "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>",
       "jsdoc": "Case type definition returned by get_case_types.",
       "typeOnly": true
@@ -525,7 +525,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Configuration",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 479,
+      "line": 490,
       "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>",
       "jsdoc": "An individual configuration (e.g. \"Windows 10\", \"Chrome\") within a group.",
       "typeOnly": true
@@ -534,7 +534,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ConfigurationGroup",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 482,
+      "line": 493,
       "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>",
       "jsdoc": "A configuration group (e.g. \"Operating Systems\", \"Browsers\").",
       "typeOnly": true
@@ -572,7 +572,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "CrossProjectReport",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 677,
+      "line": 688,
       "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>",
       "jsdoc": "Enterprise report template spanning multiple projects.",
       "typeOnly": true
@@ -896,7 +896,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetAllTestsOptions",
       "kind": "interface",
       "file": "src/modules/tests.ts",
-      "line": 17,
+      "line": 13,
       "signature": "export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}",
       "typeOnly": true
     },
@@ -930,7 +930,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetCasesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 376,
+      "line": 387,
       "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number | readonly number[]; priorityId?: number | readonly number[]; templateId?: number | readonly number[]; mileston…",
       "jsdoc": "Filter options for `getCases()`. All date filters accept Unix timestamps (seconds since epoch).",
       "typeOnly": true
@@ -955,7 +955,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetMilestonesOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 591,
+      "line": 602,
       "signature": "export interface GetMilestonesOptions { isCompleted?: boolean; isStarted?: boolean; limit?: number; offset?: number; is_completed?: 0 | 1; is_started?: 0 | 1; }",
       "jsdoc": "Filter options for `getMilestones()`.",
       "typeOnly": true
@@ -964,7 +964,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetPlansOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 506,
+      "line": 517,
       "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; refs?: string; limit?: number; offset?: number; c…",
       "jsdoc": "Filter options for `getPlans()`. All date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -990,7 +990,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetResultsForRunOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 573,
+      "line": 584,
       "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; created_after?: number; created_before?: number; created_by?: …",
       "jsdoc": "Filter options for `getResultsForRun()`. Date filters accept Unix timestamps (seconds).",
       "typeOnly": true
@@ -999,7 +999,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetResultsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 554,
+      "line": 565,
       "signature": "export interface GetResultsOptions { statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number[]; defects_filter?: string; }",
       "jsdoc": "Filter options shared by `getResults()` and `getResultsForCase()`.",
       "typeOnly": true
@@ -1008,7 +1008,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetRunsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 427,
+      "line": 438,
       "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?…",
       "typeOnly": true
     },
@@ -1048,7 +1048,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetTestOptions",
       "kind": "interface",
       "file": "src/modules/tests.ts",
-      "line": 19,
+      "line": 15,
       "signature": "export interface GetTestOptions { withData?: '0' | '1'; }",
       "typeOnly": true
     },
@@ -1056,7 +1056,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "GetTestsOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 538,
+      "line": 549,
       "signature": "export interface GetTestsOptions { statusId?: number[]; labelId?: number[]; limit?: number; offset?: number; status_id?: number[]; label_id?: number[]; }",
       "jsdoc": "Filter options for `getTests()`.",
       "typeOnly": true
@@ -1088,7 +1088,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "HistoryChange",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 348,
+      "line": 359,
       "signature": "export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>",
       "typeOnly": true
     },
@@ -1103,7 +1103,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "HistoryEntry",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 350,
+      "line": 361,
       "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>",
       "typeOnly": true
     },
@@ -1173,7 +1173,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Milestone",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 338,
+      "line": 349,
       "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>",
       "typeOnly": true
     },
@@ -1286,7 +1286,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Plan",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 328,
+      "line": 339,
       "signature": "export type Plan = KnownResponse<typeof PlanSchema>",
       "typeOnly": true
     },
@@ -1294,7 +1294,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "PlanEntry",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 330,
+      "line": 341,
       "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>",
       "typeOnly": true
     },
@@ -1331,7 +1331,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Priority",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 344,
+      "line": 355,
       "signature": "export type Priority = KnownResponse<typeof PrioritySchema>",
       "typeOnly": true
     },
@@ -1346,7 +1346,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Project",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 326,
+      "line": 337,
       "signature": "export type Project = KnownResponse<typeof ProjectSchema>",
       "typeOnly": true
     },
@@ -1361,7 +1361,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "RateLimiterConfig",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 494,
+      "line": 505,
       "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }",
       "typeOnly": true
     },
@@ -1369,7 +1369,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Report",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 674,
+      "line": 685,
       "signature": "export type Report = KnownResponse<typeof ReportSchema>",
       "jsdoc": "A report template returned by GET /get_reports/{project_id}.",
       "typeOnly": true
@@ -1378,7 +1378,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ReportResult",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 687,
+      "line": 698,
       "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>",
       "jsdoc": "Result returned by GET /run_report/{report_template_id}.",
       "typeOnly": true
@@ -1403,7 +1403,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Result",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 336,
+      "line": 347,
       "signature": "export type Result = ResponseWithCustomFields<typeof ResultSchema>",
       "typeOnly": true
     },
@@ -1411,7 +1411,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ResultField",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 458,
+      "line": 469,
       "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>",
       "typeOnly": true
     },
@@ -1419,7 +1419,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "ResultFieldConfig",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 456,
+      "line": 467,
       "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>",
       "typeOnly": true
     },
@@ -1449,7 +1449,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Role",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 609,
+      "line": 620,
       "signature": "export type Role = KnownResponse<typeof RoleSchema>",
       "jsdoc": "A user role returned by GET /get_roles (TestRail 7.3+)",
       "typeOnly": true
@@ -1465,7 +1465,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Run",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 332,
+      "line": 343,
       "signature": "export type Run = KnownResponse<typeof RunSchema>",
       "typeOnly": true
     },
@@ -1489,7 +1489,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Section",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 324,
+      "line": 335,
       "signature": "export type Section = KnownResponse<typeof SectionSchema>",
       "typeOnly": true
     },
@@ -1520,7 +1520,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "SoftDeleteOptions",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 367,
+      "line": 378,
       "signature": "export interface SoftDeleteOptions { soft?: boolean; }",
       "jsdoc": "Options for delete endpoints that support TestRail's `soft=1` server-side preview (`delete_case`, `delete_cases`, `delete_run`, `delete_section`, `delete_suite`). `delete_milestone` and `delete_project` do not accept `soft`; passing this option to those endpoints would be a no-op server-side, so the CLI rejects it instead to keep destructive intent unambiguous.",
       "typeOnly": true
@@ -1544,7 +1544,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Status",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 342,
+      "line": 353,
       "signature": "export type Status = KnownResponse<typeof StatusSchema>",
       "typeOnly": true
     },
@@ -1575,7 +1575,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Suite",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 319,
+      "line": 330,
       "signature": "export type Suite = KnownResponse<typeof SuiteSchema>",
       "typeOnly": true
     },
@@ -1590,7 +1590,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Template",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 474,
+      "line": 485,
       "signature": "export type Template = KnownResponse<typeof TemplateSchema>",
       "jsdoc": "Case template returned by get_templates (requires TestRail 5.2+).",
       "typeOnly": true
@@ -1606,7 +1606,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "Test",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 334,
+      "line": 345,
       "signature": "export type Test = ResponseWithCustomFields<typeof TestSchema>",
       "typeOnly": true
     },
@@ -1693,7 +1693,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "TestWithData",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 640,
+      "line": 651,
       "signature": "export type TestWithData = Test & { results: Result[]; attachments: Attachment[]; }",
       "jsdoc": "Test enriched by `get_test` with `with_data=1`.",
       "typeOnly": true
@@ -2037,7 +2037,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UploadFileInput",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 315,
+      "line": 326,
       "signature": "export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput",
       "typeOnly": true
     },
@@ -2045,7 +2045,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "UploadFilePathInput",
       "kind": "interface",
       "file": "src/types.ts",
-      "line": 290,
+      "line": 301,
       "signature": "export interface UploadFilePathInput { path: string; type?: string; fd?: number | undefined; }",
       "typeOnly": true
     },
@@ -2053,7 +2053,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "name": "User",
       "kind": "type",
       "file": "src/types.ts",
-      "line": 340,
+      "line": 351,
       "signature": "export type User = KnownResponse<typeof UserSchema>",
       "typeOnly": true
     },
@@ -2152,28 +2152,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "readBodyAsText",
           "kind": "function",
-          "line": 214,
+          "line": 203,
           "exported": true,
           "signature": "export async function readBodyAsText(response: Response, limits: BodyLimits): Promise<string>"
         },
         {
           "name": "failIfFallbackDeadlineReached",
           "kind": "function",
-          "line": 227,
+          "line": 216,
           "exported": false,
           "signature": "function failIfFallbackDeadlineReached(deadlineAt: number | undefined, deadlineMs: number): void"
         },
         {
           "name": "awaitFallbackBody",
           "kind": "function",
-          "line": 233,
+          "line": 222,
           "exported": false,
           "signature": "async function awaitFallbackBody<T>( promise: Promise<T>, deadlineAt: number | undefined, deadlineMs: number, ): Promise<T>"
         },
         {
           "name": "readBodyViaFallback",
           "kind": "function",
-          "line": 259,
+          "line": 248,
           "exported": false,
           "signature": "async function readBodyViaFallback(response: Response, maxBytes: number, deadlineMs: number): Promise<Uint8Array>"
         }
@@ -2330,7 +2330,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "resolveBody",
           "kind": "function",
-          "line": 47,
+          "line": 48,
           "exported": true,
           "signature": "export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S): BodyResolution<z.infer<S>>"
         }
@@ -2674,14 +2674,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "resolveFromStdin",
           "kind": "function",
-          "line": 146,
+          "line": 148,
           "exported": false,
           "signature": "async function resolveFromStdin(input: FileInput, opts: ResolveFileOptions): Promise<FileResolution>"
         },
         {
           "name": "readStdinBinary",
           "kind": "function",
-          "line": 197,
+          "line": 199,
           "exported": true,
           "signature": "export async function readStdinBinary(maxBytes: number, timeoutMs: number): Promise<Uint8Array>"
         }
@@ -5021,42 +5021,49 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "InstallSkillOptions",
           "kind": "interface",
-          "line": 34,
+          "line": 37,
           "exported": true,
           "signature": "export interface InstallSkillOptions { global: boolean; force: boolean; printPath: boolean; output: Pick<Output, 'outRaw' | 'err'>; sourceOverride?: string; cwdOverride?: string; homeOverride?: string…"
         },
         {
           "name": "getBundledSkillPath",
           "kind": "function",
-          "line": 58,
+          "line": 61,
           "exported": true,
           "signature": "export function getBundledSkillPath(metaUrl: string): string"
         },
         {
           "name": "runInstallSkill",
           "kind": "function",
-          "line": 62,
+          "line": 65,
           "exported": true,
           "signature": "export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): number"
         },
         {
+          "name": "installDirectory",
+          "kind": "function",
+          "line": 130,
+          "exported": false,
+          "signature": "function installDirectory(source: string, target: string, references: readonly string[]): void"
+        },
+        {
           "name": "listReferenceFiles",
           "kind": "function",
-          "line": 138,
+          "line": 193,
           "exported": false,
           "signature": "function listReferenceFiles(skillRoot: string): readonly string[]"
         },
         {
           "name": "requireRealDirectory",
           "kind": "function",
-          "line": 164,
+          "line": 219,
           "exported": false,
           "signature": "function requireRealDirectory(path: string): void"
         },
         {
           "name": "installFile",
           "kind": "function",
-          "line": 187,
+          "line": 242,
           "exported": false,
           "signature": "function installFile(source: string, target: string): void"
         }
@@ -6501,14 +6508,14 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "safeWriteBinary",
           "kind": "function",
-          "line": 43,
+          "line": 73,
           "exported": true,
           "signature": "export function safeWriteBinary(path: string, bytes: Uint8Array, force: boolean): void"
         },
         {
           "name": "safeWriteText",
           "kind": "function",
-          "line": 47,
+          "line": 77,
           "exported": true,
           "signature": "export function safeWriteText(path: string, text: string, force: boolean): void"
         }
@@ -6716,11 +6723,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         "./errors.js",
         "./http-pipeline-types.js",
         "./operation-tracking.js",
+        "./pinned-dispatcher.js",
         "./request-budget.js",
         "./request-cache.js",
         "./retry-policy.js",
         "./types.js",
         "./upload-source.js",
+        "./upload-transport.js",
         "./utils.js",
         "./validation.js",
         "node:net",
@@ -6731,267 +6740,267 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "USER_AGENT",
           "kind": "const",
-          "line": 31,
+          "line": 32,
           "exported": false,
           "signature": "const USER_AGENT = `${pkg.name.replace(/^@[^/]+\\"
         },
         {
           "name": "DnsLookupFn",
           "kind": "type",
-          "line": 59,
+          "line": 61,
           "exported": false,
           "signature": "type DnsLookupFn = (hostname: string) => Promise<{ address: string; family: number }[]>"
         },
         {
           "name": "validatePublicHost",
           "kind": "function",
-          "line": 61,
+          "line": 63,
           "exported": false,
-          "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<void>"
+          "signature": "async function validatePublicHost(hostname: string, dnsLookup?: DnsLookupFn): Promise<readonly PinnedAddress[]>"
         },
         {
           "name": "activeClients",
           "kind": "const",
-          "line": 115,
+          "line": 122,
           "exported": false,
           "signature": "const activeClients = new Set<TestRailClientCore>()"
         },
         {
           "name": "processHandlersRegistered",
           "kind": "let",
-          "line": 116,
+          "line": 123,
           "exported": false,
           "signature": "let processHandlersRegistered = false"
         },
         {
           "name": "cleanupAllClients",
           "kind": "function",
-          "line": 119,
+          "line": 126,
           "exported": false,
           "signature": "function cleanupAllClients(): void"
         },
         {
           "name": "registerProcessHandlers",
           "kind": "function",
-          "line": 129,
+          "line": 136,
           "exported": false,
           "signature": "function registerProcessHandlers(): void"
         },
         {
           "name": "ResolvedTimeouts",
           "kind": "interface",
-          "line": 157,
+          "line": 164,
           "exported": false,
           "signature": "interface ResolvedTimeouts { readonly timeout: number; readonly bodyTimeout: number; readonly budget: RequestBudget; }"
         },
         {
           "name": "defineOverride",
           "kind": "function",
-          "line": 171,
+          "line": 178,
           "exported": false,
           "signature": "function defineOverride<T, K extends keyof T>(obj: T, key: K, fn: T[K]): void"
         },
         {
           "name": "TestRailClientCore",
           "kind": "class",
-          "line": 179,
+          "line": 186,
           "exported": true,
           "signature": "export class TestRailClientCore",
           "members": [
             {
               "name": "baseUrl",
               "kind": "property",
-              "line": 180
+              "line": 187
             },
             {
               "name": "auth",
               "kind": "property",
-              "line": 183
+              "line": 190
             },
             {
               "name": "timeout",
               "kind": "property",
-              "line": 184
+              "line": 191
             },
             {
               "name": "maxRetries",
               "kind": "property",
-              "line": 185
+              "line": 192
             },
             {
               "name": "requestCache",
               "kind": "property",
-              "line": 186
+              "line": 193
             },
             {
               "name": "rateLimiter",
               "kind": "property",
-              "line": 187
+              "line": 194
             },
             {
               "name": "isDestroyed",
               "kind": "property",
-              "line": 188
+              "line": 195
             },
             {
               "name": "hostname",
               "kind": "property",
-              "line": 189
+              "line": 196
             },
             {
               "name": "allowPrivateHosts",
               "kind": "property",
-              "line": 190
+              "line": 197
             },
             {
               "name": "maxJsonResponseBytes",
               "kind": "property",
-              "line": 191
+              "line": 198
             },
             {
               "name": "maxBinaryResponseBytes",
               "kind": "property",
-              "line": 192
+              "line": 199
             },
             {
               "name": "bodyTimeout",
               "kind": "property",
-              "line": 197
+              "line": 204
             },
             {
               "name": "bodyTimeoutExplicit",
               "kind": "property",
-              "line": 203
+              "line": 210
             },
             {
               "name": "root",
               "kind": "property",
-              "line": 210
+              "line": 217
             },
             {
               "name": "fetchOverride",
               "kind": "property",
-              "line": 211
+              "line": 218
             },
             {
               "name": "dnsLookup",
               "kind": "property",
-              "line": 212
+              "line": 219
             },
             {
               "name": "onSchemaMismatch",
               "kind": "property",
-              "line": 213
+              "line": 220
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 215
+              "line": 222
             },
             {
               "name": "getRetryDelay",
               "kind": "method",
-              "line": 285
+              "line": 291
             },
             {
               "name": "parseRetryAfterMs",
               "kind": "method",
-              "line": 310
+              "line": 316
             },
             {
               "name": "assertNotRedirect",
               "kind": "method",
-              "line": 352
+              "line": 358
             },
             {
               "name": "checkRateLimit",
               "kind": "method",
-              "line": 395
+              "line": 401
             },
             {
               "name": "spawnTimeoutView",
               "kind": "method",
-              "line": 452
+              "line": 458
             },
             {
               "name": "clearCache",
               "kind": "method",
-              "line": 471
+              "line": 477
             },
             {
               "name": "trackOperation",
               "kind": "method",
-              "line": 490
+              "line": 496
             },
             {
               "name": "destroy",
               "kind": "method",
-              "line": 508
+              "line": 514
             },
             {
               "name": "request",
               "kind": "method",
-              "line": 555
+              "line": 561
             },
             {
               "name": "executeJson",
               "kind": "method",
-              "line": 650
+              "line": 659
             },
             {
               "name": "cacheInvalidationHook",
               "kind": "method",
-              "line": 690
+              "line": 699
             },
             {
               "name": "executeText",
               "kind": "method",
-              "line": 710
+              "line": 719
             },
             {
               "name": "executeBinary",
               "kind": "method",
-              "line": 741
+              "line": 750
             },
             {
               "name": "buildPipelineBody",
               "kind": "method",
-              "line": 770
+              "line": 779
             },
             {
               "name": "executePipeline",
               "kind": "method",
-              "line": 785
+              "line": 794
             },
             {
               "name": "attemptPipeline",
               "kind": "method",
-              "line": 801
+              "line": 810
             },
             {
               "name": "raceAttemptDeadline",
               "kind": "method",
-              "line": 1008
+              "line": 1044
             },
             {
               "name": "cancelUnusedBody",
               "kind": "method",
-              "line": 1027
+              "line": 1063
             },
             {
               "name": "awaitDnsValidation",
               "kind": "method",
-              "line": 1053
+              "line": 1088
             },
             {
               "name": "parse",
               "kind": "method",
-              "line": 1089
+              "line": 1124
             },
             {
               "name": "parseAdvisory",
               "kind": "method",
-              "line": 1101
+              "line": 1136
             }
           ]
         }
@@ -7571,6 +7580,13 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "line": 170,
           "exported": true,
           "signature": "export const YAML_INDENT_SPACES = 2"
+        },
+        {
+          "name": "DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS",
+          "kind": "const",
+          "line": 173,
+          "exported": true,
+          "signature": "export const DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS = 5_000"
         }
       ]
     },
@@ -7682,7 +7698,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "type",
           "line": 28,
           "exported": true,
-          "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: () => vo…"
+          "signature": "export type BodyShape = | { readonly kind: 'none' } | { readonly kind: 'json'; readonly data: unknown } | { readonly kind: 'formdata'; readonly build: () => Promise<{ body: FormData; cleanup: (transpo…"
         },
         {
           "name": "PipelineSpec",
@@ -9737,6 +9753,7 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       "path": "src/modules/tests.ts",
       "imports": [
         "../client-core.js",
+        "../constants.js",
         "../errors.js",
         "../pagination.js",
         "../schemas.js",
@@ -9751,75 +9768,82 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "GetAllTestsOptions",
           "kind": "interface",
-          "line": 17,
+          "line": 13,
           "exported": true,
           "signature": "export interface GetAllTestsOptions extends Omit<GetTestsOptions, 'limit' | 'offset'>, PaginatedRequestOptions {}"
         },
         {
           "name": "GetTestOptions",
           "kind": "interface",
-          "line": 19,
+          "line": 15,
           "exported": true,
           "signature": "export interface GetTestOptions { withData?: '0' | '1'; }"
         },
         {
+          "name": "unwrapTestWithData",
+          "kind": "function",
+          "line": 20,
+          "exported": false,
+          "signature": "function unwrapTestWithData(raw: unknown): TestWithData"
+        },
+        {
           "name": "TESTS_PAGINATION",
           "kind": "const",
-          "line": 24,
+          "line": 48,
           "exported": true,
           "signature": "export const TESTS_PAGINATION = createPaginatedListExecutor< { readonly runId: number }, GetTestsOptions, GetAllTestsOptions, Test >({ operations: ['get_tests'], collectionKey: 'tests', itemSchema: Te…"
         },
         {
           "name": "TestModule",
           "kind": "class",
-          "line": 49,
+          "line": 73,
           "exported": true,
           "signature": "export class TestModule",
           "members": [
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 50
+              "line": 74
             },
             {
               "name": "getTest",
               "kind": "method",
-              "line": 53
+              "line": 77
             },
             {
               "name": "getTest",
-              "kind": "method",
-              "line": 54
-            },
-            {
-              "name": "getTest",
-              "kind": "method",
-              "line": 55
-            },
-            {
-              "name": "getTests",
               "kind": "method",
               "line": 78
             },
             {
+              "name": "getTest",
+              "kind": "method",
+              "line": 79
+            },
+            {
+              "name": "getTests",
+              "kind": "method",
+              "line": 98
+            },
+            {
               "name": "getTestsPage",
               "kind": "method",
-              "line": 83
+              "line": 103
             },
             {
               "name": "getAllTests",
               "kind": "method",
-              "line": 88
+              "line": 108
             },
             {
               "name": "updateTest",
               "kind": "method",
-              "line": 96
+              "line": 116
             },
             {
               "name": "updateTests",
               "kind": "method",
-              "line": 110
+              "line": 130
             }
           ]
         }
@@ -10103,35 +10127,35 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "trackingEngaged",
           "kind": "let",
-          "line": 97,
+          "line": 99,
           "exported": false,
           "signature": "let trackingEngaged = false"
         },
         {
           "name": "engageOperationTracking",
           "kind": "function",
-          "line": 100,
+          "line": 102,
           "exported": true,
           "signature": "export function engageOperationTracking(): void"
         },
         {
           "name": "exposeRejection",
           "kind": "function",
-          "line": 109,
+          "line": 111,
           "exported": false,
           "signature": "function exposeRejection<T>(result: Promise<T>): Promise<T>"
         },
         {
           "name": "invoke",
           "kind": "function",
-          "line": 116,
+          "line": 118,
           "exported": false,
           "signature": "function invoke<T>(callback: () => T | PromiseLike<T>, run: (fn: () => Promise<T>) => Promise<T>): Promise<T>"
         },
         {
           "name": "startOperation",
           "kind": "function",
-          "line": 135,
+          "line": 137,
           "exported": true,
           "signature": "export function startOperation<T>(callback: () => T | PromiseLike<T>): OperationHandle<T>"
         }
@@ -10359,6 +10383,140 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
       ]
     },
     {
+      "path": "src/pinned-dispatcher.ts",
+      "imports": [
+        "./constants.js",
+        "./operation-tracking.js",
+        "node:http",
+        "node:https",
+        "node:net",
+        "node:stream",
+        "node:stream/promises"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "PinnedAddress",
+          "kind": "interface",
+          "line": 16,
+          "exported": true,
+          "signature": "export interface PinnedAddress { readonly address: string; readonly family: number; }"
+        },
+        {
+          "name": "PinnedRequestOptions",
+          "kind": "interface",
+          "line": 21,
+          "exported": false,
+          "signature": "interface PinnedRequestOptions extends RequestOptions { readonly autoSelectFamily: boolean; readonly validatedAddressKey: string; }"
+        },
+        {
+          "name": "PinnedHttpAgent",
+          "kind": "class",
+          "line": 29,
+          "exported": false,
+          "signature": "class PinnedHttpAgent extends HttpAgent",
+          "members": [
+            {
+              "name": "getName",
+              "kind": "method",
+              "line": 30
+            }
+          ]
+        },
+        {
+          "name": "PinnedHttpsAgent",
+          "kind": "class",
+          "line": 35,
+          "exported": false,
+          "signature": "class PinnedHttpsAgent extends HttpsAgent",
+          "members": [
+            {
+              "name": "getName",
+              "kind": "method",
+              "line": 36
+            }
+          ]
+        },
+        {
+          "name": "httpAgent",
+          "kind": "const",
+          "line": 41,
+          "exported": false,
+          "signature": "const httpAgent = new PinnedHttpAgent({ keepAlive: true, timeout: DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS })"
+        },
+        {
+          "name": "httpsAgent",
+          "kind": "const",
+          "line": 42,
+          "exported": false,
+          "signature": "const httpsAgent = new PinnedHttpsAgent({ keepAlive: true, timeout: DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS })"
+        },
+        {
+          "name": "FetchDispatchOptions",
+          "kind": "interface",
+          "line": 45,
+          "exported": false,
+          "signature": "interface FetchDispatchOptions { readonly origin: string | URL; readonly path: string; readonly method: string; readonly headers: Record<string, string> | readonly (string | readonly [string, string])…"
+        },
+        {
+          "name": "LegacyFetchDispatchHandler",
+          "kind": "interface",
+          "line": 53,
+          "exported": false,
+          "signature": "interface LegacyFetchDispatchHandler { onConnect(abort: (error: Error) => void): void; onHeaders(status: number, headers: Buffer[], resume: () => void, statusText: string): boolean; onData(chunk: Buff…"
+        },
+        {
+          "name": "FetchDispatchController",
+          "kind": "interface",
+          "line": 61,
+          "exported": false,
+          "signature": "interface FetchDispatchController { readonly aborted: boolean; readonly paused: boolean; readonly reason: Error | null; rawHeaders: Buffer[] | null; rawTrailers: Buffer[] | null; abort(reason?: Error)…"
+        },
+        {
+          "name": "ModernFetchDispatchHandler",
+          "kind": "interface",
+          "line": 72,
+          "exported": false,
+          "signature": "interface ModernFetchDispatchHandler { onRequestStart(controller: FetchDispatchController, context: null): void; onResponseStarted?(): void; onResponseStart( controller: FetchDispatchController, statu…"
+        },
+        {
+          "name": "FetchDispatchHandler",
+          "kind": "type",
+          "line": 86,
+          "exported": false,
+          "signature": "type FetchDispatchHandler = LegacyFetchDispatchHandler | ModernFetchDispatchHandler"
+        },
+        {
+          "name": "legacyHandler",
+          "kind": "function",
+          "line": 89,
+          "exported": false,
+          "signature": "function legacyHandler(handler: FetchDispatchHandler, pauseResponse: () => void): LegacyFetchDispatchHandler"
+        },
+        {
+          "name": "isHeaderList",
+          "kind": "function",
+          "line": 156,
+          "exported": false,
+          "signature": "function isHeaderList( headers: FetchDispatchOptions['headers'], ): headers is readonly (string | readonly [string, string])[]"
+        },
+        {
+          "name": "requestHeaders",
+          "kind": "function",
+          "line": 162,
+          "exported": false,
+          "signature": "function requestHeaders(headers: FetchDispatchOptions['headers']): Record<string, string | string[]>"
+        },
+        {
+          "name": "createPinnedDispatcher",
+          "kind": "function",
+          "line": 193,
+          "exported": true,
+          "signature": "export function createPinnedDispatcher( origin: string, addresses: readonly PinnedAddress[], ): { dispatch(options: FetchDispatchOptions, handler: FetchDispatchHandler): boolean; hasStoppedUploading()…"
+        }
+      ]
+    },
+    {
       "path": "src/request-budget.ts",
       "imports": [
         "./errors.js",
@@ -10445,69 +10603,69 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "interface",
           "line": 16,
           "exported": true,
-          "signature": "export interface CacheResolution<T> { readonly key: string | undefined; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly load: () => Promise<CacheLoadResul…"
+          "signature": "export interface CacheResolution<T> { readonly key: string | undefined; readonly pendingKey?: string; readonly shareInFlight: boolean; readonly wait: (promise: Promise<T>) => Promise<T>; readonly load…"
         },
         {
           "name": "RequestCache",
           "kind": "class",
-          "line": 37,
+          "line": 39,
           "exported": true,
           "signature": "export class RequestCache",
           "members": [
             {
               "name": "entries",
               "kind": "property",
-              "line": 38
+              "line": 40
             },
             {
               "name": "pending",
               "kind": "property",
-              "line": 39
+              "line": 41
             },
             {
               "name": "generation",
               "kind": "property",
-              "line": 40
+              "line": 42
             },
             {
               "name": "cleanupTimer",
               "kind": "property",
-              "line": 41
+              "line": 43
             },
             {
               "name": "constructor",
               "kind": "constructor",
-              "line": 43
+              "line": 45
             },
             {
               "name": "resolve",
               "kind": "method",
-              "line": 54
+              "line": 56
             },
             {
               "name": "invalidate",
               "kind": "method",
-              "line": 111
+              "line": 114
             },
             {
               "name": "dispose",
               "kind": "method",
-              "line": 118
+              "line": 121
             },
             {
               "name": "read",
               "kind": "method",
-              "line": 126
+              "line": 129
             },
             {
               "name": "write",
               "kind": "method",
-              "line": 146
+              "line": 149
             },
             {
               "name": "removeExpiredEntries",
               "kind": "method",
-              "line": 165
+              "line": 168
             }
           ]
         }
@@ -12414,294 +12572,294 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "UploadFilePathInput",
           "kind": "interface",
-          "line": 290,
+          "line": 301,
           "exported": true,
           "signature": "export interface UploadFilePathInput { path: string; type?: string; fd?: number | undefined; }"
         },
         {
           "name": "UploadFileInput",
           "kind": "type",
-          "line": 315,
+          "line": 326,
           "exported": true,
           "signature": "export type UploadFileInput = globalThis.Blob | Uint8Array | globalThis.File | UploadFilePathInput"
         },
         {
           "name": "Case",
           "kind": "type",
-          "line": 317,
+          "line": 328,
           "exported": true,
           "signature": "export type Case = ResponseWithCustomFields<typeof CaseSchema>"
         },
         {
           "name": "Suite",
           "kind": "type",
-          "line": 319,
+          "line": 330,
           "exported": true,
           "signature": "export type Suite = KnownResponse<typeof SuiteSchema>"
         },
         {
           "name": "Section",
           "kind": "type",
-          "line": 324,
+          "line": 335,
           "exported": true,
           "signature": "export type Section = KnownResponse<typeof SectionSchema>"
         },
         {
           "name": "Project",
           "kind": "type",
-          "line": 326,
+          "line": 337,
           "exported": true,
           "signature": "export type Project = KnownResponse<typeof ProjectSchema>"
         },
         {
           "name": "Plan",
           "kind": "type",
-          "line": 328,
+          "line": 339,
           "exported": true,
           "signature": "export type Plan = KnownResponse<typeof PlanSchema>"
         },
         {
           "name": "PlanEntry",
           "kind": "type",
-          "line": 330,
+          "line": 341,
           "exported": true,
           "signature": "export type PlanEntry = KnownResponse<typeof PlanEntrySchema>"
         },
         {
           "name": "Run",
           "kind": "type",
-          "line": 332,
+          "line": 343,
           "exported": true,
           "signature": "export type Run = KnownResponse<typeof RunSchema>"
         },
         {
           "name": "Test",
           "kind": "type",
-          "line": 334,
+          "line": 345,
           "exported": true,
           "signature": "export type Test = ResponseWithCustomFields<typeof TestSchema>"
         },
         {
           "name": "Result",
           "kind": "type",
-          "line": 336,
+          "line": 347,
           "exported": true,
           "signature": "export type Result = ResponseWithCustomFields<typeof ResultSchema>"
         },
         {
           "name": "Milestone",
           "kind": "type",
-          "line": 338,
+          "line": 349,
           "exported": true,
           "signature": "export type Milestone = KnownResponse<typeof MilestoneSchema>"
         },
         {
           "name": "User",
           "kind": "type",
-          "line": 340,
+          "line": 351,
           "exported": true,
           "signature": "export type User = KnownResponse<typeof UserSchema>"
         },
         {
           "name": "Status",
           "kind": "type",
-          "line": 342,
+          "line": 353,
           "exported": true,
           "signature": "export type Status = KnownResponse<typeof StatusSchema>"
         },
         {
           "name": "Priority",
           "kind": "type",
-          "line": 344,
+          "line": 355,
           "exported": true,
           "signature": "export type Priority = KnownResponse<typeof PrioritySchema>"
         },
         {
           "name": "CaseStatus",
           "kind": "type",
-          "line": 346,
+          "line": 357,
           "exported": true,
           "signature": "export type CaseStatus = KnownResponse<typeof CaseStatusSchema>"
         },
         {
           "name": "HistoryChange",
           "kind": "type",
-          "line": 348,
+          "line": 359,
           "exported": true,
           "signature": "export type HistoryChange = KnownResponse<typeof HistoryChangeSchema>"
         },
         {
           "name": "HistoryEntry",
           "kind": "type",
-          "line": 350,
+          "line": 361,
           "exported": true,
           "signature": "export type HistoryEntry = KnownResponse<typeof HistoryEntrySchema>"
         },
         {
           "name": "SoftDeleteOptions",
           "kind": "interface",
-          "line": 367,
+          "line": 378,
           "exported": true,
           "signature": "export interface SoftDeleteOptions { soft?: boolean; }"
         },
         {
           "name": "GetCasesOptions",
           "kind": "interface",
-          "line": 376,
+          "line": 387,
           "exported": true,
           "signature": "export interface GetCasesOptions { suiteId?: number; sectionId?: number; typeId?: number | readonly number[]; priorityId?: number | readonly number[]; templateId?: number | readonly number[]; mileston…"
         },
         {
           "name": "GetRunsOptions",
           "kind": "interface",
-          "line": 427,
+          "line": 438,
           "exported": true,
           "signature": "export interface GetRunsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; includePlanRuns?: boolean; isCompleted?: boolean; milestoneId?: number | readonly number[]; refs?…"
         },
         {
           "name": "ResultFieldConfig",
           "kind": "type",
-          "line": 456,
+          "line": 467,
           "exported": true,
           "signature": "export type ResultFieldConfig = KnownResponse<typeof ResultFieldConfigSchema>"
         },
         {
           "name": "ResultField",
           "kind": "type",
-          "line": 458,
+          "line": 469,
           "exported": true,
           "signature": "export type ResultField = KnownResponse<typeof ResultFieldSchema>"
         },
         {
           "name": "CaseFieldConfig",
           "kind": "type",
-          "line": 463,
+          "line": 474,
           "exported": true,
           "signature": "export type CaseFieldConfig = KnownResponse<typeof CaseFieldConfigSchema>"
         },
         {
           "name": "CaseField",
           "kind": "type",
-          "line": 466,
+          "line": 477,
           "exported": true,
           "signature": "export type CaseField = KnownResponse<typeof CaseFieldSchema>"
         },
         {
           "name": "CaseType",
           "kind": "type",
-          "line": 469,
+          "line": 480,
           "exported": true,
           "signature": "export type CaseType = KnownResponse<typeof CaseTypeSchema>"
         },
         {
           "name": "Template",
           "kind": "type",
-          "line": 474,
+          "line": 485,
           "exported": true,
           "signature": "export type Template = KnownResponse<typeof TemplateSchema>"
         },
         {
           "name": "Configuration",
           "kind": "type",
-          "line": 479,
+          "line": 490,
           "exported": true,
           "signature": "export type Configuration = KnownResponse<typeof ConfigurationSchema>"
         },
         {
           "name": "ConfigurationGroup",
           "kind": "type",
-          "line": 482,
+          "line": 493,
           "exported": true,
           "signature": "export type ConfigurationGroup = KnownResponse<typeof ConfigurationGroupSchema>"
         },
         {
           "name": "CacheEntry",
           "kind": "interface",
-          "line": 489,
+          "line": 500,
           "exported": true,
           "signature": "export interface CacheEntry<T> { data: T; expiry: number; }"
         },
         {
           "name": "RateLimiterConfig",
           "kind": "interface",
-          "line": 494,
+          "line": 505,
           "exported": true,
           "signature": "export interface RateLimiterConfig { maxRequests: number; windowMs: number; }"
         },
         {
           "name": "GetPlansOptions",
           "kind": "interface",
-          "line": 506,
+          "line": 517,
           "exported": true,
           "signature": "export interface GetPlansOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; isCompleted?: boolean; milestoneId?: number[]; refs?: string; limit?: number; offset?: number; c…"
         },
         {
           "name": "GetTestsOptions",
           "kind": "interface",
-          "line": 538,
+          "line": 549,
           "exported": true,
           "signature": "export interface GetTestsOptions { statusId?: number[]; labelId?: number[]; limit?: number; offset?: number; status_id?: number[]; label_id?: number[]; }"
         },
         {
           "name": "GetResultsOptions",
           "kind": "interface",
-          "line": 554,
+          "line": 565,
           "exported": true,
           "signature": "export interface GetResultsOptions { statusId?: number[]; defectsFilter?: string; limit?: number; offset?: number; status_id?: number[]; defects_filter?: string; }"
         },
         {
           "name": "GetResultsForRunOptions",
           "kind": "interface",
-          "line": 573,
+          "line": 584,
           "exported": true,
           "signature": "export interface GetResultsForRunOptions extends GetResultsOptions { createdAfter?: number; createdBefore?: number; createdBy?: number[]; created_after?: number; created_before?: number; created_by?: …"
         },
         {
           "name": "GetMilestonesOptions",
           "kind": "interface",
-          "line": 591,
+          "line": 602,
           "exported": true,
           "signature": "export interface GetMilestonesOptions { isCompleted?: boolean; isStarted?: boolean; limit?: number; offset?: number; is_completed?: 0 | 1; is_started?: 0 | 1; }"
         },
         {
           "name": "Role",
           "kind": "type",
-          "line": 609,
+          "line": 620,
           "exported": true,
           "signature": "export type Role = KnownResponse<typeof RoleSchema>"
         },
         {
           "name": "Attachment",
           "kind": "type",
-          "line": 637,
+          "line": 648,
           "exported": true,
           "signature": "export type Attachment = KnownResponse<typeof AttachmentSchema>"
         },
         {
           "name": "TestWithData",
           "kind": "type",
-          "line": 640,
+          "line": 651,
           "exported": true,
           "signature": "export type TestWithData = Test & { results: Result[]; attachments: Attachment[]; }"
         },
         {
           "name": "Report",
           "kind": "type",
-          "line": 674,
+          "line": 685,
           "exported": true,
           "signature": "export type Report = KnownResponse<typeof ReportSchema>"
         },
         {
           "name": "CrossProjectReport",
           "kind": "type",
-          "line": 677,
+          "line": 688,
           "exported": true,
           "signature": "export type CrossProjectReport = KnownResponse<typeof CrossProjectReportSchema>"
         },
         {
           "name": "ReportResult",
           "kind": "type",
-          "line": 687,
+          "line": 698,
           "exported": true,
           "signature": "export type ReportResult = KnownResponse<typeof ReportResultSchema>"
         }
@@ -12737,14 +12895,61 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
           "kind": "function",
           "line": 45,
           "exported": true,
-          "signature": "export function ownUploadStreams(formData: globalThis.FormData): () => void"
+          "signature": "export function ownUploadStreams(formData: globalThis.FormData): (transportAborted?: boolean) => void"
         },
         {
           "name": "createUploadSource",
           "kind": "function",
-          "line": 166,
+          "line": 167,
           "exported": true,
           "signature": "export function createUploadSource(file: UploadFileInput, filename: string): Extract<BodyShape, { kind: 'formdata' }>"
+        }
+      ]
+    },
+    {
+      "path": "src/upload-transport.ts",
+      "imports": [
+        "node:async_hooks",
+        "node:diagnostics_channel",
+        "node:net",
+        "node:stream"
+      ],
+      "reExports": [],
+      "symbols": [
+        {
+          "name": "uploadScopes",
+          "kind": "const",
+          "line": 6,
+          "exported": false,
+          "signature": "const uploadScopes = new AsyncLocalStorage<symbol>()"
+        },
+        {
+          "name": "NativeUpload",
+          "kind": "interface",
+          "line": 8,
+          "exported": false,
+          "signature": "interface NativeUpload { readonly socket?: Socket; readonly http1?: boolean; readonly stream?: Duplex; readonly stopped: boolean; }"
+        },
+        {
+          "name": "SocketOwner",
+          "kind": "interface",
+          "line": 15,
+          "exported": false,
+          "signature": "interface SocketOwner { readonly request: object; readonly http1: boolean; }"
+        },
+        {
+          "name": "isRecord",
+          "kind": "function",
+          "line": 20,
+          "exported": false,
+          "signature": "function isRecord(value: unknown): value is Record<string, unknown>"
+        },
+        {
+          "name": "observeUploadTransport",
+          "kind": "function",
+          "line": 31,
+          "exported": true,
+          "signature": "export function observeUploadTransport( target: string, method: string, ): { run<T>(callback: () => T): T; stop(): boolean; dispose(): void; }"
         }
       ]
     },

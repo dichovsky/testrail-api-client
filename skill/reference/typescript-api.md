@@ -1,7 +1,7 @@
 # Programmatic TypeScript API
 
-For tasks the CLI cannot express. `SKILL.md` covers when to prefer this over
-the CLI.
+For TypeScript/JavaScript applications and explicit client lifecycle control.
+The skill body explains when to prefer this interface over the CLI.
 
 ## Programmatic TypeScript API
 
@@ -58,6 +58,23 @@ inherit from `Error` (`TestRailApiError` for HTTP/network/protocol failures,
 `TestRailPaginationError` for safe pagination failure, and
 `TestRailValidationError` for other validation failures).
 
+### Validate dynamic write input
+
+SDK payload types are compile-time contracts. SDK methods send payloads without
+runtime schema parsing; CLI writes validate them automatically. Parse untrusted
+or dynamically loaded input explicitly:
+
+```typescript
+import { AddResultPayloadSchema } from '@dichovsky/testrail-api-client';
+
+const input: unknown = JSON.parse('{"comment":"Investigating"}');
+const payload = AddResultPayloadSchema.parse(input);
+await client.results.addResult(1001, payload);
+```
+
+Schema refinements also apply: an empty result object is rejected even though
+its individual TypeScript fields are optional.
+
 ### Projects
 
 ```typescript
@@ -74,7 +91,7 @@ const allProjects = await client.projects.getAllProjects({
 // Fetch one.
 const project = await client.projects.getProject(1);
 
-// Create (Zod-validated against AddProjectPayloadSchema).
+// Create (typed payload; use AddProjectPayloadSchema.parse for dynamic input).
 const created = await client.projects.addProject({ name: 'CI', suite_mode: 1 });
 
 // Update (partial fields).
@@ -331,6 +348,6 @@ async function safelyDeleteCase(id: number) {
 }
 ```
 
-See `CODEMAP.md` for the exhaustive list of methods (every public symbol
-indexed with `file:line` links). See `docs/API-MAPPING.md` for the
-endpoint ↔ method ↔ CLI command coverage matrix.
+See the [source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md)
+for public methods and the [API coverage matrix](https://github.com/dichovsky/testrail-api-client/blob/main/docs/API-MAPPING.md)
+for endpoint, SDK, and CLI relationships.

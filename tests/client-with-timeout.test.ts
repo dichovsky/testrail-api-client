@@ -103,6 +103,79 @@ describe('TestRailClient.withTimeout', () => {
         });
     });
 
+    describe('concurrent timeout policies', () => {
+        beforeEach(() => {
+            client.destroy();
+            client = new TestRailClient({ ...CONFIG, allowPrivateHosts: true, cacheCleanupInterval: 0 });
+        });
+        it.each([
+            [1000, 20],
+            [20, 1000],
+        ])('keeps %ims and %ims calls independent', async (first, second) => {
+            vi.useFakeTimers();
+            mockFetch.mockImplementation(
+                (_url: string, options: RequestInit) =>
+                    new Promise<Response>((resolve, reject) => {
+                        const timer = setTimeout(
+                            () => resolve(mockOk({ id: 1, name: 'Test', suite_mode: 1, url: 'u' })),
+                            150,
+                        );
+                        options.signal?.addEventListener('abort', () => {
+                            clearTimeout(timer);
+                            reject(new globalThis.DOMException('Aborted', 'AbortError'));
+                        });
+                    }),
+            );
+            const requests = [first, second].map((timeout) => client.withTimeout(timeout).projects.getProject(1));
+            const outcomes = Promise.allSettled(requests);
+            await vi.runAllTimersAsync();
+            const results = await outcomes;
+            expect(results.map(({ status }) => status)).toEqual(
+                [first, second].map((timeout) => (timeout === 20 ? 'rejected' : 'fulfilled')),
+            );
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            await client.projects.getProject(1);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('still coalesces requests with identical timeout policies', async () => {
+            await Promise.all([
+                client.withTimeout(1000).projects.getProject(1),
+                client.withTimeout(1000).projects.getProject(1),
+            ]);
+            expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('separates body deadlines even when header deadlines match', async () => {
+            vi.useFakeTimers();
+            mockFetch.mockImplementation(() => {
+                let timer: ReturnType<typeof setTimeout> | undefined;
+                return Promise.resolve(
+                    new Response(
+                        new globalThis.ReadableStream<Uint8Array>({
+                            start(controller) {
+                                timer = setTimeout(() => {
+                                    controller.enqueue(new globalThis.TextEncoder().encode('{}'));
+                                    controller.close();
+                                }, 150);
+                            },
+                            cancel() {
+                                clearTimeout(timer);
+                            },
+                        }),
+                    ),
+                );
+            });
+            const outcomes = Promise.allSettled([
+                client.request({ method: 'GET', endpoint: 'get_test/1', timeout: 1000, bodyTimeout: 20 }),
+                client.request({ method: 'GET', endpoint: 'get_test/1', timeout: 1000, bodyTimeout: 1000 }),
+            ]);
+            await vi.runAllTimersAsync();
+            expect((await outcomes).map(({ status }) => status)).toEqual(['rejected', 'fulfilled']);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+    });
+
     describe('shared state (not a second client)', () => {
         it('shares the GET cache with the root client', async () => {
             const view = client.withTimeout(1000);

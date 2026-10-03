@@ -30,6 +30,12 @@ required.
    an empty `Unreleased` section. Include compatibility notes, security fixes,
    and operational changes. Keep the npm release-history list aligned with
    the release being prepared and confirm publication before considering it final.
+   The 9.0.0 DNS-pinning release must explicitly list its global proxy/custom
+   agent bypass, strict `dnsLookup` address-family contract, and regular-file-only
+   forced output destinations as breaking changes. Link the
+   [proxy and CA migration](../README.md#proxies-and-custom-certificate-authorities),
+   [DNS resolver migration](../README.md#custom-dns-resolvers), and CLI stdout
+   discard example rather than suggesting that users disable the host guard.
 4. Audit README, architecture and agent guidance, examples, CLI help, and the
    manual sections of the bundled skill against the release changes. Preserve
    dated audits and archived plans as historical records. Every SDK endpoint
@@ -75,8 +81,9 @@ npm run package:smoke -- --prepared
 ```
 
 Open a release PR with the version, release scope, compatibility notes, and
-validation results. Wait for all CI jobs, including package smoke on the only
-supported Node line, 24, across Linux, Windows, and macOS. Merge
+validation results. Wait for all CI jobs, including package smoke and transport
+tests on Node 24 and 26 across Linux, Windows, and macOS. The `>=24` engine range
+also permits other majors, which are not currently in the CI matrix. Merge
 the PR, fetch `main`, and verify its resulting commit and CI before tagging.
 If other changes land before the merge, reassess the release contents and gates.
 
@@ -103,8 +110,10 @@ If other changes land before the merge, reassess the release contents and gates.
     ```
 
     A non-empty array names the environment and its reviewers; the job stays
-    `waiting` until one of them approves. An empty array means it published
-    unattended. On the 8.0.0 release this returned
+    `waiting` until one of them approves. An empty array only means no deployment
+    is currently awaiting approval: verification may still be running, the gate
+    may already be approved, or the run may have failed. Check the job status
+    and registry state before concluding that publication happened. On the 8.0.0 release this returned
     `[{"environment":{"name":"npm-publish"},"reviewers":["dichovsky"]}]` and the
     run held until approved in the GitHub UI.
 

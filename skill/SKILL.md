@@ -1,9 +1,11 @@
 ---
 name: testrail-cli
-description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, plans, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities, or when TESTRAIL_BASE_URL / TESTRAIL_EMAIL / TESTRAIL_API_KEY are set in the environment.
-version: 9.0.0
+description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, plans, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities.
 license: MIT
-homepage: https://github.com/dichovsky/testrail-api-client
+compatibility: Requires Node.js 24+ and network access to a configured TestRail instance.
+metadata:
+  version: 9.0.0
+  homepage: https://github.com/dichovsky/testrail-api-client
 ---
 
 # `testrail` CLI
@@ -20,8 +22,6 @@ not a TestRail user manual. For the browser UI, see TestRail's own docs.
 
 - The user mentions TestRail by name, or asks about test cases, test runs,
   test results, or test plans in a TestRail context.
-- `TESTRAIL_BASE_URL` / `TESTRAIL_EMAIL` / `TESTRAIL_API_KEY` are set in the
-  environment.
 - The user wants to: look up, list, fetch, count, inspect, create, update,
   or publish TestRail entities from the shell or from CI.
 
@@ -76,7 +76,7 @@ actually needs it:
 | `./reference/commands.md` | You need the full command surface or the complete CLI option list. |
 | `./reference/recipes.md` | You want a worked example for a specific task; numbered recipes cover every command. |
 | `./reference/payload-schemas.yaml` | You need field-level detail for a write payload. |
-| `./reference/typescript-api.md` | The CLI cannot express the task and you are falling back to the SDK. |
+| `./reference/typescript-api.md` | You are writing TypeScript/JavaScript or need client configuration and lifecycle control. |
 
 For one resource's actions without opening a file, `testrail <resource> --help`
 (for example `testrail case --help`) prints only that resource; plain
@@ -100,8 +100,8 @@ echo '{"title":"New case"}' | testrail case add 5
 ```
 
 The CLI exits 1 if zero or more than one body source is provided.
-Stdin reads are capped at 1 MiB (v3.0); for larger payloads use
-`--data-file` (file reads are not subject to the cap). Stdin is
+JSON stdin and `--data-file` reads are capped at 1 MiB; split larger
+payloads into bounded requests. Stdin is
 unavailable for body input when `--api-key-stdin` is also passed —
 fd 0 can only be consumed by one source per invocation.
 
@@ -131,7 +131,8 @@ before a destructive call reaches the API:
    `2` (distinct from the generic `1`) so CI can distinguish "blocked by
    env gate" from "wrong flag / bad JSON / 4xx".
 
-Either gate alone is insufficient.
+Either gate alone is insufficient. `run close` and `plan close` are
+irreversible: TestRail has no reopen endpoint or web UI action.
 
 ```bash
 # Blocked: --yes set, env var missing → exit code 2
@@ -151,16 +152,6 @@ commands without unlocking either gate:
 ```bash
 # Safe in any environment — no gates required, no API call made
 testrail run delete 5 --dry-run
-```
-
-**Recommended CI pattern** — export the env var once at the top of the
-destructive step, then run any number of destructive commands within that
-step:
-
-```bash
-export TESTRAIL_ALLOW_DESTRUCTIVE=1
-testrail run delete 5 --yes
-testrail case delete 10 --yes
 ```
 
 **`--soft` (server-side preview)** on soft-capable deletes (`case delete`,
@@ -240,8 +231,8 @@ schemas:
 ```
 <!-- /GENERATED:payload-schemas -->
 
-For the authoritative type definitions, see `src/schemas.ts` in the
-package source.
+For runtime validation of dynamic SDK input, import the named payload schema
+from the package and call `.parse(input)` before invoking the method.
 
 ## Output
 
@@ -349,30 +340,6 @@ deprecated. Stable fields include `Test.refs_data`/`case_title`,
 `Result.case_title`/`case_refs`, case/result field system flags, and
 recursively typed milestone children.
 
-## Destructive actions
-
-Destructive actions (`attachment delete`, `case delete`, `case delete-bulk`,
-`run close`, `run delete`, `section delete`, `suite delete`, `milestone delete`,
-`project delete`, `plan close`, `plan delete`, `plan delete-entry`,
-`plan delete-run-from-entry`, `variable delete`, `dataset delete`,
-`shared-step delete`, `group delete`, `configuration delete`,
-`configuration-group delete`, `label delete`, and `label delete-bulk`) require
-`TESTRAIL_ALLOW_DESTRUCTIVE=1` and `--yes` to execute. A missing env unlock
-exits 2. With the env unlock set but no `--yes`, the CLI exits 1 with
-`Destructive action; pass --yes to confirm.` There is no interactive prompt
-(by design; this skill targets agents, not humans).
-
-`run close` and `plan close` are irreversible: TestRail has no `open_run`
-or `open_plan` endpoint and the web UI offers no reopen action. Once
-closed, the run/plan accepts no new results, no edits to existing ones,
-and no re-association — only reads.
-
-`--dry-run` always wins over `--yes`: `case delete-bulk 5 --project-id 9
---yes --dry-run --data '{"case_ids":[1]}'` emits a preview
-(`"destructive": true`) without calling the API, so agents can validate
-the call shape safely before committing. The same pattern applies to
-`run close 42 --yes --dry-run`.
-
 ## Errors & exit codes
 
 | Exit | Meaning                                                                            |
@@ -452,11 +419,10 @@ dispatch can have an indeterminate outcome.
   `\t` renders without the whitespace under `--format table`. Switch
   to `--format json` (the default) if you need the raw byte sequence
   preserved.
-- **Stdin 1 MiB cap (v3.0):** piped stdin (for body or `--api-key-stdin`)
-  is bounded at 1 MiB. Larger payloads must use `--data-file` (file
-  reads are unbounded). The cap addresses memory-exhaustion DoS only;
-  a producer that holds the pipe open without sending data (e.g.
-  `tail -f`) still blocks the CLI — open follow-up.
+- **Input bounds:** JSON stdin, API-key stdin, and `--data-file` are capped at
+  1 MiB. Binary `--file -` uploads are capped at 100 MiB with a 30-second
+  deadline. JSON/API-key stdin waits for the producer to close the pipe;
+  use `--data-file` when that cannot be guaranteed. Split oversized JSON requests.
 - **Strict flag parsing (v3.0):** typo'd flags (e.g. `--dryrun` for
   `--dry-run`) exit 1 with `unknown flag '--<name>'` rather than
   silently no-op'ing. Previously a typo on a safety flag could
@@ -469,7 +435,9 @@ payload types come from the same schemas the CLI validates against, but the
 SDK does not re-validate at runtime. Neither coerces `"5"` to `5`, and a rule
 the types cannot express — a new result needs at least one of `status_id`,
 `comment` or `assignedto_id` — is enforced only by the CLI, so fix a payload
-the CLI rejected rather than routing it through the SDK. Every documented SDK
+the CLI rejected rather than routing it through the SDK. Parse dynamic SDK
+input explicitly with the exported schema; TypeScript types alone cannot
+validate JSON. Every documented SDK
 endpoint has a CLI action in `./reference/commands.md`. Use
 `./reference/typescript-api.md` when writing TypeScript/JavaScript or when you
 need client configuration and lifecycle control.
@@ -490,26 +458,8 @@ testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "prior
 testrail case add 12 --data '{"title": "Login page accepts SSO redirect", "priority_id": 3}' --dry-run
 ```
 
-```typescript
-// The same corrected numeric field also works through the SDK.
-import { TestRailClient } from '@dichovsky/testrail-api-client';
-
-const client = new TestRailClient({
-    baseUrl: process.env.TESTRAIL_BASE_URL!,
-    email: process.env.TESTRAIL_EMAIL!,
-    apiKey: process.env.TESTRAIL_API_KEY!,
-});
-
-try {
-    const created = await client.cases.addCase(12, {
-        title: 'Login page accepts SSO redirect',
-        priority_id: 3,
-    });
-    console.log(created.id);
-} finally {
-    client.destroy();
-}
-```
+For explicit schema parsing, typed SDK examples, and shutdown handling, read
+`./reference/typescript-api.md` before using the programmatic interface.
 
 ## When NOT to use this skill
 
@@ -523,14 +473,11 @@ try {
 The CLI **does** support attachment upload/download/delete and BDD
 (Gherkin .feature) upload/download — see the command table in
 `./reference/commands.md` and the file-I/O recipes in `./reference/recipes.md`.
-For code that imports the package, use `./reference/typescript-api.md`,
-`README.md`, and `CODEMAP.md`.
+For code that imports the package, use `./reference/typescript-api.md`.
 
 ## See also
 
-- `README.md` — package install, programmatic API overview, configuration
-- `CODEMAP.md` — every public method, type, error class, and constant
-- `src/schemas.ts` — Zod payload schemas (source of truth)
-- `BACKLOG.md` — deferred CLI/skill features tracked for future releases
+- [Package README](https://github.com/dichovsky/testrail-api-client/blob/main/README.md) — installation and configuration
+- [Source symbol index](https://github.com/dichovsky/testrail-api-client/blob/main/CODEMAP.md) — public methods, types, errors, and constants
+- `./reference/payload-schemas.yaml` — shipped write-payload field reference
 - TestRail API docs: <https://support.testrail.com/hc/en-us/articles/7077083596436-Introduction-to-the-TestRail-API>
-

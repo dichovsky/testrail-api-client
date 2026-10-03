@@ -239,73 +239,34 @@ describe('SSRF defense — DNS-lookup defensive paths', () => {
         mockDnsLookup.mockResolvedValue([]);
     });
 
-    it('handles malformed IPv4 from DNS gracefully (non-4-part, non-numeric octet)', async () => {
-        // isPrivateOrLoopbackIP returns false for malformed input; if all
-        // lookups are malformed, the validator should allow the request
-        // through. Defensive against a non-conformant DNS resolver.
+    it.each([
+        ['1.2.3', 4],
+        ['1.2.3.abc', 4],
+        ['1.2.3.999', 4],
+        ['weird-non-ip-host', 0],
+        ['203.0.113.30', 6],
+        ['203.0.113.30', 0],
+        ['203.0.113.30', undefined],
+    ])('rejects malformed or mismatched DNS answer %s (family %s) before fetch', async (address, family) => {
+        // Every address is now passed to the socket resolver. An invalid entry
+        // must fail closed even when the same answer includes a valid public IP.
         mockDnsLookup.mockResolvedValueOnce([
-            { address: '1.2.3', family: 4 }, // too few parts
-            { address: '1.2.3.abc', family: 4 }, // non-numeric octet
-            { address: '203.0.113.10', family: 4 }, // valid public follow-up
-        ] as never);
-        mockFetch.mockResolvedValueOnce({
-            ok: true,
-            status: 200,
-            statusText: 'OK',
-            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
-        });
+            { address, ...(family !== undefined && { family }) },
+            { address: '203.0.113.10', family: 4 },
+        ]);
         const client = new TestRailClient({
             baseUrl: 'https://public-host.example',
             email: 'test@example.com',
             apiKey: 'key',
         });
-        await expect(client.projects.getProject(1)).resolves.toBeDefined();
-    });
-
-    it('handles an out-of-range IPv4 octet from DNS (e.g. "1.2.3.999")', async () => {
-        // An out-of-range octet is not an IP, so the classifier treats it as
-        // non-private. Followed by a valid public address so the request can
-        // proceed.
-        mockDnsLookup.mockResolvedValueOnce([
-            { address: '1.2.3.999', family: 4 },
-            { address: '203.0.113.20', family: 4 },
-        ] as never);
-        mockFetch.mockResolvedValueOnce({
-            ok: true,
-            status: 200,
-            statusText: 'OK',
-            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
-        });
-        const client = new TestRailClient({
-            baseUrl: 'https://public-host.example',
-            email: 'test@example.com',
-            apiKey: 'key',
-        });
-        await expect(client.projects.getProject(1)).resolves.toBeDefined();
-    });
-
-    it('treats a lookup whose address is not a parseable IP as non-private', async () => {
-        // A non-conformant resolver returns a record whose family is 0 and
-        // whose address is not a parseable IP; isIP() yields 0 and the
-        // classifier returns false. The validator must then treat the entry
-        // as non-private and proceed to the valid public follow-up rather
-        // than crashing on the malformed record.
-        mockDnsLookup.mockResolvedValueOnce([
-            { address: 'weird-non-ip-host', family: 0 },
-            { address: '203.0.113.30', family: 4 }, // valid public follow-up
-        ] as never);
-        mockFetch.mockResolvedValueOnce({
-            ok: true,
-            status: 200,
-            statusText: 'OK',
-            text: async () => JSON.stringify({ id: 1, name: 'p', suite_mode: 1, url: 'u' }),
-        });
-        const client = new TestRailClient({
-            baseUrl: 'https://public-host.example',
-            email: 'test@example.com',
-            apiKey: 'key',
-        });
-        await expect(client.projects.getProject(1)).resolves.toBeDefined();
+        try {
+            await expect(client.projects.getProject(1)).rejects.toThrow(
+                'DNS validation returned an invalid IP address',
+            );
+            expect(mockFetch).not.toHaveBeenCalled();
+        } finally {
+            client.destroy();
+        }
     });
 
     it('rethrows TestRailValidationError raised inside the dns.lookup try block (line 154)', async () => {

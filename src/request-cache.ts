@@ -15,6 +15,8 @@ export interface CacheLoadResult<T> {
 
 export interface CacheResolution<T> {
     readonly key: string | undefined;
+    /** Request policy can differ without changing the stored response identity. */
+    readonly pendingKey?: string;
     /**
      * Whether this request may become the shared upstream request for later
      * callers. Deadline-bearing requests set this to false because their
@@ -62,7 +64,8 @@ export class RequestCache {
             return resolution.wait(Promise.resolve(cached));
         }
 
-        const existing = this.pending.get(key) as OperationHandle<T> | undefined;
+        const pendingKey = resolution.pendingKey ?? key;
+        const existing = this.pending.get(pendingKey) as OperationHandle<T> | undefined;
         if (existing !== undefined) {
             void observeOperation(existing.settled);
             return resolution.wait(existing.result);
@@ -90,11 +93,11 @@ export class RequestCache {
 
         if (resolution.shareInFlight) {
             const shared = { result: loaded, settled: upstream.settled };
-            this.pending.set(key, shared);
+            this.pending.set(pendingKey, shared);
             loaded
                 .finally(() => {
-                    if (this.pending.get(key) === shared) {
-                        this.pending.delete(key);
+                    if (this.pending.get(pendingKey) === shared) {
+                        this.pending.delete(pendingKey);
                     }
                 })
                 .catch(() => undefined);

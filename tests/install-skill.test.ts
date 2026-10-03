@@ -171,6 +171,28 @@ describe('runInstallSkill', () => {
         expect(readFileSync(target, 'utf-8')).toBe('updated content');
     });
 
+    it('refuses to replace a directory at an owned file path even with --force', () => {
+        const project = join(tmp, 'proj');
+        const target = join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
+        mkdirSync(target, { recursive: true });
+        writeFileSync(join(target, 'keep.txt'), 'user content', 'utf8');
+        const code = runInstallSkill(
+            {
+                global: false,
+                force: true,
+                printPath: false,
+                output,
+                sourceOverride: source,
+                cwdOverride: project,
+            },
+            'file:///irrelevant',
+        );
+        expect(code).toBe(1);
+        expect(stderrChunks.join('')).toContain('not a file; refusing to overwrite');
+        expect(readFileSync(join(target, 'keep.txt'), 'utf8')).toBe('user content');
+        expect(stdoutChunks).toEqual([]);
+    });
+
     it('--print-path emits the bundled path and does not write any file', () => {
         const project = join(tmp, 'proj');
         const code = runInstallSkill(
@@ -521,6 +543,10 @@ describe('runInstallSkill — real bundled skill/SKILL.md', () => {
         for (const requiredKey of ['name', 'description', 'version', 'license', 'homepage']) {
             expect(frontmatter[requiredKey]).toBeTruthy();
         }
+        expect(lines.slice(1, closingIndex)).toContain('metadata:');
+        expect(installed).not.toMatch(/^(?:version|homepage):/m);
+        expect(installed).toMatch(/^ {2}version:/m);
+        expect(installed).toMatch(/^ {2}homepage:/m);
 
         const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf-8')) as { version: string };
         expect(frontmatter['version']).toBe(pkg.version);
@@ -574,6 +600,53 @@ describe('reference files travel with the skill body', () => {
         expect(code).toBe(0);
         expect(readFileSync(installed('payload-schemas.yaml'), 'utf-8')).toBe('schemas: []\n');
         expect(readFileSync(installed('user-notes.md'), 'utf-8')).toBe('# Notes\n');
+    });
+
+    it('requires --force for reference files even when the installed body is absent', () => {
+        mkdirSync(dirname(installed('payload-schemas.yaml')), { recursive: true });
+        writeFileSync(installed('payload-schemas.yaml'), 'user content\n');
+        const code = runInstallSkill(
+            { global: false, force: false, printPath: false, output, sourceOverride: source, cwdOverride: project },
+            'file:///unused',
+        );
+        expect(code).toBe(1);
+        expect(readFileSync(installed('payload-schemas.yaml'), 'utf8')).toBe('user content\n');
+        expect(existsSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'))).toBe(false);
+    });
+
+    it('preserves the old body when a reference destination fails preflight', () => {
+        const skillDir = join(project, '.claude', 'skills', 'testrail-cli');
+        mkdirSync(skillDir, { recursive: true });
+        writeFileSync(join(skillDir, 'SKILL.md'), 'old body\n');
+        writeFileSync(join(skillDir, 'reference'), 'not a directory\n');
+        const code = runInstallSkill(
+            { global: false, force: true, printPath: false, output, sourceOverride: source, cwdOverride: project },
+            'file:///unused',
+        );
+        expect(code).toBe(1);
+        expect(readFileSync(join(skillDir, 'SKILL.md'), 'utf8')).toBe('old body\n');
+    });
+
+    it('updates the complete skill while retaining unrelated files', () => {
+        const options = {
+            global: false,
+            force: true,
+            printPath: false,
+            output,
+            sourceOverride: source,
+            cwdOverride: project,
+        };
+        expect(runInstallSkill(options, 'file:///unused')).toBe(0);
+        writeFileSync(installed('local-notes.md'), 'preserve me\n');
+        writeFileSync(source, 'updated body\n');
+        writeFileSync(join(skillRoot, 'reference', 'payload-schemas.yaml'), 'updated schema\n');
+        expect(runInstallSkill(options, 'file:///unused')).toBe(0);
+        expect(readFileSync(join(project, '.claude', 'skills', 'testrail-cli', 'SKILL.md'), 'utf8')).toBe(
+            'updated body\n',
+        );
+        expect(readFileSync(installed('payload-schemas.yaml'), 'utf8')).toBe('updated schema\n');
+        expect(readFileSync(installed('local-notes.md'), 'utf8')).toBe('preserve me\n');
+        expect(readdirSync(join(project, '.claude', 'skills'))).toEqual(['testrail-cli']);
     });
 
     it('leaves no reference pointer in the body dangling', () => {

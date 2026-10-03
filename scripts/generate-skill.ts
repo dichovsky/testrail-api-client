@@ -17,7 +17,7 @@
  *   <!-- GENERATED:payload-schemas --> …compact per-schema index
  *   <!-- /GENERATED:payload-schemas -->
  *
- * plus the SKILL.md frontmatter `version` and the whole of
+ * plus the SKILL.md frontmatter `metadata.version` and the whole of
  * skill/reference/payload-schemas.yaml. Hand-written sections (the rest of
  * the frontmatter, prose, and skill/reference/recipes.md and
  * typescript-api.md entirely) are preserved.

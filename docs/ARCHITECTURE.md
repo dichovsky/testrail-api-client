@@ -71,11 +71,11 @@ For a single call, the operations run in this fixed order:
 5. **DNS revalidation for upstream work** — fresh `dns.lookup` of the configured hostname, fail-closed, raced against the abort signal from step 4. It runs before each actual upstream fetch attempt, including retries; cache hits and in-flight joiners stop before DNS resolution. `dns.lookup` carries no deadline of its own, so ordering it after the timer is what makes `timeout` able to bound the call at all — a resolver that drops packets rather than refusing them would otherwise keep the request pending indefinitely while holding a libuv threadpool slot. The lookup is not cancellable and may settle late; what it can no longer do is extend the caller-visible wait. A caller combining an aggressively short `timeout` with a slow resolver can therefore be refused before any request is sent.
 6. **Body preparation** — JSON serialization or multipart construction completes before admission.
 7. **Rate-limit admission** — sliding window over `rateLimiter.requests: number[]`; throws synthetic `TestRailApiError(429, …)` immediately before fetch when full.
-8. **`fetch` with `redirect: 'manual'`** — the single pipeline fetch site uses manual redirect handling for every request shape.
+8. **`fetch` with `redirect: 'manual'`** — the single pipeline fetch site uses manual redirect handling for every request shape. With private-host protection enabled, its dispatcher connects using the validated DNS snapshot rather than resolving the hostname again.
 9. **`assertNotRedirect`** — any 3xx → `TestRailApiError` with the blocked `Location` embedded in `response`. Never retried and never reaches cache publication.
 10. **Error branch** — non-2xx: read body, decide retry (see §2.4), throw `TestRailApiError(status, statusText, errorText)`. Raw body lands in the structured `response` field only — never in `message` — because callers commonly log `.message` and bodies may contain stack traces or secrets.
 11. **Cache invalidation on writes** — any successful non-GET calls `clearCache()` _before_ parsing the body, so empty 204-style responses still invalidate stored and in-flight reads.
-12. **Body read + parse** — `readBodyWithLimits()` enforces byte/deadline guards, then the JSON path applies the empty-body shortcut, `JSON.parse`, and optional advisory schema parsing.
+12. **Body read + parse** — `readBodyWithLimits()` iteratively drains the stream with byte/deadline guards and no per-chunk promise chain, then the JSON path applies the empty-body shortcut, `JSON.parse`, and optional advisory schema parsing.
 13. **Conditional publication** — `RequestCache` clones and stores only cacheable loader results whose invalidation generation is still current.
 
 Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retried) and `TypeError` (network error) to a retryable failure for GET only.
@@ -88,7 +88,7 @@ Catch handlers convert `AbortError` to `TestRailApiError(408, …)` (never retri
 - Touch on hit (LRU semantics on a plain `Map`).
 - Eviction at `maxCacheSize`: oldest key dropped.
 - Background `setInterval` cleanup; `unref?.()` so the timer does not hold the event loop open. `cacheCleanupInterval` accepts integer `0..2_147_483_647` (`0` disables cleanup); the ceiling prevents Node from overflowing a larger delay into a 1 ms hot loop.
-- In-flight requests coalesce even when storage is disabled. Deadline-bearing initiators are not published for later unbounded callers; bounded waiters may race an ordinary shared request without cancelling it.
+- In-flight requests coalesce even when storage is disabled, but only when their effective request and body timeouts match. Timeout views share completed cache entries without inheriting another caller's transport deadline. Deadline-bearing initiators are not published for later unbounded callers; bounded waiters may race a compatible ordinary shared request without cancelling it.
 - `invalidate()` clears entries and shared work and advances a generation, so a request started before a write may finish for its initiator but cannot repopulate stale data.
 - Text and binary GETs (`responseKind: 'text' | 'binary'`) neither read nor write the cache. Non-GET calls still invalidate, to keep the JSON cache consistent.
 - Bounded `getAll*()` reads declare `intent: 'fresh-read'`: they neither consume nor populate the LRU and do not coalesce with another pending GET. A `get*Page()` call uses normal cache behavior in the separate strict-page namespace.
@@ -132,6 +132,42 @@ Backoff: `min(BASE_RETRY_DELAY_MS × 2^n, MAX_RETRY_DELAY_MS)` — currently `mi
 
 Plus: HTTPS-only unless `allowInsecure: true` (cleartext Basic auth concern), and redirect blocking (§2.2 step 8) closes the loophole where a `Location` header pointing at a private/metadata IP would bypass both DNS and config validation.
 
+`src/pinned-dispatcher.ts` implements Node fetch's dispatcher extension with
+standard-library HTTP/HTTPS. Its connection lookup returns only the validated
+answer snapshot; it does not issue a second system DNS lookup. The configured
+hostname remains authoritative for Host, TLS SNI, and certificate verification.
+Connection pools include the validated address set in their identity, so a
+later DNS snapshot cannot silently reuse a socket from a different set. Fetch
+continues to own multipart encoding, response decompression, and redirects.
+
+This dispatcher makes direct connections. An injected fetch implementation is
+a trusted transport: it must honor the supplied dispatcher or implement
+equivalent destination enforcement, along with abort and redirect controls.
+Ignoring the extension does not preserve address pinning. The explicit
+dispatcher also bypasses Undici's global dispatcher, including globally installed
+`ProxyAgent` / `EnvHttpProxyAgent` instances and their custom TLS configuration.
+The private HTTP/HTTPS agents do not inherit global-agent settings or the
+`NODE_USE_ENV_PROXY=1` / `--use-env-proxy` configuration. Additional direct TLS
+trust can be supplied through `NODE_EXTRA_CA_CERTS` at process startup without
+disabling certificate verification or DNS pinning.
+
+Proxy migration requires an explicit injected adapter and enforcement at the
+proxy's actual connection destination. The local validation lookup cannot bind
+a proxy's independent DNS resolution; the proxy must restrict the approved
+TestRail origin and reject prohibited destination addresses before connecting.
+The [README migration](../README.md#proxies-and-custom-certificate-authorities)
+shows how to select an application-owned proxy while retaining the local guard
+and makes that additional enforcement prerequisite explicit. Setting
+`allowPrivateHosts: true` bypasses both DNS classification and pinning entirely;
+it is an opt-out for trusted on-premise deployments, not a proxy compatibility fix.
+
+Custom `dnsLookup` answers follow the system resolver's full `{ address, family }`
+contract. Each IP literal must have its matching numeric `4` or `6` family;
+missing, zero, or mismatched families fail closed even for public addresses.
+These values now determine connection attempts, so a validation-only resolver
+that previously omitted or ignored the family must be updated. See the
+[complete resolver example](../README.md#custom-dns-resolvers).
+
 ### 2.6 Lifecycle
 
 - Module-level `activeClients: Set<TestRailClientCore>`. Constructor adds `this`.
@@ -147,11 +183,13 @@ coalesced caller joins that loader's settlement independently of its result wait
 
 Scope creation is latched by the first `trackOperation` call and never cleared.
 Entering an `AsyncLocalStorage` installs context propagation process-wide and it
-cannot be undone — on Node 24, the only line this package supports, that is
+cannot be undone — on Node 24, the minimum runtime line exercised by CI, that is
 `AsyncContextFrame`, costing ~1% on promise traffic unrelated to this client.
-Embedders who never track are therefore never charged for it: before the latch,
-`startOperation` returns a
-handle whose `settled` simply follows the callback. One consequence is bounded
+Before the latch, `startOperation` returns a handle whose `settled` simply follows
+the callback. Multipart uploads independently enter an async context in
+`upload-transport.ts` to associate native diagnostic events with their attempt,
+even without `trackOperation`. Only processes that neither track operations nor
+upload avoid the library's context-propagation cost. One consequence is bounded
 and deliberate — a request already in flight when a process first engages
 tracking can be joined for its result but not for its post-result cleanup.
 
@@ -171,13 +209,30 @@ silently forfeiting the TOCTOU protection the descriptor exists to provide. It
 binds the driver-owned FormData File's stream factory to
 the operation scope. It observes each actual reader and its cancellation without
 mutating caller Blobs or replacing native multipart encoding. Cleanup prevents
-new streams, **errors** active wrapper streams, and requests underlying
-cancellation; settlement still waits for pending reads and cancellation
-completion. Erroring rather than closing is load-bearing: `close()` is a clean
-end-of-stream, so an encoder still reading that part would emit a truncated file
-followed by a valid closing boundary — a well-formed upload of partial bytes the
-server would store as though complete. An unconsumed upload stream has never
-started and can be conclusively stopped.
+new streams and requests underlying cancellation; settlement still waits for
+pending reads and cancellation completion. The HTTP pipeline requests transport
+abort after response processing, but the signal alone cannot prove that an
+injected or globally replaced fetch has stopped sending. Cleanup closes active
+wrappers cleanly only with confirmation from the pinned dispatcher or
+`upload-transport.ts`. The latter observes native diagnostics within a per-upload
+async scope, matching the origin, path, method, and request identity. A fully sent
+request body, a request error, or confirmed socket shutdown can establish that
+transmission stopped. For an unfinished HTTP/1 request, it destroys only the
+socket still owned by that request; a reassigned socket is left alone. When matching HTTP/2
+stream diagnostics are available, cleanup destroys only that upload's stream,
+preserving the shared session and unrelated streams. HTTP/2 matching requires
+the owned request's immediately preceding header event and expires before a
+later async turn. All diagnostic listeners are removed after cleanup.
+
+This confirmation lets native fetch's cloned multipart iterator finish without
+an unhandled rejection or a stuck cleanup promise, preserving the original
+FormData and configured global dispatcher. Missing or ambiguous transport
+evidence, including a custom fetch that ignores abort without exposing native
+diagnostics, keeps the conservative fallback: cleanup errors the wrappers so
+the encoder cannot send a truncated file with a valid closing boundary. An
+unconsumed upload stream has never started and can be conclusively stopped.
+All paths still await the observed source reads and cancellation before
+reporting operation settlement.
 
 Neither `trackOperation` nor `destroy()` aborts in-flight requests. Callbacks
 must return their application workflow promise; detached application timers are
@@ -239,6 +294,12 @@ const run = await client.runs.addRun(projectId, payload);
 ```
 
 Construction assigns the shared `createModuleBindings()` result explicitly; timeout views reuse that binding map through `Object.assign`. No `Proxy` or prototype mixing is used. The modules hold their own methods, JSDoc, and types, and the client is a thin composition root over `TestRailClientCore`. Method completion is scoped per resource (`client.runs.`), mirroring the resource taxonomy of the TestRail REST API.
+
+`tests.getTest(id, { withData: '1' })` separates advisory entity validation from
+structural normalization. Its wrapper must contain a test object and array or
+nullish result/attachment collections. Null or omitted collections normalize to
+empty arrays even when an entity field drifts. Malformed wrappers throw
+`TestRailApiError`; a throwing mismatch hook still takes precedence.
 
 > The flat facade (`client.getProject(id)`, …) that mirrored every endpoint directly on the client was removed in v5.0.0 (ARCH #7). The namespaced module surface is the single access path; see CHANGELOG for the flat→namespaced migration map.
 
@@ -456,25 +517,25 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 
 ### 6.5 Cross-cutting CLI infrastructure
 
-| File                     | Role                                                                                                                                                                                                                                                                             |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth.ts`                | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                                                                                                            |
-| `output.ts`              | Owns every byte the CLI emits. `createOutput({quiet, format, stdout, stderr, stdoutIsTTY})` → `{ out, outRaw, outPayload, err, errRaw }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`. |
-| `flags.ts`               | Primitive flag catalog, per-occurrence argv parsing/validation, known spellings, capability groups, and typed handler/pagination projections.                                                                                                                                    |
-| `action-invocation.ts`   | Compiles accepted/required flags from metadata capabilities, preserves precise stdio/pagination diagnostics, and rejects invalid action/meta invocations before auth or mutation.                                                                                                |
-| `ids.ts`                 | `parseId` / `optInt` with consistent error shapes.                                                                                                                                                                                                                               |
-| `pagination.ts`          | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                                                                                                        |
-| `response-validation.ts` | Resolves strict-response flag/env policy and builds the bounded privacy-safe advisory mismatch reporter.                                                                                                                                                                         |
-| `diagnostics.ts`         | Owns the diagnostic lifetime behind `withDiagnostics(request, deps, work)`: reserve, exit listener, outcome classification, write-on-failure, finalize/remove. Redacts bounded server messages. Takes a process-lifetime port so a test registers no real `exit` listener.       |
-| `body.ts`                | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                                                                                                                   |
-| `stdin.ts`               | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                                                                                                                  |
-| `file-input.ts`          | `resolveFile` — opens `--file` with `O_NOFOLLOW`, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                                                                                                            |
-| `file-output.ts`         | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                                                                                                               |
-| `sanitize.ts`            | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                                                                                                         |
-| `safe-write.ts`          | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                                                                                                                  |
-| `handler-context.ts`     | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                                                                                                                  |
-| `install-skill.ts`       | `install-skill` meta-command — copies `skill/SKILL.md` and the bundled `skill/reference/` files into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`), refusing to write through a symlinked `reference/`. Bypasses dispatch entirely.                                |
-| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes an installed skill body and only the reference files this package bundles, leaving user-added files and unrelated agent configuration alone.                                                                                            |
+| File                     | Role                                                                                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.ts`                | `resolveAuth(flags, env)` — flag overrides env; returns tagged union.                                                                                                                                                                                                             |
+| `output.ts`              | Owns every byte the CLI emits. `createOutput({quiet, format, stdout, stderr, stdoutIsTTY})` → `{ out, outRaw, outPayload, err, errRaw }`. JSON via `safeJsonStringify` (handles circular refs), table via `renderTable` (padded). Every cell goes through `sanitizeForTerminal`.  |
+| `flags.ts`               | Primitive flag catalog, per-occurrence argv parsing/validation, known spellings, capability groups, and typed handler/pagination projections.                                                                                                                                     |
+| `action-invocation.ts`   | Compiles accepted/required flags from metadata capabilities, preserves precise stdio/pagination diagnostics, and rejects invalid action/meta invocations before auth or mutation.                                                                                                 |
+| `ids.ts`                 | `parseId` / `optInt` with consistent error shapes.                                                                                                                                                                                                                                |
+| `pagination.ts`          | CLI mode/conflict validation, bounded-control parsing, and item/page/all output dispatch.                                                                                                                                                                                         |
+| `response-validation.ts` | Resolves strict-response flag/env policy and builds the bounded privacy-safe advisory mismatch reporter.                                                                                                                                                                          |
+| `diagnostics.ts`         | Owns the diagnostic lifetime behind `withDiagnostics(request, deps, work)`: reserve, exit listener, outcome classification, write-on-failure, finalize/remove. Redacts bounded server messages. Takes a process-lifetime port so a test registers no real `exit` listener.        |
+| `body.ts`                | `resolveBody` — picks exactly one source from `--data` / `--data-file` / stdin; Zod-validates.                                                                                                                                                                                    |
+| `stdin.ts`               | `readBoundedStdin(maxBytes)` — `readSync` in chunks with a hard cap; rejects multi-GB payloads.                                                                                                                                                                                   |
+| `file-input.ts`          | `resolveFile` — opens `--file` nonblocking with `O_NOFOLLOW` where supported, rejects non-regular files, preserves an fd for streamed uploads, and bounds `--file -` stdin reads.                                                                                                 |
+| `file-output.ts`         | `resolveOut` — uses `lstatSync` (not `existsSync`) so symlinks cannot bypass overwrite protection.                                                                                                                                                                                |
+| `sanitize.ts`            | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                                                                                                          |
+| `safe-write.ts`          | `O_CREAT \| O_EXCL` (`wx` flag) by default; forced writes validate a nontruncated open descriptor and use that same descriptor for truncation and output.                                                                                                                         |
+| `handler-context.ts`     | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                                                                                                                   |
+| `install-skill.ts`       | `install-skill` meta-command — stages `skill/SKILL.md` and bundled `skill/reference/` files before replacing `./.claude/skills/testrail-cli/` (or `~/…` with `--global`), refusing symlinked directories and restoring the previous tree if publication fails. Bypasses dispatch. |
+| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes an installed skill body and only the reference files this package bundles, leaving user-added files and unrelated agent configuration alone.                                                                                             |
 
 Pagination validation runs before auth resolution and client construction.
 Default mode emits the existing item array; `--page` emits `Page<T>` and
@@ -556,6 +617,15 @@ set as non-optional fields.
 request for those bytes on stdout, and `--quiet` suppresses commentary about a
 command, not the command's result. The ack is commentary, so it is gated.
 
+Filesystem attachment and BDD outputs pass through `safe-write.ts`. Without
+`--force`, exclusive creation refuses any existing entry. With `--force`, the
+helper opens without truncating, validates the descriptor as a regular file and
+checks its identity against the path, then truncates and writes the held inode.
+This intentionally excludes character devices such as `/dev/null`, FIFOs, and
+symlinks. To discard a payload, use `--out - > /dev/null` so the shell owns the
+device; the CLI still emits its acknowledgement to stderr. A stdout destination
+does not pass through the regular-file validator.
+
 Its TTY warning is derived from the payload rather than declared by the caller —
 a `Uint8Array` on a terminal warns, a string never does. `attachment get` cannot
 forget the warning and `bdd get --out -` cannot emit one about its own Gherkin.
@@ -621,12 +691,12 @@ The in-process CLI suite keeps its large command matrix fast. `scripts/package-s
 
 | Artifact                                                                                | Generator                                                                                                     | Drift guard                                                 |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `CODEMAP.md`                                                                            | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)                               | `npm run codemap:check` (pretest + CI)                      |
+| `CODEMAP.md`                                                                            | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)                               | `npm run codemap:check` (verify + CI)                       |
 | `skill/SKILL.md`, `skill/reference/commands.md`, `skill/reference/payload-schemas.yaml` | `scripts/generate-skill.ts` (consumes source `ACTIONS` and `CLI_OPTION_DOCUMENTATION` directly through `tsx`) | `npm run skill:check` (in-memory render/content comparison) |
-| `docs/API-MAPPING.md`                                                                   | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)                                | `npm run mapping:check` (pretest + CI)                      |
-| `AGENTS.md`                                                                             | `npm run agents-md` (consumes `ACTIONS`)                                                                      | `npm run agents-md:check` (pretest + CI)                    |
+| `docs/API-MAPPING.md`                                                                   | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)                                | `npm run mapping:check` (verify + CI)                       |
+| `AGENTS.md`                                                                             | `npm run agents-md` (consumes `ACTIONS`)                                                                      | `npm run agents-md:check` (verify + CI)                     |
 
-All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.
+All four artifacts are committed. Their drift guards run in `verify` or the publish workflow. Drift fails the build.
 
 ---
 
@@ -643,8 +713,8 @@ Each of these closes a real failure mode and exists because the obvious alternat
 7. **`Retry-After` capped to `MAX_RETRY_DELAY_MS`.** A malicious server cannot freeze the client.
 8. **Raw error bodies in the structured field only, never in `message`.** Bodies may contain stack traces or secrets; `.message` flows to loggers.
 9. **Text and binary responses bypass the JSON cache.** A shared key with a JSON GET to the same path would collide; `responseKind: 'text' | 'binary'` never reads or writes the cache.
-10. **Dry-run checked before `--yes` and before any disk read.** No surprise side effects from a flag intended to preview.
-11. **`safe-write` re-`lstat` under `--force`.** Closes the network-round-trip TOCTOU window on attachment downloads.
+10. **Dry-run prevents API dispatch and bypasses destructive gates.** Payload and file validation may read or inspect local inputs; binary stdin is not drained for a preview.
+11. **Forced output validates and writes one held descriptor.** Path replacement cannot redirect an already validated descriptor to a different file; validation happens before truncation.
 12. **Known flags plus per-occurrence type validation.** The gates reject typos such as `--dryrun` and string options that swallowed a following flag, including repeated options whose last value looks valid. Both prevent silently skipping the intended dry-run branch.
 13. **Continuation host/path is discarded.** Only canonical offset/limit controls survive; the shared executor rebuilds a descriptor-declared operation with validated path parameters and filters.
 14. **All-page reads bypass the GET cache.** Aggregates must not combine independently cached pages into a false snapshot or populate the cache with a partial walk.

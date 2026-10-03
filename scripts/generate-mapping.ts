@@ -22,7 +22,7 @@
  *
  * Drift gates (Phase 2):
  *   A  — Drift: committed `docs/API-MAPPING.md` must match generator output.
- *        Enforced by `--check` mode, wired into `pretest` and CI.
+ *        Enforced by `--check` mode, wired into `verify` and CI.
  *   B  — Code↔JSON: every `@testrail` tag in `src/modules/*.ts` must reference
  *        an endpoint that exists in `docs/testrail-endpoints.json`. Catches
  *        typos and renames in either direction.

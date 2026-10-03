@@ -23,7 +23,8 @@ export type BodyResolution<T> = { ok: true; payload: T; source: BodySource } | {
  *
  * - `--data <json-string>` (provided via `BodyInput.dataFlag`)
  * - `--data-file <path>` (provided via `BodyInput.dataFileFlag`; opened with
- *   O_RDONLY | O_NOFOLLOW to prevent symlink traversal, then read via
+ *   O_RDONLY | O_NOFOLLOW | O_NONBLOCK to prevent symlink traversal and
+ *   reject FIFOs without waiting for a writer, then read via
  *   readBoundedStdin(fd) to enforce the byte cap on actual bytes read rather
  *   than just on the fstat-reported size; failures surface as a structured
  *   `ok: false` rather than crashing the CLI)
@@ -72,7 +73,10 @@ export function resolveBody<S extends z.ZodTypeAny>(input: BodyInput, schema: S)
     } else if (input.dataFileFlag !== undefined) {
         let fd: number | undefined;
         try {
-            fd = openSync(input.dataFileFlag, constants.O_RDONLY | constants.O_NOFOLLOW);
+            fd = openSync(
+                input.dataFileFlag,
+                constants.O_RDONLY | (constants.O_NOFOLLOW || 0) | (constants.O_NONBLOCK || 0),
+            );
             const stat = fstatSync(fd);
             if (!stat.isFile()) {
                 return { ok: false, error: `--data-file '${input.dataFileFlag}' is not a regular file.` };

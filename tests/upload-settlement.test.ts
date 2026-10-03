@@ -32,6 +32,7 @@ describe('tracked multipart resource lifetime', () => {
         clients.forEach((client) => client.destroy());
         clients.length = 0;
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
         vi.useRealTimers();
     });
 
@@ -112,51 +113,91 @@ describe('tracked multipart resource lifetime', () => {
         expect(overrideCalls).toBe(1);
     });
 
-    // A clean `close()` would hand the encoder a truncated file followed by a
-    // valid closing boundary: a well-formed upload of partial bytes the server
-    // stores as complete. Cleanup must error the stream so the body aborts.
-    it('errors the in-flight upload stream on cleanup instead of closing it', async () => {
-        // A source that yields one chunk and then stalls, so the encoder is
-        // mid-file — exactly the state where a clean close truncates.
+    // Abort signals do not prove a custom transport stopped. A rejecting
+    // adapter may still have an encoder consuming its multipart request.
+    it.each([
+        { injection: 'config', allowPrivateHosts: false },
+        { injection: 'config', allowPrivateHosts: true },
+        { injection: 'global', allowPrivateHosts: false },
+        { injection: 'global', allowPrivateHosts: true },
+    ] as const)(
+        'errors an in-flight part when $injection fetch ignores abort (allowPrivateHosts: $allowPrivateHosts)',
+        async ({ injection, allowPrivateHosts }) => {
+            // A source that yields one chunk and then stalls, so the encoder is
+            // mid-file — exactly the state where a clean close truncates.
+            const stall = deferred<void>();
+            vi.spyOn(globalThis.Blob.prototype, 'stream').mockReturnValue(
+                new globalThis.ReadableStream<Uint8Array>({
+                    async pull(controller): Promise<void> {
+                        controller.enqueue(new Uint8Array([1, 2, 3]));
+                        await stall.promise;
+                    },
+                }) as unknown as ReturnType<globalThis.Blob['stream']>,
+            );
+            const consuming = deferred<globalThis.ReadableStreamDefaultReader<Uint8Array>>();
+            const transport = deferred<Response>();
+            const order: string[] = [];
+            const fetch = vi.fn<typeof globalThis.fetch>((_url, options) => {
+                options?.signal?.addEventListener('abort', () => order.push('abort'));
+                const body = options?.body;
+                if (!(body instanceof globalThis.FormData)) throw new Error('Expected FormData');
+                const file = body.get('attachment');
+                if (!(file instanceof globalThis.Blob)) throw new Error('Expected attachment Blob');
+                consuming.resolve(file.stream().getReader());
+                return transport.promise;
+            });
+            if (injection === 'global') vi.stubGlobal('fetch', fetch);
+            const client = clientWith({
+                ...(injection === 'config' ? { fetch } : {}),
+                allowPrivateHosts,
+                dnsLookup: async () => [{ address: '203.0.113.10', family: 4 }],
+            });
+            const operation = client.trackOperation(() =>
+                client.attachments.addAttachmentToCase(1, new Uint8Array([1, 2, 3, 4]), 'evidence.bin'),
+            );
+            const result = operation.result.catch((error: unknown) => error);
+
+            const encoderReader = await consuming.promise;
+            await expect(encoderReader.read()).resolves.toMatchObject({ done: false });
+            const midFileRead = encoderReader.read();
+            const readError = midFileRead.catch((error: unknown) => {
+                order.push('errored');
+                return error;
+            });
+
+            transport.reject(new Error('transport failed mid-upload'));
+            expect(await result).toMatchObject({ status: 0 });
+
+            expect(await readError).toEqual(new Error('Upload aborted before the request completed'));
+            expect(order).toEqual(['abort', 'errored']);
+            stall.resolve();
+            await operation.settled;
+        },
+    );
+
+    it('still errors a part when cleanup has no confirmed transport abort', async () => {
         const stall = deferred<void>();
         vi.spyOn(globalThis.Blob.prototype, 'stream').mockReturnValue(
-            new globalThis.ReadableStream<Uint8Array>({
-                async pull(controller): Promise<void> {
-                    controller.enqueue(new Uint8Array([1, 2, 3]));
+            new globalThis.ReadableStream<Uint8Array<ArrayBuffer>>({
+                async pull(controller) {
+                    controller.enqueue(new Uint8Array([1]));
                     await stall.promise;
                 },
-            }) as unknown as ReturnType<globalThis.Blob['stream']>,
+            }),
         );
-        const consuming = deferred<globalThis.ReadableStreamDefaultReader<Uint8Array>>();
-        const transport = deferred<Response>();
-        const fetch = vi.fn<typeof globalThis.fetch>((_url, options) => {
-            const body = options?.body;
-            if (!(body instanceof globalThis.FormData)) throw new Error('Expected FormData');
-            const file = body.get('attachment');
-            if (!(file instanceof globalThis.Blob)) throw new Error('Expected attachment Blob');
-            consuming.resolve(file.stream().getReader());
-            return transport.promise;
-        });
-        const client = clientWith({ fetch });
-        const operation = client.trackOperation(() =>
-            client.attachments.addAttachmentToCase(1, new Uint8Array([1, 2, 3, 4]), 'evidence.bin'),
-        );
-        const result = operation.result.catch((error: unknown) => error);
-
-        const encoderReader = await consuming.promise;
-        await expect(encoderReader.read()).resolves.toMatchObject({ done: false });
-        const midFileRead = encoderReader.read();
-        void midFileRead.catch(() => undefined);
-
-        transport.reject(new Error('transport failed mid-upload'));
-        expect(await result).toMatchObject({ status: 0 });
-
-        // Rejects (aborting the request body) rather than resolving
-        // `{ done: true }`, which is what a `close()` teardown would produce
-        // and which the encoder would encode as a complete, truncated file.
-        await expect(midFileRead).rejects.toThrow('Upload aborted before the request completed');
+        const form = new globalThis.FormData();
+        form.append('attachment', new globalThis.Blob([new Uint8Array([1, 2])]), 'file.bin');
+        const cleanup = ownUploadStreams(form);
+        const file = form.get('attachment');
+        if (!(file instanceof globalThis.Blob)) throw new Error('Expected file');
+        const reader = file.stream().getReader();
+        await reader.read();
+        const pending = reader.read();
+        const assertion = expect(pending).rejects.toThrow('Upload aborted before the request completed');
+        cleanup();
+        await assertion;
         stall.resolve();
-        await operation.settled;
+        reader.releaseLock();
     });
 
     it.each(['network', 'timeout', 'success'] as const)(

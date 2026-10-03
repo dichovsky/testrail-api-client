@@ -50,7 +50,7 @@
         "agents-md": "npm run build && tsx scripts/generate-agents-md.ts",
         "agents-md:check": "tsx scripts/generate-agents-md.ts --check",
         "audit:dependencies": "audit-ci --moderate --config audit-ci.jsonc",
-        "build": "rm -rf dist && node node_modules/@typescript/native/bin/tsc -p tsconfig.prod.json",
+        "build": "node scripts/build.ts",
         "codemap": "tsx scripts/generate-codemap.ts",
         "codemap:check": "tsx scripts/generate-codemap.ts --check",
         "format": "prettier --write .",
@@ -61,7 +61,6 @@
         "package:smoke": "tsx scripts/package-smoke.ts",
         "published:check": "tsx scripts/check-published-versions.ts",
         "lockfile-lint": "lockfile-lint --config .lockfile-lintrc",
-        "pretest": "npm run typecheck && npm run typecheck:ts6 && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run skill:check && npm run published:check && npm run lockfile-lint",
         "skill": "tsx scripts/generate-skill.ts",
         "skill:check": "tsx scripts/generate-skill.ts --check",
         "test": "vitest run",
@@ -69,7 +68,8 @@
         "test:fast": "vitest run --reporter=dot --no-coverage",
         "test:watch": "vitest",
         "typecheck": "node node_modules/@typescript/native/bin/tsc",
-        "typecheck:ts6": "node node_modules/typescript/bin/tsc6 --stableTypeOrdering"
+        "typecheck:ts6": "node node_modules/typescript/bin/tsc6 --stableTypeOrdering",
+        "verify": "npm run build && npm run typecheck && npm run typecheck:ts6 && npm run lint && npm run format:check && npm run codemap:check && npm run mapping:check && npm run agents-md:check && npm run skill:check && npm run published:check && npm run lockfile-lint && npm run test:coverage && npm run package:smoke -- --prepared"
     },
     "dependencies": {
         "zod": "^4.6.5"
