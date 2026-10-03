@@ -168,3 +168,6 @@ export const STDIN_READ_TIMEOUT_MS = 30000;
  * the renderer doesn't carry a hardcoded literal.
  */
 export const YAML_INDENT_SPACES = 2;
+
+/** Idle socket lifetime for the DNS-pinned native-fetch transport pool. */
+export const DEFAULT_TRANSPORT_IDLE_TIMEOUT_MS = 5_000;

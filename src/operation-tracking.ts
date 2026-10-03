@@ -88,8 +88,8 @@ export function bindOperation<Args extends unknown[], Result>(
  * {@link engageOperationTracking} and never cleared.
  *
  * Entering an `AsyncLocalStorage` even once installs its context tracking for
- * the whole process, and it can never be undone. On Node 24 — the only line
- * this package supports — that is `AsyncContextFrame`, costing ~1% on promise
+ * the whole process, and it can never be undone. On Node 24 — the runtime line
+ * exercised by CI — that is `AsyncContextFrame`, costing ~1% on promise
  * traffic that has nothing to do with this client. A library must not impose
  * even that on embedders who never use `trackOperation`, so scopes are created
  * only once the feature is in play.

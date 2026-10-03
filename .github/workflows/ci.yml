@@ -100,7 +100,7 @@ jobs:
               run: npm run test:coverage
 
     # One matrix instead of three near-identical jobs. Node stays pinned to the
-    # single supported line (see docs/RELEASING.md); the axis that actually
+    # tested baseline line (see docs/RELEASING.md); the axis that actually
     # varies is the OS, because the package smoke exercises platform-specific
     # path handling and the npm shim.
     package-smoke-matrix:
@@ -131,8 +131,8 @@ jobs:
             - name: Smoke-test packed consumer and CLI
               run: npm run package:smoke
 
-            - name: Verify report execution and operation settlement
-              run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
+            - name: Verify pinned transport, report execution, and operation settlement
+              run: npx vitest run tests/pinned-dispatcher.test.ts tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts
 
     # Collapses the matrix into one stable check name for branch protection.
     # A matrix leg that is skipped or cancelled must not read as success, so

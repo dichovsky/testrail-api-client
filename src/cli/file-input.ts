@@ -94,7 +94,9 @@ export async function resolveFile(input: FileInput, opts: ResolveFileOptions): P
     let size: number;
     let fd: number | undefined;
     try {
-        const flags = constants.O_RDONLY | (constants.O_NOFOLLOW || 0);
+        // Open FIFOs without waiting for a writer so fstat can reject them.
+        // Nonblocking mode does not alter regular-file reads.
+        const flags = constants.O_RDONLY | (constants.O_NOFOLLOW || 0) | (constants.O_NONBLOCK || 0);
         fd = openSync(path, flags);
 
         const stat = fstatSync(fd);

@@ -24,6 +24,7 @@ function controlledUpload(): {
     cancel: ReturnType<typeof vi.fn>;
     releaseLock: ReturnType<typeof vi.fn>;
     fetch: typeof globalThis.fetch;
+    wasAborted: () => boolean;
     consumer: () => {
         reader: globalThis.ReadableStreamDefaultReader<Uint8Array>;
         result: Promise<unknown>;
@@ -39,7 +40,9 @@ function controlledUpload(): {
         getReader: () => ({ read, cancel, releaseLock }),
     } as unknown as ReturnType<globalThis.Blob['stream']>);
     let consumer: { reader: globalThis.ReadableStreamDefaultReader<Uint8Array>; result: Promise<unknown> } | undefined;
+    let requestSignal: AbortSignal | null | undefined;
     const fetch = vi.fn<typeof globalThis.fetch>((_url, options) => {
+        requestSignal = options?.signal;
         if (!(options?.body instanceof globalThis.FormData)) throw new Error('Expected FormData');
         const file = options.body.get('attachment');
         if (!(file instanceof globalThis.Blob)) throw new Error('Expected attachment Blob');
@@ -55,6 +58,7 @@ function controlledUpload(): {
         cancel,
         releaseLock,
         fetch,
+        wasAborted: () => requestSignal?.aborted === true,
         consumer: () => {
             if (consumer === undefined) throw new Error('Fetch has not started consuming the upload');
             return consumer;
@@ -173,10 +177,10 @@ describe('public multipart cleanup error handling', () => {
         expect(upload.releaseLock).toHaveBeenCalledOnce();
         expect(settled).not.toHaveBeenCalled();
         const consumer = upload.consumer();
-        // Errored, not closed. A clean `{ done: true }` here would tell the
-        // encoder the part ended normally, producing a truncated file under a
-        // valid closing boundary; the rejection aborts the request body instead.
-        expect(await consumer.result).toEqual(new Error('Upload aborted before the request completed'));
+        // The transport is aborted before a clean part completion, so no
+        // truncated file can be sent with a valid multipart closing boundary.
+        expect(upload.wasAborted()).toBe(true);
+        expect(await consumer.result).toEqual({ done: true, value: undefined });
         consumer.reader.releaseLock();
 
         upload.reading.reject(new Error('late source read failure'));

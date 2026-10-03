@@ -112,10 +112,9 @@ describe('tracked multipart resource lifetime', () => {
         expect(overrideCalls).toBe(1);
     });
 
-    // A clean `close()` would hand the encoder a truncated file followed by a
-    // valid closing boundary: a well-formed upload of partial bytes the server
-    // stores as complete. Cleanup must error the stream so the body aborts.
-    it('errors the in-flight upload stream on cleanup instead of closing it', async () => {
+    // Closing a part is safe only after the transport is aborted; otherwise
+    // an encoder could send a valid closing boundary after truncated bytes.
+    it('aborts the transport before cleanly closing an in-flight upload part', async () => {
         // A source that yields one chunk and then stalls, so the encoder is
         // mid-file — exactly the state where a clean close truncates.
         const stall = deferred<void>();
@@ -129,7 +128,9 @@ describe('tracked multipart resource lifetime', () => {
         );
         const consuming = deferred<globalThis.ReadableStreamDefaultReader<Uint8Array>>();
         const transport = deferred<Response>();
+        const order: string[] = [];
         const fetch = vi.fn<typeof globalThis.fetch>((_url, options) => {
+            options?.signal?.addEventListener('abort', () => order.push('abort'));
             const body = options?.body;
             if (!(body instanceof globalThis.FormData)) throw new Error('Expected FormData');
             const file = body.get('attachment');
@@ -146,17 +147,40 @@ describe('tracked multipart resource lifetime', () => {
         const encoderReader = await consuming.promise;
         await expect(encoderReader.read()).resolves.toMatchObject({ done: false });
         const midFileRead = encoderReader.read();
-        void midFileRead.catch(() => undefined);
+        void midFileRead.then(() => order.push('closed'));
 
         transport.reject(new Error('transport failed mid-upload'));
         expect(await result).toMatchObject({ status: 0 });
 
-        // Rejects (aborting the request body) rather than resolving
-        // `{ done: true }`, which is what a `close()` teardown would produce
-        // and which the encoder would encode as a complete, truncated file.
-        await expect(midFileRead).rejects.toThrow('Upload aborted before the request completed');
+        await expect(midFileRead).resolves.toEqual({ done: true, value: undefined });
+        expect(order).toEqual(['abort', 'closed']);
         stall.resolve();
         await operation.settled;
+    });
+
+    it('still errors a part when cleanup has no confirmed transport abort', async () => {
+        const stall = deferred<void>();
+        vi.spyOn(globalThis.Blob.prototype, 'stream').mockReturnValue(
+            new globalThis.ReadableStream<Uint8Array<ArrayBuffer>>({
+                async pull(controller) {
+                    controller.enqueue(new Uint8Array([1]));
+                    await stall.promise;
+                },
+            }),
+        );
+        const form = new globalThis.FormData();
+        form.append('attachment', new globalThis.Blob([new Uint8Array([1, 2])]), 'file.bin');
+        const cleanup = ownUploadStreams(form);
+        const file = form.get('attachment');
+        if (!(file instanceof globalThis.Blob)) throw new Error('Expected file');
+        const reader = file.stream().getReader();
+        await reader.read();
+        const pending = reader.read();
+        const assertion = expect(pending).rejects.toThrow('Upload aborted before the request completed');
+        cleanup();
+        await assertion;
+        stall.resolve();
+        reader.releaseLock();
     });
 
     it.each(['network', 'timeout', 'success'] as const)(

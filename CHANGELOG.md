@@ -48,7 +48,32 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       enforced where the schemas are parsed (the CLI `--data` path), so a typed
       `{}` now compiles and reaches TestRail.
 
+### Security
+
+- Default fetch connections now use the exact DNS answers accepted by the
+  private-host guard, preserving the original hostname for Host, SNI, and TLS
+  certificate checks. Malformed DNS answers fail closed. The transport uses
+  direct connections; injected fetch/proxy implementations must honor the
+  supplied dispatcher or enforce equivalent destination checks themselves.
+- Forced CLI downloads validate an opened file descriptor before truncation,
+  preventing a replaced symlink from redirecting writes. File inputs reject
+  FIFOs without blocking while opening them.
+
 ### Fixed
+
+- Concurrent timeout views no longer inherit another caller's header/body
+  deadline through in-flight coalescing; completed cached responses remain shared.
+- Fragmented response bodies drain iteratively without retaining one pending
+  promise chain per chunk.
+- Enriched test reads normalize nullish result/attachment collections even
+  when unrelated entity fields trigger advisory schema warnings.
+- Early-rejected multipart uploads terminate their transport before closing
+  owned streams, preventing unhandled encoder errors and stuck operation
+  settlement while still waiting for underlying source cancellation.
+- Skill installation protects all bundled files from unforced overwrites,
+  stages the complete tree, and restores the previous installation on failure.
+- Skill guidance now accurately distinguishes CLI runtime payload validation
+  from SDK compile-time types and shows explicit validation for dynamic input.
 
 - **Aggregate pagination deadlines retain `max_duration` when a timer fires
   before the wall clock reaches its deadline.** The transport records whether
@@ -72,6 +97,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   where it saw the `email` format.
 
 ### Internal
+
+- `npm run verify` explicitly builds and runs static checks, generated-document
+  checks, coverage, and packed-package smoke tests despite disabled lifecycle
+  hooks. The build uses the same portable Node entry point locally and in CI.
+- The installed skill uses portable metadata, self-contained references, and a
+  body below 500 lines. Runtime documentation distinguishes the tested Node 24
+  baseline from the declared Node 24+ support range.
 
 - Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
   `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,

@@ -3,14 +3,13 @@
  *
  * These helpers close the TOCTOU window between resolveOut() and the actual
  * write — resolveOut runs BEFORE the network round-trip, so an attacker has
- * seconds to plant a symlink. safeWrite* enforces the no-follow-symlink rule
- * a second time, immediately before the write syscall.
+ * seconds to plant a symlink. Forced writes validate an opened descriptor
+ * before truncating it, and never reopen the path for the actual write.
  *
  * Tested behaviors:
  *   - !force: uses O_EXCL (`wx`) so any path that appeared mid-flight is
  *     refused atomically.
- *   - force: lstats again and refuses symlinks; regular existing files are
- *     overwritten as expected.
+ *   - force: refuses symlinks; regular existing files are overwritten.
  *   - Encoding: text helper writes UTF-8, byte length matches.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -69,12 +68,7 @@ describe('safeWriteBinary', () => {
         expect(Array.from(readFileSync(p))).toEqual([0x42]);
     });
 
-    it('writes successfully when target does not exist (force + ENOENT short-circuits the lstat check)', () => {
-        // Exercises the swallow path of the lstat-error handler in
-        // src/cli/safe-write.ts: lstatSync throws ENOENT, the catch
-        // evaluates `code !== 'ENOENT'` to FALSE, the error is swallowed,
-        // and the write proceeds. Without this test the ENOENT-tolerant
-        // code path would be unverified.
+    it('creates a new target with force', () => {
         const p = join(tmp, 'fresh.bin');
         expect(existsSync(p)).toBe(false);
         safeWriteBinary(p, new Uint8Array([0xab, 0xcd]), true);

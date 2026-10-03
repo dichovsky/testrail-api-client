@@ -16,6 +16,9 @@
 import {
     existsSync,
     mkdirSync,
+    mkdtempSync,
+    cpSync,
+    rmSync,
     lstatSync,
     openSync,
     closeSync,
@@ -81,19 +84,6 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     const targetRoot = opts.global ? (opts.homeOverride ?? homedir()) : (opts.cwdOverride ?? process.cwd());
     const target = join(targetRoot, '.claude', 'skills', 'testrail-cli', 'SKILL.md');
 
-    let targetExists = false;
-    try {
-        lstatSync(target);
-        targetExists = true;
-    } catch {
-        // Target does not exist
-    }
-
-    if (targetExists && !opts.force) {
-        writeErr(`SKILL.md already exists at ${target}. Re-run with --force to overwrite.`);
-        return 1;
-    }
-
     // SKILL.md points at `./reference/*` for the detail it deliberately keeps
     // out of its body. Installing the body alone leaves every one of those
     // pointers dangling at the install location, which is worse than having no
@@ -106,17 +96,21 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
         // install skill" with exit 1 rather than an unhandled stack trace.
         const referenceSources = listReferenceFiles(skillRoot);
         const dir = dirname(target);
-        mkdirSync(dir, { recursive: true, mode: 0o755 });
-        installFile(source, target);
-
-        if (referenceSources.length > 0) {
-            const referenceDir = join(dir, 'reference');
-            requireRealDirectory(referenceDir);
-            mkdirSync(referenceDir, { recursive: true, mode: 0o755 });
-            for (const name of referenceSources) {
-                installFile(join(skillRoot, 'reference', name), join(referenceDir, name));
+        requireRealDirectory(dir);
+        if (referenceSources.length > 0) requireRealDirectory(join(dir, 'reference'));
+        for (const destination of [target, ...referenceSources.map((name) => join(dir, 'reference', name))]) {
+            const existing = lstatSync(destination, { throwIfNoEntry: false });
+            if (existing === undefined) continue;
+            if (!opts.force) {
+                throw new Error(
+                    `${basename(destination)} already exists at ${destination}. Re-run with --force to overwrite.`,
+                );
+            }
+            if (!existing.isFile() && !existing.isSymbolicLink()) {
+                throw new Error(`${destination} is not a file; refusing to overwrite it`);
             }
         }
+        installDirectory(source, dir, referenceSources);
 
         const extra = referenceSources.length > 0 ? ` (+${referenceSources.length} reference)` : '';
         opts.output.outRaw(`Installed testrail-cli skill → ${target}${extra}\n`);
@@ -124,6 +118,67 @@ export function runInstallSkill(opts: InstallSkillOptions, metaUrl: string): num
     } catch (e: unknown) {
         writeErr(`failed to install skill: ${e instanceof Error ? e.message : String(e)}`);
         return 1;
+    }
+}
+
+/**
+ * Prepare the complete new tree before touching the installed directory.
+ * Directory replacement needs two renames on supported platforms, leaving a
+ * brief absent-path interval. Failed publication restores the previous tree;
+ * failed rollback retains its backup and reports where to recover it.
+ */
+function installDirectory(source: string, target: string, references: readonly string[]): void {
+    const parent = dirname(target);
+    mkdirSync(parent, { recursive: true, mode: 0o755 });
+    const workspace = mkdtempSync(join(parent, '.testrail-cli-install-'));
+    const staged = join(workspace, 'new');
+    const backup = join(workspace, 'previous');
+    let preserveBackup = false;
+    try {
+        const existing = lstatSync(target, { throwIfNoEntry: false });
+        if (existing === undefined) {
+            mkdirSync(staged, { mode: 0o755 });
+        } else {
+            // Preserve user-managed files without following their symlinks.
+            cpSync(target, staged, { recursive: true, dereference: false, verbatimSymlinks: true });
+        }
+        requireRealDirectory(staged);
+        if (references.length > 0) {
+            const referenceDir = join(staged, 'reference');
+            requireRealDirectory(referenceDir);
+            mkdirSync(referenceDir, { recursive: true, mode: 0o755 });
+            for (const name of references) {
+                installFile(join(dirname(source), 'reference', name), join(referenceDir, name));
+            }
+        }
+        installFile(source, join(staged, 'SKILL.md'));
+        if (existing !== undefined) renameSync(target, backup);
+        try {
+            renameSync(staged, target);
+        } catch (error: unknown) {
+            if (existing !== undefined) {
+                try {
+                    renameSync(backup, target);
+                } catch (rollbackError: unknown) {
+                    preserveBackup = true;
+                    throw new AggregateError(
+                        [error, rollbackError],
+                        `Installation rollback failed; previous skill retained at ${backup}`,
+                        { cause: rollbackError },
+                    );
+                }
+            }
+            throw error;
+        }
+    } finally {
+        if (!preserveBackup) {
+            try {
+                rmSync(workspace, { recursive: true, force: true });
+            } catch {
+                // Publication/rollback already settled. Cleanup must not turn a
+                // successfully installed tree into a reported failed update.
+            }
+        }
     }
 }
 

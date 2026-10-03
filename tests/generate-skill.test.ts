@@ -501,9 +501,10 @@ describe('replaceFrontmatterVersion', () => {
     const FRONTMATTER_SAMPLE = `---
 name: testrail-cli
 description: Some description
-version: 2.1.0
 license: MIT
-homepage: https://example.com
+metadata:
+  version: 2.1.0
+  homepage: https://example.com
 ---
 
 # body
@@ -553,5 +554,10 @@ Some body content.
         expect(() => {
             replaceFrontmatterVersion(content, '5.2.0');
         }).toThrow(/version/);
+    });
+
+    it('does not mistake other version fields for metadata.version', () => {
+        const content = '---\nname: testrail-cli\nversion: 2.1.0\nother:\n  version: 2.1.0\n---\n';
+        expect(() => replaceFrontmatterVersion(content, '5.2.0')).toThrow(/metadata.version/);
     });
 });

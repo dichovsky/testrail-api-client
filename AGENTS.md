@@ -85,15 +85,17 @@ try {
   `import { validateId } from '../validation.js';` then
   `validateId(id, "name")`. Plan-entry IDs use `validateEntryId`
   from the same module (SEC #29 UUID format).
-- **Write payloads validated by Zod** schemas in `src/schemas/*.ts`
-  (re-exported through the `src/schemas.ts` barrel).
+- **CLI write payloads validated by Zod** schemas in `src/schemas/*.ts`
+  (re-exported through the `src/schemas.ts` barrel). SDK payloads are
+  typed only; call the exported schema `.parse(input)` for dynamic data.
   `custom_*` fields pass through `.passthrough()` unchanged. No
   coercion: `"5"` is NOT silently converted to `5`.
 - **Caching**: GET responses cached in-process ~5 min. Any write
   invalidates the entire cache. `get*Page()` uses normal GET caching
   in a separate strict-schema namespace from legacy list reads;
   `getAll*()` bypasses cache reads, writes, and request coalescing so
-  a multi-page aggregate cannot mix snapshots.
+  a multi-page aggregate cannot mix snapshots. In-flight sharing requires
+  matching effective header/body timeouts; completed entries stay shared.
 - **Pagination**: 24 documented list endpoints expose an explicit
   trio. Existing `get*()` methods project one response to an item
   array; `get*Page()` preserves envelope metadata; `getAll*()` follows
@@ -207,7 +209,8 @@ deletes that support it; `--dry-run` is purely client-side.
 ## Build / verify commands
 
 ```bash
-npm test                       # Run all tests (Vitest)
+npm run verify                 # Build, static/drift checks, coverage, package smoke
+npm test                       # Vitest suite only (no implicit pre-hook)
 npm run test:coverage          # Coverage report
 npm run build                  # Compile to dist/
 npm run lint                   # ESLint
@@ -219,6 +222,8 @@ npm run skill                  # Regenerate skill/SKILL.md
 npm run agents-md              # Regenerate AGENTS.md
 ```
 
+Use `npm run verify` for complete local checks. `.npmrc` disables implicit
+pre/post hooks; `npm test` alone does not run static or generated checks.
 CI runs `*:check` variants for each generator; drift fails the build.
 After changing `src/cli/metadata/*.ts`, `src/schemas/*.ts`, or any
 module method JSDoc, regenerate all artifacts.

@@ -476,9 +476,9 @@ describe('CI package smoke wiring', () => {
 
     // The three OSes used to be three copy-pasted jobs; they are now one
     // matrix. What this test pins is the coverage, not the encoding: every
-    // supported OS is exercised on the one supported Node line, a failing leg
+    // supported OS is exercised on the tested Node baseline, a failing leg
     // cannot be masked, and branch protection still sees a stable check name.
-    it('covers the supported Node line on Linux, Windows, and macOS', () => {
+    it('covers the tested Node baseline on Linux, Windows, and macOS', () => {
         expect(workflow).toContain('package-smoke-matrix:');
         expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-14]');
         expect(workflow).toContain("node-version: ['24']");
@@ -488,7 +488,7 @@ describe('CI package smoke wiring', () => {
         expect(workflow).toContain('fail-fast: false');
         expect(workflow).toContain('run: npm run package:smoke');
         expect(workflow).toContain(
-            'run: npx vitest run tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts',
+            'run: npx vitest run tests/pinned-dispatcher.test.ts tests/report-execution-policy.test.ts tests/operation-settlement.test.ts tests/upload-settlement.test.ts tests/upload-cleanup-errors.test.ts',
         );
     });
 

@@ -25,12 +25,22 @@ remaining upstream documentation ambiguities.
 npm install @dichovsky/testrail-api-client
 ```
 
-Requires Node.js 24+.
+Requires Node.js 24+. CI verifies Node 24 across Linux, Windows, and macOS.
+Later Node majors satisfy the engine range but are not currently in the CI matrix.
 
 Published declarations are smoke-tested with TypeScript 6 and 7. The repository
 build and primary type-check use native TypeScript 7; compiler-API-based
 generators and typed lint tooling use the TypeScript 6 compatibility compiler
 until the native compiler exposes that API.
+
+## Repository verification
+
+After `npm ci`, run `npm run verify` to build, run both compiler checks,
+lint/format/generated-document checks, execute the coverage suite, and smoke-test
+the packed package. `npm test` runs only Vitest. The repository disables
+implicit npm lifecycle hooks, so verification is an explicit command.
+Additional release fuzz and registry audit gates are listed in
+[the release guide](https://github.com/dichovsky/testrail-api-client/blob/main/docs/RELEASING.md).
 
 ## 30-second example
 
@@ -102,7 +112,7 @@ For a literal value beginning with `--`, use the inline form, such as
 | Bounded pagination | Preserve page metadata or collect every page with explicit safety limits                                                 | [Pagination](#pagination)                                                                                                                             |
 | Rate limiting      | Sliding-window limiter (default 100 req/60s); rejects over-limit before fetch                                            | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
 | Retry with backoff | Exponential backoff with `Retry-After`; GET retries 5xx/429/network, JSON writes only 429, multipart uploads never retry | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
-| SSRF guard         | DNS validation per upstream fetch, private-host blocking, manual-redirect rejection                                      | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
+| SSRF guard         | Validated DNS addresses bound to each connection, private-host blocking, manual-redirect rejection                       | [docs/ARCHITECTURE.md §2.5](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)                |
 | Response-body caps | Byte ceiling + wall-clock deadline on every body read                                                                    | [docs/ARCHITECTURE.md §2.2](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#22-http-pipeline-requestt)                |
 | Streaming uploads  | Attachment uploads stream from disk, so large files don't buffer in heap                                                 | [docs/ARCHITECTURE.md §2.4](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#24-retry-policy-the-get--write-asymmetry) |
 | CLI                | `testrail` binary: read / write / destructive actions, four output formats                                               | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
@@ -136,27 +146,27 @@ const client = new TestRailClient({
 });
 ```
 
-| Option                    | Type                | Default            | Description                                          |
-| ------------------------- | ------------------- | ------------------ | ---------------------------------------------------- |
-| `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL; HTTP requires `allowInsecure`    |
-| `email`                   | `string`            | **required**       | TestRail user email (validated format)               |
-| `apiKey`                  | `string`            | **required**       | TestRail API key                                     |
-| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in ms (max 5 min); covers DNS    |
-| `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10 |
-| `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                      |
-| `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                   |
-| `cacheCleanupInterval`    | `number`            | `60000`            | Integer 0–2,147,483,647 ms; 0 disables cleanup       |
-| `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in cache                   |
-| `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window           |
-| `allowInsecure`           | `boolean`           | `false`            | Permit cleartext HTTP (credentials sent in Base64)   |
-| `allowPrivateHosts`       | `boolean`           | `false`            | Permit private/loopback/link-local hosts             |
-| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON/text response body cap (10 MiB; ceiling 1 GiB)  |
-| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Binary response body cap (100 MiB; ceiling 1 GiB)    |
-| `bodyTimeout`             | `number`            | `= timeout`        | Wall-clock deadline for the body read (0 disables)   |
-| `registerProcessHandlers` | `boolean`           | `false`            | Install `exit`/`SIGINT`/`SIGTERM` handlers (opt-in)  |
-| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Custom `fetch` implementation                        |
-| `dnsLookup`               | `function`          | system DNS         | Custom resolver for SSRF host validation             |
-| `onSchemaMismatch`        | `function`          | none (silent)      | Notified when a response does not match its schema   |
+| Option                    | Type                | Default            | Description                                            |
+| ------------------------- | ------------------- | ------------------ | ------------------------------------------------------ |
+| `baseUrl`                 | `string`            | **required**       | HTTPS TestRail URL; HTTP requires `allowInsecure`      |
+| `email`                   | `string`            | **required**       | TestRail user email (validated format)                 |
+| `apiKey`                  | `string`            | **required**       | TestRail API key                                       |
+| `timeout`                 | `number`            | `30000`            | Per-attempt timeout in ms (max 5 min); covers DNS      |
+| `maxRetries`              | `number`            | `3`                | Max retry attempts for failed requests; integer 0-10   |
+| `enableCache`             | `boolean`           | `true`             | Enable caching for GET requests                        |
+| `cacheTtl`                | `number`            | `300000`           | Cache time-to-live in milliseconds                     |
+| `cacheCleanupInterval`    | `number`            | `60000`            | Integer 0–2,147,483,647 ms; 0 disables cleanup         |
+| `maxCacheSize`            | `number`            | `1000`             | Maximum number of entries in cache                     |
+| `rateLimiter`             | `RateLimiterConfig` | 100 / 60s          | `{ maxRequests, windowMs }` sliding window             |
+| `allowInsecure`           | `boolean`           | `false`            | Permit cleartext HTTP (credentials sent in Base64)     |
+| `allowPrivateHosts`       | `boolean`           | `false`            | Permit private/loopback/link-local hosts               |
+| `maxJsonResponseBytes`    | `number`            | `10485760`         | JSON/text response body cap (10 MiB; ceiling 1 GiB)    |
+| `maxBinaryResponseBytes`  | `number`            | `104857600`        | Binary response body cap (100 MiB; ceiling 1 GiB)      |
+| `bodyTimeout`             | `number`            | `= timeout`        | Wall-clock deadline for the body read (0 disables)     |
+| `registerProcessHandlers` | `boolean`           | `false`            | Install `exit`/`SIGINT`/`SIGTERM` handlers (opt-in)    |
+| `fetch`                   | `typeof fetch`      | `globalThis.fetch` | Trusted transport; honor the supplied dispatcher       |
+| `dnsLookup`               | `function`          | system DNS         | Custom resolver for SSRF checks and connection pinning |
+| `onSchemaMismatch`        | `function`          | none (silent)      | Notified when a response does not match its schema     |
 
 Library consumers should leave `registerProcessHandlers` off and call `client.destroy()` from their own shutdown hook. The `testrail` CLI opts in on your behalf.
 
@@ -208,10 +218,17 @@ rejects the request before execution.
 By default, the host guard rejects private, loopback, link-local, and CGNAT
 addresses, including IPv4-mapped IPv6 spellings, plus IPv6 transition ranges
 such as 6to4 and the well-known and local-use NAT64 prefixes. Literal URLs and
-DNS answers use the same address classifier. On-premise SDK deployments that
+DNS answers use the same address classifier. The default transport connects directly to
+the validated addresses without a second DNS lookup, preserving the original
+hostname for TLS certificate checks and SNI. Injected `fetch` implementations
+are trusted: they must honor the supplied Node dispatcher or enforce equivalent
+destination checks, abort signals, and manual redirects. On-premise SDK deployments that
 need these addresses must explicitly set `allowPrivateHosts: true`; this also
-disables DNS host validation. See the [host guard details](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)
+disables DNS host validation and connection pinning. See the [host guard details](https://github.com/dichovsky/testrail-api-client/blob/main/docs/ARCHITECTURE.md#25-ssrf-guard--two-layers)
 for the exact ranges.
+
+Concurrent GETs share an in-flight request only when their effective header
+and body timeouts match. Timeout views still share completed cached responses.
 
 ## Pagination
 
