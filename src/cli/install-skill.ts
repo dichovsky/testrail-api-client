@@ -1,7 +1,7 @@
 /**
- * `testrail install-skill` — copy the bundled SKILL.md from this package's
- * own `skill/` directory into a Claude Code skills folder so the agent can
- * auto-load it.
+ * `testrail install-skill` — copy the bundled SKILL.md and the `reference/`
+ * files it links to from this package's own `skill/` directory into a Claude
+ * Code skills folder so the agent can auto-load it.
  *
  * Defaults: project-scoped install (`./.claude/skills/testrail-cli/`).
  * Pass `--global` for `~/.claude/skills/testrail-cli/`. Pass `--force` to

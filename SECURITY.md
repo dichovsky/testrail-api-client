@@ -7,8 +7,8 @@ long-term support branches.
 
 | Version | Supported |
 | ------- | --------- |
-| 8.x     | Yes       |
-| < 8.0   | No        |
+| 9.x     | Yes       |
+| < 9.0   | No        |
 
 ## Reporting a vulnerability
 

@@ -86,8 +86,12 @@ try {
   `validateId(id, "name")`. Plan-entry IDs use `validateEntryId`
   from the same module (SEC #29 UUID format).
 - **CLI write payloads validated by Zod** schemas in `src/schemas/*.ts`
-  (re-exported through the `src/schemas.ts` barrel). SDK payloads are
-  typed only; call the exported schema `.parse(input)` for dynamic data.
+  (re-exported through the `src/schemas.ts` barrel).
+  The SDK types its payload parameters from the same schemas but
+  forwards them without runtime validation, so a rule the types cannot
+  express (a new result needs one of `status_id`, `comment` or
+  `assignedto_id`) is enforced only by the CLI.
+  Call the exported schema `.parse(input)` for dynamic SDK data.
   `custom_*` fields pass through `.passthrough()` unchanged. No
   coercion: `"5"` is NOT silently converted to `5`.
 - **Caching**: GET responses cached in-process ~5 min. Any write
@@ -189,15 +193,17 @@ deletes that support it; `--dry-run` is purely client-side.
 - Call `request()` without ID validation.
 - Pass the API key on argv (`--api-key` was removed in v3.0).
 - Skip either `npm run typecheck` or `npm run typecheck:ts6` before committing.
-- Hand-edit `CODEMAP.md`, `docs/API-MAPPING.md`, `skill/SKILL.md`
-  generated sections, or `AGENTS.md`
+- Hand-edit `CODEMAP.md`, `docs/API-MAPPING.md`, the generated
+  sections of `skill/SKILL.md` and `skill/reference/commands.md`,
+  `skill/reference/payload-schemas.yaml`, or `AGENTS.md`
   — they are all generated. Re-run the matching `npm run` script
   after editing the source.
 
 ## See also
 
 - `CLAUDE.md` — full architecture context (Claude Code instructions)
-- `skill/SKILL.md` — Claude Code skill: command surface, recipes, and
+- `skill/SKILL.md` — Claude Code skill body; its `skill/reference/`
+  files hold the command surface, recipes, payload schemas, and
   programmatic TypeScript API examples
 - `CODEMAP.md` — every public method, type, error class, and constant
   with file:line links (auto-generated)
@@ -218,7 +224,7 @@ npm run typecheck              # Native TypeScript 7 check
 npm run typecheck:ts6          # TypeScript 6 compatibility check
 npm run codemap                # Regenerate CODEMAP.md
 npm run mapping                # Regenerate docs/API-MAPPING.md
-npm run skill                  # Regenerate skill/SKILL.md
+npm run skill                  # Regenerate skill/SKILL.md + reference/
 npm run agents-md              # Regenerate AGENTS.md
 ```
 

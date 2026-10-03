@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -14,6 +14,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > were realigned with what npm actually shipped.
 
 ## [Unreleased]
+
+## [9.0.0] — 2026-10-04 — pinned connections, comment-only results, and a split skill
+
+This major changes default transport and DNS behavior, forced download targets,
+and the exported add-result payload types and schemas. Default connections are
+pinned to validated DNS answers and connect directly; deployments that use a
+global proxy or custom agent need the migration below. Other changes include
+comment-only results, resource-scoped help, bounded DNS resolution, and a
+self-contained installed skill with on-demand references.
+
+The release includes #295–#307 and #309, plus the documentation and help
+corrections in the release PR (#308).
 
 ### Changed — BREAKING
 
@@ -26,18 +38,18 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   need an explicitly injected transport plus proxy-side destination enforcement;
   replacing the dispatcher loses the client's connection pinning. See the
   [proxy migration](README.md#proxies-and-custom-certificate-authorities).
-  Disabling the private-host guard is not a safe proxy migration.
+  Disabling the private-host guard is not a safe proxy migration. (#309)
 - **Custom DNS answers require a matching numeric family.** `dnsLookup` answers
   with a missing `family`, `family: 0`, a non-IP address, or a family that does
   not match the IP literal now fail closed. Return `{ address, family: 4 }` for
   IPv4 and `{ address, family: 6 }` for IPv6; `dns.lookup(hostname, { all: true })`
   already supplies the correct shape. Valid public addresses no longer make an
-  incomplete answer acceptable. See [resolver migration](README.md#custom-dns-resolvers).
+  incomplete answer acceptable. See [resolver migration](README.md#custom-dns-resolvers). (#309)
 - **Forced download destinations must be regular files.** Attachment and BDD
   `--out <path> --force` now reject devices such as `/dev/null`, as well as
   symlinks and FIFOs, before truncation. To discard a payload, use
   `testrail attachment get <id> --out - > /dev/null`; the acknowledgement remains
-  on stderr. The same stdout pattern applies to `bdd get`.
+  on stderr. The same stdout pattern applies to `bdd get`. (#309)
 
 - **A result no longer needs a `status_id`; it needs at least one of
   `status_id`, `comment` or `assignedto_id`.** TestRail's
@@ -70,50 +82,67 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       enforced where the schemas are parsed (the CLI `--data` path), so a typed
       `{}` now compiles and reaches TestRail.
 
-### Security
+### Added
 
-- Default fetch connections now use the exact DNS answers accepted by the
-  private-host guard, preserving the original hostname for Host, SNI, and TLS
-  certificate checks. Malformed DNS answers fail closed. The transport uses
-  direct connections; injected fetch/proxy implementations must honor the
-  supplied dispatcher or enforce equivalent destination checks themselves.
-- Forced CLI downloads validate an opened file descriptor before truncation,
-  preventing a replaced symlink from redirecting writes. File inputs reject
-  FIFOs without blocking while opening them.
+- **`testrail <resource> --help` prints only that resource's actions.** Every
+  `--help` printed the full listing of all 134 commands, whichever resource was
+  named. A known resource before `--help` (`testrail case --help`, or
+  `testrail case get --help`) now scopes it to that resource. An unknown name
+  falls back to the full listing, which gains a
+  resource index so the scoped form is discoverable. `attachment` and `bdd`
+  help keep their file-I/O actions. (#299)
+
+### Changed
+
+- **The bundled skill is a short body plus on-demand reference files.**
+  `skill/SKILL.md` carried every command, option and recipe — 4,179 lines and
+  162 KB loaded whenever the skill fired. The body now keeps what an agent needs
+  before acting (when to use it, auth, body input, the destructive gates, output
+  and pagination policy, errors, limits, SDK fallback) in fewer than 500 lines, and
+  indexes the files under `skill/reference/` to read only when a task needs
+  them: `commands.md` (command table and option reference), `recipes.md` (the
+  numbered recipes), `typescript-api.md` (SDK fallback) and the existing
+  `payload-schemas.yaml`. The installed references are self-contained; repository
+  development guidance stays in the repository. A skill installed by an earlier
+  version keeps its old single-file content until reinstalled; run
+  `npx testrail install-skill --force` (add `--global` if that is where it
+  lives — the existing `SKILL.md` blocks a plain install). Tooling that reads
+  `skill/SKILL.md` from the package directly must follow its `./reference/*`
+  links for the command table and recipes. (#304)
 
 ### Fixed
 
 - The pinned transport supports native fetch's legacy Node 24 and modern
   Node 26 handler contracts, including response backpressure and cancellation.
   Reordered or duplicate DNS answers reuse the same approved socket pool;
-  connection lookup preserves resolver order and honors the requested IP family.
+  connection lookup preserves resolver order and honors the requested IP family. (#309)
 - Concurrent timeout views no longer inherit another caller's header/body
-  deadline through in-flight coalescing; completed cached responses remain shared.
+  deadline through in-flight coalescing; completed cached responses remain shared. (#309)
 - Fragmented response bodies drain iteratively without retaining one pending
-  promise chain per chunk.
+  promise chain per chunk. (#309)
 - Enriched test reads normalize nullish result/attachment collections even
-  when unrelated entity fields trigger advisory schema warnings.
+  when unrelated entity fields trigger advisory schema warnings. (#309)
 - Early-rejected multipart uploads require transport evidence before closing
   owned streams normally. The pinned dispatcher and native request diagnostics
   establish when transmission has stopped, preventing unhandled encoder errors
   and stuck settlement while still waiting for source cancellation. Matched
   HTTP/2 cleanup stops only the upload stream, preserving the shared session.
   Unknown custom transports retain erroring cleanup so an ignored abort cannot
-  turn an incomplete upload into a valid truncated file.
+  turn an incomplete upload into a valid truncated file. (#309)
 - Multipart transport observation now enters an async context even without
   `trackOperation`. Processes that neither track operations nor upload continue
-  to avoid the library's process-wide context-propagation cost.
+  to avoid the library's process-wide context-propagation cost. (#309)
 - Skill installation protects all bundled files from unforced overwrites,
-  stages the complete tree, and restores the previous installation on failure.
+  stages the complete tree, and restores the previous installation on failure. (#309)
 - Skill guidance now accurately distinguishes CLI runtime payload validation
-  from SDK compile-time types and shows explicit validation for dynamic input.
+  from SDK compile-time types and shows explicit validation for dynamic input. (#309)
 
 - **Aggregate pagination deadlines retain `max_duration` when a timer fires
   before the wall clock reaches its deadline.** The transport records whether
   the aggregate owns an attempt's timeout, including equal deadlines, so DNS
   and fetch aborts consistently surface `TestRailPaginationError` rather than
   a plain 408. A tighter request timeout keeps its existing error, and late
-  DNS work remains tracked until it settles.
+  DNS work remains tracked until it settles. (#307)
 
 - **`user add` / `user update` accept every address `user get-by-email` can
   look up.** `UserAddPayloadSchema` and `UserUpdatePayloadSchema` checked
@@ -129,21 +158,111 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `Invalid email address`, and schema introspection sees a `regex` check
   where it saw the `email` format.
 
+- **`timeout` now bounds DNS resolution.** The per-attempt timer started only
+  after the host guard's `dns.lookup` had resolved, and `getaddrinfo` has no
+  deadline of its own, so a resolver that dropped packets kept a request
+  pending indefinitely while holding one of libuv's four default threadpool
+  slots — starving unrelated fs/crypto work in the host process. The timer now
+  starts first and the lookup races it. **Compatibility:** a short `timeout`
+  against a slow resolver can now fail with `TestRailApiError(408)` before any
+  request is sent. The lookup itself cannot be cancelled, so a
+  `trackOperation()` handle's `settled` still waits for it to finish. The
+  `TestRailConfig.timeout` JSDoc that ships in `dist/types.d.ts` and the
+  `--timeout` help text now say that DNS is inside the allowance. (#296, #302,
+  #303)
+- **A custom `fetch` that rejects with a non-`Error` reason now surfaces as
+  `TestRailApiError`.** `TestRailConfig.fetch` is public, so its rejection
+  reason can be anything. Reading `.name` off a `null` or `undefined` reason
+  threw a `TypeError` out of the pipeline's own error handling, replacing the
+  `TestRailApiError` the caller was entitled to, and a string reason rendered
+  as `Network error: undefined`. Reasons are normalized once. (#296)
+- **The `User-Agent` header is one product token,
+  `testrail-api-client/<version>`.** It was built from the package description —
+  `Type-safe ESM TestRail API client and CLI for Node.js/8.0.0` — whose spaces
+  make it read as several products, which strict proxies and WAFs can mangle or
+  reject. The npm scope is dropped as well, because `@` and `/` are not token
+  characters under RFC 7230 §3.2.6. Server-side rules or log queries that
+  matched the old string need updating. (#296)
+- **The published `dist/` no longer references source maps it does not ship.**
+  The production build emitted maps and a later step deleted them, leaving a
+  `//# sourceMappingURL=` comment in every emitted `.js` and `.d.ts` — 332
+  files pointing at nothing, so editors' "go to definition" and debuggers
+  chased a missing file. The production config no longer emits maps, the
+  `clean:maps` script is gone, and the package smoke test fails on any
+  dangling reference. (#297)
+- **`testrail install-skill` installs the skill's reference files, not just
+  `SKILL.md`.** The installed body pointed at
+  `./reference/payload-schemas.yaml` throughout, but only the body was copied,
+  so every installed skill told the agent the detail existed and then could not
+  produce it. The bundled `reference/` directory is now installed beside the
+  body in a staged installation that rolls back on publication failure,
+  and a symlink at the installed `reference/` is refused rather than written
+  through. `uninstall-skill` removes only the reference files this package
+  bundles — files you added there are kept — and does not follow a symlink
+  planted at `reference/`. (#301, #309)
+
+### Security
+
+- Default fetch connections now use the exact DNS answers accepted by the
+  private-host guard, preserving the original hostname for Host, SNI, and TLS
+  certificate checks. Malformed DNS answers fail closed. The transport uses
+  direct connections; injected fetch/proxy implementations must honor the
+  supplied dispatcher or enforce equivalent destination checks themselves. (#309)
+- Forced CLI downloads validate an opened file descriptor before truncation,
+  preventing a replaced symlink from redirecting writes. File inputs reject
+  FIFOs without blocking while opening them. (#309)
+
+- **The host guard blocks three more non-routable IPv4 ranges:**
+  `198.18.0.0/15` (RFC 2544 benchmarking, routed inside some enterprise
+  networks), `224.0.0.0/4` (multicast) and `240.0.0.0/4` (reserved, covering
+  the `255.255.255.255` broadcast address). Like the existing ranges they apply
+  to IP-literal base URLs at construction and to every DNS answer before a
+  fetch, in IPv4-mapped IPv6 spellings too. A TestRail host that resolves into
+  one of them now needs `allowPrivateHosts: true`. (#296)
+
 ### Internal
 
+- `brace-expansion` moves from 5.0.9 to 5.0.12 in the lockfile for three DoS
+  advisories (GHSA-6j4f-fj2g-mc7p, GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7),
+  which had failed the required `security-audit` check. It is reached only
+  through the dev toolchain (`eslint` → `minimatch`), so the published package
+  and its one runtime dependency are unchanged. The lockfile's root `engines`
+  field now also records `>=24`. (#306)
+- CI declares least-privilege `permissions` (`contents: read`), cancels
+  superseded runs per ref (never on `main`), no longer runs every job twice for
+  a pushed pull-request branch, checks out with `persist-credentials: false`,
+  and runs package smoke as one OS matrix behind the same stable
+  `package-smoke` gate. (#298)
+- Added `SECURITY.md` (private vulnerability reporting, what is and is not in
+  scope) and `CONTRIBUTING.md` (the gates to run, the generated files, the
+  layer-coverage rule, and response-schema policy). `CLAUDE.md` no longer
+  mirrors `src/constants.ts` values by hand. (#300)
+- Two type-checked examples: `examples/publish-ci-results.ts` (one bulk
+  `add_results_for_cases` write, closing the run only once results have landed,
+  and no blind retry of an indeterminate write) and
+  `examples/bounded-pagination.ts` (`get*()` versus `get*Page()` versus
+  `getAll*()`, branching on `TestRailPaginationError.reason`). README now notes
+  that a cache hit deep-copies its entry and that `maxCacheSize` bounds entry
+  count, not memory. (#304)
+- `docs/RELEASING.md` describes the `npm-publish` deployment approval again.
+  The environment does have a required reviewer, so the 8.0.0 entry's Internal
+  note that publishing proceeds unattended was wrong; that entry is left as
+  shipped apart from a `RequestSpec` bullet now also listed under its BREAKING
+  section. The guide also records that the single reviewer may approve their
+  own deployment — a deliberate pause, not review. (#295)
 - `npm run verify` explicitly builds and runs static checks, generated-document
   checks, coverage, and packed-package smoke tests despite disabled lifecycle
   hooks. The build uses the same portable Node entry point locally and in CI,
-  retaining bounded removal retries for transient Windows file locks.
+  retaining bounded removal retries for transient Windows file locks. (#309)
 - The installed skill uses portable metadata, self-contained references, and a
   body below 500 lines. CI exercises Node 24 and 26 on Linux, Windows, and macOS;
-  other Node majors allowed by the Node 24+ engine range are not in the matrix.
+  other Node majors allowed by the Node 24+ engine range are not in the matrix. (#309)
 
 - Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
   `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,
   `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The lockfile
   keeps `brace-expansion` `5.0.12` from the dependency security update. The
-  runtime dependency remains Zod `4.6.5`.
+  runtime dependency remains Zod `4.6.5`. (#307)
 
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 

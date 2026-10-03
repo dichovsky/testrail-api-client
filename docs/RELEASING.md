@@ -30,7 +30,7 @@ required.
    an empty `Unreleased` section. Include compatibility notes, security fixes,
    and operational changes. Keep the npm release-history list aligned with
    the release being prepared and confirm publication before considering it final.
-   The pending DNS-pinning release must explicitly list its global proxy/custom
+   The 9.0.0 DNS-pinning release must explicitly list its global proxy/custom
    agent bypass, strict `dnsLookup` address-family contract, and regular-file-only
    forced output destinations as breaking changes. Link the
    [proxy and CA migration](../README.md#proxies-and-custom-certificate-authorities),
@@ -110,8 +110,10 @@ If other changes land before the merge, reassess the release contents and gates.
     ```
 
     A non-empty array names the environment and its reviewers; the job stays
-    `waiting` until one of them approves. An empty array means it published
-    unattended. On the 8.0.0 release this returned
+    `waiting` until one of them approves. An empty array only means no deployment
+    is currently awaiting approval: verification may still be running, the gate
+    may already be approved, or the run may have failed. Check the job status
+    and registry state before concluding that publication happened. On the 8.0.0 release this returned
     `[{"environment":{"name":"npm-publish"},"reviewers":["dichovsky"]}]` and the
     run held until approved in the GitHub UI.
 

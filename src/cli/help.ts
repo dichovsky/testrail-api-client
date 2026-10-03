@@ -208,10 +208,12 @@ const META_BLOCK = `Meta:
                                     ./.claude/skills/testrail-cli (default)
                                     or ~/.claude/skills/testrail-cli (--global)
   uninstall-skill [--global]        Remove a previously-installed testrail-cli
-                                    skill. ONLY removes the skill file (and
-                                    its empty parent dir); does NOT touch
-                                    .continue/rules/testrail.md or AGENTS.md
-                                    (separate lifecycle — remove manually).`;
+                                    skill: SKILL.md and the reference files
+                                    this package bundles, then their dirs if
+                                    empty. Keeps files you added there; does
+                                    NOT touch .continue/rules/testrail.md or
+                                    AGENTS.md (separate lifecycle — remove
+                                    manually).`;
 
 const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other processes):
   TESTRAIL_BASE_URL / --base-url <url>
