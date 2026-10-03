@@ -88,6 +88,13 @@ now points at.
 
 ### Fixed
 
+- **Aggregate pagination deadlines retain `max_duration` when a timer fires
+  before the wall clock reaches its deadline.** The transport records whether
+  the aggregate owns an attempt's timeout, including equal deadlines, so DNS
+  and fetch aborts consistently surface `TestRailPaginationError` rather than
+  a plain 408. A tighter request timeout keeps its existing error, and late
+  DNS work remains tracked until it settles. (#307)
+
 - **`user add` / `user update` accept every address `user get-by-email` can
   look up.** `UserAddPayloadSchema` and `UserUpdatePayloadSchema` checked
   `email` with `z.string().email()`, which refuses the single-label and
@@ -185,6 +192,11 @@ now points at.
   shipped apart from a `RequestSpec` bullet now also listed under its BREAKING
   section. The guide also records that the single reviewer may approve their
   own deployment — a deliberate pause, not review. (#295)
+- Dev toolchain updated: `vitest`/`@vitest/coverage-v8` `5.0.3`, `eslint`
+  `10.12.0`, `@typescript-eslint/*` `8.71.0`, `@types/node` `26.6.4`,
+  `fast-check` `4.10.2`, `prettier` `3.9.9`, `tsx` `4.23.15`. The lockfile
+  keeps `brace-expansion` `5.0.12` from the dependency security update. The
+  runtime dependency remains Zod `4.6.5`. (#307)
 
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 
