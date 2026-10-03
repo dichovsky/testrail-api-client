@@ -1,21 +1,26 @@
 #!/usr/bin/env tsx
 /**
- * Regenerates the machine-generated sections of skill/SKILL.md from
- * src/cli/metadata.ts (the ACTIONS array) and the referenced Zod
- * schemas in src/schemas.ts.
+ * Regenerates the machine-generated parts of the bundled skill from
+ * src/cli/metadata.ts (the ACTIONS array), the CLI option registry, and the
+ * referenced Zod schemas in src/schemas.ts.
  *
- * Sentinel-delimited regions in SKILL.md that get rewritten:
+ * Sentinel-delimited regions that get rewritten:
  *
+ *   skill/reference/commands.md
  *   <!-- GENERATED:command-table -->   …rendered table of resource:action
  *   <!-- /GENERATED:command-table -->
  *
  *   <!-- GENERATED:option-reference --> …every parser-recognized CLI option
  *   <!-- /GENERATED:option-reference -->
  *
- *   <!-- GENERATED:payload-schemas --> …per-schema field listing
+ *   skill/SKILL.md
+ *   <!-- GENERATED:payload-schemas --> …compact per-schema index
  *   <!-- /GENERATED:payload-schemas -->
  *
- * Hand-written sections (frontmatter, recipes, prose) are preserved.
+ * plus the SKILL.md frontmatter `version` and the whole of
+ * skill/reference/payload-schemas.yaml. Hand-written sections (the rest of
+ * the frontmatter, prose, and skill/reference/recipes.md and
+ * typescript-api.md entirely) are preserved.
  *
  * `tsx` loads the TypeScript sources directly, so check mode never depends on
  * a potentially stale dist/ build. `--check` renders everything in memory and

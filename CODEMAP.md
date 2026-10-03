@@ -9,9 +9,9 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
   "schema": "codemap.v2",
   "repo": {
     "name": "@dichovsky/testrail-api-client",
-    "version": "8.0.0"
+    "version": "9.0.0"
   },
-  "sourceHash": "dd7cd1c0a8b59cd5b83231f2987a57407009e0706a93356287914eb211fa3685",
+  "sourceHash": "5054551c039d9997aa975ff7670bbfa7616d77b80fd3a1caaa838bd220c5fda1",
   "entrypoints": [
     "src/index.ts",
     "src/cli.ts"
@@ -2904,91 +2904,91 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "KNOWN_FLAGS",
           "kind": "const",
-          "line": 461,
+          "line": 465,
           "exported": true,
           "signature": "export const KNOWN_FLAGS: ReadonlySet<string> = new Set(Object.keys(FLAG_CATALOG))"
         },
         {
           "name": "isCliFlagName",
           "kind": "function",
-          "line": 463,
+          "line": 467,
           "exported": true,
           "signature": "export function isCliFlagName(value: string): value is CliFlagName"
         },
         {
           "name": "CliFlagTypeValidationResult",
           "kind": "type",
-          "line": 467,
+          "line": 471,
           "exported": true,
           "signature": "export type CliFlagTypeValidationResult = { readonly ok: true } | { readonly ok: false; readonly error: string }"
         },
         {
           "name": "SuppliedFlagOccurrence",
           "kind": "interface",
-          "line": 477,
+          "line": 481,
           "exported": true,
           "signature": "export interface SuppliedFlagOccurrence { readonly name: string; readonly value?: string | undefined; readonly inlineValue?: boolean | undefined; }"
         },
         {
           "name": "ParsedCliArgv",
           "kind": "interface",
-          "line": 485,
+          "line": 489,
           "exported": true,
           "signature": "export interface ParsedCliArgv { readonly values: Record<string, unknown>; readonly positionals: string[]; readonly suppliedFlags: string[]; readonly flagOccurrences: SuppliedFlagOccurrence[]; }"
         },
         {
           "name": "parseCliArgv",
           "kind": "function",
-          "line": 499,
+          "line": 503,
           "exported": true,
           "signature": "export function parseCliArgv(args: readonly string[]): ParsedCliArgv"
         },
         {
           "name": "looksLikeFlag",
           "kind": "function",
-          "line": 530,
+          "line": 534,
           "exported": false,
           "signature": "function looksLikeFlag(value: string): boolean"
         },
         {
           "name": "validateSuppliedFlagTypes",
           "kind": "function",
-          "line": 556,
+          "line": 560,
           "exported": true,
           "signature": "export function validateSuppliedFlagTypes(occurrences: readonly SuppliedFlagOccurrence[]): CliFlagTypeValidationResult"
         },
         {
           "name": "getCliFlagUsage",
           "kind": "function",
-          "line": 584,
+          "line": 588,
           "exported": true,
           "signature": "export function getCliFlagUsage(name: CliFlagName): string"
         },
         {
           "name": "getGlobalActionFlags",
           "kind": "function",
-          "line": 590,
+          "line": 594,
           "exported": true,
           "signature": "export function getGlobalActionFlags(): readonly CliFlagName[]"
         },
         {
           "name": "getCapabilityFlags",
           "kind": "function",
-          "line": 594,
+          "line": 598,
           "exported": true,
           "signature": "export function getCapabilityFlags(capability: ActionCapability): readonly CliFlagName[]"
         },
         {
           "name": "projectHandlerArgs",
           "kind": "function",
-          "line": 602,
+          "line": 606,
           "exported": true,
           "signature": "export function projectHandlerArgs( values: Readonly<Record<string, unknown>>, pathParams: readonly string[], ): CliHandlerArgs"
         },
         {
           "name": "projectPaginationArgs",
           "kind": "function",
-          "line": 620,
+          "line": 624,
           "exported": true,
           "signature": "export function projectPaginationArgs(values: Readonly<Record<string, unknown>>): RawCliPaginationArgs"
         }
@@ -4736,119 +4736,119 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "AUTH_BLOCK",
           "kind": "const",
-          "line": 216,
+          "line": 218,
           "exported": false,
           "signature": "const AUTH_BLOCK = `Auth (env var preferred — argv is visible to other processes):\n  TESTRAIL_BASE_URL / --base-url <url>\n  TESTRAIL_EMAIL    / --email <email>\n  TESTRAIL_API_KEY  (recommended) | echo…"
         },
         {
           "name": "optionUsage",
           "kind": "function",
-          "line": 234,
+          "line": 236,
           "exported": false,
           "signature": "function optionUsage(name: CliOptionName, documentation: CliOptionDocumentationEntry): string"
         },
         {
           "name": "renderOptionsBlock",
           "kind": "function",
-          "line": 239,
+          "line": 241,
           "exported": true,
           "signature": "export function renderOptionsBlock(): string"
         },
         {
           "name": "actionNames",
           "kind": "function",
-          "line": 250,
+          "line": 252,
           "exported": false,
           "signature": "function actionNames(predicate: (spec: ActionSpec) => boolean): string"
         },
         {
           "name": "DESTRUCTIVE_ACTIONS",
           "kind": "const",
-          "line": 256,
+          "line": 258,
           "exported": false,
           "signature": "const DESTRUCTIVE_ACTIONS = actionNames((spec) => spec.destructive === true)"
         },
         {
           "name": "SOFT_OPTIONAL_ACTIONS",
           "kind": "const",
-          "line": 257,
+          "line": 259,
           "exported": false,
           "signature": "const SOFT_OPTIONAL_ACTIONS = actionNames((spec) => spec.destructive === true && spec.softMode === 'optional')"
         },
         {
           "name": "SOFT_REJECTED_ACTIONS",
           "kind": "const",
-          "line": 258,
+          "line": 260,
           "exported": false,
           "signature": "const SOFT_REJECTED_ACTIONS = actionNames( (spec) => spec.destructive === true && (spec.softMode ?? 'reject') === 'reject', )"
         },
         {
           "name": "NO_BODY_WRITES",
           "kind": "const",
-          "line": 261,
+          "line": 263,
           "exported": false,
           "signature": "const NO_BODY_WRITES = actionNames((spec) => spec.isWrite && spec.bodySchema === undefined && spec.fileInput !== true)"
         },
         {
           "name": "SEMANTICS_BLOCK",
           "kind": "const",
-          "line": 263,
+          "line": 265,
           "exported": false,
           "signature": "const SEMANTICS_BLOCK = `For body-bearing write actions, exactly one body source is required\n(--data | --data-file | stdin). Stdin is auto-detected when input is piped\n(process.stdin.isTTY !== true) a…"
         },
         {
           "name": "HEADER",
           "kind": "const",
-          "line": 285,
+          "line": 287,
           "exported": false,
           "signature": "const HEADER = 'testrail <resource> <action> [args] [options]'"
         },
         {
           "name": "RESOURCE_LINE_WIDTH",
           "kind": "const",
-          "line": 287,
+          "line": 289,
           "exported": false,
           "signature": "const RESOURCE_LINE_WIDTH = 74"
         },
         {
           "name": "resourceNames",
           "kind": "function",
-          "line": 290,
+          "line": 292,
           "exported": false,
           "signature": "function resourceNames(): readonly string[]"
         },
         {
           "name": "isKnownResource",
           "kind": "function",
-          "line": 295,
+          "line": 297,
           "exported": true,
           "signature": "export function isKnownResource(resource: string): boolean"
         },
         {
           "name": "wrapIndented",
           "kind": "function",
-          "line": 313,
+          "line": 315,
           "exported": true,
           "signature": "export function wrapIndented(words: readonly string[]): string"
         },
         {
           "name": "renderResourcesBlock",
           "kind": "function",
-          "line": 334,
+          "line": 336,
           "exported": false,
           "signature": "function renderResourcesBlock(): string"
         },
         {
           "name": "buildResourceHelpText",
           "kind": "function",
-          "line": 353,
+          "line": 355,
           "exported": true,
           "signature": "export function buildResourceHelpText(resource: string): string"
         },
         {
           "name": "buildHelpText",
           "kind": "function",
-          "line": 368,
+          "line": 370,
           "exported": true,
           "signature": "export function buildHelpText(): string"
         }
@@ -6572,28 +6572,28 @@ Schema: `codemap.v2`. Determinism: no timestamps; staleness is detected via `sou
         {
           "name": "UninstallSkillOptions",
           "kind": "interface",
-          "line": 43,
+          "line": 44,
           "exported": true,
           "signature": "export interface UninstallSkillOptions { global: boolean; output: Pick<Output, 'outRaw' | 'err'>; cwdOverride?: string; homeOverride?: string; }"
         },
         {
           "name": "bundledReferenceNames",
           "kind": "function",
-          "line": 72,
+          "line": 73,
           "exported": false,
           "signature": "function bundledReferenceNames(): readonly string[]"
         },
         {
           "name": "getInstallTarget",
           "kind": "function",
-          "line": 84,
+          "line": 85,
           "exported": true,
           "signature": "export function getInstallTarget(opts: Pick<UninstallSkillOptions, 'global' | 'cwdOverride' | 'homeOverride'>): string"
         },
         {
           "name": "runUninstallSkill",
           "kind": "function",
-          "line": 89,
+          "line": 90,
           "exported": true,
           "signature": "export function runUninstallSkill(opts: UninstallSkillOptions): number"
         }

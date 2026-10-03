@@ -5,7 +5,7 @@ All notable changes to `@dichovsky/testrail-api-client` are documented here.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`.
+> **Published to npm:** `1.0.0`, `2.1.0`, `4.0.0`, `4.1.0`, `5.0.0`, `5.0.1`, `5.0.2`, `5.1.0`, `5.2.0`, `5.2.1`, `5.3.0`, `6.0.0`, `7.0.0`, `7.1.0`, `7.2.0`, `8.0.0`, `9.0.0`.
 > Other version headers in this file (`2.0.0`/`2.2.0` and the `3.x` line) were internal
 > or unreleased and never reached the registry. The `5.0.0` entry below collapses a
 > large body of unreleased work — previously carried on `main` as `5.0.0` through
@@ -14,6 +14,17 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > were realigned with what npm actually shipped.
 
 ## [Unreleased]
+
+## [9.0.0] — 2026-10-03 — comment-only results, DNS-bounded timeouts, and a split skill
+
+A major because the add-result payload types make `status_id` optional and the
+three add-result schemas gain a refinement — a compile-time and
+schema-composition break for typed and schema-deriving callers. At runtime
+nothing previously accepted is refused. The rest is what a consumer notices
+without changing code: `timeout` now bounds DNS, the User-Agent is a single
+product token, the published `dist/` stops pointing at source maps it does not
+ship, and `install-skill` installs the reference files the slimmer skill body
+now points at.
 
 ### Changed — BREAKING
 
@@ -48,6 +59,33 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
       enforced where the schemas are parsed (the CLI `--data` path), so a typed
       `{}` now compiles and reaches TestRail.
 
+### Added
+
+- **`testrail <resource> --help` prints only that resource's actions.** Every
+  `--help` printed the full listing of all 134 commands, whichever resource was
+  named. A known resource before `--help` (`testrail case --help`, or
+  `testrail case get --help`) now scopes it — for `case`, 31 lines instead of
+  the full 411. An unknown name falls back to the full listing, which gains a
+  resource index so the scoped form is discoverable. `attachment` and `bdd`
+  help keep their file-I/O actions. (#299)
+
+### Changed
+
+- **The bundled skill is a short body plus on-demand reference files.**
+  `skill/SKILL.md` carried every command, option and recipe — 4,179 lines and
+  162 KB loaded whenever the skill fired. The body now keeps what an agent needs
+  before acting (when to use it, auth, body input, the destructive gates, output
+  and pagination policy, errors, limits, SDK fallback) in about 29 KB, and
+  indexes the files under `skill/reference/` to read only when a task needs
+  them: `commands.md` (command table and option reference), `recipes.md` (the
+  numbered recipes), `typescript-api.md` (SDK fallback) and the existing
+  `payload-schemas.yaml`. Nothing was dropped. A skill installed by an earlier
+  version keeps its old single-file content until reinstalled; run
+  `npx testrail install-skill --force` (add `--global` if that is where it
+  lives — the existing `SKILL.md` blocks a plain install). Tooling that reads
+  `skill/SKILL.md` from the package directly must follow its `./reference/*`
+  links for the command table and recipes. (#304)
+
 ### Fixed
 
 - **`user add` / `user update` accept every address `user get-by-email` can
@@ -63,6 +101,90 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `Invalid email format` (the lookup's message) instead of Zod's
   `Invalid email address`, and schema introspection sees a `regex` check
   where it saw the `email` format.
+
+- **`timeout` now bounds DNS resolution.** The per-attempt timer started only
+  after the host guard's `dns.lookup` had resolved, and `getaddrinfo` has no
+  deadline of its own, so a resolver that dropped packets kept a request
+  pending indefinitely while holding one of libuv's four default threadpool
+  slots — starving unrelated fs/crypto work in the host process. The timer now
+  starts first and the lookup races it. **Compatibility:** a short `timeout`
+  against a slow resolver can now fail with `TestRailApiError(408)` before any
+  request is sent. The lookup itself cannot be cancelled, so a
+  `trackOperation()` handle's `settled` still waits for it to finish. The
+  `TestRailConfig.timeout` JSDoc that ships in `dist/types.d.ts` and the
+  `--timeout` help text now say that DNS is inside the allowance. (#296, #302,
+  #303)
+- **A custom `fetch` that rejects with a non-`Error` reason now surfaces as
+  `TestRailApiError`.** `TestRailConfig.fetch` is public, so its rejection
+  reason can be anything. Reading `.name` off a `null` or `undefined` reason
+  threw a `TypeError` out of the pipeline's own error handling, replacing the
+  `TestRailApiError` the caller was entitled to, and a string reason rendered
+  as `Network error: undefined`. Reasons are normalized once. (#296)
+- **The `User-Agent` header is one product token,
+  `testrail-api-client/<version>`.** It was built from the package description —
+  `Type-safe ESM TestRail API client and CLI for Node.js/8.0.0` — whose spaces
+  make it read as several products, which strict proxies and WAFs can mangle or
+  reject. The npm scope is dropped as well, because `@` and `/` are not token
+  characters under RFC 7230 §3.2.6. Server-side rules or log queries that
+  matched the old string need updating. (#296)
+- **The published `dist/` no longer references source maps it does not ship.**
+  The production build emitted maps and a later step deleted them, leaving a
+  `//# sourceMappingURL=` comment in every emitted `.js` and `.d.ts` — 332
+  files pointing at nothing, so editors' "go to definition" and debuggers
+  chased a missing file. The production config no longer emits maps, the
+  `clean:maps` script is gone, and the package smoke test fails on any
+  dangling reference. (#297)
+- **`testrail install-skill` installs the skill's reference files, not just
+  `SKILL.md`.** The installed body pointed at
+  `./reference/payload-schemas.yaml` throughout, but only the body was copied,
+  so every installed skill told the agent the detail existed and then could not
+  produce it. The bundled `reference/` directory is now installed beside the
+  body through the same exclusive-create, no-follow, atomic-rename sequence,
+  and a symlink at the installed `reference/` is refused rather than written
+  through. `uninstall-skill` removes only the reference files this package
+  bundles — files you added there are kept — and does not follow a symlink
+  planted at `reference/`. (#301)
+
+### Security
+
+- **The host guard blocks three more non-routable IPv4 ranges:**
+  `198.18.0.0/15` (RFC 2544 benchmarking, routed inside some enterprise
+  networks), `224.0.0.0/4` (multicast) and `240.0.0.0/4` (reserved, covering
+  the `255.255.255.255` broadcast address). Like the existing ranges they apply
+  to IP-literal base URLs at construction and to every DNS answer before a
+  fetch, in IPv4-mapped IPv6 spellings too. A TestRail host that resolves into
+  one of them now needs `allowPrivateHosts: true`. (#296)
+
+### Internal
+
+- `brace-expansion` moves from 5.0.9 to 5.0.12 in the lockfile for three DoS
+  advisories (GHSA-6j4f-fj2g-mc7p, GHSA-q2hr-2g5m-vwhr, GHSA-qhr7-859c-m2p7),
+  which had failed the required `security-audit` check. It is reached only
+  through the dev toolchain (`eslint` → `minimatch`), so the published package
+  and its one runtime dependency are unchanged. The lockfile's root `engines`
+  field now also records `>=24`. (#306)
+- CI declares least-privilege `permissions` (`contents: read`), cancels
+  superseded runs per ref (never on `main`), no longer runs every job twice for
+  a pushed pull-request branch, checks out with `persist-credentials: false`,
+  and runs package smoke as one OS matrix behind the same stable
+  `package-smoke` gate. (#298)
+- Added `SECURITY.md` (private vulnerability reporting, what is and is not in
+  scope) and `CONTRIBUTING.md` (the gates to run, the generated files, the
+  layer-coverage rule, and response-schema policy). `CLAUDE.md` no longer
+  mirrors `src/constants.ts` values by hand. (#300)
+- Two type-checked examples: `examples/publish-ci-results.ts` (one bulk
+  `add_results_for_cases` write, closing the run only once results have landed,
+  and no blind retry of an indeterminate write) and
+  `examples/bounded-pagination.ts` (`get*()` versus `get*Page()` versus
+  `getAll*()`, branching on `TestRailPaginationError.reason`). README now notes
+  that a cache hit deep-copies its entry and that `maxCacheSize` bounds entry
+  count, not memory. (#304)
+- `docs/RELEASING.md` describes the `npm-publish` deployment approval again.
+  The environment does have a required reviewer, so the 8.0.0 entry's Internal
+  note that publishing proceeds unattended was wrong; that entry is left as
+  shipped apart from a `RequestSpec` bullet now also listed under its BREAKING
+  section. The guide also records that the single reviewer may approve their
+  own deployment — a deliberate pause, not review. (#295)
 
 ## [8.0.0] — 2026-09-19 — Node 24, deep modules, and three user-visible fixes
 

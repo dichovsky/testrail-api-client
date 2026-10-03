@@ -1,14 +1,15 @@
 /**
- * `testrail uninstall-skill` — remove the bundled SKILL.md previously
- * installed by `testrail install-skill`. Symmetric reverse of
- * install-skill.
+ * `testrail uninstall-skill` — remove the bundled SKILL.md and reference
+ * files previously installed by `testrail install-skill`. Symmetric reverse
+ * of install-skill.
  *
  * Defaults: project-scoped removal (`./.claude/skills/testrail-cli/`).
  * Pass `--global` to remove from `~/.claude/skills/testrail-cli/`.
  *
- * Scope: this command ONLY removes the skill file (and its enclosing
- * `testrail-cli` directory if empty after removal). It deliberately does
- * NOT touch `.continue/rules/testrail.md` or `AGENTS.md` — those
+ * Scope: this command ONLY removes the skill file, the `reference/` files
+ * this package bundles (never one a user added), and the `reference/` and
+ * enclosing `testrail-cli` directories if empty afterwards. It deliberately
+ * does NOT touch `.continue/rules/testrail.md` or `AGENTS.md` — those
  * artifacts have an independent lifecycle (they are regenerated from
  * `src/cli/metadata.ts` and live alongside other agent-tool
  * configuration). Users who want to fully decouple from this package

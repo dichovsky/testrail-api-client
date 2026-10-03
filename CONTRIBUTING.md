@@ -42,15 +42,18 @@ before pushing, rather than discovering them in CI.
 
 ## Generated files — never hand-edit
 
-| File                  | Regenerate with     |
-| --------------------- | ------------------- |
-| `CODEMAP.md`          | `npm run codemap`   |
-| `docs/API-MAPPING.md` | `npm run mapping`   |
-| `AGENTS.md`           | `npm run agents-md` |
-| `skill/SKILL.md`      | `npm run skill`     |
+| File                                                                                                                              | Regenerate with     |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `CODEMAP.md`                                                                                                                      | `npm run codemap`   |
+| `docs/API-MAPPING.md`                                                                                                             | `npm run mapping`   |
+| `AGENTS.md`                                                                                                                       | `npm run agents-md` |
+| `skill/SKILL.md` (generated sections), `skill/reference/commands.md` (generated sections), `skill/reference/payload-schemas.yaml` | `npm run skill`     |
 
 Each has a `:check` gate that fails the build on drift. Editing one by hand
-produces a red CI run and a confusing diff.
+produces a red CI run and a confusing diff. The hand-written parts of the skill
+— the rest of `skill/SKILL.md`, `skill/reference/recipes.md` and
+`skill/reference/typescript-api.md` — are edited directly; `npm run skill`
+preserves them.
 
 ## Adding an endpoint
 

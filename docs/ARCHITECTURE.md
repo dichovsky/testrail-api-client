@@ -361,7 +361,8 @@ package.json:bin
         → KNOWN_FLAGS gate         rejects --typoed-flag
         → validateSuppliedFlagTypes rejects missing values, swallowed flags,
           and boolean flags with values
-        → --version | --help short-circuits
+        → --version | --help short-circuits (a known leading resource
+          scopes help to that resource; anything else prints the full listing)
         → install-skill | uninstall-skill validates its own allowed flags,
           then short-circuits before API dispatch
         → dispatch(resource, action) returns its ActionSpec
@@ -416,8 +417,8 @@ value-specific validation still run at their own boundaries.
 Consumers:
 
 1. `dispatch.ts` derives both `HANDLERS` and `RESOURCES` from `ACTIONS`.
-2. `src/cli/help.ts` generates the action catalog from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD). Its option reference comes from the typed `CLI_OPTION_DOCUMENTATION` registry in `src/cli/flags.ts`; only the non-option trailing guidance (binary stdio, meta, auth, and safety semantics) is hand-written.
-3. The skill generator (`scripts/generate-skill.ts`) renders the command table and payload-schema sections from `ACTIONS`, and renders the complete CLI option reference from `CLI_OPTION_DOCUMENTATION`.
+2. `src/cli/help.ts` generates the action catalog from `ACTIONS`, grouping actions into sections by predicate (read / metadata / write / configuration / attachment / BDD), and prefixes it with a resource index. `buildResourceHelpText()` renders one resource's actions for `testrail <resource> --help`, partitioned on `isWrite` alone so the file-I/O actions the section predicates reserve for the Attachment and BDD sections are not dropped. Its option reference comes from the typed `CLI_OPTION_DOCUMENTATION` registry in `src/cli/flags.ts`; only the non-option trailing guidance (binary stdio, meta, auth, and safety semantics) is hand-written.
+3. The skill generator (`scripts/generate-skill.ts`) renders the command table (into `skill/reference/commands.md`) and the payload-schema index (into `skill/SKILL.md`) from `ACTIONS`, and the complete CLI option reference (into `skill/reference/commands.md`) from `CLI_OPTION_DOCUMENTATION`.
 4. The API-mapping generator validates `apiEndpoint` against the `@testrail` tags (gate C) and reverse-indexes every `apiEndpoint` to confirm each `@testrail`-tagged client method is claimed by at least one `ActionSpec` (gate D). Pagination is no longer gated: an `ActionSpec` reads its endpoint's contract rather than restating it, so there is nothing to compare.
 5. `resolveActionInvocation()` combines `flags` with capabilities derived from pagination/body/file/write/destructive metadata, rejects supplied known-but-irrelevant flags and missing required values before auth, and projects only catalogued handler/pagination inputs. The same seam validates meta-command applicability before install/uninstall can mutate disk.
 
@@ -472,8 +473,8 @@ Genuinely irregular handlers stay hand-written: `case delete-bulk` (body + `--pr
 | `sanitize.ts`            | `sanitizeForTerminal` — strips C0 / DEL / C1 control bytes; blocks ANSI / OSC injection.                                                                                                                                                                                         |
 | `safe-write.ts`          | `O_CREAT \| O_EXCL` (`wx` flag) by default; re-`lstat` before write under `--force` to close the TOCTOU window.                                                                                                                                                                  |
 | `handler-context.ts`     | Type definitions for `HandlerArgs`, `BodyInput`, `HandlerContext`, `Handler`. `BodyInput.readStdin` is a thunk.                                                                                                                                                                  |
-| `install-skill.ts`       | `install-skill` meta-command — copies `skill/SKILL.md` into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`). Bypasses dispatch entirely.                                                                                                                             |
-| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes a previously installed Claude Code skill without touching unrelated agent configuration.                                                                                                                                                |
+| `install-skill.ts`       | `install-skill` meta-command — copies `skill/SKILL.md` and the bundled `skill/reference/` files into `./.claude/skills/testrail-cli/` (or `~/…` with `--global`), refusing to write through a symlinked `reference/`. Bypasses dispatch entirely.                                |
+| `uninstall-skill.ts`     | `uninstall-skill` meta-command — removes an installed skill body and only the reference files this package bundles, leaving user-added files and unrelated agent configuration alone.                                                                                            |
 
 Pagination validation runs before auth resolution and client construction.
 Default mode emits the existing item array; `--page` emits `Page<T>` and
@@ -618,12 +619,12 @@ The in-process CLI suite keeps its large command matrix fast. `scripts/package-s
 
 ## 9. Generated artifacts
 
-| Artifact                                                 | Generator                                                                                                     | Drift guard                                                 |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `CODEMAP.md`                                             | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)                               | `npm run codemap:check` (pretest + CI)                      |
-| `skill/SKILL.md`, `skill/reference/payload-schemas.yaml` | `scripts/generate-skill.ts` (consumes source `ACTIONS` and `CLI_OPTION_DOCUMENTATION` directly through `tsx`) | `npm run skill:check` (in-memory render/content comparison) |
-| `docs/API-MAPPING.md`                                    | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)                                | `npm run mapping:check` (pretest + CI)                      |
-| `AGENTS.md`                                              | `npm run agents-md` (consumes `ACTIONS`)                                                                      | `npm run agents-md:check` (pretest + CI)                    |
+| Artifact                                                                                | Generator                                                                                                     | Drift guard                                                 |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `CODEMAP.md`                                                                            | `scripts/generate-codemap.ts` (TS Compiler API; deterministic JSON-in-Markdown)                               | `npm run codemap:check` (pretest + CI)                      |
+| `skill/SKILL.md`, `skill/reference/commands.md`, `skill/reference/payload-schemas.yaml` | `scripts/generate-skill.ts` (consumes source `ACTIONS` and `CLI_OPTION_DOCUMENTATION` directly through `tsx`) | `npm run skill:check` (in-memory render/content comparison) |
+| `docs/API-MAPPING.md`                                                                   | `scripts/generate-mapping.ts` (TS Compiler API + JSDoc walk; gates A/B/C/C2/D)                                | `npm run mapping:check` (pretest + CI)                      |
+| `AGENTS.md`                                                                             | `npm run agents-md` (consumes `ACTIONS`)                                                                      | `npm run agents-md:check` (pretest + CI)                    |
 
 All four artifacts are committed. Their drift guards run in `pretest` or the publish workflow. Drift fails the build.
 

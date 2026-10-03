@@ -266,7 +266,11 @@ export const CLI_OPTION_DOCUMENTATION: Readonly<Record<CliOptionName, CliOptionD
         scope: 'All commands',
         description: 'Suppress normal output and advisory warnings; rely on the exit code.',
     },
-    help: { scope: 'Top level', description: 'Print CLI help and exit.' },
+    help: {
+        scope: 'Top level',
+        description:
+            "Print CLI help and exit. After a resource name, as in testrail case --help, print only that resource's actions.",
+    },
     version: { scope: 'Top level', description: 'Print the package CLI version and exit.' },
     'project-id': {
         value: '<id>',

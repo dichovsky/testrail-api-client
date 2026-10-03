@@ -1,7 +1,7 @@
 ---
 name: testrail-cli
 description: Use the `testrail` CLI to query and write TestRail projects, suites, cases, runs, plans, results, milestones, and users from the shell. Trigger when the user asks to look up, list, fetch, count, inspect, create, update, or publish TestRail entities, or when TESTRAIL_BASE_URL / TESTRAIL_EMAIL / TESTRAIL_API_KEY are set in the environment.
-version: 8.0.0
+version: 9.0.0
 license: MIT
 homepage: https://github.com/dichovsky/testrail-api-client
 ---
@@ -77,6 +77,10 @@ actually needs it:
 | `./reference/recipes.md` | You want a worked example for a specific task; numbered recipes cover every command. |
 | `./reference/payload-schemas.yaml` | You need field-level detail for a write payload. |
 | `./reference/typescript-api.md` | The CLI cannot express the task and you are falling back to the SDK. |
+
+For one resource's actions without opening a file, `testrail <resource> --help`
+(for example `testrail case --help`) prints only that resource; plain
+`testrail --help` lists every command.
 
 
 ## Body input for write actions
@@ -383,7 +387,7 @@ causes:
 - `Missing auth.` → env vars / flags not set.
 - `<param> must be a positive integer` → bad path arg (e.g. `project get abc`).
 - `Unknown resource '<x>'. Use: …` → use a resource from `testrail --help`.
-- `Unknown action '<a>' for <r>. Use: get, list, …`
+- `Unknown action '<a>' for <r>. Use: get, list, …` → `testrail <r> --help` lists that resource's actions.
 - `Body required.` → write action invoked with no `--data` / `--data-file` / stdin.
 - `Invalid JSON: …` → malformed body.
 - `Payload validation failed: …` → body shape doesn't match the Zod schema.
@@ -460,11 +464,15 @@ dispatch can have an indeterminate outcome.
 
 ## Falling back to the programmatic SDK
 
-Correct CLI syntax or payload errors before switching interfaces. Both the
-CLI and SDK validate write payloads with the same schemas; neither coerces
-`"5"` to `5`. Every documented SDK endpoint has a CLI action in the command
-table. Use the programmatic API section when writing TypeScript/JavaScript
-or when you need client configuration and lifecycle control.
+Correct CLI syntax or payload errors before switching interfaces. The SDK's
+payload types come from the same schemas the CLI validates against, but the
+SDK does not re-validate at runtime. Neither coerces `"5"` to `5`, and a rule
+the types cannot express — a new result needs at least one of `status_id`,
+`comment` or `assignedto_id` — is enforced only by the CLI, so fix a payload
+the CLI rejected rather than routing it through the SDK. Every documented SDK
+endpoint has a CLI action in `./reference/commands.md`. Use
+`./reference/typescript-api.md` when writing TypeScript/JavaScript or when you
+need client configuration and lifecycle control.
 
 Never fall back when the failure came back from TestRail itself: any
 4xx/5xx HTTP status, an auth failure, or a rate limit. The SDK calls
@@ -506,16 +514,17 @@ try {
 ## When NOT to use this skill
 
 - **Structural CRUD beyond what the command table lists.** Treat the command
-  table as the authoritative endpoint surface. Operations absent from it
-  also lack documented SDK endpoint methods; use TestRail's supported UI
-  workflow where available. Case statuses, for example, are read-only in
+  table in `./reference/commands.md` as the authoritative endpoint surface.
+  Operations absent from it also lack documented SDK endpoint methods; use
+  TestRail's supported UI workflow where available. Case statuses, for example, are read-only in
   both the CLI and SDK.
 - **Browser/UI workflows.** This is a non-interactive CLI.
 
 The CLI **does** support attachment upload/download/delete and BDD
-(Gherkin .feature) upload/download — see the command table and file-I/O
-recipes above. For code that imports the package, use the programmatic API
-section, `README.md`, and `CODEMAP.md`.
+(Gherkin .feature) upload/download — see the command table in
+`./reference/commands.md` and the file-I/O recipes in `./reference/recipes.md`.
+For code that imports the package, use `./reference/typescript-api.md`,
+`README.md`, and `CODEMAP.md`.
 
 ## See also
 

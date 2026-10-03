@@ -68,6 +68,11 @@ const run = await client.runs.addRun(5, {
 await client.results.addResultForCase(run.id, 42, { status_id: 1, comment: 'Passed' });
 ```
 
+`status_id` is optional on a new result: it needs at least one of `status_id`,
+`comment` or `assignedto_id`, so a comment-only result is valid. Only the CLI
+enforces that rule; through the SDK a typed `{}` compiles and is sent to
+TestRail as is.
+
 ## CLI quick tour
 
 The package ships a `testrail` binary. Authenticate with environment variables, then read, write, or delete:
@@ -86,7 +91,7 @@ TESTRAIL_ALLOW_DESTRUCTIVE=1 npx testrail run close 100 --yes
 
 Prefer `TESTRAIL_API_KEY`. If an environment variable is not an option, pipe the key with `echo "$KEY" | npx testrail ... --api-key-stdin`. That flag consumes stdin, so write bodies must come from `--data` or `--data-file`.
 
-`--dry-run` previews any write or delete client-side with no API call. Output format is selectable with `--format <json|table|yaml|csv>`. See [`skill/SKILL.md`](skill/SKILL.md) for the complete command surface and recipes.
+`--dry-run` previews any write or delete client-side with no API call. Output format is selectable with `--format <json|table|yaml|csv>`. `npx testrail <resource> --help` (for example `npx testrail case --help`) lists one resource's commands; `npx testrail --help` lists them all. See [`skill/SKILL.md`](skill/SKILL.md) and the [command](skill/reference/commands.md) and [recipe](skill/reference/recipes.md) references beside it for the complete command surface and recipes.
 
 String options require their own value: `--filename --dry-run` is rejected before
 the command runs, including when a later occurrence supplies a valid filename.
@@ -108,7 +113,7 @@ For a literal value beginning with `--`, use the inline form, such as
 | CLI                | `testrail` binary: read / write / destructive actions, four output formats                                               | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
 | AI-agent skill     | Bundled Claude Code skill; install it with `npx testrail install-skill`                                                  | [skill/SKILL.md](skill/SKILL.md)                                                                                                                      |
 
-For a project-scoped Claude Code installation, run `npx testrail install-skill`. Add `--global` to install it under `~/.claude/skills/`.
+For a project-scoped Claude Code installation, run `npx testrail install-skill`. Add `--global` to install it under `~/.claude/skills/`. It installs `SKILL.md` and the `reference/` files the body links to; after upgrading the package, re-run it with `--force` to replace an earlier install.
 
 > **Note on rate-limit headers.** A live-instance check found that TestRail Cloud does **not** emit
 > rate-limit headers (`Retry-After`, `X-RateLimit-*`) under normal serial load — a burst of requests
@@ -205,8 +210,9 @@ sent email, so re-running an uncertain outcome must be your own explicit new
 invocation. A 429 is retried (honoring `Retry-After`), because the rate limiter
 rejects the request before execution.
 
-By default, the host guard rejects private, loopback, link-local, and CGNAT
-addresses, including IPv4-mapped IPv6 spellings, plus IPv6 transition ranges
+By default, the host guard rejects private, loopback, link-local, CGNAT,
+benchmarking (`198.18.0.0/15`), multicast, and reserved IPv4 addresses,
+including their IPv4-mapped IPv6 spellings, plus IPv6 transition ranges
 such as 6to4 and the well-known and local-use NAT64 prefixes. Literal URLs and
 DNS answers use the same address classifier. On-premise SDK deployments that
 need these addresses must explicitly set `allowPrivateHosts: true`; this also
